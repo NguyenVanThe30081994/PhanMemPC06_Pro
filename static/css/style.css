@@ -162,28 +162,43 @@
     font-size: 1.05rem;
 }
 
+/* Cleaned up old floating pill */
 .table-header-pill {
-    background: #ffffff !important;
-    border: 2px solid var(--primary) !important;
-    padding: 8px 25px;
-    border-radius: 50px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    color: var(--primary) !important;
-    font-weight: 900;
-    text-transform: uppercase;
-    font-size: 0.85rem;
-    letter-spacing: 1px;
-    display: inline-flex;
-    align-items: center;
-    margin-bottom: 20px;
-    position: relative;
-    z-index: 5;
+    display: none !important; /* Force legacy pills to hide */
 }
 
-/* --- NEW PILL TABLE HEAD (V17) --- */
+/* --- NEW PURE GLASS HEADER (V19) --- */
+.glass-header {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    padding: 12px 20px !important;
+    font-weight: 800 !important;
+    color: var(--primary) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    font-size: 0.9rem !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    position: relative;
+    border-radius: 20px 20px 0 0;
+}
+
+[data-theme='dark'] .glass-header {
+    background: rgba(255, 255, 255, 0.03) !important;
+    color: #fff !important;
+}
+
+/* Header Variants */
+.glass-header.success { color: #10b981 !important; }
+.glass-header.warning { color: #f59e0b !important; }
+.glass-header.danger  { color: #ef4444 !important; }
+.glass-header.info    { color: #3b82f6 !important; }
+
+/* --- FLAT GLASS THEAD (V19) --- */
 .pill-thead {
-    background: var(--primary) !important;
-    border-radius: 50px !important;
+    background: rgba(var(--primary-rgb), 0.95) !important;
+    border-radius: 0 !important; /* Flat bar for integrated look */
 }
 
 .pill-thead tr th {
@@ -828,16 +843,28 @@ body {
 }
 
 .pill-thead {
-    background: rgba(0, 102, 255, 0.95) !important; /* Higher opacity for crystal clear text */
-    border-radius: 50px !important;
+    background: rgba(0, 102, 255, 0.92) !important; /* Optimized for sharp text */
+    border-radius: 0 !important;
 }
 
 .pill-thead th {
     color: #ffffff !important;
-    font-weight: 800 !important;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
+    font-weight: 700 !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    padding: 12px 15px !important;
+    border: none !important;
+}
+
+.table-custom tr {
+    background: transparent !important;
+}
+
+.table-custom thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .table-freeze { 

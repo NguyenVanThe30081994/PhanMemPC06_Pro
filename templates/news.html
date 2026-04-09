@@ -35,8 +35,11 @@
 </div>
 
 <div class="main-content-area animate__animated animate__fadeInUp">
-    <div class="table-header-pill">Danh sách bản tin mới nhất</div>
-    <div class="row g-3" id="newsGrid">
+    <div class="card glass-card border-0 shadow-none mb-4" style="background: transparent !important; backdrop-filter: none !important;">
+        <div class="glass-header border-0 ps-0 mb-3" style="background: transparent !important;">
+            <i class="fa-solid fa-bullhorn me-2 text-primary"></i>Danh sách bản tin mới nhất
+        </div>
+        <div class="row g-3" id="newsGrid">
         {% for n in news_list %}
         <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 news-item" data-category="{{ n.category }}">
             <div class="card compact-news-card shadow-sm border-0 h-100 overflow-hidden">

@@ -5,16 +5,16 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <!-- Hybrid-Next Breadcrumb Flow -->
         <div class="d-flex align-items-center gap-3">
-            <div class="glass-panel p-2 rounded-4 shadow-sm">
+            <div class="glass-card p-2 rounded-4 shadow-sm">
                 <i class="fa-solid fa-chart-line text-success fs-5"></i>
             </div>
-            <nav class="breadcrumb-nav glass-panel d-none d-lg-flex px-3 py-2 rounded-pill">
+            <nav class="breadcrumb-nav glass-card d-none d-lg-flex px-3 py-2 rounded-pill">
                 <span class="segment fw-bold text-dark">THỐNG KÊ</span>
-                <div class="segmented-control glass-panel mx-3" style="background: rgba(0,0,0,0.05);">
+                <div class="segmented-control glass-card mx-3" style="background: rgba(0,0,0,0.05) !important;">
                     <button class="btn-seg {% if form_type == 'v1' %}active{% endif %}" onclick="window.location.href='/stats?form_type=v1'">V1</button>
                     <button class="btn-seg {% if form_type == 'v2' %}active{% endif %}" onclick="window.location.href='/stats?form_type=v2'">V2</button>
                 </div>
-                <div class="picker-chip glass-panel dropdown-toggle shadow-sm" data-bs-toggle="dropdown">
+                <div class="picker-chip glass-card dropdown-toggle shadow-sm" data-bs-toggle="dropdown" style="background: rgba(255,255,255,0.4) !important;">
                     {% if active %}{{ active.name }}{% elif active_v2 %}{{ active_v2.name }}{% else %}Chọn biểu mẫu...{% endif %}
                 </div>
                 <ul class="dropdown-menu shadow-lg border-0 rounded-4 p-2 mt-2" style="max-height: 400px; overflow-y: auto; min-width: 300px;">
@@ -83,8 +83,11 @@
         <!-- Main Display: Full Width 100% on PC -->
         <div class="col-12">
             {% if active or active_v2 %}
-                <div class="table-header-pill">Dữ liệu tổng hợp chi tiết</div>
-                <div class="bento-card p-4 p-md-5">
+                <div class="card glass-card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                    <div class="glass-header success">
+                        <i class="fa-solid fa-chart-pie me-2"></i>Dữ liệu tổng hợp chi tiết
+                    </div>
+                    <div class="p-4 p-md-5">
                     <!-- Header Info -->
                     <div class="mb-5 border-bottom pb-4 d-flex justify-content-between align-items-end" style="border-color: var(--border) !important;">
                         <div>
@@ -107,7 +110,9 @@
                         {% endif %}
                     </div>
 
-                    <div class="table-header-pill mt-5">Danh sách đơn vị chưa báo cáo ({{ not_reported_count }})</div>
+                    <div class="glass-header warning mt-5 rounded-4">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i>Danh sách đơn vị chưa báo cáo ({{ not_reported_count }})
+                    </div>
                     <div class="p-4 bg-light rounded-4 border border-warning border-opacity-25">
                         <div class="d-flex flex-wrap gap-2">
                             {% for u in not_reported_units %}

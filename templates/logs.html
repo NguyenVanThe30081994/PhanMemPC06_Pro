@@ -73,8 +73,10 @@
     <div class="tab-content">
         <!-- Tab: Live Activity -->
         <div class="tab-pane fade {% if not start and not end and not user_search %}show active{% endif %}" id="tab-live">
-            <div class="table-header-pill">Nhật ký trực tuyến thời gian thực</div>
-            <div class="bento-card overflow-hidden">
+            <div class="card glass-card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                <div class="glass-header">
+                    <i class="fa-solid fa-bolt me-2 text-primary"></i>Nhật ký trực tuyến thời gian thực
+                </div>
                 <div class="p-0">
                     <div class="table-responsive">
                         <table class="table table-custom align-middle mb-0">
@@ -145,8 +147,10 @@
             </div>
 
             {% if start or end or user_search %}
-            <div class="table-header-pill">Kết quả tra cứu nâng cao</div>
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden animate__animated animate__fadeInUp">
+                <div class="glass-header warning">
+                    <i class="fa-solid fa-magnifying-glass me-2"></i>Kết quả tra cứu nâng cao
+                </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-bordered table-hover align-middle mb-0 border-light-subtle">

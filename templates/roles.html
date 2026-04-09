@@ -5,9 +5,9 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <!-- Hybrid-Next Breadcrumb Flow -->
         <div class="d-flex align-items-center gap-3">
-            <nav class="breadcrumb-nav glass-panel d-none d-lg-flex px-3 py-2 rounded-pill">
+            <nav class="breadcrumb-nav glass-card d-none d-lg-flex px-3 py-2 rounded-pill">
                 <span class="segment fw-bold text-dark">HỆ THỐNG</span>
-                <div class="picker-chip glass-panel active shadow-sm" style="background: white;">
+                <div class="picker-chip glass-card active shadow-sm" style="background: rgba(255,255,255,0.4) !important;">
                     NGƯỜI DÙNG & PHÂN QUYỀN
                 </div>
             </nav>
@@ -53,10 +53,10 @@
     <div class="row g-4 post-header-pt">
         <!-- Roles List: Bento Style -->
         <div class="col-xl-4 col-lg-5">
-            <div class="card border-0 shadow-sm rounded-4 p-4 h-100 glass-card">
-                <div class="py-3 px-4 d-flex justify-content-between align-items-center">
-                    <div class="table-header-pill">Danh sách vai trò</div>
-                    <button class="btn btn-sm btn-light rounded-pill px-3 tiny fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addRoleModal">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100 glass-card">
+                <div class="glass-header info justify-content-between">
+                    <span><i class="fa-solid fa-user-shield me-2"></i>Danh sách vai trò</span>
+                    <button class="btn btn-sm btn-primary rounded-pill px-3 tiny fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addRoleModal">
                         <i class="fa-solid fa-plus me-1"></i> THÊM
                     </button>
                 </div>
@@ -80,10 +80,10 @@
 
         <!-- Users List: Bento Style -->
         <div class="col-xl-8 col-lg-7">
-            <div class="bento-card overflow-hidden">
-                <div class="py-3 px-4 d-flex justify-content-between align-items-center">
-                    <div class="table-header-pill">Quản trị người dùng</div>
-                    <span class="badge bg-primary bg-opacity-10 text-primary border rounded-pill px-2 tiny fw-bold">{{ users|length }} tài khoản</span>
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden glass-card">
+                <div class="glass-header justify-content-between">
+                    <span><i class="fa-solid fa-users-gear me-2"></i>Quản trị người dùng</span>
+                    <span class="badge glass-card border text-primary px-2 tiny fw-bold" style="background: rgba(255,255,255,0.4) !important;">{{ users|length }} tài khoản</span>
                 </div>
                 <div class="p-0">
                     <div class="table-responsive d-none d-md-block">
