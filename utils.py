@@ -112,6 +112,18 @@ def push_notif(uid, title, msg, link):
         db.session.commit()
     except: db.session.rollback()
 
+def push_global_notif(title, msg, link, exclude_uid=None):
+    from models import db, User, Notification
+    try:
+        users = User.query.all()
+        for u in users:
+            if exclude_uid and u.id == exclude_uid: continue
+            db.session.add(Notification(user_id=u.id, title=title, msg=msg, link=link))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Global Notif Error: {e}")
+
 def safe_float(v):
     if v is None or v == "": return 0.0
     try: 

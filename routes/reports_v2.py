@@ -40,6 +40,7 @@ def upload_template():
         metadata = ExcelEngineV2.parse_template(temp_path)
 
         template = ReportTemplateV2.query.filter_by(name=name).first()
+        is_new = False
         if not template:
             template = ReportTemplateV2(
                 name=name,
@@ -48,6 +49,7 @@ def upload_template():
             )
             db.session.add(template)
             db.session.flush()
+            is_new = True
         else:
             template.is_daily = is_daily
 
@@ -63,6 +65,10 @@ def upload_template():
         ExcelEngineV2.save_logic_to_source(name, metadata)
 
         db.session.commit()
+        
+        if is_new:
+            from utils import push_global_notif
+            push_global_notif("Biểu mẫu mới", f"Vừa có biểu mẫu mới: {name}", f"/reports-v2/render/{template.id}", exclude_uid=session['uid'])
 
         if os.path.exists(temp_path):
             os.remove(temp_path)

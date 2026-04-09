@@ -3,7 +3,7 @@ import os, pandas as pd, io, json
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from models import db, NewsDoc, DocumentLib, Contact, MasterData, CategoryGroup, CategoryItem, AppRole
-from utils import log_action
+from utils import log_action, push_global_notif
 
 portal_bp = Blueprint('portal_bp', __name__)
 
@@ -29,6 +29,7 @@ def news():
         ))
         db.session.commit()
         log_action(session['uid'], session['fullname'], "Đăng tin mới", "Bảng tin", request.form['title'])
+        push_global_notif(f"Bảng tin: {request.form['category']}", f"{request.form['title']}", "/news", exclude_uid=session['uid'])
         flash('Đã đăng tin mới!', 'success')
         return redirect(url_for('portal_bp.news'))
     now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
@@ -65,6 +66,7 @@ def library():
             db.session.add(DocumentLib(title=request.form['title'], category=request.form['category'], filename=fn))
             db.session.commit()
             log_action(session['uid'], session['fullname'], "Tải lên tài liệu", "Thư viện", request.form['title'])
+            push_global_notif("Thư viện", f"Tài liệu mới: {request.form['title']}", "/library", exclude_uid=session['uid'])
             flash('Đã tải lên tài liệu!', 'success')
         return redirect(url_for('portal_bp.library'))
     # Logic dynamic categories for Library

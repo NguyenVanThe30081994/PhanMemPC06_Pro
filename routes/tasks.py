@@ -61,6 +61,10 @@ def tasks():
         
         db.session.commit()
         log_action(session['uid'], session['fullname'], "Giao công việc mới", "Công việc", new_task.title)
+        
+        from utils import push_global_notif
+        push_global_notif("Công việc mới", f"Có công việc mới: {new_task.title}", f"/tasks/{new_task.id}", exclude_uid=session['uid'])
+
         flash('Đã giao công việc thành công!', 'success')
         return redirect(url_for('tasks_bp.tasks'))
 

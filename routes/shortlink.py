@@ -66,6 +66,11 @@ def add_link():
     
     db.session.add(new_link)
     db.session.commit()
+    
+    from utils import push_global_notif
+    lname = custom_name if custom_name else code
+    push_global_notif("Rút gọn link mới", f"Có link rút gọn mới: {lname}", "/links", exclude_uid=session['uid'])
+    
     flash('Đã tạo link rút gọn thành công!', 'success')
     return redirect(url_for('shortlink_bp.manage_links'))
 

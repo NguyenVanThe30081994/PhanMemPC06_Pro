@@ -125,6 +125,10 @@ def admin_forms():
                 config_json=config_json, file_blob=file_blob,
                 author_name=session['fullname']
             ))
+            # Push global notification when a NEW form is created
+            from utils import push_global_notif
+            push_global_notif("Biểu mẫu mới", f"Vừa có biểu mẫu mới: {name}", f"/input?rid={fid}&form_type=v1", exclude_uid=session['uid'])
+
         db.session.commit()
         flash('Đã lưu cấu hình biểu mẫu! Bạn có thể tinh chỉnh các cột bên dưới.', 'success')
         return redirect(url_for('forms_bp.config_form', fid=fid))
