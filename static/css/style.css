@@ -158,6 +158,21 @@
     font-size: 1.05rem;
 }
 
+.table-header-pill {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    padding: 6px 20px;
+    border-radius: 50px;
+    box-shadow: var(--shadow-lvl1);
+    color: var(--primary);
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+}
+
 .header-title-pill {
     background: rgba(255, 255, 255, 0.6);
     backdrop-filter: blur(10px);

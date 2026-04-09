@@ -49,9 +49,9 @@
                         {{ n.title }}
                     </h6>
 
-                    <div class="mt-auto pt-2 border-top">
+                    <div class="mt-auto pt-2 border-top d-flex justify-content-between align-items-center">
                         {% if n.filename %}
-                        <a href="/dl_file/{{ n.filename }}" class="text-primary text-decoration-none d-flex align-items-center gap-2 tiny fw-bold" title="{{ n.filename }}">
+                        <a href="/dl_file/{{ n.filename }}" class="text-primary text-decoration-none d-flex align-items-center gap-2 tiny fw-bold overflow-hidden" title="{{ n.filename }}" style="max-width: 80%;">
                              <i class="fa-solid fa-thumbtack" style="font-size: 10px;"></i> 
                              <span class="text-truncate">{{ n.filename }}</span>
                         </a>
@@ -59,11 +59,9 @@
                         <div class="tiny text-muted italic" style="font-size: 10px;">Không có đính kèm</div>
                         {% endif %}
                         
-                        <div class="d-flex justify-content-end mt-2">
-                            <button class="btn btn-tiny btn-light shadow-sm" onclick="Swal.fire({title: '{{ n.title }}', text: '{{ n.content }}', icon: 'info'})">
-                                <i class="fa-solid fa-eye"></i>
-                            </button>
-                        </div>
+                        <button class="btn btn-tiny btn-light shadow-sm flex-shrink-0" onclick="Swal.fire({title: '{{ n.title }}', text: '{{ n.content }}', icon: 'info'})">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
                     </div>
                 </div>
             </div>
