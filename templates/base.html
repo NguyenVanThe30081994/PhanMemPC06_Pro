@@ -449,7 +449,7 @@
         </div>
     </main>
     
-    <div class="offcanvas offcanvas-start border-0 shadow-lg mobile-sidebar" tabindex="-1" id="mobileMenu" style="background: var(--bg-surface);">
+    <div class="offcanvas offcanvas-start border-0 shadow-lg mobile-sidebar" tabindex="-1" id="mobileMenu" style="background: var(--bg-surface); width: 280px;">
         <div class="offcanvas-header border-bottom p-4">
             <h5 class="offcanvas-title fw-bold text-primary">DANH MỤC</h5>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
@@ -458,65 +458,92 @@
             <div class="list-group list-group-flush">
                 {% if perms.get('p_dash_lead') or perms.get('p_dash_exec') %}
                 <a href="/admin" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'admin_bp.index' %}active fw-bold{% endif %}">
-                    Tổng quan
+                    <i class="fa-solid fa-house-chimney me-3 opacity-75"></i>Tổng quan
                 </a>
                 {% endif %}
+                
                 {% if perms.get('p_task_lead') or perms.get('p_task_exec') %}
                 <a href="/tasks" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'tasks_bp.index' %}active fw-bold{% endif %}">
-                    Công việc
+                    <i class="fa-solid fa-list-check me-3 opacity-75"></i>Công việc
                 </a>
                 {% endif %}
+                
                 <a href="/chat" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'chat_bp.chat' %}active fw-bold{% endif %}">
-                    Trao đổi
+                    <i class="fa-solid fa-comments me-3 opacity-75"></i>Trao đổi
                 </a>
-                {% if perms.get('p_news_lead') or perms.get('p_news_exec') %}
-                <a href="/news" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'portal_bp.news' %}active fw-bold{% endif %}">
-                    Bảng tin
+
+                <!-- Group: Bảng tin và Thư viện -->
+                <a href="#mobileNewsLibCollapse" class="list-group-item list-group-item-action py-3 px-4 border-0 d-flex justify-content-between align-items-center" data-bs-toggle="collapse">
+                    <span><i class="fa-solid fa-newspaper me-3 opacity-75"></i>Bảng tin & Thư viện</span>
+                    <i class="fa-solid fa-chevron-down small opacity-50"></i>
                 </a>
-                {% endif %}
-                {% if perms.get('p_lib_lead') or perms.get('p_lib_exec') %}
-                <a href="/library" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'portal_bp.library' %}active fw-bold{% endif %}">
-                    Thư viện
-                </a>
-                {% endif %}
-                {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') %}
-                <a href="/contacts" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'portal_bp.contacts' %}active fw-bold{% endif %}">
-                    Danh bạ
-                </a>
-                {% endif %}
-            </div>
-            
-            {% if perms.get('p_form_lead') or perms.get('p_user_lead') or perms.get('p_sys_lead') %}
-            <div class="p-4 border-top">
-                <div class="small fw-bold text-muted mb-3 text-uppercase">Quản trị hệ thống</div>
-                <div class="list-group list-group-flush">
-                    {% if perms.get('p_form_lead') %}
-                    <a href="/admin-forms" class="list-group-item list-group-item-action py-3 px-4 border-0 rounded-3 mb-2">
-                        Thiết lập Biểu mẫu
+                <div class="collapse bg-light bg-opacity-10" id="mobileNewsLibCollapse">
+                    {% if perms.get('p_news_lead') or perms.get('p_news_exec') %}
+                    <a href="/news" class="list-group-item list-group-item-action py-2 ps-5 border-0 small {% if request.endpoint == 'portal_bp.news' %}fw-bold text-primary{% endif %}">
+                        Bảng tin
                     </a>
                     {% endif %}
-                    {% if perms.get('p_user_lead') %}
-                    <a href="/roles" class="list-group-item list-group-item-action py-3 px-4 border-0 rounded-3 mb-2">
-                        Tài khoản & Vai trò
-                    </a>
-                    {% endif %}
-                    {% if perms.get('p_sys_lead') %}
-                    <a href="/admin/module-categories" class="list-group-item list-group-item-action py-3 px-4 border-0 rounded-3 mb-2">
-                        Chuyên mục & Nhóm
-                    </a>
-                    <a href="/logs" class="list-group-item list-group-item-action py-3 px-4 border-0 rounded-3 mb-2">
-                        Nhật ký hoạt động
-                    </a>
-                    <a href="/admin/system/update" class="list-group-item list-group-item-action py-3 px-4 border-0 rounded-3 mb-2 text-primary fw-bold">
-                        Cập nhật bản vá
-                    </a>
-                    <a href="/admin/db-tool" class="list-group-item list-group-item-action py-3 px-4 border-0 rounded-3 mb-2 text-danger fw-bold">
-                        Công cụ Database
+                    {% if perms.get('p_lib_lead') or perms.get('p_lib_exec') %}
+                    <a href="/library" class="list-group-item list-group-item-action py-2 ps-5 border-0 small {% if request.endpoint == 'portal_bp.library' %}fw-bold text-primary{% endif %}">
+                        Thư viện
                     </a>
                     {% endif %}
                 </div>
+
+                {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') %}
+                <a href="/contacts" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'portal_bp.contacts' %}active fw-bold{% endif %}">
+                    <i class="fa-solid fa-address-book me-3 opacity-75"></i>Danh bạ
+                </a>
+                {% endif %}
+
+                <!-- Group: Dữ liệu và Báo cáo (FIXED: Bổ sung phần thiếu) -->
+                <a href="#mobileDataReportCollapse" class="list-group-item list-group-item-action py-3 px-4 border-0 d-flex justify-content-between align-items-center" data-bs-toggle="collapse">
+                    <span><i class="fa-solid fa-chart-line me-3 opacity-75"></i>Dữ liệu & Báo cáo</span>
+                    <i class="fa-solid fa-chevron-down small opacity-50"></i>
+                </a>
+                <div class="collapse bg-light bg-opacity-10" id="mobileDataReportCollapse">
+                    {% if perms.get('p_input_lead') or perms.get('p_input_exec') %}
+                    <a href="{{ url_for('forms_bp.input_data') }}" class="list-group-item list-group-item-action py-2 ps-5 border-0 small">
+                        Nhập liệu Biểu mẫu
+                    </a>
+                    {% endif %}
+                    {% if perms.get('p_stat_lead') or perms.get('p_stat_exec') %}
+                    <a href="{{ url_for('forms_bp.stats') }}" class="list-group-item list-group-item-action py-2 ps-5 border-0 small">
+                        Thống kê Báo cáo
+                    </a>
+                    <a href="{{ url_for('forms_bp.progress') }}" class="list-group-item list-group-item-action py-2 ps-5 border-0 small">
+                        Tiến độ Báo cáo
+                    </a>
+                    {% endif %}
+                </div>
+
+                <a href="{{ url_for('shortlink_bp.manage_links') }}" class="list-group-item list-group-item-action py-3 px-4 border-0">
+                    <i class="fa-solid fa-qrcode me-3 opacity-75"></i>Tiện ích QR & Link
+                </a>
+
+                <!-- Group: Hệ thống -->
+                {% if perms.get('p_form_lead') or perms.get('p_user_lead') or perms.get('p_sys_lead') %}
+                <a href="#mobileSystemCollapse" class="list-group-item list-group-item-action py-3 px-4 border-0 d-flex justify-content-between align-items-center text-primary fw-bold" data-bs-toggle="collapse">
+                    <span><i class="fa-solid fa-gears me-3 opacity-75"></i>Quản trị hệ thống</span>
+                    <i class="fa-solid fa-chevron-down small opacity-50"></i>
+                </a>
+                <div class="collapse bg-light bg-opacity-10" id="mobileSystemCollapse">
+                    {% if perms.get('p_form_lead') %}
+                    <a href="/admin-forms" class="list-group-item list-group-item-action py-2 ps-5 border-0 small italic">Thiết lập mẫu V1</a>
+                    <a href="/reports-v2" class="list-group-item list-group-item-action py-2 ps-5 border-0 small italic">Thiết lập mẫu V2</a>
+                    {% endif %}
+                    {% if perms.get('p_user_lead') %}
+                    <a href="/roles" class="list-group-item list-group-item-action py-2 ps-5 border-0 small italic">Tài khoản & Vai trò</a>
+                    {% endif %}
+                    {% if perms.get('p_sys_lead') %}
+                    <a href="/admin/module-categories" class="list-group-item list-group-item-action py-2 ps-5 border-0 small italic">Thiết lập danh mục</a>
+                    <a href="/logs" class="list-group-item list-group-item-action py-2 ps-5 border-0 small italic">Nhật ký hoạt động</a>
+                    <a href="/admin/system/update" class="list-group-item list-group-item-action py-2 ps-5 border-0 small italic text-primary">Cập nhật bản vá</a>
+                    <a href="/admin/db-tool" class="list-group-item list-group-item-action py-2 ps-5 border-0 small italic text-danger">Công cụ Database</a>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
         </div>
     </div>
 
@@ -636,6 +663,86 @@
                 }
             });
         };
+
+        // --- SECURITY: AUTO LOGOUT SYSTEM (30 MINS) ---
+        (function() {
+            const TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+            const WARNING_MS = 60 * 1000;      // 1 minute warning
+            const SYNC_KEY = 'pc06_last_activity';
+            let warningVisible = false;
+
+            function updateActivity() {
+                localStorage.setItem(SYNC_KEY, Date.now());
+                if (warningVisible) {
+                    Swal.close();
+                    warningVisible = false;
+                }
+            }
+
+            // Events to track activity
+            ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach(evt => {
+                document.addEventListener(evt, updateActivity, { passive: true });
+            });
+
+            // Heartbeat to check for timeout
+            setInterval(() => {
+                const now = Date.now();
+                const lastActive = parseInt(localStorage.getItem(SYNC_KEY) || now);
+                const elapsed = now - lastActive;
+
+                if (elapsed >= TIMEOUT_MS) {
+                    // Force log out
+                    window.location.href = '/logout';
+                } else if (elapsed >= (TIMEOUT_MS - WARNING_MS)) {
+                    // Show warning if not already visible
+                    if (!warningVisible && !Swal.isVisible()) {
+                        warningVisible = true;
+                        let timeLeft = Math.round((TIMEOUT_MS - elapsed) / 1000);
+                        
+                        Swal.fire({
+                            title: 'Phiên làm việc sắp hết hạn!',
+                            html: `Bạn đã không hoạt động trong một thời gian dài. Hệ thống sẽ tự động đăng xuất sau <b>${timeLeft}</b> giây để bảo mật.`,
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonText: 'Tiếp tục làm việc',
+                            cancelButtonText: 'Đăng xuất ngay',
+                            confirmButtonColor: 'var(--bs-primary)',
+                            allowOutsideClick: false,
+                            timer: timeLeft * 1000,
+                            timerProgressBar: true,
+                            didOpen: () => {
+                                const b = Swal.getHtmlContainer().querySelector('b');
+                                const timerInterval = setInterval(() => {
+                                    if (Swal.isVisible()) {
+                                        let seconds = Math.round(Swal.getTimerLeft() / 1000);
+                                        if (b) b.textContent = seconds;
+                                    } else {
+                                        clearInterval(timerInterval);
+                                    }
+                                }, 1000);
+                            }
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                // Refresh activity
+                                updateActivity();
+                                // Optional: ping a small API to keep server session alive
+                                fetch('/api/notifications'); 
+                                warningVisible = false;
+                            } else if (result.isDismissed && result.dismiss === Swal.DismissReason.timer) {
+                                window.location.href = '/logout';
+                            } else if (result.isDismissed && result.dismiss === Swal.DismissReason.cancel) {
+                                window.location.href = '/logout';
+                            }
+                        });
+                    }
+                }
+            }, 5000); // Check every 5 seconds
+
+            // Set initial activity time if not set
+            if (!localStorage.getItem(SYNC_KEY)) {
+                updateActivity();
+            }
+        })();
     </script>
 </body>
 </html>

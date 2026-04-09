@@ -1,8 +1,10 @@
 import os
 import json
 from flask import Flask, session, request, redirect, url_for, send_from_directory, render_template
+from datetime import datetime, timedelta
 from models import db, AppRole
 from utils import init_db, get_perms_labels
+import time
 
 # --- RELIABLE PATH RESOLUTION (Improved for Mắt Bão/Passenger) ---
 basedir = os.path.dirname(os.path.abspath(__file__))
@@ -30,6 +32,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
+app.config['SESSION_PERMANENT'] = False # Default to session cookie (cleared on browser close)
 
 db.init_app(app)
 with app.app_context():
@@ -60,6 +64,15 @@ app.register_blueprint(shortlink_bp)
 
 @app.before_request
 def check_auth():
+    # 1. Inactivity Check
+    if session.get('uid'):
+        last_active = session.get('last_active')
+        now = time.time()
+        if last_active and (now - last_active) > 1800: # 30 mins
+            session.clear()
+            return redirect(url_for('auth_bp.login'))
+        session['last_active'] = now
+
     allowed = ['auth_bp.login', 'static', 'dl_file', 'shortlink_bp.redirect_short_link', 'shortlink_bp.get_qr', 'favicon']
     if not session.get('uid') and request.endpoint not in allowed and not (request.endpoint and request.endpoint.startswith('static')):
         return redirect(url_for('auth_bp.login'))

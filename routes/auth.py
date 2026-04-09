@@ -38,6 +38,12 @@ def login():
             # Log login
             log_action(usr.id, usr.fullname, "Đăng nhập", "Hệ thống", "Đăng nhập thành công")
             
+            # Init activity timestamp for security monitor
+            import time
+            session['last_active'] = time.time()
+            session.permanent = False # Shared across browser session only
+
+            
             if usr.must_change_password:
                 flash('Bạn cần đổi mật khẩu trong lần đăng nhập đầu tiên.', 'warning')
                 return redirect(url_for('auth_bp.change_password'))
@@ -50,8 +56,8 @@ def login():
 @auth_bp.route('/logout')
 def logout():
     session.clear()
-    flash('Hẹn gặp lại!', 'info')
-    return redirect(url_for('auth_bp.login'))
+    flash('Đã đăng xuất an toàn!', 'info')
+    return redirect(url_for('auth_bp.login', clear_storage='true'))
 
 @auth_bp.route('/password', methods=['GET', 'POST'])
 def change_password():
