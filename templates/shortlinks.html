@@ -16,31 +16,24 @@
     </div>
 </div>
 
-<div class="row g-4 animate__animated animate__fadeInUp">
-    <div class="col-12">
-        <div class="card border shadow-sm rounded-4 overflow-hidden">
-            <div class="table-responsive">
-                <table class="table table-custom table-hover align-middle mb-0">
-                    <thead>
-                        <!-- Row 1: Table Title -->
-                        <tr>
-                            <th colspan="7" class="px-4 py-3 bg-white border-bottom shadow-none" style="border-top: none !important; border-left: none !important; border-right: none !important;">
-                                <h6 class="fw-bold text-primary mb-0 text-start">
-                                    <i class="fa-solid fa-list-check me-2"></i>DANH SÁCH LINK
-                                </h6>
-                            </th>
-                        </tr>
-                        <!-- Row 2: Column Headers -->
-                        <tr class="bg-light">
-                            <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">Liên kết gốc</th>
-                            <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">Liên kết rút gọn</th>
-                            <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">Thông tin</th>
-                            <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">Lượt click</th>
-                            <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">QR Code</th>
-                            <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">Tạo ngày</th>
-                            <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">Thao tác</th>
-                        </tr>
-                    </thead>
+<div class="main-content-area animate__animated animate__fadeInUp">
+    <div class="table-header-pill">Danh sách liên kết rút gọn</div>
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="table-responsive">
+                    <table class="table table-custom table-hover align-middle mb-0">
+                        <thead class="pill-thead">
+                            <tr>
+                                <th class="ps-4">Liên kết gốc</th>
+                                <th>Liên kết rút gọn</th>
+                                <th>Thông tin</th>
+                                <th class="text-center">Click</th>
+                                <th class="text-center">QR Code</th>
+                                <th class="text-center">Ngày tạo</th>
+                                <th class="pe-4 text-end">Thao tác</th>
+                            </tr>
+                        </thead>
                     <tbody>
                         {% for link in links %}
                         {% set short_url = request.host_url.rstrip('/') ~ '/s/' ~ link.short_code %}

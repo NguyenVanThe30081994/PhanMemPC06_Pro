@@ -83,11 +83,11 @@
         <!-- Main Display: Full Width 100% on PC -->
         <div class="col-12">
             {% if active or active_v2 %}
+                <div class="table-header-pill">Dữ liệu tổng hợp chi tiết</div>
                 <div class="bento-card p-4 p-md-5">
                     <!-- Header Info -->
                     <div class="mb-5 border-bottom pb-4 d-flex justify-content-between align-items-end" style="border-color: var(--border) !important;">
                         <div>
-                            <div class="badge bg-primary-gradient text-white shadow-sm rounded-pill mb-3 px-3 fw-bold tiny letter-spacing-1">DỮ LIỆU TỔNG HỢP</div>
                             <h2 class="fw-bold text-dark mb-0">{{ active.name if active else active_v2.name }}</h2>
                         </div>
                         <div class="text-end d-none d-sm-block">
@@ -107,12 +107,8 @@
                         {% endif %}
                     </div>
 
-                    {% if not_reported_count > 0 %}
-                    <div class="mt-5 p-4 bg-light rounded-4 border border-warning border-opacity-25">
-                        <div class="d-flex align-items-center gap-2 mb-3">
-                            <i class="fa-solid fa-triangle-exclamation text-warning"></i>
-                            <h6 class="fw-bold mb-0 text-dark">DANH SÁCH ĐƠN VỊ CHƯA BÁO CÁO ({{ not_reported_count }})</h6>
-                        </div>
+                    <div class="table-header-pill mt-5">Danh sách đơn vị chưa báo cáo ({{ not_reported_count }})</div>
+                    <div class="p-4 bg-light rounded-4 border border-warning border-opacity-25">
                         <div class="d-flex flex-wrap gap-2">
                             {% for u in not_reported_units %}
                             <span class="badge bg-white text-dark shadow-sm py-2 px-3 fw-medium border">{{ u }}</span>

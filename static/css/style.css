@@ -161,16 +161,53 @@
 .table-header-pill {
     background: #ffffff;
     border: 1px solid var(--border);
-    padding: 6px 20px;
+    padding: 8px 25px;
     border-radius: 50px;
-    box-shadow: var(--shadow-lvl1);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
     color: var(--primary);
     font-weight: 800;
     text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 0.5px;
+    font-size: 0.8rem;
+    letter-spacing: 0.8px;
     display: inline-flex;
     align-items: center;
+    margin-bottom: 20px;
+}
+
+/* --- NEW PILL TABLE HEAD (V17) --- */
+.pill-thead {
+    background: var(--primary) !important;
+    border-radius: 50px !important;
+}
+
+.pill-thead tr th {
+    background: transparent !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    font-size: 0.75rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    border: none !important;
+    padding: 12px 15px !important;
+}
+
+.pill-thead tr th:first-child {
+    border-top-left-radius: 50px !important;
+    border-bottom-left-radius: 50px !important;
+    padding-left: 25px !important;
+}
+
+.pill-thead tr th:last-child {
+    border-top-right-radius: 50px !important;
+    border-bottom-right-radius: 50px !important;
+    padding-right: 25px !important;
+}
+
+.table-container-pill {
+    background: #ffffff;
+    border-radius: 24px;
+    padding: 5px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.02);
 }
 
 .header-title-pill {

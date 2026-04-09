@@ -7,7 +7,10 @@
             <h1 class="mb-0">Bảng xếp hạng 124 Xã (Đội 1)</h1>
         </div>
         <div class="header-actions">
-            <a href="/ranking/input" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
+            <a href="/ranking/export" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
+                <i class="fa-solid fa-file-excel me-2"></i>XUẤT BIỂU
+            </a>
+            <a href="/ranking/input" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm ms-2">
                 <i class="fa-solid fa-pen-to-square me-2"></i>NHẬP SỐ LIỆU
             </a>
             <button class="btn btn-light rounded-pill px-4 fw-bold shadow-sm ms-2" onclick="window.location.reload()">
@@ -47,19 +50,17 @@
     <!-- MAIN TABLES FOR GROUPS -->
     <div class="row g-4">
         <div class="col-xl-8">
+            <div class="table-header-pill">Chi tiết xếp hạng hệ thống</div>
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
-                <div class="table-header-pill shadow-none border-bottom rounded-0 p-4">
-                    <h5 class="mb-0 fw-bold text-dark">Chi tiết xếp hạng hệ thống</h5>
-                </div>
                 <div class="table-responsive custom-scrollbar" style="max-height: 600px;">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-light sticky-top" style="z-index: 10;">
+                        <thead class="pill-thead sticky-top" style="z-index: 10;">
                             <tr>
-                                <th class="ps-4 py-3 border-0 small text-uppercase opacity-50">Hạng</th>
-                                <th class="py-3 border-0 small text-uppercase opacity-50">Đơn vị</th>
-                                <th class="py-3 border-0 small text-uppercase opacity-50 text-center">Tổng điểm cộng</th>
-                                <th class="py-3 border-0 small text-uppercase opacity-50 text-center">Phân nhóm</th>
-                                <th class="pe-4 py-3 border-0 text-end small text-uppercase opacity-50">Điểm nhóm</th>
+                                <th class="ps-4">Hạng</th>
+                                <th>Đơn vị công an cấp xã</th>
+                                <th class="text-center">Tổng điểm</th>
+                                <th class="text-center">Phân nhóm</th>
+                                <th class="pe-4 text-end">Điểm nhóm</th>
                             </tr>
                         </thead>
                         <tbody>

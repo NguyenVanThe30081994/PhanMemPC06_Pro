@@ -71,28 +71,21 @@
 </div>
 
 <!-- Matrix Table: Bento Style -->
+<div class="table-header-pill">Chi tiết tiến độ thống kê theo biểu mẫu</div>
 <div class="bento-card overflow-hidden animate__animated animate__fadeInUp">
-    <div class="bg-primary bg-opacity-5 py-3 px-4 d-flex justify-content-between align-items-center border-bottom" style="border-color: var(--border) !important;">
-        <h6 class="fw-bold text-primary mb-0 text-uppercase letter-spacing-1 small">
-            CHI TIẾT TIẾN ĐỘ THEO TỪNG BIỂU MẪU
-        </h6>
-        <span class="badge bg-primary bg-opacity-10 text-primary border rounded-pill px-3 py-1 tiny fw-bold">
-            {{ overview_matrix|length }} BIỂU MẪU
-        </span>
-    </div>
     <div class="card-body p-0">
         {% if overview_matrix %}
         <div class="table-responsive">
             <table class="table table-custom align-middle mb-0">
-                <thead class="tiny fw-bold text-muted text-uppercase">
+                <thead class="pill-thead">
                     <tr>
-                        <th class="px-4 py-3 small fw-bold text-muted text-uppercase" style="width:45px;">#</th>
-                        <th class="px-3 py-3 small fw-bold text-muted text-uppercase">Tên biểu mẫu</th>
-                        <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center" style="width:80px;">Loại</th>
-                        <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">Đã nộp</th>
-                        <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">Chưa nộp</th>
-                        <th class="px-3 py-3 small fw-bold text-muted text-uppercase" style="min-width:180px;">Tiến độ</th>
-                        <th class="px-4 py-3 small fw-bold text-muted text-uppercase text-end" style="width:120px;">Thao tác</th>
+                        <th class="ps-4">No.</th>
+                        <th>Tên biểu mẫu báo cáo</th>
+                        <th class="text-center">Loại</th>
+                        <th class="text-center">Đã nộp</th>
+                        <th class="text-center">Chưa nộp</th>
+                        <th>Tiến độ</th>
+                        <th class="pe-4 text-end">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>

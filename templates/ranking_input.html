@@ -18,10 +18,8 @@
     <div class="row g-4">
         <!-- Sidebar: Chọn chỉ tiêu -->
         <div class="col-xl-3">
+            <div class="table-header-pill w-100 justify-content-center">Chỉ tiêu chấm điểm</div>
             <div class="card border-0 shadow-sm rounded-4 bg-white sticky-top" style="top: 100px;">
-                <div class="p-4 border-bottom">
-                    <h6 class="fw-bold mb-0">Chọn Chỉ tiêu chấm điểm</h6>
-                </div>
                 <div class="list-group list-group-flush p-2">
                     {% for ind in indicators %}
                     <button class="list-group-item list-group-item-action border-0 rounded-3 mb-1 indicator-select" 
@@ -39,22 +37,20 @@
 
         <!-- Main: Bảng nhập liệu -->
         <div class="col-xl-9">
-            <div class="card border-0 shadow-sm rounded-4 bg-white overflow-hidden" id="inputStage" style="display: none;">
-                <div class="p-4 border-bottom d-flex justify-content-between align-items-center bg-light">
-                    <div>
-                        <span class="badge bg-primary px-3 py-1 mb-2">ĐANG NHẬP</span>
-                        <h5 class="fw-bold text-dark mb-0" id="currentIndName">Chỉ tiêu...</h5>
-                    </div>
-                    <div id="saveStatus" class="text-success small fw-bold"><i class="fa-solid fa-cloud-check me-1"></i>Đã lưu mọi thay đổi</div>
+            <div id="inputStage" style="display: none;">
+                <div class="table-header-pill w-100 justify-content-between">
+                    <span id="currentIndName">Chỉ tiêu...</span>
+                    <div id="saveStatus" class="text-success small fw-bold"><i class="fa-solid fa-cloud-check me-1"></i>Tự động lưu</div>
                 </div>
+                <div class="card border-0 shadow-sm rounded-4 bg-white overflow-hidden">
                 
                 <div class="table-responsive custom-scrollbar" style="max-height: 700px;">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-white sticky-top" style="z-index: 10;">
+                        <thead class="pill-thead sticky-top" style="z-index: 10;">
                             <tr>
-                                <th class="ps-4 py-3 border-0 small text-uppercase opacity-50" style="width: 80px;">STT</th>
-                                <th class="py-3 border-0 small text-uppercase opacity-50">Đơn vị Công an cấp xã</th>
-                                <th class="pe-4 py-3 border-0 small text-uppercase opacity-50 text-end" style="width: 250px;">Số liệu thực hiện</th>
+                                <th class="ps-4" style="width: 80px;">STT</th>
+                                <th>Đơn vị công an xã/thị trấn</th>
+                                <th class="pe-4 text-end" style="width: 250px;">Số liệu thực hiện</th>
                             </tr>
                         </thead>
                         <tbody id="unitRows">

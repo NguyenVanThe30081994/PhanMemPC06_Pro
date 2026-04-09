@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, jsonify, session, redirec
 from models import db, RankingUnit, RankingIndicator, RankingEntry
 import pandas as pd
 import io
+import openpyxl
 
 ranking_bp = Blueprint('ranking_bp', __name__)
 
@@ -45,6 +46,43 @@ def save_entry():
 def get_values(indicator_id):
     entries = RankingEntry.query.filter_by(indicator_id=indicator_id).all()
     return jsonify({e.unit_id: e.raw_value for e in entries})
+
+@ranking_bp.route('/ranking/export')
+def export_ranking():
+    leaderboard = calculate_leaderboard()
+    
+    # Create DataFrame
+    data = []
+    for item in leaderboard:
+        data.append({
+            "Thứ hạng": item['rank'],
+            "Đơn vị Công an xã": item['name'],
+            "Tổng điểm cộng dồn (Thấp là tốt)": item['total_score'],
+            "Phân nhóm": f"Nhóm {item['group']}",
+            "Điểm nhóm quy đổi": item['group_points']
+        })
+    
+    df = pd.DataFrame(data)
+    
+    # Export to Excel
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Xếp hạng 124 xã')
+        
+        # Professional styling
+        workbook = writer.book
+        worksheet = writer.sheets['Xếp hạng 124 xã']
+        
+        # Adjust column widths
+        for i, col in enumerate(df.columns):
+            column_len = max(df[col].astype(str).str.len().max(), len(col)) + 5
+            worksheet.column_dimensions[openpyxl.utils.get_column_letter(i+1)].width = column_len
+
+    output.seek(0)
+    from flask import send_file
+    from datetime import datetime
+    filename = f"XepHang_PC06_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    return send_file(output, attachment_filename=filename, as_attachment=True)
 
 def calculate_leaderboard():
     # Logic based on V13 plan
