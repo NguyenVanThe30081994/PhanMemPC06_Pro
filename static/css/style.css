@@ -197,31 +197,30 @@
 
 /* --- FLAT GLASS THEAD (V19) --- */
 .pill-thead {
-    background: rgba(var(--primary-rgb), 0.95) !important;
-    border-radius: 0 !important; /* Flat bar for integrated look */
+    background: #0066ff !important; /* Solid color for maximum text sharpness */
+    border-radius: 0 !important;
 }
 
 .pill-thead tr th {
-    background: transparent !important;
+    background: #0066ff !important;
     color: #ffffff !important;
-    font-weight: 700 !important;
-    font-size: 0.75rem !important;
+    font-weight: 800 !important;
+    font-size: 0.8rem !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.5px !important;
+    letter-spacing: 0.8px !important;
     border: none !important;
     padding: 12px 15px !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .pill-thead tr th:first-child {
-    border-top-left-radius: 50px !important;
-    border-bottom-left-radius: 50px !important;
-    padding-left: 25px !important;
+    border-radius: 0 !important;
+    padding-left: 20px !important;
 }
 
 .pill-thead tr th:last-child {
-    border-top-right-radius: 50px !important;
-    border-bottom-right-radius: 50px !important;
-    padding-right: 25px !important;
+    border-radius: 0 !important;
+    padding-right: 20px !important;
 }
 
 .table-container-pill {
@@ -842,15 +841,17 @@ body {
     background: rgba(255, 255, 255, 0.05) !important;
 }
 
+/* Consistently use the root definition */
 .pill-thead {
-    background: rgba(0, 102, 255, 0.92) !important; /* Optimized for sharp text */
+    background: #0066ff !important;
     border-radius: 0 !important;
 }
 
 .pill-thead th {
+    background: #0066ff !important;
     color: #ffffff !important;
-    font-weight: 700 !important;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
+    font-weight: 800 !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     padding: 12px 15px !important;
