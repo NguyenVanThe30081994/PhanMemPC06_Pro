@@ -1,0 +1,36 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Database (Ignore local DB to prevent overwriting server DB)
+# pc06_system.db
+
+# Logs
+*.log
+server.log
+startup_debug.log
+
+# Temporary files
+tmp_metadata_debug.json
+.tmp.drivedownload/
+.tmp.driveupload/
+
+# Static uploads (Ignore users' uploaded files, keep folder structure via .gitkeep)
+uploads/*
+!uploads/.gitkeep
+task_files/*
+!task_files/.gitkeep
+library_files/*
+!library_files/.gitkeep
+chat_files/*
+!chat_files/.gitkeep
+backups/*
+!backups/.gitkeep

@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-5 animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="h3 fw-bold text-dark mb-1">Tổng quan hệ thống PC06</h1>
+            <p class="text-muted mb-0">Chào mừng trở lại! Dưới đây là tóm tắt hoạt động của đơn vị.</p>
+        </div>
+        <div class="text-end">
+            <div class="badge bg-white shadow-sm border text-primary px-3 py-2 rounded-pill mb-1">
+                <i class="fa-regular fa-clock me-2"></i>{{ dt_str }}
+            </div>
+            <div class="text-muted small">Cập nhật lúc: {{ dt_str.split(' ')[1] }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Row -->
+<div class="row g-4 mb-5">
+    <div class="col-md-3">
+        <div class="stat-card p-4 rounded-4 shadow-sm border-0 bg-primary text-white position-relative overflow-hidden">
+            <div class="position-relative" style="z-index: 2;">
+                <h6 class="text-white-50 small text-uppercase fw-bold mb-3">Tổng công việc</h6>
+                <div class="d-flex align-items-end gap-2">
+                    <h2 class="display-6 fw-bold mb-0">{{ tot }}</h2>
+                </div>
+                <div class="mt-3 small text-white-50">
+                    <i class="fa-solid fa-check-circle me-1"></i> {{ done }} Hoàn thành
+                </div>
+            </div>
+            <i class="fa-solid fa-list-check position-absolute end-0 bottom-0 p-4 opacity-25 display-1" style="transform: translate(10%, 20%)"></i>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card p-4 rounded-4 shadow-sm border-0 bg-success text-white position-relative overflow-hidden">
+            <div class="position-relative" style="z-index: 2;">
+                <h6 class="text-white-50 small text-uppercase fw-bold mb-3">Danh bạ liên hệ</h6>
+                <div class="d-flex align-items-end gap-2">
+                    <h2 class="display-6 fw-bold mb-0">{{ c_contacts }}</h2>
+                </div>
+                <div class="mt-3 small text-white-50">
+                    <i class="fa-solid fa-address-book me-1"></i> Thông tin liên lạc
+                </div>
+            </div>
+            <i class="fa-solid fa-address-book position-absolute end-0 bottom-0 p-4 opacity-25 display-1" style="transform: translate(10%, 20%)"></i>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="stat-card p-4 rounded-4 shadow-sm border-0 bg-warning text-white position-relative overflow-hidden">
+            <div class="position-relative" style="z-index: 2;">
+                <h6 class="text-white-50 small text-uppercase fw-bold mb-3">Người dùng hệ thống</h6>
+                <div class="d-flex align-items-end gap-2">
+                    <h2 class="display-6 fw-bold mb-0">{{ c_users }}</h2>
+                </div>
+                <div class="mt-3 small text-white-50">
+                    <i class="fa-solid fa-users me-1"></i> Tài khoản nội bộ
+                </div>
+            </div>
+            <i class="fa-solid fa-users position-absolute end-0 bottom-0 p-4 opacity-25 display-1" style="transform: translate(10%, 20%)"></i>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="stat-card p-4 rounded-4 shadow-sm border-0 bg-info text-white position-relative overflow-hidden">
+            <div class="position-relative" style="z-index: 2;">
+                <h6 class="text-white-50 small text-uppercase fw-bold mb-3">Đơn vị quản lý</h6>
+                <div class="d-flex align-items-end gap-2">
+                    <h2 class="display-6 fw-bold mb-0">{{ c_units }}</h2>
+                </div>
+                <div class="mt-3 small text-white-50">
+                    <i class="fa-solid fa-building me-1"></i> Tỉnh / Huyện / Xã
+                </div>
+            </div>
+            <i class="fa-solid fa-building position-absolute end-0 bottom-0 p-4 opacity-25 display-1" style="transform: translate(10%, 20%)"></i>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Recent Activity Column -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="card-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-bolt-lightning text-warning me-2"></i> Hoạt động gần đây</h5>
+                <a href="/tasks" class="btn btn-sm btn-light border rounded-pill px-3">Tất cả</a>
+            </div>
+            <div class="card-body p-4">
+                {% if recent_activity %}
+                    {% for assign, task in recent_activity %}
+                    <div class="activity-item d-flex gap-3 mb-4 pb-4 border-bottom last-border-0">
+                        <div class="activity-icon bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 45px; height: 45px;">
+                            <i class="fa-solid fa-file-pen"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <h6 class="fw-bold text-dark mb-0">{{ task.title }}</h6>
+                                <span class="badge bg-{{ 'success' if assign.status == 'Hoàn thành' else ('warning' if assign.status == 'Đang thực hiện' else 'secondary') }} bg-opacity-10 text-{{ 'success' if assign.status == 'Hoàn thành' else ('warning' if assign.status == 'Đang thực hiện' else 'secondary') }} rounded-pill px-2">
+                                    {{ assign.status }}
+                                </span>
+                            </div>
+                            <p class="text-muted small mb-2 line-clamp-2">{{ task.content }}</p>
+                            <div class="d-flex align-items-center gap-3 text-muted" style="font-size: 11px;">
+                                <span><i class="fa-regular fa-user me-1"></i>{{ task.author_name }}</span>
+                                <span><i class="fa-regular fa-clock me-1"></i>{{ assign.updated_at.strftime('%H:%M %d/%m/%Y') }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-5">
+                        <img src="https://cdn-icons-png.flaticon.com/512/5058/5058315.png" width="100" class="opacity-25 mb-3">
+                        <h6 class="text-muted">Chưa có hoạt động nào được ghi nhận</h6>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Column: Quick Links & Rankings -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-white border-bottom p-4">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-ranking-star text-primary me-2"></i> Xếp hạng thi đua</h5>
+            </div>
+            <div class="card-body p-4" id="ranking-list">
+                <!-- Will be loaded via JS for smoothness -->
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card border-0 shadow-sm rounded-4" style="background: linear-gradient(to bottom, #ffffff, #f1f5f9);">
+            <div class="card-body p-4">
+                <h6 class="fw-bold text-dark mb-3">Công cụ nhanh</h6>
+                <div class="d-grid gap-2">
+                    <a href="/input" class="btn btn-white border shadow-sm text-start p-3 rounded-3 d-flex align-items-center gap-3 hover-elevate">
+                        <div class="bg-indigo-light p-2 rounded-2"><i class="fa-solid fa-keyboard text-indigo"></i></div>
+                        <div>
+                            <div class="fw-bold small">Nhập báo cáo</div>
+                            <div class="text-muted tiny">Gửi số liệu định kỳ</div>
+                        </div>
+                    </a>
+                    <a href="/chat" class="btn btn-white border shadow-sm text-start p-3 rounded-3 d-flex align-items-center gap-3 hover-elevate">
+                        <div class="bg-teal-light p-2 rounded-2"><i class="fa-solid fa-comments text-teal"></i></div>
+                        <div>
+                            <div class="fw-bold small">Trao đổi nội bộ</div>
+                            <div class="text-muted tiny">Chat & Gửi tệp tin</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Mock or Fetch dynamic ranking data
+    fetch('/api/performance-stats')
+        .then(r => r.json())
+        .then(data => {
+            const list = document.getElementById('ranking-list');
+            if(data.full_list && data.full_list.length > 0) {
+                list.innerHTML = data.full_list.slice(0, 5).map((u, i) => `
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <div class="fw-bold text-primary" style="width: 20px;">${i+1}</div>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold small">${u.name}</div>
+                            <div class="progress mt-1" style="height: 4px;">
+                                <div class="progress-bar" style="width: ${Math.min(u.score, 100)}%"></div>
+                            </div>
+                        </div>
+                        <div class="fw-bold text-dark small">${u.score.toFixed(1)}</div>
+                    </div>
+                `).join('');
+            } else {
+                list.innerHTML = '<p class="text-center text-muted small py-3">Chưa có dữ liệu xếp hạng</p>';
+            }
+        });
+});
+</script>
+
+<style>
+    .stat-card { transition: transform 0.3s; }
+    .stat-card:hover { transform: translateY(-5px); }
+    .last-border-0:last-child { border-bottom: none !important; }
+    .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .hover-elevate { transition: all 0.2s; }
+    .hover-elevate:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important; }
+    .tiny { font-size: 10px; }
+    .bg-indigo-light { background: #e0e7ff; }
+    .text-indigo { color: #4f46e5; }
+    .bg-teal-light { background: #f0fdfa; }
+    .text-teal { color: #0d9488; }
+</style>
+{% endblock %}

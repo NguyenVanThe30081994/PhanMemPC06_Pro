@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-4 animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h1 class="h3 fw-bold text-dark mb-1">Thống kê Báo cáo</h1>
+        </div>
+        {% if active or active_v2 %}
+        <div class="d-flex gap-2">
+            <button class="btn btn-success border-0 rounded-pill px-3 fw-bold shadow-sm small" onclick="exportStatsToExcel()">
+                Xuất Excel
+            </button>
+            <button class="btn btn-light border rounded-pill px-3 fw-bold shadow-sm small" onclick="window.print()">
+                In báo cáo
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+
+
+<div class="main-content-area animate__animated animate__fadeInUp">
+    <div class="row g-4">
+        <!-- Sidebar: Danh sách biểu mẫu -->
+        <div class="col-xl-3 col-lg-4 sidebar">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4" style="background-color: var(--bg-surface);">
+                <div class="card-header border-0 py-3 px-4 d-flex justify-content-between align-items-center" style="background-color: var(--bg-surface); border-color: var(--border) !important;">
+                    <h6 class="fw-bold text-main mb-0">BIỂU MẪU</h6>
+                    <select class="form-select form-select-sm tiny fw-bold border shadow-sm rounded-pill px-3" 
+                            style="width: 160px; background-color: var(--bg-body); color: var(--text-main) !important;"
+                            onchange="if(this.value) window.location.href='/stats?form_type=' + this.value">
+                        <option value="" {% if not form_type %}selected{% endif %} disabled>Chọn loại biểu mẫu</option>
+                        <option value="v1" {% if form_type == 'v1' %}selected{% endif %}>Biểu mẫu V1</option>
+                        <option value="v2" {% if form_type == 'v2' %}selected{% endif %}>Biểu mẫu V2</option>
+                    </select>
+                </div>
+                <div class="list-group list-group-flush border-top" style="border-color: var(--border) !important;">
+                    {% if not configs and not v2_templates %}
+                    <div class="p-4 text-center text-muted small fw-bold" style="background-color: var(--bg-surface);">Chưa có biểu mẫu nào</div>
+                    {% endif %}
+
+                    {% if form_type == 'v1' %}
+                        {% for c in configs %}
+                        <a href="{{ url_for('forms_bp.stats', rid=c.id, form_type='v1') }}"
+                           class="list-group-item list-group-item-action border-0 px-4 py-2 {% if active and active.id == c.id %}active{% endif %}" style="background-color: var(--bg-surface);">
+                            <div class="small fw-medium text-truncate text-main">{{ c.name }}</div>
+                        </a>
+                        {% endfor %}
+                    {% else %}
+                        {% for v2 in v2_templates %}
+                        <a href="{{ url_for('forms_bp.stats', rid=v2.id, v2=1, form_type='v2') }}"
+                           class="list-group-item list-group-item-action border-0 px-4 py-2 {% if active_v2 and active_v2.id == v2.id %}active{% endif %}" style="background-color: var(--bg-surface);">
+                            <div class="small fw-medium text-truncate text-main">{{ v2.name }}</div>
+                        </a>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Main content -->
+        <div class="col-xl-9 col-lg-8 main-print-area">
+            {% if active %}
+                <!-- V1 Render -->
+                {% if excel_html %}
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 print-card">
+                    <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center no-print">
+                        <h6 class="fw-bold text-dark mb-0">
+                            {{ active.name }}
+                        </h6>
+                        <span class="tiny text-muted fw-bold text-uppercase">Tổng hợp tự động V1</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="excel-wrapper p-3">
+                            {{ excel_html }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            {% elif active_v2 %}
+                <!-- V2 Render: Consolidated Excel view -->
+                {% if excel_html %}
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 print-card">
+                    <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center no-print">
+                        <h6 class="fw-bold text-dark mb-0">
+                            {{ active_v2.name }}
+                        </h6>
+                        <span class="tiny text-muted fw-bold text-uppercase">Tổng hợp tự động V2</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="excel-wrapper p-3">{{ excel_html }}</div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- V2 Submission List -->
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden no-print">
+                    <div class="card-header bg-white border-bottom py-3 px-4">
+                        <h6 class="fw-bold text-primary mb-0">
+                            CHI TIẾT DANH SÁCH ĐÃ NỘP (V2)
+                        </h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-custom align-middle mb-0">
+                                <thead class="tiny fw-bold text-muted text-uppercase">
+                                    <tr>
+                                        <th class="px-4 py-3">STT</th>
+                                        <th class="px-3 py-3">Đơn vị nộp</th>
+                                        <th class="px-3 py-3">Người nộp</th>
+                                        <th class="px-3 py-3">Thời gian</th>
+                                        <th class="px-3 py-3 text-center">Trạng thái</th>
+                                        <th class="px-4 py-3 text-end">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for sub in submissions %}
+                                    <tr>
+                                        <td class="px-4 py-3 small text-muted">{{ loop.index }}</td>
+                                        <td class="px-3 py-3 small fw-bold text-dark">{{ sub.unit }}</td>
+                                        <td class="px-3 py-3 small">{{ sub.sender }}</td>
+                                        <td class="px-3 py-3 small">{{ sub.date }}</td>
+                                        <td class="px-3 py-3 text-center">
+                                            <span class="badge bg-success bg-opacity-10 text-success tiny rounded-pill px-2">Đã nhận</span>
+                                        </td>
+                                        <td class="px-4 py-3 text-end">
+                                            <div class="d-flex justify-content-end gap-2">
+                                                <a href="/reports-v2/submission/{{ sub.id }}" class="btn btn-sm btn-light border rounded-pill px-3 tiny fw-bold text-primary">XEM</a>
+                                                <a href="/reports-v2/export/{{ sub.id }}" class="btn btn-sm btn-light border rounded-pill px-3 tiny fw-bold text-success">FILE</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <!-- Overview: tổng quan tất cả biểu mẫu -->
+                {% if overview_matrix %}
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 print-card">
+                    <div class="card-header bg-white border-bottom py-3 px-4">
+                        <h6 class="fw-bold text-dark mb-0">
+                            TỔNG QUAN HỆ THỐNG
+                        </h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-custom align-middle mb-0">
+                                <thead class="tiny fw-bold text-muted text-uppercase">
+                                    <tr>
+                                        <th class="px-4 py-3 small fw-bold text-muted text-uppercase" style="width:40px;">#</th>
+                                        <th class="px-3 py-3 small fw-bold text-muted text-uppercase">Tên biểu mẫu</th>
+                                        <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center" style="width:70px;">Loại</th>
+                                        <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">Đã nộp</th>
+                                        <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">Chưa nộp</th>
+                                        <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">Tiến độ</th>
+                                        <th class="px-4 py-3 small fw-bold text-muted text-uppercase text-end no-print">Chi tiết</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in overview_matrix %}
+                                    {% set pct = (row.reported_count / total_units_count * 100)|round|int if total_units_count > 0 else 0 %}
+                                    <tr>
+                                        <td class="px-4 py-3 small text-muted">{{ loop.index }}</td>
+                                        <td class="px-3 py-3 small fw-bold text-dark">
+                                            <a href="{{ row.url }}" class="text-dark text-decoration-none">{{ row.form_name }}</a>
+                                        </td>
+                                        <td class="px-3 py-3 text-center">
+                                            {% if row.version == 'V2' %}
+                                            <span class="badge bg-indigo-light text-indigo rounded-pill tiny px-2 fw-bold">V2</span>
+                                            {% else %}
+                                            <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill tiny px-2 fw-bold">V1</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-3 py-3 text-center">
+                                            <span class="fw-bold text-success">{{ row.reported_count }}</span>
+                                            <span class="text-muted tiny"> / {{ total_units_count }}</span>
+                                        </td>
+                                        <td class="px-3 py-3 text-center">
+                                            {% if row.not_reported_count > 0 %}
+                                            <button class="btn btn-link btn-sm text-danger p-0 fw-bold tiny no-print"
+                                                    type="button" data-bs-toggle="collapse"
+                                                    data-bs-target="#nr_{{ loop.index }}">
+                                                {{ row.not_reported_count }} đơn vị ▾
+                                            </button>
+                                            <span class="text-danger fw-bold tiny d-none d-print-inline">{{ row.not_reported_count }} đơn vị</span>
+                                            {% else %}
+                                            <span class="badge bg-success bg-opacity-10 text-success tiny rounded-pill px-2">Đủ</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-3 py-3" style="min-width:130px;">
+                                            <div class="progress rounded-pill no-print" style="height:8px;">
+                                                <div class="progress-bar {% if pct == 100 %}bg-success{% elif pct >= 50 %}bg-warning{% else %}bg-danger{% endif %} rounded-pill"
+                                                     style="width:{{ pct }}%"></div>
+                                            </div>
+                                            <div class="tiny text-muted text-center mt-1">{{ pct }}%</div>
+                                        </td>
+                                        <td class="px-4 py-3 text-end no-print">
+                                            <a href="{{ row.url }}" class="btn btn-sm btn-outline-primary rounded-pill px-3 tiny fw-bold">
+                                                Xem &rarr;
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    <!-- Danh sách đơn vị chưa nộp (collapse) -->
+                                    {% if row.not_reported_count > 0 %}
+                                    <tr class="collapse d-print-table-row" id="nr_{{ loop.index }}">
+                                        <td colspan="7" class="bg-danger bg-opacity-5 px-4 py-3">
+                                            <div class="d-flex flex-wrap gap-1">
+                                                <span class="small text-danger fw-bold me-2">Chưa nộp:</span>
+                                                {% for u in row.not_reported %}
+                                                <span class="badge bg-white border border-danger text-danger tiny rounded-pill px-2">{{ u }}</span>
+                                                {% endfor %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="card border-0 shadow-sm rounded-4 p-5 text-center d-flex flex-column align-items-center justify-content-center" style="min-height:60vh;">
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-4 mb-4 shadow-sm">
+                        <i class="fa-solid fa-chart-pie fa-2x"></i>
+                    </div>
+                    <h5 class="fw-bold text-main">Mời chọn biểu mẫu xem báo cáo</h5>
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .tiny { font-size: 10px; }
+    .excel-wrapper { overflow: auto; max-height: 80vh; }
+    .excel-render-table td { white-space: nowrap; }
+    .bg-indigo-light { background: #e0e7ff; }
+    .text-indigo { color: #4f46e5; }
+
+    @media print {
+        @page { size: landscape; margin: 5mm; }
+        /* Aggressive UI Hiding */
+        nav, .top-navbar, .page-header, .sidebar, .col-xl-3, .col-lg-4, .offcanvas, .breadcrumb, button, .mobile-bottom-nav, .no-print, .btn { 
+            display: none !important; 
+        }
+        body { padding-top: 0 !important; background: white !important; }
+        .main-content-area, .container-fluid { padding: 0 !important; margin: 0 !important; }
+        .card, .print-card { border: none !important; box-shadow: none !important; margin-bottom: 0 !important; }
+        
+        .excel-render-table { 
+            width: 100% !important; 
+            table-layout: auto !important;
+            font-size: 7.5pt !important;
+            border-collapse: collapse !important;
+            border: 2px solid #000 !important;
+        }
+        .excel-render-table td, .excel-render-table th { 
+            padding: 3px 5px !important;
+            border: 1px solid #000 !important;
+            word-break: normal !important;
+            color: #000 !important;
+        }
+        /* Global scale to fit for modern browsers */
+        body { 
+            zoom: 85%; 
+        }
+    }
+</style>
+<script>
+    function exportStatsToExcel() {
+        var table = document.querySelector('.excel-render-table');
+        if (!table) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Lỗi',
+                text: 'Không tìm thấy dữ liệu bảng để xuất!',
+                confirmButtonText: 'Đã hiểu'
+            });
+            return;
+        }
+        
+        // Dynamic filename based on active report
+        var reportName = "{{ active.name if active else (active_v2.name if active_v2 else 'Thong_Ke_Bao_Cao') }}";
+        var fileName = reportName.replace(/[^a-zA-Z0-9]/g, '_') + ".xls";
+
+        var html = table.outerHTML;
+        var template = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>BaoCao</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--><meta charset="utf-8"></head><body>' + html + '</body></html>';
+        
+        var blob = new Blob([template], { type: 'application/vnd.ms-excel' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+</script>
+{% endblock %}

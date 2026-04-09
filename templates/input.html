@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-4 animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="h3 fw-bold text-dark mb-1">Nhập liệu Biểu mẫu</h1>
+            <p class="text-muted mb-0">Đơn vị: <span class="fw-bold text-primary">{{ session.unit_area }}</span></p>
+        </div>
+        {% if active %}
+        <div class="text-end">
+            <div class="badge bg-primary px-3 py-2 rounded-pill shadow-sm"><i class="fa-solid fa-file-invoice me-2"></i>{{ active.name }}</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="main-content-area animate__animated animate__fadeInUp">
+    <div class="row g-4">
+        <!-- Sidebar: Form List -->
+        <div class="col-xl-3 col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4" style="background-color: var(--bg-surface);">
+                <div class="card-header border-0 py-3 px-4 d-flex justify-content-between align-items-center" style="background-color: var(--bg-surface); border-color: var(--border) !important;">
+                    <h6 class="fw-bold text-main mb-0">BIỂU MẪU</h6>
+                    <select class="form-select form-select-sm tiny fw-bold border shadow-sm rounded-pill px-3" 
+                            style="width: 150px; background-color: var(--bg-body); color: var(--text-main) !important;"
+                            onchange="if(this.value) window.location.href='/admin-forms?form_type=' + this.value">
+                        <option value="" {% if not form_type %}selected{% endif %} disabled>Chọn loại mẫu</option>
+                        <option value="v1" {% if form_type == 'v1' %}selected{% endif %}>Biểu mẫu V1</option>
+                        <option value="v2" {% if form_type == 'v2' %}selected{% endif %}>Biểu mẫu V2</option>
+                    </select>
+                </div>
+                <div class="list-group list-group-flush border-top" style="border-color: var(--border) !important;">
+                    {% if not configs %}
+                    <div class="p-4 text-center text-muted small fw-bold" style="background-color: var(--bg-surface);">Chưa có biểu mẫu V1 nào</div>
+                    {% endif %}
+                    {% for c in configs %}
+                    <a href="{{ url_for('forms_bp.input_data', rid=c.id) }}" 
+                       class="list-group-item list-group-item-action border-0 px-4 py-2 {% if active and active.id == c.id %}active{% endif %}" style="background-color: var(--bg-surface);">
+                        <div class="small fw-medium text-truncate text-main">{{ c.name }}</div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Main: Data Entry -->
+        <div class="col-xl-9 col-lg-8">
+            {% if active %}
+            <div class="card border-0 shadow-sm rounded-4 p-4" style="background-color: var(--bg-surface);">
+                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3" style="border-color: var(--border) !important;">
+                    <h5 class="fw-bold text-main mb-0"><i class="fa-solid fa-edit me-2 text-primary"></i>NỘI DUNG NHẬP LIỆU</h5>
+                    <div class="tiny text-muted fw-medium text-uppercase">{{ fields|length }} cột dữ liệu</div>
+                </div>
+                
+                <form method="POST">
+                    {# --- Group fields by their 'group' key --- #}
+                    {% set visible_fields = fields | selectattr('is_visible', 'undefined') | list + fields | selectattr('is_visible', 'equalto', true) | list %}
+                    {# Actually filter inline below #}
+
+                    {% set ns = namespace(current_group='__START__', has_ungrouped=false) %}
+                    
+                    {# Check if any field has no group #}
+                    {% for f in fields %}
+                        {% if f.get('is_visible', True) and not f.get('group', '') %}
+                            {% set ns.has_ungrouped = true %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {# Collect unique groups in order #}
+                    {% set seen_groups = [] %}
+                    {% for f in fields %}
+                        {% if f.get('is_visible', True) %}
+                            {% set g = f.get('group', '') %}
+                            {% if g and g not in seen_groups %}
+                                {% set _ = seen_groups.append(g) %}
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {# Render ungrouped fields first if any #}
+                    {% if ns.has_ungrouped %}
+                    <div class="mb-4">
+                        <div class="row g-3">
+                        {% for f in fields %}
+                            {% if f.get('is_visible', True) and not f.get('group', '') %}
+                            <div class="col-md-6 col-lg-4 col-xl-3">
+                                <div class="form-group">
+                                    <label class="form-label fw-bold text-main small mb-1 text-truncate d-block" title="{{ f.label }}">
+                                        {{ f.idx }}. {{ f.label }}
+                                    </label>
+                                    {% if f.type == 'number' %}
+                                    <div class="input-group">
+                                        <input type="text" name="{{ f.idx }}" class="form-control py-2 shadow-none" placeholder="0">
+                                        {% if f.is_perc %}<span class="input-group-text border-0 tiny fw-bold" style="background-color: var(--bg-body); color: var(--text-main);">%</span>{% endif %}
+                                    </div>
+                                    {% else %}
+                                    <input type="text" name="{{ f.idx }}" class="form-control py-2 shadow-none" placeholder="...">
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {# Render grouped fields #}
+                    {% for group_name in seen_groups %}
+                    <div class="field-group-block mb-4">
+                        <div class="field-group-header d-flex align-items-center gap-2 mb-3">
+                            <div class="group-accent-bar"></div>
+                            <i class="fa-solid fa-layer-group text-primary small"></i>
+                            <span class="fw-bold text-primary small text-uppercase tracking-wide">{{ group_name }}</span>
+                            <div class="flex-grow-1 border-bottom border-primary border-opacity-25 ms-2"></div>
+                        </div>
+                        <div class="row g-3 ps-3">
+                        {% for f in fields %}
+                            {% if f.get('is_visible', True) and f.get('group', '') == group_name %}
+                            <div class="col-md-6 col-lg-4 col-xl-3">
+                                <div class="form-group">
+                                    <label class="form-label fw-semibold text-main small mb-1 text-truncate d-block" title="{{ f.label }}">
+                                        {{ f.label }}
+                                    </label>
+                                    {% if f.type == 'number' %}
+                                    <div class="input-group">
+                                        <input type="text" name="{{ f.idx }}" class="form-control py-2 shadow-none" placeholder="0">
+                                        {% if f.is_perc %}<span class="input-group-text border-0 tiny fw-bold" style="background-color: var(--bg-body); color: var(--text-main);">%</span>{% endif %}
+                                    </div>
+                                    {% else %}
+                                    <input type="text" name="{{ f.idx }}" class="form-control py-2 shadow-none" placeholder="...">
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    <div class="col-12 mt-4 border-top pt-4">
+                        <div class="d-flex justify-content-end gap-3">
+                            <button type="reset" class="btn btn-light px-4 rounded-pill fw-bold border">LÀM MỚI</button>
+                            <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow-lg">GỬI BÁO CÁO NGAY</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            {% else %}
+            <div class="card border-0 shadow-sm rounded-4 p-5 text-center min-vh-50 d-flex flex-column align-items-center justify-content-center" style="background-color: var(--bg-surface);">
+                <h5 class="fw-bold text-main mb-0">Hãy chọn biểu mẫu để báo cáo</h5>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .min-vh-50 { min-height: 50vh; }
+    .tiny { font-size: 10px; }
+    .tracking-wide { letter-spacing: 0.5px; }
+
+    .field-group-block {
+        background: var(--bg-body);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 16px 20px;
+    }
+    .group-accent-bar {
+        width: 4px;
+        height: 20px;
+        background: linear-gradient(135deg, #1a56db, #3f83f8);
+        border-radius: 4px;
+        flex-shrink: 0;
+    }
+    .field-group-header { margin-bottom: 8px; }
+</style>
+{% endblock %}

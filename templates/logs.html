@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-4 animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="h3 fw-bold text-dark mb-1">Nhật ký Hệ thống</h1>
+        </div>
+        <div class="d-flex gap-2 d-none d-md-flex">
+            <form method="POST" action="/logs" class="d-inline">
+                <input type="hidden" name="action" value="backup">
+                <button type="submit" class="btn btn-outline-success rounded-pill px-4 fw-bold shadow-sm">
+                    SAO LƯU EXCEL
+                </button>
+            </form>
+            <button class="btn btn-danger rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#clearLogsModal">
+                DỌN DẸP
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Mobile Speed Dial FAB -->
+<div class="position-fixed d-md-none" style="bottom: 85px; right: 20px; z-index: 1050;">
+    <div class="fab-container text-end">
+        <div class="fab-options mb-3 collapse" id="logsSpeedDial">
+            <form method="POST" action="/logs" class="mb-3 ms-auto d-block">
+                <input type="hidden" name="action" value="backup">
+                <button type="submit" class="btn btn-success rounded-pill shadow-sm px-3 fw-bold tiny" style="height: 40px; min-width: 120px;">
+                    SAO LƯU
+                </button>
+            </form>
+            <button class="btn btn-danger rounded-pill shadow-sm mb-3 d-flex align-items-center justify-content-center px-3 fw-bold tiny" style="height: 40px; min-width: 120px;" 
+                    data-bs-toggle="modal" data-bs-target="#clearLogsModal">
+                DỌN DẸP
+            </button>
+        </div>
+        <button class="btn btn-primary rounded-circle shadow-lg" style="width: 60px; height: 60px; border: none; font-size: 24px;" 
+                data-bs-toggle="collapse" data-bs-target="#logsSpeedDial">
+            +
+        </button>
+    </div>
+</div>
+
+<div class="main-content-area animate__animated animate__fadeInUp">
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-pills gap-2 mb-4 bg-white p-2 rounded-pill shadow-sm d-inline-flex border">
+        <li class="nav-item">
+            <button class="nav-link {% if not start and not end and not user_search %}active{% endif %} rounded-pill fw-bold px-4" data-bs-toggle="pill" data-bs-target="#tab-live">
+                HOẠT ĐỘNG GẦN ĐÂY
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link {% if start or end or user_search %}active{% endif %} rounded-pill fw-bold px-4" data-bs-toggle="pill" data-bs-target="#tab-search">
+                TRA CỨU & LỌC
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- Tab: Live Activity -->
+        <div class="tab-pane fade {% if not start and not end and not user_search %}show active{% endif %}" id="tab-live">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-custom align-middle mb-0">
+                            <thead class="tiny fw-bold text-muted text-uppercase">
+                                <tr class="text-center">
+                                    <th style="width: 160px;">THỜI GIAN</th>
+                                    <th style="width: 180px;">NGƯỜI DÙNG</th>
+                                    <th>CHỨC NĂNG</th>
+                                    <th>HÀNH ĐỘNG</th>
+                                    <th>CHI TIẾT</th>
+                                    <th style="width: 120px;">TRẠNG THÁI</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for l in logs %}
+                                <tr class="text-center">
+                                    <td>
+                                        <div class="fw-bold text-main small">{{ l.created_at.strftime('%H:%M %d/%m/%Y') }}</div>
+                                    </td>
+                                    <td><div class="badge border px-2 fw-bold tiny" style="background-color: var(--bg-body); color: #60a5fa !important; border-color: rgba(96,165,250,0.3) !important;">{{ l.fullname }}</div></td>
+                                    <td><span class="badge border px-2 tiny fw-bold" style="background-color: var(--bg-body); color: var(--text-main) !important; border-color: var(--border) !important;">{{ l.module or '-' }}</span></td>
+                                    <td class="fw-bold small text-main">{{ l.action }}</td>
+                                    <td class="text-muted small text-start">
+                                        <div class="text-truncate" style="max-width: 300px;" title="{{ l.details }}">{{ l.details }}</div>
+                                    </td>
+                                    <td class="pe-4 text-center"><span class="badge border px-2 tiny" style="background-color: var(--bg-body); color: #34d399 !important; border-color: rgba(52,211,153,0.3) !important;">Thành công</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Search & Filter -->
+        <div class="tab-pane fade {% if start or end or user_search %}show active{% endif %}" id="tab-search">
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                <form action="/logs" method="GET">
+                    <div class="row g-4 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold text-dark small">TỪ NGÀY</label>
+                            <input type="date" name="start" class="form-control py-2 shadow-sm border-light" value="{{ start }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold text-dark small">ĐẾN NGÀY</label>
+                            <input type="date" name="end" class="form-control py-2 shadow-sm border-light" value="{{ end }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold text-dark small">NGƯỜI DÙNG</label>
+                            <select name="user" class="form-select py-2 shadow-sm border-light">
+                                <option value="">-- Tất cả người dùng --</option>
+                                {% for u in user_list %}
+                                <option value="{{ u }}" {% if user_search == u %}selected{% endif %}>{{ u }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary w-100 py-2 rounded-pill fw-bold shadow">
+                                    LỌC KẾT QUẢ
+                                </button>
+                                <a href="/logs" class="btn btn-light border py-2 rounded-pill fw-bold">HỦY</a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            {% if start or end or user_search %}
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden animate__animated animate__fadeInUp">
+                <div class="card-header bg-white py-3 px-4 border-0 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold text-dark mb-0">KẾT QUẢ TRA CỨU</h6>
+                    <span class="badge bg-primary rounded-pill tiny">{{ logs|length }} kết quả</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover align-middle mb-0 border-light-subtle">
+                            <thead class="bg-light tiny fw-bold text-muted text-uppercase text-center">
+                                <tr>
+                                    <th class="ps-4 text-start">THỜI GIAN</th>
+                                    <th>NGƯỜI DÙNG</th>
+                                    <th>CHỨC NĂNG</th>
+                                    <th>HÀNH ĐỘNG</th>
+                                    <th>CHI TIẾT</th>
+                                    <th class="pe-4">TRẠNG THÁI</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-center">
+                                {% for l in logs %}
+                                <tr>
+                                    <td class="ps-4 text-start">
+                                        <div class="fw-bold text-main small">{{ l.created_at.strftime('%H:%M %d/%m/%Y') }}</div>
+                                    </td>
+                                    <td><div class="badge border px-2 fw-bold tiny" style="background-color: var(--bg-body); color: #60a5fa !important; border-color: rgba(96,165,250,0.3) !important;">{{ l.fullname }}</div></td>
+                                    <td><span class="badge border px-2 tiny fw-bold" style="background-color: var(--bg-body); color: var(--text-main) !important; border-color: var(--border) !important;">{{ l.module or '-' }}</span></td>
+                                    <td class="fw-bold small text-main">{{ l.action }}</td>
+                                    <td class="text-muted small text-start">{{ l.details }}</td>
+                                    <td class="pe-4"><span class="badge border px-2 tiny" style="background-color: var(--bg-body); color: #34d399 !important; border-color: rgba(52,211,153,0.3) !important;">Thành công</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Clear Logs Modal -->
+<div class="modal fade" id="clearLogsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-danger text-white p-4 border-0">
+                <h5 class="modal-title fw-bold">XÁC NHẬN DỌN DẸP NHẬT KÝ</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="bg-danger bg-opacity-10 text-danger rounded-circle p-4 d-inline-block mb-4 shadow-sm">
+                    CẢNH BÁO
+                </div>
+                <h6 class="fw-bold mb-4">Bạn muốn xóa nhật ký theo cách nào?</h6>
+                
+                <form method="POST" action="/logs">
+                    <input type="hidden" name="action" value="clear_range">
+                    <div class="row g-2 mb-3">
+                        <div class="col-6"><input type="date" name="s_date" class="form-control" required></div>
+                        <div class="col-6"><input type="date" name="e_date" class="form-control" required></div>
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100 rounded-pill fw-bold shadow-sm mb-3">XÓA TRONG KHOẢNG NÀY</button>
+                </form>
+
+                <hr class="my-4 opacity-10">
+
+                <form method="POST" action="/logs">
+                    <input type="hidden" name="action" value="clear_all">
+                    <button type="submit" class="btn btn-outline-danger w-100 rounded-pill fw-bold shadow-sm">XÓA TOÀN BỘ VĨNH VIỄN</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .nav-pills .nav-link { color: var(--text-muted); transition: all 0.2s; }
+    .nav-pills .nav-link.active { background: var(--primary-gradient) !important; color: white !important; box-shadow: var(--shadow-primary); }
+    .tiny { font-size: 10px; }
+</style>
+{% endblock %}

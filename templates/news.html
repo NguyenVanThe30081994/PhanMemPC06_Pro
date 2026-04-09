@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-4 animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="h3 fw-bold text-dark mb-1">Bảng tin - Thông báo</h1>
+        </div>
+        <div class="d-none d-md-block">
+            {% if perms.get('p_sys') or is_admin %}
+            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#addNewsModal">
+                ĐĂNG TIN MỚI
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Floating FAB for Mobile -->
+{% if perms.get('p_sys') or is_admin %}
+<button class="btn btn-primary d-md-none rounded-circle shadow-lg position-fixed d-flex align-items-center justify-content-center animate__animated animate__bounceIn" 
+        style="width: 60px; height: 60px; bottom: 85px; right: 20px; z-index: 1100; padding: 0; border: none; font-size: 24px;"
+        data-bs-toggle="modal" data-bs-target="#addNewsModal">
+    +
+</button>
+{% endif %}
+
+<div class="main-content-area animate__animated animate__fadeInUp">
+    <div class="row g-4">
+        <!-- Sidebar Filter -->
+        <div class="col-xl-2 col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 animate__animated animate__fadeInLeft">
+                <div class="card-header border-0 py-3 px-4" style="background-color: var(--bg-surface);">
+                    <h6 class="fw-bold text-main mb-0">ĐỘI NGHIỆP VỤ</h6>
+                </div>
+                <div class="list-group list-group-flush border-top">
+                    {% if not pro_units %}
+                    <div class="px-4 py-3 tiny text-muted italic text-center">Chưa có đội nghiệp vụ nào</div>
+                    {% else %}
+                        {% for unit in pro_units %}
+                        <a href="#" class="list-group-item list-group-item-action border-0 px-4 py-2 d-flex align-items-center gap-2" style="background-color: var(--bg-surface);">
+                            <span class="small fw-medium text-muted">{{ unit.name }}</span>
+                        </a>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- News Cards -->
+        <div class="{% if pro_units %}col-xl-10 col-lg-9{% else %}col-12{% endif %}">
+            <div class="row g-4">
+                {% for n in news_list %}
+                <div class="col-xl-4 col-md-6">
+                    <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100 hover-up" style="background-color: var(--bg-surface);">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="badge bg-primary-subtle text-primary border px-2 tiny fw-bold">{{ n.category }}</span>
+                                <div class="tiny text-muted fw-bold">{{ n.uploaded_at.strftime('%d/%m/%Y') }}</div>
+                            </div>
+                            <h6 class="fw-bold text-main mb-3 line-clamp-2" style="min-height: 44px; line-height: 1.4;">{{ n.title }}</h6>
+                            <p class="text-muted small mb-4 line-clamp-3" style="min-height: 60px;">{{ n.content }}</p>
+                            <div class="border-top pt-3 d-flex justify-content-between align-items-center">
+                                {% if n.filename %}
+                                <a href="/dl_file/{{ n.filename }}" class="btn btn-sm btn-light border rounded-pill px-3 tiny fw-bold shadow-sm d-flex align-items-center gap-2">
+                                     ĐÍNH KÈM
+                                </a>
+                                {% else %}
+                                <span class="tiny text-muted italic">Không có đính kèm</span>
+                                {% endif %}
+                                <button class="btn btn-link btn-sm text-primary p-0 fw-bold tiny text-decoration-none">CHI TIẾT</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                {% if not news_list %}
+                <div class="col-12 py-5 text-center">
+                    <h5 class="fw-bold text-muted">Chưa có tin tức nào mới</h5>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add News Modal -->
+<div class="modal fade" id="addNewsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-header bg-primary text-white p-4 border-0">
+                    <h5 class="modal-title fw-bold">ĐĂNG BẢN TIN MỚI</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">TIÊU ĐỀ BẢN TIN</label>
+                        <input type="text" name="title" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">ĐỘI NGHIỆP VỤ</label>
+                        <select name="category" class="form-select" required>
+                            {% if not pro_units %}
+                            <option value="" disabled selected>Chưa có đội nghiệp vụ...</option>
+                            {% endif %}
+                            {% for u in pro_units %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
+                        </select>
+                        {% if not pro_units %}
+                        <div class="tiny text-danger mt-1 fw-bold">Hãy vào "Thiết lập danh mục" để tạo Đội nghiệp vụ!</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">NỘI DUNG TÓM TẮT</label>
+                        <textarea name="content" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="mb-1">
+                        <label class="form-label small fw-bold text-muted">Ảnh minh họa / Đính kèm</label>
+                        <div class="input-group">
+                            <label class="input-group-text bg-light tiny fw-bold" for="newsFile">CHỌN TỆP</label>
+                            <input type="file" name="file" class="form-control tiny" id="newsFile">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0">
+                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">ĐĂNG TIN NGAY</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hover-up { transition: all 0.3s; }
+    .hover-up:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important; }
+    .line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .line-clamp-3 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+    .tiny { font-size: 10px; }
+</style>
+{% endblock %}

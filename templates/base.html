@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{{ title|default("Hệ thống Quản trị PC06 Tuyên Quang") }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.5.0">
+    <link rel="icon" type="image/x-icon" href="https://cdn-icons-png.flaticon.com/512/3593/3593503.png">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            
+            // Nhận diện thiết bị (Mobile vs PC)
+            window.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            document.documentElement.classList.add(window.isMobile ? 'device-mobile' : 'device-desktop');
+        })();
+
+        // Bảo vệ mã nguồn: Chặn chuột phải và phím tắt DevTools
+        document.addEventListener('contextmenu', event => event.preventDefault());
+        document.addEventListener('keydown', event => {
+            if (event.keyCode == 123) return false; // F12
+            if (event.ctrlKey && event.shiftKey && (event.keyCode == 73 || event.keyCode == 74)) return false; // Ctrl+Shift+I/J
+            if (event.ctrlKey && event.keyCode == 85) return false; // Ctrl+U
+        });
+
+        // Việt hóa thông báo mặc định của trình duyệt
+        document.addEventListener('invalid', (function(){
+            return function(e) {
+                e.preventDefault();
+                if (e.target.validity.valueMissing) {
+                    e.target.setCustomValidity("Vui lòng không bỏ trống trường này.");
+                } else if (e.target.validity.patternMismatch) {
+                    e.target.setCustomValidity(e.target.getAttribute('title') || "Định dạng nhập vào không hợp lệ.");
+                } else if (e.target.validity.typeMismatch) {
+                    e.target.setCustomValidity("Giá trị nhập vào không đúng định dạng.");
+                } else if (e.target.validity.tooShort) {
+                    e.target.setCustomValidity("Nội dung quá ngắn.");
+                }
+                e.target.reportValidity();
+            };
+        })(), true);
+        document.addEventListener('input', function(e) {
+            e.target.setCustomValidity("");
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        [data-theme="light"] .dark-icon-only { display: block; }
+        [data-theme="light"] .light-icon-only { display: none; }
+        [data-theme="dark"] .dark-icon-only { display: none; }
+        [data-theme="dark"] .light-icon-only { display: block; }
+
+        .notif-badge { position: absolute; top: -5px; right: -5px; padding: 2px 6px; border-radius: 50%; font-size: 10px; display: none; }
+        .toast-container { position: fixed; bottom: 85px; right: 20px; z-index: 9999; }
+        #notif-dropdown { width: 320px; max-height: 400px; overflow-y: auto; }
+        .notif-item { border-bottom: 1px solid var(--border); transition: background 0.2s; }
+        .notif-item:hover { background: var(--bg-body); }
+        .notif-item.unread { border-left: 3px solid var(--primary); background: rgba(37,99,235,0.03); }
+        .nav-link-top { height: 100%; padding: 0 15px; color: var(--text-muted); font-weight: 600; text-decoration: none; position: relative; transition: all 0.2s; border-bottom: 3px solid transparent; display: flex; align-items: center; justify-content: center; line-height: 1; margin: 0; }
+        .dropdown { display: flex; align-items: center; justify-content: center; height: 100%; }
+        .chat-full-width { padding-left: 0 !important; padding-right: 0 !important; max-width: none !important; width: 100% !important; margin-top: -1.5rem !important; }
+        .nav-link-top:hover { color: var(--primary); }
+        .nav-link-top.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .chat-full-page { padding: 0 !important; margin: 0 !important; max-width: 100vw !important; width: 100vw !important; overflow: hidden; }
+
+        /* Mobile Bottom Nav */
+        .mobile-bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background: var(--bg-surface);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 1px solid var(--border);
+            z-index: 1000;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        .mobile-bottom-nav .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--text-muted);
+            font-size: 10px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+            width: 25%;
+        }
+        .mobile-bottom-nav .nav-item i { font-size: 20px; margin-bottom: 4px; }
+        .mobile-bottom-nav .nav-item.active { color: var(--primary); }
+        
+        @media (max-width: 991px) {
+            body { padding-bottom: 70px !important; }
+        }
+
+        /* Ultra-Global Dark Mode Overrides - PC06 Final Polish */
+        [data-theme="dark"] .bg-white, 
+        [data-theme="dark"] .bg-light,
+        [data-theme="dark"] [class*="bg-light"],
+        [data-theme="dark"] [class*="bg-white"],
+        [data-theme="dark"] .card-header,
+        [data-theme="dark"] .card-footer,
+        [data-theme="dark"] .modal-header,
+        [data-theme="dark"] .modal-body,
+        [data-theme="dark"] .modal-footer,
+        [data-theme="dark"] .list-group-item,
+        [data-theme="dark"] .dropdown-menu {
+            background-color: var(--bg-surface) !important;
+            background-image: none !important;
+            color: var(--text-main) !important;
+            border-color: var(--border) !important;
+        }
+
+        [data-theme="dark"] .modal-content {
+            background-color: var(--bg-surface) !important;
+            border: 1px solid var(--border) !important;
+        }
+
+        [data-theme="dark"] .border,
+        [data-theme="dark"] [class*="border-"],
+        [data-theme="dark"] table,
+        [data-theme="dark"] thead,
+        [data-theme="dark"] tbody,
+        [data-theme="dark"] tr,
+        [data-theme="dark"] th,
+        [data-theme="dark"] td {
+            border-color: var(--border) !important;
+            color: var(--text-main) !important;
+        }
+        
+        [data-theme="dark"] table:not(.excel-wrapper table) td,
+        [data-theme="dark"] table:not(.excel-wrapper table) th {
+            background-color: var(--bg-surface) !important;
+        }
+
+        [data-theme="dark"] .btn-white,
+        [data-theme="dark"] .btn-light {
+            background-color: rgba(255,255,255,0.05) !important;
+            border-color: var(--border) !important;
+            color: var(--text-main) !important;
+        }
+
+        [data-theme="dark"] .btn-white:hover,
+        [data-theme="dark"] .btn-light:hover {
+            background-color: rgba(255,255,255,0.1) !important;
+        }
+
+        [data-theme="dark"] .form-control,
+        [data-theme="dark"] .form-select,
+        [data-theme="dark"] .dropdown-item,
+        [data-theme="dark"] .form-check-input:not(:checked) {
+            background-color: rgba(0,0,0,0.2) !important;
+            color: var(--text-main) !important;
+            border-color: var(--border) !important;
+        }
+
+        [data-theme="dark"] label,
+        [data-theme="dark"] .form-label,
+        [data-theme="dark"] .form-check-label,
+        [data-theme="dark"] .text-dark { 
+            color: var(--text-main) !important; 
+        }
+
+        [data-theme="dark"] .text-muted { color: var(--text-muted) !important; }
+        [data-theme="dark"] .table-custom thead th { background-color: rgba(255,255,255,0.02) !important; }
+        [data-theme="dark"] .bg-indigo-light { background-color: rgba(79, 70, 229, 0.1) !important; color: #a5b4fc !important; }
+        [data-theme="dark"] .alert-success { background-color: rgba(16, 185, 129, 0.15) !important; color: #34d399 !important; border: 0 !important; }
+        [data-theme="dark"] .alert-danger { background-color: rgba(220, 38, 38, 0.2) !important; color: #f87171 !important; border: 0 !important; }
+        [data-theme="dark"] .bg-primary-subtle, [data-theme="dark"] .bg-info-subtle { background-color: rgba(37, 99, 235, 0.15) !important; color: #60a5fa !important; border: 1px solid rgba(37, 99, 235, 0.2) !important; }
+        [data-theme="dark"] .hover-bg-light:hover { background-color: rgba(255,255,255,0.05) !important; }
+
+        /* Raised 3D Zalo Button Styling */
+        .btn-zalo-3d {
+            background-color: #0068ff !important;
+            color: #fff !important;
+            border: none;
+            border-top: 1px solid rgba(255,255,255,0.3);
+            box-shadow: 0 4px 0 #0045aa, 0 8px 15px rgba(0,0,0,0.15);
+            transition: all 0.1s ease;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            letter-spacing: 0.5px;
+            font-size: 11px !important;
+            font-weight: 800 !important;
+            padding: 8px 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none !important;
+        }
+        .btn-zalo-3d:hover {
+            background-color: #0077ff !important;
+            transform: translateY(-1px);
+            box-shadow: 0 5px 0 #0045aa, 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .btn-zalo-3d:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #0045aa, 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* Excel Data & Matrix Table Force Dark */
+        [data-theme="dark"] .excel-wrapper table,
+        [data-theme="dark"] .excel-wrapper tr,
+        [data-theme="dark"] .excel-wrapper td,
+        [data-theme="dark"] .excel-wrapper th,
+        [data-theme="dark"] .matrix-table table,
+        [data-theme="dark"] .matrix-table td,
+        [data-theme="dark"] .matrix-table th {
+            background-color: var(--bg-surface) !important;
+            color: var(--text-main) !important;
+            border-color: var(--border) !important;
+        }
+
+        /* Custom Scrollbar for Dark Mode */
+        [data-theme="dark"] ::-webkit-scrollbar { width: 8px; height: 8px; }
+        [data-theme="dark"] ::-webkit-scrollbar-track { background: var(--bg-body); }
+        [data-theme="dark"] ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
+        [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+
+        /* Fix white form elements in dark mode */
+        [data-theme="dark"] input[type="checkbox"], 
+        [data-theme="dark"] input[type="radio"] {
+            filter: invert(1) hue-rotate(180deg) brightness(0.8);
+        }
+        [data-theme="dark"] hr {
+            background-color: var(--border);
+            opacity: 0.1;
+        }
+
+        /* Global Table Custom Styling - PC06 Spec */
+        .table-custom { 
+            border: none !important; 
+            border-collapse: collapse !important; 
+            width: 100% !important; 
+            border-radius: 0 !important;
+            text-align: center !important;
+        }
+        .table-custom th, .table-custom td { 
+            border: 1px solid var(--border) !important; 
+            border-top: none !important; 
+            border-radius: 0 !important;
+            vertical-align: middle !important;
+        }
+        .table-custom thead, .table-custom thead th { 
+            border-radius: 0 !important;
+            background-color: #f8fafc; 
+            border-top: none !important;
+            color: #64748b;
+            text-transform: uppercase;
+            font-size: 11px;
+            padding: 12px 16px !important;
+            text-align: center !important;
+        }
+        .table-custom tr th:first-child, .table-custom tr td:first-child { border-left: none !important; }
+        .table-custom tr th:last-child, .table-custom tr td:last-child { border-right: none !important; }
+        .table-custom tr:last-child td { border-bottom: none !important; }
+        .table-responsive { border-radius: 0 !important; border: none !important; }
+    </style>
+</head>
+<body>
+    <nav class="top-navbar border-bottom">
+        <div class="nav-container">
+            <div class="nav-left d-flex align-items-center">
+                <!-- Mobile Navigation Toggle -->
+                <button class="btn btn-light d-lg-none me-3 rounded-circle shadow-sm" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
+                    <i class="fa-solid fa-bars fs-5"></i>
+                </button>
+
+                <a href="/admin" class="nav-logo text-decoration-none d-flex align-items-center">
+                    <div class="d-flex flex-column" style="line-height: 1.2;">
+                        <span class="logo-text fw-bold text-dark fs-5 mobile-logo-text">PC06 TUYÊN QUANG</span>
+                    </div>
+                </a>
+            </div>
+            
+            <div class="nav-center d-none d-lg-flex h-100 justify-content-center align-items-stretch flex-grow-1 px-4">
+                {% if perms.get('p_dash_lead') or perms.get('p_dash_exec') %}<a href="/admin" class="nav-link-top {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">Tổng quan</a>{% endif %}
+                {% if perms.get('p_task_lead') or perms.get('p_task_exec') %}<a href="/tasks" class="nav-link-top {% if request.endpoint == 'tasks_bp.index' %}active{% endif %}">Công việc</a>{% endif %}
+                <a href="/chat" class="nav-link-top {% if request.endpoint == 'chat_bp.chat' %}active{% endif %}">Trao đổi</a>
+                <div class="dropdown h-100 d-flex align-items-center">
+                    <a class="nav-link-top dropdown-toggle {% if request.endpoint in ['portal_bp.news', 'portal_bp.library'] %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
+                        Bảng tin và Thư viện
+                    </a>
+                    <ul class="dropdown-menu shadow-lg border-0 mt-0 rounded-4 p-2" style="min-width: 220px;">
+                        {% if perms.get('p_news_lead') or perms.get('p_news_exec') %}
+                        <li><a class="dropdown-item py-2 rounded-3" href="/news">Bảng tin</a></li>
+                        {% endif %}
+                        {% if (perms.get('p_news_lead') or perms.get('p_news_exec')) and (perms.get('p_lib_lead') or perms.get('p_lib_exec')) %}<li><hr class="dropdown-divider opacity-10 mx-2"></li>{% endif %}
+                        {% if perms.get('p_lib_lead') or perms.get('p_lib_exec') %}
+                        <li><a class="dropdown-item py-2 rounded-3" href="/library">Thư viện</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+                {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') %}<a href="/contacts" class="nav-link-top {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">Danh bạ</a>{% endif %}
+                
+                <!-- Separated Data Modules -->
+                <div class="dropdown h-100 d-flex align-items-center">
+                    <a class="nav-link-top dropdown-toggle {% if request.endpoint in ['forms_bp.input_data', 'forms_bp.stats', 'forms_bp.progress'] %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
+                        Dữ liệu & Báo cáo
+                    </a>
+                    <ul class="dropdown-menu shadow-lg border-0 mt-0 rounded-4 p-2" style="min-width: 250px;">
+                        {% if perms.get('p_input_lead') or perms.get('p_input_exec') %}
+                        <li><a class="dropdown-item py-2 rounded-3" href="{{ url_for('forms_bp.input_data') }}">Nhập liệu Biểu mẫu</a></li>
+                        {% endif %}
+                        {% if (perms.get('p_input_lead') or perms.get('p_input_exec')) and (perms.get('p_stat_lead') or perms.get('p_stat_exec')) %}<li><hr class="dropdown-divider opacity-10 mx-2"></li>{% endif %}
+                        {% if perms.get('p_stat_lead') or perms.get('p_stat_exec') %}
+                        <li><a class="dropdown-item py-2 rounded-3" href="{{ url_for('forms_bp.stats') }}">Thống kê Báo cáo</a></li>
+                        <li><hr class="dropdown-divider opacity-10 mx-2"></li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="{{ url_for('forms_bp.progress') }}">Tiến độ Báo cáo</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+                
+                <a href="{{ url_for('shortlink_bp.manage_links') }}" class="nav-link-top {% if request.path.startswith('/links') %}active{% endif %}">Tiện ích QR & Link</a>
+
+                {% if perms.get('p_form_lead') or perms.get('p_user_lead') or perms.get('p_sys_lead') %}
+                <div class="dropdown h-100 d-flex align-items-center">
+                    <a class="nav-link-top dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Hệ thống</a>
+                    <ul class="dropdown-menu shadow-lg border-0 mt-0 rounded-4 p-2" style="min-width: 240px;">
+                        {% if perms.get('p_form_lead') %}
+                        <li><a class="dropdown-item py-2 rounded-3" href="/admin-forms"> Thiết lập mẫu V1</a></li>
+                        <li><hr class="dropdown-divider opacity-10 mx-2"></li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="/reports-v2"> Thiết lập mẫu V2</a></li>
+                        <li><hr class="dropdown-divider opacity-10 mx-2"></li>
+                        {% endif %}
+                        {% if perms.get('p_user_lead') %}
+                        <li><a class="dropdown-item py-2 rounded-3" href="/roles"> Tài khoản & Vai trò</a></li>
+                        <li><hr class="dropdown-divider opacity-10 mx-2"></li>
+                        {% endif %}
+                        {% if perms.get('p_sys_lead') %}
+                        <li><a class="dropdown-item py-2 rounded-3" href="/admin/module-categories"> Thiết lập danh mục</a></li>
+                        <li><hr class="dropdown-divider opacity-10 mx-2"></li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="/logs"> Nhật ký hoạt động</a></li>
+                        <li><hr class="dropdown-divider opacity-10 mx-2"></li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="/admin/system/update"> Cập nhật bản vá</a></li>
+                        <li><hr class="dropdown-divider opacity-10 mx-2"></li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="/admin/db-tool"> Công cụ Database</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="nav-right d-flex align-items-center gap-3">
+                <div class="dropdown">
+                    <button class="btn btn-light position-relative rounded-pill p-2" type="button" data-bs-toggle="dropdown" id="bellBtn">
+                        <i class="fa-regular fa-bell fs-5"></i>
+                        <span class="badge bg-danger notif-badge" id="notifCount">0</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 mt-1 rounded-4 p-2" id="notif-dropdown" style="min-width: 320px;">
+                        <div class="dropdown-header fw-bold text-dark fs-6 border-bottom pb-2 mb-2">THÔNG BÁO</div>
+                        <div id="notifList"><li class="p-4 text-center text-muted tiny">Không có thông báo mới</li></div>
+                    </ul>
+                </div>
+
+                    <button class="user-btn dropdown-toggle btn btn-primary rounded-pill px-3 py-2 fw-medium d-flex align-items-center gap-2 border-0 shadow-sm" type="button" data-bs-toggle="dropdown">
+                        <span class="user-name-text">{{ 'Tài khoản quản trị' if session.get('username')|lower in ['root', 'admin'] else session.get('username', 'Khách') }}</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 mt-0 p-2 rounded-4" style="min-width: 180px;">
+                        <li><a class="dropdown-item py-2 rounded-3 fw-bold" href="/password"><i class="fa-solid fa-key me-2 small opacity-50"></i>Đổi mật khẩu</a></li>
+                        <li><a class="dropdown-item text-danger fw-bold py-2 rounded-3 bg-danger-subtle bg-opacity-10 mt-1" href="/logout"><i class="fa-solid fa-right-from-bracket me-2 small opacity-50"></i>Đăng xuất</a></li>
+                    </ul>
+                </div>
+
+                <button class="btn btn-light rounded-circle shadow-sm border p-2" type="button" onclick="toggleTheme()">
+                    <i class="fa-solid fa-moon dark-icon-only"></i>
+                    <i class="fa-solid fa-sun light-icon-only"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content" style="padding-top: calc(var(--nav-height) + env(safe-area-inset-top, 0px)); min-height: 100vh;">
+        <div class="container-fluid {% if request.endpoint == 'chat_bp.chat' %}chat-full-page{% else %}px-lg-5 py-4{% endif %} h-100">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const Toast = Swal.mixin({
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 3000,
+                                timerProgressBar: true
+                            });
+                            {% for category, message in messages %}
+                                {% if category == 'success' %}
+                                    Toast.fire({ icon: 'success', title: '{{ message }}' });
+                                {% else %}
+                                    Swal.fire({ 
+                                        icon: '{{ "error" if category == "danger" else category }}', 
+                                        text: '{{ message }}',
+                                        confirmButtonColor: 'var(--bs-primary)'
+                                    });
+                                {% endif %}
+                            {% endfor %}
+                        });
+                    </script>
+                {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+    
+    <div class="offcanvas offcanvas-start border-0 shadow-lg mobile-sidebar" tabindex="-1" id="mobileMenu" style="background: var(--bg-surface);">
+        <div class="offcanvas-header border-bottom p-4">
+            <h5 class="offcanvas-title fw-bold text-primary">DANH MỤC</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body p-0">
+            <div class="list-group list-group-flush">
+                {% if perms.get('p_dash_lead') or perms.get('p_dash_exec') %}
+                <a href="/admin" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'admin_bp.index' %}active fw-bold{% endif %}">
+                    Tổng quan
+                </a>
+                {% endif %}
+                {% if perms.get('p_task_lead') or perms.get('p_task_exec') %}
+                <a href="/tasks" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'tasks_bp.index' %}active fw-bold{% endif %}">
+                    Công việc
+                </a>
+                {% endif %}
+                <a href="/chat" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'chat_bp.chat' %}active fw-bold{% endif %}">
+                    Trao đổi
+                </a>
+                {% if perms.get('p_news_lead') or perms.get('p_news_exec') %}
+                <a href="/news" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'portal_bp.news' %}active fw-bold{% endif %}">
+                    Bảng tin
+                </a>
+                {% endif %}
+                {% if perms.get('p_lib_lead') or perms.get('p_lib_exec') %}
+                <a href="/library" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'portal_bp.library' %}active fw-bold{% endif %}">
+                    Thư viện
+                </a>
+                {% endif %}
+                {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') %}
+                <a href="/contacts" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'portal_bp.contacts' %}active fw-bold{% endif %}">
+                    Danh bạ
+                </a>
+                {% endif %}
+            </div>
+            
+            {% if perms.get('p_form_lead') or perms.get('p_user_lead') or perms.get('p_sys_lead') %}
+            <div class="p-4 border-top">
+                <div class="small fw-bold text-muted mb-3 text-uppercase">Quản trị hệ thống</div>
+                <div class="list-group list-group-flush">
+                    {% if perms.get('p_form_lead') %}
+                    <a href="/admin-forms" class="list-group-item list-group-item-action py-3 px-4 border-0 rounded-3 mb-2">
+                        Thiết lập Biểu mẫu
+                    </a>
+                    {% endif %}
+                    {% if perms.get('p_user_lead') %}
+                    <a href="/roles" class="list-group-item list-group-item-action py-3 px-4 border-0 rounded-3 mb-2">
+                        Tài khoản & Vai trò
+                    </a>
+                    {% endif %}
+                    {% if perms.get('p_sys_lead') %}
+                    <a href="/admin/module-categories" class="list-group-item list-group-item-action py-3 px-4 border-0 rounded-3 mb-2">
+                        Chuyên mục & Nhóm
+                    </a>
+                    <a href="/logs" class="list-group-item list-group-item-action py-3 px-4 border-0 rounded-3 mb-2">
+                        Nhật ký hoạt động
+                    </a>
+                    <a href="/admin/system/update" class="list-group-item list-group-item-action py-3 px-4 border-0 rounded-3 mb-2 text-primary fw-bold">
+                        Cập nhật bản vá
+                    </a>
+                    <a href="/admin/db-tool" class="list-group-item list-group-item-action py-3 px-4 border-0 rounded-3 mb-2 text-danger fw-bold">
+                        Công cụ Database
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Mobile Bottom Navigation Bar -->
+    <div class="mobile-bottom-nav d-lg-none">
+        <a href="/admin" class="nav-item {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">
+            <i class="fa-solid fa-house-chimney"></i>
+            <span>TỔNG QUAN</span>
+        </a>
+        <a href="/tasks" class="nav-item {% if request.endpoint == 'tasks_bp.index' %}active{% endif %}">
+            <i class="fa-solid fa-list-check"></i>
+            <span>CÔNG VIỆC</span>
+        </a>
+        <a href="/chat" class="nav-item {% if request.endpoint == 'chat_bp.chat' %}active{% endif %}">
+            <i class="fa-solid fa-comments"></i>
+            <span>TRAO ĐỔI</span>
+        </a>
+        <a href="#" class="nav-item" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
+            <i class="fa-solid fa-ellipsis-h"></i>
+            <span>THÊM</span>
+        </a>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+
+    <script>
+        async function checkUpdates() {
+            try {
+                const r = await fetch('/api/notifications');
+                const d = await r.json();
+                if(!Array.isArray(d)) return;
+                const unread = d.filter(x => !x.is_read).length;
+                const badge = document.getElementById('notifCount');
+                if (unread > 0) { badge.innerText = unread; badge.style.display = 'block'; }
+                else { badge.style.display = 'none'; }
+                if (d.length > 0) {
+                    document.getElementById('notifList').innerHTML = d.map(n => `
+                        <li class="notif-item p-0 ${n.is_read ? '' : 'unread'}">
+                            <a href="${n.link || '#'}" class="dropdown-item p-3">
+                                <div class="fw-bold text-dark small mb-1">${n.title}</div>
+                                <div class="text-muted small text-truncate" style="max-width:250px">${n.msg}</div>
+                                <div class="text-end text-muted mt-1" style="font-size:10px">${n.time}</div>
+                            </a>
+                        </li>
+                    `).join('');
+                }
+            } catch (e) { console.error("Poll Error:", e); }
+        }
+        setInterval(checkUpdates, 7000);
+        checkUpdates();
+
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const target = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', target);
+            localStorage.setItem('theme', target);
+        }
+
+        function showTaskDetail(id) {
+            window.location.href = '/tasks/' + id;
+        }
+
+        // Clock & Weather
+        function updateClock() {
+            const el = document.getElementById('dashboard-clock');
+            if(!el) return;
+            const now = new Date();
+            const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+            const d = days[now.getDay()];
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = now.getFullYear();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            el.innerHTML = `${d}, ${day}/${month}/${year} | <span class="text-primary">${hours}:${minutes}</span>`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        async function updateWeather() {
+            const el = document.getElementById('dashboard-weather');
+            if(!el) return;
+            try {
+                const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=21.82&longitude=105.21&current=temperature_2m,weather_code&timezone=Asia%2FBangkok');
+                const d = await r.json();
+                const temp = Math.round(d.current.temperature_2m);
+                const code = d.current.weather_code;
+                let desc = 'Trời tạnh';
+                if (code > 0 && code <= 3) { desc = 'Nhiều mây'; }
+                else if (code >= 45 && code <= 48) { desc = 'Sương mù'; }
+                else if (code >= 51 && code <= 67) { desc = 'Có mưa'; }
+                else if (code >= 71 && code <= 86) { desc = 'Lạnh/Tuyết'; }
+                else if (code >= 95) { desc = 'Có dông'; }
+                el.innerHTML = `Tuyên Quang: ${temp}°C, ${desc}`;
+            } catch (e) { el.style.display = 'none'; }
+        }
+        updateWeather();
+        setInterval(updateWeather, 600000);
+
+        // Modern Confirm Helper
+        window.ModernConfirm = function(title, text, icon, confirmText, callback) {
+            Swal.fire({
+                title: title,
+                text: text,
+                icon: icon || 'warning',
+                showCancelButton: true,
+                confirmButtonColor: 'var(--bs-primary)',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: confirmText || 'Xác nhận',
+                cancelButtonText: 'Hủy'
+            }).then((result) => {
+                if (result.isConfirmed && typeof callback === 'function') {
+                    callback();
+                }
+            });
+        };
+    </script>
+</body>
+</html>

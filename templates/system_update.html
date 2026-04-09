@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-4 animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="h3 fw-bold text-dark mb-1">Cập nhật hệ thống</h1>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 animate__animated animate__fadeInUp">
+    <!-- Card 1: Upload ZIP -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100">
+            <div class="card-header bg-white border-bottom p-4">
+                <h5 class="fw-bold mb-0 text-primary small">TẢI LÊN BẢN VÁ (.ZIP)</h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-4">
+                        <div class="file-upload-wrapper text-center p-4 border-dashed rounded-4 bg-light cursor-pointer" onclick="document.getElementById('zipInput').click()" style="border: 2px dashed var(--border); border-radius: 1rem;">
+                            <div class="small fw-bold text-dark" id="zipFileName">Chọn tệp ZIP cập nhật</div>
+                            <input type="file" name="update_pkg" id="zipInput" class="d-none" accept=".zip" onchange="document.getElementById('zipFileName').innerText = this.files[0].name; document.getElementById('zipFileName').className = 'small fw-bold text-success';">
+                        </div>
+                    </div>
+                    {% if perms.get('p_sys') or is_admin %}
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">BẮT ĐẦU NÂNG CẤP</button>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 2: GitHub -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100">
+            <div class="card-header bg-white border-bottom p-4">
+                <h5 class="fw-bold mb-0 text-dark small">ĐỒNG BỘ MÃ NGUỒN GITHUB</h5>
+            </div>
+            <div class="card-body p-4 d-flex flex-column justify-content-between">
+                <div>
+                    <p class="text-muted small mb-4">Cập nhật thông qua 'git pull' trực tiếp từ kho mã nguồn chính thức (Nhánh main).</p>
+                    <div class="alert alert-info border-0 rounded-3 small">
+                        Tính năng này dành cho máy chủ đã cấu hình SSH Key.
+                    </div>
+                </div>
+                <form action="{{ url_for('admin_bp.git_pull') }}" method="POST">
+                    <button type="button" class="btn btn-dark w-100 rounded-pill py-2 fw-bold" onclick="ModernConfirm('Đồng bộ GitHub?', 'Hệ thống sẽ thực hiện git pull và tự động khởi động lại. Tiếp tục?', 'info', 'Đồng bộ ngay', () => { this.form.submit(); })">
+                        THỰC HIỆN GIT PULL
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 3: Version Info -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100 bg-primary text-white">
+            <div class="card-body p-4 d-flex flex-column justify-content-center text-center">
+                <div class="text-white text-opacity-75 small fw-bold mb-2 text-uppercase">Phiên bản hiện tại</div>
+                <div class="display-5 fw-bold mb-0">v1.0</div>
+                <div class="mt-4 tiny text-white text-opacity-50">Ngày cập nhật cuối: {{ now_str }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

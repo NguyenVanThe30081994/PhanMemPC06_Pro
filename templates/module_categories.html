@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-4 animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="h3 fw-bold text-dark mb-1">Thiết lập danh mục hệ thống</h1>
+        </div>
+        <!-- Desktop Actions -->
+        <div class="d-none d-md-flex gap-2">
+            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#addGroupModal">
+                <i class="fa-solid fa-layer-group me-2"></i>THÊM DANH MỤC (THẺ)
+            </button>
+            <button class="btn btn-outline-danger rounded-pill px-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#deleteGroupModal">
+                <i class="fa-solid fa-rectangle-xmark me-2"></i>XÓA DANH MỤC (THẺ)
+            </button>
+        </div>
+        <!-- Mobile Actions Dropdown -->
+        <div class="dropdown d-md-none">
+            <button class="btn btn-primary rounded-circle shadow d-flex align-items-center justify-content-center" type="button" data-bs-toggle="dropdown" style="width: 45px; height: 45px; padding: 0;">
+                <i class="fa-solid fa-plus fs-5"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-2 mt-2">
+                <li>
+                    <a class="dropdown-item py-2 rounded-3 fw-bold" href="#" data-bs-toggle="modal" data-bs-target="#addGroupModal">
+                        <i class="fa-solid fa-layer-group me-2 text-primary"></i>THÊM DANH MỤC
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider opacity-10"></li>
+                <li>
+                    <a class="dropdown-item py-2 rounded-3 fw-bold text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deleteGroupModal">
+                        <i class="fa-solid fa-rectangle-xmark me-2"></i>XÓA DANH MỤC
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="main-content-area animate__animated animate__fadeInUp">
+    <div class="row g-4 overflow-auto flex-nowrap pb-4 px-2" style="scrollbar-width: thin;">
+        {% for g in groups %}
+        <div class="col-xl-3 col-md-6" style="min-width: 320px;">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100 d-flex flex-column">
+                <div class="card-header border-0 py-3 px-4 border-bottom" style="background-color: var(--bg-surface);">
+                    <div class="d-flex justify-content-between align-items-start mb-1">
+                        <h6 class="fw-bold mb-0 text-primary">{{ g.name|upper }}</h6>
+                        <span class="badge bg-light text-muted fw-normal tiny border">ID: {{ g.id }}</span>
+                    </div>
+                    <div class="tiny text-muted italic">Liên kết: {{ g.linked_modules or 'Chưa liên kết' }}</div>
+                </div>
+                
+                <div class="card-body p-0 flex-grow-1 overflow-auto" style="max-height: 400px;">
+                    <div class="list-group list-group-flush">
+                        {% for item in g.items %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-4 py-2 hover-bg-light" style="background-color: var(--bg-surface);">
+                            <span class="text-main small fw-medium">{{ item.name }}</span>
+                            <form method="POST" class="m-0">
+                                <input type="hidden" name="action" value="delete_item">
+                                <input type="hidden" name="item_id" value="{{ item.id }}">
+                                <button type="submit" class="btn btn-link text-danger p-0 text-decoration-none tiny fw-bold">XÓA</button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <div class="p-4 text-center text-muted tiny">Chưa có thành phần nào.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="card-footer border-0 p-3" style="background-color: var(--bg-surface);">
+                    <form method="POST" class="d-flex gap-2">
+                        <input type="hidden" name="action" value="add_item">
+                        <input type="hidden" name="group_id" value="{{ g.id }}">
+                        <input type="text" name="item_name" class="form-control form-control-sm border-0 shadow-sm" placeholder="Thêm thành phần..." required style="background-color: var(--bg-body) !important; color: var(--text-main) !important;">
+                        <button type="submit" class="btn btn-sm btn-success rounded-circle shadow-sm" style="width: 30px; height: 30px; padding: 0;">
+                            <i class="fa-solid fa-plus tiny"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Modal: THÊM DANH MỤC (THẺ) -->
+<div class="modal fade" id="addGroupModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <form method="POST">
+                <input type="hidden" name="action" value="add_group">
+                <div class="modal-header bg-primary text-white p-4 border-0">
+                    <h5 class="modal-title fw-bold">THÊM DANH MỤC HỆ THỐNG</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-dark small">TÊN DANH MỤC (VÍ DỤ: ĐỘI NGHIỆP VỤ)</label>
+                        <input type="text" name="name" class="form-control border-0 bg-light py-2 px-3 rounded-3 shadow-sm" placeholder="Nhập tên..." required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-bold text-dark small">LIÊN KẾT VỚI CHỨC NĂNG TOPBAR</label>
+                        <div class="bg-light p-3 rounded-4 shadow-sm border border-dashed">
+                            {% set modules = ['Công việc', 'Bảng tin', 'Thư viện', 'Danh bạ', 'Dữ liệu & Báo cáo', 'Tiện ích QR & Link', 'Hệ thống'] %}
+                            <div class="row">
+                                {% for m in modules %}
+                                <div class="col-6 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="targets" value="{{ m }}" id="m_{{ loop.index }}">
+                                        <label class="form-check-label small fw-medium text-dark" for="m_{{ loop.index }}">{{ m|upper }}</label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0 p-3">
+                    <button type="button" class="btn btn-link text-muted text-decoration-none fw-bold" data-bs-dismiss="modal">HỦY</button>
+                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">TẠO DANH MỤC</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: XÓA DANH MỤC (THẺ) -->
+<div class="modal fade" id="deleteGroupModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <form method="POST">
+                <input type="hidden" name="action" value="delete_group">
+                <div class="modal-header bg-danger text-white p-4 border-0">
+                    <h5 class="modal-title fw-bold">XÓA DANH MỤC HỆ THỐNG</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <div class="mb-4 text-start">
+                        <label class="form-label fw-bold text-dark small">CHỌN THẺ DANH MỤC CẦN XÓA</label>
+                        <select name="group_id" class="form-select border-0 bg-light py-2 px-3 rounded-3 shadow-sm" required>
+                            <option value="" disabled selected>Chọn danh mục...</option>
+                            {% for g in groups %}
+                            <option value="{{ g.id }}">{{ g.name }} ({{ g.items|length }} thành phần)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="alert alert-danger border-0 rounded-4 tiny text-start mb-0">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                        <strong>QUAN TRỌNG:</strong> Hành động này sẽ xóa hoàn toàn Thẻ danh mục và **TẤT CẢ** các thành phần bên trong nó.
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0 p-3">
+                    <button type="button" class="btn btn-link text-muted text-decoration-none fw-bold" data-bs-dismiss="modal">HỦY</button>
+                    <button type="submit" class="btn btn-danger px-5 rounded-pill fw-bold shadow">XÁC NHẬN XÓA THẺ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hover-bg-light:hover { background-color: rgba(255,255,255,0.05) !important; transition: all 0.2s; }
+    .tiny { font-size: 11px; }
+    /* Beautiful horizontal scroll for cards */
+    .flex-nowrap::-webkit-scrollbar { height: 6px; }
+    .flex-nowrap::-webkit-scrollbar-track { background: transparent; }
+    .flex-nowrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+    .flex-nowrap::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+    .italic { font-style: italic; }
+</style>
+{% endblock %}
