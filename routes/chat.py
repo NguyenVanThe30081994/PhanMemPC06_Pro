@@ -38,45 +38,65 @@ def api_hist():
         ).order_by(ChatMessage.id.asc()).all()
 
     html = ""
-    for m in msgs:
+    prev_sender = None
+    
+    for i, m in enumerate(msgs):
         is_me = (m.sender_id == uid)
-        c_class = "me" if is_me else "other"
+        # Xác định logic gộp tin nhắn
+        is_start = (m.sender_id != prev_sender)
+        is_end = (i == len(msgs)-1 or msgs[i+1].sender_id != m.sender_id)
         
-        # Xử lý danh sách tệp đính kèm (có thể là chuỗi phân cách bởi '|')
+        c_class = "me" if is_me else "other"
+        group_class = ""
+        if is_start: group_class += " msg-group-start"
+        if is_end: group_class += " msg-group-end"
+        
+        # Xử lý media
         media_html = ""
         if m.file_path:
             paths = m.file_path.split('|')
             names = m.real_filename.split('|') if m.real_filename else [f"File_{i}" for i in range(len(paths))]
             types = m.file_type.split('|') if m.file_type else ['file' for _ in range(len(paths))]
             
-            media_html += "<div class='chat-attachments-grid mt-2 d-flex flex-wrap gap-2'>"
-            for i, path in enumerate(paths):
+            media_html += "<div class='chat-attachments-grid d-flex flex-wrap gap-2 mb-1'>"
+            for j, path in enumerate(paths):
                 if not path: continue
                 url = f"/uploads/{path}"
-                ft = types[i] if i < len(types) else 'file'
-                fname = names[i] if i < len(names) else 'Unknown'
+                ft = types[j] if j < len(types) else 'file'
+                fname = names[j] if j < len(names) else 'Unknown'
                 
                 if ft == 'image':
-                    media_html += f"<div class='attachment-item'><img src='{url}' class='chat-media chat-media-img img-fluid shadow-sm d-block pointer' style='max-height: 180px; border-radius: 12px;' onclick='window.open(\"{url}\")'></div>"
+                    media_html += f"<div class='attachment-item'><img src='{url}' class='chat-media-img shadow-sm' onclick='window.open(\"{url}\")'></div>"
                 elif ft == 'video':
-                    media_html += f"<div class='attachment-item'><video src='{url}' controls class='chat-media shadow-sm' style='max-height: 180px; max-width: 250px; border-radius: 12px;'></video></div>"
+                    media_html += f"<div class='attachment-item'><video src='{url}' controls class='chat-media-video shadow-sm'></video></div>"
                 else:
                     icon = "fa-file-pdf text-danger" if ft == 'pdf' else ("fa-file-word text-primary" if 'doc' in ft else "fa-file-lines text-secondary")
-                    media_html += f"<div class='attachment-item p-2 bg-white border shadow-sm rounded-3 d-flex align-items-center gap-2' style='min-width: 150px;'><i class='fa-solid {icon} fs-5'></i><a href='{url}' target='_blank' class='text-decoration-none fw-bold text-dark text-truncate tiny' style='max-width: 120px;'>{fname}</a></div>"
+                    media_html += f"<div class='attachment-item p-2 bg-white border shadow-sm rounded-3 d-flex align-items-center gap-2' style='min-width: 140px;'><i class='fa-solid {icon}'></i><a href='{url}' target='_blank' class='text-decoration-none fw-bold text-dark text-truncate tiny' style='max-width: 100px;'>{fname}</a></div>"
             media_html += "</div>"
 
-        # Khối tin nhắn Text HTML
-        txt = ""
-        inner_content = f"{m.message if m.message else ''}{media_html}"
-        if m.message or media_html:
-            bg_style = "" # Use CSS classes
-            txt = f"<div class='msg-content shadow-sm'>{inner_content}</div>"
+        # Thời gian
+        time_str = m.created_at.strftime("%H:%M")
         
-        name_display = ""
-        if not is_me:
-            name_display = f"<small class='text-muted mb-1 px-1' style='font-size:11px;'><i class='fa-solid fa-user-circle'></i> {m.sender_name}</small>"
+        # Avatar cho người khác (chỉ hiển thị ở tin nhắn cuối nhóm)
+        avatar_html = ""
+        if not is_me and is_end:
+            initial = m.sender_name[:1].upper() if m.sender_name else "?"
+            avatar_html = f"<div class='chat-avatar'>{initial}</div>"
+        
+        # Nội dung chính
+        msg_body = ""
+        if m.message or media_html:
+            msg_body = f"<div class='bubble-content'>{m.message if m.message else ''}{media_html}<div class='msg-time'>{time_str}</div></div>"
+        
+        # Tên người gửi (chỉ hiển thị ở đầu nhóm)
+        name_label = ""
+        if not is_me and is_start:
+            name_label = f"<div class='msg-sender-name'>{m.sender_name}</div>"
             
-        html += f"<div class='msg-line {c_class} animate__animated animate__fadeInUp' data-msg-id='{m.id}'>{name_display}{txt}</div>"
+        html += f"<div class='msg-wrapper {c_class}{group_class}' data-msg-id='{m.id}'>{avatar_html}<div class='msg-body-wrapper'>{name_label}{msg_body}</div></div>"
+        prev_sender = m.sender_id
+
+    return jsonify({'ok': True, 'h': html, 'last_id': msgs[-1].id if msgs else 0})
 
     return jsonify({'ok': True, 'h': html, 'last_id': msgs[-1].id if msgs else 0})
 
