@@ -206,9 +206,12 @@ def delete_form(fid):
 def input_data():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
     rid = request.args.get('rid')
+    form_type = request.args.get('form_type', 'v1')
     configs = ReportConfig.query.all()
+    v2_templates = ReportTemplateV2.query.all()
+    
     if not rid:
-        return render_template('input.html', configs=configs, active=None, fields=[])
+        return render_template('input.html', configs=configs, v2_templates=v2_templates, active=None, fields=[], form_type=form_type)
         
     active = db.session.get(ReportConfig, rid)
     if not active:
@@ -248,7 +251,7 @@ def input_data():
             
         return redirect(url_for('forms_bp.input_data', rid=rid))
         
-    return render_template('input.html', configs=configs, active=active, fields=fields, form_type='v1')
+    return render_template('input.html', configs=configs, v2_templates=v2_templates, active=active, fields=fields, form_type=form_type)
 
 @forms_bp.route('/stats')
 def stats():

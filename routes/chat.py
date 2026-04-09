@@ -42,34 +42,43 @@ def api_hist():
         is_me = (m.sender_id == uid)
         c_class = "me" if is_me else "other"
         
-        # Tạo Component View cho Media (Ảnh/Video/File)
+        # Xử lý danh sách tệp đính kèm (có thể là chuỗi phân cách bởi '|')
         media_html = ""
         if m.file_path:
-            ft = m.file_type or ''
-            url = f"/uploads/{m.file_path}"
+            paths = m.file_path.split('|')
+            names = m.real_filename.split('|') if m.real_filename else [f"File_{i}" for i in range(len(paths))]
+            types = m.file_type.split('|') if m.file_type else ['file' for _ in range(len(paths))]
             
-            if 'image' in ft:
-                media_html = f"<div class='mt-2'><img src='{url}' class='chat-media chat-media-img img-fluid shadow-sm d-block' style='max-height: 250px; border-radius: 12px;' onclick='window.open(\"{url}\")'></div>"
-            elif 'video' in ft:
-                media_html = f"<div class='mt-2'><video src='{url}' controls class='chat-media shadow-sm w-100' style='max-height: 300px; border-radius: 12px;'></video></div>"
-            else:
-                icon = "fa-file-pdf text-danger" if 'pdf' in ft else ("fa-file-word text-primary" if 'document' in ft or 'word' in ft else "fa-file-lines text-secondary")
-                media_html = f"<div class='mt-2 p-3 bg-light border shadow-sm rounded-3 d-flex align-items-center gap-2'><i class='fa-solid {icon} fs-4'></i><a href='{url}' target='_blank' class='text-decoration-none fw-bold text-dark text-truncate d-block' style='max-width: 200px;'>{m.real_filename}</a></div>"
+            media_html += "<div class='chat-attachments-grid mt-2 d-flex flex-wrap gap-2'>"
+            for i, path in enumerate(paths):
+                if not path: continue
+                url = f"/uploads/{path}"
+                ft = types[i] if i < len(types) else 'file'
+                fname = names[i] if i < len(names) else 'Unknown'
+                
+                if ft == 'image':
+                    media_html += f"<div class='attachment-item'><img src='{url}' class='chat-media chat-media-img img-fluid shadow-sm d-block pointer' style='max-height: 180px; border-radius: 12px;' onclick='window.open(\"{url}\")'></div>"
+                elif ft == 'video':
+                    media_html += f"<div class='attachment-item'><video src='{url}' controls class='chat-media shadow-sm' style='max-height: 180px; max-width: 250px; border-radius: 12px;'></video></div>"
+                else:
+                    icon = "fa-file-pdf text-danger" if ft == 'pdf' else ("fa-file-word text-primary" if 'doc' in ft else "fa-file-lines text-secondary")
+                    media_html += f"<div class='attachment-item p-2 bg-white border shadow-sm rounded-3 d-flex align-items-center gap-2' style='min-width: 150px;'><i class='fa-solid {icon} fs-5'></i><a href='{url}' target='_blank' class='text-decoration-none fw-bold text-dark text-truncate tiny' style='max-width: 120px;'>{fname}</a></div>"
+            media_html += "</div>"
 
         # Khối tin nhắn Text HTML
         txt = ""
-        if m.message:
-            txt = f"<div class='msg-content shadow-sm'>{m.message}{media_html}</div>"
-        else:
-            txt = f"<div class='msg-content shadow-sm pt-2 pb-2 ps-2 pe-2 bg-transparent border-0'>{media_html}</div>"
-
+        inner_content = f"{m.message if m.message else ''}{media_html}"
+        if m.message or media_html:
+            bg_style = "" # Use CSS classes
+            txt = f"<div class='msg-content shadow-sm'>{inner_content}</div>"
+        
         name_display = ""
         if not is_me:
             name_display = f"<small class='text-muted mb-1 px-1' style='font-size:11px;'><i class='fa-solid fa-user-circle'></i> {m.sender_name}</small>"
             
-        html += f"<div class='msg-line {c_class}'>{name_display}{txt}</div>"
+        html += f"<div class='msg-line {c_class} animate__animated animate__fadeInUp' data-msg-id='{m.id}'>{name_display}{txt}</div>"
 
-    return jsonify({'ok': True, 'h': html})
+    return jsonify({'ok': True, 'h': html, 'last_id': msgs[-1].id if msgs else 0})
 
 @chat_bp.route('/api_send', methods=['POST'])
 def api_send():
@@ -81,29 +90,41 @@ def api_send():
     t = request.form.get('t')  # target_id
     m = request.form.get('m', '').strip()
     
-    f = request.files.get('f')
-    file_path = None
-    real_filename = None
-    file_type = None
+    # Nhận danh sách tệp đính kèm
+    files = request.files.getlist('f')
+    file_paths = []
+    real_filenames = []
+    file_types = []
+    
+    MAX_SIZE = 10 * 1024 * 1024 # 10MB
+    
+    for f in files:
+        if f and f.filename:
+            # Kiểm tra kích thước tệp
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            f.seek(0)
+            if size > MAX_SIZE:
+                return jsonify({'ok': False, 'msg': f'Tệp {f.filename} vượt quá 10MB!'})
+                
+            real_name = secure_filename(f.filename)
+            ext = real_name.split('.')[-1].lower()
+            new_name = f"chat_{uuid.uuid4().hex[:8]}.{ext}"
+            save_path = os.path.join(current_app.config['UPLOAD_FOLDER'], new_name)
+            f.save(save_path)
+            
+            file_paths.append(new_name)
+            real_filenames.append(real_name)
+            
+            # Xác định Type
+            if ext in ['jpg', 'jpeg', 'png', 'gif', 'webp']: ft = 'image'
+            elif ext in ['mp4', 'webm', 'ogg', 'mov']: ft = 'video'
+            elif ext in ['pdf']: ft = 'pdf'
+            else: ft = 'file'
+            file_types.append(ft)
 
-    if f and f.filename:
-        from werkzeug.utils import secure_filename
-        import uuid, os
-        real_filename = secure_filename(f.filename)
-        ext = real_filename.split('.')[-1].lower()
-        new_name = f"chat_{uuid.uuid4().hex[:8]}.{ext}"
-        save_path = os.path.join(current_app.config['UPLOAD_FOLDER'], new_name)
-        f.save(save_path)
-        file_path = new_name
-        
-        # Xác định Type (Basic mime)
-        if ext in ['jpg', 'jpeg', 'png', 'gif', 'webp']: file_type = 'image'
-        elif ext in ['mp4', 'webm', 'ogg', 'mov']: file_type = 'video'
-        elif ext in ['pdf']: file_type = 'pdf'
-        else: file_type = 'file'
-
-    if not m and not file_path:
-        return jsonify({'ok': False, 'msg': 'Empty message'})
+    if not m and not file_paths:
+        return jsonify({'ok': False, 'msg': 'Nội dung tin nhắn trống'})
 
     msg = ChatMessage(
         sender_id=uid,
@@ -111,9 +132,9 @@ def api_send():
         scope=s,
         target_id=t,
         message=m,
-        file_path=file_path,
-        real_filename=real_filename,
-        file_type=file_type
+        file_path="|".join(file_paths),
+        real_filename="|".join(real_filenames),
+        file_type="|".join(file_types)
     )
     db.session.add(msg)
     try:
@@ -121,7 +142,7 @@ def api_send():
         # Notify recipient if private
         if s == 'private':
             from utils import push_notif
-            push_notif(t, "Tin nhắn mới", f"{uname}: {m[:30]}...", "/chat")
+            push_notif(t, "Tin nhắn mới", f"{uname}: {m[:30] if m else '[Tệp đính kèm]'}", "/chat")
         return jsonify({'ok': True})
     except Exception as e:
         db.session.rollback()

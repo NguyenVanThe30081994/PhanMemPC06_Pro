@@ -2,14 +2,43 @@
 
 {% block content %}
 <div class="page-header mb-4 animate__animated animate__fadeIn">
-    <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <h1 class="h3 fw-bold text-dark mb-1">Nhập liệu Biểu mẫu</h1>
-            <p class="text-muted mb-0">Đơn vị: <span class="fw-bold text-primary">{{ session.unit_area }}</span></p>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-primary bg-opacity-10 p-3 rounded-4 shadow-sm">
+                <i class="fa-solid fa-file-pen text-primary fs-4"></i>
+            </div>
+            <div>
+                <h1 class="h3 fw-bold text-dark mb-1">Nhập liệu Biểu mẫu</h1>
+                <p class="text-muted mb-0 small">Đơn vị: <span class="fw-bold text-primary">{{ session.unit_area }}</span></p>
+            </div>
         </div>
+        
+        <!-- PC Only: Selectors in Header -->
+        <div class="d-none d-lg-flex gap-2 align-items-center bg-white p-2 rounded-4 shadow-sm border">
+            <div class="px-2 small fw-bold text-muted border-end pe-3">LỰA CHỌN:</div>
+            <!-- Loai bieu mau Select -->
+            <select class="form-select border-0 shadow-none fw-bold text-primary bg-transparent" style="min-width: 120px;" onchange="window.location.href='/input?form_type=' + this.value">
+                <option value="v1" {% if form_type == 'v1' %}selected{% endif %}>Biểu mẫu V1</option>
+                <option value="v2" {% if form_type == 'v2' %}selected{% endif %}>Biểu mẫu V2</option>
+            </select>
+            <!-- Danh sach bieu mau Select -->
+            <select class="form-select border-0 shadow-none fw-bold text-dark bg-transparent" style="min-width: 250px;" onchange="window.location.href=this.value">
+                <option value="">-- Chọn biểu mẫu cụ thể --</option>
+                {% if form_type == 'v1' %}
+                    {% for c in configs %}
+                    <option value="{{ url_for('forms_bp.input_data', rid=c.id, form_type='v1') }}" {% if active and active.id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                    {% endfor %}
+                {% else %}
+                    {% for v2 in v2_templates %}
+                    <option value="{{ url_for('reports_v2_bp.render_report', tid=v2.id) }}" {% if active_v2 and active_v2.id == v2.id %}selected{% endif %}>{{ v2.name }}</option>
+                    {% endfor %}
+                {% endif %}
+            </select>
+        </div>
+
         {% if active %}
-        <div class="text-end">
-            <div class="badge bg-primary px-3 py-2 rounded-pill shadow-sm"><i class="fa-solid fa-file-invoice me-2"></i>{{ active.name }}</div>
+        <div class="badge bg-primary px-3 py-2 rounded-pill shadow-sm d-none d-sm-block">
+            <i class="fa-solid fa-file-invoice me-2"></i>{{ active.name }}
         </div>
         {% endif %}
     </div>
@@ -17,107 +46,86 @@
 
 <div class="main-content-area animate__animated animate__fadeInUp">
     <div class="row g-4">
-        <!-- Sidebar: Form List -->
-        <div class="col-xl-3 col-lg-4">
+        <!-- Sidebar: Only visible on Mobile as per request "Thanh Sidebar trái chỉ hiển thị ở Mobile" -->
+        <div class="col-xl-3 col-lg-4 d-lg-none">
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4" style="background-color: var(--bg-surface);">
-                <div class="card-header border-0 py-3 px-4 d-flex flex-column gap-2" style="background-color: var(--bg-surface); border-color: var(--border) !important;">
+                <div class="card-header border-0 py-3 px-4 d-flex flex-column gap-2" style="background-color: var(--bg-surface);">
                     <h6 class="fw-bold text-main mb-0 small text-uppercase opacity-75">Loại biểu mẫu</h6>
-                    <ul class="nav nav-pills nav-fill bg-light bg-opacity-50 p-1 rounded-pill shadow-sm" style="border: 1px solid rgba(0,0,0,0.05);">
-                        <li class="nav-item">
-                            <a class="nav-link rounded-pill tiny fw-bold py-1 active" 
-                               href="/admin-forms?form_type=v1">V1</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link rounded-pill tiny fw-bold py-1" 
-                               href="/admin-forms?form_type=v2">V2</a>
-                        </li>
-                    </ul>
+                    <select class="form-select rounded-pill border shadow-sm fw-bold small py-2" onchange="window.location.href='/input?form_type=' + this.value">
+                        <option value="v1" {% if form_type == 'v1' %}selected{% endif %}>Phân loại V1</option>
+                        <option value="v2" {% if form_type == 'v2' %}selected{% endif %}>Phân loại V2</option>
+                    </select>
                 </div>
-                <div class="list-group list-group-flush border-top" style="border-color: var(--border) !important;">
-                    {% if not configs %}
-                    <div class="p-4 text-center text-muted small fw-bold" style="background-color: var(--bg-surface);">Chưa có biểu mẫu V1 nào</div>
+                <div class="list-group list-group-flush border-top">
+                    {% if form_type == 'v1' %}
+                        {% for c in configs %}
+                        <a href="{{ url_for('forms_bp.input_data', rid=c.id, form_type='v1') }}" 
+                           class="list-group-item list-group-item-action border-0 px-4 py-3 {% if active and active.id == c.id %}active{% endif %}" style="background-color: var(--bg-surface);">
+                            <div class="small fw-bold text-truncate">{{ c.name }}</div>
+                        </a>
+                        {% endfor %}
+                    {% else %}
+                        {% for v2 in v2_templates %}
+                        <a href="{{ url_for('reports_v2_bp.render_report', tid=v2.id) }}" 
+                           class="list-group-item list-group-item-action border-0 px-4 py-3" style="background-color: var(--bg-surface);">
+                            <div class="small fw-bold text-truncate">{{ v2.name }}</div>
+                        </a>
+                        {% endfor %}
                     {% endif %}
-                    {% for c in configs %}
-                    <a href="{{ url_for('forms_bp.input_data', rid=c.id) }}" 
-                       class="list-group-item list-group-item-action border-0 px-4 py-2 {% if active and active.id == c.id %}active{% endif %}" style="background-color: var(--bg-surface);">
-                        <div class="small fw-medium text-truncate text-main">{{ c.name }}</div>
-                    </a>
-                    {% endfor %}
                 </div>
             </div>
         </div>
 
-        <!-- Main: Data Entry -->
-        <div class="col-xl-9 col-lg-8">
+        <!-- Main Content Area: PC Full Width, Mobile Offset -->
+        <div class="col-xl-12 col-lg-12">
             {% if active %}
-            <div class="card border-0 shadow-sm rounded-4 p-4" style="background-color: var(--bg-surface);">
+            <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5" style="background-color: var(--bg-surface); min-height: 60vh;">
                 <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3" style="border-color: var(--border) !important;">
-                    <h5 class="fw-bold text-main mb-0"><i class="fa-solid fa-edit me-2 text-primary"></i>NỘI DUNG NHẬP LIỆU</h5>
-                    <div class="tiny text-muted fw-medium text-uppercase">{{ fields|length }} cột dữ liệu</div>
+                    <h5 class="fw-bold text-main mb-0 d-flex align-items-center gap-2">
+                        <i class="fa-solid fa-edit text-primary"></i> 
+                        NỘI DUNG NHẬP LIỆU: <span class="text-primary">{{ active.name }}</span>
+                    </h5>
+                    <div class="tiny text-muted fw-medium text-uppercase d-none d-sm-block">{{ fields|length }} cột dữ liệu</div>
                 </div>
                 
-                <form method="POST">
-                    {# --- Group fields by their 'group' key --- #}
-                    {% set visible_fields = fields | selectattr('is_visible', 'undefined') | list + fields | selectattr('is_visible', 'equalto', true) | list %}
-                    {# Actually filter inline below #}
-
+                <form method="POST" id="inputForm">
+                    {# --- Group logic --- #}
                     {% set ns = namespace(current_group='__START__', has_ungrouped=false) %}
-                    
-                    {# Check if any field has no group #}
-                    {% for f in fields %}
-                        {% if f.get('is_visible', True) and not f.get('group', '') %}
-                            {% set ns.has_ungrouped = true %}
-                        {% endif %}
-                    {% endfor %}
-
-                    {# Collect unique groups in order #}
+                    {% for f in fields %}{% if f.get('is_visible', True) and not f.get('group', '') %}{% set ns.has_ungrouped = true %}{% endif %}{% endfor %}
                     {% set seen_groups = [] %}
-                    {% for f in fields %}
-                        {% if f.get('is_visible', True) %}
-                            {% set g = f.get('group', '') %}
-                            {% if g and g not in seen_groups %}
-                                {% set _ = seen_groups.append(g) %}
-                            {% endif %}
-                        {% endif %}
-                    {% endfor %}
-
-                    {# Render ungrouped fields first if any #}
-                    {% if ns.has_ungrouped %}
-                    <div class="mb-4">
-                        <div class="row g-3">
-                        {% for f in fields %}
-                            {% if f.get('is_visible', True) and not f.get('group', '') %}
-                            <div class="col-md-6 col-lg-4 col-xl-3">
-                                <div class="form-group">
-                                    <label class="form-label fw-bold text-main small mb-1 text-truncate d-block" title="{{ f.label }}">
-                                        {{ f.idx }}. {{ f.label }}
-                                    </label>
-                                    {% if f.type == 'number' %}
-                                    <div class="input-group">
-                                        <input type="text" name="{{ f.idx }}" class="form-control py-2 shadow-none" placeholder="0">
-                                        {% if f.is_perc %}<span class="input-group-text border-0 tiny fw-bold" style="background-color: var(--bg-body); color: var(--text-main);">%</span>{% endif %}
-                                    </div>
-                                    {% else %}
-                                    <input type="text" name="{{ f.idx }}" class="form-control py-2 shadow-none" placeholder="...">
-                                    {% endif %}
-                                </div>
-                            </div>
-                            {% endif %}
-                        {% endfor %}
-                        </div>
-                    </div>
-                    {% endif %}
+                    {% for f in fields %}{% if f.get('is_visible', True) %}{% set g = f.get('group', '') %}{% if g and g not in seen_groups %}{% set _ = seen_groups.append(g) %}{% endif %}{% endif %}{% endfor %}
 
                     {# Render grouped fields #}
-                    {% for group_name in seen_groups %}
-                    <div class="field-group-block mb-4">
-                        <div class="field-group-header d-flex align-items-center gap-2 mb-3">
-                            <div class="group-accent-bar"></div>
-                            <i class="fa-solid fa-layer-group text-primary small"></i>
-                            <span class="fw-bold text-primary small text-uppercase tracking-wide">{{ group_name }}</span>
-                            <div class="flex-grow-1 border-bottom border-primary border-opacity-25 ms-2"></div>
+                    <div class="row g-4">
+                        {% if ns.has_ungrouped %}
+                            {% for f in fields %}
+                                {% if f.get('is_visible', True) and not f.get('group', '') %}
+                                <div class="col-md-6 col-lg-4 col-xl-3">
+                                    <div class="form-group">
+                                        <label class="form-label fw-bold text-main small mb-1 text-truncate d-block" title="{{ f.label }}">
+                                            {{ f.idx }}. {{ f.label }}
+                                        </label>
+                                        {% if f.type == 'number' %}
+                                        <div class="input-group shadow-sm rounded-3 overflow-hidden border">
+                                            <input type="number" step="any" name="{{ f.idx }}" class="form-control border-0 py-2 shadow-none" placeholder="0">
+                                            {% if f.is_perc %}<span class="input-group-text border-0 tiny fw-bold" style="background-color: var(--bg-body);">%</span>{% endif %}
+                                        </div>
+                                        {% else %}
+                                        <input type="text" name="{{ f.idx }}" class="form-control py-2 shadow-none border rounded-3 shadow-sm" placeholder="...">
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+
+                        {% for group_name in seen_groups %}
+                        <div class="col-12 mt-5">
+                            <div class="field-group-header d-flex align-items-center gap-2 mb-3">
+                                <span class="fw-bold text-primary small text-uppercase tracking-wider px-3 py-1 bg-primary bg-opacity-10 rounded-pill">{{ group_name }}</span>
+                                <div class="flex-grow-1 border-bottom border-primary border-opacity-10"></div>
+                            </div>
                         </div>
-                        <div class="row g-3 ps-3">
                         {% for f in fields %}
                             {% if f.get('is_visible', True) and f.get('group', '') == group_name %}
                             <div class="col-md-6 col-lg-4 col-xl-3">
@@ -126,23 +134,22 @@
                                         {{ f.label }}
                                     </label>
                                     {% if f.type == 'number' %}
-                                    <div class="input-group">
-                                        <input type="text" name="{{ f.idx }}" class="form-control py-2 shadow-none" placeholder="0">
-                                        {% if f.is_perc %}<span class="input-group-text border-0 tiny fw-bold" style="background-color: var(--bg-body); color: var(--text-main);">%</span>{% endif %}
+                                    <div class="input-group shadow-sm rounded-3 overflow-hidden border">
+                                        <input type="number" step="any" name="{{ f.idx }}" class="form-control border-0 py-2 shadow-none" placeholder="0">
+                                        {% if f.is_perc %}<span class="input-group-text border-0 tiny fw-bold" style="background-color: var(--bg-body);">%</span>{% endif %}
                                     </div>
                                     {% else %}
-                                    <input type="text" name="{{ f.idx }}" class="form-control py-2 shadow-none" placeholder="...">
+                                    <input type="text" name="{{ f.idx }}" class="form-control py-2 shadow-none border rounded-3 shadow-sm" placeholder="...">
                                     {% endif %}
                                 </div>
                             </div>
                             {% endif %}
                         {% endfor %}
-                        </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
                     
-                    <div class="col-12 mt-4 border-top pt-4">
-                        <div class="d-flex justify-content-end gap-3">
+                    <div class="col-12 mt-5 border-top pt-4">
+                        <div class="d-flex justify-content-end gap-3 flex-wrap">
                             <button type="reset" class="btn btn-light px-4 rounded-pill fw-bold border">LÀM MỚI</button>
                             <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow-lg">GỬI BÁO CÁO NGAY</button>
                         </div>
@@ -150,8 +157,15 @@
                 </form>
             </div>
             {% else %}
-            <div class="card border-0 shadow-sm rounded-4 p-5 text-center min-vh-50 d-flex flex-column align-items-center justify-content-center" style="background-color: var(--bg-surface);">
-                <h5 class="fw-bold text-main mb-0">Hãy chọn biểu mẫu để báo cáo</h5>
+            <div class="card border-0 shadow-sm rounded-5 p-5 text-center d-flex flex-column align-items-center justify-content-center" style="background-color: var(--bg-surface); min-height: 400px; border: 2px dashed var(--border) !important;">
+                <div class="bg-light p-4 rounded-circle mb-4">
+                    <i class="fa-solid fa-file-circle-question fs-1 text-muted"></i>
+                </div>
+                <h4 class="fw-bold text-dark">Lựa chọn biểu mẫu</h4>
+                <p class="text-muted">Vui lòng sử dụng bộ chọn phía trên (PC) hoặc menu phía dưới (Mobile) để bắt đầu nhập liệu.</p>
+                <div class="d-lg-none mt-3">
+                    <i class="fa-solid fa-arrow-down animate-bounce fs-4 text-primary"></i>
+                </div>
             </div>
             {% endif %}
         </div>
@@ -159,23 +173,15 @@
 </div>
 
 <style>
-    .min-vh-50 { min-height: 50vh; }
-    .tiny { font-size: 10px; }
-    .tracking-wide { letter-spacing: 0.5px; }
-
-    .field-group-block {
-        background: var(--bg-body);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 16px 20px;
+    .tracking-wider { letter-spacing: 1px; }
+    .form-select:focus { border-color: var(--primary); box-shadow: none; }
+    .animate-bounce {
+        animation: bounce 2s infinite;
     }
-    .group-accent-bar {
-        width: 4px;
-        height: 20px;
-        background: linear-gradient(135deg, #1a56db, #3f83f8);
-        border-radius: 4px;
-        flex-shrink: 0;
+    @keyframes bounce {
+        0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+        40% {transform: translateY(-10px);}
+        60% {transform: translateY(-5px);}
     }
-    .field-group-header { margin-bottom: 8px; }
 </style>
 {% endblock %}

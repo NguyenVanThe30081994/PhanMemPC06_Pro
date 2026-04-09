@@ -1,164 +1,415 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="chat-container animate__animated animate__fadeIn m-0 p-0 overflow-hidden shadow-none border-0" style="height: calc(100vh - var(--nav-height)); width: 100% !important; border-radius: 0; background-color: var(--bg-body);">
-    <div class="row g-0 h-100 border-0 w-100 m-0" style="background-color: var(--bg-body);">
-        <!-- Chat User List -->
-        <div class="col-xl-2 col-lg-3 border-end d-lg-flex flex-column h-100 d-none" style="background-color: var(--bg-body); border-color: var(--border) !important;">
-            <div class="p-4 border-bottom" style="background-color: var(--bg-surface); border-color: var(--border) !important;">
-                <h5 class="fw-bold mb-3" style="color: var(--text-main);">Trao đổi nội bộ</h5>
-                <div class="input-group input-group-sm rounded-pill border-0 px-2 shadow-sm" style="background-color: var(--bg-body);">
-                    <input type="text" class="form-control bg-transparent border-0 py-2 tiny fw-bold" placeholder="Tìm kiếm đơn vị..." style="color: var(--text-main) !important;">
+<div class="chat-page-wrapper animate__animated animate__fadeIn">
+    <div class="row g-3 h-100">
+        <!-- User Sidebar Card -->
+        <div class="col-xl-3 col-lg-4 d-none d-lg-block">
+            <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden sidebar-card">
+                <div class="card-header bg-white border-0 py-4 px-4 sticky-top">
+                    <h5 class="fw-bold text-dark mb-3">TRAO ĐỔI NỘI BỘ</h5>
+                    <div class="input-group input-group-sm rounded-pill border px-3 py-1 shadow-none transition-all focus-within-primary" style="background-color: var(--bg-body);">
+                        <span class="input-group-text bg-transparent border-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <input type="text" id="unitSearch" class="form-control bg-transparent border-0 py-1 fw-medium" placeholder="Tìm kiếm đơn vị..." onkeyup="filterUsers()">
+                    </div>
                 </div>
-            </div>
-            <div class="flex-grow-1 overflow-auto p-3 custom-scrollbar">
-                <div class="d-flex flex-column gap-2">
-                    {% for user in users %}
-                    <div class="chat-user-item p-3 d-flex align-items-center gap-3 cursor-pointer animate__animated animate__fadeInLeft" style="animation-delay: {{ loop.index0 * 0.05 }}s;" onclick="selectUser({{ user.id }}, '{{ user.fullname }}')">
-                        <div class="bg-primary text-white btn-circle d-flex align-items-center justify-content-center fw-bold shadow" style="--circle-size: 40px; font-size:14px; background: linear-gradient(135deg, var(--primary), #3b82f6);">
-                            {{ user.fullname[:1].upper() }}
+                <div class="card-body p-0 overflow-auto custom-scrollbar">
+                    <div class="list-group list-group-flush" id="userList">
+                        {% for user in users %}
+                        <div class="chat-user-item px-4 py-3 border-0 d-flex align-items-center gap-3 cursor-pointer user-entry" 
+                             onclick="selectUser({{ user.id }}, '{{ user.fullname }}')" 
+                             data-id="{{ user.id }}" 
+                             data-name="{{ user.fullname.lower() }}"
+                             data-unit="{{ user.unit_area.lower() }}">
+                            <div class="avatar-wrapper">
+                                <div class="bg-primary text-white btn-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style="--circle-size: 45px; font-size:16px;">
+                                    {{ user.fullname[:1].upper() }}
+                                </div>
+                                <div class="status-indicator online"></div>
+                            </div>
+                            <div class="flex-grow-1 overflow-hidden">
+                                <div class="fw-bold text-dark text-truncate">{{ user.fullname }}</div>
+                                <div class="tiny text-muted text-truncate fw-medium">{{ user.unit_area }}</div>
+                            </div>
                         </div>
-                        <div class="flex-grow-1 overflow-hidden">
-                            <div class="fw-bold small text-main text-truncate">{{ user.fullname }}</div>
-                            <div class="tiny text-muted text-truncate">{{ user.unit_area }}</div>
+                        {% else %}
+                        <div class="text-center py-5 opacity-50">
+                            <i class="fa-solid fa-users-slash mb-3 fs-3"></i>
+                            <div class="small fw-bold text-muted">Chưa có thành viên nào khác</div>
                         </div>
+                        {% endfor %}
                     </div>
-                    {% else %}
-                    <div class="text-center py-5 opacity-50">
-                        <div class="small fw-bold text-muted">Chưa có thành viên nào khác</div>
-                    </div>
-                    {% endfor %}
                 </div>
             </div>
         </div>
 
-        <!-- Chat Area -->
-        <div class="col-xl-10 col-lg-9 d-flex flex-column h-100" style="background-color: var(--bg-body);">
-            <!-- Header -->
-            <div class="p-3 border-bottom d-flex justify-content-between align-items-center shadow-sm" style="background-color: var(--bg-surface); height: 72px; border-color: var(--border) !important;">
-                <div class="d-flex align-items-center gap-3">
-                    <button class="btn btn-light d-lg-none rounded-pill shadow-sm py-1 px-3 fw-bold small" type="button" data-bs-toggle="offcanvas" data-bs-target="#chatUserListOffcanvas">
-                        DANH SÁCH
-                    </button>
-                    <div class="bg-primary bg-opacity-10 text-primary rounded-pill p-2 d-none d-sm-block"></div>
-                    <div>
-                        <h6 class="fw-bold mb-0 text-truncate" style="color: var(--text-main); max-width: 200px;">Kênh trao đổi trực tuyến</h6>
-                        <div class="d-flex align-items-center gap-1">
-                            <span class="badge bg-success rounded-circle p-1" style="width:6px; height:6px;"></span>
-                            <span class="tiny text-muted">Trực tuyến</span>
+        <!-- Main Chat Area Card -->
+        <div class="col-xl-9 col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden chat-card">
+                <!-- Chat Header -->
+                <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center" style="height: 72px;">
+                    <div class="d-flex align-items-center gap-3">
+                        <button class="btn btn-light d-lg-none btn-circle btn-circle-sm" type="button" data-bs-toggle="offcanvas" data-bs-target="#chatMobileOffcanvas">
+                            <i class="fa-solid fa-bars"></i>
+                        </button>
+                        <div id="activeUserAvatar" class="d-none d-sm-flex bg-primary bg-opacity-10 text-primary btn-circle btn-circle-sm align-items-center justify-content-center fw-bold">
+                            C
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0 text-dark" id="chatWithTitle">Chọn một đơn vị để bắt đầu</h6>
+                            <div class="d-flex align-items-center gap-1">
+                                <span class="status-dot online"></span>
+                                <span class="tiny text-muted fw-bold" id="chatWithStatus">Trực tuyến</span>
+                            </div>
                         </div>
                     </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-light btn-circle btn-circle-sm text-muted" title="Video Call"><i class="fa-solid fa-video"></i></button>
+                        <button class="btn btn-light btn-circle btn-circle-sm text-muted" title="Thông tin"><i class="fa-solid fa-circle-info"></i></button>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Messages Area -->
-            <div class="flex-grow-1 overflow-auto p-4" id="chatArea" style="background-color: var(--bg-body); background-image: url('https://www.transparenttextures.com/patterns/cubes.png'); opacity: 0.8;">
-                <div class="text-center mb-4"><span class="badge bg-light text-muted border px-3 rounded-pill tiny fw-bold">HÔM NAY</span></div>
-                
-                <div id="messagesList" class="d-flex flex-column gap-3">
-                    <!-- Dynamic messages will appear here -->
+                <!-- Messages Body -->
+                <div class="card-body p-0 position-relative d-flex flex-column h-100" id="chatBody">
+                    <div class="messages-viewport flex-grow-1 overflow-auto p-4 custom-scrollbar" id="chatArea">
+                        <div id="messagesList" class="d-flex flex-column gap-3">
+                            <div class="text-center py-5 opacity-25 mt-5">
+                                <i class="fa-solid fa-comments fa-4x mb-4"></i>
+                                <h5 class="fw-bold">Hệ thống trao đổi nghiệp vụ PC06</h5>
+                                <p class="small">Hãy chọn một đơn vị bên trái để bắt đầu cuộc trò chuyện.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Typing Indicator -->
+                    <div id="typingIndicator" class="px-4 py-2 d-none">
+                        <div class="badge bg-light text-muted tiny rounded-pill border">Đang nhập...</div>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Input Area -->
-            <div class="p-4 border-top" style="background-color: var(--bg-surface); border-color: var(--border) !important;">
-                <form id="chatForm" class="d-flex gap-3 align-items-center">
-                    <button type="button" class="btn btn-light rounded-pill shadow-sm px-3 py-2 fw-bold small" style="background-color: var(--bg-body); border-color: var(--border);">ĐÍNH KÈM</button>
-                    <input type="text" id="chatInput" class="form-control border-0 rounded-pill px-4 py-3 shadow-none fw-medium" placeholder="Nhập tin nhắn của bạn..." style="background-color: var(--bg-body); color: var(--text-main) !important;">
-                    <button type="submit" class="btn btn-primary rounded-pill shadow-lg px-4 py-2 fw-bold">GỬI</button>
-                </form>
+                <!-- Input Footer -->
+                <div class="card-footer bg-white border-0 p-4">
+                    <form id="chatForm" class="d-flex flex-column gap-2">
+                        <!-- Attachment Preview Row -->
+                        <div id="filePreview" class="d-flex flex-wrap gap-2 mb-2 d-none">
+                            <!-- Selected files will show here -->
+                        </div>
+                        
+                        <div class="d-flex gap-2 align-items-center bg-light rounded-4 px-3 py-2 border transition-all shadow-sm-focus focus-within-primary">
+                            <label for="chatFiles" class="btn btn-light btn-circle btn-circle-sm shadow-none border-0 text-primary mb-0" title="Đính kèm tệp (Tối đa 10MB)">
+                                <i class="fa-solid fa-paperclip fs-5"></i>
+                            </label>
+                            <input type="file" id="chatFiles" class="d-none" multiple onchange="handleFileSelect(this)">
+                            
+                            <textarea id="chatInput" class="form-control bg-transparent border-0 shadow-none py-2 fw-medium custom-scrollbar" 
+                                      placeholder="Nhập tin nhắn..." style="resize: none; height: 42px;" 
+                                      onkeydown="if(event.keyCode==13 && !event.shiftKey){ event.preventDefault(); sendMessage(); }"></textarea>
+                            
+                            <button type="button" class="btn btn-primary btn-circle btn-circle-sm shadow-sm" onclick="sendMessage()" id="sendBtn">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <div class="d-flex justify-content-between px-2 mt-1">
+                            <span class="tiny text-muted fw-medium">Nhấn <b>Enter</b> để gửi, <b>Shift + Enter</b> để xuống dòng.</span>
+                            <span id="fileCounter" class="tiny text-primary fw-bold d-none">Đã chọn 0 tệp</span>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Mobile Chat User List Offcanvas -->
-<div class="offcanvas offcanvas-start border-0 shadow-lg" tabindex="-1" id="chatUserListOffcanvas" style="width: 300px; background: var(--bg-surface);">
-    <div class="offcanvas-header border-bottom p-4">
+<!-- Mobile Offcanvas -->
+<div class="offcanvas offcanvas-start border-0 shadow-lg" tabindex="-1" id="chatMobileOffcanvas" style="width: 300px;">
+    <div class="offcanvas-header border-bottom py-3">
         <h5 class="offcanvas-title fw-bold text-primary">DANH SÁCH ĐƠN VỊ</h5>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
     </div>
     <div class="offcanvas-body p-0">
-        <div class="p-4 border-bottom" style="background-color: var(--bg-surface);">
-            <div class="input-group input-group-sm rounded-pill border-0 px-2" style="background-color: var(--bg-body);">
-                <input type="text" class="form-control bg-transparent border-0 py-2 tiny fw-bold" placeholder="Tìm kiếm đơn vị...">
+        <!-- Exact same search + list logic for mobile -->
+        <div class="p-4 border-bottom sticky-top bg-white">
+            <div class="input-group input-group-sm rounded-pill border px-3 py-1 shadow-none" style="background-color: var(--bg-body);">
+                <input type="text" class="form-control bg-transparent border-0 py-1 fw-medium" placeholder="Tìm kiếm..." onkeyup="filterUsersMobile(this.value)">
             </div>
         </div>
-        <div class="p-3">
-            <div class="d-flex flex-column gap-2">
-                {% for user in users %}
-                <div class="chat-user-item p-3 d-flex align-items-center gap-3 cursor-pointer" onclick="selectUser({{ user.id }}, '{{ user.fullname }}')" data-bs-dismiss="offcanvas">
-                    <div class="bg-primary text-white btn-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style="--circle-size: 40px; font-size:14px;">
-                        {{ user.fullname[:1].upper() }}
-                    </div>
-                    <div class="flex-grow-1 overflow-hidden">
-                        <div class="fw-bold small text-dark text-truncate">{{ user.fullname }}</div>
-                        <div class="tiny text-muted text-truncate">{{ user.unit_area }}</div>
-                    </div>
-                </div>
-                {% else %}
-                <div class="text-center py-5 opacity-50">
-                    <div class="small fw-bold">Chưa có thành viên nào khác</div>
-                </div>
-                {% endfor %}
-            </div>
+        <div id="userListMobile" class="p-0 overflow-auto">
+            <!-- Populated via selectUser for mobile too -->
         </div>
     </div>
 </div>
 
-<script>
-    document.getElementById('chatForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const input = document.getElementById('chatInput');
-        if (!input.value.trim()) return;
-        
-        const html = `
-            <div class="message d-flex gap-3 align-items-end mb-2 flex-row-reverse animate__animated animate__fadeInRight">
-                <div class="bg-primary text-white btn-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style="--circle-size: 32px; font-size:10px;">ME</div>
-                <div class="bg-primary text-white p-3 rounded-4 shadow" style="max-width:70%; border-bottom-right-radius: 4px !important;">
-                    <div class="small">${input.value}</div>
-                    <div class="text-end opacity-75 tiny mt-1">Vừa xong</div>
-                </div>
-            </div>
-        `;
-        document.getElementById('messagesList').insertAdjacentHTML('beforeend', html);
-        input.value = '';
-        const chatArea = document.getElementById('chatArea');
-        chatArea.scrollTop = chatArea.scrollHeight;
-    });
-
-    function selectUser(uid, name) {
-        // Update active state in UI
-        document.querySelectorAll('.chat-user-item').forEach(el => el.classList.remove('active'));
-        const target = event.currentTarget;
-        if (target) target.classList.add('active');
-        
-        // Update header
-        document.querySelector('h6.fw-bold.mb-0').innerText = "Trao đổi: " + name;
-        
-        // In a real app, you would fetch message history here
-        document.getElementById('messagesList').innerHTML = `<div class='text-center text-muted tiny my-4 animate__animated animate__fadeIn'>Bắt đầu cuộc trò chuyện với <b>${name}</b></div>`;
-    }
-</script>
+<audio id="notifSound" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3" preload="auto"></audio>
 
 <style>
-    .rounded-4 { border-radius: 1rem !important; }
-    .tiny { font-size: 10px; }
-    #chatArea { scroll-behavior: smooth; }
+    :root {
+        --nav-height: 70px; /* Adjust according to your navbar height */
+    }
+    .chat-page-wrapper {
+        height: calc(100vh - var(--nav-height) - 40px);
+        margin: 20px;
+    }
+    
+    .sidebar-card, .chat-card {
+        background-color: var(--bg-surface);
+        transition: transform 0.3s ease;
+    }
+
     .chat-user-item {
-        border-radius: 12px;
-        transition: all 0.2s;
-        border: 1px solid transparent;
+        border-radius: 0;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        margin-bottom: 2px;
     }
     .chat-user-item:hover {
-        background-color: var(--bg-surface);
-        border-color: var(--border);
-        transform: translateY(-1px);
+        background-color: rgba(var(--primary-rgb), 0.05) !important;
     }
     .chat-user-item.active {
-        background-color: var(--primary-light) !important;
-        border-color: var(--primary);
+        background-color: rgba(var(--primary-rgb), 0.1) !important;
+        border-left: 4px solid var(--primary) !important;
     }
-    .cursor-pointer { cursor: pointer; }
+    
+    .avatar-wrapper { position: relative; }
+    .status-indicator {
+        position: absolute;
+        bottom: 2px;
+        right: 2px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+    }
+    .status-indicator.online { background-color: #10b981; }
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .status-dot.online { background-color: #10b981; }
+
+    .msg-content {
+        padding: 12px 18px;
+        border-radius: 20px;
+        max-width: 80%;
+        line-height: 1.5;
+        font-size: 0.95rem;
+        position: relative;
+    }
+    .msg-line.me { align-items: flex-end; }
+    .msg-line.me .msg-content {
+        background: linear-gradient(135deg, var(--primary), #3b82f6);
+        color: #fff;
+        border-bottom-right-radius: 4px;
+        margin-left: auto;
+    }
+    .msg-line.other { align-items: flex-start; }
+    .msg-line.other .msg-content {
+        background: var(--bg-body);
+        color: var(--text-main);
+        border-bottom-left-radius: 4px;
+        border: 1px solid var(--border);
+    }
+    
+    .msg-line { display: flex; flex-direction: column; margin-bottom: 4px; }
+
+    #chatArea {
+        background-color: var(--bg-body);
+        background-image: radial-gradient(var(--border) 1px, transparent 1px);
+        background-size: 20px 20px;
+        background-blend-mode: soft-light;
+    }
+
+    .focus-within-primary:focus-within {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 0.25rem rgba(var(--primary-rgb), 0.1) !important;
+    }
+    
+    .tiny { font-size: 11px; }
+    
+    /* Attachments Preview */
+    .file-preview-item {
+        background: var(--bg-body);
+        border: 1px solid var(--border);
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-size: 11px;
+        position: relative;
+    }
+    .file-preview-item .remove-btn {
+        cursor: pointer;
+        color: var(--danger);
+        margin-left: 5px;
+    }
+
+    /* Message Media Grid */
+    .chat-attachments-grid {
+        max-width: 100%;
+    }
+    .attachment-item img {
+        transition: transform 0.2s;
+    }
+    .attachment-item img:hover {
+        transform: scale(1.02);
+    }
+    .pointer { cursor: pointer; }
 </style>
+
+<script>
+    let currentTargetId = null;
+    let lastMsgId = 0;
+    let pollingInterval = null;
+    let selectedFiles = [];
+
+    function filterUsers() {
+        const query = document.getElementById('unitSearch').value.toLowerCase();
+        document.querySelectorAll('.user-entry').forEach(el => {
+            const name = el.getAttribute('data-name');
+            const unit = el.getAttribute('data-unit');
+            if (name.includes(query) || unit.includes(query)) {
+                el.style.display = 'flex';
+            } else {
+                el.style.display = 'none';
+            }
+        });
+    }
+
+    function selectUser(uid, name) {
+        currentTargetId = uid;
+        lastMsgId = 0;
+        
+        // UI Updates
+        document.querySelectorAll('.chat-user-item').forEach(el => el.classList.remove('active'));
+        const activeEntry = document.querySelector(`.chat-user-item[data-id="${uid}"]`);
+        if (activeEntry) activeEntry.classList.add('active');
+        
+        document.getElementById('chatWithTitle').innerText = name;
+        document.getElementById('activeUserAvatar').innerText = name.charAt(0).upper();
+        document.getElementById('activeUserAvatar').classList.remove('d-none');
+        
+        // Initial Fetch
+        fetchMessages(true);
+        
+        // Clear Polling
+        if (pollingInterval) clearInterval(pollingInterval);
+        pollingInterval = setInterval(() => fetchMessages(false), 3000);
+    }
+
+    function fetchMessages(scrollDown = false) {
+        if (!currentTargetId) return;
+        
+        fetch(`/api_hist?t=${currentTargetId}&s=private`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.ok) {
+                    const list = document.getElementById('messagesList');
+                    
+                    // Simple logic: if count changed or forced update
+                    // In a production app, we would only append NEW messages
+                    // For now, we refresh for simplicity as requested "polling"
+                    if (data.last_id > lastMsgId) {
+                        if (lastMsgId > 0) playNotificationSound();
+                        list.innerHTML = data.h;
+                        lastMsgId = data.last_id;
+                        if (scrollDown || lastMsgId > 0) {
+                            const chatArea = document.getElementById('chatArea');
+                            chatArea.scrollTop = chatArea.scrollHeight;
+                        }
+                    }
+                }
+            });
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('chatInput');
+        const m = input.value.trim();
+        const files = document.getElementById('chatFiles').files;
+        
+        if (!m && files.length === 0) return;
+        if (!currentTargetId) {
+            Swal.fire('Lỗi', 'Hãy chọn đơn vị để trao đổi!', 'warning');
+            return;
+        }
+
+        const btn = document.getElementById('sendBtn');
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+
+        const fd = new FormData();
+        fd.append('s', 'private');
+        fd.append('t', currentTargetId);
+        fd.append('m', m);
+        
+        for (let i = 0; i < files.length; i++) {
+            fd.append('f', files[i]);
+        }
+
+        fetch('/api_send', {
+            method: 'POST',
+            body: fd
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i>`;
+            
+            if (data.ok) {
+                input.value = '';
+                clearFiles();
+                fetchMessages(true);
+            } else {
+                Swal.fire('Lỗi', data.msg, 'error');
+            }
+        });
+    }
+
+    function handleFileSelect(input) {
+        const files = input.files;
+        const preview = document.getElementById('filePreview');
+        const counter = document.getElementById('fileCounter');
+        
+        preview.innerHTML = '';
+        if (files.length > 0) {
+            preview.classList.remove('d-none');
+            counter.classList.remove('d-none');
+            counter.innerText = `Đã chọn ${files.length} tệp`;
+            
+            for (let i = 0; i < files.length; i++) {
+                const f = files[i];
+                if (f.size > 10 * 1024 * 1024) {
+                    Swal.fire('Quá lớn', `Tệp ${f.name} vượt quá 10MB!`, 'error');
+                    clearFiles();
+                    return;
+                }
+                preview.insertAdjacentHTML('beforeend', `
+                    <div class="file-preview-item">
+                        <i class="fa-solid fa-file-earmark tiny"></i> ${f.name}
+                    </div>
+                `);
+            }
+        } else {
+            clearFiles();
+        }
+    }
+
+    function clearFiles() {
+        const input = document.getElementById('chatFiles');
+        input.value = '';
+        document.getElementById('filePreview').innerHTML = '';
+        document.getElementById('filePreview').classList.add('d-none');
+        document.getElementById('fileCounter').classList.add('d-none');
+    }
+
+    function playNotificationSound() {
+        const sound = document.getElementById('notifSound');
+        sound.play().catch(e => console.log("Audio play blocked by browser. User must interact first."));
+    }
+
+    // Auto resize textarea
+    document.getElementById('chatInput').addEventListener('input', function() {
+        this.style.height = '42px';
+        this.style.height = (this.scrollHeight) + 'px';
+        if (this.scrollHeight > 150) this.style.overflowY = 'auto';
+        else this.style.overflowY = 'hidden';
+    });
+</script>
 {% endblock %}
