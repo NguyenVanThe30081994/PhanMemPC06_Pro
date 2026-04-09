@@ -14,21 +14,9 @@
             </div>
         </div>
         
-        <!-- PC Header Toolbar: Optimized Stable Area -->
-        <div class="header-selector-card d-none d-lg-flex">
-            <span class="small fw-bold text-muted">BỘ LỌC ĐỘI:</span>
-            <div class="divider"></div>
-            <select onchange="filterTasks(this.value)" style="min-width: 220px;">
-                <option value="ALL">Tất cả đội nghiệp vụ</option>
-                {% for unit in pro_units %}
-                <option value="{{ unit.name }}">{{ unit.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
         <div class="header-actions">
             {% if perms.get('p_task_lead') or perms.get('p_sys_lead') or is_admin %}
-            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-lg" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#addTaskModal">
                 <i class="fa-solid fa-plus me-2"></i>THÊM CÔNG VIỆC
             </button>
             {% endif %}
@@ -36,22 +24,33 @@
     </div>
 </div>
 
+<!-- Unified Filter Hub -->
+<div class="filter-bar-unified animate__animated animate__fadeInUp">
+    <div class="search-box-modern">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="taskSearch" placeholder="Tìm tên công việc hoặc nội dung..." onkeyup="unifiedFilter()">
+    </div>
+    
+    <div class="filter-divider"></div>
+    
+    <div class="filter-pills-container" id="unitFilters">
+        <div class="filter-pill active" data-unit="ALL" onclick="setUnitFilter('ALL')">TẤT CẢ</div>
+        {% for unit in pro_units %}
+        <div class="filter-pill" data-unit="{{ unit.name }}" onclick="setUnitFilter('{{ unit.name }}')">{{ unit.name|upper }}</div>
+        {% endfor %}
+    </div>
+
+    <div class="filter-divider d-none d-xl-block"></div>
+    
+    <div class="filter-pills-container d-none d-xl-flex" id="statusFilters">
+        <div class="filter-pill active" data-status="ALL" onclick="setStatusFilter('ALL')">MỌI TRẠNG THÁI</div>
+        <div class="filter-pill" data-status="Hoàn thành" onclick="setStatusFilter('Hoàn thành')">ĐÃ XONG</div>
+        <div class="filter-pill" data-status="Đang thực hiện" onclick="setStatusFilter('Đang thực hiện')">ĐANG LÀM</div>
+    </div>
+</div>
+
 <div class="main-content-area animate__animated animate__fadeInUp">
     <div class="row g-4">
-        <!-- Sidebar Filter: ONLY on Mobile -->
-        <div class="col-12 d-lg-none">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-2" style="background-color: var(--bg-surface);">
-                <div class="card-header border-0 py-3 px-4 d-flex justify-content-between align-items-center" style="background-color: var(--bg-surface);">
-                    <h6 class="fw-bold text-main mb-0 small text-uppercase opacity-75">Lọc theo đội</h6>
-                    <select class="form-select form-select-sm rounded-pill border shadow-sm fw-bold px-3" onchange="filterTasks(this.value)">
-                        <option value="ALL">Tất cả</option>
-                        {% for unit in pro_units %}
-                        <option value="{{ unit.name }}">{{ unit.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-        </div>
 
         <!-- Task List: Full Width 100% on PC -->
         <div class="col-12">
@@ -69,7 +68,7 @@
                         </thead>
                         <tbody>
                             {% for t in tasks %}
-                            <tr class="task-row" data-unit="{{ t.unit_name }}">
+                            <tr class="task-row" data-unit="{{ t.unit_name }}" data-status="{{ t.status }}">
                                 <td class="ps-4 py-3">
                                     <div class="fw-bold text-dark">{{ t.title }}</div>
                                     <div class="tiny text-muted text-truncate mt-1" style="max-width: 300px;">{{ t.description }}</div>
@@ -147,13 +146,42 @@
 </div>
 
 <script>
-    function filterTasks(unit) {
+    let currentUnit = 'ALL';
+    let currentStatus = 'ALL';
+
+    function setUnitFilter(unit) {
+        currentUnit = unit;
+        document.querySelectorAll('#unitFilters .filter-pill').forEach(p => {
+            p.classList.toggle('active', p.getAttribute('data-unit') === unit);
+        });
+        unifiedFilter();
+    }
+
+    function setStatusFilter(status) {
+        currentStatus = status;
+        document.querySelectorAll('#statusFilters .filter-pill').forEach(p => {
+            p.classList.toggle('active', p.getAttribute('data-status') === status);
+        });
+        unifiedFilter();
+    }
+
+    function unifiedFilter() {
+        const query = document.getElementById('taskSearch').value.toLowerCase();
         const rows = document.querySelectorAll('.task-row');
+        
         rows.forEach(row => {
-            if (unit === 'ALL' || row.getAttribute('data-unit') === unit) {
-                row.classList.remove('d-none');
+            const text = row.innerText.toLowerCase();
+            const unit = row.getAttribute('data-unit');
+            const status = row.getAttribute('data-status');
+            
+            const matchText = text.includes(query);
+            const matchUnit = (currentUnit === 'ALL' || unit === currentUnit);
+            const matchStatus = (currentStatus === 'ALL' || status === currentStatus);
+            
+            if (matchText && matchUnit && matchStatus) {
+                row.style.display = 'table-row';
             } else {
-                row.classList.add('d-none');
+                row.style.display = 'none';
             }
         });
     }

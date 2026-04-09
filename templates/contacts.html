@@ -7,29 +7,30 @@
             <div class="bento-card p-3 rounded-4 shadow-sm border-0">
                 <i class="fa-solid fa-address-book text-primary fs-5"></i>
             </div>
-            <nav class="breadcrumb-nav bento-card d-none d-lg-flex px-3 py-2 rounded-pill border-0 shadow-sm">
-                <span class="segment fw-bold text-dark px-2">DANH BẠ</span>
-                <div class="picker-chip dropdown-toggle shadow-sm bg-light px-3 py-1 rounded-pill cursor-pointer" data-bs-toggle="dropdown">
-                    Lọc theo nhóm...
-                </div>
-                <ul class="dropdown-menu shadow-lg border-0 rounded-4 p-2 mt-2" style="min-width: 250px;">
-                    <li><a class="dropdown-item py-2 rounded-3 small fw-bold" href="#" onclick="filterContacts('ALL')">Tất cả nhóm</a></li>
-                    <li><hr class="dropdown-divider opacity-10 mx-2"></li>
-                    {% for cat in categories %}
-                    <li><a class="dropdown-item py-2 rounded-3 small fw-bold" href="#" onclick="filterContacts('{{ cat.name }}')">{{ cat.name }}</a></li>
-                    {% endfor %}
-                </ul>
-            </nav>
-            <h1 class="h4 fw-bold text-dark mb-0 d-lg-none">Danh bạ</h1>
-        </div>
-
         <div class="header-actions">
             {% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
             <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addContactModal">
-                <i class="fa-solid fa-user-plus me-2"></i>THÊM LIÊN HỆ
+                <i class="fa-solid fa-plus me-2"></i>THÊM LIÊN HỆ
             </button>
             {% endif %}
         </div>
+    </div>
+</div>
+
+<!-- Unified Filter Hub -->
+<div class="filter-bar-unified animate__animated animate__fadeInUp">
+    <div class="search-box-modern">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="contactSearch" placeholder="Tìm tên, số điện thoại hoặc đơn vị..." onkeyup="unifiedFilter()">
+    </div>
+    
+    <div class="filter-divider"></div>
+    
+    <div class="filter-pills-container" id="categoryFilters">
+        <div class="filter-pill active" data-cat="ALL" onclick="setCategoryFilter('ALL')">TẤT CẢ NHÓM</div>
+        {% for cat in categories %}
+        <div class="filter-pill" data-cat="{{ cat.name }}" onclick="setCategoryFilter('{{ cat.name }}')">{{ cat.name|upper }}</div>
+        {% endfor %}
     </div>
 </div>
 
@@ -127,13 +128,31 @@
 </div>
 
 <script>
-    function filterContacts(category) {
+    let currentCat = 'ALL';
+
+    function setCategoryFilter(cat) {
+        currentCat = cat;
+        document.querySelectorAll('#categoryFilters .filter-pill').forEach(p => {
+            p.classList.toggle('active', p.getAttribute('data-cat') === cat);
+        });
+        unifiedFilter();
+    }
+
+    function unifiedFilter() {
+        const query = document.getElementById('contactSearch').value.toLowerCase();
         const rows = document.querySelectorAll('.contact-row');
+        
         rows.forEach(row => {
-            if (category === 'ALL' || row.getAttribute('data-category') === category) {
-                row.classList.remove('d-none');
+            const text = row.innerText.toLowerCase();
+            const cat = row.getAttribute('data-category');
+            
+            const matchText = text.includes(query);
+            const matchCat = (currentCat === 'ALL' || cat === currentCat);
+            
+            if (matchText && matchCat) {
+                row.style.display = 'table-row';
             } else {
-                row.classList.add('d-none');
+                row.style.display = 'none';
             }
         });
     }

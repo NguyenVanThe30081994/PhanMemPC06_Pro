@@ -21,11 +21,18 @@
             {% endif %}
         </div>
     </div>
+<!-- Unified Filter Hub -->
+<div class="filter-bar-unified animate__animated animate__fadeInUp">
+    <div class="search-box-modern">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="v2Search" placeholder="Tìm tên biểu mẫu V2..." onkeyup="unifiedFilter()">
+    </div>
 </div>
 
+<div class="main-content-area animate__animated animate__fadeInUp">
     <div class="row g-4">
         {% for t in templates %}
-        <div class="col-xl-3 col-lg-4 col-md-6">
+        <div class="col-xl-3 col-lg-4 col-md-6 template-item">
             <div class="report-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-4">
@@ -171,26 +178,40 @@ document.querySelectorAll('.btn-delete-v2').forEach(btn => {
     });
 });
 
-async function confirmDelete(tid, name) {
-    const result = await Swal.fire({
-        title: 'Xác nhận xóa?',
-        html: `Biểu mẫu <strong>${name}</strong> và toàn bộ dữ liệu sẽ bị xóa vĩnh viễn.`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonText: 'Hủy',
-        confirmButtonText: 'Xác nhận xóa'
-    });
-    if (!result.isConfirmed) return;
+    async function confirmDelete(tid, name) {
+        const result = await Swal.fire({
+            title: 'Xác nhận xóa?',
+            html: `Biểu mẫu <strong>${name}</strong> và toàn bộ dữ liệu sẽ bị xóa vĩnh viễn.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonText: 'Hủy',
+            confirmButtonText: 'Xác nhận xóa'
+        });
+        if (!result.isConfirmed) return;
 
-    const r = await fetch(`/reports-v2/delete/${tid}`, { method: 'POST' });
-    const d = await r.json();
-    if (d.success) {
-        Swal.fire('Đã xóa!', '', 'success').then(() => window.location.reload());
-    } else {
-        Swal.fire('Lỗi', d.error, 'error');
+        const r = await fetch(`/reports-v2/delete/${tid}`, { method: 'POST' });
+        const d = await r.json();
+        if (d.success) {
+            Swal.fire('Đã xóa!', '', 'success').then(() => window.location.reload());
+        } else {
+            Swal.fire('Lỗi', d.error, 'error');
+        }
     }
-}
+
+    function unifiedFilter() {
+        const query = document.getElementById('v2Search').value.toLowerCase();
+        const items = document.querySelectorAll('.template-item');
+        
+        items.forEach(item => {
+            const text = item.innerText.toLowerCase();
+            if (text.includes(query)) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
 </script>
 
 <style>

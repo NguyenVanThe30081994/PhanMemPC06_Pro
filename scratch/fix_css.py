@@ -1,39 +1,25 @@
+import sys
 import os
 
 file_path = r'c:\Users\THE\Downloads\PhanMemPC06_Pro\static\css\style.css'
 
-with open(file_path, 'r', encoding='utf-8') as f:
-    lines = f.readlines()
+def update_css(content, mode='append'):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        original = f.read()
+    
+    if mode == 'append':
+        if content in original:
+            print("Content already exists.")
+            return
+        with open(file_path, 'a', encoding='utf-8') as f:
+            f.write(content)
+        print("CSS appended.")
+    else:
+        # For full cleanup/replace if needed
+        pass
 
-# Truncate at line 1577 (index 1576)
-clean_lines = lines[:1577]
-
-new_content = """
-/* Global Dropdown Consistency */
-.dropdown-menu {
-    border-radius: 16px !important;
-    overflow: hidden;
-    border: 1px solid var(--border) !important;
-    box-shadow: var(--shadow-lg) !important;
-    backdrop-filter: blur(10px);
-}
-
-@media print {
-    .top-navbar, .sidebar, .mobile-bottom-nav, .offcanvas, .no-print, .btn, .breadcrumb {
-        display: none !important;
-    }
-    .main-content-area {
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-    body {
-        padding-top: 0 !important;
-    }
-}
-"""
-
-with open(file_path, 'w', encoding='utf-8') as f:
-    f.writelines(clean_lines)
-    f.write(new_content)
-
-print("CSS cleaned and updated successfully.")
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        # Collect all args as content
+        new_css = " ".join(sys.argv[1:])
+        update_css(new_css)

@@ -13,20 +13,9 @@
             </div>
         </div>
         
-        <div class="header-selector-card d-none d-lg-flex">
-            <span class="small fw-bold text-muted">ĐỘI NGHIỆP VỤ:</span>
-            <div class="divider"></div>
-            <select onchange="filterNews(this.value)" style="min-width: 220px;">
-                <option value="ALL">Tất cả đơn vị</option>
-                {% for unit in pro_units %}
-                <option value="{{ unit.name }}">{{ unit.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
         <div class="header-actions">
             {% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
-            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-lg" data-bs-toggle="modal" data-bs-target="#addNewsModal">
+            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#addNewsModal">
                 <i class="fa-solid fa-plus me-2"></i>ĐĂNG TIN MỚI
             </button>
             {% endif %}
@@ -34,22 +23,25 @@
     </div>
 </div>
 
+<!-- Unified Filter Hub -->
+<div class="filter-bar-unified animate__animated animate__fadeInUp">
+    <div class="search-box-modern">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="newsSearch" placeholder="Tìm tiêu đề hoặc nội dung bản tin..." onkeyup="unifiedFilter()">
+    </div>
+    
+    <div class="filter-divider"></div>
+    
+    <div class="filter-pills-container" id="unitFilters">
+        <div class="filter-pill active" data-unit="ALL" onclick="setUnitFilter('ALL')">TẤT CẢ ĐƠN VỊ</div>
+        {% for unit in pro_units %}
+        <div class="filter-pill" data-unit="{{ unit.name }}" onclick="setUnitFilter('{{ unit.name }}')">{{ unit.name|upper }}</div>
+        {% endfor %}
+    </div>
+</div>
+
 <div class="main-content-area animate__animated animate__fadeInUp">
     <div class="row g-4">
-        <!-- Sidebar Filter: ONLY on Mobile -->
-        <div class="col-12 d-lg-none">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-2" style="background-color: var(--bg-surface);">
-                <div class="card-header border-0 py-3 px-4 d-flex justify-content-between align-items-center" style="background-color: var(--bg-surface);">
-                    <h6 class="fw-bold text-main mb-0 small text-uppercase opacity-75">Bộ lọc chuyên mục</h6>
-                    <select class="form-select form-select-sm rounded-pill border shadow-sm fw-bold px-3" onchange="filterNews(this.value)">
-                        <option value="ALL">Tất cả đơn vị</option>
-                        {% for unit in pro_units %}
-                        <option value="{{ unit.name }}">{{ unit.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-        </div>
 
         <!-- News Grid: Full Width 100% on PC -->
         <div class="col-12">
@@ -138,13 +130,31 @@
 </style>
 
 <script>
-    function filterNews(category) {
+    let currentUnit = 'ALL';
+
+    function setUnitFilter(unit) {
+        currentUnit = unit;
+        document.querySelectorAll('#unitFilters .filter-pill').forEach(p => {
+            p.classList.toggle('active', p.getAttribute('data-unit') === unit);
+        });
+        unifiedFilter();
+    }
+
+    function unifiedFilter() {
+        const query = document.getElementById('newsSearch').value.toLowerCase();
         const items = document.querySelectorAll('.news-item');
+        
         items.forEach(item => {
-            if (category === 'ALL' || item.getAttribute('data-category') === category) {
-                item.classList.remove('d-none');
+            const text = item.innerText.toLowerCase();
+            const unit = item.getAttribute('data-category');
+            
+            const matchText = text.includes(query);
+            const matchUnit = (currentUnit === 'ALL' || unit === currentUnit);
+            
+            if (matchText && matchUnit) {
+                item.style.display = 'block';
             } else {
-                item.classList.add('d-none');
+                item.style.display = 'none';
             }
         });
     }

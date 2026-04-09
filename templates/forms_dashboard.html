@@ -22,19 +22,26 @@
 </div>
 
 <div class="main-content-area animate__animated animate__fadeInUp">
-    <!-- Filters for V1/V2 listing in Setup -->
-    <div class="d-flex gap-2 mb-4">
-        <a href="/admin-forms?form_type=v1" class="btn {% if form_type != 'v2' %}btn-primary{% else %}btn-light border{% endif %} rounded-pill px-4 fw-bold tiny shadow-sm">BIỂU MẪU V1</a>
-        <a href="/reports-v2" class="btn btn-light border rounded-pill px-4 fw-bold tiny shadow-sm">BIỂU MẪU V2</a>
+<!-- Unified Filter Hub -->
+<div class="filter-bar-unified animate__animated animate__fadeInUp">
+    <div class="search-box-modern">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="templateSearch" placeholder="Tìm tên biểu mẫu..." onkeyup="unifiedFilter()">
     </div>
+    
+    <div class="filter-divider"></div>
+    
+    <div class="filter-pills-container">
+        <a href="/admin-forms?form_type=v1" class="filter-pill {% if form_type != 'v2' %}active{% endif %} text-decoration-none">BIỂU MẪU V1</a>
+        <a href="/reports-v2" class="filter-pill text-decoration-none">BIỂU MẪU V2</a>
+    </div>
+</div>
 
     <div class="row g-4">
         {% if form_type == 'v2' %}
             {# This is mostly handled by reports_v2_dashboard, but in case they use this route #}
             {% for t in v2_templates %}
-            <div class="col-xl-3 col-lg-4 col-md-6">
-                <!-- V2 Card variant for Setup -->
-                <div class="card border-0 shadow-sm rounded-4 h-100" style="background-color: var(--bg-surface);">
+            <div class="col-xl-3 col-lg-4 col-md-6 template-item">
                     <div class="card-body p-4">
                         <div class="badge bg-primary bg-opacity-10 text-primary mb-3">V2</div>
                         <h6 class="fw-bold text-dark mb-3 line-clamp-2" style="height: 44px;">{{ t.name }}</h6>
@@ -129,4 +136,20 @@
     .hover-up:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important; }
     .tiny { font-size: 11px; }
 </style>
+
+<script>
+    function unifiedFilter() {
+        const query = document.getElementById('templateSearch').value.toLowerCase();
+        const items = document.querySelectorAll('.template-item');
+        
+        items.forEach(item => {
+            const text = item.innerText.toLowerCase();
+            if (text.includes(query)) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+</script>
 {% endblock %}
