@@ -2,66 +2,81 @@
 
 {% block content %}
 <div class="page-header mb-4 animate__animated animate__fadeIn">
-    <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <h1 class="h3 fw-bold text-dark mb-1">Thư viện</h1>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-success bg-opacity-10 p-3 rounded-4 shadow-sm">
+                <i class="fa-solid fa-book-bookmark text-success fs-4"></i>
+            </div>
+            <div>
+                <h1 class="h3 fw-bold text-dark mb-1">Thư viện Tài liệu</h1>
+                <p class="text-muted mb-0 small">Tra cứu văn bản, tài liệu quản lý</p>
+            </div>
         </div>
-        <div class="d-none d-md-block">
-            {% if perms.get('p_sys') or session.is_admin %}
-            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#uploadDocModal">
-                TẢI LÊN TÀI LIỆU
-            </button>
-            {% endif %}
+
+        <div class="d-flex align-items-center gap-2">
+            <!-- PC Only Filter: Moved to Header -->
+            <div class="d-none d-lg-flex bg-white p-2 rounded-4 shadow-sm border align-items-center me-2">
+                <span class="px-2 small fw-bold text-muted border-end pe-3">LĨNH VỰC:</span>
+                <select class="form-select border-0 shadow-none fw-bold text-success bg-transparent py-0" style="min-width: 200px;" onchange="filterLibrary(this.value)">
+                    <option value="ALL">Tất cả lĩnh vực</option>
+                    {% for c in cats %}
+                    <option value="{{ c.name }}">{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="d-none d-md-block">
+                {% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or session.is_admin %}
+                <button class="btn btn-success rounded-pill px-4 fw-bold shadow-sm d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#uploadDocModal">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> TẢI LÊN TÀI LIỆU
+                </button>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
 
 <!-- Floating FAB for Mobile -->
-{% if perms.get('p_sys') or session.is_admin %}
-<button class="btn btn-primary d-md-none rounded-circle shadow-lg position-fixed d-flex align-items-center justify-content-center animate__animated animate__bounceIn" 
+{% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or session.is_admin %}
+<button class="btn btn-success d-md-none rounded-circle shadow-lg position-fixed d-flex align-items-center justify-content-center animate__animated animate__bounceIn" 
         style="width: 60px; height: 60px; bottom: 85px; right: 20px; z-index: 1100; padding: 0; border: none; font-size: 24px;"
         data-bs-toggle="modal" data-bs-target="#uploadDocModal">
-    +
+    <i class="fa-solid fa-plus"></i>
 </button>
 {% endif %}
 
 <div class="main-content-area animate__animated animate__fadeInUp">
     <div class="row g-4">
-        <!-- Sidebar Filter -->
-        <!-- Sidebar Filter -->
-        <div class="col-xl-2 col-lg-3">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 animate__animated animate__fadeInLeft">
-                <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
-                    <h6 class="fw-bold text-dark mb-0">LĨNH VỰC</h6>
-                </div>
-                <div class="list-group list-group-flush border-top">
-                    {% if not cats %}
-                    <div class="px-4 py-3 tiny text-muted italic">Chưa có lĩnh vực nào</div>
-                    {% endif %}
-                    {% for c in cats %}
-                    <a href="#" class="list-group-item list-group-item-action border-0 px-4 py-2 d-flex align-items-center gap-2">
-                        <span class="small fw-medium text-muted">{{ c.name }}</span>
-                    </a>
-                    {% endfor %}
+        <!-- Sidebar Filter: Only visible on Mobile -->
+        <div class="col-xl-3 col-lg-4 d-lg-none">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                <div class="card-header border-0 py-3 px-4 d-flex flex-column gap-2" style="background-color: var(--bg-surface);">
+                    <h6 class="fw-bold text-main mb-0 small text-uppercase opacity-75">Lĩnh vực tài liệu</h6>
+                    <select class="form-select rounded-pill border shadow-sm fw-bold small py-2" onchange="filterLibrary(this.value)">
+                        <option value="ALL">Tất cả lĩnh vực</option>
+                        {% for c in cats %}
+                        <option value="{{ c.name }}">{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
             </div>
         </div>
 
-        <!-- Documents Cards -->
-        <div class="col-xl-10 col-lg-9">
-            <div class="row g-4">
+        <!-- Documents Cards: Full Width on PC -->
+        <div class="col-12">
+            <div class="row g-4" id="libraryGrid">
                 {% for d in docs %}
-                <div class="col-xl-4 col-md-6">
-                    <div class="card border-0 shadow-sm rounded-4 h-100 hover-up bg-white">
-                        <div class="card-body p-4 text-center">
-                            <div class="bg-primary bg-opacity-10 text-primary rounded-4 p-2 d-inline-block mb-3 shadow-sm px-4">
-                                <span class="fw-bold tiny">TÀI LIỆU</span>
+                <div class="col-xl-3 col-lg-4 col-md-6 library-item" data-category="{{ d.category }}">
+                    <div class="card border-0 shadow-sm rounded-4 h-100 hover-up bg-white overflow-hidden">
+                        <div class="card-body p-4 text-center d-flex flex-column">
+                            <div class="bg-success bg-opacity-10 text-success rounded-circle p-3 d-inline-flex align-items-center justify-content-center mb-3 shadow-sm mx-auto" style="width: 60px; height: 60px;">
+                                <i class="fa-solid fa-file-lines fs-4"></i>
                             </div>
-                            <h6 class="fw-bold text-dark mb-2 line-clamp-2" style="min-height: 40px;">{{ d.title }}</h6>
-                            <div class="badge bg-light text-muted border px-3 py-1 tiny fw-bold mb-4">{{ d.category }}</div>
-                            <div class="border-top pt-3">
-                                <a href="/dl_file/{{ d.filename }}" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm tiny">
-                                    TẢI VỀ NGAY
+                            <h6 class="fw-bold text-dark mb-2 line-clamp-2" style="min-height: 40px; line-height: 1.4;">{{ d.title }}</h6>
+                            <div class="badge bg-light text-muted border px-3 py-1 tiny fw-bold mb-4 mx-auto w-fit">{{ d.category }}</div>
+                            <div class="mt-auto border-top pt-3">
+                                <a href="/dl_file/{{ d.filename }}" class="btn btn-success w-100 rounded-pill py-2 fw-bold shadow-sm tiny">
+                                    <i class="fa-solid fa-download me-1"></i> TẢI VỀ NGAY
                                 </a>
                             </div>
                         </div>
@@ -71,6 +86,7 @@
 
                 {% if not docs %}
                 <div class="col-12 py-5 text-center">
+                    <div class="opacity-10 mb-3"><i class="fa-solid fa-folder-open fa-5x"></i></div>
                     <h5 class="fw-bold text-muted">Thư viện trống</h5>
                 </div>
                 {% endif %}
@@ -84,14 +100,14 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
             <form method="POST" enctype="multipart/form-data">
-                <div class="modal-header bg-primary text-white p-4 border-0">
+                <div class="modal-header bg-success text-white p-4 border-0">
                     <h5 class="modal-title fw-bold">TẢI LÊN TÀI LIỆU MỚI</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label fw-bold text-dark small">TÊN TÀI LIỆU / VĂN BẢN</label>
-                        <input type="text" name="title" class="form-control" required>
+                        <input type="text" name="title" class="form-control" placeholder="Nhập tên tài liệu..." required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold text-dark small">LĨNH VỰC LƯU TRỮ</label>
@@ -104,15 +120,16 @@
                         {% endif %}
                     </div>
                     <div class="mb-1">
-                        <label class="form-label small fw-bold text-muted">Chọn tệp tài liệu (PDF/DOCX/JPG)</label>
+                        <label class="form-label small fw-bold text-muted">Chọn tệp tài liệu (PDF/DOCX/JPG/RAR... Max 10MB)</label>
                         <div class="input-group mb-2">
-                            <label class="input-group-text bg-light tiny fw-bold" for="libFile">CHỌN TỆP</label>
+                            <label class="input-group-text bg-light tiny fw-bold" for="libFile"><i class="fa-solid fa-file-export me-1"></i>CHỌN TỆP</label>
                             <input type="file" name="file" class="form-control tiny" id="libFile" required>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-0">
-                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">XÁC NHẬN TẢI LÊN</button>
+                    <button type="button" class="btn btn-light px-4 rounded-pill fw-bold border" data-bs-dismiss="modal">HỦY</button>
+                    <button type="submit" class="btn btn-success px-5 rounded-pill fw-bold shadow">XÁC NHẬN TẢI LÊN</button>
                 </div>
             </form>
         </div>
@@ -123,5 +140,20 @@
     .hover-up { transition: all 0.3s; }
     .hover-up:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important; }
     .tiny { font-size: 10px; }
+    .w-fit { width: fit-content; }
+    .library-item.d-none { display: none !important; }
 </style>
+
+<script>
+    function filterLibrary(category) {
+        const items = document.querySelectorAll('.library-item');
+        items.forEach(item => {
+            if (category === 'ALL' || item.getAttribute('data-category') === category) {
+                item.classList.remove('d-none');
+            } else {
+                item.classList.add('d-none');
+            }
+        });
+    }
+</script>
 {% endblock %}

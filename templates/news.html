@@ -2,73 +2,88 @@
 
 {% block content %}
 <div class="page-header mb-4 animate__animated animate__fadeIn">
-    <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <h1 class="h3 fw-bold text-dark mb-1">Bảng tin - Thông báo</h1>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-primary bg-opacity-10 p-3 rounded-4 shadow-sm">
+                <i class="fa-solid fa-newspaper text-primary fs-4"></i>
+            </div>
+            <div>
+                <h1 class="h3 fw-bold text-dark mb-1">Bảng tin - Thông báo</h1>
+                <p class="text-muted mb-0 small">Cập nhật thông tin mới nhất từ các đơn vị</p>
+            </div>
         </div>
-        <div class="d-none d-md-block">
-            {% if perms.get('p_sys') or is_admin %}
-            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#addNewsModal">
-                ĐĂNG TIN MỚI
-            </button>
-            {% endif %}
+        
+        <div class="d-flex align-items-center gap-2">
+            <!-- PC Only Filter: Moved to Header -->
+            <div class="d-none d-lg-flex bg-white p-2 rounded-4 shadow-sm border align-items-center me-2">
+                <span class="px-2 small fw-bold text-muted border-end pe-3">LỌC:</span>
+                <select class="form-select border-0 shadow-none fw-bold text-primary bg-transparent py-0" style="min-width: 200px;" onchange="filterNews(this.value)">
+                    <option value="ALL">Tất cả Đội nghiệp vụ</option>
+                    {% for unit in pro_units %}
+                    <option value="{{ unit.name }}">{{ unit.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="d-none d-md-block">
+                {% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
+                <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#addNewsModal">
+                    <i class="fa-solid fa-plus me-2"></i>ĐĂNG TIN MỚI
+                </button>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
 
 <!-- Floating FAB for Mobile -->
-{% if perms.get('p_sys') or is_admin %}
+{% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
 <button class="btn btn-primary d-md-none rounded-circle shadow-lg position-fixed d-flex align-items-center justify-content-center animate__animated animate__bounceIn" 
         style="width: 60px; height: 60px; bottom: 85px; right: 20px; z-index: 1100; padding: 0; border: none; font-size: 24px;"
         data-bs-toggle="modal" data-bs-target="#addNewsModal">
-    +
+    <i class="fa-solid fa-plus"></i>
 </button>
 {% endif %}
 
 <div class="main-content-area animate__animated animate__fadeInUp">
     <div class="row g-4">
-        <!-- Sidebar Filter -->
-        <div class="col-xl-2 col-lg-3">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 animate__animated animate__fadeInLeft">
-                <div class="card-header border-0 py-3 px-4" style="background-color: var(--bg-surface);">
-                    <h6 class="fw-bold text-main mb-0">ĐỘI NGHIỆP VỤ</h6>
-                </div>
-                <div class="list-group list-group-flush border-top">
-                    {% if not pro_units %}
-                    <div class="px-4 py-3 tiny text-muted italic text-center">Chưa có đội nghiệp vụ nào</div>
-                    {% else %}
+        <!-- Sidebar Filter: Only visible on Mobile as per request -->
+        <div class="col-xl-3 col-lg-4 d-lg-none">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                <div class="card-header border-0 py-3 px-4 d-flex flex-column gap-2" style="background-color: var(--bg-surface);">
+                    <h6 class="fw-bold text-main mb-0 small text-uppercase opacity-75">Đội nghiệp vụ</h6>
+                    <select class="form-select rounded-pill border shadow-sm fw-bold small py-2" onchange="filterNews(this.value)">
+                        <option value="ALL">Tất cả đơn vị</option>
                         {% for unit in pro_units %}
-                        <a href="#" class="list-group-item list-group-item-action border-0 px-4 py-2 d-flex align-items-center gap-2" style="background-color: var(--bg-surface);">
-                            <span class="small fw-medium text-muted">{{ unit.name }}</span>
-                        </a>
+                        <option value="{{ unit.name }}">{{ unit.name }}</option>
                         {% endfor %}
-                    {% endif %}
+                    </select>
                 </div>
             </div>
         </div>
 
-        <!-- News Cards -->
-        <div class="{% if pro_units %}col-xl-10 col-lg-9{% else %}col-12{% endif %}">
-            <div class="row g-4">
+        <!-- News Cards: Full Width on PC -->
+        <div class="col-12">
+            <div class="row g-4" id="newsGrid">
                 {% for n in news_list %}
-                <div class="col-xl-4 col-md-6">
+                <div class="col-xl-3 col-lg-4 col-md-6 news-item" data-category="{{ n.category }}">
                     <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100 hover-up" style="background-color: var(--bg-surface);">
-                        <div class="card-body p-4">
+                        <div class="card-body p-4 d-flex flex-column">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <span class="badge bg-primary-subtle text-primary border px-2 tiny fw-bold">{{ n.category }}</span>
                                 <div class="tiny text-muted fw-bold">{{ n.uploaded_at.strftime('%d/%m/%Y') }}</div>
                             </div>
                             <h6 class="fw-bold text-main mb-3 line-clamp-2" style="min-height: 44px; line-height: 1.4;">{{ n.title }}</h6>
-                            <p class="text-muted small mb-4 line-clamp-3" style="min-height: 60px;">{{ n.content }}</p>
+                            <p class="text-muted small mb-4 line-clamp-3" style="min-height: 60px; flex-grow: 1;">{{ n.content }}</p>
                             <div class="border-top pt-3 d-flex justify-content-between align-items-center">
                                 {% if n.filename %}
                                 <a href="/dl_file/{{ n.filename }}" class="btn btn-sm btn-light border rounded-pill px-3 tiny fw-bold shadow-sm d-flex align-items-center gap-2">
-                                     ĐÍNH KÈM
+                                     <i class="fa-solid fa-paperclip"></i> ĐÍNH KÈM
                                 </a>
                                 {% else %}
                                 <span class="tiny text-muted italic">Không có đính kèm</span>
                                 {% endif %}
-                                <button class="btn btn-link btn-sm text-primary p-0 fw-bold tiny text-decoration-none">CHI TIẾT</button>
+                                <button class="btn btn-link btn-sm text-primary p-0 fw-bold tiny text-decoration-none" onclick="Swal.fire({title: '{{ n.title }}', text: '{{ n.content }}', icon: 'info'})">CHI TIẾT</button>
                             </div>
                         </div>
                     </div>
@@ -77,6 +92,7 @@
 
                 {% if not news_list %}
                 <div class="col-12 py-5 text-center">
+                    <div class="opacity-25 mb-3"><i class="fa-solid fa-newspaper fa-4x"></i></div>
                     <h5 class="fw-bold text-muted">Chưa có tin tức nào mới</h5>
                 </div>
                 {% endif %}
@@ -97,7 +113,7 @@
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label fw-bold text-dark small">TIÊU ĐỀ BẢN TIN</label>
-                        <input type="text" name="title" class="form-control" required>
+                        <input type="text" name="title" class="form-control" placeholder="Nhập tiêu đề..." required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold text-dark small">ĐỘI NGHIỆP VỤ</label>
@@ -113,17 +129,18 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold text-dark small">NỘI DUNG TÓM TẮT</label>
-                        <textarea name="content" class="form-control" rows="3"></textarea>
+                        <textarea name="content" class="form-control" rows="4" placeholder="Nhập nội dung thông báo..."></textarea>
                     </div>
                     <div class="mb-1">
-                        <label class="form-label small fw-bold text-muted">Ảnh minh họa / Đính kèm</label>
+                        <label class="form-label small fw-bold text-muted">Ảnh minh họa / Đính kèm (Tối đa 10MB)</label>
                         <div class="input-group">
-                            <label class="input-group-text bg-light tiny fw-bold" for="newsFile">CHỌN TỆP</label>
+                            <label class="input-group-text bg-light tiny fw-bold" for="newsFile"><i class="fa-solid fa-file-arrow-up me-1"></i>CHỌN TỆP</label>
                             <input type="file" name="file" class="form-control tiny" id="newsFile">
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-0">
+                    <button type="button" class="btn btn-light px-4 rounded-pill fw-bold border" data-bs-dismiss="modal">HỦY</button>
                     <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">ĐĂNG TIN NGAY</button>
                 </div>
             </form>
@@ -137,5 +154,19 @@
     .line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
     .line-clamp-3 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
     .tiny { font-size: 10px; }
+    .news-item.d-none { display: none !important; }
 </style>
+
+<script>
+    function filterNews(category) {
+        const items = document.querySelectorAll('.news-item');
+        items.forEach(item => {
+            if (category === 'ALL' || item.getAttribute('data-category') === category) {
+                item.classList.remove('d-none');
+            } else {
+                item.classList.add('d-none');
+            }
+        });
+    }
+</script>
 {% endblock %}

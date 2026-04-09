@@ -2,264 +2,181 @@
 
 {% block content %}
 <div class="page-header mb-4 animate__animated animate__fadeIn">
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
-        <div>
-            <h1 class="h3 fw-bold text-dark mb-1">Quản lý Công việc</h1>
-        </div>
-        <div class="d-none d-md-block">
-            {% if perms.get('p_task_assign') or is_admin %}
-            <button class="btn btn-primary rounded-pill px-4 py-2 shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#addTaskModal">
-                GIAO VIỆC MỚI
-            </button>
-            {% endif %}
-        </div>
-    </div>
-</div>
-
-<div class="row g-4 mb-4 align-items-start">
-    <div class="col-md-10">
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-            <div class="card-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center gap-3">
-                    <h5 class="fw-bold mb-0 text-dark">Danh sách công việc</h5>
-                    <div class="dropdown">
-                        <button class="btn btn-sm btn-light border rounded-pill px-3 dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            Đội nghiệp vụ: {{ 'Tất cả' if current_domain == 'ALL' else current_domain }}
-                        </button>
-                        <ul class="dropdown-menu shadow border-0">
-                            <li><a class="dropdown-item" href="{{ url_for('tasks_bp.tasks', domain='ALL') }}">Tất cả</a></li>
-                            {% for d in domains %}
-                            <li><a class="dropdown-item" href="{{ url_for('tasks_bp.tasks', domain=d) }}">{{ d }}</a></li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                </div>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-primary bg-opacity-10 p-3 rounded-4 shadow-sm">
+                <i class="fa-solid fa-list-check text-primary fs-4"></i>
             </div>
-            <div class="card-body p-0">
-                <!-- Desktop View: Table -->
-                <div class="table-responsive d-none d-md-block">
-                    <table class="table table-custom align-middle mb-0">
-                        <thead class="bg-light">
-                            <tr>
-                                <th class="py-3 text-muted small fw-bold border-0">TIÊU ĐỀ & NỘI DUNG</th>
-                                <th class="py-3 text-muted small fw-bold border-0">ĐỘI NGHIỆP VỤ</th>
-                                <th class="py-3 text-muted small fw-bold border-0">THỜI HẠN</th>
-                                <th class="py-3 text-muted small fw-bold border-0">TRẠNG THÁI</th>
-                                <th class="py-3 text-muted small fw-bold border-0">THAO TÁC</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for t in tasks %}
-                            <tr>
-                                <td class="py-4">
-                                    <div class="fw-bold text-dark mb-1">{{ t.title }}</div>
-                                    <div class="text-muted small text-truncate" style="max-width: 300px;">{{ t.content }}</div>
-                                    <div class="mt-2 text-muted" style="font-size: 11px;">
-                                        {{ t.author_name }} 
-                                        {% if t.file_path %}
-                                        <span class="ms-3"><a href="{{ url_for('dl_file', fn=t.file_path) }}" class="text-primary text-decoration-none fw-bold">Tệp đính kèm</a></span>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                                <td>
-                                    <span class="badge bg-indigo-light text-indigo rounded-pill px-3 py-2 small">{{ t.domain }}</span>
-                                </td>
-                                <td>
-                                    <div class="fw-medium text-dark">{{ t.deadline.strftime('%d/%m/%Y') }}</div>
-                                    {% if t.deadline < now_dt.date() %}
-                                    <div class="text-danger tiny fw-bold">QUÁ HẠN</div>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <span class="badge bg-warning bg-opacity-10 text-warning rounded-pill px-3 py-2 small">Đang xử lý</span>
-                                </td>
-                                <td>
-                                    <button class="btn btn-sm btn-white border rounded-pill shadow-sm px-3 fw-bold text-primary" onclick="showTaskDetail('{{ t.id }}')">
-                                        CHI TIẾT
-                                    </button>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center py-5">
-                                    <div class="d-flex flex-column align-items-center justify-content-center w-100">
-                                        <h6 class="text-muted mb-0 fw-bold">Chưa có công việc nào được giao</h6>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+            <div>
+                <h1 class="h3 fw-bold text-dark mb-1">Quản lý Công việc</h1>
+                <p class="text-muted mb-0 small">Phân công & Giám sát tiến độ chỉ đạo</p>
+            </div>
+        </div>
 
-                <!-- Mobile View: Cards -->
-                <div class="d-md-none p-3">
-                    {% for t in tasks %}
-                    <div class="task-card-mobile p-3 mb-3 border rounded-4 shadow-sm bg-white animate__animated animate__fadeInUp">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-2 py-1 tiny fw-bold">{{ t.domain }}</span>
-                            <div class="text-muted tiny fw-bold">{{ t.deadline.strftime('%d/%m/%Y') }}</div>
-                        </div>
-                        <h6 class="fw-bold text-dark mb-2 mt-1">{{ t.title }}</h6>
-                        <p class="text-muted small mb-3 text-truncate">{{ t.content }}</p>
-                        <div class="d-flex justify-content-between align-items-end">
-                            <div class="text-muted tiny">
-                                {{ t.author_name }}
-                            </div>
-                            <button class="btn btn-sm btn-primary rounded-pill px-3 fw-bold" onclick="showTaskDetail('{{ t.id }}')">CHI TIẾT</button>
-                        </div>
-                        {% if t.deadline < now_dt.date() %}
-                        <div class="mt-2 pt-2 border-top text-danger tiny fw-bold">QUÁ HẠN</div>
-                        {% endif %}
-                    </div>
-                    {% else %}
-                    <div class="text-center py-5">
-                        <h6 class="text-muted mb-0 fw-bold">Chưa có công việc nào được giao</h6>
-                    </div>
+        <div class="d-flex align-items-center gap-2">
+            <!-- PC Only Filter: Moved to Header -->
+            <div class="d-none d-lg-flex bg-white p-2 rounded-4 shadow-sm border align-items-center me-2">
+                <span class="px-2 small fw-bold text-muted border-end pe-3">ĐỘI NGHIỆP VỤ:</span>
+                <select class="form-select border-0 shadow-none fw-bold text-primary bg-transparent py-0" style="min-width: 200px;" onchange="window.location.href='/tasks?domain=' + this.value">
+                    <option value="ALL">Tất cả Đội nghiệp vụ</option>
+                    {% for d in domains %}
+                    <option value="{{ d }}" {% if current_domain == d %}selected{% endif %}>{{ d }}</option>
                     {% endfor %}
-                </div>
+                </select>
             </div>
-        </div>
-    </div>
-    
-    <div class="col-md-2">
-        <div class="card border-0 shadow-sm rounded-4 mb-4 bg-primary text-white overflow-hidden p-4">
-            <div class="position-relative" style="z-index:1">
-                <h6 class="text-white fw-bold mb-4 opacity-75">THỐNG KÊ NHANH</h6>
-                
-                <div class="d-flex flex-column gap-3">
-                    <div class="d-flex justify-content-between align-items-end">
-                        <div class="text-white small fw-bold">TỔNG SỐ CÔNG VIỆC:</div>
-                        <div class="h4 fw-bold mb-0 text-white">{{ stats.total }}</div>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-end">
-                        <div class="text-white small fw-bold">ĐÃ HOÀN THÀNH:</div>
-                        <div class="h4 fw-bold mb-0 text-white">{{ stats.completed }}</div>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-end">
-                        <div class="text-white small fw-bold">CHƯA HOÀN THÀNH:</div>
-                        <div class="h4 fw-bold mb-0 text-warning">{{ stats.pending }}</div>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-end pt-2 border-top border-white border-opacity-20">
-                        <div class="text-white small fw-bold">QUÁ HẠN:</div>
-                        <div class="h4 fw-bold mb-0 text-danger" style="text-shadow: 0 0 10px rgba(255,0,0,0.2)">{{ stats.overdue }}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <div class="card border-0 shadow-sm rounded-4 p-4">
-            <h6 class="fw-bold text-dark mb-4">Đội nghiệp vụ</h6>
-            <div class="d-flex flex-column gap-3">
-                {% for d in domains %}
-                <a href="{{ url_for('tasks_bp.tasks', domain=d) }}" class="d-flex justify-content-between align-items-center text-decoration-none hover-bg-light p-2 rounded-3">
-                    <span class="text-muted small fw-medium text-truncate" style="max-width: 150px;">{{ d }}</span>
-                    <span class="badge bg-light text-dark shadow-sm">{{ tasks|selectattr('domain', 'equalto', d)|list|length }}</span>
-                </a>
-                {% endfor %}
+            <div class="d-none d-md-block">
+                {% if perms.get('p_task_assign') or is_admin %}
+                <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                    <i class="fa-solid fa-plus-circle"></i> GIAO VIỆC MỚI
+                </button>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal: Giao việc mới -->
-<div class="modal fade" id="addTaskModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <form class="modal-content border-0 shadow-lg rounded-4 overflow-hidden" method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="action" value="assign">
-            <div class="modal-header bg-primary text-white border-0 p-3 p-md-4">
-                <h5 class="modal-title fw-bold">GIAO VIỆC MỚI</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-4">
-                <div class="row g-3 g-md-4">
-                    <div class="col-lg-8">
-                        <div class="mb-3 mb-md-4">
-                            <label class="form-label fw-bold small text-muted">TIÊU ĐỀ CÔNG VIỆC</label>
-                            <input type="text" name="title" class="form-control border-0 bg-light py-2 py-md-3 rounded-3 shadow-sm" placeholder="Nhập tiêu đề hoặc số công văn" required>
-                        </div>
-                        <div class="mb-0">
-                            <label class="form-label fw-bold small text-muted">NỘI DUNG YÊU CẦU</label>
-                            <textarea name="content" class="form-control border-0 bg-light py-2 py-md-3 rounded-3 shadow-sm" rows="5" placeholder="Mô tả chi tiết nội dung công việc..." required></textarea>
-                        </div>
-                    </div>
-                    <div class="col-lg-4">
-                        <div class="mb-3 mb-md-4">
-                            <label class="form-label fw-bold small text-muted">ĐỘI NGHIỆP VỤ</label>
-                            <select name="domain" class="form-select border-0 bg-light py-2 py-md-3 rounded-3 shadow-sm" required>
-                                <option value="" disabled selected>Chọn đội nghiệp vụ</option>
-                                {% for d in domains %}
-                                <option value="{{ d }}">{{ d }}</option>
-                                {% endfor %}
-                            </select>
-                            {% if not domains %}
-                            <div class="tiny text-danger mt-1 fw-bold">Hãy vào "Thiết lập danh mục" để tạo lĩnh vực!</div>
-                            {% endif %}
-                        </div>
-                        <div class="mb-3 mb-md-4">
-                            <label class="form-label fw-bold small text-muted">THỜI HẠN</label>
-                            <input type="date" name="deadline" class="form-control border-0 bg-light py-2 py-md-3 rounded-3 shadow-sm" required>
-                        </div>
-                        <div class="mb-3 mb-md-4">
-                            <label class="form-label fw-bold small text-muted">ĐỘ ƯU TIÊN</label>
-                            <select name="priority" class="form-select border-0 bg-light py-2 py-md-3 rounded-3 shadow-sm">
-                                <option value="Bình thường">Bình thường</option>
-                                <option value="Khẩn">Khẩn</option>
-                                <option value="Hỏa tốc">Hỏa tốc</option>
-                            </select>
-                        </div>
-                        <div class="mb-0">
-                            <label class="form-label fw-bold small text-muted">TÀI LIỆU ĐÍNH KÈM</label>
-                            <div class="file-drop-area border-dashed rounded-3 p-3 text-center bg-light cursor-pointer" onclick="document.getElementById('taskFile').click()">
-                                <div class="tiny text-muted" id="taskFileLabel">Click để chọn tệp</div>
-                                <input type="file" name="file" id="taskFile" class="d-none" onchange="document.getElementById('taskFileLabel').innerText = 'Đã chọn: ' + this.files[0].name; document.getElementById('taskFileLabel').classList.replace('text-muted', 'text-success');">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-12 px-2">
-                        <hr class="my-2 opacity-10">
-                        <label class="form-label fw-bold small text-muted mb-3">CHỈ ĐỊNH NGƯỜI THỰC HIỆN</label>
-                        <div class="row g-2 g-md-3" style="max-height: 250px; overflow-y: auto;">
-                            {% for u in users %}
-                            <div class="col-6 col-md-4">
-                                <div class="form-check p-2 p-md-3 border rounded-3 hover-elevate">
-                                    <input class="form-check-input ms-0" type="checkbox" name="target_users" value="{{ u.id }}" id="u{{ u.id }}">
-                                    <label class="form-check-label ms-1 ms-md-2 small fw-bold" for="u{{ u.id }}">
-                                        {{ u.fullname }} <br> <span class="text-muted tiny fw-normal d-none d-md-inline">{{ u.unit_area }}</span>
-                                    </label>
-                                </div>
-                            </div>
+<div class="main-content-area animate__animated animate__fadeInUp">
+    <!-- Tasks Grid: Full Width on PC -->
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                <div class="card-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h5 class="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                        <i class="fa-solid fa-list text-primary"></i> DANH SÁCH CÔNG VIỆC
+                    </h5>
+                    <!-- Mobile only selector -->
+                    <div class="d-lg-none w-100 mt-2">
+                        <select class="form-select rounded-pill border shadow-sm fw-bold small py-2" onchange="window.location.href='/tasks?domain=' + this.value">
+                            <option value="ALL">Lọc theo Đội nghiệp vụ</option>
+                            {% for d in domains %}
+                            <option value="{{ d }}" {% if current_domain == d %}selected{% endif %}>{{ d }}</option>
                             {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <!-- Desktop View: Table -->
+                    <div class="table-responsive d-none d-md-block">
+                        <table class="table table-custom align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="py-3 text-muted small fw-bold border-0 text-start px-4">TIÊU ĐỀ & NỘI DUNG</th>
+                                    <th class="py-3 text-muted small fw-bold border-0">ĐỘI NGHIỆP VỤ</th>
+                                    <th class="py-3 text-muted small fw-bold border-0">THỜI HẠN</th>
+                                    <th class="py-3 text-muted small fw-bold border-0">TRẠNG THÁI</th>
+                                    <th class="py-3 text-muted small fw-bold border-0 px-4">THAO TÁC</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for t in tasks %}
+                                <tr>
+                                    <td class="py-4 px-4 text-start">
+                                        <div class="fw-bold text-dark mb-1 fs-6">{{ t.title }}</div>
+                                        <div class="text-muted small text-truncate" style="max-width: 400px;" title="{{ t.content }}">{{ t.content }}</div>
+                                        <div class="mt-2 d-flex align-items-center gap-2 tiny">
+                                            <span class="text-muted"><i class="fa-solid fa-user-pen me-1"></i>{{ t.author_name }}</span>
+                                            {% if t.file_path %}
+                                            <span class="badge bg-primary-subtle text-primary border rounded-pill px-2">
+                                                <a href="{{ url_for('dl_file', fn=t.file_path) }}" class="text-decoration-none"><i class="fa-solid fa-paperclip me-1"></i>Đính kèm</a>
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border px-3 py-1 fw-bold tiny rounded-pill">{{ t.task_domain }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-muted small">{{ t.deadline.strftime('%d/%m/%Y') }}</div>
+                                    </td>
+                                    <td>
+                                        {% if t.status == 'DONE' %}<span class="badge bg-success px-3 py-1 rounded-pill tiny fw-bold shadow-sm">HOÀN THÀNH</span>
+                                        {% elif t.status == 'OVERDUE' %}<span class="badge bg-danger px-3 py-1 rounded-pill tiny fw-bold shadow-sm">QUÁ HẠN</span>
+                                        {% else %}<span class="badge bg-warning text-dark px-3 py-1 rounded-pill tiny fw-bold shadow-sm">ĐANG THỰC HIỆN</span>{% endif %}
+                                    </td>
+                                    <td class="px-4">
+                                        <button class="btn btn-sm btn-light border rounded-pill shadow-sm px-3 fw-bold text-primary tiny" onclick="showTaskDetail('{{ t.id }}')">
+                                            XEM CHI TIẾT
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Mobile View: Cards -->
+                    <div class="d-md-none p-3">
+                        {% for t in tasks %}
+                        <div class="task-card-mobile p-3 mb-3 border rounded-4 shadow-sm bg-white" onclick="showTaskDetail('{{ t.id }}')">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div class="badge bg-primary bg-opacity-10 text-primary border-0 tiny px-2">{{ t.task_domain }}</div>
+                                <div class="tiny fw-bold text-muted">{{ t.deadline.strftime('%d/%m/%Y') }}</div>
+                            </div>
+                            <h6 class="fw-bold text-dark mb-1">{{ t.title }}</h6>
+                            <p class="text-muted small mb-3 text-truncate">{{ t.content }}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="tiny text-muted fw-medium">{{ t.author_name }}</span>
+                                {% if t.status == 'DONE' %}<span class="text-success tiny fw-bold">Hoàn thành</span>
+                                {% elif t.status == 'OVERDUE' %}<span class="text-danger tiny fw-bold">Quá hạn</span>
+                                {% else %}<span class="text-warning tiny fw-bold">Chờ xử lý</span>{% endif %}
+                            </div>
                         </div>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
-            <div class="modal-footer bg-light border-0 p-4">
-                <button type="button" class="btn btn-link text-muted text-decoration-none fw-bold" data-bs-dismiss="modal">HỦY BỎ</button>
-                <button type="submit" class="btn btn-primary px-5 rounded-pill shadow-sm fw-bold">XÁC NHẬN GIAO VIỆC</button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 
-<!-- Floating Action Button for Mobile -->
-{% if perms.get('p_task_assign') or is_admin %}
-<button class="btn btn-primary d-md-none btn-circle shadow-lg position-fixed d-flex align-items-center justify-content-center animate__animated animate__bounceIn" 
-        style="width: 60px; height: 60px; bottom: 85px; right: 20px; z-index: 1100; border: none; font-size: 24px;"
-        data-bs-toggle="modal" data-bs-target="#addTaskModal">
-    +
-</button>
-{% endif %}
+<!-- Modal: Add Task (Preserved functionality with modern styling) -->
+<div class="modal fade" id="addTaskModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <form method="POST" action="/tasks/add" enctype="multipart/form-data">
+                <div class="modal-header bg-primary text-white p-4 border-0">
+                    <h5 class="modal-title fw-bold">GIAO VIỆC MỚI</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-bold text-dark small">TIÊU ĐỀ CÔNG VIỆC</label>
+                            <input type="text" name="title" class="form-control" placeholder="Nhập tiêu đề chỉ đạo..." required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-dark small">ĐỘI NGHIỆP VỤ PHỤ TRÁCH</label>
+                            <select name="domain" class="form-select" required>
+                                {% for d in domains %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-dark small">THỜI HẠN HOÀN THÀNH</label>
+                            <input type="date" name="deadline" class="form-control" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold text-dark small">NỘI DUNG CHI TIẾT</label>
+                            <textarea name="content" class="form-control" rows="5" placeholder="Mô tả cụ thể nội dung công việc..."></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold text-muted small">Tệp đính kèm hướng dẫn (nếu có)</label>
+                            <input type="file" name="file" class="form-control tiny">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0">
+                    <button type="button" class="btn btn-light px-4 rounded-pill fw-bold border" data-bs-dismiss="modal">HỦY</button>
+                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">GIAO VIỆC NGAY</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <style>
-    .bg-indigo-light { background: #e0e7ff; }
-    .text-indigo { color: #4f46e5; }
     .tiny { font-size: 10px; }
-    .hover-elevate { transition: all 0.2s; cursor: pointer; }
-    .hover-elevate:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-    .border-dashed { border-style: dashed !important; border-width: 2px !important; border-color: #dee2e6 !important; }
-    .task-card-mobile { border-left: 4px solid var(--primary) !important; }
-
-    .task-card-mobile { border-left: 4px solid var(--primary) !important; }
+    .task-card-mobile { border-left: 4px solid var(--primary) !important; transition: all 0.2s; }
+    .task-card-mobile:active { transform: scale(0.98); background: var(--bg-body); }
 </style>
 {% endblock %}
