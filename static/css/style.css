@@ -800,39 +800,49 @@ body.sidebar-collapsed .app-split-col-ops {
     font-size: 13px !important;
 }
 
-/* --- MOBILE UI OPTIMIZATIONS --- */
+/* --- MOBILE UI OPTIMIZATIONS (AUTO-RESPONSIVE ENGINE) --- */
 @media (max-width: 991px) {
     :root {
-        --font-size-base: 14px;
-        --nav-height: 60px;
+        /* Fluid Scaling Logic (320px -> 991px) */
+        --font-size-base: clamp(13px, 0.35vw + 11.8px, 15px);
+        --nav-height: clamp(55px, 1.5vw + 50.2px, 65px);
+        --container-padding: clamp(12px, 3vw + 2.4px, 32px);
+        --card-gap: clamp(12px, 2vw + 5.6px, 24px);
+        --mobile-logo-fs: clamp(1rem, 1.5vw + 0.5rem, 1.25rem);
     }
 
     body {
-        line-height: 1.4 !important;
-        font-size: 13.5px !important;
+        line-height: clamp(1.35, 0.05vw + 1.2, 1.5) !important;
+        font-size: var(--font-size-base) !important;
     }
 
     .mobile-logo-text {
-        font-size: 1.1rem !important;
+        font-size: var(--mobile-logo-fs) !important;
         letter-spacing: -0.5px;
     }
 
     .user-name-text {
-        max-width: 100px;
+        max-width: clamp(80px, 10vw + 48px, 150px);
         display: inline-block;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        font-size: 12px;
+        font-size: clamp(11px, 0.2vw + 10.4px, 12px);
     }
 
     .mobile-sidebar {
-        width: 260px !important;
+        width: clamp(240px, 10vw + 208px, 280px) !important;
     }
 
-    /* Enhanced Mobile Bottom Nav */
+    /* Fluid Gaps for Grid Layouts */
+    .app-grid-v2 {
+        gap: var(--card-gap);
+        padding: var(--container-padding);
+    }
+
+    /* Enhanced Mobile Bottom Nav (Fluid height) */
     .mobile-bottom-nav {
-        height: 65px;
+        height: var(--nav-height);
         background: rgba(255, 255, 255, 0.85);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
@@ -847,18 +857,18 @@ body.sidebar-collapsed .app-split-col-ops {
     }
 
     .mobile-bottom-nav .nav-item {
-        gap: 2px;
+        gap: clamp(1px, 0.5vw, 4px);
         color: var(--text-muted);
         opacity: 0.7;
     }
 
     .mobile-bottom-nav .nav-item i {
-        font-size: 18px;
+        font-size: clamp(16px, 1vw + 12.8px, 20px);
         transition: transform 0.2s;
     }
 
     .mobile-bottom-nav .nav-item span {
-        font-size: 9px;
+        font-size: clamp(8px, 0.2vw + 7.4px, 10px);
         font-weight: 700;
         letter-spacing: 0.5px;
     }
