@@ -1,231 +1,349 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="chat-page-wrapper animate__animated animate__fadeIn" style="background: #f0f2f5; margin: 0; padding: 0; min-height: calc(100vh - 100px); position: relative;">
-    <!-- Chat Header Area: Slightly adjusted padding to clear topbar -->
-    <div class="page-header px-4 pt-4 mb-2">
-        <div class="header-main-group">
-            <div class="header-title-pill shadow-sm bg-white">
-                <h1 class="mb-0">Hệ thống Trao đổi</h1>
+<div class="zalo-layout-wrapper animate__animated animate__fadeIn">
+    <!-- COLUMN 1: RAIL SIDEBAR (Zalo Style) -->
+    <div class="zalo-rail">
+        <div class="rail-top">
+            <div class="rail-item active" title="Tin nhắn">
+                <i class="fa-solid fa-comment-dots"></i>
+            </div>
+            <div class="rail-item" title="Danh bạ">
+                <i class="fa-solid fa-address-book"></i>
+            </div>
+            <div class="rail-item" title="Công việc">
+                <i class="fa-solid fa-check-to-slot"></i>
+            </div>
+        </div>
+        <div class="rail-bottom">
+            <div class="rail-item" title="Cài đặt">
+                <i class="fa-solid fa-gear"></i>
             </div>
         </div>
     </div>
 
-    <!-- Floating Cards Layout -->
-    <div class="row g-4 chat-main-row px-4 pb-0" style="height: calc(100vh - 280px); margin: 0;">
-        <!-- THẺ TRÁI: DANH SÁCH ĐƠN VỊ -->
-        <div class="col-lg-4 d-none d-lg-flex flex-column h-100">
-            <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden bg-white">
-                <div class="p-4 border-bottom sticky-top bg-white flex-shrink-0">
-                    <h5 class="fw-bold text-dark mb-4">Chat</h5>
-                    <div class="input-group rounded-pill border-0 px-3 py-1 bg-light shadow-none">
-                        <span class="input-group-text bg-transparent border-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
-                        <input type="text" id="unitSearchPC" class="form-control bg-transparent border-0 py-2 fw-bold" placeholder="Tìm kiếm đơn vị..." onkeyup="filterUsersPC()">
-                    </div>
-                </div>
-                
-                <div class="chat-user-list-container py-2 custom-scrollbar overflow-auto flex-grow-1" id="userListPC">
-                    {% for user in users %}
-                    <div class="chat-user-item px-3 py-3 d-flex align-items-center gap-3 cursor-pointer user-entry" 
-                         onclick="selectUser({{ user.id }}, '{{ user.fullname }}')" 
-                         data-id="{{ user.id }}"
-                         data-name="{{ user.fullname.lower() }}"
-                         data-unit="{{ user.unit_area.lower() }}">
-                        <div class="avatar-wrapper position-relative">
-                            <div class="bg-primary-gradient text-white btn-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style="--circle-size: 55px; font-size: 1.2rem;">
-                                {{ user.fullname[:1].upper() }}
-                            </div>
-                            <div class="status-indicator online"></div>
-                        </div>
-                        <div class="flex-grow-1 overflow-hidden">
-                            <div class="fw-bold text-dark text-truncate" style="font-size: 1.05rem;">{{ user.fullname }}</div>
-                            <div class="small text-muted text-truncate">{{ user.unit_area }}</div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
+    <!-- COLUMN 2: CONVERSATION LIST (Ultra Compact) -->
+    <div class="zalo-list-area">
+        <div class="list-header">
+            <div class="search-box-zalo">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="unitSearchPC" placeholder="Tìm kiếm đơn vị..." onkeyup="filterUsersPC()">
             </div>
         </div>
-
-        <!-- THẺ PHẢI: KHUNG CHÁT CHÍNH -->
-        <div class="col-lg-8 col-12 h-100">
-            <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden bg-white d-flex flex-column">
-                <!-- Active Chat State -->
-                <div id="activeChatState" class="d-none flex-column h-100 overflow-hidden">
-                    <div class="chat-main-header px-4 py-3 border-bottom d-flex justify-content-between align-items-center bg-white flex-shrink-0">
-                        <div class="d-flex align-items-center gap-3">
-                            <div id="activeUserAvatar" class="bg-primary-gradient text-white btn-circle btn-circle-sm d-flex align-items-center justify-content-center fw-bold shadow-sm">
-                                U
-                            </div>
-                            <div>
-                                <h6 class="fw-bold mb-0 text-dark" id="chatWithTitle" style="font-size: 1.1rem;">...</h6>
-                                <div class="tiny text-success fw-bold"><i class="fa-solid fa-circle me-1" style="font-size: 8px;"></i>Đang hoạt động</div>
-                            </div>
-                        </div>
-                        <div class="d-flex gap-3">
-                            <button class="btn btn-icon-only text-primary btn-light rounded-circle"><i class="fa-solid fa-circle-info"></i></button>
-                        </div>
-                    </div>
-
-                    <div class="chat-messages-area p-4 overflow-auto flex-grow-1 custom-scrollbar d-flex flex-column bg-white" id="messageArea">
-                        <!-- Messages render here -->
-                    </div>
-
-                    <div class="chat-input-area p-4 bg-white border-top flex-shrink-0">
-                        <div class="input-wrapper d-flex gap-3 align-items-center">
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-icon-only text-primary btn-light rounded-circle flex-shrink-0" onclick="document.getElementById('fileInput').click()" title="Đính kèm tệp">
-                                    <i class="fa-solid fa-plus-circle fs-5"></i>
-                                </button>
-                            </div>
-                            <div class="flex-grow-1">
-                                <input id="messageInput" class="form-control border-0 bg-light rounded-pill py-3 px-4 shadow-none fw-bold" placeholder="Nhập tin nhắn..." style="font-size: 1rem;">
-                            </div>
-                            <button class="btn btn-icon-only text-primary flex-shrink-0" onclick="sendMessage()" id="sendBtn" title="Gửi tin nhắn">
-                                <i class="fa-solid fa-paper-plane fs-4"></i>
-                            </button>
-                        </div>
-                        <div id="filePreview" class="d-flex flex-wrap gap-2 mt-2 px-5"></div>
-                        <input type="file" id="fileInput" multiple style="display: none;" onchange="handleFileSelect(event)">
-                    </div>
-                </div>
-
-                <!-- Empty Chat State -->
-                <div id="emptyChatState" class="d-flex flex-column align-items-center justify-content-center h-100 p-5 text-center">
-                    <div class="messenger-empty-icon mb-4">
-                        <div class="icon-circle bg-primary-gradient shadow-lg">
-                            <i class="fa-solid fa-comment-dots text-white"></i>
-                        </div>
-                    </div>
-                    <h2 class="fw-bold text-dark">Trao đổi nội bộ PC06</h2>
-                    <p class="text-muted" style="max-width: 450px; font-size: 1.1rem;">Chọn một cán bộ hoặc đơn vị ở thẻ bên trái để bắt đầu trao đổi công việc.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Chat User List Offcanvas (Mobile Only) -->
-<div class="offcanvas offcanvas-start border-0 shadow-lg" tabindex="-1" id="chatUserListOffcanvas" style="width: 320px;">
-    <div class="offcanvas-header p-4 border-bottom">
-        <h5 class="offcanvas-title fw-bold text-dark">Chat</h5>
-        <button type="button" class="btn-close shadow-none" data-bs-dismiss="offcanvas"></button>
-    </div>
-    <div class="offcanvas-body p-0 bg-white">
-        <div class="p-4">
-            <div class="input-group rounded-pill border-0 px-3 py-1 bg-light shadow-none">
-                <span class="input-group-text bg-transparent border-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
-                <input type="text" id="unitSearch" class="form-control bg-transparent border-0 py-2 fw-bold" placeholder="Tìm kiếm" onkeyup="filterUsers()">
-            </div>
-        </div>
-        <div class="list-group list-group-flush" id="userList">
+        
+        <div class="list-body custom-scrollbar" id="userListPC">
             {% for user in users %}
-            <div class="chat-user-item px-3 py-3 border-0 d-flex align-items-center gap-3 cursor-pointer user-entry" 
+            <div class="zalo-user-item user-entry" 
                  onclick="selectUser({{ user.id }}, '{{ user.fullname }}')" 
-                 data-bs-dismiss="offcanvas"
-                 data-id="{{ user.id }}" 
+                 data-id="{{ user.id }}"
                  data-name="{{ user.fullname.lower() }}"
                  data-unit="{{ user.unit_area.lower() }}">
-                <div class="avatar-wrapper position-relative">
-                    <div class="bg-primary-gradient text-white btn-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style="--circle-size: 55px;">
-                        {{ user.fullname[:1].upper() }}
-                    </div>
+                <div class="zalo-avatar mini shadow-sm">
+                    {{ user.fullname[:1].upper() }}
+                    <div class="status-dot"></div>
                 </div>
-                <div class="flex-grow-1 overflow-hidden">
-                    <div class="fw-bold text-dark text-truncate">{{ user.fullname }}</div>
-                    <div class="small text-muted text-truncate">{{ user.unit_area }}</div>
+                <div class="zalo-user-info">
+                    <div class="zalo-user-name">{{ user.fullname }}</div>
+                    <div class="zalo-user-preview">{{ user.unit_area }}</div>
                 </div>
             </div>
             {% endfor %}
         </div>
     </div>
+
+    <!-- COLUMN 3: CHAT AREA (Full Height & Flush) -->
+    <div class="zalo-chat-stage">
+        <!-- HEADER -->
+        <div id="activeChatHeader" class="chat-header d-none">
+            <div class="d-flex align-items-center gap-3">
+                <div id="activeUserAvatar" class="zalo-avatar mini-plus bg-primary text-white">U</div>
+                <div>
+                    <div class="fw-bold text-dark" id="chatWithTitle" style="font-size: 1rem;">...</div>
+                    <div class="tiny text-success fw-bold" style="font-size: 10px;">Đang hoạt động</div>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-link text-muted p-2"><i class="fa-solid fa-phone"></i></button>
+                <button class="btn btn-link text-muted p-2"><i class="fa-solid fa-video"></i></button>
+                <button class="btn btn-link text-muted p-2"><i class="fa-solid fa-circle-info"></i></button>
+            </div>
+        </div>
+
+        <!-- MESSAGE AREA (Fluid) -->
+        <div id="messageArea" class="chat-messages custom-scrollbar">
+            <!-- EMPTY STATE inside message area before user select -->
+            <div id="emptyChatState" class="empty-state">
+                <div class="empty-icon">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
+                <h3>Trao đổi nội bộ PC06</h3>
+                <p>Khám phá những tiện ích hỗ trợ làm việc và trò chuyện <br> cùng bạn bè, đồng nghiệp.</p>
+            </div>
+            <!-- Messages render here -->
+        </div>
+
+        <!-- INPUT AREA (Pinned at bottom) -->
+        <div class="chat-input-container">
+            <div class="toolbar-top">
+                <button class="tool-btn" onclick="document.getElementById('fileInput').click()" title="Gửi file"><i class="fa-solid fa-paperclip"></i></button>
+                <button class="tool-btn" title="Gửi ảnh"><i class="fa-solid fa-image"></i></button>
+                <button class="tool-btn" title="Giao việc"><i class="fa-solid fa-calendar-check"></i></button>
+            </div>
+            <div class="input-main">
+                <input type="text" id="messageInput" placeholder="Nhập tin nhắn..." onkeypress="handleKeyPress(event)">
+                <div class="input-actions">
+                    <button class="action-btn" title="Biểu cảm"><i class="fa-regular fa-face-smile"></i></button>
+                    <button class="send-btn" id="sendBtn" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+            <div id="filePreview" class="file-preview-area"></div>
+            <input type="file" id="fileInput" multiple style="display: none;" onchange="handleFileSelect(event)">
+        </div>
+    </div>
 </div>
 
 <style>
-    .chat-user-item { transition: all 0.2s ease; border-radius: 15px; margin: 4px 12px; }
-    .chat-user-item:hover { background-color: #f5f5f5 !important; }
-    .chat-user-item.active { background-color: #e7f3ff !important; }
-    .chat-user-item.active .text-dark { color: #0084ff !important; }
-    
-    .status-indicator { width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; position: absolute; bottom: 2px; right: 2px; }
-    .status-indicator.online { background-color: #31a24c; }
-    
-    .msg-wrapper { display: flex; margin-bottom: 2px; gap: 10px; align-items: flex-end; width: 100%; }
-    .msg-wrapper.me { flex-direction: row-reverse; }
-    .msg-wrapper.other { flex-direction: row; }
-    .msg-body-wrapper { display: flex; flex-direction: column; max-width: 70%; }
-    .me .msg-body-wrapper { align-items: flex-end; }
-    
-    .bubble-content { padding: 10px 16px; font-size: 15px; line-height: 1.4; position: relative; }
-    .me .bubble-content { background: var(--bg-primary-gradient); color: white; border-radius: 20px 20px 4px 20px; }
-    .other .bubble-content { background: #f0f0f0; color: #050505; border-radius: 20px 20px 20px 4px; }
-    
-    .msg-group-end { margin-bottom: 12px; }
-    .chat-avatar { width: 32px; height: 32px; background: #ddd; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #fff; flex-shrink: 0; }
-    .other:not(.msg-group-end) .chat-avatar { visibility: hidden; }
+    /* ZALO LAYOUT SYSTEM */
+    .zalo-layout-wrapper {
+        display: flex;
+        height: calc(100vh - 70px);
+        background: #fff;
+        overflow: hidden;
+        margin: -1.5rem -1.5rem 0 -1.5rem; /* Counter main-content padding if any */
+    }
 
-    .btn-icon-only { width: 44px; height: 44px; border-radius: 50% !important; display: flex; align-items: center; justify-content: center; border: 0 !important; background: transparent; transition: background 0.2s; }
-    .messenger-empty-icon .icon-circle { width: 120px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 50px; margin: 0 auto; }
+    /* RAIL SIDEBAR */
+    .zalo-rail {
+        width: 64px;
+        background: #0068ff;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 20px 0;
+        flex-shrink: 0;
+    }
+    .rail-item {
+        width: 100%;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255,255,255,0.7);
+        font-size: 24px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .rail-item:hover { color: #fff; background: rgba(0,0,0,0.1); }
+    .rail-item.active { color: #fff; background: rgba(0,0,0,0.15); }
+
+    /* LIST AREA */
+    .zalo-list-area {
+        width: 280px;
+        border-right: 1px solid #dbdee1;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+    }
+    .list-header { padding: 15px; border-bottom: 1px solid #f1f1f1; }
+    .search-box-zalo {
+        background: #eaedf0;
+        border-radius: 8px;
+        padding: 6px 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .search-box-zalo input { border: none; background: transparent; width: 100%; outline: none; font-size: 13px; font-weight: 500; }
+    .search-box-zalo i { color: #72808e; font-size: 14px; }
+
+    .list-body { flex-grow: 1; overflow-y: auto; }
+    .zalo-user-item {
+        padding: 12px 15px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        transition: background 0.1s;
+    }
+    .zalo-user-item:hover { background: #f3f5f6; }
+    .zalo-user-item.active { background: #e5efff; }
+
+    .zalo-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: var(--primary-gradient);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        flex-shrink: 0;
+        position: relative;
+    }
+    .zalo-avatar.mini { width: 44px; height: 44px; font-size: 16px; }
+    .zalo-avatar.mini-plus { width: 36px; height: 36px; font-size: 14px; }
+    .status-dot { width: 10px; height: 10px; background: #31a24c; border: 2px solid #fff; border-radius: 50%; position: absolute; bottom: 2px; right: 2px; }
+
+    .zalo-user-info { overflow: hidden; }
+    .zalo-user-name { font-weight: 600; font-size: 14px; color: #081c36; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+    .zalo-user-preview { font-size: 12px; color: #72808e; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+
+    /* CHAT STAGE */
+    .zalo-chat-stage {
+        flex-grow: 1;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+    .chat-header { height: 68px; padding: 0 20px; border-bottom: 1px solid #dbdee1; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+    .chat-messages { flex-grow: 1; background: #f0f2f5; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; }
+    
+    .chat-input-container { background: #fff; border-top: 1px solid #dbdee1; padding: 0; flex-shrink: 0; }
+    .toolbar-top { display: flex; padding: 5px 10px; border-bottom: 1px solid #f1f1f1; gap: 5px; }
+    .tool-btn { border: none; background: transparent; padding: 8px; color: #5c6a7d; font-size: 18px; border-radius: 4px; }
+    .tool-btn:hover { background: #f1f1f1; }
+    
+    .input-main { display: flex; padding: 10px 20px; align-items: center; }
+    .input-main input { flex-grow: 1; border: none; outline: none; font-size: 15px; color: #081c36; }
+    .input-actions { display: flex; align-items: center; gap: 15px; }
+    .action-btn { border: none; background: transparent; color: #5c6a7d; font-size: 20px; }
+    .send-btn { border: none; background: transparent; color: #0068ff; font-size: 20px; }
+    .send-btn:hover { color: #005ae0; }
+
+    /* EMPTY STATE */
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: #72808e; }
+    .empty-icon { font-size: 80px; color: #0068ff; opacity: 0.15; margin-bottom: 20px; }
+    .empty-state h3 { font-weight: 700; color: #081c36; margin-bottom: 10px; }
+    .empty-state p { font-size: 14px; line-height: 1.6; }
+
+    /* CUSTOM BUBBLES */
+    .msg-group { display: flex; flex-direction: column; margin-bottom: 15px; max-width: 75%; }
+    .msg-group.sent { align-self: flex-end; align-items: flex-end; }
+    .msg-group.received { align-self: flex-start; align-items: flex-start; }
+    
+    .msg-bubble { padding: 10px 15px; border-radius: 18px; font-size: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); position: relative; }
+    .sent .msg-bubble { background: #e5efff; color: #081c36; border-top-right-radius: 4px; }
+    .received .msg-bubble { background: #fff; color: #081c36; border-top-left-radius: 4px; }
+    
+    .msg-time { font-size: 10px; color: #a1adb9; margin-top: 4px; }
+    .file-attachment { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.05); padding: 8px; border-radius: 8px; margin-top: 5px; text-decoration: none; color: inherit; }
 </style>
 
 <script>
 let currentRecipientId = null;
-let lastMsgId = 0;
-let selectedFiles = [];
+const currentUserId = {{ session.get('uid', 0) }};
 
-function selectUser(uid, name) {
-    currentRecipientId = uid;
-    lastMsgId = 0;
-    document.querySelectorAll('.chat-user-item').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll(`[data-id="${uid}"]`).forEach(el => el.classList.add('active'));
-    document.getElementById('emptyChatState').classList.add('d-none');
-    document.getElementById('activeChatState').classList.remove('d-none');
-    document.getElementById('activeChatState').classList.add('d-flex');
+function selectUser(id, name) {
+    currentRecipientId = id;
+    
+    // UI Update
+    document.querySelectorAll('.zalo-user-item').forEach(el => el.classList.remove('active'));
+    document.querySelector(`[data-id="${id}"]`).classList.add('active');
+    
+    document.getElementById('activeChatHeader').classList.remove('d-none');
     document.getElementById('chatWithTitle').innerText = name;
-    document.getElementById('activeUserAvatar').innerText = name.substring(0,1).toUpperCase();
-    document.getElementById('messageArea').innerHTML = '';
-    loadMessages(true);
+    document.getElementById('activeUserAvatar').innerText = name.charAt(0).toUpperCase();
+    
+    // Remove empty state if present
+    const emptyState = document.getElementById('emptyChatState');
+    if (emptyState) emptyState.remove();
+    
+    loadMessages();
 }
 
-function loadMessages(scrollToBottom = false) {
+async function loadMessages() {
     if (!currentRecipientId) return;
-    fetch(`/api_hist?uid=${currentRecipientId}&last=${lastMsgId}`)
-        .then(res => res.json())
-        .then(data => {
-            if (data.ok) {
-                const area = document.getElementById('messageArea');
-                if (lastMsgId === 0) area.innerHTML = '';
-                area.innerHTML += data.h;
-                if (data.last_id) lastMsgId = data.last_id;
-                if (scrollToBottom) area.scrollTop = area.scrollHeight;
-            }
-        });
+    try {
+        const res = await fetch(`/get_messages/${currentRecipientId}`);
+        const messages = await res.json();
+        renderMessages(messages);
+    } catch (e) {
+        console.error("Load failed", e);
+    }
 }
 
-function sendMessage() {
+function renderMessages(messages) {
+    const area = document.getElementById('messageArea');
+    area.innerHTML = '';
+    
+    messages.forEach(m => {
+        const isSent = m.sender_id === currentUserId;
+        const group = document.createElement('div');
+        group.className = `msg-group ${isSent ? 'sent' : 'received'}`;
+        
+        let contentHtml = `<div class="msg-bubble">${m.content}</div>`;
+        if (m.filename) {
+            contentHtml += `
+                <a href="/dl_file/${m.filename}" class="file-attachment">
+                    <i class="fa-solid fa-file-lines"></i>
+                    <span class="tiny fw-bold text-truncate">${m.filename}</span>
+                </a>
+            `;
+        }
+        
+        group.innerHTML = `
+            ${contentHtml}
+            <div class="msg-time">${m.timestamp}</div>
+        `;
+        area.appendChild(group);
+    });
+    
+    area.scrollTop = area.scrollHeight;
+}
+
+async function sendMessage() {
     const input = document.getElementById('messageInput');
-    const text = input.value.trim();
-    if (!text && selectedFiles.length === 0) return;
-    const fd = new FormData();
-    fd.append('s', 'private'); fd.append('t', currentRecipientId); fd.append('m', text);
-    selectedFiles.forEach(f => fd.append('f', f));
-    fetch('/api_send', { method: 'POST', body: fd }).then(res => res.json()).then(data => {
-        if (data.ok) { input.value = ''; selectedFiles = []; document.getElementById('filePreview').innerHTML = ''; loadMessages(true); }
-    });
+    const content = input.value.trim();
+    const fileInput = document.getElementById('fileInput');
+    
+    if (!content && fileInput.files.length === 0) return;
+    if (!currentRecipientId) return;
+
+    const formData = new FormData();
+    formData.append('receiver_id', currentRecipientId);
+    formData.append('content', content);
+    for (let f of fileInput.files) formData.append('files', f);
+
+    try {
+        const res = await fetch('/send_message', { method: 'POST', body: formData });
+        if (res.ok) {
+            input.value = '';
+            fileInput.value = '';
+            document.getElementById('filePreview').innerHTML = '';
+            loadMessages();
+        }
+    } catch (e) {
+        console.error("Send failed", e);
+    }
 }
-function handleFileSelect(e) { selectedFiles = selectedFiles.concat(Array.from(e.target.files)); renderFilePreview(); }
-function renderFilePreview() {
-    const c = document.getElementById('filePreview'); c.innerHTML = '';
-    selectedFiles.forEach((f, i) => { const d = document.createElement('div'); d.className='badge bg-light text-dark border p-2 d-flex align-items-center gap-2'; d.innerHTML=`<span>${f.name}</span><i class='fa-solid fa-xmark text-danger pointer' onclick='removeFile(${i})'></i>`; c.appendChild(d); });
+
+function handleKeyPress(e) {
+    if (e.key === 'Enter') sendMessage();
 }
-function removeFile(i) { selectedFiles.splice(i, 1); renderFilePreview(); }
+
 function filterUsersPC() {
-    let q = document.getElementById('unitSearchPC').value.toLowerCase();
-    document.querySelectorAll('#userListPC .user-entry').forEach(el => {
-        el.style.display = (el.getAttribute('data-name').includes(q) || el.getAttribute('data-unit').includes(q)) ? 'flex' : 'none';
+    const query = document.getElementById('unitSearchPC').value.toLowerCase();
+    document.querySelectorAll('.user-entry').forEach(el => {
+        const name = el.getAttribute('data-name');
+        const unit = el.getAttribute('data-unit');
+        el.style.display = (name.includes(query) || unit.includes(query)) ? 'flex' : 'none';
     });
 }
-setInterval(() => { if (currentRecipientId) loadMessages(); }, 5000);
-document.getElementById('messageInput')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+
+function handleFileSelect(event) {
+    const preview = document.getElementById('filePreview');
+    preview.innerHTML = '';
+    for (let f of event.target.files) {
+        const chip = document.createElement('div');
+        chip.className = 'badge bg-light text-dark border p-2 tiny rounded-pill';
+        chip.innerHTML = `<i class="fa-solid fa-file me-1"></i> ${f.name}`;
+        preview.appendChild(chip);
+    }
+}
+
+// Auto Refresh
+setInterval(loadMessages, 5000);
 </script>
 {% endblock %}
