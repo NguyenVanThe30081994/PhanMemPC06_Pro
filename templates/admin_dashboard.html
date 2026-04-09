@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-4 animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h1 class="h3 fw-bold mb-1" style="color: var(--text-main);">Tổng quan</h1>
+        </div>
+        <div class="d-flex align-items-center gap-3 text-muted small fw-bold">
+            <div id="dashboard-weather">Đang tải thời tiết...</div>
+            <div class="border-start ps-3" id="dashboard-clock">--/--/---- 00:00</div>
+        </div>
+    </div>
+</div>
+
+<div class="main-content-area animate__animated animate__fadeInUp">
+    <!-- Quick Stats Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-primary text-white h-100 shadow-lg">
+                <h6 class="fw-bold opacity-75 mb-3">TÀI KHOẢN</h6>
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="fs-1 fw-bold">{{ stats.users }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-success text-white h-100 shadow-lg">
+                <h6 class="fw-bold opacity-75 mb-3">BÁO CÁO MỚI</h6>
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="fs-1 fw-bold">{{ stats.reports }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-warning text-white h-100 shadow-lg">
+                <h6 class="fw-bold opacity-75 mb-3">CÔNG VIỆC</h6>
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="fs-1 fw-bold">{{ stats.tasks|default(0) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-dark text-white h-100 shadow-lg">
+                <h6 class="fw-bold opacity-75 mb-3">VAI TRÒ</h6>
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="fs-1 fw-bold">{{ stats.roles }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Main Chart -->
+        <div class="col-xl-8">
+            <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+                    <h6 class="fw-bold mb-0" style="color: var(--text-main);">TIẾN ĐỘ BÁO CÁO (ĐƠN VỊ CHƯA NỘP)</h6>
+                    <span class="badge bg-danger rounded-pill tiny">{{ overdue_stats|length }} Biểu mẫu</span>
+                </div>
+                
+                <div class="overflow-auto" style="max-height: 300px;">
+                    {% if total_templates == 0 %}
+                        <div class="text-center py-5 text-muted animate__animated animate__fadeIn">
+                            <div class="fw-bold">Chưa có biểu mẫu báo cáo nào được thiết lập</div>
+                        </div>
+                    {% elif overdue_stats %}
+                        <div class="row g-3">
+                            {% for s in overdue_stats %}
+                            <div class="col-md-6">
+                                <div class="p-3 rounded-4 border border-danger-subtle bg-danger bg-opacity-10 h-100 transition-all hover-bg-danger-subtle">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div class="fw-bold text-dark small text-uppercase" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ s.name }}</div>
+                                        <span class="badge bg-danger px-2 py-1 shadow-sm">{{ s.count }}</span>
+                                    </div>
+                                    <div class="tiny text-danger fw-bold">Đơn vị quá hạn chưa báo cáo</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5 text-muted animate__animated animate__fadeIn">
+                            <div class="fw-bold text-success">Tất cả đơn vị đã hoàn thành báo cáo</div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Latest Activities -->
+        <div class="col-xl-4">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100">
+                <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center border-bottom">
+                    <h6 class="fw-bold text-dark mb-0">HOẠT ĐỘNG GẦN ĐÂY</h6>
+                    <a href="/logs" class="text-primary fw-bold tiny text-decoration-none">TẤT CẢ</a>
+                </div>
+                <div class="list-group list-group-flush" id="dashboardLogs">
+                    {% for l in logs[:5] %}
+                    <div class="list-group-item border-0 px-4 py-3 d-flex align-items-center gap-3 hover-bg-light">
+                        <div class="flex-grow-1">
+                            <div class="fw-bold small" style="color: var(--text-main);">{{ l.fullname }}: {{ l.action }}</div>
+                            <div class="tiny text-muted uppercase fw-bold">{{ l.created_at.strftime('%H:%M %d/%m') }}</div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="p-4 text-center text-muted tiny">Chưa có hoạt động mới</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<style>
+    .hover-bg-light:hover { background-color: #f8fafc; transition: all 0.2s; }
+    .tiny { font-size: 10px; }
+</style>
+{% endblock %}

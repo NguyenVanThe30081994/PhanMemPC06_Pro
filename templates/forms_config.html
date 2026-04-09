@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-4 animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="h3 fw-bold text-dark mb-1">Cấu hình Cột: {{ config.name }}</h1>
+            <p class="text-muted mb-0 small">Mã: <span class="badge bg-light text-muted border">{{ config.id }}</span>
+                &nbsp;·&nbsp; {{ fields|length }} cột được quét từ Excel
+            </p>
+        </div>
+        <a href="{{ url_for('forms_bp.admin_forms') }}" class="btn btn-light rounded-pill px-4 border fw-bold shadow-sm">
+            <i class="fa-solid fa-arrow-left me-2"></i>QUAY LẠI
+        </a>
+    </div>
+</div>
+
+<!-- Group summary -->
+{% set groups = [] %}
+{% for f in fields %}
+    {% if f.get('group') and f.get('group') not in groups %}
+        {% set _ = groups.append(f.get('group')) %}
+    {% endif %}
+{% endfor %}
+{% if groups %}
+<div class="alert alert-info border-0 rounded-4 shadow-sm mb-4 py-2 px-4 d-flex align-items-center gap-3">
+    <i class="fa-solid fa-layer-group text-primary fs-5"></i>
+    <div>
+        <span class="fw-bold text-dark small">Phát hiện {{ groups|length }} nhóm cột:</span>
+        {% for g in groups %}
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-2 ms-1 tiny fw-bold">{{ g }}</span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="main-content-area animate__animated animate__fadeInUp">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <form method="POST">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-custom align-middle mb-0">
+                        <thead class="tiny fw-bold text-muted text-uppercase">
+                            <tr>
+                                <th class="px-3 py-3 tiny fw-bold text-muted text-center" style="width: 55px;">STT</th>
+                                <th class="px-3 py-3 tiny fw-bold text-muted" style="min-width: 180px;">NHÓM CỘT (CỘT CHA)</th>
+                                <th class="px-3 py-3 tiny fw-bold text-muted" style="min-width: 200px;">NHÃN CỘT (TỪ EXCEL)</th>
+                                <th class="px-3 py-3 tiny fw-bold text-muted text-center" style="width: 100px;">HIỂN THỊ</th>
+                                <th class="px-3 py-3 tiny fw-bold text-muted text-center" style="width: 140px;">KIỂU DỮ LIỆU</th>
+                                <th class="px-2 py-3 tiny fw-bold text-muted text-center" style="width: 90px;">TỶ LỆ %</th>
+                                <th class="px-2 py-3 tiny fw-bold text-muted text-center" style="width: 120px;">THỨ TỰ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set current_group = namespace(value='__NONE__') %}
+                            {% for f in fields %}
+                            {% set idx = f.idx|string %}
+                            {% set f_group = f.get('group', '') %}
+                            
+                            {# Insert group separator row #}
+                            {% if f_group and f_group != current_group.value %}
+                            {% set current_group.value = f_group %}
+                            <tr class="group-header-row">
+                                <td colspan="7" class="px-3 py-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="group-bar"></div>
+                                        <i class="fa-solid fa-layer-group text-primary tiny opacity-75"></i>
+                                        <span class="fw-bold text-primary small">{{ f_group }}</span>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border-0 tiny">NHÓM</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% elif not f_group and current_group.value != '' %}
+                            {% set current_group.value = '' %}
+                            {% endif %}
+                            
+                            <tr class="{% if f_group %}grouped-row{% endif %}">
+                                <td class="px-3 text-center fw-bold text-muted small">{{ f.idx }}</td>
+                                <td class="px-3">
+                                    <input type="text" name="group_{{ idx }}" 
+                                           class="form-control form-control-sm border-0 bg-primary bg-opacity-5 rounded-3 text-primary fw-medium" 
+                                           value="{{ f.get('group', '') }}"
+                                           placeholder="(Không có nhóm)">
+                                </td>
+                                <td class="px-3">
+                                    <input type="text" name="label_{{ idx }}" 
+                                           class="form-control form-control-sm border-0 bg-light-subtle rounded-3" 
+                                           value="{{ f.label }}">
+                                </td>
+                                <td class="px-2 text-center">
+                                    <div class="form-check form-switch d-inline-block">
+                                        <input class="form-check-input" type="checkbox" name="visible_{{ idx }}" {% if f.get('is_visible', True) %}checked{% endif %}>
+                                    </div>
+                                </td>
+                                <td class="px-3 text-center">
+                                    <select name="type_{{ idx }}" class="form-select form-select-sm rounded-3">
+                                        <option value="text" {% if f.type == 'text' %}selected{% endif %}>Văn bản</option>
+                                        <option value="number" {% if f.type == 'number' %}selected{% endif %}>Số</option>
+                                    </select>
+                                </td>
+                                <td class="px-2 text-center">
+                                    <div class="form-check d-inline-block">
+                                        <input class="form-check-input" type="checkbox" name="perc_{{ idx }}" {% if f.is_perc %}checked{% endif %}>
+                                    </div>
+                                </td>
+                                <td class="px-2 text-center">
+                                    <input type="number" name="order_{{ idx }}" 
+                                           class="form-control form-control-sm text-center" 
+                                           value="{{ f.get('order', f.idx) }}" min="1" style="min-width: 70px;">
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-white p-4 border-top">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="tiny text-muted">
+                        <i class="fa-solid fa-circle-info me-1 text-primary"></i>
+                        Sửa <strong>Nhóm cột</strong> để gom các cột liên quan lại khi nhập liệu.
+                    </div>
+                    <div class="d-flex gap-3">
+                        <a href="{{ url_for('forms_bp.admin_forms') }}" class="btn btn-light rounded-pill px-4 fw-bold border">HỦY BỎ</a>
+                        <button type="submit" class="btn btn-primary rounded-pill px-5 fw-bold shadow-lg">
+                            <i class="fa-solid fa-floppy-disk me-2"></i>LƯU CẤU HÌNH BIỂU MẪU V1
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .tiny { font-size: 11px; letter-spacing: 0.5px; }
+    .form-switch .form-check-input { width: 2.5em; height: 1.25em; cursor: pointer; }
+    
+    .group-header-row td {
+        background: var(--bg-surface) !important;
+        border-top: 2px solid var(--primary) !important;
+        border-bottom: 1px solid var(--border) !important;
+    }
+    [data-theme="light"] .group-header-row td {
+        background: linear-gradient(90deg, #eef2ff 0%, #f8fafc 100%) !important;
+    }
+    .group-bar {
+        width: 4px;
+        height: 18px;
+        background: linear-gradient(135deg, #1a56db, #3f83f8);
+        border-radius: 4px;
+    }
+    .grouped-row td {
+        border-left: 3px solid #e0e7ff;
+        background: #fafbff;
+    }
+    .grouped-row td:first-child {
+        border-left: none;
+    }
+    .grouped-row .bg-primary.bg-opacity-5 {
+        font-size: 11px;
+    }
+</style>
+{% endblock %}

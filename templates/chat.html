@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="chat-container animate__animated animate__fadeIn m-0 p-0 overflow-hidden shadow-none border-0" style="height: calc(100vh - var(--nav-height)); width: 100% !important; border-radius: 0; background-color: var(--bg-body);">
+    <div class="row g-0 h-100 border-0 w-100 m-0" style="background-color: var(--bg-body);">
+        <!-- Chat User List -->
+        <div class="col-xl-2 col-lg-3 border-end d-lg-flex flex-column h-100 d-none" style="background-color: var(--bg-body); border-color: var(--border) !important;">
+            <div class="p-4 border-bottom" style="background-color: var(--bg-surface); border-color: var(--border) !important;">
+                <h5 class="fw-bold mb-3" style="color: var(--text-main);">Trao đổi nội bộ</h5>
+                <div class="input-group input-group-sm rounded-pill border-0 px-2 shadow-sm" style="background-color: var(--bg-body);">
+                    <input type="text" class="form-control bg-transparent border-0 py-2 tiny fw-bold" placeholder="Tìm kiếm đơn vị..." style="color: var(--text-main) !important;">
+                </div>
+            </div>
+            <div class="flex-grow-1 overflow-auto p-3 custom-scrollbar">
+                <div class="d-flex flex-column gap-2">
+                    {% for user in users %}
+                    <div class="chat-user-item p-3 d-flex align-items-center gap-3 cursor-pointer animate__animated animate__fadeInLeft" style="animation-delay: {{ loop.index0 * 0.05 }}s;" onclick="selectUser({{ user.id }}, '{{ user.fullname }}')">
+                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow" style="width:40px; height:40px; font-size:14px; background: linear-gradient(135deg, var(--primary), #3b82f6);">
+                            {{ user.fullname[:1].upper() }}
+                        </div>
+                        <div class="flex-grow-1 overflow-hidden">
+                            <div class="fw-bold small text-main text-truncate">{{ user.fullname }}</div>
+                            <div class="tiny text-muted text-truncate">{{ user.unit_area }}</div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 opacity-50">
+                        <div class="small fw-bold text-muted">Chưa có thành viên nào khác</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="col-xl-10 col-lg-9 d-flex flex-column h-100" style="background-color: var(--bg-body);">
+            <!-- Header -->
+            <div class="p-3 border-bottom d-flex justify-content-between align-items-center shadow-sm" style="background-color: var(--bg-surface); height: 72px; border-color: var(--border) !important;">
+                <div class="d-flex align-items-center gap-3">
+                    <button class="btn btn-light d-lg-none rounded-pill shadow-sm py-1 px-3 fw-bold small" type="button" data-bs-toggle="offcanvas" data-bs-target="#chatUserListOffcanvas">
+                        DANH SÁCH
+                    </button>
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-pill p-2 d-none d-sm-block"></div>
+                    <div>
+                        <h6 class="fw-bold mb-0 text-truncate" style="color: var(--text-main); max-width: 200px;">Kênh trao đổi trực tuyến</h6>
+                        <div class="d-flex align-items-center gap-1">
+                            <span class="badge bg-success rounded-circle p-1" style="width:6px; height:6px;"></span>
+                            <span class="tiny text-muted">Trực tuyến</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages Area -->
+            <div class="flex-grow-1 overflow-auto p-4" id="chatArea" style="background-color: var(--bg-body); background-image: url('https://www.transparenttextures.com/patterns/cubes.png'); opacity: 0.8;">
+                <div class="text-center mb-4"><span class="badge bg-light text-muted border px-3 rounded-pill tiny fw-bold">HÔM NAY</span></div>
+                
+                <div id="messagesList" class="d-flex flex-column gap-3">
+                    <!-- Dynamic messages will appear here -->
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-4 border-top" style="background-color: var(--bg-surface); border-color: var(--border) !important;">
+                <form id="chatForm" class="d-flex gap-3 align-items-center">
+                    <button type="button" class="btn btn-light rounded-pill shadow-sm px-3 py-2 fw-bold small" style="background-color: var(--bg-body); border-color: var(--border);">ĐÍNH KÈM</button>
+                    <input type="text" id="chatInput" class="form-control border-0 rounded-pill px-4 py-3 shadow-none fw-medium" placeholder="Nhập tin nhắn của bạn..." style="background-color: var(--bg-body); color: var(--text-main) !important;">
+                    <button type="submit" class="btn btn-primary rounded-pill shadow-lg px-4 py-2 fw-bold">GỬI</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mobile Chat User List Offcanvas -->
+<div class="offcanvas offcanvas-start border-0 shadow-lg" tabindex="-1" id="chatUserListOffcanvas" style="width: 300px; background: var(--bg-surface);">
+    <div class="offcanvas-header border-bottom p-4">
+        <h5 class="offcanvas-title fw-bold text-primary">DANH SÁCH ĐƠN VỊ</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+        <div class="p-4 border-bottom" style="background-color: var(--bg-surface);">
+            <div class="input-group input-group-sm rounded-pill border-0 px-2" style="background-color: var(--bg-body);">
+                <input type="text" class="form-control bg-transparent border-0 py-2 tiny fw-bold" placeholder="Tìm kiếm đơn vị...">
+            </div>
+        </div>
+        <div class="p-3">
+            <div class="d-flex flex-column gap-2">
+                {% for user in users %}
+                <div class="chat-user-item p-3 d-flex align-items-center gap-3 cursor-pointer" onclick="selectUser({{ user.id }}, '{{ user.fullname }}')" data-bs-dismiss="offcanvas">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width:40px; height:40px; font-size:14px;">
+                        {{ user.fullname[:1].upper() }}
+                    </div>
+                    <div class="flex-grow-1 overflow-hidden">
+                        <div class="fw-bold small text-dark text-truncate">{{ user.fullname }}</div>
+                        <div class="tiny text-muted text-truncate">{{ user.unit_area }}</div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-5 opacity-50">
+                    <div class="small fw-bold">Chưa có thành viên nào khác</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('chatForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const input = document.getElementById('chatInput');
+        if (!input.value.trim()) return;
+        
+        const html = `
+            <div class="message d-flex gap-3 align-items-end mb-2 flex-row-reverse animate__animated animate__fadeInRight">
+                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width:32px; height:32px; font-size:10px;">ME</div>
+                <div class="bg-primary text-white p-3 rounded-4 shadow" style="max-width:70%; border-bottom-right-radius: 4px !important;">
+                    <div class="small">${input.value}</div>
+                    <div class="text-end opacity-75 tiny mt-1">Vừa xong</div>
+                </div>
+            </div>
+        `;
+        document.getElementById('messagesList').insertAdjacentHTML('beforeend', html);
+        input.value = '';
+        const chatArea = document.getElementById('chatArea');
+        chatArea.scrollTop = chatArea.scrollHeight;
+    });
+
+    function selectUser(uid, name) {
+        // Update active state in UI
+        document.querySelectorAll('.chat-user-item').forEach(el => el.classList.remove('active'));
+        const target = event.currentTarget;
+        if (target) target.classList.add('active');
+        
+        // Update header
+        document.querySelector('h6.fw-bold.mb-0').innerText = "Trao đổi: " + name;
+        
+        // In a real app, you would fetch message history here
+        document.getElementById('messagesList').innerHTML = `<div class='text-center text-muted tiny my-4 animate__animated animate__fadeIn'>Bắt đầu cuộc trò chuyện với <b>${name}</b></div>`;
+    }
+</script>
+
+<style>
+    .rounded-4 { border-radius: 1rem !important; }
+    .tiny { font-size: 10px; }
+    #chatArea { scroll-behavior: smooth; }
+    .chat-user-item {
+        border-radius: 12px;
+        transition: all 0.2s;
+        border: 1px solid transparent;
+    }
+    .chat-user-item:hover {
+        background-color: var(--bg-surface);
+        border-color: var(--border);
+        transform: translateY(-1px);
+    }
+    .chat-user-item.active {
+        background-color: var(--primary-light) !important;
+        border-color: var(--primary);
+    }
+    .cursor-pointer { cursor: pointer; }
+</style>
+{% endblock %}

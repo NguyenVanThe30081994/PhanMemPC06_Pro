@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="main-content-area animate__animated animate__fadeInUp">
+    <div class="row g-4">
+        <!-- Sidebar: Form List -->
+        <div class="col-xl-3 col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4" style="background-color: var(--bg-surface);">
+                <div class="card-header border-0 py-3 px-4 d-flex justify-content-between align-items-center" style="background-color: var(--bg-surface); border-color: var(--border) !important;">
+                    <h6 class="fw-bold text-main mb-0">BIỂU MẪU</h6>
+                    <select class="form-select form-select-sm tiny fw-bold border shadow-sm rounded-pill px-3" 
+                            style="width: 150px; background-color: var(--bg-body); color: var(--text-main) !important;"
+                            onchange="if(this.value) window.location.href='/admin-forms?form_type=' + this.value">
+                        <option value="" disabled>Chọn loại biểu mẫu</option>
+                        <option value="v1">Biểu mẫu V1</option>
+                        <option value="v2" selected>Biểu mẫu V2</option>
+                    </select>
+                </div>
+                <div class="list-group list-group-flush border-top" style="border-color: var(--border) !important;">
+                    {% if not v2_templates %}
+                    <div class="p-4 text-center text-muted small fw-bold" style="background-color: var(--bg-surface);">Chưa có biểu mẫu V2 nào</div>
+                    {% endif %}
+                    {% for t in v2_templates %}
+                    <a href="{{ url_for('reports_v2_bp.render_report', tid=t.id) }}" 
+                       class="list-group-item list-group-item-action border-0 px-4 py-2 {% if template.id == t.id %}active{% endif %}" style="background-color: var(--bg-surface);">
+                        <div class="small fw-medium text-truncate text-main">{{ t.name }}</div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Main: Excel Window -->
+        <div class="col-xl-9 col-lg-8">
+            <div class="report-v2-container">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <div>
+            <h2 class="fw-bold mb-1">{{ template.name }}</h2>
+            <div class="d-flex align-items-center gap-3">
+                <span class="badge bg-primary rounded-pill px-3 tiny fw-bold shadow-sm">VERSION: {{ version.version_tag }}</span>
+                {% if template.is_daily %}
+                <span class="badge bg-warning text-dark rounded-pill px-3 tiny fw-bold">
+                    <i class="fa-solid fa-calendar-day me-1"></i>Hàng ngày
+                </span>
+                {% endif %}
+                <span id="saveStatus" class="tiny text-muted fw-bold">
+                    <i class="fa-solid fa-cloud-check me-1"></i>ĐÃ LƯU
+                </span>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            {% if is_admin %}
+            <a href="{{ url_for('reports_v2_bp.edit_template', tid=template.id) }}" class="btn btn-light border rounded-pill px-4 fw-bold">
+                <i class="fa-solid fa-edit me-2 text-warning"></i>Sửa mẫu
+            </a>
+            {% endif %}
+            <button class="btn btn-primary rounded-pill px-5 py-2 shadow-lg fw-bold" onclick="forceSave()">
+                <i class="fa-solid fa-floppy-disk me-2"></i>LƯU NGAY
+            </button>
+        </div>
+    </div>
+
+    <!-- Sheet Tabs -->
+    <ul class="nav nav-tabs border-0 mb-0" id="sheetTabs" role="tablist">
+        {% for sheet in sheets_html %}
+        <li class="nav-item">
+            <button class="nav-link {% if loop.first %}active{% endif %} fw-bold px-4 border-0 rounded-top-4"
+                    id="tab-{{ loop.index }}" data-bs-toggle="tab" data-bs-target="#sheet-{{ loop.index }}">
+                {{ sheet.name }}
+            </button>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <div class="tab-content">
+        {% for sheet in sheets_html %}
+        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="sheet-{{ loop.index }}">
+            <div class="card border-0 shadow-sm rounded-bottom-4 overflow-hidden" style="background-color: var(--bg-surface);">
+                <div class="card-body p-0">
+                    <div style="overflow:auto; max-height:78vh; background: var(--bg-body);">
+                        {{ sheet.html }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .nav-tabs .nav-link { color: var(--text-muted); background: var(--bg-body); margin-right: 2px; border-bottom: 0 !important; }
+    .nav-tabs .nav-link.active { background: var(--bg-surface); color: var(--primary); border-color: var(--border) var(--border) var(--bg-surface) var(--border) !important; }
+    .tiny { font-size: 11px; letter-spacing: 0.3px; }
+
+    /* Excel grid */
+    .excel-render-table { border-collapse: collapse; font-family: 'Calibri', 'Arial', sans-serif; background-color: var(--bg-surface); }
+    .excel-render-table td { white-space: nowrap; border: 1px solid var(--border) !important; color: var(--text-main); }
+    .excel-render-table th { background-color: var(--bg-body) !important; color: var(--text-main); border-color: var(--border) !important; }
+    .grid-input { transition: background 0.15s; background-color: transparent; color: var(--text-main); caret-color: var(--text-main); }
+    .grid-input:focus {
+        background-color: var(--bg-body) !important;
+        outline: 2px solid var(--primary);
+        outline-offset: -2px;
+        position: relative;
+        z-index: 50;
+    }
+</style>
+
+<script>
+let isDirty = false;
+let autosaveTimer = null;
+
+function markDirty() {
+    isDirty = true;
+    document.getElementById('saveStatus').innerHTML =
+        '<i class="fa-solid fa-spinner fa-spin me-1"></i>ĐANG LƯU...';
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(forceSave, 3000);
+}
+
+async function forceSave() {
+    if (!isDirty) return;
+    const inputs = document.querySelectorAll('.grid-input');
+    const values = {};
+    inputs.forEach(i => { if (i.value) values[i.getAttribute('data-key')] = i.value; });
+
+    try {
+        const r = await fetch('/reports-v2/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ version_id: {{ version.id }}, values })
+        });
+        const d = await r.json();
+        if (d.success) {
+            isDirty = false;
+            document.getElementById('saveStatus').innerHTML =
+                '<i class="fa-solid fa-circle-check text-success me-1"></i>ĐÃ LƯU';
+        } else {
+            document.getElementById('saveStatus').innerHTML =
+                '<i class="fa-solid fa-circle-xmark text-danger me-1"></i>LỖI LƯU';
+        }
+    } catch (e) {
+        document.getElementById('saveStatus').innerHTML =
+            '<i class="fa-solid fa-circle-xmark text-danger me-1"></i>LỖI KẾT NỐI';
+    }
+}
+
+// Arrow key navigation between input cells
+document.addEventListener('keydown', e => {
+    const active = document.activeElement;
+    if (!active.classList.contains('grid-input')) return;
+    const coord = active.getAttribute('data-coord');
+    if (!coord) return;
+    const col = coord.match(/[A-Z]+/)[0];
+    const row = parseInt(coord.match(/\d+/)[0]);
+    let next = null;
+    if (e.key === 'ArrowDown' || e.key === 'Enter') next = `${col}${row + 1}`;
+    if (e.key === 'ArrowUp') next = `${col}${row - 1}`;
+    if (next) {
+        const el = document.querySelector(`.grid-input[data-coord="${next}"]`);
+        if (el) { e.preventDefault(); el.focus(); }
+    }
+});
+</script>
+{% endblock %}

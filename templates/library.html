@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-4 animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="h3 fw-bold text-dark mb-1">Thư viện</h1>
+        </div>
+        <div class="d-none d-md-block">
+            {% if perms.get('p_sys') or session.is_admin %}
+            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#uploadDocModal">
+                TẢI LÊN TÀI LIỆU
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Floating FAB for Mobile -->
+{% if perms.get('p_sys') or session.is_admin %}
+<button class="btn btn-primary d-md-none rounded-circle shadow-lg position-fixed d-flex align-items-center justify-content-center animate__animated animate__bounceIn" 
+        style="width: 60px; height: 60px; bottom: 85px; right: 20px; z-index: 1100; padding: 0; border: none; font-size: 24px;"
+        data-bs-toggle="modal" data-bs-target="#uploadDocModal">
+    +
+</button>
+{% endif %}
+
+<div class="main-content-area animate__animated animate__fadeInUp">
+    <div class="row g-4">
+        <!-- Sidebar Filter -->
+        <!-- Sidebar Filter -->
+        <div class="col-xl-2 col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 animate__animated animate__fadeInLeft">
+                <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold text-dark mb-0">LĨNH VỰC</h6>
+                </div>
+                <div class="list-group list-group-flush border-top">
+                    {% if not cats %}
+                    <div class="px-4 py-3 tiny text-muted italic">Chưa có lĩnh vực nào</div>
+                    {% endif %}
+                    {% for c in cats %}
+                    <a href="#" class="list-group-item list-group-item-action border-0 px-4 py-2 d-flex align-items-center gap-2">
+                        <span class="small fw-medium text-muted">{{ c.name }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Documents Cards -->
+        <div class="col-xl-10 col-lg-9">
+            <div class="row g-4">
+                {% for d in docs %}
+                <div class="col-xl-4 col-md-6">
+                    <div class="card border-0 shadow-sm rounded-4 h-100 hover-up bg-white">
+                        <div class="card-body p-4 text-center">
+                            <div class="bg-primary bg-opacity-10 text-primary rounded-4 p-2 d-inline-block mb-3 shadow-sm px-4">
+                                <span class="fw-bold tiny">TÀI LIỆU</span>
+                            </div>
+                            <h6 class="fw-bold text-dark mb-2 line-clamp-2" style="min-height: 40px;">{{ d.title }}</h6>
+                            <div class="badge bg-light text-muted border px-3 py-1 tiny fw-bold mb-4">{{ d.category }}</div>
+                            <div class="border-top pt-3">
+                                <a href="/dl_file/{{ d.filename }}" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm tiny">
+                                    TẢI VỀ NGAY
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                {% if not docs %}
+                <div class="col-12 py-5 text-center">
+                    <h5 class="fw-bold text-muted">Thư viện trống</h5>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Doc Modal -->
+<div class="modal fade" id="uploadDocModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-header bg-primary text-white p-4 border-0">
+                    <h5 class="modal-title fw-bold">TẢI LÊN TÀI LIỆU MỚI</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">TÊN TÀI LIỆU / VĂN BẢN</label>
+                        <input type="text" name="title" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">LĨNH VỰC LƯU TRỮ</label>
+                        <select name="category" class="form-select" required>
+                            <option value="" disabled selected>Chọn lĩnh vực</option>
+                            {% for c in cats %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
+                        </select>
+                        {% if not cats %}
+                        <div class="tiny text-danger mt-1 fw-bold italic">* Hãy vào "Thiết lập danh mục" để tạo lĩnh vực!</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-1">
+                        <label class="form-label small fw-bold text-muted">Chọn tệp tài liệu (PDF/DOCX/JPG)</label>
+                        <div class="input-group mb-2">
+                            <label class="input-group-text bg-light tiny fw-bold" for="libFile">CHỌN TỆP</label>
+                            <input type="file" name="file" class="form-control tiny" id="libFile" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0">
+                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">XÁC NHẬN TẢI LÊN</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hover-up { transition: all 0.3s; }
+    .hover-up:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important; }
+    .tiny { font-size: 10px; }
+</style>
+{% endblock %}

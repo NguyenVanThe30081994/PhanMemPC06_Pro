@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-5 animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-end">
+        <div>
+            <h1 class="h3 fw-bold text-danger mb-1">Công cụ Database</h1>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100">
+            <div class="card-header bg-danger text-white border-0 p-4">
+                <h5 class="fw-bold mb-0">Dọn dẹp hệ thống (Reset)</h5>
+            </div>
+            <div class="card-body p-4">
+                <div class="alert alert-warning border-0 rounded-3 small mb-4">
+                    CẢNH BÁO: Hành động này không thể hoàn tác. Tất cả dữ liệu sẽ bị xóa sạch.
+                </div>
+                <p class="text-muted small">Nhấn nút bên dưới để thực hiện xóa sạch toàn bộ cơ sở dữ liệu và khởi tạo lại trạng thái ban đầu.</p>
+                
+                <form id="resetForm" action="{{ url_for('admin_bp.db_manage') }}" method="POST">
+                    <input type="hidden" name="action" value="reset">
+                    <button type="button" class="btn btn-danger w-100 rounded-pill fw-bold" onclick="ModernConfirm('CẢNH BÁO NGUY HIỂM', 'BẠN CÓ CHẮC CHẮN MUỐN RESET TOÀN BỘ HỆ THỐNG? HÀNH ĐỘNG NÀY KHÔNG THỂ KHÔI PHỤC!', 'error', 'Reset ngay', () => { document.getElementById('resetForm').submit(); })">
+                        RESET TOÀN BỘ HỆ THỐNG
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100">
+            <div class="card-header bg-primary text-white border-0 p-4">
+                <h5 class="fw-bold mb-0">Sao lưu & Di động</h5>
+            </div>
+            <div class="card-body p-4 d-flex flex-column justify-content-between">
+                <div>
+                    <p class="text-muted small">Tải về bản sao lưu của cơ sở dữ liệu SQLite hiện tại để lưu trữ hoặc di chuyển sang máy chủ khác.</p>
+                </div>
+                <button class="btn btn-outline-primary w-100 py-3 fw-bold rounded-pill" disabled title="Tính năng đang phát triển">
+                    TẢI VỀ FILE BACKUP (.DB)
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

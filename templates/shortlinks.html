@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-4 animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="h3 fw-bold text-dark mb-1">QR Code & Link Rút gọn</h1>
+        </div>
+        <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addLinkModal">
+            <i class="fa-solid fa-link me-2"></i>Tạo Link Mới
+        </button>
+    </div>
+</div>
+
+<div class="row g-4 animate__animated animate__fadeInUp">
+    <div class="col-12">
+        <div class="card border shadow-sm rounded-4 overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-custom table-hover align-middle mb-0">
+                    <thead>
+                        <!-- Row 1: Table Title -->
+                        <tr>
+                            <th colspan="7" class="px-4 py-3 bg-white border-bottom shadow-none" style="border-top: none !important; border-left: none !important; border-right: none !important;">
+                                <h6 class="fw-bold text-primary mb-0 text-start">
+                                    <i class="fa-solid fa-list-check me-2"></i>DANH SÁCH LINK
+                                </h6>
+                            </th>
+                        </tr>
+                        <!-- Row 2: Column Headers -->
+                        <tr class="bg-light">
+                            <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">Liên kết gốc</th>
+                            <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">Liên kết rút gọn</th>
+                            <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">Thông tin</th>
+                            <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">Lượt click</th>
+                            <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">QR Code</th>
+                            <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">Tạo ngày</th>
+                            <th class="px-3 py-3 small fw-bold text-muted text-uppercase text-center">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for link in links %}
+                        {% set short_url = request.host_url.rstrip('/') ~ '/s/' ~ link.short_code %}
+                        <tr>
+                            <td class="px-4 py-2 text-center">
+                                <div class="text-muted text-truncate mx-auto" style="max-width: 250px;" title="{{ link.original_url }}">
+                                    {{ link.original_url }}
+                                </div>
+                            </td>
+                            <td class="px-3 py-2 text-center">
+                                <div class="d-flex align-items-center justify-content-center gap-2">
+                                    <a href="{{ short_url }}" target="_blank" class="fw-bold text-primary small text-decoration-none">
+                                        {{ short_url }}
+                                    </a>
+                                    <button class="btn btn-link p-0 text-muted transition-all" onclick="copyToClipboard('{{ short_url }}')" title="Sao chép">
+                                        <i class="fa-regular fa-copy"></i>
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="px-4 py-2 text-center">
+                                <div class="text-muted small">{{ link.info or link.custom_name or "Không có thông tin" }}</div>
+                            </td>
+                            <td class="px-3 py-2 text-center fw-bold text-success">
+                                {{ link.clicks }}
+                            </td>
+                            <td class="px-3 py-2 text-center">
+                                <a href="{{ url_for('shortlink_bp.get_qr', code=link.short_code) }}" class="btn btn-outline-dark rounded-pill px-3 fw-bold tiny py-1">
+                                    <i class="fa-solid fa-qrcode me-1"></i>Tải QR
+                                </a>
+                            </td>
+                            <td class="px-3 py-2 small text-muted text-center">
+                                {{ link.created_at.strftime('%d/%m/%Y') }}
+                            </td>
+                            <td class="px-4 py-2 text-center">
+                                {% if is_admin or link.created_by == session.uid %}
+                                <button class="btn btn-link p-0 text-danger transition-all" title="Xoá" onclick="ModernConfirm('Xác nhận xóa?', 'Bạn có chắc chắn muốn xoá link rút gọn này không?', 'warning', 'Xóa ngay', () => { window.location.href='{{ url_for('shortlink_bp.delete_link', link_id=link.id) }}'; })">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5 border-0">
+                                <div class="bg-light rounded-circle p-4 d-inline-block mb-3">
+                                    <i class="fa-solid fa-link-slash fa-3x text-muted opacity-50"></i>
+                                </div>
+                                <h6 class="fw-bold text-dark">Chưa có link rút gọn nào</h6>
+                                <p class="text-muted small mb-0">Bấm nút "Tạo Link Mới" để bắt đầu.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Link Modal -->
+<div class="modal fade" id="addLinkModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <form method="POST" action="{{ url_for('shortlink_bp.add_link') }}">
+                <div class="modal-header bg-primary fw-bold text-white p-4 border-0">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-wand-magic-sparkles me-2"></i>Tạo Link Rút Gọn</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 bg-light">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-dark small"><i class="fa-solid fa-globe me-2 text-primary"></i>LIÊN KẾT GỐC (URL)*</label>
+                        <input type="url" name="original_url" class="form-control form-control-lg border-light shadow-sm py-3" style="font-size: 1rem;" placeholder="https://example.com/very/long/path..." required>
+                    </div>
+                    
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-dark small">TÊN GỢI NHỚ</label>
+                            <input type="text" name="custom_name" class="form-control py-2 border-light shadow-sm" placeholder="VD: Link khảo sát đội 1">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-dark small">GHI CHÚ</label>
+                            <input type="text" name="info" class="form-control py-2 border-light shadow-sm" placeholder="Nhập ghi chú...">
+                        </div>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label fw-bold text-dark small"><i class="fa-solid fa-pen-to-square me-2 text-success"></i>TÙY CHỈNH ĐUÔI LINK (KHÔNG BẮT BUỘC)</label>
+                        <div class="input-group shadow-sm">
+                            <span class="input-group-text bg-white text-muted border-light fw-bold small">{{ request.host_url.rstrip('/') }}/s/</span>
+                            <input type="text" name="custom_code" class="form-control border-light shadow-none fw-bold text-primary" placeholder="vidu123" pattern="[a-zA-Z0-9_-]+" title="Chỉ chứa chữ cái, số, gạch ngang, gạch dưới">
+                        </div>
+                        <div class="form-text mt-2 tiny text-muted">Bỏ trống để hệ thống tự sinh mã ngẫu nhiên.</div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-white border-0 p-3">
+                    <button type="button" class="btn btn-light rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
+                        <i class="fa-solid fa-bolt me-2"></i>Tạo Ngay
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .tiny { font-size: 11px; }
+    .tiny { font-size: 11px; }
+</style>
+<script>
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(function() {
+            Swal.fire({
+                icon: 'success',
+                title: 'Đã sao chép!',
+                text: text,
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 2000,
+                timerProgressBar: true
+            });
+        }, function(err) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Lỗi sao chép',
+                text: err,
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
+            });
+        });
+    }
+</script>
+{% endblock %}
