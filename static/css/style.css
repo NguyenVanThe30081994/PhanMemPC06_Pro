@@ -635,75 +635,81 @@ body {
 }
 
 /* --- 3. Floating Pill Header (macOS 26 Standard) --- */
-/* Base pill - used as wrapper inside modal */
+/* Base container - transparent, pushing pill and close button */
 .modal-header-pill {
     display: flex;
     align-items: center;
-    gap: 10px;
-    
-    /* Floating pill geometry */
-    margin: 16px 16px 0 16px;
-    padding: 11px 20px;
+    justify-content: space-between;
+    padding: 16px 24px 0 24px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+}
+
+/* The actual pill is just the title */
+.modal-header-pill .modal-title {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 22px;
     border-radius: 100px; /* Full pill shape */
+    font-weight: 800 !important;
+    font-size: 0.85rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.8px !important;
+    color: #fff !important;
     
-    /* Primary gradient (default) */
+    /* Default primary background */
     background: var(--primary-gradient) !important;
-    
-    /* Specular inner glow - simulates light hitting glass rim */
     box-shadow: 
         0 6px 20px rgba(0, 102, 255, 0.35),
         0 2px 8px rgba(0, 102, 255, 0.2),
         inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
-    
-    color: #fff !important;
-    border: none !important;
-    
+        
     /* Sharp text rendering */
     transform: translateZ(0);
     -webkit-font-smoothing: antialiased;
 }
 
-.modal-header-pill .modal-title {
-    font-weight: 800 !important;
-    font-size: 0.9rem !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.8px !important;
-    color: #fff !important;
-    flex: 1;
+/* Close Button outside the pill */
+.modal-header-pill .btn-close {
+    opacity: 0.6 !important;
+    background-color: rgba(100, 116, 139, 0.1);
+    padding: 12px;
+    border-radius: 50%;
+    margin: 0 !important;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
-.modal-header-pill .btn-close {
-    filter: brightness(0) invert(1) !important;
-    opacity: 0.85 !important;
-    transition: all 0.2s !important;
-}
 .modal-header-pill .btn-close:hover {
     opacity: 1 !important;
-    transform: scale(1.15) !important;
+    transform: scale(1.15) rotate(90deg) !important;
+    background-color: rgba(220, 38, 38, 0.15); /* Light red on hover */
 }
 
-/* --- 4. Pill Color Variants --- */
-.modal-header-pill.primary {
+/* --- 4. Pill Color Variants (applied to title via parent) --- */
+.modal-header-pill.primary .modal-title {
     background: var(--primary-gradient) !important;
     box-shadow: 0 6px 20px rgba(0, 102, 255, 0.35), inset 0 1px 0 rgba(255,255,255,0.45) !important;
 }
 
-.modal-header-pill.dark {
+.modal-header-pill.dark .modal-title {
     background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.15) !important;
 }
 
-.modal-header-pill.success {
+.modal-header-pill.success .modal-title {
     background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
     box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4), inset 0 1px 0 rgba(255,255,255,0.45) !important;
 }
 
-.modal-header-pill.danger {
+.modal-header-pill.danger .modal-title {
     background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
     box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4), inset 0 1px 0 rgba(255,255,255,0.45) !important;
 }
 
-.modal-header-pill.warning {
+.modal-header-pill.warning .modal-title {
     background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%) !important;
     box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4), inset 0 1px 0 rgba(255,255,255,0.45) !important;
 }
@@ -1034,7 +1040,7 @@ body {
 }
 
 /* Liquid Inflation Effect */
-.glass-card:hover, .card:hover, .bento-card:hover {
+.glass-card:hover, .bento-card:hover {
     transform: scale(1.02) translateY(-5px);
     background: rgba(255, 255, 255, 0.8) !important;
     box-shadow: 0 30px 60px rgba(0,0,0,0.12), 0 10px 20px rgba(0,0,0,0.05) !important;
@@ -1042,7 +1048,6 @@ body {
 }
 
 [data-theme="dark"] .glass-card:hover, 
-[data-theme="dark"] .card:hover, 
 [data-theme="dark"] .bento-card:hover {
     background: rgba(30, 41, 59, 0.8) !important;
     box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 10px 20px rgba(0,0,0,0.3) !important;
