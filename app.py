@@ -47,7 +47,7 @@ from routes.admin import admin_bp
 from routes.forms import forms_bp
 from routes.portal import portal_bp
 from routes.tasks import tasks_bp
-from routes.chat import chat_bp
+from routes.ranking import ranking_bp
 from routes.api import api_bp
 from routes.reports_v2 import reports_v2_bp
 from routes.shortlink import shortlink_bp
@@ -57,7 +57,7 @@ app.register_blueprint(admin_bp)
 app.register_blueprint(forms_bp)
 app.register_blueprint(portal_bp)
 app.register_blueprint(tasks_bp)
-app.register_blueprint(chat_bp)
+app.register_blueprint(ranking_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(reports_v2_bp)
 app.register_blueprint(shortlink_bp)

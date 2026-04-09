@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header px-4 pt-4 mb-4 animate__animated animate__fadeIn">
+    <div class="header-main-group">
+        <div class="header-title-pill shadow-sm bg-white">
+            <h1 class="mb-0">Bảng xếp hạng 124 Xã (Đội 1)</h1>
+        </div>
+        <div class="header-actions">
+            <a href="/ranking/input" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
+                <i class="fa-solid fa-pen-to-square me-2"></i>NHẬP SỐ LIỆU
+            </a>
+            <button class="btn btn-light rounded-pill px-4 fw-bold shadow-sm ms-2" onclick="window.location.reload()">
+                <i class="fa-solid fa-rotate me-2"></i>LÀM MỚI
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="main-content-area px-4 animate__animated animate__fadeInUp">
+    <!-- LEADERBOARD TOP 10 (Nhóm 1) -->
+    <div class="row g-4 mb-5">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden" style="background: linear-gradient(135deg, #0068ff 0%, #00a1ff 100%);">
+                <div class="card-body p-4 p-xl-5 text-white">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4 class="fw-bold mb-0"><i class="fa-solid fa-trophy me-3"></i>NHÓM 1: ĐƠN VỊ DẪN ĐẦU (12 ĐIỂM)</h4>
+                        <span class="badge bg-white text-primary px-3 py-2 rounded-pill fw-bold">TOP 10</span>
+                    </div>
+                    
+                    <div class="row g-3">
+                        {% for item in leaderboard[:10] %}
+                        <div class="col-md-6 col-xl-2 col-lg-3">
+                            <div class="card bg-white bg-opacity-15 border-0 rounded-4 p-3 h-100 text-center backdrop-blur">
+                                <div class="rank-badge mb-2">#{{ item.rank }}</div>
+                                <div class="fw-bold text-truncate w-100" style="font-size: 0.95rem;">{{ item.name }}</div>
+                                <div class="small opacity-75 mt-1">{{ item.total_score }} điểm</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN TABLES FOR GROUPS -->
+    <div class="row g-4">
+        <div class="col-xl-8">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+                <div class="table-header-pill shadow-none border-bottom rounded-0 p-4">
+                    <h5 class="mb-0 fw-bold text-dark">Chi tiết xếp hạng hệ thống</h5>
+                </div>
+                <div class="table-responsive custom-scrollbar" style="max-height: 600px;">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light sticky-top" style="z-index: 10;">
+                            <tr>
+                                <th class="ps-4 py-3 border-0 small text-uppercase opacity-50">Hạng</th>
+                                <th class="py-3 border-0 small text-uppercase opacity-50">Đơn vị</th>
+                                <th class="py-3 border-0 small text-uppercase opacity-50 text-center">Tổng điểm cộng</th>
+                                <th class="py-3 border-0 small text-uppercase opacity-50 text-center">Phân nhóm</th>
+                                <th class="pe-4 py-3 border-0 text-end small text-uppercase opacity-50">Điểm nhóm</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in leaderboard %}
+                            <tr class="ranking-row group-{{ item.group }}">
+                                <td class="ps-4">
+                                    <span class="badge {{ 'bg-warning' if item.rank <= 3 else 'bg-light text-dark' }} rounded-pill px-3 py-2 fw-bold">
+                                        {{ item.rank }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="fw-bold text-dark">{{ item.name }}</div>
+                                </td>
+                                <td class="text-center fw-bold text-primary">{{ item.total_score }}</td>
+                                <td class="text-center">
+                                    <span class="badge group-badge-{{ item.group }} px-3 py-1 fw-bold rounded-pill">Nhóm {{ item.group }}</span>
+                                </td>
+                                <td class="pe-4 text-end">
+                                    <div class="fw-black text-dark" style="font-size: 1.1rem;">{{ item.group_points }}</div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 text-dark">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+                <h6 class="fw-bold mb-3">Quy tắc chấm điểm (V13)</h6>
+                <ul class="list-unstyled small mb-0">
+                    <li class="mb-3 d-flex gap-2">
+                        <i class="fa-solid fa-circle-info text-primary mt-1"></i>
+                        <span><strong>Mô phỏng Excel:</strong> Điểm mỗi chỉ tiêu = Thứ hạng đơn vị trong chỉ tiêu đó x Hệ số.</span>
+                    </li>
+                    <li class="mb-3 d-flex gap-2">
+                        <i class="fa-solid fa-star text-warning mt-1"></i>
+                        <span><strong>Hệ số:</strong> Trọng điểm x2, Thường xuyên x1. Xếp hạng tổng theo thứ tự Tăng dần (Tổng điểm thấp đứng đầu).</span>
+                    </li>
+                    <li class="mb-0 d-flex gap-2">
+                        <i class="fa-solid fa-triangle-exclamation text-danger mt-1"></i>
+                        <span><strong>Vi phạm ANAT:</strong> Trừ trực tiếp 4 điểm vào tổng điểm cuối.</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+                <div class="p-4 bg-primary text-white">
+                    <h6 class="fw-bold mb-0">Cơ cấu điểm Nhóm</h6>
+                </div>
+                <div class="p-4">
+                    <div class="d-flex justify-content-between mb-2"><span>Nhóm 1 (10 đơn vị)</span> <span class="fw-bold">12 điểm</span></div>
+                    <div class="d-flex justify-content-between mb-2"><span>Nhóm 2 (20 đơn vị)</span> <span class="fw-bold">9 điểm</span></div>
+                    <div class="d-flex justify-content-between mb-2"><span>Nhóm 3 (20 đơn vị)</span> <span class="fw-bold">8 điểm</span></div>
+                    <div class="d-flex justify-content-between mb-2"><span>Nhóm 4 (20 đơn vị)</span> <span class="fw-bold">7 điểm</span></div>
+                    <div class="d-flex justify-content-between mb-2"><span>Nhóm 5 (20 đơn vị)</span> <span class="fw-bold">6 điểm</span></div>
+                    <div class="d-flex justify-content-between mb-2"><span>Nhóm 6 (20 đơn vị)</span> <span class="fw-bold">5 điểm</span></div>
+                    <div class="d-flex justify-content-between"><span>Nhóm 7 (14 đơn vị)</span> <span class="fw-bold">2 điểm</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .rank-badge {
+        width: 34px; height: 34px; border-radius: 50%; background: #fff; color: #0068ff;
+        display: flex; align-items: center; justify-content: center; font-weight: 800;
+        margin: 0 auto; box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .backdrop-blur { backdrop-filter: blur(10px); }
+    .group-badge-1 { background: #fee2e2; color: #ef4444; }
+    .group-badge-2 { background: #ffedd5; color: #f97316; }
+    .group-badge-7 { background: #f1f5f9; color: #64748b; }
+    
+    .ranking-row { transition: all 0.2s; }
+    .ranking-row:hover { background-color: #f8fbff !important; transform: scale(1.002); }
+</style>
+{% endblock %}

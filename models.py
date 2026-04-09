@@ -264,4 +264,32 @@ class ShortLink(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     
     user = db.relationship('User', backref='short_links')
+
+
+# --- RANKING SYSTEM MODELS (V13) ---
+
+class RankingUnit(db.Model):
+    __tablename__ = 'ranking_unit'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), unique=True, nullable=False)
+    group_name = db.Column(db.String(100)) # e.g. "Đội 1"
+
+class RankingIndicator(db.Model):
+    __tablename__ = 'ranking_indicator'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    coef = db.Column(db.Integer, default=1) # 1 or 2
+    higher_is_better = db.Column(db.Boolean, default=True) # True for stats, False for "quá hạn"
+    category = db.Column(db.String(50)) # "Trọng điểm", "Thường xuyên", "Phát sinh"
+    sheet_name = db.Column(db.String(100)) # To link with Excel if needed
+
+class RankingEntry(db.Model):
+    __tablename__ = 'ranking_entry'
+    id = db.Column(db.Integer, primary_key=True)
+    unit_id = db.Column(db.Integer, db.ForeignKey('ranking_unit.id'))
+    indicator_id = db.Column(db.Integer, db.ForeignKey('ranking_indicator.id'))
+    raw_value = db.Column(db.Float, default=0.0)
+    
+    unit = db.relationship('RankingUnit', backref='entries')
+    indicator = db.relationship('RankingIndicator', backref='entries')
 

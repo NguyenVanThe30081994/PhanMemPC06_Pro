@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header px-4 pt-4 mb-4 animate__animated animate__fadeIn">
+    <div class="header-main-group">
+        <div class="header-title-pill shadow-sm bg-white">
+            <h1 class="mb-0">Nhập số liệu Xếp hạng</h1>
+        </div>
+        <div class="header-actions">
+            <a href="/ranking" class="btn btn-light rounded-pill px-4 fw-bold shadow-sm">
+                <i class="fa-solid fa-chevron-left me-2"></i>QUAY LẠI
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="main-content-area px-4 animate__animated animate__fadeInUp">
+    <div class="row g-4">
+        <!-- Sidebar: Chọn chỉ tiêu -->
+        <div class="col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-white sticky-top" style="top: 100px;">
+                <div class="p-4 border-bottom">
+                    <h6 class="fw-bold mb-0">Chọn Chỉ tiêu chấm điểm</h6>
+                </div>
+                <div class="list-group list-group-flush p-2">
+                    {% for ind in indicators %}
+                    <button class="list-group-item list-group-item-action border-0 rounded-3 mb-1 indicator-select" 
+                            onclick="selectIndicator({{ ind.id }}, '{{ ind.name }}', {{ ind.coef }})" 
+                            id="ind-btn-{{ ind.id }}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small fw-bold">{{ ind.name }}</span>
+                            <span class="badge bg-light text-dark tiny">x{{ ind.coef }}</span>
+                        </div>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Main: Bảng nhập liệu -->
+        <div class="col-xl-9">
+            <div class="card border-0 shadow-sm rounded-4 bg-white overflow-hidden" id="inputStage" style="display: none;">
+                <div class="p-4 border-bottom d-flex justify-content-between align-items-center bg-light">
+                    <div>
+                        <span class="badge bg-primary px-3 py-1 mb-2">ĐANG NHẬP</span>
+                        <h5 class="fw-bold text-dark mb-0" id="currentIndName">Chỉ tiêu...</h5>
+                    </div>
+                    <div id="saveStatus" class="text-success small fw-bold"><i class="fa-solid fa-cloud-check me-1"></i>Đã lưu mọi thay đổi</div>
+                </div>
+                
+                <div class="table-responsive custom-scrollbar" style="max-height: 700px;">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-white sticky-top" style="z-index: 10;">
+                            <tr>
+                                <th class="ps-4 py-3 border-0 small text-uppercase opacity-50" style="width: 80px;">STT</th>
+                                <th class="py-3 border-0 small text-uppercase opacity-50">Đơn vị Công an cấp xã</th>
+                                <th class="pe-4 py-3 border-0 small text-uppercase opacity-50 text-end" style="width: 250px;">Số liệu thực hiện</th>
+                            </tr>
+                        </thead>
+                        <tbody id="unitRows">
+                            {% for u in units %}
+                            <tr>
+                                <td class="ps-4 text-muted small">{{ loop.index }}</td>
+                                <td><div class="fw-bold text-dark">{{ u.name }}</div></td>
+                                <td class="pe-4">
+                                    <input type="number" step="0.01" class="form-control form-control-lg border-0 bg-light text-end fw-bold ranking-input" 
+                                           data-unit="{{ u.id }}" 
+                                           placeholder="0.0" 
+                                           onchange="saveValue(this)">
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="noSelection" class="card border-0 shadow-sm rounded-4 bg-white p-5 text-center">
+                <div class="display-1 text-light mb-4"><i class="fa-solid fa-i-cursor"></i></div>
+                <h4 class="fw-bold text-muted">Vui lòng chọn một chỉ tiêu ở cột bên trái để bắt đầu nhập số liệu</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentIndId = null;
+
+function selectIndicator(id, name, coef) {
+    currentIndId = id;
+    document.getElementById('inputStage').style.display = 'block';
+    document.getElementById('noSelection').style.display = 'none';
+    document.getElementById('currentIndName').innerText = name;
+    
+    // Highlight sidebar
+    document.querySelectorAll('.indicator-select').forEach(el => el.classList.remove('active', 'bg-primary', 'text-white'));
+    document.getElementById(`ind-btn-${id}`).classList.add('active', 'bg-primary', 'text-white');
+    
+    // Reset and Load values (Ideally fetch from server, for now just clear)
+    // In a real app, you'd fetch current values for this index via AJAX
+    loadValues(id);
+}
+
+async function loadValues(indId) {
+    // Show loading on inputs
+    const inputs = document.querySelectorAll('.ranking-input');
+    inputs.forEach(i => { i.value = ''; i.disabled = true; });
+
+    try {
+        const res = await fetch(`/ranking/api/values/${indId}`);
+        if (res.ok) {
+            const data = await res.json();
+            inputs.forEach(i => {
+                const uid = i.dataset.unit;
+                i.value = data[uid] !== undefined ? data[uid] : '';
+                i.disabled = false;
+            });
+        }
+    } catch (e) {
+        console.error("Load failed", e);
+        inputs.forEach(i => i.disabled = false);
+    }
+}
+
+async function saveValue(input) {
+    const unitId = input.dataset.unit;
+    const value = input.value;
+    const status = document.getElementById('saveStatus');
+    
+    status.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Đang lưu...';
+    status.className = 'text-warning small fw-bold';
+    
+    try {
+        const res = await fetch('/ranking/api/save', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                unit_id: unitId,
+                indicator_id: currentIndId,
+                value: value
+            })
+        });
+        
+        if (res.ok) {
+            status.innerHTML = '<i class="fa-solid fa-check-circle me-1"></i>Đã lưu tự động';
+            status.className = 'text-success small fw-bold';
+        }
+    } catch (e) {
+        status.innerHTML = '<i class="fa-solid fa-circle-exclamation me-1"></i>Lỗi kết nối';
+        status.className = 'text-danger small fw-bold';
+    }
+}
+</script>
+
+<style>
+    .indicator-select { transition: all 0.2s; }
+    .ranking-input:focus { background-color: #fff !important; box-shadow: 0 0 0 3px rgba(0, 104, 255, 0.2) !important; color: #0068ff; }
+</style>
+{% endblock %}
