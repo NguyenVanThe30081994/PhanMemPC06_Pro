@@ -9,7 +9,6 @@
             </div>
             <div>
                 <h1 class="h3 fw-bold text-dark mb-1">Thiết lập Danh mục Hệ thống</h1>
-                <p class="text-muted mb-0 small"><span class="badge bg-dark rounded-pill px-3 me-2">CHẾ ĐỘ QUẢN TRỊ</span> Cấu hình các đội nghiệp vụ & danh mục dùng chung</p>
             </div>
         </div>
         <div class="header-actions">
@@ -60,7 +59,7 @@
                         <h6 class="fw-bold mb-0 text-primary">{{ g.name|upper }}</h6>
                         <span class="badge bg-light text-muted fw-normal tiny border">ID: {{ g.id }}</span>
                     </div>
-                    <div class="tiny text-muted italic">Liên kết: {{ g.linked_modules or 'Chưa liên kết' }}</div>
+                    <div class="tiny text-muted opacity-75">Liên kết: {{ g.linked_modules or 'Chưa liên kết' }}</div>
                 </div>
                 
                 <div class="card-body p-0 flex-grow-1 overflow-auto" style="max-height: 400px;">
@@ -179,6 +178,5 @@
     .flex-nowrap::-webkit-scrollbar-track { background: transparent; }
     .flex-nowrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
     .flex-nowrap::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
-    .italic { font-style: italic; }
 </style>
 {% endblock %}

@@ -9,7 +9,6 @@
             </div>
             <div>
                 <h1 class="h3 fw-bold text-dark mb-1">Cấu hình Cột: {{ config.name }}</h1>
-                <p class="text-muted mb-0 small"><span class="badge bg-dark rounded-pill px-2 me-2">PHÂN HỆ HỆ THỐNG</span> Mã BC: {{ config.id }}</p>
             </div>
         </div>
         <a href="{{ url_for('forms_bp.admin_forms') }}" class="btn btn-light rounded-pill px-4 border fw-bold shadow-sm">
@@ -120,8 +119,7 @@
             <div class="card-footer bg-white p-4 border-top">
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="tiny text-muted">
-                        <i class="fa-solid fa-circle-info me-1 text-primary"></i>
-                        Sửa <strong>Nhóm cột</strong> để gom các cột liên quan lại khi nhập liệu.
+                        Mã biểu mẫu: <span class="fw-bold">{{ config.id }}</span>
                     </div>
                     <div class="d-flex gap-3">
                         <a href="{{ url_for('forms_bp.admin_forms') }}" class="btn btn-light rounded-pill px-4 fw-bold border">HỦY BỎ</a>
