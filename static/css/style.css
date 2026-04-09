@@ -10,23 +10,24 @@
 
 /* --- LIGHT THEME (DEFAULT) --- */
 :root, [data-theme="light"] {
-    --primary: #1a56db;
-    --primary-light: #3f83f8;
-    --primary-gradient: linear-gradient(135deg, #1e429f 0%, #3f83f8 100%);
-    --bg-body: #f1f5f9;
+    --primary: #0066FF; /* Google Azure */
+    --primary-light: #4D94FF;
+    --primary-soft: rgba(0, 102, 255, 0.05);
+    --primary-gradient: linear-gradient(135deg, #0052CC 0%, #0066FF 100%);
+    --bg-body: #f8fafc; /* Seamless Slate Surface */
     --bg-surface: #ffffff;
-    --bg-sidebar: rgba(255, 255, 255, 0.8);
+    --bg-sidebar: rgba(255, 255, 255, 0.85);
     --text-main: #1e293b;
     --text-muted: #64748b;
     --border: #e2e8f0;
+    --border-light: #f1f5f9;
     --glass-border: rgba(255, 255, 255, 0.5);
     
-    /* ELEVATION SYSTEM (LIGHT) - HI-DEF SHADOWS */
-    --shadow-lvl1: 0 2px 4px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
-    --shadow-lvl2: 0 10px 25px -5px rgba(0,0,0,0.08), 0 8px 10px -6px rgba(0,0,0,0.06);
-    --shadow-lvl3: 0 25px 50px -12px rgba(0, 0, 0, 0.12);
-    --shadow-inset: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
-    --shadow-primary: 0 10px 15px -3px rgba(26, 86, 219, 0.3);
+    /* ELEVATION SYSTEM - Stitch style (Hairline borders over shadows) */
+    --shadow-lvl1: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-lvl2: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.02);
+    --shadow-lvl3: 0 20px 25px -5px rgba(0,0,0,0.05), 0 10px 10px -5px rgba(0,0,0,0.02);
+    --shadow-primary: 0 8px 16px rgba(0, 102, 255, 0.15);
 }
 
 /* --- DARK THEME --- */
@@ -140,18 +141,106 @@
     margin: 0 8px;
 }
 
+/* --- STITCH BREADCRUMB PICKER --- */
+.breadcrumb-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.breadcrumb-nav .segment {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.breadcrumb-nav .segment:not(:last-child)::after {
+    content: "/";
+    opacity: 0.3;
+}
+
+.picker-chip {
+    padding: 6px 14px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    color: var(--primary);
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: var(--shadow-lvl1);
+}
+
+.picker-chip:hover {
+    background: var(--primary-soft);
+    border-color: var(--primary);
+}
+
+.segmented-control {
+    background: var(--border-light);
+    padding: 4px;
+    border-radius: 100px;
+    display: flex;
+}
+
+.segmented-control .btn-seg {
+    padding: 4px 16px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    border: none;
+    background: transparent;
+    transition: all 0.2s;
+}
+
+.segmented-control .btn-seg.active {
+    background: white;
+    color: var(--primary);
+    box-shadow: var(--shadow-lvl1);
+}
+
+/* Force Hide Hamburger on PC */
+@media (min-width: 992px) {
+    button[data-bs-target="#mobileMenu"] {
+        display: none !important;
+    }
+}
+
+/* Setup Mode Identity */
+.page-header.setup-mode {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.08), rgba(30, 41, 59, 0.03)) !important;
+    border: 1px dashed var(--border) !important;
+    padding: 24px !important;
+    border-radius: 24px !important;
+    box-shadow: var(--shadow-lvl1);
+}
+
+.page-header.setup-mode .bg-primary {
+    background: #334155 !important; /* Steel gray for admin icon */
+}
+
+.page-header.setup-mode .badge.bg-dark {
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 5px 12px;
+}
+
 body {
-    font-family: 'Be Vietnam Pro', 'Inter', -apple-system, sans-serif;
+    font-family: 'Inter', 'Be Vietnam Pro', -apple-system, sans-serif;
     background-color: var(--bg-body);
-    background-image: 
-        radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.03) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.03) 0%, transparent 40%);
     color: var(--text-main);
     margin: 0;
     padding: 0;
     overflow-x: hidden;
     font-size: var(--font-size-base);
     transition: background-color 0.3s, color 0.3s;
+    letter-spacing: -0.01em; /* Cải thiện độ sắc nét của Inter */
 }
 
 /* TOP NAVBAR */
@@ -159,13 +248,19 @@ body {
     position: fixed;
     top: 0; left: 0; right: 0;
     height: var(--nav-height);
-    background: var(--bg-surface);
-    border-bottom: 1px solid var(--border);
-    box-shadow: var(--shadow-lvl1);
+    background: rgba(255, 255, 255, 0.7) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(0,0,0,0.05) !important;
     z-index: 1040;
     transition: var(--transition);
     padding-top: env(safe-area-inset-top, 0px);
     height: calc(var(--nav-height) + env(safe-area-inset-top, 0px));
+}
+
+[data-theme="dark"] .top-navbar {
+    background: rgba(15, 23, 42, 0.7) !important;
+    border-bottom: 1px solid rgba(255,255,255,0.05) !important;
 }
 
 .nav-container {
@@ -502,27 +597,31 @@ body.sidebar-collapsed .app-split-col-ops {
 }
 .table { 
     width: 100%; 
-    border-collapse: separate; 
-    border-spacing: 0; 
-    font-size: 14px; 
+    border-collapse: collapse; /* Stitch style */
+    font-size: 13px; /* High density */
     margin-bottom: 0;
 }
 .table th, .table td { 
-    padding: 14px 16px; 
-    border-bottom: 1px solid var(--border); 
+    padding: 10px 16px !important; /* Thinner rows */
+    border-bottom: 1px solid var(--border-light) !important; 
     vertical-align: middle; 
     color: var(--text-main); 
     white-space: nowrap;
+    border-top: none !important;
+    font-variant-numeric: tabular-nums;
 }
 .table thead th { 
     position: sticky; 
     top: 0; 
-    background: var(--bg-body); 
+    background: var(--bg-body) !important; 
     z-index: 10; 
-    color: #475569; 
-    font-weight: 700; 
-    font-size: 12px; 
-    text-transform: uppercase; 
+    color: var(--text-muted); 
+    font-weight: 800; 
+    font-size: 11px; 
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border) !important;
+}
     letter-spacing: 0.05em; 
     border-bottom: 2px solid var(--border);
 }

@@ -3,25 +3,25 @@
 {% block content %}
 <div class="page-header mb-4 animate__animated animate__fadeIn">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <!-- Stitch Breadcrumb Flow -->
         <div class="d-flex align-items-center gap-3">
-            <div class="bg-primary bg-opacity-10 p-3 rounded-4 shadow-sm">
-                <i class="fa-solid fa-address-book text-primary fs-4"></i>
+            <div class="bg-primary bg-opacity-10 p-2 rounded-4">
+                <i class="fa-solid fa-address-book text-primary fs-5"></i>
             </div>
-            <div>
-                <h1 class="h3 fw-bold text-dark mb-1">Danh bạ Đơn vị</h1>
-                <p class="text-muted mb-0 small">Thông tin liên hệ các đội nghiệp vụ & Công an cơ sở</p>
-            </div>
-        </div>
-        
-        <div class="header-selector-card d-none d-lg-flex">
-            <span class="small fw-bold text-muted">NHÓM:</span>
-            <div class="divider"></div>
-            <select onchange="filterContacts(this.value)" style="min-width: 200px;">
-                <option value="ALL">Tất cả nhóm</option>
-                {% for cat in categories %}
-                <option value="{{ cat.name }}">{{ cat.name }}</option>
-                {% endfor %}
-            </select>
+            <nav class="breadcrumb-nav d-none d-lg-flex">
+                <span class="segment fw-bold text-dark">DANH BẠ</span>
+                <div class="picker-chip dropdown-toggle" data-bs-toggle="dropdown">
+                    Lọc theo nhóm...
+                </div>
+                <ul class="dropdown-menu shadow-lg border-0 rounded-4 p-2 mt-2" style="min-width: 250px;">
+                    <li><a class="dropdown-item py-2 rounded-3 small fw-bold" href="#" onclick="filterContacts('ALL')">Tất cả nhóm</a></li>
+                    <li><hr class="dropdown-divider opacity-10 mx-2"></li>
+                    {% for cat in categories %}
+                    <li><a class="dropdown-item py-2 rounded-3 small fw-bold" href="#" onclick="filterContacts('{{ cat.name }}')">{{ cat.name }}</a></li>
+                    {% endfor %}
+                </ul>
+            </nav>
+            <h1 class="h4 fw-bold text-dark mb-0 d-lg-none">Danh bạ</h1>
         </div>
 
         <div class="header-actions">

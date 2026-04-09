@@ -3,41 +3,34 @@
 {% block content %}
 <div class="page-header mb-4 animate__animated animate__fadeIn">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <!-- Stitch Breadcrumb Flow -->
         <div class="d-flex align-items-center gap-3">
-            <div class="bg-primary bg-opacity-10 p-3 rounded-4 shadow-sm">
-                <i class="fa-solid fa-file-excel text-primary fs-4"></i>
+            <div class="bg-primary bg-opacity-10 p-2 rounded-4">
+                <i class="fa-solid fa-file-excel text-primary fs-5"></i>
             </div>
-            <div>
-                <h1 class="h3 fw-bold text-dark mb-0">{{ template.name }}</h1>
-                <div class="d-flex align-items-center gap-3 mt-1">
-                    <span class="badge bg-primary rounded-pill px-3 tiny fw-bold shadow-sm">VERSION: {{ version.version_tag }}</span>
-                    {% if template.is_daily %}
-                    <span class="badge bg-warning text-dark rounded-pill px-3 tiny fw-bold">Hàng ngày</span>
-                    {% endif %}
+            <nav class="breadcrumb-nav d-none d-lg-flex">
+                <span class="segment fw-bold text-dark">NHẬP LIỆU V2</span>
+                <div class="picker-chip dropdown-toggle" data-bs-toggle="dropdown">
+                    {{ template.name }} <span class="badge bg-primary-soft text-primary ms-2 tiny">{{ version.version_tag }}</span>
                 </div>
-            </div>
+                <ul class="dropdown-menu shadow-lg border-0 rounded-4 p-2 mt-2" style="max-height: 400px; overflow-y: auto; min-width: 280px;">
+                    {% for t in v2_templates %}
+                    <li><a class="dropdown-item py-2 rounded-3 small fw-bold" href="/reports-v2/render/{{ t.id }}">{{ t.name }}</a></li>
+                    {% endfor %}
+                </ul>
+            </nav>
+            <h1 class="h4 fw-bold text-dark mb-0 d-lg-none">{{ template.name }}</h1>
         </div>
-
-        <!-- PC Header Toolbar: Form Switching -->
-        <div class="header-selector-card d-none d-lg-flex">
-            <span class="small fw-bold text-muted">CHUYỂN MẪU:</span>
-            <div class="divider"></div>
-            <select onchange="window.location.href='/reports-v2/render/' + this.value">
-                <option value="" disabled>-- Chọn Biểu mẫu V2 khác --</option>
-                {% for t in v2_templates %}
-                <option value="{{ t.id }}" {% if template.id == t.id %}selected{% endif %}>{{ t.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
+        
         <div class="header-actions">
-            <div id="saveStatus" class="tiny text-muted fw-bold d-none d-sm-block bg-white px-3 py-2 rounded-pill border">
-                <i class="fa-solid fa-cloud-check me-1"></i>ĐÃ LƯU
+            <div class="d-flex align-items-center gap-3">
+                <div id="saveStatus" class="tiny text-muted fw-bold d-none d-sm-block bg-white px-3 py-2 rounded-pill border-light shadow-sm">
+                    <i class="fa-solid fa-cloud-check text-success me-1"></i>ĐÃ LƯU
+                </div>
+                <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" onclick="forceSave()">
+                    <i class="fa-solid fa-floppy-disk me-2"></i>LƯU LẠI
+                </button>
             </div>
-            
-            <button class="btn btn-primary rounded-pill px-4 shadow-lg fw-bold" onclick="forceSave()">
-                <i class="fa-solid fa-floppy-disk me-2"></i>LƯU
-            </button>
         </div>
     </div>
 </div>

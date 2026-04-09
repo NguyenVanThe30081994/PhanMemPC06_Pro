@@ -1,11 +1,24 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header mb-4 animate__animated animate__fadeIn">
-    <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <h1 class="h3 fw-bold text-dark mb-1">Thiết lập danh mục hệ thống</h1>
+<div class="page-header mb-4 setup-mode animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-primary p-3 rounded-4 shadow-sm">
+                <i class="fa-solid fa-tags text-white fs-4"></i>
+            </div>
+            <div>
+                <h1 class="h3 fw-bold text-dark mb-1">Thiết lập Danh mục Hệ thống</h1>
+                <p class="text-muted mb-0 small"><span class="badge bg-dark rounded-pill px-3 me-2">CHẾ ĐỘ QUẢN TRỊ</span> Cấu hình các đội nghiệp vụ & danh mục dùng chung</p>
+            </div>
         </div>
+        <div class="header-actions">
+            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-lg" data-bs-toggle="modal" data-bs-target="#addGroupModal">
+                <i class="fa-solid fa-plus me-2"></i>THÊM DANH MỤC
+            </button>
+        </div>
+    </div>
+</div>
         <!-- Desktop Actions -->
         <div class="d-none d-md-flex gap-2">
             <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#addGroupModal">

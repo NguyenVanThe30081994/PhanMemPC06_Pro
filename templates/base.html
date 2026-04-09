@@ -367,21 +367,32 @@
         
         /* Smooth Collapse Animation override */
         .collapse { transition: height 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important; }
+
+        /* Setup Pages Distinction */
+        .page-header.setup-mode {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.05), rgba(30, 41, 59, 0.02));
+            border: 1px dashed var(--border);
+            padding: 20px;
+            border-radius: 20px;
+        }
+        .page-header.setup-mode .bg-primary {
+            background-color: var(--text-main) !important; /* Darker icon for setup */
+        }
     </style>
 </head>
 <body>
-    <nav class="top-navbar border-bottom">
-        <div class="nav-container">
+    <nav class="top-navbar">
+        <div class="nav-container px-4">
             <div class="nav-left d-flex align-items-center">
-                <!-- Mobile Navigation Toggle -->
-                <button class="btn btn-light d-lg-none me-3 btn-circle shadow-sm" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
-                    <i class="fa-solid fa-bars fs-5"></i>
+                <!-- Mobile Toggle: Stitch Styled -->
+                <button class="btn btn-light d-lg-none me-3 btn-circle btn-circle-sm border-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
+                    <i class="fa-solid fa-bars-staggered text-primary"></i>
                 </button>
 
                 <a href="/admin" class="nav-logo text-decoration-none d-flex align-items-center">
                     <div class="mobile-logo-wrapper">
-                        <span class="mobile-logo-top fw-bold text-dark">PC06</span>
-                        <span class="mobile-logo-bottom d-lg-inline">Tuyên Quang</span>
+                        <span class="mobile-logo-top fw-bold text-dark" style="letter-spacing: -1px;">PC06</span>
+                        <span class="mobile-logo-bottom d-lg-inline opacity-75">Tuyên Quang</span>
                     </div>
                 </a>
             </div>
