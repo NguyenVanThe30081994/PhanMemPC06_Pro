@@ -525,9 +525,33 @@
             </div>
             
             <div class="sidebar-unit-info w-100">
-                <div class="small text-muted mb-1">Đơn vị đang đăng nhập:</div>
-                <div class="fw-bold text-dark">{{ session.get('unit', 'Phòng Cảnh sát QLHC về TTXH') }}</div>
-                <div class="tiny text-primary mt-1"><i class="fa-solid fa-circle-check me-1"></i>Đã xác thực bảo mật</div>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <div class="small text-muted">Đơn vị:</div>
+                    <a href="#mobileAccountCollapse" class="badge bg-primary bg-opacity-10 text-primary text-decoration-none px-2 py-1 rounded-pill tiny fw-bold" data-bs-toggle="collapse">
+                        TÀI KHOẢN <i class="fa-solid fa-chevron-down ms-1"></i>
+                    </a>
+                </div>
+                <div class="fw-bold text-dark mb-1">{{ session.get('unit', 'Phòng Cảnh sát QLHC về TTXH') }}</div>
+                
+                <div class="collapse mt-2" id="mobileAccountCollapse">
+                    <div class="card card-body p-2 border-0 bg-white shadow-sm rounded-3">
+                        <div class="d-flex align-items-center gap-3 mb-2 p-1">
+                            <div class="btn-circle btn-circle-sm bg-primary text-white tiny fw-bold">{{ session.get('fullname', 'AD')[:2].upper() }}</div>
+                            <div>
+                                <div class="tiny fw-bold text-dark">{{ session.get('fullname', 'User') }}</div>
+                                <div class="tiny text-muted">{{ session.get('role_name', 'Thành viên') }}</div>
+                            </div>
+                        </div>
+                        <a href="/password" class="list-group-item list-group-item-action py-2 px-3 border-0 rounded-2 small">
+                            <i class="fa-solid fa-key me-2 opacity-50"></i>Đổi mật khẩu
+                        </a>
+                        <a href="/logout" class="list-group-item list-group-item-action py-2 px-3 border-0 rounded-2 small text-danger">
+                            <i class="fa-solid fa-right-from-bracket me-2 opacity-50"></i>Đăng xuất
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="tiny text-primary mt-2"><i class="fa-solid fa-circle-check me-1"></i>Đã xác thực bảo mật</div>
             </div>
         </div>
         
@@ -623,11 +647,8 @@
             </div>
         </div>
         
-        <div class="offcanvas-footer p-4 border-top">
-            <a href="/logout" class="btn btn-outline-danger w-100 rounded-pill d-flex align-items-center justify-content-center gap-2">
-                <i class="fa-solid fa-right-from-bracket"></i>Đăng xuất
-            </a>
-            <div class="text-center mt-3 text-muted tiny">Phiên bản 3.5.0 &copy; 2026 PC06</div>
+        <div class="offcanvas-footer p-4 border-top bg-light bg-opacity-50">
+            <div class="text-center text-muted tiny">Phiên bản 3.5.0 &copy; 2026 PC06</div>
         </div>
     </div>
     </div>

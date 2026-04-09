@@ -20,15 +20,18 @@
         <!-- Sidebar: Form List -->
         <div class="col-xl-3 col-lg-4">
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4" style="background-color: var(--bg-surface);">
-                <div class="card-header border-0 py-3 px-4 d-flex justify-content-between align-items-center" style="background-color: var(--bg-surface); border-color: var(--border) !important;">
-                    <h6 class="fw-bold text-main mb-0">BIỂU MẪU</h6>
-                    <select class="form-select form-select-sm tiny fw-bold border shadow-sm rounded-pill px-3" 
-                            style="width: 150px; background-color: var(--bg-body); color: var(--text-main) !important;"
-                            onchange="if(this.value) window.location.href='/admin-forms?form_type=' + this.value">
-                        <option value="" {% if not form_type %}selected{% endif %} disabled>Chọn loại mẫu</option>
-                        <option value="v1" {% if form_type == 'v1' %}selected{% endif %}>Biểu mẫu V1</option>
-                        <option value="v2" {% if form_type == 'v2' %}selected{% endif %}>Biểu mẫu V2</option>
-                    </select>
+                <div class="card-header border-0 py-3 px-4 d-flex flex-column gap-2" style="background-color: var(--bg-surface); border-color: var(--border) !important;">
+                    <h6 class="fw-bold text-main mb-0 small text-uppercase opacity-75">Loại biểu mẫu</h6>
+                    <ul class="nav nav-pills nav-fill bg-light bg-opacity-50 p-1 rounded-pill shadow-sm" style="border: 1px solid rgba(0,0,0,0.05);">
+                        <li class="nav-item">
+                            <a class="nav-link rounded-pill tiny fw-bold py-1 active" 
+                               href="/admin-forms?form_type=v1">V1</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link rounded-pill tiny fw-bold py-1" 
+                               href="/admin-forms?form_type=v2">V2</a>
+                        </li>
+                    </ul>
                 </div>
                 <div class="list-group list-group-flush border-top" style="border-color: var(--border) !important;">
                     {% if not configs %}
