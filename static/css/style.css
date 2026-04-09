@@ -163,19 +163,21 @@
 }
 
 .table-header-pill {
-    background: #ffffff;
-    border: 1px solid var(--border);
+    background: #ffffff !important;
+    border: 2px solid var(--primary) !important;
     padding: 8px 25px;
     border-radius: 50px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-    color: var(--primary);
-    font-weight: 800;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    color: var(--primary) !important;
+    font-weight: 900;
     text-transform: uppercase;
-    font-size: 0.8rem;
-    letter-spacing: 0.8px;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
     display: inline-flex;
     align-items: center;
     margin-bottom: 20px;
+    position: relative;
+    z-index: 5;
 }
 
 /* --- NEW PILL TABLE HEAD (V17) --- */
@@ -783,8 +785,8 @@ body {
 /* Glassmorphism Classes */
 .glass-card, .card, .bento-card {
     background: var(--glass-bg) !important;
-    backdrop-filter: blur(16px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+    backdrop-filter: blur(12px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(160%) !important;
     border: 1px solid var(--glass-border) !important;
     box-shadow: var(--glass-shadow) !important;
     border-radius: 20px !important;
@@ -826,8 +828,16 @@ body {
 }
 
 .pill-thead {
-    background: rgba(0, 102, 255, 0.7) !important; /* Semi-transparent for glass effect */
-    backdrop-filter: blur(4px);
+    background: rgba(0, 102, 255, 0.95) !important; /* Higher opacity for crystal clear text */
+    border-radius: 50px !important;
+}
+
+.pill-thead th {
+    color: #ffffff !important;
+    font-weight: 800 !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .table-freeze { 
