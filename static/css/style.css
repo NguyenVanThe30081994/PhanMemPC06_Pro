@@ -74,7 +74,8 @@
 [data-theme="dark"] .modal-header,
 [data-theme="dark"] .modal-footer { background-color: rgba(255,255,255,0.03) !important; border-color: var(--border) !important; }
 [data-theme="dark"] .table { color: var(--text-main) !important; }
-[data-theme="dark"] .table thead th { background-color: rgba(255,255,255,0.05) !important; color: var(--text-muted) !important; border-color: var(--border) !important; }
+/* Fixed: Neutralized legacy header style to avoid overlap with .pill-thead */
+/* [data-theme="dark"] .table thead th { background-color: rgba(255,255,255,0.05) !important; color: var(--text-muted) !important; border-color: var(--border) !important; } */
 [data-theme="dark"] .table td { border-color: var(--border) !important; }
 [data-theme="dark"] .list-group-item { background-color: transparent !important; color: var(--text-main) !important; border-color: var(--border) !important; }
 [data-theme="dark"] .dropdown-menu { background-color: var(--bg-surface) !important; border-color: var(--border) !important; }
@@ -167,16 +168,26 @@
     display: none !important; /* Force legacy pills to hide */
 }
 
-/* --- NEW PURE GLASS HEADER (V19) --- */
+/* --- NEW PURE GLASS HEADER (V22 Simplification) --- */
 .glass-header {
-    background: rgba(255, 255, 255, 0.08) !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-    padding: 12px 20px !important;
+    background: rgba(255, 255, 255, 0.4) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+    padding: 14px 20px !important;
     font-weight: 800 !important;
-    color: var(--primary) !important;
+    color: #0066ff !important; /* Bold content pops on glass */
     text-transform: uppercase !important;
     letter-spacing: 1px !important;
     font-size: 0.9rem !important;
+    display: flex;
+    align-items: center;
+}
+
+[data-theme="dark"] .glass-header {
+    background: rgba(30, 41, 59, 0.4) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+}
     display: flex !important;
     align-items: center !important;
     gap: 12px !important;
@@ -195,22 +206,31 @@
 .glass-header.danger  { color: #ef4444 !important; }
 .glass-header.info    { color: #3b82f6 !important; }
 
-/* --- FLAT GLASS THEAD (V19) --- */
+/* --- SIMPLE GLASS THEAD (V22) --- */
 .pill-thead {
-    background: #0066ff !important; /* Solid color for maximum text sharpness */
+    background: rgba(255, 255, 255, 0.5) !important;
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
     border-radius: 0 !important;
 }
 
+[data-theme="dark"] .pill-thead {
+    background: rgba(15, 23, 42, 0.5) !important;
+}
+
 .pill-thead tr th {
-    background: #0066ff !important;
-    color: #ffffff !important;
-    font-weight: 800 !important;
-    font-size: 0.8rem !important;
+    background: transparent !important;
+    color: #0066ff !important; /* Content stands out in bold active blue */
+    font-weight: 900 !important;
+    font-size: 0.82rem !important;
     text-transform: uppercase !important;
     letter-spacing: 0.8px !important;
     border: none !important;
-    padding: 12px 15px !important;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    padding: 16px 15px !important;
+}
+
+[data-theme="dark"] .pill-thead tr th {
+    color: #60a5fa !important; /* Lighter blue for dark mode readability */
 }
 
 .pill-thead tr th:first-child {
@@ -841,21 +861,23 @@ body {
     background: rgba(255, 255, 255, 0.05) !important;
 }
 
-/* Consistently use the root definition */
+/* Simple Glass Sync */
 .pill-thead {
-    background: #0066ff !important;
-    border-radius: 0 !important;
+    background: rgba(255, 255, 255, 0.5) !important;
+    backdrop-filter: blur(15px) !important;
+}
+
+[data-theme="dark"] .pill-thead {
+    background: rgba(15, 23, 42, 0.5) !important;
 }
 
 .pill-thead th {
-    background: #0066ff !important;
-    color: #ffffff !important;
-    font-weight: 800 !important;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 12px 15px !important;
-    border: none !important;
+    color: #0066ff !important;
+    font-weight: 900 !important;
+}
+
+[data-theme="dark"] .pill-thead th {
+    color: #60a5fa !important;
 }
 
 .table-custom tr {
