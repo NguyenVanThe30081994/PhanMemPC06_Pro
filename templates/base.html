@@ -297,10 +297,76 @@
             flex-shrink: 0 !important;
             width: var(--circle-size, 40px);
             height: var(--circle-size, 40px);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
+        .btn-circle:hover { transform: scale(1.05); }
+        .btn-circle:active { transform: scale(0.95); }
         .btn-circle-sm { --circle-size: 30px; }
         .btn-circle-md { --circle-size: 45px; }
         .btn-circle-lg { --circle-size: 55px; }
+
+        /* Modern Sidebar Glassmorphism & Animations */
+        .mobile-sidebar {
+            backdrop-filter: blur(15px) saturate(180%);
+            -webkit-backdrop-filter: blur(15px) saturate(180%);
+            background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.85) !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        [data-theme="dark"] .mobile-sidebar {
+            background: rgba(15, 23, 42, 0.85) !important;
+        }
+        
+        .mobile-sidebar .list-group-item {
+            background: transparent !important;
+            border: none !important;
+            margin: 4px 12px;
+            border-radius: 12px !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+        }
+
+        .mobile-sidebar .list-group-item:hover {
+            background: rgba(var(--primary-rgb, 37, 99, 235), 0.08) !important;
+            transform: translateX(5px);
+            color: var(--primary);
+        }
+
+        .mobile-sidebar .list-group-item.active {
+            background: linear-gradient(135deg, var(--primary), #3b82f6) !important;
+            color: #fff !important;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+            transform: translateX(5px);
+        }
+
+        .mobile-sidebar .collapse .list-group-item {
+            font-size: 0.9rem;
+            opacity: 0.85;
+            padding-left: 3rem !important; /* Visual hierarchy without misalignment of icons */
+            margin-left: 12px;
+            margin-right: 12px;
+        }
+
+        .sidebar-unit-info {
+            background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.1), rgba(var(--primary-rgb), 0.05));
+            border-radius: 16px;
+            padding: 15px;
+            margin: 0 15px 20px 15px;
+            border: 1px solid rgba(var(--primary-rgb), 0.1);
+        }
+
+        /* Global Micro-animations */
+        .animate-hover:hover { transform: translateY(-3px); transition: transform 0.3s ease; }
+        .fade-in-up { animation: fadeInUp 0.5s ease-out forwards; }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Smooth Collapse Animation override */
+        .collapse { transition: height 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important; }
     </style>
 </head>
 <body>
@@ -449,102 +515,121 @@
         </div>
     </main>
     
-    <div class="offcanvas offcanvas-start border-0 shadow-lg mobile-sidebar" tabindex="-1" id="mobileMenu" style="background: var(--bg-surface); width: 280px;">
-        <div class="offcanvas-header border-bottom p-4">
-            <h5 class="offcanvas-title fw-bold text-primary">DANH MỤC</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    <div class="offcanvas offcanvas-start border-0 shadow-lg mobile-sidebar" tabindex="-1" id="mobileMenu" style="width: 300px;">
+        <div class="offcanvas-header p-4 d-flex flex-column align-items-start">
+            <div class="d-flex justify-content-between w-100 align-items-center mb-3">
+                <h5 class="offcanvas-title fw-bold text-primary d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-shield-halved"></i>HỆ THỐNG PC06
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+            </div>
+            
+            <div class="sidebar-unit-info w-100">
+                <div class="small text-muted mb-1">Đơn vị đang đăng nhập:</div>
+                <div class="fw-bold text-dark">{{ session.get('unit', 'Phòng Cảnh sát QLHC về TTXH') }}</div>
+                <div class="tiny text-primary mt-1"><i class="fa-solid fa-circle-check me-1"></i>Đã xác thực bảo mật</div>
+            </div>
         </div>
+        
         <div class="offcanvas-body p-0">
-            <div class="list-group list-group-flush">
+            <div class="list-group">
                 {% if perms.get('p_dash_lead') or perms.get('p_dash_exec') %}
-                <a href="/admin" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'admin_bp.index' %}active fw-bold{% endif %}">
+                <a href="/admin" class="list-group-item py-3 px-4 {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">
                     <i class="fa-solid fa-house-chimney me-3 opacity-75"></i>Tổng quan
                 </a>
                 {% endif %}
                 
                 {% if perms.get('p_task_lead') or perms.get('p_task_exec') %}
-                <a href="/tasks" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'tasks_bp.index' %}active fw-bold{% endif %}">
+                <a href="/tasks" class="list-group-item py-3 px-4 {% if request.endpoint == 'tasks_bp.index' %}active{% endif %}">
                     <i class="fa-solid fa-list-check me-3 opacity-75"></i>Công việc
                 </a>
                 {% endif %}
                 
-                <a href="/chat" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'chat_bp.chat' %}active fw-bold{% endif %}">
+                <a href="/chat" class="list-group-item py-3 px-4 {% if request.endpoint == 'chat_bp.chat' %}active{% endif %}">
                     <i class="fa-solid fa-comments me-3 opacity-75"></i>Trao đổi
                 </a>
 
                 <!-- Group: Bảng tin và Thư viện -->
-                <a href="#mobileNewsLibCollapse" class="list-group-item list-group-item-action py-3 px-4 border-0 d-flex justify-content-between align-items-center" data-bs-toggle="collapse">
+                <a href="#mobileNewsLibCollapse" class="list-group-item py-3 px-4 d-flex justify-content-between align-items-center" data-bs-toggle="collapse">
                     <span><i class="fa-solid fa-newspaper me-3 opacity-75"></i>Bảng tin & Thư viện</span>
-                    <i class="fa-solid fa-chevron-down small opacity-50"></i>
+                    <i class="fa-solid fa-chevron-down small opacity-50 transition-transform"></i>
                 </a>
-                <div class="collapse bg-light bg-opacity-10" id="mobileNewsLibCollapse">
+                <div class="collapse" id="mobileNewsLibCollapse">
                     {% if perms.get('p_news_lead') or perms.get('p_news_exec') %}
-                    <a href="/news" class="list-group-item list-group-item-action py-2 ps-5 border-0 small {% if request.endpoint == 'portal_bp.news' %}fw-bold text-primary{% endif %}">
-                        Bảng tin
+                    <a href="/news" class="list-group-item py-2 ps-5 {% if request.endpoint == 'portal_bp.news' %}active{% endif %}">
+                        <i class="fa-solid fa-caret-right me-2 small opacity-50"></i>Bảng tin
                     </a>
                     {% endif %}
                     {% if perms.get('p_lib_lead') or perms.get('p_lib_exec') %}
-                    <a href="/library" class="list-group-item list-group-item-action py-2 ps-5 border-0 small {% if request.endpoint == 'portal_bp.library' %}fw-bold text-primary{% endif %}">
-                        Thư viện
+                    <a href="/library" class="list-group-item py-2 ps-5 {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">
+                        <i class="fa-solid fa-caret-right me-2 small opacity-50"></i>Thư viện
                     </a>
                     {% endif %}
                 </div>
 
                 {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') %}
-                <a href="/contacts" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'portal_bp.contacts' %}active fw-bold{% endif %}">
+                <a href="/contacts" class="list-group-item py-3 px-4 {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">
                     <i class="fa-solid fa-address-book me-3 opacity-75"></i>Danh bạ
                 </a>
                 {% endif %}
 
-                <!-- Group: Dữ liệu và Báo cáo (FIXED: Bổ sung phần thiếu) -->
-                <a href="#mobileDataReportCollapse" class="list-group-item list-group-item-action py-3 px-4 border-0 d-flex justify-content-between align-items-center" data-bs-toggle="collapse">
+                <!-- Group: Dữ liệu và Báo cáo -->
+                <a href="#mobileDataReportCollapse" class="list-group-item py-3 px-4 d-flex justify-content-between align-items-center" data-bs-toggle="collapse">
                     <span><i class="fa-solid fa-chart-line me-3 opacity-75"></i>Dữ liệu & Báo cáo</span>
-                    <i class="fa-solid fa-chevron-down small opacity-50"></i>
+                    <i class="fa-solid fa-chevron-down small opacity-50 transition-transform"></i>
                 </a>
-                <div class="collapse bg-light bg-opacity-10" id="mobileDataReportCollapse">
+                <div class="collapse" id="mobileDataReportCollapse">
                     {% if perms.get('p_input_lead') or perms.get('p_input_exec') %}
-                    <a href="{{ url_for('forms_bp.input_data') }}" class="list-group-item list-group-item-action py-2 ps-5 border-0 small">
-                        Nhập liệu Biểu mẫu
+                    <a href="{{ url_for('forms_bp.input_data') }}" class="list-group-item py-2 ps-5">
+                        <i class="fa-solid fa-caret-right me-2 small opacity-50"></i>Nhập liệu Biểu mẫu
                     </a>
                     {% endif %}
                     {% if perms.get('p_stat_lead') or perms.get('p_stat_exec') %}
-                    <a href="{{ url_for('forms_bp.stats') }}" class="list-group-item list-group-item-action py-2 ps-5 border-0 small">
-                        Thống kê Báo cáo
+                    <a href="{{ url_for('forms_bp.stats') }}" class="list-group-item py-2 ps-5">
+                        <i class="fa-solid fa-caret-right me-2 small opacity-50"></i>Thống kê Báo cáo
                     </a>
-                    <a href="{{ url_for('forms_bp.progress') }}" class="list-group-item list-group-item-action py-2 ps-5 border-0 small">
-                        Tiến độ Báo cáo
+                    <a href="{{ url_for('forms_bp.progress') }}" class="list-group-item py-2 ps-5">
+                        <i class="fa-solid fa-caret-right me-2 small opacity-50"></i>Tiến độ Báo cáo
                     </a>
                     {% endif %}
                 </div>
 
-                <a href="{{ url_for('shortlink_bp.manage_links') }}" class="list-group-item list-group-item-action py-3 px-4 border-0">
+                <a href="{{ url_for('shortlink_bp.manage_links') }}" class="list-group-item py-3 px-4">
                     <i class="fa-solid fa-qrcode me-3 opacity-75"></i>Tiện ích QR & Link
                 </a>
 
                 <!-- Group: Hệ thống -->
                 {% if perms.get('p_form_lead') or perms.get('p_user_lead') or perms.get('p_sys_lead') %}
-                <a href="#mobileSystemCollapse" class="list-group-item list-group-item-action py-3 px-4 border-0 d-flex justify-content-between align-items-center text-primary fw-bold" data-bs-toggle="collapse">
+                <a href="#mobileSystemCollapse" class="list-group-item py-3 px-4 d-flex justify-content-between align-items-center text-primary fw-bold" data-bs-toggle="collapse">
                     <span><i class="fa-solid fa-gears me-3 opacity-75"></i>Quản trị hệ thống</span>
-                    <i class="fa-solid fa-chevron-down small opacity-50"></i>
+                    <i class="fa-solid fa-chevron-down small opacity-50 transition-transform"></i>
                 </a>
-                <div class="collapse bg-light bg-opacity-10" id="mobileSystemCollapse">
+                <div class="collapse" id="mobileSystemCollapse">
                     {% if perms.get('p_form_lead') %}
-                    <a href="/admin-forms" class="list-group-item list-group-item-action py-2 ps-5 border-0 small italic">Thiết lập mẫu V1</a>
-                    <a href="/reports-v2" class="list-group-item list-group-item-action py-2 ps-5 border-0 small italic">Thiết lập mẫu V2</a>
+                    <a href="/admin-forms" class="list-group-item py-2 ps-5 italic">Thiết lập mẫu V1</a>
+                    <a href="/reports-v2" class="list-group-item py-2 ps-5 italic">Thiết lập mẫu V2</a>
                     {% endif %}
                     {% if perms.get('p_user_lead') %}
-                    <a href="/roles" class="list-group-item list-group-item-action py-2 ps-5 border-0 small italic">Tài khoản & Vai trò</a>
+                    <a href="/roles" class="list-group-item py-2 ps-5 italic">Tài khoản & Vai trò</a>
                     {% endif %}
                     {% if perms.get('p_sys_lead') %}
-                    <a href="/admin/module-categories" class="list-group-item list-group-item-action py-2 ps-5 border-0 small italic">Thiết lập danh mục</a>
-                    <a href="/logs" class="list-group-item list-group-item-action py-2 ps-5 border-0 small italic">Nhật ký hoạt động</a>
-                    <a href="/admin/system/update" class="list-group-item list-group-item-action py-2 ps-5 border-0 small italic text-primary">Cập nhật bản vá</a>
-                    <a href="/admin/db-tool" class="list-group-item list-group-item-action py-2 ps-5 border-0 small italic text-danger">Công cụ Database</a>
+                    <a href="/admin/module-categories" class="list-group-item py-2 ps-5 italic">Thiết lập danh mục</a>
+                    <a href="/logs" class="list-group-item py-2 ps-5 italic">Nhật ký hoạt động</a>
+                    <a href="/admin/system/update" class="list-group-item py-2 ps-5 italic text-primary">Cập nhật bản vá</a>
+                    <a href="/admin/db-tool" class="list-group-item py-2 ps-5 italic text-danger">Công cụ Database</a>
                     {% endif %}
                 </div>
                 {% endif %}
             </div>
         </div>
+        
+        <div class="offcanvas-footer p-4 border-top">
+            <a href="/logout" class="btn btn-outline-danger w-100 rounded-pill d-flex align-items-center justify-content-center gap-2">
+                <i class="fa-solid fa-right-from-bracket"></i>Đăng xuất
+            </a>
+            <div class="text-center mt-3 text-muted tiny">Phiên bản 3.5.0 &copy; 2026 PC06</div>
+        </div>
+    </div>
     </div>
 
     <!-- Mobile Bottom Navigation Bar -->
