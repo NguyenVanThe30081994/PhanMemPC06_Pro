@@ -19,105 +19,115 @@
 </div>
 
 <div class="main-content-area animate__animated animate__fadeInUp">
-    <!-- Quick Stats Row: Stitch Seamless Style -->
-    <div class="row g-4 mb-4">
-        <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-sm rounded-4 p-4 h-100 position-relative overflow-hidden" style="background: white;">
-                <div class="position-absolute top-0 start-0 h-100 bg-primary" style="width: 4px; opacity: 0.8;"></div>
+    <!-- Bento Grid Row 1: Primary Metrics -->
+    <nav class="top-navbar glass-panel">
+        <div class="nav-container px-4">
+            <div class="bento-card p-4 h-100 position-relative">
+                <div class="position-absolute top-0 start-0 h-100 bg-primary" style="width: 6px; opacity: 0.9;"></div>
                 <h6 class="tiny fw-bold text-muted mb-3 text-uppercase letter-spacing-1">Tài khoản</h6>
                 <div class="d-flex align-items-end justify-content-between">
-                    <div class="h2 fw-bold text-dark mb-0">{{ stats.users }}</div>
-                    <div class="bg-primary bg-opacity-10 p-2 rounded-3 text-primary"><i class="fa-solid fa-users"></i></div>
+                    <div class="display-5 fw-bold text-dark mb-0">{{ stats.users }}</div>
+                    <div class="bg-primary bg-opacity-10 p-3 rounded-4 text-primary shadow-sm"><i class="fa-solid fa-users fs-4"></i></div>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-sm rounded-4 p-4 h-100 position-relative overflow-hidden" style="background: white;">
-                <div class="position-absolute top-0 start-0 h-100 bg-success" style="width: 4px; opacity: 0.8;"></div>
+            <div class="bento-card p-4 h-100 position-relative">
+                <div class="position-absolute top-0 start-0 h-100 bg-success" style="width: 6px; opacity: 0.9;"></div>
                 <h6 class="tiny fw-bold text-muted mb-3 text-uppercase letter-spacing-1">Báo cáo mới</h6>
                 <div class="d-flex align-items-end justify-content-between">
-                    <div class="h2 fw-bold text-dark mb-0">{{ stats.reports }}</div>
-                    <div class="bg-success bg-opacity-10 p-2 rounded-3 text-success"><i class="fa-solid fa-file-circle-check"></i></div>
+                    <div class="display-5 fw-bold text-dark mb-0">{{ stats.reports }}</div>
+                    <div class="bg-success bg-opacity-10 p-3 rounded-4 text-success shadow-sm"><i class="fa-solid fa-file-circle-check fs-4"></i></div>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-sm rounded-4 p-4 h-100 position-relative overflow-hidden" style="background: white;">
-                <div class="position-absolute top-0 start-0 h-100 bg-warning" style="width: 4px; opacity: 0.8;"></div>
+            <div class="bento-card p-4 h-100 position-relative">
+                <div class="position-absolute top-0 start-0 h-100 bg-warning" style="width: 6px; opacity: 0.9;"></div>
                 <h6 class="tiny fw-bold text-muted mb-3 text-uppercase letter-spacing-1">Công việc</h6>
                 <div class="d-flex align-items-end justify-content-between">
-                    <div class="h2 fw-bold text-dark mb-0">{{ stats.tasks|default(0) }}</div>
-                    <div class="bg-warning bg-opacity-10 p-2 rounded-3 text-warning"><i class="fa-solid fa-list-check"></i></div>
+                    <div class="display-5 fw-bold text-dark mb-0">{{ stats.tasks|default(0) }}</div>
+                    <div class="bg-warning bg-opacity-10 p-3 rounded-4 text-warning shadow-sm"><i class="fa-solid fa-list-check fs-4"></i></div>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-sm rounded-4 p-4 h-100 position-relative overflow-hidden" style="background: white;">
-                <div class="position-absolute top-0 start-0 h-100 bg-dark" style="width: 4px; opacity: 0.8;"></div>
-                <h6 class="tiny fw-bold text-muted mb-3 text-uppercase letter-spacing-1">Vai trò</h6>
+            <div class="bento-card p-4 h-100 position-relative">
+                <div class="position-absolute top-0 start-0 h-100 bg-indigo" style="width: 6px; opacity: 0.9; background-color: #6366f1;"></div>
+                <h6 class="tiny fw-bold text-muted mb-3 text-uppercase letter-spacing-1">Hệ thống</h6>
                 <div class="d-flex align-items-end justify-content-between">
-                    <div class="h2 fw-bold text-dark mb-0">{{ stats.roles }}</div>
-                    <div class="bg-dark bg-opacity-10 p-2 rounded-3 text-dark"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div class="display-5 fw-bold text-dark mb-0">{{ stats.roles }}</div>
+                    <div class="bg-indigo bg-opacity-10 p-3 rounded-4 text-indigo shadow-sm" style="color: #6366f1;"><i class="fa-solid fa-shield-halved fs-4"></i></div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Bento Grid Row 2: Deep Analysis & Logs -->
     <div class="row g-4">
-        <!-- Main Chart -->
+        <!-- Main Analysis Card: Large Bento Box -->
         <div class="col-xl-8">
-            <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
+            <div class="bento-card p-4 h-100">
                 <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
-                    <h6 class="fw-bold mb-0" style="color: var(--text-main);">TIẾN ĐỘ BÁO CÁO (ĐƠN VỊ CHƯA NỘP)</h6>
-                    <span class="badge bg-danger rounded-pill tiny">{{ overdue_stats|length }} Biểu mẫu</span>
+                    <h6 class="fw-bold mb-0 text-primary d-flex align-items-center gap-2">
+                        <i class="fa-solid fa-chart-column"></i> TIẾN ĐỘ BÁO CÁO (ĐƠN VỊ CHƯA NỘP)
+                    </h6>
+                    <span class="badge bg-danger rounded-pill shadow-sm">{{ overdue_stats|length }} Biểu mẫu</span>
                 </div>
                 
-                <div class="overflow-auto" style="max-height: 300px;">
+                <div class="overflow-auto" style="max-height: 480px; padding: 10px 5px;">
                     {% if total_templates == 0 %}
                         <div class="text-center py-5 text-muted animate__animated animate__fadeIn">
-                            <div class="fw-bold">Chưa có biểu mẫu báo cáo nào được thiết lập</div>
+                            <div class="fw-bold fs-5">Chưa có biểu mẫu báo cáo nào được thiết lập</div>
                         </div>
                     {% elif overdue_stats %}
                         <div class="row g-3">
                             {% for s in overdue_stats %}
-                            <div class="col-md-6">
-                                <div class="p-3 rounded-4 border border-danger-subtle bg-danger bg-opacity-10 h-100 transition-all hover-bg-danger-subtle">
+                            <div class="col-md-6 col-lg-4">
+                                <div class="p-3 rounded-4 border border-danger-subtle bg-danger bg-opacity-10 h-100 transition-all hover-lift" style="border-style: dashed !important;">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <div class="fw-bold text-dark small text-uppercase" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ s.name }}</div>
-                                        <span class="badge bg-danger px-2 py-1 shadow-sm">{{ s.count }}</span>
+                                        <span class="badge bg-danger px-2 py-1">{{ s.count }}</span>
                                     </div>
-                                    <div class="tiny text-danger fw-bold">Đơn vị quá hạn chưa báo cáo</div>
+                                    <div class="tiny text-danger fw-bold opacity-75">Quá hạn báo cáo</div>
                                 </div>
                             </div>
                             {% endfor %}
                         </div>
                     {% else %}
                         <div class="text-center py-5 text-muted animate__animated animate__fadeIn">
-                            <div class="fw-bold text-success">Tất cả đơn vị đã hoàn thành báo cáo</div>
+                            <div class="fw-bold text-success fs-5"><i class="fa-solid fa-circle-check me-2"></i>Tất cả đơn vị đã hoàn thành báo cáo</div>
                         </div>
                     {% endif %}
                 </div>
             </div>
         </div>
 
-        <!-- Latest Activities -->
+        <!-- Latest Activities: Vertical Bento Box -->
         <div class="col-xl-4">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100">
-                <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center border-bottom">
-                    <h6 class="fw-bold text-dark mb-0">HOẠT ĐỘNG GẦN ĐÂY</h6>
-                    <a href="/logs" class="text-primary fw-bold tiny text-decoration-none">TẤT CẢ</a>
+            <div class="bento-card h-100 d-flex flex-column">
+                <div class="bg-primary bg-opacity-5 py-3 px-4 d-flex justify-content-between align-items-center border-bottom">
+                    <h6 class="fw-bold text-primary mb-0 d-flex align-items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left"></i> HOẠT ĐỘNG
+                    </h6>
+                    <a href="/logs" class="btn btn-sm btn-light rounded-pill px-3 fw-bold tiny">TẤT CẢ</a>
                 </div>
-                <div class="list-group list-group-flush" id="dashboardLogs">
-                    {% for l in logs[:5] %}
-                    <div class="list-group-item border-0 px-4 py-3 d-flex align-items-center gap-3 hover-bg-light">
-                        <div class="flex-grow-1">
-                            <div class="fw-bold small" style="color: var(--text-main);">{{ l.fullname }}: {{ l.action }}</div>
-                            <div class="tiny text-muted uppercase fw-bold">{{ l.created_at.strftime('%H:%M %d/%m') }}</div>
+                <div class="flex-grow-1 overflow-auto" id="dashboardLogs" style="max-height: 480px;">
+                    <div class="list-group list-group-flush">
+                        {% for l in logs[:8] %}
+                        <div class="list-group-item border-0 px-4 py-3 d-flex align-items-center gap-3 transition-all hover-bg-light">
+                            <div class="flex-shrink-0 bg-light p-2 rounded-circle">
+                                <i class="fa-solid fa-user-clock text-muted"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="fw-bold small" style="color: var(--text-main);">{{ l.fullname }} <span class="fw-normal text-muted">{{ l.action }}</span></div>
+                                <div class="tiny text-primary fw-bold mt-1">{{ l.created_at.strftime('%H:%M %d/%m') }}</div>
+                            </div>
                         </div>
+                        {% else %}
+                        <div class="p-4 text-center text-muted tiny">Chưa có hoạt động mới</div>
+                        {% endfor %}
                     </div>
-                    {% else %}
-                    <div class="p-4 text-center text-muted tiny">Chưa có hoạt động mới</div>
-                    {% endfor %}
                 </div>
             </div>
         </div>
