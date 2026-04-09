@@ -1,8 +1,8 @@
 :root {
-    /* COMMON SPACING & SCALING (UNCHANGED) */
+    /* COMMON SPACING & SCALING (REDUCED NAV HEIGHT) */
     --font-size-base: clamp(14px, 0.85vw + 11px, 18px);
-    --nav-height: clamp(65px, 4vw + 40px, 85px);
-    --sidebar-width: 0px; /* Disable sidebar space on PC */
+    --nav-height: clamp(56px, 3.5vw + 32px, 70px);
+    --sidebar-width: 0px; 
     --container-padding: clamp(16px, 2vw, 40px);
     --card-gap: clamp(16px, 2vw, 32px);
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

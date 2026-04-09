@@ -32,9 +32,37 @@
         </div>
     </div>
 
-    <div class="row g-0 chat-container-full shadow-sm rounded-4 overflow-hidden border" style="height: calc(100vh - 200px); background: var(--bg-surface);">
-        <!-- Main Chat Area: Now stretches across PC -->
-        <div class="col-12 d-flex flex-column h-100">
+    <div class="row g-0 chat-container-full shadow-sm rounded-4 overflow-hidden border bento-card" style="height: calc(100vh - 180px); background: var(--bg-surface);">
+        <!-- Column 1: PC Sidebar (Left) -->
+        <div class="col-lg-4 d-none d-lg-flex flex-column chat-sidebar-pc border-end" style="background-color: var(--bg-body) !important;">
+            <div class="p-4 border-bottom glass-panel">
+                <div class="input-group input-group-sm rounded-pill border px-3 py-1 bg-white shadow-sm focus-within-primary">
+                    <span class="input-group-text bg-transparent border-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+                    <input type="text" id="unitSearchPC" class="form-control bg-transparent border-0 py-1 fw-bold" placeholder="Tìm đơn vị..." onkeyup="filterUsersPC()">
+                </div>
+            </div>
+            
+            <div class="chat-user-list-container py-2 custom-scrollbar" id="userListPC">
+                {% for user in users %}
+                <div class="chat-user-item px-4 py-3 d-flex align-items-center gap-3 cursor-pointer user-entry" 
+                     onclick="selectUser({{ user.id }}, '{{ user.fullname }}')" 
+                     data-id="{{ user.id }}">
+                    <div class="avatar-wrapper">
+                        <div class="bg-primary-gradient text-white btn-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style="--circle-size: 45px;">
+                            {{ user.fullname[:1].upper() }}
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 overflow-hidden">
+                        <div class="fw-bold text-dark text-truncate small">{{ user.fullname }}</div>
+                        <div class="tiny text-muted text-truncate">{{ user.unit_area }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Column 2: Main Chat Area (Right) -->
+        <div class="col-lg-8 col-12 d-flex flex-column h-100 bg-white">
             <!-- Active Chat State -->
             <div id="activeChatState" class="d-none flex-column h-100">
                 <div class="chat-main-header p-3 border-bottom d-flex justify-content-between align-items-center bg-white">
@@ -141,12 +169,40 @@
     .message-received { background: white; color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid var(--border); }
 </style>
 
-<script>
-let currentRecipientId = null;
-let selectedFiles = [];
+function filterUsers() {
+    let input = document.getElementById('unitSearch').value.toLowerCase();
+    let entries = document.querySelectorAll('#userList .user-entry');
+    entries.forEach(item => {
+        let name = item.getAttribute('data-name');
+        let unit = item.getAttribute('data-unit');
+        if (name.includes(input) || unit.includes(input)) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+function filterUsersPC() {
+    let input = document.getElementById('unitSearchPC').value.toLowerCase();
+    let entries = document.querySelectorAll('#userListPC .user-entry');
+    entries.forEach(item => {
+        let name = item.innerText.toLowerCase();
+        if (name.includes(input)) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
 
 function selectUser(id, name) {
     currentRecipientId = id;
+    
+    // Highlight active user in both lists
+    document.querySelectorAll('.user-entry').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll(`.user-entry[data-id="${id}"]`).forEach(el => el.classList.add('active'));
+
     document.getElementById('emptyChatState').classList.remove('d-flex');
     document.getElementById('emptyChatState').classList.add('d-none');
     document.getElementById('activeChatState').classList.remove('d-none');
