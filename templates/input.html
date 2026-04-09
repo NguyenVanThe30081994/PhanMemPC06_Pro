@@ -81,13 +81,13 @@
         <!-- Main Content Area: PC Full Width 100% -->
         <div class="col-12">
             {% if active %}
-            <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5" style="background-color: var(--bg-surface); min-height: 60vh;">
-                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3" style="border-color: var(--border) !important;">
-                    <h5 class="fw-bold text-main mb-0 d-flex align-items-center gap-2">
-                        <i class="fa-solid fa-edit text-primary"></i> 
-                        NỘI DUNG NHẬP LIỆU: <span class="text-primary">{{ active.name }}</span>
+            <div class="bento-card p-4 p-md-5" style="min-height: 60vh;">
+                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-4" style="border-color: var(--border) !important;">
+                    <h5 class="fw-bold text-primary mb-0 d-flex align-items-center gap-3">
+                        <i class="fa-solid fa-file-pen fs-4"></i> 
+                        NỘI DUNG NHẬP LIỆU: <span class="text-dark">{{ active.name }}</span>
                     </h5>
-                    <div class="tiny text-muted fw-medium text-uppercase d-none d-sm-block">{{ fields|length }} cột dữ liệu</div>
+                    <div class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-2 fw-bold tiny uppercase letter-spacing-1">{{ fields|length }} CỘT DỮ LIỆU</div>
                 </div>
                 
                 <form method="POST" id="inputForm">

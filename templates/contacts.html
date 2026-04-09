@@ -3,14 +3,13 @@
 {% block content %}
 <div class="page-header mb-4 animate__animated animate__fadeIn">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-        <!-- Hybrid-Next Breadcrumb Flow -->
         <div class="d-flex align-items-center gap-3">
-            <div class="glass-panel p-2 rounded-4 shadow-sm bg-white bg-opacity-50 border border-white">
+            <div class="bento-card p-3 rounded-4 shadow-sm border-0">
                 <i class="fa-solid fa-address-book text-primary fs-5"></i>
             </div>
-            <nav class="breadcrumb-nav glass-panel d-none d-lg-flex px-3 py-2 rounded-pill bg-white bg-opacity-50 border border-white shadow-sm">
+            <nav class="breadcrumb-nav bento-card d-none d-lg-flex px-3 py-2 rounded-pill border-0 shadow-sm">
                 <span class="segment fw-bold text-dark px-2">DANH BẠ</span>
-                <div class="picker-chip glass-panel dropdown-toggle shadow-sm bg-white px-3 py-1 rounded-pill cursor-pointer" data-bs-toggle="dropdown">
+                <div class="picker-chip dropdown-toggle shadow-sm bg-light px-3 py-1 rounded-pill cursor-pointer" data-bs-toggle="dropdown">
                     Lọc theo nhóm...
                 </div>
                 <ul class="dropdown-menu shadow-lg border-0 rounded-4 p-2 mt-2" style="min-width: 250px;">
@@ -26,7 +25,7 @@
 
         <div class="header-actions">
             {% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
-            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-lg" data-bs-toggle="modal" data-bs-target="#addContactModal">
+            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addContactModal">
                 <i class="fa-solid fa-user-plus me-2"></i>THÊM LIÊN HỆ
             </button>
             {% endif %}
@@ -35,69 +34,54 @@
 </div>
 
 <div class="main-content-area animate__animated animate__fadeInUp">
-    <div class="row g-4">
-        <!-- Sidebar Filter: ONLY on Mobile -->
-        <div class="col-12 d-lg-none">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-2" style="background-color: var(--bg-surface);">
-                <div class="card-header border-0 py-3 px-4 d-flex justify-content-between align-items-center" style="background-color: var(--bg-surface);">
-                    <h6 class="fw-bold text-main mb-0 small text-uppercase opacity-75">Nhóm danh bạ</h6>
-                    <select class="form-select form-select-sm rounded-pill border shadow-sm fw-bold px-3" onchange="filterContacts(this.value)">
-                        <option value="ALL">Tất cả</option>
-                        {% for cat in categories %}
-                        <option value="{{ cat.name }}">{{ cat.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <!-- Contacts Table: Full Width 100% on PC -->
-        <div class="col-12">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden" style="background-color: var(--bg-surface);">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-light">
-                            <tr>
-                                <th class="ps-4 py-3 border-0 small text-uppercase opacity-50">Tên đơn vị / Cá nhân</th>
-                                <th class="py-3 border-0 small text-uppercase opacity-50">Chức vụ / Nhóm</th>
-                                <th class="py-3 border-0 small text-uppercase opacity-50">Số điện thoại</th>
-                                <th class="py-3 border-0 small text-uppercase opacity-50">Email</th>
-                                <th class="pe-4 py-3 border-0 text-end small text-uppercase opacity-50">Thao tác</th>
-                            </tr>
-                        </thead>
-                        <tbody id="contactTable">
-                            {% for c in contacts %}
-                            <tr class="contact-row" data-category="{{ c.category }}">
-                                <td class="ps-4 py-3">
-                                    <div class="d-flex align-items-center gap-3">
-                                        <div class="btn-circle bg-primary bg-opacity-10 text-primary fw-bold" style="--circle-size: 40px;">{{ c.name[:1].upper() }}</div>
-                                        <div class="fw-bold text-dark">{{ c.name }}</div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <span class="badge bg-light text-muted border px-2 tiny fw-bold">{{ c.position or 'Thành viên' }}</span>
-                                    <div class="small text-primary fw-medium mt-1">{{ c.category }}</div>
-                                </td>
-                                <td class="fw-bold text-primary">{{ c.phone }}</td>
-                                <td class="small text-muted">{{ c.email or '-' }}</td>
-                                <td class="pe-4 text-end">
-                                    <div class="dropdown">
-                                        <button class="btn btn-light btn-circle btn-circle-sm border" data-bs-toggle="dropdown"><i class="fa-solid fa-ellipsis-vertical"></i></button>
-                                        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3">
-                                            <li><a class="dropdown-item py-2" href="tel:{{ c.phone }}"><i class="fa-solid fa-phone me-2 text-success"></i>Gọi ngay</a></li>
-                                            {% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
-                                            <li><hr class="dropdown-divider"></li>
-                                            <li><a class="dropdown-item py-2 text-danger" href="/contacts/delete/{{ c.id }}"><i class="fa-solid fa-trash me-2"></i>Xóa</a></li>
-                                            {% endif %}
-                                        </ul>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+    <div class="bento-card overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-primary bg-opacity-5">
+                    <tr>
+                        <th class="ps-4 py-3 border-0 small text-uppercase fw-bold opacity-75">Tên đơn vị / Cá nhân</th>
+                        <th class="py-3 border-0 small text-uppercase fw-bold opacity-75">Chức vụ / Nhóm</th>
+                        <th class="py-3 border-0 small text-uppercase fw-bold opacity-75">Số điện thoại</th>
+                        <th class="py-3 border-0 small text-uppercase fw-bold opacity-75">Email</th>
+                        <th class="pe-4 py-3 border-0 text-end small text-uppercase fw-bold opacity-75">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="contactTable">
+                    {% for c in contacts %}
+                    <tr class="contact-row" data-category="{{ c.category }}">
+                        <td class="ps-4 py-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-primary-gradient text-white rounded-circle shadow-sm fw-bold d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; font-size: 14px;">
+                                    {{ c.name[:1].upper() }}
+                                </div>
+                                <div>
+                                    <div class="fw-bold text-dark">{{ c.name }}</div>
+                                    <div class="tiny text-muted d-lg-none">{{ c.position or 'Thành viên' }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="badge bg-light text-primary border rounded-pill px-2 tiny fw-bold">{{ c.category }}</div>
+                            <div class="small text-muted fw-medium mt-1 d-none d-lg-block">{{ c.position or 'Thành viên' }}</div>
+                        </td>
+                        <td class="fw-bold text-primary">{{ c.phone }}</td>
+                        <td class="small text-muted">{{ c.email or '-' }}</td>
+                        <td class="pe-4 text-end">
+                            <div class="d-flex justify-content-end gap-2">
+                                <a href="tel:{{ c.phone }}" class="btn btn-light btn-circle btn-circle-sm border shadow-sm">
+                                    <i class="fa-solid fa-phone text-success tiny"></i>
+                                </a>
+                                {% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
+                                <a href="/contacts/delete/{{ c.id }}" class="btn btn-light btn-circle btn-circle-sm border shadow-sm text-danger" onclick="return confirm('Xóa liên hệ này?')">
+                                    <i class="fa-solid fa-trash tiny"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

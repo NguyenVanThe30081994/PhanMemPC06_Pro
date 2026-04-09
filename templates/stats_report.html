@@ -83,16 +83,16 @@
         <!-- Main Display: Full Width 100% on PC -->
         <div class="col-12">
             {% if active or active_v2 %}
-                <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5" style="background-color: var(--bg-surface);">
+                <div class="bento-card p-4 p-md-5">
                     <!-- Header Info -->
-                    <div class="mb-5 border-bottom pb-4 d-flex justify-content-between align-items-end">
+                    <div class="mb-5 border-bottom pb-4 d-flex justify-content-between align-items-end" style="border-color: var(--border) !important;">
                         <div>
-                            <div class="badge bg-success bg-opacity-10 text-success rounded-pill mb-2 px-3 fw-bold tiny">DỮ LIỆU TỔNG HỢP</div>
+                            <div class="badge bg-primary-gradient text-white shadow-sm rounded-pill mb-3 px-3 fw-bold tiny letter-spacing-1">DỮ LIỆU TỔNG HỢP</div>
                             <h2 class="fw-bold text-dark mb-0">{{ active.name if active else active_v2.name }}</h2>
                         </div>
                         <div class="text-end d-none d-sm-block">
-                            <span class="text-muted small fw-medium">Tổng cộng:</span>
-                            <span class="h4 fw-bold text-primary mb-0 d-block">{{ sub_count }} đơn vị báo cáo</span>
+                            <span class="text-muted small fw-bold text-uppercase opacity-75 d-block mb-1">Quy mô báo cáo</span>
+                            <span class="h4 fw-bold text-primary mb-0">{{ sub_count }} Đơn vị</span>
                         </div>
                     </div>
 

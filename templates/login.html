@@ -9,229 +9,200 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Be+Vietnam+Pro:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary-gold: #ffd700;
-            --primary-red: #da251d;
-            --dark-bg: #0c111d;
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --azure-light: #f0f9ff;
         }
-        * { font-family: 'Be Vietnam Pro', sans-serif; }
+        * { font-family: 'Inter', 'Be Vietnam Pro', sans-serif; }
         
         body {
             min-height: 100vh;
             margin: 0;
-            background: var(--dark-bg);
-            background-image: url('/static/img/bg_pc06_vibrant.png');
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #dbeafe 100%);
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            position: relative;
-            padding: env(safe-area-inset-top, 20px) 20px env(safe-area-inset-bottom, 20px) 20px;
+            padding: 20px;
+            overflow: hidden;
         }
 
-        /* Stronger dark overlay for the vibrant red/star background */
-        body::before {
-            content: '';
+        /* Ambient floating blobs for depth */
+        .blob {
             position: absolute;
-            inset: 0;
-            background: radial-gradient(circle at center, rgba(12, 17, 29, 0.5) 0%, rgba(12, 17, 29, 0.85) 100%);
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.1) 0%, rgba(37, 99, 235, 0) 70%);
+            border-radius: 50%;
             z-index: 0;
+            filter: blur(60px);
         }
 
-        .official-header {
+        .login-container {
             position: relative;
-            z-index: 1;
-            text-align: center;
-            margin-bottom: 40px;
-            animation: fadeInDown 0.8s ease-out;
+            z-index: 10;
+            width: 100%;
+            max-width: 440px;
+            animation: fadeIn 0.8s ease-out;
         }
 
-        .nation-title {
+        .bento-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 32px;
+            padding: 50px 40px;
+            box-shadow: 
+                0 4px 6px -1px rgba(0, 0, 0, 0.1),
+                0 20px 25px -5px rgba(0, 0, 0, 0.1),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+        }
+
+        .logo-box {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            border-radius: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 30px;
+            box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
+            color: #fff;
+            font-size: 32px;
+            transform: rotate(-5deg);
+        }
+
+        .brand-title {
             font-family: 'Montserrat', sans-serif;
             font-weight: 800;
-            color: #fff;
-            font-size: 1.2rem;
-            letter-spacing: 2px;
-            margin-bottom: 5px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-        }
-        @media (min-width: 768px) { .nation-title { font-size: 1.6rem; letter-spacing: 4px; } }
-
-        .nation-subtitle {
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 600;
-            color: var(--primary-gold);
-            font-size: 0.9rem;
-            letter-spacing: 1px;
-            opacity: 0.9;
-        }
-
-        .login-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 28px;
-            padding: 40px;
-            width: 100%;
-            max-width: 420px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            position: relative;
-            z-index: 1;
-            animation: fadeInUp 0.8s ease-out;
-        }
-
-        .brand-section {
+            font-size: 28px;
+            letter-spacing: -1px;
+            color: #0f172a;
+            margin-bottom: 8px;
             text-align: center;
-            margin-bottom: 35px;
         }
-        .brand-logo-img {
-            width: 90px;
-            height: 90px;
-            margin-bottom: 20px;
-            border-radius: 50%;
-            filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5));
-            animation: slowPulse 4s infinite ease-in-out;
+
+        .brand-subtitle {
+            font-size: 14px;
+            color: #64748b;
+            text-align: center;
+            margin-bottom: 40px;
+            font-weight: 500;
         }
-        @keyframes slowPulse {
-            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5)); }
-            50%      { transform: scale(1.05); filter: drop-shadow(0 0 30px rgba(255, 215, 0, 0.8)); }
-        }
-        .brand-name {
-            font-size: 24px;
-            font-weight: 700;
-            color: #fff;
-            margin: 0;
-        }
-        .brand-name span { color: var(--primary-gold); }
 
         .form-label {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 14px;
-            font-weight: 500;
-            margin-left: 5px;
-        }
-        .form-control {
-            background: rgba(255, 255, 255, 0.07);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 14px;
-            color: #fff;
-            padding: 14px 18px;
-            transition: all 0.3s ease;
-        }
-        .form-control:focus {
-            background: rgba(255, 255, 255, 0.12);
-            border-color: var(--primary-gold);
-            box-shadow: 0 0 0 4px rgba(255, 215, 0, 0.15);
-            color: #fff;
-        }
-        .form-control::placeholder { color: rgba(255, 255, 255, 0.3); }
-
-        .btn-login {
-            background: linear-gradient(135deg, #da251d, #b91c1c);
-            border: none;
-            border-radius: 14px;
-            color: #fff;
-            font-weight: 700;
-            padding: 15px;
-            width: 100%;
-            margin-top: 15px;
-            transition: all 0.3s ease;
-            box-shadow: 0 10px 15px -3px rgba(218, 37, 29, 0.3);
-            letter-spacing: 1px;
-        }
-        .btn-login:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 20px 25px -5px rgba(218, 37, 29, 0.4);
-            filter: brightness(1.1);
-        }
-
-        .forgot-link {
-            display: block;
-            text-align: right;
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 13px;
-            text-decoration: none;
-            margin-top: 12px;
-            transition: color 0.3s;
-        }
-        .forgot-link:hover { color: var(--primary-gold); text-decoration: underline; }
-
-        .footer-text {
-            position: relative;
-            z-index: 1;
-            margin-top: 30px;
-            color: rgba(255, 255, 255, 0.4);
             font-size: 12px;
-            text-align: center;
+            font-weight: 700;
+            text-uppercase: uppercase;
+            letter-spacing: 1px;
+            color: #475569;
+            margin-bottom: 8px;
+            margin-left: 4px;
         }
 
-        @keyframes fadeInDown {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
+        .form-control {
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            border-radius: 16px;
+            padding: 14px 20px;
+            font-size: 15px;
+            font-weight: 500;
+            color: #1e293b;
+            transition: all 0.2s;
         }
-        @keyframes fadeInUp {
+
+        .form-control:focus {
+            background: #fff;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+            outline: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            border: none;
+            border-radius: 16px;
+            padding: 16px;
+            font-weight: 700;
+            font-size: 16px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.4);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 20px 25px -5px rgba(37, 99, 235, 0.5);
+        }
+
+        @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Modal Customization */
-        .modal-content {
-            background: var(--dark-bg);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
-            color: #fff;
+        .footer-note {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 12px;
+            color: #94a3b8;
+            font-weight: 500;
         }
-        .modal-header { border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .modal-footer { border-top: 1px solid rgba(255,255,255,0.1); }
-        .btn-close-white { filter: invert(1) grayscale(100%) brightness(200%); }
     </style>
 </head>
 <body>
+    <!-- Ambient Blobs -->
+    <div class="blob" style="top: -10%; left: -10%;"></div>
+    <div class="blob" style="bottom: -10%; right: -10%; background: radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0) 70%);"></div>
 
-
-
-    <div class="login-card shadow-2xl">
-        <div class="brand-section">
-            <div class="logo-circle mx-auto mb-4 bg-primary rounded-circle d-flex align-items-center justify-content-center shadow-lg" style="width: 100px; height: 100px; border: 4px solid rgba(255,255,255,0.2);">
-                <i class="fa-solid fa-shield-halved text-white fs-1"></i>
-            </div>
-            <h2 class="brand-name text-uppercase fw-bold text-white mb-1" style="font-size: 1.5rem; line-height: 1.4; white-space: nowrap;">PC06 TUYÊN QUANG</h2>
-        </div>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for cat, msg in messages %}
-                    <div class="alert alert-danger border-0 rounded-4 mb-4 small py-3" style="background: rgba(220, 38, 38, 0.2); color: #fca5a5;">
-                        <i class="fa-solid fa-circle-exclamation me-2"></i>{{ msg }}
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        <form method="post">
-            <div class="mb-3">
-                <label class="form-label">Tên đăng nhập</label>
-                <input type="text" name="username" class="form-control" placeholder="Nhập ID tài khoản..." autocomplete="username" required autofocus oninvalid="this.setCustomValidity('Vui lòng không bỏ trống trường này.')" oninput="this.setCustomValidity('')">
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Mật khẩu</label>
-                <div class="input-group shadow-sm border rounded-3 overflow-hidden bg-white bg-opacity-10" style="border-color: rgba(255,255,255,0.15) !important;">
-                    <input type="password" name="password" id="password_field" class="form-control bg-transparent border-0" placeholder="Nhập mật khẩu..." autocomplete="current-password" required oninvalid="this.setCustomValidity('Vui lòng không bỏ trống trường này.')" oninput="this.setCustomValidity('')">
-                    <button class="btn border-0 text-white-50" type="button" onclick="togglePasswordVisibility()">
-                        <i class="fa-regular fa-eye" id="eye_icon"></i>
-                    </button>
-                </div>
+    <div class="login-container">
+        <div class="bento-card">
+            <div class="logo-box">
+                <i class="fa-solid fa-shield-halved"></i>
             </div>
             
-            <a href="#" class="forgot-link" data-bs-toggle="modal" data-bs-target="#forgotModal">Quên mật khẩu?</a>
+            <h1 class="brand-title">HỆ THỐNG PC06</h1>
+            <p class="brand-subtitle text-uppercase letter-spacing-1">Cảng hàng không QT Nội Bài</p>
 
-            <button type="submit" class="btn-login mt-4">
-                ĐĂNG NHẬP HỆ THỐNG
-            </button>
-        </form>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  <div class="alert alert-{{ 'danger' if category == 'error' else category }} rounded-4 border-0 shadow-sm mb-4 py-3 px-4">
+                    <div class="d-flex align-items-center gap-2 small fw-bold">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        {{ message }}
+                    </div>
+                  </div>
+                {% endfor %}
+            <form method="POST">
+                <div class="mb-4">
+                    <label class="form-label text-uppercase letter-spacing-1">Tên tài khoản</label>
+                    <input type="text" name="username" class="form-control" placeholder="Nhập tên đăng nhập..." required autocomplete="username">
+                </div>
+
+                <div class="mb-5">
+                    <label class="form-label d-flex justify-content-between text-uppercase letter-spacing-1">
+                        Mật khẩu
+                        <a href="#" class="text-decoration-none text-primary tiny fw-bold" data-bs-toggle="modal" data-bs-target="#forgotModal">Quên mật khẩu?</a>
+                    </label>
+                    <div class="input-group">
+                        <input type="password" name="password" id="password_field" class="form-control" placeholder="••••••••" required autocomplete="current-password" style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                        <button class="btn btn-outline-light border px-3" type="button" onclick="togglePasswordVisibility()" style="border-top-right-radius: 16px; border-bottom-right-radius: 16px; background: rgba(255,255,255,0.5);">
+                            <i class="fa-regular fa-eye-slash text-muted" id="eye_icon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 mb-2">
+                    ĐĂNG NHẬP HỆ THỐNG <i class="fa-solid fa-arrow-right ms-2"></i>
+                </button>
+            </form>
+            
+            <p class="footer-note">
+                © 2024 PC06 - Công an tỉnh Tuyên Quang<br>
+                Hệ thống Quản lý Dữ liệu Nội bộ
+            </p>
+        </div>
     </div>
 
     <div class="footer-text">

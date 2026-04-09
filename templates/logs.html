@@ -1,27 +1,31 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header mb-4 setup-mode animate__animated animate__fadeIn">
+<div class="page-header mb-4 animate__animated animate__fadeIn">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <!-- Hybrid-Next Breadcrumb Flow -->
         <div class="d-flex align-items-center gap-3">
-            <div class="bg-primary p-3 rounded-4 shadow-sm">
-                <i class="fa-solid fa-clock-rotate-left text-white fs-4"></i>
+            <div class="glass-panel p-2 rounded-4 shadow-sm" style="background: var(--primary-gradient);">
+                <i class="fa-solid fa-clock-rotate-left text-white fs-5"></i>
             </div>
-            <div>
-                <h1 class="h3 fw-bold text-dark mb-1">Nhật ký Hệ thống</h1>
-                <p class="text-muted mb-0 small"><span class="badge bg-dark rounded-pill px-3 me-2">CHẾ ĐỘ QUẢN TRỊ</span> Theo dõi lịch sử thao tác & biến động dữ liệu</p>
-            </div>
+            <nav class="breadcrumb-nav glass-panel d-none d-lg-flex px-3 py-2 rounded-pill">
+                <span class="segment fw-bold text-dark">HỆ THỐNG</span>
+                <div class="picker-chip glass-panel active shadow-sm" style="background: white;">
+                    NHẬT KÝ HOẠT ĐỘNG
+                </div>
+            </nav>
+            <h1 class="h4 fw-bold text-dark mb-0 d-lg-none">Nhật ký</h1>
         </div>
         
         <div class="header-actions d-none d-md-flex gap-2">
             <form method="POST" action="/logs" class="d-inline">
                 <input type="hidden" name="action" value="backup">
                 <button type="submit" class="btn btn-outline-success rounded-pill px-4 fw-bold shadow-sm">
-                    <i class="fa-solid fa-file-excel me-1"></i> SAO LƯU EXCEL
+                    <i class="fa-solid fa-cloud-arrow-down me-1"></i> SAO LƯU
                 </button>
             </form>
-            <button class="btn btn-danger rounded-pill px-4 fw-bold shadow-lg" data-bs-toggle="modal" data-bs-target="#clearLogsModal">
-                <i class="fa-solid fa-trash-can me-1"></i> DỌN DẸP
+            <button class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#clearLogsModal">
+                <i class="fa-solid fa-broom me-1"></i> DỌN DẸP
             </button>
         </div>
     </div>
@@ -50,25 +54,31 @@
 </div>
 
 <div class="main-content-area animate__animated animate__fadeInUp">
-    <!-- Tabs Navigation -->
-    <ul class="nav nav-pills gap-2 mb-4 bg-white p-2 rounded-pill shadow-sm d-inline-flex border">
-        <li class="nav-item">
-            <button class="nav-link {% if not start and not end and not user_search %}active{% endif %} rounded-pill fw-bold px-4" data-bs-toggle="pill" data-bs-target="#tab-live">
-                HOẠT ĐỘNG GẦN ĐÂY
-            </button>
-        </li>
-        <li class="nav-item">
-            <button class="nav-link {% if start or end or user_search %}active{% endif %} rounded-pill fw-bold px-4" data-bs-toggle="pill" data-bs-target="#tab-search">
-                TRA CỨU & LỌC
-            </button>
-        </li>
-    </ul>
+    <!-- Hybrid-Next Tabs Navigation -->
+    <div class="d-flex mb-4">
+        <ul class="nav nav-pills gap-2 glass-panel p-2 rounded-pill shadow-sm border">
+            <li class="nav-item">
+                <button class="nav-link {% if not start and not end and not user_search %}active{% endif %} rounded-pill fw-bold px-4" data-bs-toggle="pill" data-bs-target="#tab-live" style="transition: all 0.3s;">
+                    HOẠT ĐỘNG MỚI
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link {% if start or end or user_search %}active{% endif %} rounded-pill fw-bold px-4" data-bs-toggle="pill" data-bs-target="#tab-search" style="transition: all 0.3s;">
+                    BỘ LỌC NÂNG CAO
+                </button>
+            </li>
+        </ul>
+    </div>
 
     <div class="tab-content">
         <!-- Tab: Live Activity -->
         <div class="tab-pane fade {% if not start and not end and not user_search %}show active{% endif %}" id="tab-live">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-                <div class="card-body p-0">
+            <div class="bento-card overflow-hidden">
+                <div class="bg-primary bg-opacity-5 py-3 px-4 d-flex justify-content-between align-items-center border-bottom" style="border-color: var(--border) !important;">
+                    <h6 class="fw-bold text-primary mb-0 text-uppercase letter-spacing-1 small">Nhật ký trực tuyến</h6>
+                    <span class="badge bg-primary-gradient text-white rounded-pill px-3 py-1 tiny shadow-sm fw-bold">LIVE</span>
+                </div>
+                <div class="p-0">
                     <div class="table-responsive">
                         <table class="table table-custom align-middle mb-0">
                             <thead class="tiny fw-bold text-muted text-uppercase">
