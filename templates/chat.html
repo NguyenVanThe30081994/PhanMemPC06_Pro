@@ -169,12 +169,17 @@
     .message-received { background: white; color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid var(--border); }
 </style>
 
+<script>
+let currentRecipientId = null;
+let lastMsgId = 0;
+let selectedFiles = [];
+
 function filterUsers() {
     let input = document.getElementById('unitSearch').value.toLowerCase();
     let entries = document.querySelectorAll('#userList .user-entry');
     entries.forEach(item => {
-        let name = item.getAttribute('data-name');
-        let unit = item.getAttribute('data-unit');
+        let name = item.getAttribute('data-name') || '';
+        let unit = item.getAttribute('data-unit') || '';
         if (name.includes(input) || unit.includes(input)) {
             item.style.display = 'flex';
         } else {
@@ -198,6 +203,7 @@ function filterUsersPC() {
 
 function selectUser(id, name) {
     currentRecipientId = id;
+    lastMsgId = 0; // Reset to load history
     
     // Highlight active user in both lists
     document.querySelectorAll('.user-entry').forEach(el => el.classList.remove('active'));
@@ -210,10 +216,116 @@ function selectUser(id, name) {
     document.getElementById('chatWithTitle').innerText = name;
     document.getElementById('chatStatusHeader').innerText = 'Hội thoại với ' + name;
     document.getElementById('activeUserAvatar').innerText = name.substring(0,1).toUpperCase();
-    loadMessages();
+    
+    document.getElementById('messageArea').innerHTML = '<div class="text-center p-5 opacity-50"><div class="spinner-border spinner-border-sm me-2"></div>Đang tải tin nhắn...</div>';
+    loadMessages(true);
 }
 
-// ... existing message loading and sending logic (polling, etc) kept same ...
-// [Note: I'll assume the script block below would contain the JS from previous sessions]
+function loadMessages(scrollToBottom = false) {
+    if (!currentRecipientId) return;
+
+    fetch(`/api_hist?t=${currentRecipientId}&s=private`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                const messageArea = document.getElementById('messageArea');
+                if (lastMsgId === 0) {
+                    messageArea.innerHTML = data.h;
+                } else if (data.last_id > lastMsgId) {
+                    // This is a simple implementation, ideally we append only new ones
+                    // But based on the API returning full HTML for history, we just check if changed
+                    messageArea.innerHTML = data.h;
+                }
+                
+                if (scrollToBottom || data.last_id > lastMsgId) {
+                    messageArea.scrollTop = messageArea.scrollHeight;
+                }
+                lastMsgId = data.last_id;
+            }
+        });
+}
+
+function sendMessage() {
+    const text = document.getElementById('messageInput').value.trim();
+    if (!text && selectedFiles.length === 0) return;
+    if (!currentRecipientId) return;
+
+    const fd = new FormData();
+    fd.append('s', 'private');
+    fd.append('t', currentRecipientId);
+    fd.append('m', text);
+    selectedFiles.forEach(f => fd.append('f', f));
+
+    // UI feedback
+    const btn = document.querySelector('button[onclick="sendMessage()"]');
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+    fetch('/api_send', { method: 'POST', body: fd })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            if (data.ok) {
+                document.getElementById('messageInput').value = '';
+                selectedFiles = [];
+                document.getElementById('filePreview').innerHTML = '';
+                loadMessages(true);
+            } else {
+                alert(data.msg || 'Lỗi gửi tin nhắn');
+            }
+        });
+}
+
+function handleFileSelect(e) {
+    const files = Array.from(e.target.files);
+    selectedFiles = selectedFiles.concat(files);
+    renderFilePreview();
+}
+
+function renderFilePreview() {
+    const preview = document.getElementById('filePreview');
+    preview.innerHTML = '';
+    selectedFiles.forEach((f, idx) => {
+        const div = document.createElement('div');
+        div.className = 'badge bg-light text-dark border p-2 d-flex align-items-center gap-2';
+        div.innerHTML = `
+            <i class="fa-solid fa-file-lines opacity-50"></i>
+            <span class="tiny">${f.name}</span>
+            <i class="fa-solid fa-xmark cursor-pointer text-danger" onclick="removeFile(${idx})"></i>
+        `;
+        preview.appendChild(div);
+    });
+}
+
+function removeFile(idx) {
+    selectedFiles.splice(idx, 1);
+    renderFilePreview();
+}
+
+function togglePasswordVisibility() {
+    // This is for login, but included if needed
+    const f = document.getElementById('password_field');
+    const i = document.getElementById('eye_icon');
+    if (f.type === 'password') {
+        f.type = 'text';
+        i.classList.replace('fa-eye-slash', 'fa-eye');
+    } else {
+        f.type = 'password';
+        i.classList.replace('fa-eye', 'fa-eye-slash');
+    }
+}
+
+// Auto-poll
+setInterval(() => loadMessages(), 3000);
+
+// Enter to send
+document.getElementById('messageInput')?.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
 </script>
 {% endblock %}

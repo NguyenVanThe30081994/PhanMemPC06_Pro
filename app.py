@@ -82,7 +82,7 @@ def check_auth():
 @app.context_processor
 def inject_global_data():
     if not session.get('uid'):
-        return {}
+        return {'perms': {}}
     perms = {}
     is_admin = session.get('is_admin', False)
     role_name = "Không xác định"

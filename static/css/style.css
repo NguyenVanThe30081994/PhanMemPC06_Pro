@@ -1575,5 +1575,25 @@ body.sidebar-collapsed .app-split-col-ops {
 [data-theme="dark"] .report-card-footer {
     background: rgba(255,255,255,0.02);
 }
-@ m e d i a   p r i n t   {   . t o p - n a v b a r ,   . s i d e b a r ,   . m o b i l e - b o t t o m - n a v ,   . o f f c a n v a s ,   . n o - p r i n t ,   . b t n ,   . b r e a d c r u m b   {   d i s p l a y :   n o n e   ! i m p o r t a n t ;   }   . m a i n - c o n t e n t - a r e a   {   m a r g i n :   0   ! i m p o r t a n t ;   p a d d i n g :   0   ! i m p o r t a n t ;   }   b o d y   {   p a d d i n g - t o p :   0   ! i m p o r t a n t ;   }   }  
- 
+
+/* Global Dropdown Consistency */
+.dropdown-menu {
+    border-radius: 16px !important;
+    overflow: hidden;
+    border: 1px solid var(--border) !important;
+    box-shadow: var(--shadow-lg) !important;
+    backdrop-filter: blur(10px);
+}
+
+@media print {
+    .top-navbar, .sidebar, .mobile-bottom-nav, .offcanvas, .no-print, .btn, .breadcrumb {
+        display: none !important;
+    }
+    .main-content-area {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    body {
+        padding-top: 0 !important;
+    }
+}
