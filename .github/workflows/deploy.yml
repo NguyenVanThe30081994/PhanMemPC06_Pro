@@ -1,0 +1,24 @@
+name: Tự động đẩy code lên PC06 Host
+
+on:
+  push:
+    branches:
+      - main  # Kiểm tra lại nếu nhánh chính của bạn là 'master' thì sửa thành 'master'
+
+jobs:
+  web-deploy:
+    name: 🚀 Deploying...
+    runs-on: ubuntu-latest
+    steps:
+    - name: 🚚 Lấy code mới nhất từ Repo
+      uses: actions/checkout@v3
+
+    - name: 📂 Đồng bộ hóa file lên Host
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        server-dir: ./
+        # Nếu muốn xóa các file cũ trên host mà trên GitHub không có, 
+        # hãy thêm dòng 'server-dir: ./' và 'dangerous-clean-slate: false'
