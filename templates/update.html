@@ -110,11 +110,12 @@
 <!-- Upload Patch Modal -->
 <div class="modal fade" id="uploadPatchModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <form action="{{ url_for('admin_bp.system_update') }}" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg rounded-4">
-            <div class="modal-header bg-dark text-white border-0 py-3">
+        <form action="{{ url_for('admin_bp.system_update') }}" method="POST" enctype="multipart/form-data" class="modal-content border-0">
+            <div class="modal-header modal-header-pill dark">
                 <h5 class="modal-title fw-bold">CÀI ĐẶT BẢN VÁ THỦ CÔNG</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
+
             <div class="modal-body p-4">
                 <div class="mb-3">
                     <label class="form-label fw-bold">Chọn tệp cập nhật (.zip)</label>

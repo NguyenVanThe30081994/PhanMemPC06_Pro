@@ -181,12 +181,12 @@
 <!-- Add Role Modal -->
 <div class="modal fade" id="addRoleModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="modal-content border-0">
             <form method="POST">
                 <input type="hidden" name="action" value="add_role">
-                <div class="modal-header bg-primary text-white p-4 border-0">
+                <div class="modal-header modal-header-pill primary">
                     <h5 class="modal-title fw-bold">TẠO VAI TRÒ MỚI</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="mb-4">
@@ -233,13 +233,13 @@
 <!-- Edit Perms Modal -->
 <div class="modal fade" id="editPermsModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="modal-content border-0">
             <form method="POST">
                 <input type="hidden" name="action" value="edit_perms">
                 <input type="hidden" name="role_id" id="edit_rid">
-                <div class="modal-header bg-dark text-white p-4 border-0">
+                <div class="modal-header modal-header-pill dark">
                     <h5 class="modal-title fw-bold" id="edit_role_name">SỬA QUYỀN VAI TRÒ</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="table-responsive">
@@ -282,12 +282,12 @@
 <!-- Add User Modal -->
 <div class="modal fade" id="addUserModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="modal-content border-0">
             <form method="POST">
                 <input type="hidden" name="action" value="add_user">
-                <div class="modal-header bg-primary text-white p-4 border-0">
+                <div class="modal-header modal-header-pill primary">
                     <h5 class="modal-title fw-bold">THÊM TÀI KHOẢN MỚI</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="row g-3 mb-3">
@@ -340,13 +340,13 @@
 <!-- Edit User Modal -->
 <div class="modal fade" id="editUserModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="modal-content border-0">
             <form method="POST">
                 <input type="hidden" name="action" value="edit_user">
                 <input type="hidden" name="user_id" id="edit_user_id">
-                <div class="modal-header bg-dark text-white p-4 border-0">
+                <div class="modal-header modal-header-pill dark">
                     <h5 class="modal-title fw-bold">CHỈNH SỬA TÀI KHOẢN</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="row g-3 mb-3">
@@ -392,11 +392,11 @@
 <!-- Import User Modal -->
 <div class="modal fade" id="importUserModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="modal-content border-0">
             <form action="/admin/users/import" method="POST" enctype="multipart/form-data">
-                <div class="modal-header bg-success text-white p-4 border-0">
+                <div class="modal-header modal-header-pill success">
                     <h5 class="modal-title fw-bold">NHẬP TÀI KHOẢN TỪ EXCEL</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="alert alert-success border-0 rounded-3 small mb-4">

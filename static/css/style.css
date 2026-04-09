@@ -24,7 +24,7 @@
     --glass-bg: rgba(255, 255, 255, 0.7);
     --glass-border: rgba(255, 255, 255, 0.4);
     --glass-border-bottom: rgba(0, 0, 0, 0.05);
-    --glass-blur: 40px;
+    --glass-blur: 25px;
     --glass-saturate: 180%;
     
     /* LIQUID GLASS SHADOWS - Layered depth */
@@ -54,7 +54,7 @@
     --glass-bg: rgba(30, 41, 59, 0.5);
     --glass-border: rgba(255, 255, 255, 0.12);
     --glass-border-bottom: rgba(0, 0, 0, 0.2);
-    --glass-blur: 40px;
+    --glass-blur: 25px;
     --glass-saturate: 200%;
     --glass-shadow: 0 15px 35px rgba(0, 0, 0, 0.4), 0 5px 15px rgba(0, 0, 0, 0.2);
     
@@ -181,10 +181,10 @@
 /* --- NEW LIQUID GLASS HEADER (V23) --- */
 .glass-header {
     background: rgba(255, 255, 255, 0.15) !important;
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
+    backdrop-filter: blur(20px) saturate(var(--glass-saturate)) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(var(--glass-saturate)) !important;
     
-    /* Specular Highlights: Top edge glow, Bottom edge shadow */
+    /* Liquid Specularity */
     border-top: 1px solid var(--glass-border) !important;
     border-bottom: 1px solid var(--glass-border-bottom) !important;
     border-left: none !important;
@@ -200,6 +200,10 @@
     align-items: center;
     position: relative;
     overflow: hidden;
+
+    /* SHARP RENDERING FIX */
+    transform: translateZ(0);
+    -webkit-font-smoothing: antialiased;
 }
 
 /* Sub-text contrast protection overlay */
@@ -211,36 +215,22 @@
     pointer-events: none;
 }
 
-[data-theme="dark"] .glass-header {
-    background: rgba(30, 41, 59, 0.4) !important;
-    border-bottom-color: rgba(255, 255, 255, 0.05) !important;
-}
-    display: flex !important;
-    align-items: center !important;
-    gap: 12px !important;
-    position: relative;
-    border-radius: 20px 20px 0 0;
-}
-
-[data-theme='dark'] .glass-header {
-    background: rgba(255, 255, 255, 0.03) !important;
-    color: #fff !important;
-}
-
-/* Header Variants */
 .glass-header.success { color: #10b981 !important; }
 .glass-header.warning { color: #f59e0b !important; }
 .glass-header.danger  { color: #ef4444 !important; }
 .glass-header.info    { color: #3b82f6 !important; }
 
-/* --- LIQUID GLASS THEAD (V23) --- */
+/* --- LIQUID GLASS THEAD (V24) --- */
 .pill-thead {
-    background: rgba(255, 255, 255, 0.2) !important;
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
+    background: rgba(var(--bg-surface-rgb), 0.3) !important;
+    backdrop-filter: blur(20px) saturate(var(--glass-saturate)) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(var(--glass-saturate)) !important;
     border-top: 1px solid var(--glass-border) !important;
     border-bottom: 1px solid var(--glass-border-bottom) !important;
     border-radius: 0 !important;
+    
+    /* SHARP RENDERING FIX */
+    transform: translateZ(0);
 }
 
 [data-theme="dark"] .pill-thead {
@@ -583,33 +573,175 @@ body {
     transform: translateY(-2px);
 }
 
-/* --- LIQUID GLASS MODAL & OFFCANVAS (V24) --- */
-.modal-content, .offcanvas {
-    background: rgba(255, 255, 255, 0.75) !important;
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
-    border-radius: 28px !important;
+/* =======================================================
+   LIQUID GLASS MODAL SYSTEM - macOS 26 Tahoe (V26)
+   Architecture: Glass Shell → Floating Pill Header → Content
+   ======================================================= */
+
+/* --- 1. Glass Shell (Modal Container) --- */
+.modal-content {
+    background: rgba(240, 245, 255, 0.72) !important;
+    backdrop-filter: blur(var(--glass-blur)) saturate(220%) brightness(1.05) !important;
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(220%) brightness(1.05) !important;
     
-    /* Specular border for floating elements */
-    border-top: 1px solid rgba(255, 255, 255, 0.6) !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
-    border-left: 1px solid rgba(255, 255, 255, 0.3) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.3) !important;
+    /* macOS 26: Pillowy rounded corners */
+    border-radius: 32px !important;
+    overflow: visible !important; /* Allow pill to float above */
     
-    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.2) !important;
+    /* Specular Highlight System: Top glow (reflected light) + Bottom shadow */
+    border-top: 1.5px solid rgba(255, 255, 255, 0.75) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.4) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.4) !important;
+    
+    /* Layered floating shadow */
+    box-shadow: 
+        0 50px 120px rgba(0, 0, 0, 0.18),
+        0 20px 40px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+    
+    /* GPU sharp rendering */
+    transform: translateZ(0);
+    will-change: backdrop-filter;
 }
 
-[data-theme="dark"] .modal-content, 
+[data-theme="dark"] .modal-content {
+    background: rgba(15, 25, 50, 0.72) !important;
+    border-top-color: rgba(255, 255, 255, 0.18) !important;
+    border-left-color: rgba(255, 255, 255, 0.08) !important;
+    border-right-color: rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 
+        0 50px 120px rgba(0, 0, 0, 0.5),
+        0 20px 40px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+/* --- 2. Liquid Modal Open Animation --- */
+@keyframes liquidModalIn {
+    from {
+        opacity: 0;
+        transform: scale(0.92) translateY(12px);
+        filter: blur(4px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+        filter: blur(0);
+    }
+}
+
+.modal.show .modal-dialog {
+    animation: liquidModalIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* --- 3. Floating Pill Header (macOS 26 Standard) --- */
+/* Base pill - used as wrapper inside modal */
+.modal-header-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    
+    /* Floating pill geometry */
+    margin: 16px 16px 0 16px;
+    padding: 11px 20px;
+    border-radius: 100px; /* Full pill shape */
+    
+    /* Primary gradient (default) */
+    background: var(--primary-gradient) !important;
+    
+    /* Specular inner glow - simulates light hitting glass rim */
+    box-shadow: 
+        0 6px 20px rgba(0, 102, 255, 0.35),
+        0 2px 8px rgba(0, 102, 255, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
+    
+    color: #fff !important;
+    border: none !important;
+    
+    /* Sharp text rendering */
+    transform: translateZ(0);
+    -webkit-font-smoothing: antialiased;
+}
+
+.modal-header-pill .modal-title {
+    font-weight: 800 !important;
+    font-size: 0.9rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.8px !important;
+    color: #fff !important;
+    flex: 1;
+}
+
+.modal-header-pill .btn-close {
+    filter: brightness(0) invert(1) !important;
+    opacity: 0.85 !important;
+    transition: all 0.2s !important;
+}
+.modal-header-pill .btn-close:hover {
+    opacity: 1 !important;
+    transform: scale(1.15) !important;
+}
+
+/* --- 4. Pill Color Variants --- */
+.modal-header-pill.primary {
+    background: var(--primary-gradient) !important;
+    box-shadow: 0 6px 20px rgba(0, 102, 255, 0.35), inset 0 1px 0 rgba(255,255,255,0.45) !important;
+}
+
+.modal-header-pill.dark {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+}
+
+.modal-header-pill.success {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4), inset 0 1px 0 rgba(255,255,255,0.45) !important;
+}
+
+.modal-header-pill.danger {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4), inset 0 1px 0 rgba(255,255,255,0.45) !important;
+}
+
+.modal-header-pill.warning {
+    background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%) !important;
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4), inset 0 1px 0 rgba(255,255,255,0.45) !important;
+}
+
+/* --- 5. Modal Body & Footer Spacing (compensate floating pill) --- */
+.modal-body {
+    padding: 20px 24px 16px !important;
+}
+
+.modal-footer {
+    background: transparent !important;
+    border-top: 1px solid var(--glass-border-bottom) !important;
+    padding: 16px 24px !important;
+    border-radius: 0 0 28px 28px !important;
+}
+
+/* --- 6. Offcanvas (Sidebar drawer) - separate from modal --- */
+.offcanvas {
+    background: rgba(240, 245, 255, 0.82) !important;
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.6) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 10px 0 60px rgba(0, 0, 0, 0.12) !important;
+    transform: translateZ(0);
+}
+
 [data-theme="dark"] .offcanvas {
-    background: rgba(30, 41, 59, 0.7) !important;
-    border-top-color: rgba(255, 255, 255, 0.15) !important;
+    background: rgba(15, 23, 42, 0.88) !important;
+    border-top-color: rgba(255, 255, 255, 0.12) !important;
 }
 
 .modal-header, .offcanvas-header {
     background: transparent !important;
-    border-bottom: 1px solid var(--glass-border-bottom) !important;
-    padding: 20px 24px !important;
+    border-bottom: none !important;
+    padding: 0 !important;
 }
+
 
 /* THEMED UTILITIES */
 .bg-surface { background-color: var(--bg-surface) !important; }
@@ -881,12 +1013,11 @@ body {
 
 /* Glassmorphism Classes */
 /* LIQUID GLASS CLASSES (V23) */
-.glass-card, .card, .bento-card {
+.glass-card, .bento-card {
     background: var(--glass-bg) !important;
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
     
-    /* Complex Border: Light top, Dark/Muted bottom */
     border-top: 1px solid var(--glass-border) !important;
     border-bottom: 1px solid var(--glass-border-bottom) !important;
     border-left: 1px solid var(--glass-border) !important;
@@ -894,8 +1025,12 @@ body {
     
     box-shadow: var(--glass-shadow) !important;
     border-radius: var(--corner-card) !important;
-    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* Liquid "bouncy" transition */
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     position: relative;
+    
+    /* SHARP RENDERING FIX */
+    transform: translateZ(0); 
+    -webkit-font-smoothing: antialiased;
 }
 
 /* Liquid Inflation Effect */

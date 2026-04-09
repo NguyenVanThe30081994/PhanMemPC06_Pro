@@ -96,12 +96,13 @@
 <!-- Add Link Modal -->
 <div class="modal fade" id="addLinkModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="modal-content border-0">
             <form method="POST" action="{{ url_for('shortlink_bp.add_link') }}">
-                <div class="modal-header bg-primary fw-bold text-white p-4 border-0">
+                <div class="modal-header modal-header-pill primary">
                     <h5 class="modal-title fw-bold"><i class="fa-solid fa-wand-magic-sparkles me-2"></i>Tạo Link Rút Gọn</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
+
                 <div class="modal-body p-4 bg-light">
                     <div class="mb-4">
                         <label class="form-label fw-bold text-dark small"><i class="fa-solid fa-globe me-2 text-primary"></i>LIÊN KẾT GỐC (URL)*</label>

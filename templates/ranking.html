@@ -134,7 +134,11 @@
         display: flex; align-items: center; justify-content: center; font-weight: 800;
         margin: 0 auto; box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
-    .backdrop-blur { backdrop-filter: blur(10px); }
+    .backdrop-blur { 
+        backdrop-filter: blur(15px); 
+        -webkit-backdrop-filter: blur(15px);
+        transform: translateZ(0); 
+    }
     .group-badge-1 { background: #fee2e2; color: #ef4444; }
     .group-badge-2 { background: #ffedd5; color: #f97316; }
     .group-badge-7 { background: #f1f5f9; color: #64748b; }
