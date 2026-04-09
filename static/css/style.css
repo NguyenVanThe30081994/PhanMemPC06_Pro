@@ -21,7 +21,9 @@
     --text-muted: #64748b;
     --border: #e2e8f0;
     --border-light: #f1f5f9;
-    --glass-border: rgba(255, 255, 255, 0.4);
+    --glass-bg: rgba(255, 255, 255, 0.45);
+    --glass-border: rgba(255, 255, 255, 0.6);
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
     
     /* HYBRID-NEXT ELEVATION SYSTEM - High Dimension Shadows */
     --shadow-lvl1: 0 1px 2px rgba(0,0,0,0.06);
@@ -42,7 +44,9 @@
     --text-main: #f8fafc;
     --text-muted: #94a3b8;
     --border: #334155;
-    --glass-border: rgba(255, 255, 255, 0.05);
+    --glass-bg: rgba(30, 41, 59, 0.45);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
     
     /* ELEVATION SYSTEM (DARK) - SOFTENED */
     --shadow-lvl1: 0 1px 3px rgba(0, 0, 0, 0.4);
@@ -765,8 +769,65 @@ body.sidebar-collapsed .app-split-col-ops {
     font-weight: 700;
 }
 
-.task-card-body {
-    padding: 20px;
+body {
+    background: 
+        radial-gradient(at 0% 0%, rgba(0, 102, 255, 0.08) 0, transparent 40%),
+        radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.08) 0, transparent 40%),
+        radial-gradient(at 100% 100%, rgba(52, 211, 153, 0.05) 0, transparent 40%),
+        radial-gradient(at 0% 100%, rgba(244, 63, 94, 0.05) 0, transparent 40%),
+        var(--bg-body);
+    background-attachment: fixed;
+    min-height: 100vh;
+}
+
+/* Glassmorphism Classes */
+.glass-card, .card, .bento-card {
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(16px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--glass-shadow) !important;
+    border-radius: 20px !important;
+    transition: var(--transition);
+}
+
+.glass-card:hover, .card:hover, .bento-card:hover {
+    background: rgba(255, 255, 255, 0.55) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.12) !important;
+}
+
+[data-theme="dark"] .glass-card:hover, 
+[data-theme="dark"] .card:hover, 
+[data-theme="dark"] .bento-card:hover {
+    background: rgba(30, 41, 59, 0.6) !important;
+}
+
+/* Refined Table for Glass */
+.table-responsive {
+    border-radius: 0 0 20px 20px;
+}
+
+.table-custom {
+    background: transparent !important;
+}
+
+.table-custom tbody tr {
+    background: transparent !important;
+    border-bottom: 1px solid var(--glass-border) !important;
+}
+
+.table-custom tbody tr:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+[data-theme="dark"] .table-custom tbody tr:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.pill-thead {
+    background: rgba(0, 102, 255, 0.7) !important; /* Semi-transparent for glass effect */
+    backdrop-filter: blur(4px);
 }
 
 .table-freeze { 

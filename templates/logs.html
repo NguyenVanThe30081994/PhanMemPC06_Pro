@@ -8,9 +8,9 @@
             <div class="glass-panel p-2 rounded-4 shadow-sm" style="background: var(--primary-gradient);">
                 <i class="fa-solid fa-clock-rotate-left text-white fs-5"></i>
             </div>
-            <nav class="breadcrumb-nav glass-panel d-none d-lg-flex px-3 py-2 rounded-pill">
+            <nav class="breadcrumb-nav glass-card d-none d-lg-flex px-3 py-2 rounded-pill">
                 <span class="segment fw-bold text-dark">HỆ THỐNG</span>
-                <div class="picker-chip glass-panel active shadow-sm" style="background: white;">
+                <div class="picker-chip glass-card active shadow-sm" style="background: rgba(255,255,255,0.4) !important;">
                     NHẬT KÝ HOẠT ĐỘNG
                 </div>
             </nav>
@@ -56,7 +56,7 @@
 <div class="main-content-area animate__animated animate__fadeInUp">
     <!-- Hybrid-Next Tabs Navigation -->
     <div class="d-flex mb-4">
-        <ul class="nav nav-pills gap-2 glass-panel p-2 rounded-pill shadow-sm border">
+        <ul class="nav nav-pills gap-2 glass-card p-2 rounded-pill shadow-sm border">
             <li class="nav-item">
                 <button class="nav-link {% if not start and not end and not user_search %}active{% endif %} rounded-pill fw-bold px-4" data-bs-toggle="pill" data-bs-target="#tab-live" style="transition: all 0.3s;">
                     HOẠT ĐỘNG MỚI
@@ -112,7 +112,7 @@
 
         <!-- Tab: Search & Filter -->
         <div class="tab-pane fade {% if start or end or user_search %}show active{% endif %}" id="tab-search">
-            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 glass-card">
                 <form action="/logs" method="GET">
                     <div class="row g-4 align-items-end">
                         <div class="col-md-3">

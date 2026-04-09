@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-header px-4 pt-4 mb-4 animate__animated animate__fadeIn">
     <div class="header-main-group">
-        <div class="header-title-pill shadow-sm bg-white">
+        <div class="header-title-pill shadow-sm glass-card">
             <h1 class="mb-0">Bảng xếp hạng 124 Xã (Đội 1)</h1>
         </div>
         <div class="header-actions">
@@ -51,7 +51,7 @@
     <div class="row g-4">
         <div class="col-xl-8">
             <div class="table-header-pill">Chi tiết xếp hạng hệ thống</div>
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
                 <div class="table-responsive custom-scrollbar" style="max-height: 600px;">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="pill-thead sticky-top" style="z-index: 10;">
@@ -90,7 +90,7 @@
         </div>
 
         <div class="col-xl-4 text-dark">
-            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
                 <h6 class="fw-bold mb-3">Quy tắc chấm điểm (V13)</h6>
                 <ul class="list-unstyled small mb-0">
                     <li class="mb-3 d-flex gap-2">
@@ -108,7 +108,7 @@
                 </ul>
             </div>
 
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
                 <div class="p-4 bg-primary text-white">
                     <h6 class="fw-bold mb-0">Cơ cấu điểm Nhóm</h6>
                 </div>
@@ -138,6 +138,6 @@
     .group-badge-7 { background: #f1f5f9; color: #64748b; }
     
     .ranking-row { transition: all 0.2s; }
-    .ranking-row:hover { background-color: #f8fbff !important; transform: scale(1.002); }
+    .ranking-row:hover { background-color: rgba(255, 255, 255, 0.1) !important; transform: scale(1.002); }
 </style>
 {% endblock %}

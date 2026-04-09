@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-header px-4 pt-4 mb-4 animate__animated animate__fadeIn">
     <div class="header-main-group">
-        <div class="header-title-pill shadow-sm bg-white">
+        <div class="header-title-pill shadow-sm glass-card">
             <h1 class="mb-0">Nhập số liệu Xếp hạng</h1>
         </div>
         <div class="header-actions">
@@ -19,7 +19,7 @@
         <!-- Sidebar: Chọn chỉ tiêu -->
         <div class="col-xl-3">
             <div class="table-header-pill w-100 justify-content-center">Chỉ tiêu chấm điểm</div>
-            <div class="card border-0 shadow-sm rounded-4 bg-white sticky-top" style="top: 100px;">
+            <div class="card border-0 shadow-sm rounded-4 sticky-top" style="top: 100px;">
                 <div class="list-group list-group-flush p-2">
                     {% for ind in indicators %}
                     <button class="list-group-item list-group-item-action border-0 rounded-3 mb-1 indicator-select" 
@@ -42,7 +42,7 @@
                     <span id="currentIndName">Chỉ tiêu...</span>
                     <div id="saveStatus" class="text-success small fw-bold"><i class="fa-solid fa-cloud-check me-1"></i>Tự động lưu</div>
                 </div>
-                <div class="card border-0 shadow-sm rounded-4 bg-white overflow-hidden">
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
                 
                 <div class="table-responsive custom-scrollbar" style="max-height: 700px;">
                     <table class="table table-hover align-middle mb-0">

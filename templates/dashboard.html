@@ -7,7 +7,7 @@
             <h1 class="h3 fw-bold text-dark mb-1">Tổng quan hệ thống PC06</h1>
         </div>
         <div class="text-end">
-            <div class="badge bg-white shadow-sm border text-primary px-3 py-2 rounded-pill mb-1">
+            <div class="badge glass-card border text-primary px-3 py-2 rounded-pill mb-1" style="background: rgba(255,255,255,0.4) !important;">
                 <i class="fa-regular fa-clock me-2"></i>{{ dt_str }}
             </div>
             <div class="text-muted small">Cập nhật lúc: {{ dt_str.split(' ')[1] }}</div>
@@ -18,47 +18,47 @@
 <!-- Stats Row -->
 <div class="row g-4 mb-5">
     <div class="col-md-3">
-        <div class="stat-card p-4 rounded-4 shadow-sm border-0 bg-primary text-white position-relative overflow-hidden">
+        <div class="stat-card p-4 rounded-4 shadow-sm border-0 glass-card position-relative overflow-hidden" style="background: linear-gradient(135deg, rgba(0, 102, 255, 0.2) 0%, rgba(0, 102, 255, 0.05) 100%) !important;">
             <div class="position-relative" style="z-index: 2;">
-                <h6 class="text-white-50 small text-uppercase fw-bold mb-3">Tổng công việc</h6>
+                <h6 class="text-primary small text-uppercase fw-bold mb-3">Tổng công việc</h6>
                 <div class="d-flex align-items-end gap-2">
-                    <h2 class="display-6 fw-bold mb-0">{{ tot }}</h2>
+                    <h2 class="display-6 fw-bold mb-0 text-primary">{{ tot }}</h2>
                 </div>
-                <div class="mt-3 small text-white-50">
-                    <i class="fa-solid fa-check-circle me-1"></i> {{ done }} Hoàn thành
+                <div class="mt-3 small text-muted">
+                    <i class="fa-solid fa-check-circle me-1 text-success"></i> {{ done }} Hoàn thành
                 </div>
             </div>
-            <i class="fa-solid fa-list-check position-absolute end-0 bottom-0 p-4 opacity-25 display-1" style="transform: translate(10%, 20%)"></i>
+            <i class="fa-solid fa-list-check position-absolute end-0 bottom-0 p-4 opacity-10 display-1 text-primary" style="transform: translate(10%, 20%)"></i>
         </div>
     </div>
     
     <div class="col-md-3">
-        <div class="stat-card p-4 rounded-4 shadow-sm border-0 bg-success text-white position-relative overflow-hidden">
+        <div class="stat-card p-4 rounded-4 shadow-sm border-0 glass-card position-relative overflow-hidden" style="background: linear-gradient(135deg, rgba(52, 211, 153, 0.2) 0%, rgba(52, 211, 153, 0.05) 100%) !important;">
             <div class="position-relative" style="z-index: 2;">
-                <h6 class="text-white-50 small text-uppercase fw-bold mb-3">Danh bạ liên hệ</h6>
+                <h6 class="text-success small text-uppercase fw-bold mb-3">Danh bạ liên hệ</h6>
                 <div class="d-flex align-items-end gap-2">
-                    <h2 class="display-6 fw-bold mb-0">{{ c_contacts }}</h2>
+                    <h2 class="display-6 fw-bold mb-0 text-success">{{ c_contacts }}</h2>
                 </div>
-                <div class="mt-3 small text-white-50">
-                    <i class="fa-solid fa-address-book me-1"></i> Thông tin liên lạc
+                <div class="mt-3 small text-muted">
+                    <i class="fa-solid fa-address-book me-1 text-success"></i> Thông tin liên lạc
                 </div>
             </div>
-            <i class="fa-solid fa-address-book position-absolute end-0 bottom-0 p-4 opacity-25 display-1" style="transform: translate(10%, 20%)"></i>
+            <i class="fa-solid fa-address-book position-absolute end-0 bottom-0 p-4 opacity-10 display-1 text-success" style="transform: translate(10%, 20%)"></i>
         </div>
     </div>
 
     <div class="col-md-3">
-        <div class="stat-card p-4 rounded-4 shadow-sm border-0 bg-warning text-white position-relative overflow-hidden">
+        <div class="stat-card p-4 rounded-4 shadow-sm border-0 glass-card position-relative overflow-hidden" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(245, 158, 11, 0.05) 100%) !important;">
             <div class="position-relative" style="z-index: 2;">
-                <h6 class="text-white-50 small text-uppercase fw-bold mb-3">Người dùng hệ thống</h6>
+                <h6 class="text-warning small text-uppercase fw-bold mb-3">Người dùng hệ thống</h6>
                 <div class="d-flex align-items-end gap-2">
-                    <h2 class="display-6 fw-bold mb-0">{{ c_users }}</h2>
+                    <h2 class="display-6 fw-bold mb-0 text-warning">{{ c_users }}</h2>
                 </div>
-                <div class="mt-3 small text-white-50">
-                    <i class="fa-solid fa-users me-1"></i> Tài khoản nội bộ
+                <div class="mt-3 small text-muted">
+                    <i class="fa-solid fa-users me-1 text-warning"></i> Tài khoản nội bộ
                 </div>
             </div>
-            <i class="fa-solid fa-users position-absolute end-0 bottom-0 p-4 opacity-25 display-1" style="transform: translate(10%, 20%)"></i>
+            <i class="fa-solid fa-users position-absolute end-0 bottom-0 p-4 opacity-10 display-1 text-warning" style="transform: translate(10%, 20%)"></i>
         </div>
     </div>
 

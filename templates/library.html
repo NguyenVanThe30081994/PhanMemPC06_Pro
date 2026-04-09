@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-header mb-4 animate__animated animate__fadeIn">
     <div class="header-main-group">
-        <div class="header-title-pill shadow-sm">
+        <div class="header-title-pill shadow-sm glass-card">
             <i class="fa-solid fa-book-bookmark"></i>
             <h1 class="mb-0">Thư viện Tài liệu</h1>
         </div>
@@ -19,7 +19,7 @@
 </div>
 
 <!-- Unified Filter Hub -->
-<div class="filter-bar-unified animate__animated animate__fadeInUp">
+<div class="filter-bar-unified animate__animated animate__fadeInUp mb-4 glass-card" style="background: rgba(255,255,255,0.2) !important;">
     <div class="search-box-modern">
         <i class="fa-solid fa-magnifying-glass"></i>
         <input type="text" id="librarySearch" placeholder="Tìm tên tài liệu hoặc mô tả..." onkeyup="unifiedFilter()">
@@ -44,7 +44,7 @@
             <div class="row g-4" id="libraryGrid">
                 {% for item in items %}
                 <div class="col-xl-3 col-lg-4 col-md-6 library-item" data-category="{{ item.category }}">
-                    <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100 hover-up" style="background-color: var(--bg-surface);">
+                    <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100 hover-up">
                         <div class="card-body p-4 d-flex flex-column">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <div class="bg-primary bg-opacity-10 p-2 rounded-3">
