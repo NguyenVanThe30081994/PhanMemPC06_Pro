@@ -172,8 +172,7 @@
 }
 
 .header-title-pill i {
-    color: var(--bs-primary);
-    font-size: 1.1rem;
+    display: none !important;
 }
 
 .header-title-pill h1 {
@@ -303,11 +302,10 @@
 
 /* Setup Mode Identity */
 .page-header.setup-mode {
-    background: linear-gradient(135deg, rgba(30, 41, 59, 0.08), rgba(30, 41, 59, 0.03)) !important;
-    border: 1px dashed var(--border) !important;
-    padding: 24px !important;
-    border-radius: 24px !important;
-    box-shadow: var(--shadow-lvl1);
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
 }
 
 .page-header.setup-mode .bg-primary {
@@ -425,10 +423,13 @@ body {
     color: var(--primary);
 }
 
-.nav-item-top.active {
-    color: var(--primary);
-    border-bottom-color: var(--primary);
-    font-weight: 600;
+.nav-link-top.active { 
+    color: #fff !important; 
+    background: var(--primary) !important; 
+    border-radius: 50px !important; 
+    padding: 6px 20px !important;
+    box-shadow: var(--shadow-primary) !important;
+    border-bottom: none !important;
 }
 
 .card {

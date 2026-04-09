@@ -62,11 +62,11 @@
         .notif-item { border-bottom: 1px solid var(--border); transition: background 0.2s; }
         .notif-item:hover { background: var(--bg-body); }
         .notif-item.unread { border-left: 3px solid var(--primary); background: rgba(37,99,235,0.03); }
-        .nav-link-top { height: 100%; padding: 0 15px; color: var(--text-muted); font-weight: 600; text-decoration: none; position: relative; transition: all 0.2s; border-bottom: 3px solid transparent; display: flex; align-items: center; justify-content: center; line-height: 1; margin: 0; }
-        .dropdown { display: flex; align-items: center; justify-content: center; height: 100%; }
+        .nav-link-top { height: auto; padding: 6px 15px; color: var(--text-muted); font-weight: 600; text-decoration: none; position: relative; transition: all 0.2s; border-bottom: none; display: flex; align-items: center; justify-content: center; line-height: 1; margin: auto 5px; border-radius: 50px; }
+        .dropdown { display: flex; align-items: center; justify-content: center; height: 100%; margin: 0 5px; }
         .chat-full-width { padding-left: 0 !important; padding-right: 0 !important; max-width: none !important; width: 100% !important; margin-top: -1.5rem !important; }
-        .nav-link-top:hover { color: var(--primary); }
-        .nav-link-top.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .nav-link-top:hover { color: var(--primary); background: rgba(0, 102, 255, 0.05); }
+        .nav-link-top.active { color: #fff !important; background: var(--primary) !important; box-shadow: var(--shadow-primary) !important; }
         .chat-full-page { padding: 0 !important; margin: 0 !important; max-width: 100vw !important; width: 100vw !important; overflow: hidden; }
 
         /* Mobile Bottom Nav */
@@ -390,9 +390,9 @@
                 </button>
 
                 <a href="/admin" class="nav-logo text-decoration-none d-flex align-items-center">
-                    <div class="mobile-logo-wrapper">
-                        <span class="mobile-logo-top fw-bold text-dark" style="letter-spacing: -1px;">PC06</span>
-                        <span class="mobile-logo-bottom d-lg-inline opacity-75">Tuyên Quang</span>
+                    <div class="header-title-pill shadow-sm" style="background: var(--primary); border-color: var(--primary); padding: 6px 18px; color: #fff;">
+                        <i class="fa-solid fa-shield-halved text-white" style="font-size: 0.9rem;"></i>
+                        <span class="fw-bold" style="font-size: 0.95rem; letter-spacing: 0.5px;">PC06 TUYÊN QUANG</span>
                     </div>
                 </a>
             </div>
