@@ -2,18 +2,21 @@
 
 {% block content %}
 <div class="page-header mb-4 animate__animated animate__fadeIn">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-        <div class="d-flex align-items-center gap-3">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 w-100">
+        <div class="header-main-group">
             <div class="bg-primary p-2 rounded-4">
                 <i class="fa-solid fa-house-chimney text-white fs-5"></i>
             </div>
             <nav class="breadcrumb-nav">
-                <span class="segment fw-bold text-dark">TỔNG QUAN</span>
+                <span class="segment fw-bold text-dark">TỔNG QUAN HỆ THỐNG</span>
             </nav>
         </div>
-        <div class="d-flex align-items-center gap-3 text-muted tiny fw-bold opacity-75">
-            <div id="dashboard-weather"><i class="fa-solid fa-cloud-sun me-1"></i>Đang tải thời tiết...</div>
-            <div class="border-start ps-3" id="dashboard-clock"><i class="fa-solid fa-clock me-1"></i>--/--/---- 00:00</div>
+        
+        <div class="header-side-group">
+            <div class="header-status-pill">
+                <div id="dashboard-weather"><i class="fa-solid fa-cloud-sun"></i> Đang tải...</div>
+                <div class="border-start ps-3" id="dashboard-clock"><i class="fa-solid fa-clock"></i> --:--</div>
+            </div>
         </div>
     </div>
 </div>

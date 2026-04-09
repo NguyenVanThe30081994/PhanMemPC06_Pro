@@ -245,6 +245,16 @@
                 icon.classList.add('fa-eye');
             }
         }
+
+        // Enter key to login
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.querySelector('form').submit();
+                }
+            });
+        });
     </script>
 </body>
 </html>
