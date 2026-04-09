@@ -17,67 +17,50 @@
 </div>
 
 <div class="main-content-area animate__animated animate__fadeInUp">
-<!-- Unified Filter Hub -->
-<div class="filter-bar-unified animate__animated animate__fadeInUp">
-    <div class="search-box-modern">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" id="templateSearch" placeholder="Tìm tên biểu mẫu..." onkeyup="unifiedFilter()">
+    <!-- Unified Filter Hub -->
+    <div class="filter-bar-unified animate__animated animate__fadeInUp mb-4">
+        <div class="search-box-modern w-100">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="templateSearch" placeholder="Tìm tên biểu mẫu..." onkeyup="unifiedFilter()">
+        </div>
     </div>
-    
-    <div class="filter-divider"></div>
-    
-    <div class="filter-pills-container">
-        <a href="/admin-forms?form_type=v1" class="filter-pill {% if form_type != 'v2' %}active{% endif %} text-decoration-none">BIỂU MẪU V1</a>
-        <a href="/reports-v2" class="filter-pill text-decoration-none">BIỂU MẪU V2</a>
-    </div>
-</div>
 
-    <div class="row g-4">
-        {% if form_type == 'v2' %}
-            {# This is mostly handled by reports_v2_dashboard, but in case they use this route #}
-            {% for t in v2_templates %}
-            <div class="col-xl-3 col-lg-4 col-md-6 template-item">
-                    <div class="card-body p-4">
-                        <div class="badge bg-primary bg-opacity-10 text-primary mb-3">V2</div>
-                        <h6 class="fw-bold text-dark mb-3 line-clamp-2" style="height: 44px;">{{ t.name }}</h6>
-                        <div class="d-flex gap-2 mt-4">
-                            <a href="{{ url_for('reports_v2_bp.render_report', tid=t.id) }}" class="btn btn-sm btn-primary flex-grow-1 rounded-pill fw-bold">XEM</a>
+    <div class="row g-3">
+        {% for f in configs %}
+        <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 template-item">
+            <div class="card compact-admin-card shadow-sm h-100 border-0">
+                <div class="card-body p-3 d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="badge bg-primary bg-opacity-10 text-primary tiny fw-bold">V1</span>
+                        <div class="admin-actions d-flex gap-1">
+                            <a href="{{ url_for('forms_bp.config_form', fid=f.id) }}" class="btn btn-tiny btn-light shadow-sm" title="Cấu hình trường">
+                                <i class="fa-solid fa-gear text-primary"></i>
+                            </a>
+                            <button class="btn btn-tiny btn-light shadow-sm" title="Xóa biểu mẫu" onclick="ModernConfirm('Xác nhận xóa?', 'Xóa mẫu này và toàn bộ dữ liệu báo cáo?', 'warning', 'Xóa ngay', () => { window.location.href='{{ url_for('forms_bp.delete_form', fid=f.id) }}' })">
+                                <i class="fa-solid fa-trash-can text-danger"></i>
+                            </button>
                         </div>
+                    </div>
+                    
+                    <h6 class="fw-bold text-dark mb-2 line-clamp-2" style="font-size: 0.9rem; min-height: 2.7rem;" title="{{ f.name }}">
+                        {{ f.name }}
+                    </h6>
+                    
+                    <div class="tiny text-muted mb-3">
+                        <i class="fa-solid fa-clock-rotate-left me-1"></i>{{ counts.get(f.id, 0) }} báo cáo
+                    </div>
+
+                    <div class="mt-auto">
+                        <a href="{{ url_for('forms_bp.stats', rid=f.id) }}" class="btn btn-primary w-100 rounded-pill tiny fw-bold py-2 shadow-sm">
+                            DỮ LIỆU
+                        </a>
                     </div>
                 </div>
             </div>
-            {% endfor %}
-        {% else %}
-            {% for f in configs %}
-            <div class="col-xl-3 col-lg-4 col-md-6">
-                <div class="card border-0 shadow-sm rounded-4 h-100 hover-up" style="background-color: var(--bg-surface);">
-                    <div class="card-body p-4 d-flex flex-column">
-                        <div class="d-flex justify-content-between align-items-start mb-3">
-                            <div class="bg-primary bg-opacity-10 p-2 rounded-3 text-primary">
-                                <i class="fa-solid fa-table"></i>
-                            </div>
-                            <span class="badge bg-light text-muted border tiny fw-bold">V1</span>
-                        </div>
-                        <h6 class="fw-bold text-dark mb-2 line-clamp-2" style="height: 44px;">{{ f.name }}</h6>
-                        <div class="tiny text-muted mb-4">
-                            <i class="fa-solid fa-clock-rotate-left me-1"></i>Đã có {{ counts.get(f.id, 0) }} lượt báo cáo
-                        </div>
-                        
-                        <div class="mt-auto d-flex gap-2">
-                            <a href="{{ url_for('forms_bp.config_form', fid=f.id) }}" class="btn btn-sm btn-light border flex-grow-1 rounded-pill fw-bold tiny">
-                                <i class="fa-solid fa-gear me-1"></i>CẤU HÌNH
-                            </a>
-                            <a href="{{ url_for('forms_bp.delete_form', fid=f.id) }}" class="btn btn-sm btn-outline-danger btn-circle btn-circle-sm border-0" onclick="return confirm('Xóa mẫu này và dữ liệu?')">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        {% endif %}
+        </div>
+        {% endfor %}
 
-        {% if not configs and form_type != 'v2' %}
+        {% if not configs %}
         <div class="col-12 py-5 text-center">
             <div class="opacity-25 mb-3"><i class="fa-solid fa-folder-open fa-4x text-muted"></i></div>
             <h5 class="fw-bold text-muted">Chưa có biểu mẫu V1 nào được thiết lập</h5>
@@ -127,23 +110,19 @@
 </div>
 
 <style>
-    .hover-up { transition: all 0.3s; }
-    .hover-up:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important; }
+    .compact-admin-card { transition: transform 0.2s; background: #fff; border-radius: 12px; }
+    .compact-admin-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.05) !important; }
+    .btn-tiny { width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; border-radius: 6px; }
+    .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .tiny { font-size: 11px; }
 </style>
 
 <script>
     function unifiedFilter() {
         const query = document.getElementById('templateSearch').value.toLowerCase();
-        const items = document.querySelectorAll('.template-item');
-        
-        items.forEach(item => {
-            const text = item.innerText.toLowerCase();
-            if (text.includes(query)) {
-                item.style.display = 'block';
-            } else {
-                item.style.display = 'none';
-            }
+        document.querySelectorAll('.template-item').forEach(el => {
+            const title = el.querySelector('h6').innerText.toLowerCase();
+            el.style.display = title.includes(query) ? 'block' : 'none';
         });
     }
 </script>

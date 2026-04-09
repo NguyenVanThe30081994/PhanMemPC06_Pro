@@ -17,77 +17,54 @@
         </div>
     </div>
 </div>
-<!-- Unified Filter Hub -->
-<div class="filter-bar-unified animate__animated animate__fadeInUp">
-    <div class="search-box-modern">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" id="v2Search" placeholder="Tìm tên biểu mẫu V2..." onkeyup="unifiedFilter()">
-    </div>
-</div>
 
 <div class="main-content-area animate__animated animate__fadeInUp">
-    <div class="row g-4">
+    <!-- Unified Filter Hub -->
+    <div class="filter-bar-unified animate__animated animate__fadeInUp mb-4">
+        <div class="search-box-modern w-100">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="v2Search" placeholder="Tìm tên biểu mẫu V2..." onkeyup="unifiedFilter()">
+        </div>
+    </div>
+
+    <div class="row g-3">
         {% for t in templates %}
-        <div class="col-xl-3 col-lg-4 col-md-6 template-item">
-            <div class="report-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-4">
-                        <div class="report-card-icon bg-indigo-light text-indigo">
-                            
-                        </div>
-                        <div class="d-flex flex-column align-items-end gap-1">
-                            <span class="report-card-badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">V2</span>
-                            {% if t.is_daily %}
-                            <span class="report-card-badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25">Hàng ngày</span>
-                            {% endif %}
+        <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 template-item">
+            <div class="card compact-admin-card shadow-sm h-100 border-0">
+                <div class="card-body p-3 d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="badge bg-indigo-light text-indigo tiny fw-bold">V2</span>
+                        <div class="admin-actions d-flex gap-1">
+                            <a href="{{ url_for('reports_v2_bp.edit_template', tid=t.id) }}" class="btn btn-tiny btn-light shadow-sm" title="Thiết lập mẫu">
+                                <i class="fa-solid fa-gear text-primary"></i>
+                            </a>
+                            <button class="btn btn-tiny btn-light shadow-sm" title="Xóa mẫu" onclick="ModernConfirm('Xác nhận xóa?', 'Xóa mẫu v2 này sẽ không thể khôi phục. Tiếp tục?', 'warning', 'Xóa ngay', () => { 
+                                const form = document.createElement('form');
+                                form.method = 'POST';
+                                form.action = '{{ url_for('reports_v2_bp.delete_template', tid=t.id) }}';
+                                document.body.appendChild(form);
+                                form.submit();
+                            })">
+                                <i class="fa-solid fa-trash-can text-danger"></i>
+                            </button>
                         </div>
                     </div>
                     
-                    <h6 class="report-card-title">{{ t.name }}</h6>
-                    {% if t.description %}
-                    <p class="report-card-meta mb-4 line-clamp-2" style="height: 32px; text-transform: none;">{{ t.description }}</p>
-                    {% else %}
-                    <p class="report-card-meta mb-4" style="height: 32px; text-transform: none;">Tạo bởi: {{ t.created_by }}</p>
-                    {% endif %}
+                    <h6 class="fw-bold text-dark mb-2 line-clamp-2" style="font-size: 0.9rem; min-height: 2.7rem;" title="{{ t.name }}">
+                        {{ t.name }}
+                    </h6>
+
+                    <div class="tiny text-muted mb-3">
+                        <i class="fa-solid fa-calendar-day me-1"></i>{% if t.is_daily %}Hàng ngày{% else %}Định kỳ{% endif %}
+                    </div>
 
                     <div class="mt-auto">
-                        <a href="{{ url_for('forms_bp.stats', rid=t.id, v2=1, form_type='v2') }}" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">
-                            XEM DỮ LIỆU
+                        <a href="{{ url_for('forms_bp.stats', rid=t.id, v2=1, form_type='v2') }}" class="btn btn-primary w-100 rounded-pill tiny fw-bold py-2 shadow-sm">
+                            DỮ LIỆU
                         </a>
                     </div>
                 </div>
-
-                <div class="report-card-footer">
-                    <div class="small fw-bold text-muted text-uppercase" style="font-size: 10px;">
-                        {% set sub_count = 0 %}
-                        {% for v in t.versions %}
-                            {% set sub_count = sub_count + v.submissions|length %}
-                        {% endfor %}
-                        Đã nộp: <span class="text-primary">{{ sub_count }}</span>
-                    </div>
-                    {% if is_admin %}
-                    <div class="dropdown no-print">
-                        <button class="btn btn-light btn-sm rounded-circle p-1" style="width:30px; height:30px;" data-bs-toggle="dropdown">
-                            <i class="fa-solid fa-ellipsis-vertical small"></i>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-2">
-                            <li><a class="dropdown-item py-2 rounded-3 small fw-bold" href="{{ url_for('reports_v2_bp.edit_template', tid=t.id) }}">
-                                Sửa cấu hình
-                            </a></li>
-                            <li><hr class="dropdown-divider opacity-10"></li>
-                            <li><button class="dropdown-item py-2 rounded-3 small fw-bold text-danger btn-delete-v2" 
-                                        data-tid="{{ t.id }}" data-name="{{ t.name }}">
-                                Xóa biểu mẫu
-                            </button></li>
-                        </ul>
-                    </div>
-                    {% endif %}
-                </div>
             </div>
-        </div>
-        {% else %}
-        <div class="col-12 text-center py-5">
-            <h5 class="fw-bold text-muted">Chưa có biểu mẫu nào được tạo</h5>
         </div>
         {% endfor %}
     </div>
@@ -97,125 +74,51 @@
 <div class="modal fade" id="uploadV2Modal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-            <form id="uploadV2Form" enctype="multipart/form-data">
+            <form action="{{ url_for('reports_v2_bp.upload_v2') }}" method="POST" enctype="multipart/form-data">
                 <div class="modal-header bg-primary text-white p-4 border-0">
-                    <h5 class="modal-title fw-bold">TẠO BIỂU MẪU V2</h5>
+                    <h5 class="modal-title fw-bold">TẠO MẪU BIỂU MẪU V2 MỚI</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small">TÊN BIỂU MẪU</label>
-                        <input type="text" name="name" class="form-control" required placeholder="Ví dụ: Báo cáo Tuần Giao thông">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-dark small">TÊN BIỂU MẪU (V2)</label>
+                        <input type="text" name="name" class="form-control" placeholder="Ví dụ: Báo cáo cao điểm tấn công tội phạm" required>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small">FILE EXCEL MẪU (.xlsx)</label>
-                        <div class="input-group">
-                            <label class="input-group-text bg-light tiny fw-bold cursor-pointer" for="v2TemplateFile" id="v2FileNameLabel">CHỌN TỆP EXCEL</label>
-                            <input type="file" name="template_excel" class="form-control d-none" id="v2TemplateFile" accept=".xlsx" required
-                                   onchange="document.getElementById('v2FileNameLabel').innerText = 'Đã chọn: ' + this.files[0].name; document.getElementById('v2FileNameLabel').classList.replace('bg-light', 'bg-success-subtle');">
-                        </div>
-                        <div class="form-text tiny mt-2 text-primary">
-                            Hệ thống sẽ tự động phân tích Styles, Merged Cells và Metadata.
-                        </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-dark small">FILE EXCEL MẪU (.xlsx)</label>
+                        <input type="file" name="file" class="form-control" accept=".xlsx" required>
                     </div>
-                    <div class="p-3 bg-warning bg-opacity-10 border border-warning border-opacity-25 rounded-4">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" name="is_daily" id="v2DailyCheck">
-                            <label class="form-check-label fw-bold small text-dark" for="v2DailyCheck">
-                                BIỂU MẪU BÁO CÁO HÀNG NGÀY
-                            </label>
-                            <div class="tiny text-muted mt-1">Giới hạn mỗi đơn vị chỉ nộp 1 lần/ngày.</div>
-                        </div>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" name="is_daily" id="isDailySwitch">
+                        <label class="form-check-label fw-bold text-muted small" for="isDailySwitch">Báo cáo hàng ngày</label>
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-0">
                     <button type="button" class="btn btn-light border rounded-pill px-4 fw-bold" data-bs-dismiss="modal">HỦY</button>
-                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">
-                        PHÂN TÍCH & TẠO
-                    </button>
+                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">TẢI LÊN & KHỞI TẠO</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
+<style>
+    .compact-admin-card { transition: transform 0.2s; background: #fff; border-radius: 12px; }
+    .compact-admin-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.05) !important; }
+    .btn-tiny { width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; border-radius: 6px; }
+    .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .tiny { font-size: 11px; }
+    .bg-indigo-light { background-color: #eef2ff; }
+    .text-indigo { color: #4f46e5; }
+</style>
+
 <script>
-document.getElementById('uploadV2Form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = e.target.querySelector('button[type="submit"]');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>ĐANG XỬ LÝ...';
-
-    const formData = new FormData(e.target);
-    // Pass is_daily as string for the route to read
-    if (!formData.has('is_daily')) formData.set('is_daily', 'false');
-    
-    try {
-        const r = await fetch('/reports-v2/upload', { method: 'POST', body: formData });
-        const d = await r.json();
-        if (d.success) {
-            Swal.fire('Thành công!', 'Biểu mẫu đã được phân tích và lưu thành công!', 'success')
-                .then(() => window.location.reload());
-        } else {
-            Swal.fire('Lỗi', d.error, 'error');
-        }
-    } catch (err) {
-        Swal.fire('Lỗi', 'Không thể kết nối máy chủ', 'error');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'PHÂN TÍCH & TẠO';
-    }
-});
-
-// Connect delete buttons
-document.querySelectorAll('.btn-delete-v2').forEach(btn => {
-    btn.addEventListener('click', () => {
-        confirmDelete(btn.dataset.tid, btn.dataset.name);
-    });
-});
-
-    async function confirmDelete(tid, name) {
-        const result = await Swal.fire({
-            title: 'Xác nhận xóa?',
-            html: `Biểu mẫu <strong>${name}</strong> và toàn bộ dữ liệu sẽ bị xóa vĩnh viễn.`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonText: 'Hủy',
-            confirmButtonText: 'Xác nhận xóa'
-        });
-        if (!result.isConfirmed) return;
-
-        const r = await fetch(`/reports-v2/delete/${tid}`, { method: 'POST' });
-        const d = await r.json();
-        if (d.success) {
-            Swal.fire('Đã xóa!', '', 'success').then(() => window.location.reload());
-        } else {
-            Swal.fire('Lỗi', d.error, 'error');
-        }
-    }
-
     function unifiedFilter() {
         const query = document.getElementById('v2Search').value.toLowerCase();
-        const items = document.querySelectorAll('.template-item');
-        
-        items.forEach(item => {
-            const text = item.innerText.toLowerCase();
-            if (text.includes(query)) {
-                item.style.display = 'block';
-            } else {
-                item.style.display = 'none';
-            }
+        document.querySelectorAll('.template-item').forEach(el => {
+            const title = el.querySelector('h6').innerText.toLowerCase();
+            el.style.display = title.includes(query) ? 'block' : 'none';
         });
     }
 </script>
-
-<style>
-    .bg-indigo-light { background: #e0e7ff; }
-    .text-indigo { color: #4f46e5; }
-    .hover-card { transition: all 0.3s; }
-    .hover-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important; }
-    .line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-clamp: 2; }
-    .tiny { font-size: 11px; }
-</style>
 {% endblock %}
