@@ -307,11 +307,16 @@
 
         /* Modern Sidebar Glassmorphism & Animations */
         .mobile-sidebar {
-            backdrop-filter: blur(15px) saturate(180%);
-            -webkit-backdrop-filter: blur(15px) saturate(180%);
-            background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.85) !important;
-            border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
-            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.75) !important;
+            backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
+            -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
+            
+            /* Liquid Specularity: Top glowing border, Right subtle border */
+            border-top: 1px solid rgba(255, 255, 255, 0.4) !important;
+            border-right: 1px solid rgba(0, 0, 0, 0.05) !important;
+            
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 10px 0 40px rgba(0, 0, 0, 0.05);
         }
         [data-theme="dark"] .mobile-sidebar {
             background: rgba(15, 23, 42, 0.85) !important;
@@ -381,7 +386,7 @@
     </style>
 </head>
 <body>
-    <nav class="top-navbar glass-card rounded-0 border-top-0 border-start-0 border-end-0">
+    <nav class="top-navbar">
         <div class="nav-container px-4">
             <div class="nav-left d-flex align-items-center">
                 <!-- Mobile Toggle: Stitch Styled -->
@@ -390,7 +395,7 @@
                 </button>
 
                 <a href="/admin" class="nav-logo text-decoration-none d-flex align-items-center">
-                    <div class="header-title-pill shadow-sm glass-card" style="background: var(--primary-gradient) !important; border-color: rgba(255,255,255,0.2) !important; padding: 6px 18px; color: #fff;">
+                    <div class="header-title-pill shadow-sm glass-card" style="background: var(--primary-gradient) !important; border-top: 1px solid rgba(255,255,255,0.4) !important; padding: 6px 18px; color: #fff;">
                         <i class="fa-solid fa-shield-halved text-white" style="font-size: 0.9rem;"></i>
                         <span class="fw-bold" style="font-size: 0.95rem; letter-spacing: 0.5px;">PC06 TUYÊN QUANG</span>
                     </div>
