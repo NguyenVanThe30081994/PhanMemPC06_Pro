@@ -109,6 +109,12 @@
 }
 
 /* Page Header Layout Optimization */
+.page-header {
+    position: relative;
+    z-index: 1020;
+    overflow: visible !important;
+}
+
 .page-header > div {
     display: grid !important;
     grid-template-columns: 1fr auto 1fr; /* Trái - Giữa - Phải */
@@ -1600,6 +1606,9 @@ body.sidebar-collapsed .app-split-col-ops {
 
 /* --- Modern Unified Filter System --- */
 .filter-bar-unified {
+    position: relative;
+    z-index: 1010;
+    overflow: visible !important;
     display: flex;
     align-items: center;
     gap: 12px;

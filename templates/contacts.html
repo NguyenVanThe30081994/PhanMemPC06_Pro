@@ -2,14 +2,20 @@
 
 {% block content %}
 <div class="page-header mb-4 animate__animated animate__fadeIn">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div class="d-flex justify-content-start align-items-center flex-wrap gap-4">
         <div class="d-flex align-items-center gap-3">
-            <div class="bento-card p-3 rounded-4 shadow-sm border-0">
-                <i class="fa-solid fa-address-book text-primary fs-5"></i>
+            <div class="bg-primary bg-opacity-10 p-3 rounded-4 shadow-sm">
+                <i class="fa-solid fa-address-book text-primary fs-4"></i>
             </div>
+            <div>
+                <h1 class="h3 fw-bold text-dark mb-1">Danh bạ Đơn vị</h1>
+                <p class="text-muted mb-0 small">Thông tin liên lạc các đội nghiệp vụ & đơn vị</p>
+            </div>
+        </div>
+        
         <div class="header-actions">
             {% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
-            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addContactModal">
+            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#addContactModal">
                 <i class="fa-solid fa-plus me-2"></i>THÊM LIÊN HỆ
             </button>
             {% endif %}
