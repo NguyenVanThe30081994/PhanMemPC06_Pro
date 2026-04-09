@@ -158,6 +158,37 @@
     font-size: 1.05rem;
 }
 
+.header-title-pill {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    padding: 8px 24px;
+    border-radius: 100px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-main);
+}
+
+.header-title-pill i {
+    color: var(--bs-primary);
+    font-size: 1.1rem;
+}
+
+.header-title-pill h1 {
+    font-size: 1.1rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+[data-theme='dark'] .header-title-pill {
+    background: rgba(30, 41, 59, 0.6);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
+}
+
 #dashboard-weather, #dashboard-clock {
     display: flex;
     align-items: center;
