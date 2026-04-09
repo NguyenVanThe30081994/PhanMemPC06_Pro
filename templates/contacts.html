@@ -18,9 +18,9 @@
 </div>
 
 <!-- Floating Action Button for Mobile -->
-<button class="btn btn-primary d-md-none rounded-circle shadow-lg position-fixed d-flex align-items-center justify-content-center animate__animated animate__bounceIn" 
-        style="width: 60px; height: 60px; bottom: 85px; right: 20px; z-index: 1100; padding: 0; border: none; font-size: 24px;"
-        data-bs-toggle="dropdown" aria-expanded="false">
+<button class="btn btn-primary d-md-none btn-circle shadow-lg position-fixed d-flex align-items-center justify-content-center animate__animated animate__bounceIn" 
+        style="--circle-size: 60px; bottom: 85px; right: 20px; z-index: 1100; border: none; font-size: 24px;"
+        data-bs-dropdown="false" data-bs-toggle="dropdown" aria-expanded="false">
     +
 </button>
 <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 mb-3 rounded-4 p-2">
@@ -75,7 +75,7 @@
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-center justify-content-center gap-3">
-                                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width:36px; height:36px; font-size:12px;">{{ c.name[:1].upper() }}</div>
+                                            <div class="bg-primary text-white btn-circle btn-circle-sm d-flex align-items-center justify-content-center fw-bold" style="--circle-size: 36px; font-size:12px;">{{ c.name[:1].upper() }}</div>
                                             <div>
                                                 <div class="fw-bold text-dark mb-0">{{ c.name }}</div>
                                                 <div class="tiny text-muted uppercase fw-bold">{{ c.role }}</div>
@@ -117,7 +117,7 @@
                         {% for c in contacts %}
                         <div class="contact-card-mobile p-3 mb-3 border rounded-4 shadow-sm bg-white animate__animated animate__fadeInUp">
                             <div class="d-flex align-items-center gap-3 mb-3">
-                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width:48px; height:48px; font-size:16px;">{{ c.name[:1].upper() }}</div>
+                                <div class="bg-primary text-white btn-circle d-flex align-items-center justify-content-center fw-bold" style="--circle-size: 48px; font-size:16px;">{{ c.name[:1].upper() }}</div>
                                 <div>
                                     <div class="fw-bold text-dark mb-0 fs-6">{{ c.name }}</div>
                                     <div class="tiny text-muted uppercase fw-bold">{{ c.role }}</div>

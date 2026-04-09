@@ -265,19 +265,57 @@
         .table-custom tr:last-child td { border-bottom: none !important; }
         .table-responsive { border-radius: 0 !important; border: none !important; }
     </style>
+    <style>
+        /* Mobile UI Enhancements */
+        @media (max-width: 768px) {
+            .mobile-logo-wrapper {
+                line-height: 1.1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }
+            .mobile-logo-top {
+                font-size: 16px;
+                font-weight: 800;
+                letter-spacing: 0.5px;
+            }
+            .mobile-logo-bottom {
+                font-size: 11px;
+                font-weight: 500;
+                color: var(--text-muted);
+                text-transform: none;
+            }
+        }
+
+        /* Standardized Circle Button Utility */
+        .btn-circle {
+            aspect-ratio: 1 / 1 !important;
+            padding: 0 !important;
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0 !important;
+            width: var(--circle-size, 40px);
+            height: var(--circle-size, 40px);
+        }
+        .btn-circle-sm { --circle-size: 30px; }
+        .btn-circle-md { --circle-size: 45px; }
+        .btn-circle-lg { --circle-size: 55px; }
+    </style>
 </head>
 <body>
     <nav class="top-navbar border-bottom">
         <div class="nav-container">
             <div class="nav-left d-flex align-items-center">
                 <!-- Mobile Navigation Toggle -->
-                <button class="btn btn-light d-lg-none me-3 rounded-circle shadow-sm" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
+                <button class="btn btn-light d-lg-none me-3 btn-circle shadow-sm" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
                     <i class="fa-solid fa-bars fs-5"></i>
                 </button>
 
                 <a href="/admin" class="nav-logo text-decoration-none d-flex align-items-center">
-                    <div class="d-flex flex-column" style="line-height: 1.2;">
-                        <span class="logo-text fw-bold text-dark fs-5 mobile-logo-text">PC06 TUYÊN QUANG</span>
+                    <div class="mobile-logo-wrapper">
+                        <span class="mobile-logo-top fw-bold text-dark">PC06</span>
+                        <span class="mobile-logo-bottom d-lg-inline">Tuyên Quang</span>
                     </div>
                 </a>
             </div>
@@ -371,7 +409,7 @@
                     </ul>
                 </div>
 
-                <button class="btn btn-light rounded-circle shadow-sm border p-2" type="button" onclick="toggleTheme()">
+                <button class="btn btn-light btn-circle shadow-sm border" type="button" onclick="toggleTheme()">
                     <i class="fa-solid fa-moon dark-icon-only"></i>
                     <i class="fa-solid fa-sun light-icon-only"></i>
                 </button>

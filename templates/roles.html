@@ -37,7 +37,7 @@
                 THÊM TÀI KHOẢN
             </button>
         </div>
-        <button class="btn btn-primary rounded-circle shadow-lg" style="width: 60px; height: 60px; border: none; font-size: 24px;" 
+        <button class="btn btn-primary btn-circle shadow-lg" style="--circle-size: 60px; border: none; font-size: 24px;" 
                 data-bs-toggle="collapse" data-bs-target="#rolesSpeedDial">
             +
         </button>
@@ -62,7 +62,7 @@
                                 <div class="tiny text-muted">{{ get_labels(r.perms) or 'Chưa phân quyền' }}</div>
                             </div>
                         </div>
-                        <button class="btn btn-sm btn-outline-primary border rounded-circle shadow-sm d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" title="Phân quyền" onclick='openEditPerms({{ r.id }}, "{{ r.name }}", {{ r.perms|safe if r.perms else "{}" }})'>
+                        <button class="btn btn-sm btn-outline-primary border btn-circle shadow-sm d-flex align-items-center justify-content-center" style="--circle-size: 32px;" title="Phân quyền" onclick='openEditPerms({{ r.id }}, "{{ r.name }}", {{ r.perms|safe if r.perms else "{}" }})'>
                             <i class="fa-solid fa-user-gear"></i>
                         </button>
                     </div>
@@ -91,7 +91,7 @@
                                 <tr class="text-center">
                                     <td>
                                         <div class="d-flex align-items-center justify-content-center gap-3">
-                                            <div class="bg-dark text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width:36px; height:36px; flex-shrink: 0; font-size:12px;">{{ u.username[:1].upper() }}</div>
+                                            <div class="bg-dark text-white btn-circle d-flex align-items-center justify-content-center fw-bold" style="--circle-size: 36px; flex-shrink: 0; font-size:12px;">{{ u.username[:1].upper() }}</div>
                                             <div class="text-truncate">
                                                 <div class="fw-bold text-dark text-truncate">{{ u.fullname }}</div>
                                                 <div class="tiny text-muted">@{{ u.username }}</div>
@@ -132,7 +132,7 @@
                         <div class="p-3 border-bottom">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <div class="d-flex align-items-center gap-2">
-                                    <div class="bg-dark text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width:30px; height:30px; font-size:10px;">{{ u.username[:1].upper() }}</div>
+                                    <div class="bg-dark text-white btn-circle d-flex align-items-center justify-content-center fw-bold" style="--circle-size: 30px; font-size:10px;">{{ u.username[:1].upper() }}</div>
                                     <div>
                                         <div class="fw-bold text-dark small">{{ u.fullname }}</div>
                                         <div class="tiny text-muted">@{{ u.username }}</div>
