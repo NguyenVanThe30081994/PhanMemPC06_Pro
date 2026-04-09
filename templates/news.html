@@ -13,46 +13,35 @@
             </div>
         </div>
         
-        <div class="d-flex align-items-center gap-2">
-            <!-- PC Only Filter: Moved to Header -->
-            <div class="d-none d-lg-flex bg-white p-2 rounded-4 shadow-sm border align-items-center me-2">
-                <span class="px-2 small fw-bold text-muted border-end pe-3">LỌC:</span>
-                <select class="form-select border-0 shadow-none fw-bold text-primary bg-transparent py-0" style="min-width: 200px;" onchange="filterNews(this.value)">
-                    <option value="ALL">Tất cả Đội nghiệp vụ</option>
-                    {% for unit in pro_units %}
-                    <option value="{{ unit.name }}">{{ unit.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+        <div class="header-selector-card d-none d-lg-flex">
+            <span class="small fw-bold text-muted">ĐỘI NGHIỆP VỤ:</span>
+            <div class="divider"></div>
+            <select onchange="filterNews(this.value)" style="min-width: 220px;">
+                <option value="ALL">Tất cả đơn vị</option>
+                {% for unit in pro_units %}
+                <option value="{{ unit.name }}">{{ unit.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
 
-            <div class="d-none d-md-block">
-                {% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
-                <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#addNewsModal">
-                    <i class="fa-solid fa-plus me-2"></i>ĐĂNG TIN MỚI
-                </button>
-                {% endif %}
-            </div>
+        <div class="header-actions">
+            {% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
+            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-lg" data-bs-toggle="modal" data-bs-target="#addNewsModal">
+                <i class="fa-solid fa-plus me-2"></i>ĐĂNG TIN MỚI
+            </button>
+            {% endif %}
         </div>
     </div>
 </div>
 
-<!-- Floating FAB for Mobile -->
-{% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
-<button class="btn btn-primary d-md-none rounded-circle shadow-lg position-fixed d-flex align-items-center justify-content-center animate__animated animate__bounceIn" 
-        style="width: 60px; height: 60px; bottom: 85px; right: 20px; z-index: 1100; padding: 0; border: none; font-size: 24px;"
-        data-bs-toggle="modal" data-bs-target="#addNewsModal">
-    <i class="fa-solid fa-plus"></i>
-</button>
-{% endif %}
-
 <div class="main-content-area animate__animated animate__fadeInUp">
     <div class="row g-4">
-        <!-- Sidebar Filter: Only visible on Mobile as per request -->
-        <div class="col-xl-3 col-lg-4 d-lg-none">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-                <div class="card-header border-0 py-3 px-4 d-flex flex-column gap-2" style="background-color: var(--bg-surface);">
-                    <h6 class="fw-bold text-main mb-0 small text-uppercase opacity-75">Đội nghiệp vụ</h6>
-                    <select class="form-select rounded-pill border shadow-sm fw-bold small py-2" onchange="filterNews(this.value)">
+        <!-- Sidebar Filter: ONLY on Mobile -->
+        <div class="col-12 d-lg-none">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-2" style="background-color: var(--bg-surface);">
+                <div class="card-header border-0 py-3 px-4 d-flex justify-content-between align-items-center" style="background-color: var(--bg-surface);">
+                    <h6 class="fw-bold text-main mb-0 small text-uppercase opacity-75">Bộ lọc chuyên mục</h6>
+                    <select class="form-select form-select-sm rounded-pill border shadow-sm fw-bold px-3" onchange="filterNews(this.value)">
                         <option value="ALL">Tất cả đơn vị</option>
                         {% for unit in pro_units %}
                         <option value="{{ unit.name }}">{{ unit.name }}</option>
@@ -62,7 +51,7 @@
             </div>
         </div>
 
-        <!-- News Cards: Full Width on PC -->
+        <!-- News Grid: Full Width 100% on PC -->
         <div class="col-12">
             <div class="row g-4" id="newsGrid">
                 {% for n in news_list %}
@@ -73,7 +62,7 @@
                                 <span class="badge bg-primary-subtle text-primary border px-2 tiny fw-bold">{{ n.category }}</span>
                                 <div class="tiny text-muted fw-bold">{{ n.uploaded_at.strftime('%d/%m/%Y') }}</div>
                             </div>
-                            <h6 class="fw-bold text-main mb-3 line-clamp-2" style="min-height: 44px; line-height: 1.4;">{{ n.title }}</h6>
+                            <h6 class="fw-bold text-main mb-3 line-clamp-2" style="min-height: 44px;">{{ n.title }}</h6>
                             <p class="text-muted small mb-4 line-clamp-3" style="min-height: 60px; flex-grow: 1;">{{ n.content }}</p>
                             <div class="border-top pt-3 d-flex justify-content-between align-items-center">
                                 {% if n.filename %}
@@ -101,7 +90,7 @@
     </div>
 </div>
 
-<!-- Add News Modal -->
+<!-- Modal stays same -->
 <div class="modal fade" id="addNewsModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
@@ -113,35 +102,26 @@
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label fw-bold text-dark small">TIÊU ĐỀ BẢN TIN</label>
-                        <input type="text" name="title" class="form-control" placeholder="Nhập tiêu đề..." required>
+                        <input type="text" name="title" class="form-control shadow-none" placeholder="Nhập tiêu đề..." required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold text-dark small">ĐỘI NGHIỆP VỤ</label>
-                        <select name="category" class="form-select" required>
-                            {% if not pro_units %}
-                            <option value="" disabled selected>Chưa có đội nghiệp vụ...</option>
-                            {% endif %}
+                        <select name="category" class="form-select shadow-none" required>
                             {% for u in pro_units %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
                         </select>
-                        {% if not pro_units %}
-                        <div class="tiny text-danger mt-1 fw-bold">Hãy vào "Thiết lập danh mục" để tạo Đội nghiệp vụ!</div>
-                        {% endif %}
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold text-dark small">NỘI DUNG TÓM TẮT</label>
-                        <textarea name="content" class="form-control" rows="4" placeholder="Nhập nội dung thông báo..."></textarea>
+                        <textarea name="content" class="form-control shadow-none" rows="4" placeholder="Nhập nội dung..."></textarea>
                     </div>
                     <div class="mb-1">
-                        <label class="form-label small fw-bold text-muted">Ảnh minh họa / Đính kèm (Tối đa 10MB)</label>
-                        <div class="input-group">
-                            <label class="input-group-text bg-light tiny fw-bold" for="newsFile"><i class="fa-solid fa-file-arrow-up me-1"></i>CHỌN TỆP</label>
-                            <input type="file" name="file" class="form-control tiny" id="newsFile">
-                        </div>
+                        <label class="form-label small fw-bold text-muted">Đính kèm (Tối đa 10MB)</label>
+                        <input type="file" name="file" class="form-control">
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-0">
                     <button type="button" class="btn btn-light px-4 rounded-pill fw-bold border" data-bs-dismiss="modal">HỦY</button>
-                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">ĐĂNG TIN NGAY</button>
+                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">ĐĂNG TIN</button>
                 </div>
             </form>
         </div>

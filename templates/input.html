@@ -13,16 +13,16 @@
             </div>
         </div>
         
-        <!-- PC Only: Selectors in Header -->
-        <div class="d-none d-lg-flex gap-2 align-items-center bg-white p-2 rounded-4 shadow-sm border">
-            <div class="px-2 small fw-bold text-muted border-end pe-3">LỰA CHỌN:</div>
-            <!-- Loai bieu mau Select -->
-            <select class="form-select border-0 shadow-none fw-bold text-primary bg-transparent" style="min-width: 120px;" onchange="window.location.href='/input?form_type=' + this.value">
-                <option value="v1" {% if form_type == 'v1' %}selected{% endif %}>Biểu mẫu V1</option>
-                <option value="v2" {% if form_type == 'v2' %}selected{% endif %}>Biểu mẫu V2</option>
+        <!-- PC Header Toolbar: Optimized Fixed Area -->
+        <div class="header-selector-card d-none d-lg-flex">
+            <span class="small fw-bold text-muted">BỘ CHỌN:</span>
+            <div class="divider"></div>
+            <select onchange="window.location.href='/input?form_type=' + this.value">
+                <option value="v1" {% if form_type == 'v1' %}selected{% endif %}>Phân loại V1</option>
+                <option value="v2" {% if form_type == 'v2' %}selected{% endif %}>Phân loại V2</option>
             </select>
-            <!-- Danh sach bieu mau Select -->
-            <select class="form-select border-0 shadow-none fw-bold text-dark bg-transparent" style="min-width: 250px;" onchange="window.location.href=this.value">
+            <div class="divider"></div>
+            <select onchange="window.location.href=this.value">
                 <option value="">-- Chọn biểu mẫu cụ thể --</option>
                 {% if form_type == 'v1' %}
                     {% for c in configs %}
@@ -36,48 +36,51 @@
             </select>
         </div>
 
-        {% if active %}
-        <div class="badge bg-primary px-3 py-2 rounded-pill shadow-sm d-none d-sm-block">
-            <i class="fa-solid fa-file-invoice me-2"></i>{{ active.name }}
+        <div class="header-actions">
+            {% if active %}
+            <div class="badge bg-primary px-3 py-2 rounded-pill shadow-sm d-none d-sm-block">
+                <i class="fa-solid fa-file-invoice me-2"></i>{{ active.name }}
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
     </div>
 </div>
 
 <div class="main-content-area animate__animated animate__fadeInUp">
     <div class="row g-4">
-        <!-- Sidebar: Only visible on Mobile as per request "Thanh Sidebar trái chỉ hiển thị ở Mobile" -->
-        <div class="col-xl-3 col-lg-4 d-lg-none">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4" style="background-color: var(--bg-surface);">
-                <div class="card-header border-0 py-3 px-4 d-flex flex-column gap-2" style="background-color: var(--bg-surface);">
-                    <h6 class="fw-bold text-main mb-0 small text-uppercase opacity-75">Loại biểu mẫu</h6>
-                    <select class="form-select rounded-pill border shadow-sm fw-bold small py-2" onchange="window.location.href='/input?form_type=' + this.value">
-                        <option value="v1" {% if form_type == 'v1' %}selected{% endif %}>Phân loại V1</option>
-                        <option value="v2" {% if form_type == 'v2' %}selected{% endif %}>Phân loại V2</option>
-                    </select>
+        <!-- Sidebar: ONLY on Mobile/Tablet (< 992px) -->
+        <div class="col-12 d-lg-none">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-2" style="background-color: var(--bg-surface);">
+                <div class="card-header border-0 py-3 px-4 d-flex justify-content-between align-items-center" style="background-color: var(--bg-surface);">
+                    <h6 class="fw-bold text-main mb-0 small text-uppercase opacity-75">Danh sách biểu mẫu</h6>
+                    <button class="btn btn-sm btn-light border rounded-pill px-3 tiny fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#mobileFormList">
+                        HIỆN/ẨN
+                    </button>
                 </div>
-                <div class="list-group list-group-flush border-top">
-                    {% if form_type == 'v1' %}
-                        {% for c in configs %}
-                        <a href="{{ url_for('forms_bp.input_data', rid=c.id, form_type='v1') }}" 
-                           class="list-group-item list-group-item-action border-0 px-4 py-3 {% if active and active.id == c.id %}active{% endif %}" style="background-color: var(--bg-surface);">
-                            <div class="small fw-bold text-truncate">{{ c.name }}</div>
-                        </a>
-                        {% endfor %}
-                    {% else %}
-                        {% for v2 in v2_templates %}
-                        <a href="{{ url_for('reports_v2_bp.render_report', tid=v2.id) }}" 
-                           class="list-group-item list-group-item-action border-0 px-4 py-3" style="background-color: var(--bg-surface);">
-                            <div class="small fw-bold text-truncate">{{ v2.name }}</div>
-                        </a>
-                        {% endfor %}
-                    {% endif %}
+                <div class="collapse" id="mobileFormList">
+                    <div class="list-group list-group-flush border-top">
+                        {% if form_type == 'v1' %}
+                            {% for c in configs %}
+                            <a href="{{ url_for('forms_bp.input_data', rid=c.id, form_type='v1') }}" 
+                               class="list-group-item list-group-item-action border-0 px-4 py-3 {% if active and active.id == c.id %}active{% endif %}" style="background-color: var(--bg-surface);">
+                                <div class="small fw-bold text-truncate">{{ c.name }}</div>
+                            </a>
+                            {% endfor %}
+                        {% else %}
+                            {% for v2 in v2_templates %}
+                            <a href="{{ url_for('reports_v2_bp.render_report', tid=v2.id) }}" 
+                               class="list-group-item list-group-item-action border-0 px-4 py-3" style="background-color: var(--bg-surface);">
+                                <div class="small fw-bold text-truncate">{{ v2.name }}</div>
+                            </a>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Main Content Area: PC Full Width, Mobile Offset -->
-        <div class="col-xl-12 col-lg-12">
+        <!-- Main Content Area: PC Full Width 100% -->
+        <div class="col-12">
             {% if active %}
             <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5" style="background-color: var(--bg-surface); min-height: 60vh;">
                 <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3" style="border-color: var(--border) !important;">
@@ -95,7 +98,6 @@
                     {% set seen_groups = [] %}
                     {% for f in fields %}{% if f.get('is_visible', True) %}{% set g = f.get('group', '') %}{% if g and g not in seen_groups %}{% set _ = seen_groups.append(g) %}{% endif %}{% endif %}{% endfor %}
 
-                    {# Render grouped fields #}
                     <div class="row g-4">
                         {% if ns.has_ungrouped %}
                             {% for f in fields %}
@@ -161,27 +163,11 @@
                 <div class="bg-light p-4 rounded-circle mb-4">
                     <i class="fa-solid fa-file-circle-question fs-1 text-muted"></i>
                 </div>
-                <h4 class="fw-bold text-dark">Lựa chọn biểu mẫu</h4>
-                <p class="text-muted">Vui lòng sử dụng bộ chọn phía trên (PC) hoặc menu phía dưới (Mobile) để bắt đầu nhập liệu.</p>
-                <div class="d-lg-none mt-3">
-                    <i class="fa-solid fa-arrow-down animate-bounce fs-4 text-primary"></i>
-                </div>
+                <h4 class="fw-bold text-dark">Lựa chọn biểu mẫu để nhập liệu</h4>
+                <p class="text-muted">Sử dụng bộ chọn phía trên Header để bắt đầu. Giao diện PC đã được tối ưu Full-width.</p>
             </div>
             {% endif %}
         </div>
     </div>
 </div>
-
-<style>
-    .tracking-wider { letter-spacing: 1px; }
-    .form-select:focus { border-color: var(--primary); box-shadow: none; }
-    .animate-bounce {
-        animation: bounce 2s infinite;
-    }
-    @keyframes bounce {
-        0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
-        40% {transform: translateY(-10px);}
-        60% {transform: translateY(-5px);}
-    }
-</style>
 {% endblock %}

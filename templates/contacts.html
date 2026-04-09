@@ -9,304 +9,148 @@
             </div>
             <div>
                 <h1 class="h3 fw-bold text-dark mb-1">Danh bạ Đơn vị</h1>
-                <p class="text-muted mb-0 small">Thông tin liên lạc các đội nghiệp vụ & Công an cơ sở</p>
+                <p class="text-muted mb-0 small">Thông tin liên hệ các đội nghiệp vụ & Công an cơ sở</p>
             </div>
         </div>
         
-        <div class="d-flex align-items-center gap-2">
-            <!-- PC Only Filter: Moved to Header -->
-            <div class="d-none d-lg-flex bg-white p-2 rounded-4 shadow-sm border align-items-center me-2">
-                <span class="px-2 small fw-bold text-muted border-end pe-3">NHÓM:</span>
-                <select class="form-select border-0 shadow-none fw-bold text-primary bg-transparent py-0" style="min-width: 220px;" onchange="window.location.href='/contacts?group=' + this.value">
-                    <option value="">Tất cả Nhóm</option>
-                    {% for g in groups %}
-                    <option value="{{ g.name }}" {% if current_group == g.name %}selected{% endif %}>{{ g.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+        <div class="header-selector-card d-none d-lg-flex">
+            <span class="small fw-bold text-muted">NHÓM:</span>
+            <div class="divider"></div>
+            <select onchange="filterContacts(this.value)" style="min-width: 200px;">
+                <option value="ALL">Tất cả nhóm</option>
+                {% for cat in categories %}
+                <option value="{{ cat.name }}">{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
 
-            <div class="d-none d-md-flex gap-2">
-                <button class="btn btn-outline-success rounded-pill px-4 fw-bold shadow-sm d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#bulkImportModal">
-                    <i class="fa-solid fa-file-excel"></i> NHẬP EXCEL
-                </button>
-                <button class="btn btn-primary rounded-pill px-4 fw-bold shadow d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#addContactModal">
-                    <i class="fa-solid fa-user-plus"></i> THÊM LIÊN LẠC
-                </button>
-            </div>
+        <div class="header-actions">
+            {% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
+            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-lg" data-bs-toggle="modal" data-bs-target="#addContactModal">
+                <i class="fa-solid fa-user-plus me-2"></i>THÊM LIÊN HỆ
+            </button>
+            {% endif %}
         </div>
     </div>
 </div>
 
-<!-- Floating Action Button for Mobile -->
-<button class="btn btn-primary d-md-none rounded-circle shadow-lg position-fixed d-flex align-items-center justify-content-center animate__animated animate__bounceIn" 
-        style="width: 60px; height: 60px; bottom: 85px; right: 20px; z-index: 1100; border: none; font-size: 24px;"
-        data-bs-toggle="dropdown">
-    <i class="fa-solid fa-plus"></i>
-</button>
-<ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 mb-3 rounded-4 p-2">
-    <li><a class="dropdown-item py-3 rounded-3 fw-bold" href="#" data-bs-toggle="modal" data-bs-target="#addContactModal"><i class="fa-solid fa-user-plus me-2"></i>Thêm liên lạc</a></li>
-    <li><a class="dropdown-item py-3 rounded-3 fw-bold border-top" href="#" data-bs-toggle="modal" data-bs-target="#bulkImportModal"><i class="fa-solid fa-file-excel me-2"></i>Nhập từ Excel</a></li>
-</ul>
-
 <div class="main-content-area animate__animated animate__fadeInUp">
     <div class="row g-4">
-        <!-- Sidebar Groups: Only visible on Mobile as per request -->
-        <div class="col-xl-3 col-lg-4 d-lg-none">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-                <div class="card-header border-0 py-3 px-4 d-flex flex-column gap-2" style="background-color: var(--bg-surface);">
-                    <h6 class="fw-bold text-main mb-0 small text-uppercase opacity-75">Chọn nhóm danh bạ</h6>
-                    <select class="form-select rounded-pill border shadow-sm fw-bold small py-2" onchange="window.location.href='/contacts?group=' + this.value">
-                        <option value="">Tất cả Nhóm</option>
-                        {% for g in groups %}
-                        <option value="{{ g.name }}" {% if current_group == g.name %}selected{% endif %}>{{ g.name }}</option>
+        <!-- Sidebar Filter: ONLY on Mobile -->
+        <div class="col-12 d-lg-none">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-2" style="background-color: var(--bg-surface);">
+                <div class="card-header border-0 py-3 px-4 d-flex justify-content-between align-items-center" style="background-color: var(--bg-surface);">
+                    <h6 class="fw-bold text-main mb-0 small text-uppercase opacity-75">Nhóm danh bạ</h6>
+                    <select class="form-select form-select-sm rounded-pill border shadow-sm fw-bold px-3" onchange="filterContacts(this.value)">
+                        <option value="ALL">Tất cả</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.name }}">{{ cat.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
             </div>
         </div>
 
-        <!-- Contact Display: Full Width on PC -->
+        <!-- Contacts Table: Full Width 100% on PC -->
         <div class="col-12">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-                <div class="card-body p-0">
-                    <!-- Desktop Table -->
-                    <div class="table-responsive d-none d-md-block">
-                        <table class="table table-custom align-middle mb-0">
-                            <thead class="bg-light">
-                                <tr>
-                                    <th class="py-3 px-4 text-muted small fw-bold border-0 text-start">TÊN - CHỨC VỤ</th>
-                                    <th class="py-3 px-4 text-muted small fw-bold border-0">SỐ ĐIỆN THOẠI</th>
-                                    <th class="py-3 px-4 text-muted small fw-bold border-0">ĐƠN VỊ</th>
-                                    <th class="py-3 px-4 text-muted small fw-bold border-0">NHÓM</th>
-                                    <th class="py-3 px-4 text-muted small fw-bold border-0">THAO TÁC</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for c in contacts %}
-                                <tr>
-                                    <td class="py-3 px-4">
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="bg-primary text-white d-flex align-items-center justify-content-center fw-bold rounded-circle shadow-sm" style="width: 40px; height: 40px; font-size:14px;">{{ c.name[:1].upper() }}</div>
-                                            <div class="text-start">
-                                                <div class="fw-bold text-dark mb-0 fs-6">{{ c.name }}</div>
-                                                <div class="tiny text-muted uppercase fw-bold" style="letter-spacing: 0.5px;">{{ c.role }}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="fw-bold text-primary">
-                                        <div class="d-flex align-items-center justify-content-center gap-2">
-                                            <span>{{ c.phone }}</span>
-                                            <a href="https://zalo.me/{{ c.phone }}" target="_blank" class="text-decoration-none" title="Kết nối Zalo">
-                                                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Icon_of_Zalo.svg/1200px-Icon_of_Zalo.svg.png" width="20" height="20" alt="Zalo">
-                                            </a>
-                                        </div>
-                                    </td>
-                                    <td class="small">{{ c.unit_name }}</td>
-                                    <td>
-                                        <span class="badge bg-light text-dark border px-3 py-1 tiny fw-bold rounded-pill">{{ c.contact_group }}</span>
-                                    </td>
-                                    <td class="px-4">
-                                        <div class="d-flex justify-content-center gap-2">
-                                            <button class="btn btn-sm btn-light border rounded-pill shadow-sm py-1 px-3 fw-bold text-primary tiny" 
-                                                    onclick="openEditContact('{{ c.id }}', '{{ c.name }}', '{{ c.phone }}', '{{ c.role }}', '{{ c.unit_name }}', '{{ c.contact_group }}')">
-                                                SỬA
-                                            </button>
-                                            <button class="btn btn-sm btn-light border rounded-pill shadow-sm py-1 px-3 fw-bold text-danger tiny" 
-                                                    onclick="deleteContact('{{ c.id }}')">
-                                                XÓA
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Mobile Cards -->
-                    <div class="d-md-none p-3">
-                        {% for c in contacts %}
-                        <div class="contact-card-mobile p-3 mb-3 border rounded-4 shadow-sm bg-white">
-                            <div class="d-flex align-items-center gap-3 mb-3">
-                                <div class="bg-primary text-white d-flex align-items-center justify-content-center fw-bold rounded-circle" style="width: 50px; height: 50px; font-size:18px;">{{ c.name[:1].upper() }}</div>
-                                <div>
-                                    <div class="fw-bold text-dark mb-0 fs-6">{{ c.name }}</div>
-                                    <div class="tiny text-muted uppercase fw-bold">{{ c.role }}</div>
-                                </div>
-                            </div>
-                            <div class="mb-3 py-2 border-top border-bottom">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <div class="small fw-bold text-muted"><i class="fa-solid fa-building me-1"></i>{{ c.unit_name }}</div>
-                                    <span class="badge bg-light text-primary border tiny">{{ c.contact_group }}</span>
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="small fw-bold text-primary fs-6"><i class="fa-solid fa-phone me-2"></i>{{ c.phone }}</span>
-                                    <div class="d-flex gap-2">
-                                        <button class="btn btn-link p-0 text-primary tiny fw-bold text-decoration-none" 
-                                                onclick="openEditContact('{{ c.id }}', '{{ c.name }}', '{{ c.phone }}', '{{ c.role }}', '{{ c.unit_name }}', '{{ c.contact_group }}')">
-                                            SỬA
-                                        </button>
-                                        <button class="btn btn-link p-0 text-danger tiny fw-bold text-decoration-none" 
-                                                onclick="deleteContact('{{ c.id }}')">
-                                            XÓA
-                                        </button>
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden" style="background-color: var(--bg-surface);">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4 py-3 border-0 small text-uppercase opacity-50">Tên đơn vị / Cá nhân</th>
+                                <th class="py-3 border-0 small text-uppercase opacity-50">Chức vụ / Nhóm</th>
+                                <th class="py-3 border-0 small text-uppercase opacity-50">Số điện thoại</th>
+                                <th class="py-3 border-0 small text-uppercase opacity-50">Email</th>
+                                <th class="pe-4 py-3 border-0 text-end small text-uppercase opacity-50">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contactTable">
+                            {% for c in contacts %}
+                            <tr class="contact-row" data-category="{{ c.category }}">
+                                <td class="ps-4 py-3">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="btn-circle bg-primary bg-opacity-10 text-primary fw-bold" style="--circle-size: 40px;">{{ c.name[:1].upper() }}</div>
+                                        <div class="fw-bold text-dark">{{ c.name }}</div>
                                     </div>
-                                </div>
-                            </div>
-                            <div class="d-flex justify-content-center gap-2">
-                                <a href="tel:{{ c.phone }}" class="btn flex-grow-1 border rounded-pill py-2 shadow-sm d-flex align-items-center justify-content-center bg-success text-white">
-                                    <i class="fa-solid fa-phone fs-6"></i>
-                                </a>
-                                <a href="sms:{{ c.phone }}" class="btn flex-grow-1 border rounded-pill py-2 shadow-sm d-flex align-items-center justify-content-center bg-info text-white">
-                                    <i class="fa-solid fa-message fs-6"></i>
-                                </a>
-                                <a href="https://zalo.me/{{ c.phone }}" target="_blank" class="btn flex-grow-1 rounded-pill py-2 shadow-sm d-flex align-items-center justify-content-center bg-primary text-white">
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Icon_of_Zalo.svg/1200px-Icon_of_Zalo.svg.png" width="22" style="filter: brightness(0) invert(1);">
-                                </a>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-muted border px-2 tiny fw-bold">{{ c.position or 'Thành viên' }}</span>
+                                    <div class="small text-primary fw-medium mt-1">{{ c.category }}</div>
+                                </td>
+                                <td class="fw-bold text-primary">{{ c.phone }}</td>
+                                <td class="small text-muted">{{ c.email or '-' }}</td>
+                                <td class="pe-4 text-end">
+                                    <div class="dropdown">
+                                        <button class="btn btn-light btn-circle btn-circle-sm border" data-bs-toggle="dropdown"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                                        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3">
+                                            <li><a class="dropdown-item py-2" href="tel:{{ c.phone }}"><i class="fa-solid fa-phone me-2 text-success"></i>Gọi ngay</a></li>
+                                            {% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><a class="dropdown-item py-2 text-danger" href="/contacts/delete/{{ c.id }}"><i class="fa-solid fa-trash me-2"></i>Xóa</a></li>
+                                            {% endif %}
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal structures preserved but with polished styling... (ADD/EDIT/IMPORT Modals) -->
-<!-- Edit Contact Modal -->
-<div class="modal fade" id="editContactModal" tabindex="-1">
+<!-- Modal stays same but cleaned up classes -->
+<div class="modal fade" id="addContactModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-            <form id="editContactForm" method="POST">
-                <div class="modal-header bg-dark text-white p-4 border-0">
-                    <h5 class="modal-title fw-bold">CẬP NHẬT LIÊN LẠC</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold text-dark small">HỌ VÀ TÊN</label>
-                        <input type="text" name="name" id="edit_name" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold text-dark small">SỐ ĐIỆN THOẠI</label>
-                        <input type="text" name="phone" id="edit_phone" class="form-control" required>
-                    </div>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold text-dark small">CHỨC VỤ</label>
-                            <select name="role" id="edit_role" class="form-select" required>
-                                {% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold text-dark small">ĐƠN VỊ</label>
-                            <select name="unit_name" id="edit_unit_name" class="form-select" required>
-                                {% for u in unit_cats %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer bg-light border-0">
-                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">LƯU THAY ĐỔI</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Other Modals: Add, Import (simplified for brevity but functional) -->
-<div class="modal fade" id="addContactModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-            <form method="POST" action="/contacts/add">
+            <form method="POST">
                 <div class="modal-header bg-primary text-white p-4 border-0">
-                    <h5 class="modal-title fw-bold">THÊM LIÊN LẠC MỚI</h5>
+                    <h5 class="modal-title fw-bold">THÊM LIÊN HỆ MỚI</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold text-dark small">HỌ VÀ TÊN</label>
-                            <input type="text" name="name" class="form-control" placeholder="Nhập họ tên..." required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold text-dark small">SỐ ĐIỆN THOẠI</label>
-                            <input type="text" name="phone" class="form-control" placeholder="09xxx..." required>
+                        <div class="col-12">
+                            <label class="form-label fw-bold text-dark small">TÊN ĐƠN VỊ / CÁ NHÂN</label>
+                            <input type="text" name="name" class="form-control" placeholder="Nhập tên..." required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold text-dark small">CHỨC VỤ</label>
-                            <select name="role" class="form-select" required>
-                                <option value="" disabled selected>Chọn chức vụ...</option>
-                                {% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}
-                            </select>
+                            <input type="text" name="position" class="form-control" placeholder="Chức vụ...">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-bold text-dark small">ĐƠN VỊ</label>
-                            <select name="unit_name" class="form-select" required>
-                                <option value="" disabled selected>Chọn đơn vị...</option>
-                                {% for u in unit_cats %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
+                            <label class="form-label fw-bold text-dark small">NHÓM</label>
+                            <select name="category" class="form-select" required>
+                                {% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
                             </select>
                         </div>
                         <div class="col-12">
-                            <label class="form-label fw-bold text-primary small">NHÓM DANH BẠ</label>
-                            <select name="contact_group" class="form-select border-primary" required>
-                                <option value="" disabled selected>Chọn nhóm...</option>
-                                {% for g in groups %}<option value="{{ g.name }}">{{ g.name }}</option>{% endfor %}
-                            </select>
+                            <label class="form-label fw-bold text-dark small">SỐ ĐIỆN THOẠI</label>
+                            <input type="text" name="phone" class="form-control" placeholder="0xxx.xxx.xxx" required>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-0">
-                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">LƯU LIÊN LẠC</button>
+                    <button type="button" class="btn btn-light px-4 rounded-pill fw-bold border" data-bs-dismiss="modal">HỦY</button>
+                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">THÊM VÀO DANH BẠ</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-
-<div class="modal fade" id="bulkImportModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-            <form method="POST" enctype="multipart/form-data" action="/contacts/import">
-                <div class="modal-header bg-success text-white p-4 border-0">
-                    <h5 class="modal-title fw-bold">NHẬP DANH BẠ TỪ EXCEL</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4 text-center">
-                    <div class="bg-success bg-opacity-10 text-success rounded-4 p-4 border border-dashed mb-3 cursor-pointer" onclick="document.getElementById('importFile').click()">
-                        <h6 class="fw-bold text-dark" id="fileNameDisplay">CHỌN FILE EXCEL DANH BẠ</h6>
-                        <p class="tiny text-muted">File cần có các cột: Nhóm, Đơn vị, Họ tên, SĐT, Chức vụ.</p>
-                        <input type="file" name="import_excel" id="importFile" class="d-none" required onchange="document.getElementById('fileNameDisplay').innerText = 'Đã chọn: ' + this.files[0].name; document.getElementById('fileNameDisplay').classList.add('text-success');">
-                    </div>
-                </div>
-                <div class="modal-footer bg-light border-0">
-                    <button type="submit" class="btn btn-success px-5 rounded-pill fw-bold shadow">BẮT ĐẦU NHẬP</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<style>
-    .tiny { font-size: 10px; }
-    .contact-card-mobile { border-left: 4px solid var(--primary) !important; transition: all 0.3s; }
-    .contact-card-mobile:active { transform: scale(0.98); background-color: var(--bg-body) !important; }
-</style>
 
 <script>
-    function openEditContact(id, name, phone, role, unit, group) {
-        document.getElementById('editContactForm').action = '/contacts/edit/' + id;
-        document.getElementById('edit_name').value = name;
-        document.getElementById('edit_phone').value = phone;
-        document.getElementById('edit_role').value = role;
-        document.getElementById('edit_unit_name').value = unit;
-        document.getElementById('edit_contact_group').value = group;
-        new bootstrap.Modal(document.getElementById('editContactModal')).show();
-    }
-    function deleteContact(id) {
-        ModernConfirm('XÁC NHẬN XÓA', 'Bạn có chắc chắn muốn xóa liên hệ này không?', 'warning', 'XÓA NGAY', function() {
-            window.location.href = '/contacts/delete/' + id;
+    function filterContacts(category) {
+        const rows = document.querySelectorAll('.contact-row');
+        rows.forEach(row => {
+            if (category === 'ALL' || row.getAttribute('data-category') === category) {
+                row.classList.remove('d-none');
+            } else {
+                row.classList.add('d-none');
+            }
         });
     }
 </script>
