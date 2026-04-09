@@ -580,25 +580,25 @@ body {
 
 /* --- 1. Glass Shell (Modal Container) --- */
 .modal-content {
-    background: rgba(240, 245, 255, 0.72) !important;
-    backdrop-filter: blur(var(--glass-blur)) saturate(220%) brightness(1.05) !important;
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(220%) brightness(1.05) !important;
+    background: rgba(255, 255, 255, 0.88) !important;
+    backdrop-filter: blur(40px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
     
     /* macOS 26: Pillowy rounded corners */
     border-radius: 32px !important;
     overflow: visible !important; /* Allow pill to float above */
     
     /* Specular Highlight System: Top glow (reflected light) + Bottom shadow */
-    border-top: 1.5px solid rgba(255, 255, 255, 0.75) !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
-    border-left: 1px solid rgba(255, 255, 255, 0.4) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.4) !important;
+    border-top: 1.5px solid rgba(255, 255, 255, 0.9) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.6) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.6) !important;
     
     /* Layered floating shadow */
     box-shadow: 
-        0 50px 120px rgba(0, 0, 0, 0.18),
-        0 20px 40px rgba(0, 0, 0, 0.1),
-        inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+        0 50px 120px rgba(0, 0, 0, 0.15),
+        0 20px 40px rgba(0, 0, 0, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 1) !important;
     
     /* GPU sharp rendering */
     transform: translateZ(0);
@@ -606,14 +606,14 @@ body {
 }
 
 [data-theme="dark"] .modal-content {
-    background: rgba(15, 25, 50, 0.72) !important;
-    border-top-color: rgba(255, 255, 255, 0.18) !important;
-    border-left-color: rgba(255, 255, 255, 0.08) !important;
-    border-right-color: rgba(255, 255, 255, 0.08) !important;
+    background: rgba(30, 41, 59, 0.88) !important;
+    border-top-color: rgba(255, 255, 255, 0.15) !important;
+    border-left-color: rgba(255, 255, 255, 0.05) !important;
+    border-right-color: rgba(255, 255, 255, 0.05) !important;
     box-shadow: 
         0 50px 120px rgba(0, 0, 0, 0.5),
         0 20px 40px rgba(0, 0, 0, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+        inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
 }
 
 /* --- 2. Liquid Modal Open Animation --- */
@@ -636,7 +636,7 @@ body {
 
 /* --- 3. Floating Pill Header (macOS 26 Standard) --- */
 /* Base container - transparent, pushing pill and close button */
-.modal-header-pill {
+.modal-header, .offcanvas-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -649,7 +649,7 @@ body {
 }
 
 /* The actual pill is just the title */
-.modal-header-pill .modal-title {
+.modal-header .modal-title, .offcanvas-header .offcanvas-title {
     display: inline-flex;
     align-items: center;
     padding: 10px 22px;
@@ -673,43 +673,44 @@ body {
 }
 
 /* Close Button outside the pill */
-.modal-header-pill .btn-close {
+.modal-header .btn-close, .offcanvas-header .btn-close {
     opacity: 0.6 !important;
-    background-color: rgba(100, 116, 139, 0.1);
-    padding: 12px;
-    border-radius: 50%;
+    background-color: rgba(100, 116, 139, 0.1) !important;
+    padding: 12px !important;
+    border-radius: 50% !important;
     margin: 0 !important;
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    box-sizing: border-box;
 }
 
-.modal-header-pill .btn-close:hover {
+.modal-header .btn-close:hover, .offcanvas-header .btn-close:hover {
     opacity: 1 !important;
     transform: scale(1.15) rotate(90deg) !important;
-    background-color: rgba(220, 38, 38, 0.15); /* Light red on hover */
+    background-color: rgba(220, 38, 38, 0.15) !important; /* Light red on hover */
 }
 
 /* --- 4. Pill Color Variants (applied to title via parent) --- */
-.modal-header-pill.primary .modal-title {
+.modal-header.primary .modal-title {
     background: var(--primary-gradient) !important;
     box-shadow: 0 6px 20px rgba(0, 102, 255, 0.35), inset 0 1px 0 rgba(255,255,255,0.45) !important;
 }
 
-.modal-header-pill.dark .modal-title {
+.modal-header.dark .modal-title {
     background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.15) !important;
 }
 
-.modal-header-pill.success .modal-title {
+.modal-header.success .modal-title {
     background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
     box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4), inset 0 1px 0 rgba(255,255,255,0.45) !important;
 }
 
-.modal-header-pill.danger .modal-title {
+.modal-header.danger .modal-title {
     background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
     box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4), inset 0 1px 0 rgba(255,255,255,0.45) !important;
 }
 
-.modal-header-pill.warning .modal-title {
+.modal-header.warning .modal-title {
     background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%) !important;
     box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4), inset 0 1px 0 rgba(255,255,255,0.45) !important;
 }
@@ -740,12 +741,6 @@ body {
 [data-theme="dark"] .offcanvas {
     background: rgba(15, 23, 42, 0.88) !important;
     border-top-color: rgba(255, 255, 255, 0.12) !important;
-}
-
-.modal-header, .offcanvas-header {
-    background: transparent !important;
-    border-bottom: none !important;
-    padding: 0 !important;
 }
 
 
