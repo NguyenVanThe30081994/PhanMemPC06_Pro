@@ -107,7 +107,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0">
             <form method="POST">
-                <div class="modal-header modal-header-pill primary">
+                <div class="modal-header primary">
                     <h5 class="modal-title fw-bold">THÊM CÔNG VIỆC MỚI</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -121,6 +121,7 @@
                         <div class="col-md-6">
                             <label class="form-label fw-bold small">ĐỘI NGHIỆP VỤ</label>
                             <select name="unit_name" class="form-select" required>
+                                <option value="" disabled selected>Chọn đội nghiệp vụ...</option>
                                 {% for u in pro_units %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
                             </select>
                         </div>
@@ -134,7 +135,7 @@
                         <textarea name="description" class="form-control" rows="4"></textarea>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-0">
+                <div class="modal-footer border-0">
                     <button type="button" class="btn btn-light px-4 rounded-pill fw-bold border" data-bs-dismiss="modal">HỦY</button>
                     <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">TẠO CÔNG VIỆC</button>
                 </div>

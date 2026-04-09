@@ -1602,15 +1602,7 @@ body {
     padding: 8px 4px !important;
 }
 
-/* Modal Close Button Adjustment */
-.modal-header .btn-close {
-    margin: -0.5rem -0.5rem -0.5rem auto !important;
-    padding: 0.5rem !important;
-    z-index: 1060;
-}
-.modal-title {
-    padding-right: 30px;
-}
+/* Modal Close Button - Overridden by pill system above, no duplicate needed */
 
 /* Navigation History Buttons */
 .nav-history-btns {

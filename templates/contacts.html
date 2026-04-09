@@ -96,7 +96,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0">
             <form method="POST">
-                <div class="modal-header modal-header-pill primary">
+                <div class="modal-header primary">
                     <h5 class="modal-title fw-bold">THÊM LIÊN HỆ MỚI</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -109,21 +109,31 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold text-dark small">CHỨC VỤ</label>
-                            <input type="text" name="position" class="form-control" placeholder="Chức vụ...">
+                            <select name="position" class="form-select">
+                                <option value="" disabled selected>Chọn chức vụ...</option>
+                                {% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}
+                            </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold text-dark small">NHÓM</label>
                             <select name="category" class="form-select" required>
+                                <option value="" disabled selected>Chọn nhóm danh bạ...</option>
                                 {% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
                             </select>
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-bold text-dark small">SỐ ĐIỆN THOẠI</label>
-                            <input type="text" name="phone" class="form-control" placeholder="0xxx.xxx.xxx" required>
+                            <input type="tel" name="phone" class="form-control"
+                                   placeholder="0xxx.xxx.xxx"
+                                   pattern="0[0-9]{9}"
+                                   maxlength="10"
+                                   title="Số điện thoại gồm 10 số, bắt đầu bằng số 0"
+                                   required>
+                            <div class="form-text text-muted tiny">10 số, bắt đầu bằng số 0 (ví dụ: 0912345678)</div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-0">
+                <div class="modal-footer border-0">
                     <button type="button" class="btn btn-light px-4 rounded-pill fw-bold border" data-bs-dismiss="modal">HỦY</button>
                     <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">THÊM VÀO DANH BẠ</button>
                 </div>

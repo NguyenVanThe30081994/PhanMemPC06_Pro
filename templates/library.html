@@ -85,7 +85,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0">
             <form method="POST" enctype="multipart/form-data">
-                <div class="modal-header modal-header-pill primary">
+                <div class="modal-header primary">
                     <h5 class="modal-title fw-bold">TẢI LÊN TÀI LIỆU MỚI</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -98,6 +98,7 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold text-dark small">LĨNH VỰC</label>
                         <select name="category" class="form-select shadow-none" required>
+                            <option value="" disabled selected>Chọn lĩnh vực...</option>
                             {% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
                         </select>
                     </div>
@@ -110,7 +111,7 @@
                         <input type="file" name="file" class="form-control" required>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-0">
+                <div class="modal-footer border-0">
                     <button type="button" class="btn btn-light px-4 rounded-pill fw-bold border" data-bs-dismiss="modal">HỦY</button>
                     <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">TẢI LÊN</button>
                 </div>

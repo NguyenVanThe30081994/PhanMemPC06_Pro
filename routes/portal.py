@@ -115,6 +115,7 @@ def contacts():
     return render_template('contacts.html', 
                           contacts=query.all(), 
                           groups=contact_groups,
+                          categories=contact_groups,
                           roles=contact_roles, 
                           current_group=group_filter,
                           unit_cats=unit_cats)
