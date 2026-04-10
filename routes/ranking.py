@@ -1,30 +1,30 @@
-from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash
-from models import db, RankingUnit, RankingIndicator, RankingEntry
-from utils import normalize_unit_name, safe_float
-import pandas as pd
-import io
-import openpyxl
 from datetime import datetime
-from flask import send_file
+import io
+import re
+
+import openpyxl
+import pandas as pd
+from flask import Blueprint, jsonify, render_template, request, send_file
+
+from models import RankingEntry, RankingIndicator, RankingUnit, db
+from utils import normalize_unit_name, remove_accents, safe_float
+
 
 ranking_bp = Blueprint('ranking_bp', __name__)
 
+
 @ranking_bp.route('/ranking')
 def index():
-    # Load all units and indicators
     units = RankingUnit.query.all()
     indicators = RankingIndicator.query.all()
-    
-    # Calculate current state
     leaderboard = calculate_leaderboard()
-    
     return render_template('ranking.html', units=units, indicators=indicators, leaderboard=leaderboard)
+
 
 @ranking_bp.route('/ranking/input')
 def input_data():
-    indicators = RankingIndicator.query.all()
-    units = RankingUnit.query.all()
-    return render_template('ranking_input.html', indicators=indicators, units=units)
+    return render_template('ranking_input.html')
+
 
 @ranking_bp.route('/ranking/api/save', methods=['POST'])
 def save_entry():
@@ -32,7 +32,7 @@ def save_entry():
     unit_id = data.get('unit_id')
     indicator_id = data.get('indicator_id')
     val = data.get('value')
-    
+
     if val is None or val == '':
         return jsonify({"status": "no_value"})
 
@@ -40,109 +40,194 @@ def save_entry():
     if not entry:
         entry = RankingEntry(unit_id=unit_id, indicator_id=indicator_id)
         db.session.add(entry)
-    
+
     entry.raw_value = float(val)
     db.session.commit()
     return jsonify({"status": "ok"})
+
 
 @ranking_bp.route('/ranking/api/values/<int:indicator_id>')
 def get_values(indicator_id):
     entries = RankingEntry.query.filter_by(indicator_id=indicator_id).all()
     return jsonify({e.unit_id: e.raw_value for e in entries})
 
+
 @ranking_bp.route('/ranking/template')
 def download_template():
     units = RankingUnit.query.all()
     indicators = RankingIndicator.query.all()
-    
-    # Create structure: Unit Name + Indicators
+
     data = {"Đơn vị Công an xã/thị trấn": [u.name for u in units]}
     for ind in indicators:
         data[ind.name] = [0.0] * len(units)
-        
+
     df = pd.DataFrame(data)
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='DuLieuChamDiem')
         ws = writer.sheets['DuLieuChamDiem']
-        for i, col in enumerate(df.columns):
-            ws.column_dimensions[openpyxl.utils.get_column_letter(i+1)].width = 30
-            
+        for i, _ in enumerate(df.columns):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(i + 1)].width = 30
+
     output.seek(0)
-    return send_file(output, download_name=f"Mau_ChamDiem_{datetime.now().strftime('%Y%m%d')}.xlsx", as_attachment=True)
+    return send_file(
+        output,
+        download_name=f"Mau_ChamDiem_{datetime.now().strftime('%Y%m%d')}.xlsx",
+        as_attachment=True,
+    )
+
+
+def _normalize_indicator_key(value):
+    text = remove_accents(value or "")
+    text = re.sub(r'[^a-z0-9]+', ' ', text).strip()
+    return re.sub(r'\s+', ' ', text)
+
+
+def _is_unit_column(value):
+    key = _normalize_indicator_key(value)
+    unit_tokens = [
+        'don vi',
+        'ten don vi',
+        'cong an xa',
+        'cong an phuong',
+        'cong an thi tran',
+        'xa thi tran',
+        'ten xa',
+        'ten phuong',
+        'ten thi tran',
+    ]
+    return any(token in key for token in unit_tokens)
+
+
+def _choose_value_column(df, unit_col):
+    candidates = [col for col in df.columns if col != unit_col]
+    if not candidates:
+        return None
+
+    ranked_candidates = []
+    for col in candidates:
+        non_null = df[col].dropna()
+        if len(non_null) == 0:
+            continue
+        numeric_count = sum(
+            1
+            for val in non_null.head(50)
+            if safe_float(val) != 0 or str(val).strip() in {'0', '0.0', '0,0'}
+        )
+        ranked_candidates.append((numeric_count, len(non_null), col))
+
+    if not ranked_candidates:
+        return candidates[0]
+
+    ranked_candidates.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    return ranked_candidates[0][2]
+
 
 @ranking_bp.route('/ranking/import', methods=['POST'])
 def import_excel():
     if 'file' not in request.files:
         return jsonify({"success": False, "message": "Không tìm thấy file!"}), 400
-        
+
     file = request.files['file']
     if not file.filename:
         return jsonify({"success": False, "message": "File không hợp lệ!"}), 400
-        
+
     try:
-        df = pd.read_excel(file)
-        # 1. Clean column names
-        df.columns = [str(c).strip() for c in df.columns]
-        
-        # 2. Identify Target Indicators
+        excel_file = pd.ExcelFile(file)
+
         db_indicators = RankingIndicator.query.all()
-        ind_map = {ind.name.strip(): ind for ind in db_indicators}
-        
-        # 3. Identify Target Units
+        indicator_aliases = {}
+        for ind in db_indicators:
+            for alias in [ind.name, ind.sheet_name]:
+                alias_key = _normalize_indicator_key(alias)
+                if alias_key:
+                    indicator_aliases[alias_key] = ind
+
         db_units = RankingUnit.query.all()
         unit_map = {normalize_unit_name(u.name): u for u in db_units}
-        
-        # 4. Process Sync
-        units_col = df.columns[0] # Assume 1st column is Unit Name
-        synced_count = 0
-        unmatched_units = []
-        unmatched_inds = []
-        
-        # Identify which columns in Excel match DB indicators
-        active_cols = []
-        for col in df.columns[1:]:
-            if col in ind_map:
-                active_cols.append(col)
-            else:
-                unmatched_inds.append(col)
-        
-        for _, row in df.iterrows():
-            raw_name = str(row[units_col])
-            norm_name = normalize_unit_name(raw_name)
-            unit = unit_map.get(norm_name)
-            
-            if not unit:
-                unmatched_units.append(raw_name)
+
+        imported_values = {}
+        unmatched_units = set()
+        unmatched_indicators = set()
+        processed_sheets = []
+        matched_indicator_ids = set()
+
+        for sheet_name in excel_file.sheet_names:
+            df = pd.read_excel(excel_file, sheet_name=sheet_name)
+            if df.empty or len(df.columns) == 0:
                 continue
-                
-            for col in active_cols:
-                val = safe_float(row[col])
-                ind = ind_map[col]
-                
-                entry = RankingEntry.query.filter_by(unit_id=unit.id, indicator_id=ind.id).first()
-                if not entry:
-                    entry = RankingEntry(unit_id=unit.id, indicator_id=ind.id)
-                    db.session.add(entry)
-                entry.raw_value = val
-                synced_count += 1
-                
+
+            df = df.dropna(how='all')
+            if df.empty:
+                continue
+
+            df.columns = [str(c).strip() for c in df.columns]
+            unit_col = next((col for col in df.columns if _is_unit_column(col)), df.columns[0])
+
+            active_cols = []
+            for col in df.columns:
+                if col == unit_col:
+                    continue
+                indicator = indicator_aliases.get(_normalize_indicator_key(col))
+                if indicator:
+                    active_cols.append((col, indicator))
+                else:
+                    unmatched_indicators.add(str(col).strip())
+
+            if not active_cols:
+                sheet_indicator = indicator_aliases.get(_normalize_indicator_key(sheet_name))
+                if sheet_indicator:
+                    value_col = _choose_value_column(df, unit_col)
+                    if value_col:
+                        active_cols.append((value_col, sheet_indicator))
+
+            if not active_cols:
+                continue
+
+            processed_sheets.append(sheet_name)
+
+            for _, row in df.iterrows():
+                raw_name = row.get(unit_col)
+                if pd.isna(raw_name) or str(raw_name).strip() == '':
+                    continue
+
+                unit = unit_map.get(normalize_unit_name(str(raw_name).strip()))
+                if not unit:
+                    unmatched_units.add(str(raw_name).strip())
+                    continue
+
+                for col, indicator in active_cols:
+                    imported_values[(unit.id, indicator.id)] = safe_float(row.get(col))
+                    matched_indicator_ids.add(indicator.id)
+
+        if not imported_values:
+            return jsonify({
+                "success": False,
+                "message": "Không quét được dữ liệu chấm điểm hợp lệ từ file tải lên."
+            }), 400
+
+        db.session.query(RankingEntry).delete()
+        for (unit_id, indicator_id), value in imported_values.items():
+            db.session.add(RankingEntry(unit_id=unit_id, indicator_id=indicator_id, raw_value=value))
+
         db.session.commit()
         return jsonify({
-            "success": True, 
-            "synced_entries": synced_count,
-            "unmatched_units": unmatched_units[:10], # Limit summary
-            "unmatched_indicators": unmatched_inds
+            "success": True,
+            "synced_entries": len(imported_values),
+            "processed_sheets": processed_sheets,
+            "matched_indicators": len(matched_indicator_ids),
+            "unmatched_units": sorted(unmatched_units)[:10],
+            "unmatched_indicators": sorted(unmatched_indicators)[:10],
         })
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": f"Lỗi xử lý file: {str(e)}"}), 500
 
+
 @ranking_bp.route('/ranking/export')
 def export_ranking():
     leaderboard = calculate_leaderboard()
-    
-    # Create DataFrame
+
     data = []
     for item in leaderboard:
         data.append({
@@ -150,90 +235,81 @@ def export_ranking():
             "Đơn vị Công an xã": item['name'],
             "Tổng điểm cộng dồn (Thấp là tốt)": item['total_score'],
             "Phân nhóm": f"Nhóm {item['group']}",
-            "Điểm nhóm quy đổi": item['group_points']
+            "Điểm nhóm quy đổi": item['group_points'],
         })
-    
+
     df = pd.DataFrame(data)
-    
-    # Export to Excel
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Xếp hạng 124 xã')
-        
-        # Professional styling
-        workbook = writer.book
         worksheet = writer.sheets['Xếp hạng 124 xã']
-        
-        # Adjust column widths
+
         for i, col in enumerate(df.columns):
             column_len = max(df[col].astype(str).str.len().max(), len(col)) + 5
-            worksheet.column_dimensions[openpyxl.utils.get_column_letter(i+1)].width = column_len
+            worksheet.column_dimensions[openpyxl.utils.get_column_letter(i + 1)].width = column_len
 
     output.seek(0)
-    from flask import send_file
-    from datetime import datetime
     filename = f"XepHang_PC06_{datetime.now().strftime('%Y%m%d')}.xlsx"
-    return send_file(output, attachment_filename=filename, as_attachment=True)
+    return send_file(output, download_name=filename, as_attachment=True)
+
 
 def calculate_leaderboard():
-    # Logic based on V13 plan
-    # 1. For each indicator, rank all 124 units
     units = RankingUnit.query.all()
     indicators = RankingIndicator.query.all()
-    
+
     unit_totals = {u.id: 0 for u in units}
     unit_names = {u.id: u.name for u in units}
-    
+
     for ind in indicators:
         entries = RankingEntry.query.filter_by(indicator_id=ind.id).all()
-        # Map values
         val_map = {e.unit_id: e.raw_value for e in entries}
-        # Filling missing
+
         for u in units:
-            if u.id not in val_map: val_map[u.id] = 0
-            
-        # Rank them
+            if u.id not in val_map:
+                val_map[u.id] = 0
+
         sorted_unit_ids = sorted(val_map.keys(), key=lambda uid: val_map[uid], reverse=ind.higher_is_better)
-        
-        # Assign points (Rank * Coef)
-        # Note: In Excel, Rank 1 = 1 point. Low sum = good.
+
         for rank, uid in enumerate(sorted_unit_ids, 1):
-            # Handle ties (simplified for now, ideally same value = same rank)
             unit_totals[uid] += rank * ind.coef
-            
-    # Final Ranking
+
     final_list = []
     for uid, total in unit_totals.items():
         final_list.append({"id": uid, "name": unit_names[uid], "total_score": total})
-        
-    # Sort by total_score ASCENDING (Lower is better)
+
     final_list = sorted(final_list, key=lambda x: x['total_score'])
-    
-    # Assign Tiers
-    # Tier 1 (10), Tier 2 (20), etc.
+
     for i, item in enumerate(final_list, 1):
         item['rank'] = i
         base_points = 0
-        if i <= 10: item['group'] = 1; base_points = 12
-        elif i <= 30: item['group'] = 2; base_points = 9
-        elif i <= 50: item['group'] = 3; base_points = 8
-        elif i <= 70: item['group'] = 4; base_points = 7
-        elif i <= 90: item['group'] = 5; base_points = 6
-        elif i <= 110: item['group'] = 6; base_points = 5
-        else: item['group'] = 7; base_points = 2
-        
-        # Check security violation (id of indicator "treem" or similar if assigned to ANAT)
-        # For now, let's check a specific indicator named "An ninh an toàn" or similar
-        # If the unit has a value > 0 in ANAT indicator, subtract 4
-        # We'll look for an indicator with sheet_name 'dangkyxe' or specifically added for ANAT
-        # For simplicity, if you want a fixed penalty, we could add a checkbox in UI.
-        # But let's check indicator with sheet_name 'dangkyxe' (Col 23 in excel was ANAT)
+        if i <= 10:
+            item['group'] = 1
+            base_points = 12
+        elif i <= 30:
+            item['group'] = 2
+            base_points = 9
+        elif i <= 50:
+            item['group'] = 3
+            base_points = 8
+        elif i <= 70:
+            item['group'] = 4
+            base_points = 7
+        elif i <= 90:
+            item['group'] = 5
+            base_points = 6
+        elif i <= 110:
+            item['group'] = 6
+            base_points = 5
+        else:
+            item['group'] = 7
+            base_points = 2
+
         anat_ind = RankingIndicator.query.filter(RankingIndicator.sheet_name.like('%dangkyxe%')).first()
         if anat_ind:
             entry = RankingEntry.query.filter_by(unit_id=item['id'], indicator_id=anat_ind.id).first()
             if entry and entry.raw_value > 0:
                 base_points -= 4
-        
+
         item['group_points'] = base_points
-        
+
     return final_list
