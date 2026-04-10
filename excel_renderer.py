@@ -41,49 +41,33 @@ def _safe_color(color_obj):
 
 def is_input_cell(cell):
     """
-    Standard logic to detect if a cell is an input marker.
-    Matches the project's light blue color (RGB E0F2FE) or its Theme/Indexed equivalent.
+    Broadened detection: Any cell with a non-white background is likely an input marker.
     """
     try:
         fill = cell.fill
-        if not fill or (fill.patternType != 'solid' and fill.patternType is not None):
-            return False
+        if not fill or fill.patternType is None: return False
         
         c = fill.start_color
         if not c: return False
         
-        # 1. Match by RGB (most common)
-        INPUT_MARKERS = [
-            'FFE0F2FE', '00E0F2FE', 'E0F2FE',  # Pro-Blue
-            'FFB4C6E7', 'B4C6E7',             # Light Blue Accent
-            'FFD9E1F2', 'D9E1F2',             # Very Light Blue
-            'B7DEE8', 'FFB7DEE8',             # Aqua Light
-            'DAE3F3', 'FFDAE3F3'              # Default Input Shade
-        ]
-        
-        # Check rgb property
+        # 1. Match by Theme (Aggressive)
+        # Any themed color (other than pure black/white theme) is likely a marker
+        if c.type == 'theme' and c.theme is not None:
+            if c.theme > 0: return True
+            # Theme 0 with a tint (often light gray/blue)
+            if c.theme == 0 and (c.tint and abs(c.tint) > 0.01): return True
+
+        # 2. Match by RGB
         if hasattr(c, 'rgb') and c.rgb:
             rgb = str(c.rgb).upper()
-            if rgb in INPUT_MARKERS or any(m in rgb for m in INPUT_MARKERS):
+            # If it's 8 chars ARGB, ignore Alpha for white check
+            rgb_6 = rgb[-6:] if len(rgb) >= 6 else rgb
+            if rgb_6 not in ['FFFFFF', '000000']:
                 return True
         
-        # Check indexed/index property (sometimes used for legacy or specific palettes)
-        if hasattr(c, 'index'):
-            idx = str(c.index).upper()
-            if idx in INPUT_MARKERS or any(m in idx for m in INPUT_MARKERS):
-                return True
-            # Common indexed colors for light blue (depends on palette, but 40, 41 are often blue-ish)
-            if idx in ['40', '41', '42']:
-                return True
-
-        # 2. Match by Theme (Theme 4, 5, 8 are common blue accents)
-        if c.type == 'theme' and c.theme in [1, 4, 5, 8]:
-            # Theme 1 + Tint -0.15 is often a light blue-ish gray used for inputs
-            # Theme 4, 5, 8 are standard Accents (Blue, Gold, Aqua)
-            if c.theme == 1 and (c.tint and -0.2 < c.tint < 0):
-                return True
-            if c.theme in [4, 5, 8]:
-                return True
+        # 3. Handle specific patterns (sometimes used for shading)
+        if fill.patternType in ['lightGray', 'gray125', 'gray0625']:
+            return True
             
     except Exception:
         pass

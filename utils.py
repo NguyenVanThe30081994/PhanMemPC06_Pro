@@ -9,24 +9,36 @@ def remove_accents(s):
     s = unicodedata.normalize('NFKD', str(s)).encode('ascii', 'ignore').decode('utf-8')
     return s.lower()
 
-def slugify_unit(name):
+def normalize_unit_name(name):
+    """
+    Normalizes unit names for comparison. 
+    Removes prefixes like 'Công an', 'Xã', 'Phường', 'Thị trấn', etc.
+    Example: 'Công an phường An Tường' -> 'an tuong', 'Phường an tường' -> 'an tuong'
+    """
     if not name: return ""
     import unicodedata
-    # Lowercase and handle common abbreviations
+    # 1. Lowercase and remove accents
     n = str(name).lower().strip()
-    n = n.replace("công an nhân dân", "cand")
-    n = n.replace("công an xã", "cax")
-    n = n.replace("công an huyện", "cah")
-    n = n.replace("ủy ban nhân dân xã", "ubndxa")
-    n = n.replace("ủy ban nhân dân", "ubnd")
-    n = n.replace("tỉnh tuyên quang", "ttq")
-    n = n.replace("thành phố", "tp")
-    n = n.replace("thị trấn", "tt")
-    n = n.replace("phòng cảnh sát", "pcs")
-    
-    # Remove accents
     n = unicodedata.normalize('NFKD', n).encode('ascii', 'ignore').decode('utf-8')
-    # Remove everything except alphanumeric
+    
+    # 2. Remove common prefixes and noise words
+    prefixes = [
+        "cong an phuong", "cong an xa", "cong an huyen", "cong an thanh pho", "cong an tinh", "cong an",
+        "ubnd xa", "ubnd phuong", "ubnd",
+        "phuong", "xa", "huyen", "thanh pho", "thi tran", "tinh"
+    ]
+    # Replace whole words for prefixes
+    for p in prefixes:
+        n = re.sub(r'\b' + re.escape(p) + r'\b', '', n).strip()
+    
+    # 3. Clean up extra spaces
+    n = re.sub(r'\s+', ' ', n).strip()
+    return n
+
+def slugify_unit(name):
+    if not name: return ""
+    n = normalize_unit_name(name)
+    # Remove everything except alphanumeric for the slug
     n = re.sub(r'[^a-z0-9]', '', n)
     return n
 

@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify
 from models import db, ReportTemplateV2, ReportVersionV2, ReportSubmissionV2, ReportValueV2, ReportAuditV2, User
 from pc06_excel_engine import ExcelEngineV2
+from utils import normalize_unit_name
 import json
 import io
 import os
@@ -238,9 +239,11 @@ def render_report(tid):
                 continue
 
             # Unit-row filtering: strictly "Tài khoản đơn vị nào nhập đơn vị đó"
-            # However, Admins and "Hệ thống" accounts see all for management
-            should_filter = (not is_admin) and (user_unit not in ['Hệ thống', 'Admin', 'PC06'])
+            is_global = is_admin or (user_unit in ['Hệ thống', 'Admin', 'PC06'])
+            should_filter = (not is_global)
+            
             if user_unit and should_filter:
+                norm_user_unit = normalize_unit_name(user_unit)
                 # 1. Detect if row has any input cells
                 has_input = False
                 for c in range(1, max_col + 1):
@@ -253,12 +256,11 @@ def render_report(tid):
                     allowed = False
                     for c in range(1, max_col + 1):
                         cell_val = str(ws.cell(row=r, column=c).value or '').strip()
-                        # Strict match: either the cell equals the unit, or contains it with word boundaries
-                        if cell_val == user_unit:
-                            allowed = True
-                            break
-                        import re
-                        if re.search(r'\b' + re.escape(user_unit) + r'\b', cell_val):
+                        if not cell_val: continue
+                        
+                        norm_cell_val = normalize_unit_name(cell_val)
+                        # Match normalized names: 'an tuong' == 'an tuong'
+                        if norm_cell_val == norm_user_unit or norm_user_unit in norm_cell_val or norm_cell_val in norm_user_unit:
                             allowed = True
                             break
                     
@@ -363,15 +365,15 @@ def submit_data():
             # Allow all rows
             for r in range(1, ws.max_row + 1): allowed_rows.add(r)
         else:
+            norm_user_unit = normalize_unit_name(user_unit)
             for r in range(1, ws.max_row + 1):
                 is_match = False
                 for c in range(1, ws.max_column + 1):
                     cell_val = str(ws.cell(row=r, column=c).value or '').strip()
-                    if cell_val == user_unit:
-                        is_match = True
-                        break
-                    import re
-                    if re.search(r'\b' + re.escape(user_unit) + r'\b', cell_val):
+                    if not cell_val: continue
+                    
+                    norm_cell_val = normalize_unit_name(cell_val)
+                    if norm_cell_val == norm_user_unit or norm_user_unit in norm_cell_val or norm_cell_val in norm_user_unit:
                         is_match = True
                         break
                 

@@ -25,7 +25,12 @@
         
         <div class="header-actions">
             <div class="d-flex align-items-center gap-3">
-                <span class="text-muted small d-none d-md-inline">Đơn vị: <span class="fw-bold text-primary">{{ session.unit_area }}</span></span>
+                <span class="text-muted small d-none d-md-inline">Đơn vị: <span class="fw-bold text-primary">{{ user_unit or 'Hỗ trợ' }}</span></span>
+                {% if is_admin %}
+                <span class="badge bg-secondary bg-opacity-10 text-secondary tiny px-2 py-1 rounded-pill">
+                    <i class="fa-solid fa-keyboard me-1"></i><span id="inputCount">0</span> ô nhập
+                </span>
+                {% endif %}
                 <div id="saveStatus" class="tiny text-muted fw-bold d-none d-sm-block bg-white px-3 py-2 rounded-pill border-light shadow-sm">
                     <i class="fa-solid fa-cloud-check text-success me-1"></i>ĐÃ LƯU
                 </div>
@@ -97,13 +102,42 @@
     .excel-render-table { border-collapse: collapse; width: 100%; min-width: 100%; border: 1px solid var(--border) !important; table-layout: auto; margin: 0 auto; box-shadow: 0 0 20px rgba(0,0,0,0.02); }
     .excel-render-table td { border: 1px solid var(--border) !important; padding: 4px 8px; background-color: #fff; }
     [data-theme="dark"] .excel-render-table td { background-color: var(--bg-surface); }
-    .grid-input { border: none; background: transparent; width: 100%; height: 100%; outline: none; color: inherit; font-family: inherit; }
-    .grid-input:focus { background: rgba(var(--primary-rgb), 0.05); }
+    .grid-input { 
+        border: 1px solid transparent; 
+        background: transparent; 
+        width: 100%; 
+        height: 100%; 
+        outline: none; 
+        color: inherit; 
+        font-family: inherit; 
+        transition: all 0.2s;
+        cursor: text;
+        padding: 4px;
+        box-sizing: border-box;
+    }
+    .grid-input:hover { 
+        background: rgba(var(--primary-rgb), 0.05); 
+        border: 1px dashed rgba(var(--primary-rgb), 0.3);
+    }
+    .grid-input:focus { 
+        background: white !important; 
+        box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.25); 
+        border: 1px solid var(--primary);
+    }
 </style>
 
 <script>
 let isDirty = false;
 let autosaveTimer = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    const inputs = document.querySelectorAll('.grid-input');
+    const countSpan = document.getElementById('inputCount');
+    if (countSpan) countSpan.innerText = inputs.length;
+    if (inputs.length === 0) {
+        console.warn("No input cells detected.");
+    }
+});
 
 function markDirty() {
     isDirty = true;
