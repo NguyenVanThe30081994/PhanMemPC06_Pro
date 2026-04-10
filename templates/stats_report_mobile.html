@@ -79,9 +79,10 @@
 </div>
 
 <style>
-    .excel-render-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-    .excel-render-table td, .excel-render-table th { border: 1px solid #eee; padding: 8px; }
-    .excel-render-table tr:nth-child(even) { background: #fdfdfd; }
+    .excel-render-table { width: 100%; border-collapse: collapse; font-size: 11px; color: var(--text-main); }
+    .excel-render-table td, .excel-render-table th { border: 1px solid var(--border); padding: 8px; }
+    [data-theme="light"] .excel-render-table tr:nth-child(even) { background: #fdfdfd; }
+    [data-theme="dark"] .excel-render-table tr:nth-child(even) { background: rgba(255,255,255,0.02); }
 </style>
 
 <script>

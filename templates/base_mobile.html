@@ -32,11 +32,25 @@
             --bg-body: #0f172a;
             --bg-surface: #1e293b;
             --bg-surface-rgb: 30, 41, 59;
-            --text-main: #f1f5f9;
+            --text-main: #f8fafc;
             --text-muted: #94a3b8;
             --border: #334155;
             --primary-light: rgba(37, 99, 235, 0.2);
         }
+
+        /* Dark Mode Global Dynamic Overrides */
+        [data-theme="dark"] .text-dark { color: var(--text-main) !important; }
+        [data-theme="dark"] .text-black { color: var(--text-main) !important; }
+        [data-theme="dark"] .bg-white { background-color: var(--bg-surface) !important; }
+        [data-theme="dark"] .bg-light { background-color: var(--bg-body) !important; }
+        [data-theme="dark"] .card { background-color: var(--bg-surface); border-color: var(--border); }
+        [data-theme="dark"] .modal-content { background-color: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border); }
+        [data-theme="dark"] .offcanvas { background-color: var(--bg-surface); color: var(--text-main); }
+        [data-theme="dark"] .list-group-item { background-color: transparent; color: var(--text-main); border-color: var(--border); }
+        [data-theme="dark"] .form-control, [data-theme="dark"] .form-select { background-color: var(--bg-body); border-color: var(--border); color: var(--text-main); }
+        [data-theme="dark"] .form-control:focus, [data-theme="dark"] .form-select:focus { background-color: var(--bg-body); color: var(--text-main); }
+        [data-theme="dark"] hr { border-color: var(--border); opacity: 0.1; }
+        [data-theme="dark"] .btn-light { background-color: var(--border); border-color: var(--border); color: var(--text-main); }
 
         * {
             box-sizing: border-box;
@@ -379,10 +393,18 @@
 
         themeToggler.addEventListener('click', () => {
             const newTheme = htmlEl.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-            htmlEl.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            updateTogglerIcon(newTheme);
+            setTheme(newTheme);
         });
+
+        function setTheme(theme) {
+            htmlEl.setAttribute('data-theme', theme);
+            htmlEl.setAttribute('data-bs-theme', theme);
+            localStorage.setItem('theme', theme);
+            updateTogglerIcon(theme);
+        }
+
+        const initialTheme = localStorage.getItem('theme') || 'light';
+        setTheme(initialTheme);
 
         function updateTogglerIcon(theme) {
             const icon = themeToggler.querySelector('i');
