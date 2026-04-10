@@ -66,19 +66,19 @@
                         <tbody>
                             {% for t in tasks %}
                             <tr class="task-row" data-unit="{{ t.unit_name }}" data-status="{{ t.status }}">
-                                <td class="ps-4 py-3">
+                                <td class="ps-4 py-3" data-label="Tên công việc">
                                     <div class="fw-bold text-dark">{{ t.title }}</div>
                                     <div class="tiny text-muted text-truncate mt-1" style="max-width: 300px;">{{ t.description }}</div>
                                 </td>
-                                <td>
+                                <td data-label="Đội nghiệp vụ">
                                     <span class="badge bg-primary bg-opacity-10 text-primary border-primary border-opacity-25 px-2 tiny fw-bold">{{ t.unit_name }}</span>
                                 </td>
-                                <td>
+                                <td data-label="Thời hạn">
                                     <div class="small fw-bold {{ 'text-danger' if t.status != 'Hoàn thành' else 'text-muted' }}">
                                         <i class="fa-regular fa-calendar-clock me-1"></i>{{ t.deadline.strftime('%d/%m/%Y') }}
                                     </div>
                                 </td>
-                                <td>
+                                <td data-label="Trạng thái">
                                     {% if t.status == 'Hoàn thành' %}
                                     <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill tiny fw-bold"><i class="fa-solid fa-circle-check me-1"></i>HOÀN THÀNH</span>
                                     {% elif t.status == 'Đang thực hiện' %}
@@ -87,7 +87,7 @@
                                     <span class="badge bg-danger bg-opacity-10 text-danger px-3 py-2 rounded-pill tiny fw-bold"><i class="fa-solid fa-clock me-1"></i>CHƯA XỬ LÝ</span>
                                     {% endif %}
                                 </td>
-                                <td class="pe-4 text-end">
+                                <td class="pe-4 text-end" data-label="Chi tiết">
                                     <a href="{{ url_for('tasks_bp.detail', tid=t.id) }}" class="btn btn-light btn-circle btn-circle-sm border shadow-sm">
                                         <i class="fa-solid fa-chevron-right fs-6"></i>
                                     </a>

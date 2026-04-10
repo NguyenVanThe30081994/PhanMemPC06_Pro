@@ -68,19 +68,19 @@
                         <tbody>
                             {% for item in leaderboard %}
                             <tr class="ranking-row group-{{ item.group }}">
-                                <td class="ps-4">
+                                <td class="ps-4" data-label="Hạng">
                                     <span class="badge {{ 'bg-warning' if item.rank <= 3 else 'bg-light text-dark' }} rounded-pill px-3 py-2 fw-bold">
                                         {{ item.rank }}
                                     </span>
                                 </td>
-                                <td>
+                                <td data-label="Đơn vị">
                                     <div class="fw-bold text-dark">{{ item.name }}</div>
                                 </td>
-                                <td class="text-center fw-bold text-primary">{{ item.total_score }}</td>
-                                <td class="text-center">
+                                <td class="text-center fw-bold text-primary" data-label="Tổng điểm">{{ item.total_score }}</td>
+                                <td class="text-center" data-label="Phân nhóm">
                                     <span class="badge group-badge-{{ item.group }} px-3 py-1 fw-bold rounded-pill">Nhóm {{ item.group }}</span>
                                 </td>
-                                <td class="pe-4 text-end">
+                                <td class="pe-4 text-end" data-label="Điểm nhóm">
                                     <div class="fw-black text-dark" style="font-size: 1.1rem;">{{ item.group_points }}</div>
                                 </td>
                             </tr>

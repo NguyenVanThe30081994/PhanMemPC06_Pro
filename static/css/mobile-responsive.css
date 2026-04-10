@@ -1,0 +1,145 @@
+/**
+ * PC06 MOBILE RESPONSIVENESS LAYER (Option 1: Desktop-First)
+ * This file contains overrides for screens <= 768px.
+ * It is loaded last to ensure absolute priority over PC styles.
+ */
+
+@media screen and (max-width: 768px) {
+    /* --- 1. GLOBAL RESET & SPACING --- */
+    :root {
+        --container-padding: 12px;
+        --card-gap: 15px;
+    }
+
+    body {
+        font-size: 14px;
+        -webkit-text-size-adjust: 100%;
+    }
+
+    .container-fluid {
+        padding-left: var(--container-padding) !important;
+        padding-right: var(--container-padding) !important;
+    }
+
+    .main-content {
+        padding-top: 60px !important; /* Fixed header height on mobile */
+    }
+
+    /* --- 2. PAGE HEADERS & ACTIONS --- */
+    .page-header {
+        padding: 15px 10px !important;
+        margin-bottom: 15px !important;
+    }
+
+    .page-header > div {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 15px !important;
+    }
+
+    .header-main-group {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+    }
+
+    .header-actions {
+        width: 100%;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px !important;
+    }
+
+    .header-actions .btn {
+        width: 100% !important;
+        padding: 10px 5px !important;
+        font-size: 11px !important;
+        margin: 0 !important;
+    }
+
+    /* --- 3. TABLE TO CARD TRANSFORMATION (The Core "Option 1" pattern) --- */
+    /* Only apply to tables that aren't explicitly marked as horizontal-scroll-only */
+    .table:not(.no-mobile-card):not(.excel-render-table) {
+        display: block;
+        width: 100%;
+        border: none !important;
+    }
+
+    .table:not(.no-mobile-card):not(.excel-render-table) thead {
+        display: none !important; /* Hide headers */
+    }
+
+    .table:not(.no-mobile-card):not(.excel-render-table) tbody,
+    .table:not(.no-mobile-card):not(.excel-render-table) tr,
+    .table:not(.no-mobile-card):not(.excel-render-table) td {
+        display: block;
+        width: 100%;
+    }
+
+    .table:not(.no-mobile-card):not(.excel-render-table) tr {
+        background: var(--bg-surface) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 16px !important;
+        margin-bottom: 15px !important;
+        padding: 15px !important;
+        box-shadow: var(--shadow-lvl1);
+        position: relative;
+    }
+
+    .table:not(.no-mobile-card):not(.excel-render-table) td {
+        border: none !important;
+        padding: 6px 0 !important;
+        text-align: left !important;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-height: 32px;
+    }
+
+    /* Add labels for data items if we have data-label attributes */
+    .table:not(.no-mobile-card):not(.excel-render-table) td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: var(--text-muted);
+        font-size: 11px;
+        text-transform: uppercase;
+    }
+
+    /* Special handling for Rank badge/column 1 */
+    .table:not(.no-mobile-card):not(.excel-render-table) td:first-child {
+        border-bottom: 1px solid var(--border) !important;
+        margin-bottom: 10px;
+        padding-bottom: 12px !important;
+    }
+
+    /* --- 4. GLASSMORPHISM PERFORMANCE --- */
+    .glass-card, .glass-panel, .top-navbar, .offcanvas {
+        backdrop-filter: blur(10px) !important; /* Reduce blur intensity for mobile battery/perf */
+        -webkit-backdrop-filter: blur(10px) !important;
+    }
+
+    /* --- 5. TOP NAVBAR & NAVIGATION --- */
+    .top-navbar .nav-container {
+        padding: 0 15px !important;
+    }
+
+    .nav-logo .fw-bold {
+        font-size: 14px !important;
+    }
+
+    /* Hide redundant elements on mobile header */
+    .user-name-text, .header-status-pill {
+        display: none !important;
+    }
+
+    /* --- 6. UTILITY OVERRIDES --- */
+    .row > * {
+        padding-left: 7.5px !important;
+        padding-right: 7.5px !important;
+    }
+
+    .g-4 {
+        --bs-gutter-x: 15px !important;
+        --bs-gutter-y: 15px !important;
+    }
+}
