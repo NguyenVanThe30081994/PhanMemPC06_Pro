@@ -1,0 +1,151 @@
+{% extends "base_mobile.html" %}
+
+{% block content %}
+<div class="ranking-mobile-container animate__animated animate__fadeIn">
+    <!-- Header Summary Card -->
+    <div class="mobile-card ranking-hero shadow-sm mb-4">
+        <div class="ranking-hero-overlay"></div>
+        <div class="ranking-hero-content text-center py-3">
+            <div class="trophy-icon mb-2">
+                <i class="fa-solid fa-trophy fa-2x text-warning"></i>
+            </div>
+            <h5 class="fw-bold text-white mb-0">BẢNG XẾP HẠNG PC06</h5>
+            <p class="tiny text-white opacity-75 mt-1">Dành cho 124 xã/thị trấn (Đội 1)</p>
+        </div>
+    </div>
+
+    <!-- Podium Section (TOP 3) -->
+    <div class="podium-section d-flex align-items-end justify-content-center gap-2 mb-4">
+        <!-- Rank 2 -->
+        {% if leaderboard|length >= 2 %}
+        <div class="podium-item second">
+            <div class="podium-avatar">
+                {{ leaderboard[1].name[:1].upper() }}
+                <div class="podium-rank">2</div>
+            </div>
+            <div class="podium-info text-center mt-2">
+                <div class="fw-bold small text-truncate" style="width: 80px;">{{ leaderboard[1].name }}</div>
+                <div class="tiny text-muted">{{ leaderboard[1].total_score }}đ</div>
+            </div>
+            <div class="podium-step"></div>
+        </div>
+        {% endif %}
+
+        <!-- Rank 1 -->
+        {% if leaderboard|length >= 1 %}
+        <div class="podium-item first">
+            <div class="podium-avatar">
+                <i class="fa-solid fa-crown crown-icon"></i>
+                {{ leaderboard[0].name[:1].upper() }}
+                <div class="podium-rank">1</div>
+            </div>
+            <div class="podium-info text-center mt-2">
+                <div class="fw-bold text-dark text-truncate" style="width: 100px;">{{ leaderboard[0].name }}</div>
+                <div class="small fw-bold text-primary">{{ leaderboard[0].total_score }}đ</div>
+            </div>
+            <div class="podium-step"></div>
+        </div>
+        {% endif %}
+
+        <!-- Rank 3 -->
+        {% if leaderboard|length >= 3 %}
+        <div class="podium-item third">
+            <div class="podium-avatar">
+                {{ leaderboard[2].name[:1].upper() }}
+                <div class="podium-rank">3</div>
+            </div>
+            <div class="podium-info text-center mt-2">
+                <div class="fw-bold small text-truncate" style="width: 70px;">{{ leaderboard[2].name }}</div>
+                <div class="tiny text-muted">{{ leaderboard[2].total_score }}đ</div>
+            </div>
+            <div class="podium-step"></div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Complete List -->
+    <div class="mobile-card border-0 shadow-none p-0 mb-4" style="background: transparent;">
+        <h6 class="fw-bold text-dark mb-3 px-2 d-flex justify-content-between">
+            <span>DANH SÁCH CHI TIẾT</span>
+            <span class="tiny text-muted fw-normal">Sắp xếp theo tổng điểm</span>
+        </h6>
+        
+        <div class="ranking-list">
+            {% for item in leaderboard %}
+            <div class="ranking-card-item d-flex align-items-center gap-3 p-3 mb-2 glass-card-mobile">
+                <div class="rank-number-mobile {% if item.rank <= 3 %}top-rank{% endif %}">
+                    {{ item.rank }}
+                </div>
+                <div class="flex-grow-1 overflow-hidden">
+                    <div class="fw-bold text-dark text-truncate">{{ item.name }}</div>
+                    <div class="d-flex align-items-center gap-2 mt-1">
+                        <span class="badge group-pill-{{ item.group }}">Nhóm {{ item.group }}</span>
+                        <span class="tiny text-muted fw-bold">{{ item.total_score }} điểm tổng</span>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <div class="fw-black text-primary" style="font-size: 1.1rem;">{{ item.group_points }}</div>
+                    <div class="tiny text-muted opacity-75" style="font-size: 8px;">ĐIỂM NHÓM</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .ranking-hero {
+        position: relative; border: none; height: 140px; border-radius: 20px; overflow: hidden;
+        background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    }
+    .ranking-hero-overlay {
+        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+        background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.1) 1px, transparent 0);
+        background-size: 12px 12px;
+    }
+    .ranking-hero-content { position: relative; z-index: 10; }
+
+    /* Podium Styles */
+    .podium-section { height: 180px; align-items: flex-end; }
+    .podium-item { display: flex; flex-direction: column; align-items: center; position: relative; }
+    
+    .podium-avatar {
+        width: 50px; height: 50px; border-radius: 50%; background: #fff; border: 3px solid #e2e8f0;
+        display: flex; align-items: center; justify-content: center; font-weight: 800; position: relative;
+    }
+    .podium-rank {
+        position: absolute; bottom: -8px; right: -5px; width: 22px; height: 22px; border-radius: 50%;
+        background: #64748b; color: white; display: flex; align-items: center; justify-content: center;
+        font-size: 10px; border: 2px solid white; font-weight: 900;
+    }
+
+    .first .podium-avatar { width: 70px; height: 70px; border-color: #fbbf24; font-size: 24px; }
+    .first .podium-rank { background: #fbbf24; width: 28px; height: 28px; font-size: 14px; bottom: 0; right: 0; }
+    .first .crown-icon { position: absolute; top: -18px; color: #fbbf24; font-size: 20px; transform: rotate(-15px); }
+    
+    .second .podium-avatar { border-color: #cbd5e1; height: 60px; width: 60px; font-size: 20px; }
+    .second .podium-rank { background: #94a3b8; }
+    
+    .third .podium-avatar { border-color: #d1d5db; }
+    .third .podium-rank { background: #94a3b8; }
+
+    .podium-step { width: 100%; min-width: 60px; background: rgba(0,0,0,0.03); border-radius: 10px 10px 0 0; margin-top: 10px; }
+    .first .podium-step { height: 40px; min-width: 80px; }
+    .second .podium-step { height: 25px; }
+    .third .podium-step { height: 15px; }
+
+    /* List Styles */
+    .glass-card-mobile {
+        background: white; border-radius: 16px; border: 1px solid var(--border);
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+    }
+    .rank-number-mobile {
+        width: 32px; height: 32px; border-radius: 50%; background: #f1f5f9; color: #64748b;
+        display: flex; align-items: center; justify-content: center; font-weight: 900; flex-shrink: 0;
+    }
+    .rank-number-mobile.top-rank { background: #2563eb; color: white; box-shadow: 0 4px 10px rgba(37,99,235,0.3); }
+
+    .group-pill-1 { background: #dcfce7; color: #166534; font-size: 9px; padding: 2px 8px; border-radius: 50px; font-weight: 700; }
+    .group-pill-2 { background: #fef9c3; color: #854d0e; font-size: 9px; padding: 2px 8px; border-radius: 50px; font-weight: 700; }
+</style>
+{% endblock %}

@@ -174,7 +174,7 @@
     gap: 15px;
     color: var(--text-main);
     font-weight: 800;
-    font-size: 1.05rem;
+    font-size: 0.95rem; /* Giảm nhẹ từ 1.05rem */
 }
 
 /* Cleaned up old floating pill */
@@ -291,7 +291,7 @@
 }
 
 .header-title-pill h1 {
-    font-size: 1.1rem !important;
+    font-size: 1.05rem !important; /* Giảm nhẹ từ 1.1rem */
     font-weight: 800 !important;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -465,8 +465,8 @@ body {
 /* PC HD+ OPTIMIZATION LAYER */
 @media screen and (min-width: 1400px) {
     :root {
-        --font-size-base: 17px; /* Cố định cỡ chữ tốt hơn cho màn hình lớn */
-        --container-padding: 60px;
+        --font-size-base: 16px; /* Giữ 16px cho màn hình 14-15 inch để tránh chữ quá to */
+        --container-padding: 50px;
     }
     
     .main-content > .container-fluid:not(.chat-full-page) {
@@ -482,7 +482,7 @@ body {
 
 @media screen and (min-width: 1920px) {
     :root {
-        --font-size-base: 18px;
+        --font-size-base: 17px; /* Chỉ tăng lên 17px khi ở màn hình cực lớn (Full HD thực tế hoặc 4K) */
         --container-padding: 80px;
     }
 }
@@ -1801,7 +1801,34 @@ body {
     -webkit-box-orient: vertical;
     line-clamp: 2;
     overflow: hidden;
-    height: 44px;
+    height: auto; /* Thay đổi từ 44px sang auto để linh hoạt theo font size */
+    min-height: 2.8em; /* Sử dụng em thay vì px để tỉ lệ theo font size */
+    line-height: 1.4;
+}
+
+.compact-news-card {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border-radius: var(--corner-card, 16px);
+    border: 1px solid var(--border) !important;
+    background: var(--bg-surface);
+}
+
+.compact-news-card .card-body {
+    padding: 1.25rem !important; /* Tăng padding để tránh lẹm chữ ở góc */
+}
+
+.compact-news-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lvl3) !important;
+}
+
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.5; /* Tăng line-height để các ký tự có đuôi (g, y) không bị cắt */
+    padding: 2px 0; /* Padding nhỏ để tránh sát mép overflow */
 }
 
 .report-card-meta {

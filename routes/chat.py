@@ -1,6 +1,7 @@
 import os
 import uuid
 from flask import Blueprint, render_template, request, jsonify, session, send_from_directory, current_app
+from utils import render_auto_template
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_, and_
 from models import db, ChatMessage, User
@@ -15,7 +16,7 @@ def chat():
     c_type = request.args.get('t', 'private')
     users = User.query.filter(User.id != uid).order_by(User.fullname).all()
     # Thống nhất tham số cho template chat
-    return render_template('chat.html', title='Kênh Trực tuyến', users=users, c_type=c_type)
+    return render_auto_template('chat.html', title='Kênh Trực tuyến', users=users, c_type=c_type)
 
 @chat_bp.route('/api_hist', methods=['GET'])
 def api_hist():

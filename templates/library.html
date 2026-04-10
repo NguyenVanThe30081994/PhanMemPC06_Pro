@@ -47,7 +47,7 @@
             <div class="row g-4" id="libraryGrid">
                 {% for item in items %}
                 <div class="col-xl-3 col-lg-4 col-md-6 library-item" data-category="{{ item.category }}">
-                    <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100 hover-up">
+                    <div class="card h-100 bento-card border shadow-sm">
                         <div class="card-body p-4 d-flex flex-column">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <div class="bg-primary bg-opacity-10 p-2 rounded-3">
@@ -55,8 +55,8 @@
                                 </div>
                                 <span class="badge bg-light text-muted border px-2 tiny fw-bold">{{ item.category }}</span>
                             </div>
-                            <h6 class="fw-bold text-main mb-2 line-clamp-2" style="min-height: 44px;">{{ item.title }}</h6>
-                            <p class="text-muted tiny mb-4 line-clamp-2" style="min-height: 30px;">{{ item.description or 'Không có mô tả chi tiết' }}</p>
+                            <h6 class="fw-bold text-main mb-2 line-clamp-2">{{ item.title }}</h6>
+                            <p class="text-muted tiny mb-4 line-clamp-2">{{ item.description or 'Không có mô tả chi tiết' }}</p>
                             
                             <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
                                 <div class="tiny text-muted fw-bold">{{ item.uploaded_at.strftime('%d/%m/%Y') }}</div>
@@ -120,13 +120,8 @@
     </div>
 </div>
 
-<style>
-    .hover-up { transition: all 0.3s; }
-    .hover-up:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important; }
-    .line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
     .tiny { font-size: 10px; }
     .library-item.d-none { display: none !important; }
-</style>
 
 <script>
     let currentCat = 'ALL';

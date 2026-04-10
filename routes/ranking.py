@@ -5,6 +5,7 @@ import re
 import openpyxl
 import pandas as pd
 from flask import Blueprint, jsonify, render_template, request, send_file
+from utils import normalize_unit_name, remove_accents, safe_float, render_auto_template
 
 from models import RankingEntry, RankingIndicator, RankingUnit, db
 from utils import normalize_unit_name, remove_accents, safe_float
@@ -18,7 +19,7 @@ def index():
     units = RankingUnit.query.all()
     indicators = RankingIndicator.query.all()
     leaderboard = calculate_leaderboard()
-    return render_template('ranking.html', units=units, indicators=indicators, leaderboard=leaderboard)
+    return render_auto_template('ranking.html', units=units, indicators=indicators, leaderboard=leaderboard)
 
 
 @ranking_bp.route('/ranking/input')
