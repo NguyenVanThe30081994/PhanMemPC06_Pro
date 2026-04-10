@@ -230,11 +230,8 @@ def render_report(tid):
             min_row, min_col = 1, 1
 
         rows_html = []
-        from excel_renderer import _row_height_px, _cell_css
+        from excel_renderer import _row_height_px, _cell_css, is_input_cell
         from openpyxl.styles.fills import PatternFill
-
-        # Robust input marker detection
-        INPUT_MARKERS = ['FFE0F2FE', '00E0F2FE', 'E0F2FE']
 
         for r in range(min_row, max_row + 1):
             if ws.row_dimensions[r].hidden:
@@ -245,15 +242,9 @@ def render_report(tid):
                 # 1. Detect if row has any input cells
                 has_input = False
                 for c in range(1, max_col + 1):
-                    cell = ws.cell(row=r, column=c)
-                    try:
-                        fill = cell.fill
-                        if isinstance(fill, PatternFill) and fill.patternType == 'solid' and hasattr(fill.fgColor, 'rgb'):
-                            rgb = str(fill.fgColor.rgb).upper()
-                            if rgb in INPUT_MARKERS or any(m in rgb for m in INPUT_MARKERS):
-                                has_input = True
-                                break
-                    except Exception: pass
+                    if is_input_cell(ws.cell(row=r, column=c)):
+                        has_input = True
+                        break
                 
                 # 2. If it's a data row (has input), check if it matches user's unit
                 if has_input:
@@ -276,15 +267,7 @@ def render_report(tid):
                 rowspan, colspan = spans.get((r, c), (1, 1))
                 css = _cell_css(cell)
 
-                is_input = False
-                try:
-                    fill = cell.fill
-                    if (isinstance(fill, PatternFill) and fill.patternType == 'solid' and hasattr(fill.fgColor, 'rgb')):
-                        rgb = str(fill.fgColor.rgb).upper()
-                        if rgb in INPUT_MARKERS or any(m in rgb for m in INPUT_MARKERS):
-                            is_input = True
-                except Exception:
-                    pass
+                is_input = is_input_cell(cell)
 
                 coord = cell.coordinate
                 rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
@@ -497,16 +480,7 @@ def review_submission(sub_id):
                 
                 rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
                 cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
-                # Highlight input cells but make them span/div instead of input
-                is_input = False
-                INPUT_MARKERS = ['FFE0F2FE', '00E0F2FE', 'E0F2FE']
-                try:
-                    fill = cell.fill
-                    if (isinstance(fill, PatternFill) and fill.patternType == 'solid' and hasattr(fill.fgColor, 'rgb')):
-                        rgb = str(fill.fgColor.rgb).upper()
-                        if rgb in INPUT_MARKERS or any(m in rgb for m in INPUT_MARKERS):
-                            is_input = True
-                except Exception: pass
+                is_input = is_input_cell(cell)
                 
                 bg = 'background-color:#f0f9ff;' if is_input else ''
                 td = f'<td{rs_attr}{cs_attr} style="padding:3px 6px;border:1px solid #d1d5db;{bg}{css}">'

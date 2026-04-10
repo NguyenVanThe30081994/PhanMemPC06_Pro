@@ -24,15 +24,70 @@ from markupsafe import Markup
 def _safe_color(color_obj):
     """Return a 6-char hex string or None from an openpyxl Color object."""
     try:
-        if not color_obj or color_obj.rgb is None:
+        if not color_obj:
             return None
-        rgb = str(color_obj.rgb).upper()          # e.g. 'FFE0F2FE'
-        if len(rgb) == 8:
-            return rgb[2:]                # strip alpha → 'E0F2FE'
-        return rgb
+        # RGB type
+        if color_obj.type == 'rgb' and color_obj.rgb:
+            rgb = str(color_obj.rgb).upper()
+            if len(rgb) == 8: return rgb[2:]
+            return rgb
+        # Theme type (we return a marker or None as we don't resolve full themes here)
+        if color_obj.type == 'theme' and color_obj.theme is not None:
+            return f"THEME_{color_obj.theme}"
     except Exception:
         pass
     return None
+
+
+def is_input_cell(cell):
+    """
+    Standard logic to detect if a cell is an input marker.
+    Matches the project's light blue color (RGB E0F2FE) or its Theme/Indexed equivalent.
+    """
+    try:
+        fill = cell.fill
+        if not fill or (fill.patternType != 'solid' and fill.patternType is not None):
+            return False
+        
+        c = fill.start_color
+        if not c: return False
+        
+        # 1. Match by RGB (most common)
+        INPUT_MARKERS = [
+            'FFE0F2FE', '00E0F2FE', 'E0F2FE',  # Pro-Blue
+            'FFB4C6E7', 'B4C6E7',             # Light Blue Accent
+            'FFD9E1F2', 'D9E1F2',             # Very Light Blue
+            'B7DEE8', 'FFB7DEE8',             # Aqua Light
+            'DAE3F3', 'FFDAE3F3'              # Default Input Shade
+        ]
+        
+        # Check rgb property
+        if hasattr(c, 'rgb') and c.rgb:
+            rgb = str(c.rgb).upper()
+            if rgb in INPUT_MARKERS or any(m in rgb for m in INPUT_MARKERS):
+                return True
+        
+        # Check indexed/index property (sometimes used for legacy or specific palettes)
+        if hasattr(c, 'index'):
+            idx = str(c.index).upper()
+            if idx in INPUT_MARKERS or any(m in idx for m in INPUT_MARKERS):
+                return True
+            # Common indexed colors for light blue (depends on palette, but 40, 41 are often blue-ish)
+            if idx in ['40', '41', '42']:
+                return True
+
+        # 2. Match by Theme (Theme 4, 5, 8 are common blue accents)
+        if c.type == 'theme' and c.theme in [1, 4, 5, 8]:
+            # Theme 1 + Tint -0.15 is often a light blue-ish gray used for inputs
+            # Theme 4, 5, 8 are standard Accents (Blue, Gold, Aqua)
+            if c.theme == 1 and (c.tint and -0.2 < c.tint < 0):
+                return True
+            if c.theme in [4, 5, 8]:
+                return True
+            
+    except Exception:
+        pass
+    return False
 
 
 def _cell_css(cell):
@@ -168,20 +223,8 @@ def render_range_to_html(ws, start_row, end_row,
             rowspan, colspan = spans.get((r, c), (1, 1))
             css = _cell_css(cell)
 
-            # Detect input cell by background color
-            is_input = False
-            INPUT_MARKERS = ['FFE0F2FE', '00E0F2FE', 'E0F2FE']
-            if editable:
-                try:
-                    fill = cell.fill
-                    if (isinstance(fill, PatternFill) and
-                            fill.patternType == 'solid' and
-                            hasattr(fill.fgColor, 'rgb')):
-                        rgb = str(fill.fgColor.rgb).upper()
-                        if rgb in INPUT_MARKERS or any(m in rgb for m in INPUT_MARKERS):
-                            is_input = True
-                except Exception:
-                    pass
+            # Detect input cell
+            is_input = is_input_cell(cell)
 
             coord = cell.coordinate
             rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''

@@ -2,6 +2,7 @@ import openpyxl
 from openpyxl.styles import PatternFill
 import json
 import os
+from excel_renderer import is_input_cell
 
 class ExcelEngineV2:
     """
@@ -78,11 +79,7 @@ class ExcelEngineV2:
                     style = ExcelEngineV2._extract_styles(cell)
 
                     # Identify Input Marker
-                    is_input = False
-                    if cell.fill and hasattr(cell.fill, 'start_color'):
-                        color_index = str(cell.fill.start_color.index)
-                        if color_index == input_marker_hex:
-                            is_input = True
+                    is_input = is_input_cell(cell)
 
                     # Data Type and Logic
                     cell_type = "input" if is_input else "label"
@@ -211,9 +208,8 @@ class ExcelEngineV2:
                 if cell.value is not None: is_meaningful = True
                 
                 # Check for input marker (V2 logic)
-                if not is_meaningful and cell.fill and hasattr(cell.fill, 'start_color'):
-                    if str(cell.fill.start_color.index) == input_marker_hex:
-                        is_meaningful = True
+                if not is_meaningful and is_input_cell(cell):
+                    is_meaningful = True
                 
                 # Check for comment
                 if not is_meaningful and cell.comment: is_meaningful = True
