@@ -182,12 +182,15 @@
 <body>
     {% if request.endpoint != 'auth_bp.login' %}
     <header class="mobile-header">
-        <div class="header-left">
+        <div class="header-left d-flex align-items-center gap-2">
+            <button class="btn btn-light btn-circle btn-circle-sm border-0 bg-transparent text-primary p-0 fs-4" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
+                <i class="fa-solid fa-bars-staggered"></i>
+            </button>
             <span class="header-title">PC06 PORTAL</span>
         </div>
         <div class="header-right d-flex gap-3">
             <a href="/notifications" class="text-dark"><i class="fa-regular fa-bell fs-5"></i></a>
-            <a href="/settings" class="text-dark"><i class="fa-solid fa-gear fs-5"></i></a>
+            <a href="/password" class="text-dark"><i class="fa-solid fa-gear fs-5"></i></a>
         </div>
     </header>
 
@@ -230,13 +233,80 @@
         {% block content %}{% endblock %}
     </main>
 
+    <div class="offcanvas offcanvas-start border-0 shadow-lg" tabindex="-1" id="mobileMenu" style="width: 280px; background-color: var(--bg-body);">
+        <div class="offcanvas-header p-4 d-flex flex-column align-items-start">
+            <div class="d-flex justify-content-between w-100 align-items-center mb-3">
+                <h5 class="offcanvas-title fw-bold text-primary d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-shield-halved"></i>HỆ THỐNG PC06
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+            </div>
+            
+            <div class="card card-body p-3 w-100 border-0 shadow-sm rounded-4" style="background: var(--bg-surface);">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px; font-size: 14px;">
+                        {{ session.get('fullname', 'AD')[:2].upper() }}
+                    </div>
+                    <div class="overflow-hidden">
+                        <div class="fw-bold text-dark small text-truncate">{{ session.get('fullname', 'Cán bộ') }}</div>
+                        <div class="tiny text-muted text-truncate" style="font-size: 10px;">{{ session.get('unit', 'Đơn vị PC06') }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="offcanvas-body p-0">
+            <div class="list-group list-group-flush">
+                <a href="/admin" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'admin_bp.index' %}active text-white bg-primary{% endif %}">
+                    <i class="fa-solid fa-house-chimney me-3 opacity-75"></i>Tổng quan
+                </a>
+                <a href="/tasks" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'tasks_bp.index' %}active text-white bg-primary{% endif %}">
+                    <i class="fa-solid fa-list-check me-3 opacity-75"></i>Công việc
+                </a>
+                <a href="/ranking" class="list-group-item list-group-item-action py-3 px-4 border-0 {% if request.endpoint == 'ranking_bp.index' %}active text-white bg-primary{% endif %}">
+                    <i class="fa-solid fa-ranking-star me-3 opacity-75"></i>Xếp hạng
+                </a>
+                
+                <div class="px-4 py-2 mt-2 tiny text-muted fw-bold text-uppercase" style="letter-spacing: 1px;">Dữ liệu & Báo cáo</div>
+                <a href="{{ url_for('forms_bp.input_data') }}" class="list-group-item list-group-item-action py-3 px-4 border-0">
+                    <i class="fa-solid fa-file-pen me-3 opacity-75"></i>Nhập liệu Biểu mẫu
+                </a>
+                <a href="{{ url_for('forms_bp.stats') }}" class="list-group-item list-group-item-action py-3 px-4 border-0">
+                    <i class="fa-solid fa-chart-line me-3 opacity-75"></i>Thống kê Báo cáo
+                </a>
+                
+                <div class="px-4 py-2 mt-2 tiny text-muted fw-bold text-uppercase" style="letter-spacing: 1px;">Hệ thống</div>
+                <a href="/password" class="list-group-item list-group-item-action py-3 px-4 border-0">
+                    <i class="fa-solid fa-key me-3 opacity-75"></i>Đổi mật khẩu
+                </a>
+                <a href="/logout" class="list-group-item list-group-item-action py-3 px-4 border-0 text-danger">
+                    <i class="fa-solid fa-right-from-bracket me-3 opacity-75"></i>Đăng xuất
+                </a>
+            </div>
+        </div>
+        <div class="offcanvas-footer p-4 border-top text-center text-muted tiny">
+            PC06 TUYÊN QUANG - V1.5.0
+        </div>
+    </div>
+
     <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Theme logic
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            // document.documentElement.setAttribute('data-theme', 'dark');
+        // Check notifications on mobile
+        async function checkMobileNotif() {
+            try {
+                const r = await fetch('/api/notifications');
+                const d = await r.json();
+                const badge = document.getElementById('notifCountMobile');
+                if (badge && d.length > 0) {
+                    const unread = d.filter(x => !x.is_read).length;
+                    badge.innerText = unread;
+                    badge.style.display = unread > 0 ? 'block' : 'none';
+                }
+            } catch (e) {}
         }
+        setInterval(checkMobileNotif, 10000);
+        checkMobileNotif();
     </script>
     {% block scripts %}{% endblock %}
 </body>
