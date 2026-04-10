@@ -237,8 +237,10 @@ def render_report(tid):
             if ws.row_dimensions[r].hidden:
                 continue
 
-            # Unit-row filtering for non-admin users
-            if not is_admin and user_unit:
+            # Unit-row filtering: strictly "Tài khoản đơn vị nào nhập đơn vị đó"
+            # However, Admins and "Hệ thống" accounts see all for management
+            should_filter = (not is_admin) and (user_unit not in ['Hệ thống', 'Admin', 'PC06'])
+            if user_unit and should_filter:
                 # 1. Detect if row has any input cells
                 has_input = False
                 for c in range(1, max_col + 1):
@@ -248,14 +250,19 @@ def render_report(tid):
                 
                 # 2. If it's a data row (has input), check if it matches user's unit
                 if has_input:
-                    row_text = ''
+                    allowed = False
                     for c in range(1, max_col + 1):
-                        cell = ws.cell(row=r, column=c)
-                        v = cell.value
-                        if v and not (isinstance(v, str) and v.startswith('=')):
-                            row_text += str(v)
+                        cell_val = str(ws.cell(row=r, column=c).value or '').strip()
+                        # Strict match: either the cell equals the unit, or contains it with word boundaries
+                        if cell_val == user_unit:
+                            allowed = True
+                            break
+                        import re
+                        if re.search(r'\b' + re.escape(user_unit) + r'\b', cell_val):
+                            allowed = True
+                            break
                     
-                    if user_unit not in row_text:
+                    if not allowed:
                         continue
 
             rh = _row_height_px(ws, r)
@@ -313,12 +320,15 @@ def render_report(tid):
             'html': Markup(table_html)
         })
 
+    from models import ReportConfig
     v2_templates = ReportTemplateV2.query.all()
+    configs = ReportConfig.query.all()
     return render_template('reports_v2_render.html',
                            template=template,
                            version=version,
                            sheets_html=sheets_html,
                            is_admin=is_admin,
+                           configs=configs,
                            user_unit=user_unit,
                            v2_templates=v2_templates,
                            form_type='v2')
@@ -336,6 +346,48 @@ def submit_data():
     values = data.get('values', {})
 
     try:
+        # STRICT VALIDATION: Ensure all cells being submitted belong to authorized unit rows
+        import io, openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(version.excel_file_blob), data_only=True)
+        ws = wb.active # V2 templates usually focus on the main sheet
+        
+        user_unit = session.get('unit_area', session.get('unit', ''))
+        is_admin = session.get('is_admin', False)
+        
+        # Determine allowed rows for the current user
+        # Admin or System units are allowed all rows
+        is_global = is_admin or (user_unit in ['Hệ thống', 'Admin', 'PC06'])
+        
+        allowed_rows = set()
+        if is_global:
+            # Allow all rows
+            for r in range(1, ws.max_row + 1): allowed_rows.add(r)
+        else:
+            for r in range(1, ws.max_row + 1):
+                is_match = False
+                for c in range(1, ws.max_column + 1):
+                    cell_val = str(ws.cell(row=r, column=c).value or '').strip()
+                    if cell_val == user_unit:
+                        is_match = True
+                        break
+                    import re
+                    if re.search(r'\b' + re.escape(user_unit) + r'\b', cell_val):
+                        is_match = True
+                        break
+                
+                if is_match:
+                    allowed_rows.add(r)
+        
+        # Check coordinates in values
+        for coord in values.keys():
+            try:
+                from openpyxl.utils import coordinate_to_tuple
+                r, c = coordinate_to_tuple(coord)
+                if r not in allowed_rows:
+                    return jsonify({'success': False, 'message': f'Lỗi bảo mật: Ô {coord} không thuộc quyền quản lý của đơn vị bạn!'}), 403
+            except:
+                pass
+
         submission = ReportSubmissionV2.query.filter_by(
             version_id=version_id,
             user_id=session['uid'],

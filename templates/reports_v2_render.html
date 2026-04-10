@@ -5,13 +5,14 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <!-- Hybrid-Next Breadcrumb Flow -->
         <div class="d-flex align-items-center gap-3">
-            <div class="glass-panel p-2 rounded-4 shadow-sm">
-                <i class="fa-solid fa-file-excel text-primary fs-5"></i>
-            </div>
             <nav class="breadcrumb-nav glass-panel d-none d-lg-flex px-3 py-2 rounded-pill">
-                <span class="segment fw-bold text-dark">NHẬP LIỆU V2</span>
+                <span class="segment fw-bold text-dark">NHẬP LIỆU</span>
+                <div class="segmented-control glass-panel mx-3" style="background: rgba(0,0,0,0.05);">
+                    <button class="btn-seg" onclick="window.location.href='/input?form_type=v1'">V1</button>
+                    <button class="btn-seg active" onclick="window.location.href='/input?form_type=v2'">V2</button>
+                </div>
                 <div class="picker-chip glass-panel dropdown-toggle shadow-sm" data-bs-toggle="dropdown">
-                    {{ template.name }} <span class="badge bg-primary-gradient text-white ms-2 tiny shadow-sm">{{ version.version_tag }}</span>
+                    {{ template.name }} <span class="badge bg-primary bg-opacity-10 text-primary ms-2 tiny">{{ version.version_tag }}</span>
                 </div>
                 <ul class="dropdown-menu shadow-lg border-0 rounded-4 p-2 mt-2" style="max-height: 400px; overflow-y: auto; min-width: 280px;">
                     {% for t in v2_templates %}
@@ -24,6 +25,7 @@
         
         <div class="header-actions">
             <div class="d-flex align-items-center gap-3">
+                <span class="text-muted small d-none d-md-inline">Đơn vị: <span class="fw-bold text-primary">{{ session.unit_area }}</span></span>
                 <div id="saveStatus" class="tiny text-muted fw-bold d-none d-sm-block bg-white px-3 py-2 rounded-pill border-light shadow-sm">
                     <i class="fa-solid fa-cloud-check text-success me-1"></i>ĐÃ LƯU
                 </div>
