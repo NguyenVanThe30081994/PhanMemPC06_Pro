@@ -314,7 +314,12 @@ def stats():
                     if sub_ids:
                         values_query = ReportValueV2.query.filter(ReportValueV2.submission_id.in_(sub_ids)).all()
                         for v in values_query:
-                            all_vals[v.cell_key] = v.value
+                            key = str(v.cell_key or '').strip()
+                            if '!' in key:
+                                _, coord = key.split('!', 1)
+                                all_vals[coord] = v.value
+                            else:
+                                all_vals[key] = v.value
 
                     for sub, user in raw_subs:
                         u_area = sub.org_unit or user.unit_area

@@ -153,7 +153,7 @@ async function forceSave() {
     if (!isDirty) return;
     const inputs = document.querySelectorAll('.grid-input');
     const values = {};
-    inputs.forEach(i => { if (i.value) values[i.getAttribute('data-key')] = i.value; });
+    inputs.forEach(i => { values[i.getAttribute('data-key')] = i.value; });
 
     try {
         const r = await fetch('/reports-v2/submit', {
@@ -165,6 +165,9 @@ async function forceSave() {
         if (d.success) {
             isDirty = false;
             document.getElementById('saveStatus').innerHTML = '<i class="fa-solid fa-circle-check text-success me-1"></i>ĐÃ LƯU';
+        } else {
+            document.getElementById('saveStatus').innerHTML = '<i class="fa-solid fa-circle-xmark text-danger me-1"></i>LỖI';
+            if (d.message) alert(d.message);
         }
     } catch (e) {
         document.getElementById('saveStatus').innerHTML = '<i class="fa-solid fa-circle-xmark text-danger me-1"></i>LỖI';

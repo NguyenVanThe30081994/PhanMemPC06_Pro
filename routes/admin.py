@@ -362,6 +362,64 @@ def module_categories():
                 db.session.add(CategoryItem(group_id=group_id, name=item_name))
                 db.session.commit()
                 flash(f'Đã thêm thành phần: {item_name}', 'success')
+
+        elif action == 'import_items_excel':
+            group_id = request.form.get('group_id')
+            excel_file = request.files.get('items_excel')
+
+            if not group_id:
+                flash('Thiếu nhóm danh mục để import!', 'danger')
+            elif not excel_file or not excel_file.filename:
+                flash('Vui lòng chọn file Excel để import!', 'danger')
+            elif not excel_file.filename.lower().endswith(('.xlsx', '.xls')):
+                flash('Chỉ hỗ trợ file .xlsx hoặc .xls', 'danger')
+            else:
+                try:
+                    group = CategoryGroup.query.get(group_id)
+                    if not group:
+                        flash('Không tìm thấy nhóm danh mục!', 'danger')
+                    else:
+                        df = pd.read_excel(io.BytesIO(excel_file.read()), sheet_name=0)
+                        if len(df.columns) == 0:
+                            flash('File Excel không có cột dữ liệu!', 'danger')
+                        else:
+                            total_rows = len(df.index)
+                            first_col = df.columns[0]
+                            raw_values = [str(v).strip() for v in df[first_col].tolist() if pd.notna(v)]
+
+                            seen = set()
+                            deduped = []
+                            for val in raw_values:
+                                if not val:
+                                    continue
+                                key = val.lower()
+                                if key in seen:
+                                    continue
+                                seen.add(key)
+                                deduped.append(val)
+
+                            existing = {
+                                str(i.name).strip().lower()
+                                for i in CategoryItem.query.filter_by(group_id=group_id).all()
+                            }
+
+                            added = 0
+                            for name in deduped:
+                                if name.lower() in existing:
+                                    continue
+                                db.session.add(CategoryItem(group_id=group_id, name=name))
+                                existing.add(name.lower())
+                                added += 1
+
+                            db.session.commit()
+                            skipped = max(total_rows - added, 0)
+                            flash(
+                                f'Import thành công: tổng dòng {total_rows}, thêm mới {added}, bỏ qua trống/trùng {skipped}.',
+                                'success'
+                            )
+                except Exception as e:
+                    db.session.rollback()
+                    flash(f'Lỗi import Excel: {e}', 'danger')
                 
         elif action == 'delete_item':
             item_id = request.form.get('item_id')

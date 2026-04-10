@@ -7,41 +7,14 @@
             <i class="fa-solid fa-tags"></i>
             <h1 class="mb-0">Thiết lập Danh mục</h1>
         </div>
-        
-        <div class="header-actions">
+
+        <div class="header-actions d-flex gap-2">
             <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#addGroupModal">
                 <i class="fa-solid fa-plus me-2"></i>THÊM DANH MỤC
             </button>
-        </div>
-    </div>
-</div>
-        <!-- Desktop Actions -->
-        <div class="d-none d-md-flex gap-2">
-            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#addGroupModal">
-                <i class="fa-solid fa-layer-group me-2"></i>THÊM DANH MỤC (THẺ)
-            </button>
             <button class="btn btn-outline-danger rounded-pill px-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#deleteGroupModal">
-                <i class="fa-solid fa-rectangle-xmark me-2"></i>XÓA DANH MỤC (THẺ)
+                <i class="fa-solid fa-rectangle-xmark me-2"></i>XÓA DANH MỤC
             </button>
-        </div>
-        <!-- Mobile Actions Dropdown -->
-        <div class="dropdown d-md-none">
-            <button class="btn btn-primary btn-circle btn-circle-md shadow d-flex align-items-center justify-content-center" type="button" data-bs-toggle="dropdown">
-                <i class="fa-solid fa-plus fs-5"></i>
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-2 mt-2">
-                <li>
-                    <a class="dropdown-item py-2 rounded-3 fw-bold" href="#" data-bs-toggle="modal" data-bs-target="#addGroupModal">
-                        <i class="fa-solid fa-layer-group me-2 text-primary"></i>THÊM DANH MỤC
-                    </a>
-                </li>
-                <li><hr class="dropdown-divider opacity-10"></li>
-                <li>
-                    <a class="dropdown-item py-2 rounded-3 fw-bold text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deleteGroupModal">
-                        <i class="fa-solid fa-rectangle-xmark me-2"></i>XÓA DANH MỤC
-                    </a>
-                </li>
-            </ul>
         </div>
     </div>
 </div>
@@ -58,7 +31,7 @@
                     </div>
                     <div class="tiny text-muted opacity-75">Liên kết: {{ g.linked_modules or 'Chưa liên kết' }}</div>
                 </div>
-                
+
                 <div class="card-body p-0 flex-grow-1 overflow-auto" style="max-height: 400px;">
                     <div class="list-group list-group-flush">
                         {% for item in g.items %}
@@ -77,14 +50,25 @@
                 </div>
 
                 <div class="card-footer border-0 p-3" style="background-color: var(--bg-surface);">
-                    <form method="POST" class="d-flex gap-2">
-                        <input type="hidden" name="action" value="add_item">
-                        <input type="hidden" name="group_id" value="{{ g.id }}">
-                        <input type="text" name="item_name" class="form-control form-control-sm border-0 shadow-sm" placeholder="Thêm thành phần..." required style="background-color: var(--bg-body) !important; color: var(--text-main) !important;">
-                        <button type="submit" class="btn btn-sm btn-success btn-circle btn-circle-sm shadow-sm">
-                            <i class="fa-solid fa-plus tiny"></i>
-                        </button>
-                    </form>
+                    <div class="d-flex gap-2 align-items-center">
+                        <form method="POST" class="d-flex gap-2 flex-grow-1">
+                            <input type="hidden" name="action" value="add_item">
+                            <input type="hidden" name="group_id" value="{{ g.id }}">
+                            <input type="text" name="item_name" class="form-control form-control-sm border-0 shadow-sm" placeholder="Thêm thành phần..." required style="background-color: var(--bg-body) !important; color: var(--text-main) !important;">
+                            <button type="submit" class="btn btn-sm btn-success btn-circle btn-circle-sm shadow-sm" title="Thêm thủ công">
+                                <i class="fa-solid fa-plus tiny"></i>
+                            </button>
+                        </form>
+
+                        <form method="POST" enctype="multipart/form-data" class="m-0">
+                            <input type="hidden" name="action" value="import_items_excel">
+                            <input type="hidden" name="group_id" value="{{ g.id }}">
+                            <input type="file" name="items_excel" id="excel-import-{{ g.id }}" class="d-none" accept=".xlsx,.xls" onchange="this.form.submit()">
+                            <button type="button" class="btn btn-sm btn-outline-primary btn-circle btn-circle-sm shadow-sm" title="Import hàng loạt từ Excel" onclick="document.getElementById('excel-import-{{ g.id }}').click()">
+                                <i class="fa-solid fa-paperclip tiny"></i>
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -92,7 +76,7 @@
     </div>
 </div>
 
-<!-- Modal: THÊM DANH MỤC (THẺ) -->
+<!-- Modal: THÊM DANH MỤC -->
 <div class="modal fade" id="addGroupModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
@@ -133,7 +117,7 @@
     </div>
 </div>
 
-<!-- Modal: XÓA DANH MỤC (THẺ) -->
+<!-- Modal: XÓA DANH MỤC -->
 <div class="modal fade" id="deleteGroupModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
@@ -170,7 +154,6 @@
 <style>
     .hover-bg-light:hover { background-color: rgba(255,255,255,0.05) !important; transition: all 0.2s; }
     .tiny { font-size: 11px; }
-    /* Beautiful horizontal scroll for cards */
     .flex-nowrap::-webkit-scrollbar { height: 6px; }
     .flex-nowrap::-webkit-scrollbar-track { background: transparent; }
     .flex-nowrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
