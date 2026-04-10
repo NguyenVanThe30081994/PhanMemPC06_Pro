@@ -6,6 +6,10 @@
     --container-padding: clamp(16px, 2vw, 40px);
     --card-gap: clamp(16px, 2vw, 32px);
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* PC OPTIMIZATION BREAKPOINTS & CONSTRAINTS */
+    --pc-max-width: 1800px; /* Thử nghiệm 1800px cho Full HD+ */
+    --pc-content-max-width: 1600px;
 }
 
 /* --- LIGHT THEME (DEFAULT) --- */
@@ -454,6 +458,33 @@ body {
     font-size: var(--font-size-base);
     transition: background-color 0.3s, color 0.3s;
     letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* PC HD+ OPTIMIZATION LAYER */
+@media screen and (min-width: 1400px) {
+    :root {
+        --font-size-base: 17px; /* Cố định cỡ chữ tốt hơn cho màn hình lớn */
+        --container-padding: 60px;
+    }
+    
+    .main-content > .container-fluid:not(.chat-full-page) {
+        max-width: var(--pc-content-max-width);
+        margin: 0 auto;
+    }
+
+    /* Support for ultra-wide forms */
+    .col-xxl-2 { flex: 0 0 auto; width: 16.66666667%; }
+    .col-xxl-3 { flex: 0 0 auto; width: 25%; }
+    .col-xxl-4 { flex: 0 0 auto; width: 33.33333333%; }
+}
+
+@media screen and (min-width: 1920px) {
+    :root {
+        --font-size-base: 18px;
+        --container-padding: 80px;
+    }
 }
 
 /* --- HYBRID BENTO & GLASS COMPONENTS --- */
@@ -516,7 +547,8 @@ body {
 
 .nav-container {
     width: 100%;
-    margin: 0;
+    max-width: var(--pc-max-width);
+    margin: 0 auto;
     height: 100%;
     display: flex;
     align-items: center;
@@ -2080,6 +2112,15 @@ body {
     margin-bottom: 24px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     flex-wrap: wrap;
+    max-width: 100%;
+}
+
+@media screen and (min-width: 1400px) {
+    .filter-bar-unified {
+        max-width: 1200px;
+        margin-left: 0;
+        margin-right: auto;
+    }
 }
 
 [data-theme='dark'] .filter-bar-unified {

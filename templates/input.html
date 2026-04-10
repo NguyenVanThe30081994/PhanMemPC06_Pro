@@ -104,7 +104,7 @@
                         {% if ns.has_ungrouped %}
                             {% for f in fields %}
                                 {% if f.get('is_visible', True) and not f.get('group', '') %}
-                                <div class="col-md-6 col-lg-4 col-xl-3">
+                                <div class="col-md-6 col-lg-4 col-xl-3 col-xxl-2">
                                     <div class="form-group">
                                         <label class="form-label fw-bold text-main small mb-1 text-truncate d-block" title="{{ f.label }}">
                                             {{ f.idx }}. {{ f.label }}
@@ -132,7 +132,7 @@
                         </div>
                         {% for f in fields %}
                             {% if f.get('is_visible', True) and f.get('group', '') == group_name %}
-                            <div class="col-md-6 col-lg-4 col-xl-3">
+                            <div class="col-md-6 col-lg-4 col-xl-3 col-xxl-2">
                                 <div class="form-group">
                                     <label class="form-label fw-semibold text-main small mb-1 text-truncate d-block" title="{{ f.label }}">
                                         {{ f.label }}
