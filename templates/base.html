@@ -431,7 +431,7 @@
                     <ul class="dropdown-menu shadow-lg border-0 mt-0 rounded-4 p-2" style="min-width: 250px;">
                         {% if perms.get('p_input_lead') or perms.get('p_input_exec') %}
                         <li><a class="dropdown-item py-2 rounded-3" href="{{ url_for('forms_bp.input_data', form_type='v1') }}"><i class="fa-solid fa-file-lines me-2 opacity-50"></i>Nhập liệu Biểu mẫu V1</a></li>
-                        <li><a class="dropdown-item py-2 rounded-3" href="{{ url_for('reports_v2_bp.dashboard') }}"><i class="fa-solid fa-file-excel me-2 opacity-50"></i>Nhập liệu Biểu mẫu V2</a></li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="{{ url_for('forms_bp.input_data', form_type='v2') }}"><i class="fa-solid fa-file-excel me-2 opacity-50"></i>Nhập liệu Biểu mẫu V2</a></li>
                         {% endif %}
                         {% if (perms.get('p_input_lead') or perms.get('p_input_exec')) and (perms.get('p_stat_lead') or perms.get('p_stat_exec')) %}<li><hr class="dropdown-divider opacity-10 mx-2"></li>{% endif %}
                         {% if perms.get('p_stat_lead') or perms.get('p_stat_exec') %}

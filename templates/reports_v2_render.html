@@ -9,22 +9,13 @@
                 <a href="/input" class="segment fw-bold text-dark text-decoration-none hover-link" title="Quay lại danh sách">
                     <i class="fa-solid fa-chevron-left small me-2"></i>QUAY LẠI
                 </a>
-                <div class="segmented-control glass-panel mx-3" style="background: rgba(0,0,0,0.05);">
-                    <button class="btn-seg" onclick="window.location.href='/input?form_type=v1'">V1</button>
-                    <button class="btn-seg active" onclick="window.location.href='/input?form_type=v2'">V2</button>
-                </div>
                 <div class="picker-chip glass-panel dropdown-toggle shadow-sm" data-bs-toggle="dropdown">
-                    {{ template.name }} <span class="badge bg-primary bg-opacity-10 text-primary ms-2 tiny">{{ version.version_tag if version else 'N/A' }}</span>
+                    <i class="fa-solid fa-file-excel me-2 opacity-50"></i>{{ template.name }} <span class="badge bg-primary bg-opacity-10 text-primary ms-2 tiny">{{ version.version_tag if version else 'N/A' }}</span>
                 </div>
                 <ul class="dropdown-menu shadow-lg border-0 rounded-4 p-2 mt-2" style="max-height: 500px; overflow-y: auto; min-width: 320px;">
-                    <li class="dropdown-header text-primary fw-bold tiny pb-1 text-uppercase">Biểu mẫu V2 (Trang tính)</li>
+                    <li class="dropdown-header text-primary fw-bold tiny pb-1 text-uppercase">Danh sách Biểu mẫu V2</li>
                     {% for t2 in v2_templates %}
                     <li><a class="dropdown-item py-2 rounded-3 small fw-bold {% if template.id == t2.id %}active{% endif %}" href="/reports-v2/render/{{ t2.id }}">{{ t2.name }}</a></li>
-                    {% endfor %}
-                    <li><hr class="dropdown-divider opacity-10"></li>
-                    <li class="dropdown-header text-secondary fw-bold tiny pb-1 text-uppercase">Biểu mẫu V1 (Dữ liệu con)</li>
-                    {% for t1 in v1_configs %}
-                    <li><a class="dropdown-item py-2 rounded-3 small fw-bold" href="/input?rid={{ t1.id }}&form_type=v1">{{ t1.name }}</a></li>
                     {% endfor %}
                 </ul>
             </nav>
@@ -88,7 +79,6 @@
     </div>
 </div>
 
-<!-- Mobile Sidebar List (Offcanvas style in render) -->
 <div class="d-lg-none mt-4 text-center">
     <button class="btn btn-light border rounded-pill px-4 tiny fw-bold shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#mobileV2List">
         <i class="fa-solid fa-list me-2"></i>DANH SÁCH BIỂU MẪU V2
@@ -99,12 +89,6 @@
             {% for t2 in v2_templates %}
             <a href="{{ url_for('reports_v2_bp.render_report', tid=t2.id) }}" class="list-group-item list-group-item-action border-0 py-3 small {% if template.id == t2.id %}active{% endif %}">
                 <i class="fa-solid fa-file-excel me-2 opacity-50"></i>{{ t2.name }}
-            </a>
-            {% endfor %}
-            <div class="list-group-item bg-light tiny fw-bold text-muted text-uppercase border-top">Biểu mẫu V1</div>
-            {% for t1 in v1_configs %}
-            <a href="/input?rid={{ t1.id }}&form_type=v1" class="list-group-item list-group-item-action border-0 py-3 small">
-                <i class="fa-solid fa-file-lines me-2 opacity-50"></i>{{ t1.name }}
             </a>
             {% endfor %}
         </div>
