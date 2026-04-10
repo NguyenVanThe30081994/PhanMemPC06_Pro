@@ -1,6 +1,6 @@
-from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, jsonify
 from models import db, User, AppRole, MasterData, SystemLog
-from utils import log_action
+from utils import log_action, render_auto_template as render_template
 from werkzeug.security import check_password_hash
 import json, re
 from datetime import datetime

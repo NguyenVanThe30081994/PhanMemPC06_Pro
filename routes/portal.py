@@ -1,9 +1,9 @@
-from flask import Blueprint, render_template, request, session, redirect, url_for, flash, current_app, send_from_directory
+from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, current_app, send_from_directory
 import os, pandas as pd, io, json
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from models import db, NewsDoc, DocumentLib, Contact, MasterData, CategoryGroup, CategoryItem, AppRole
-from utils import log_action, push_global_notif
+from utils import log_action, push_global_notif, render_auto_template as render_template
 
 portal_bp = Blueprint('portal_bp', __name__)
 

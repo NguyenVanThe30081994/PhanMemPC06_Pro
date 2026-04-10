@@ -1,4 +1,5 @@
 import re, json, sqlite3, os, ast, operator as op
+from flask import request, render_template as flask_render_template, g
 from openpyxl.utils import range_boundaries
 from datetime import datetime, timedelta
 from models import db, User, AppRole, SystemLog, Notification, MasterData, NewsCategory, LibraryField, ContactGroup, ProfessionalUnit
@@ -123,6 +124,33 @@ def push_notif(uid, title, msg, link):
         db.session.add(Notification(user_id=uid, title=title, msg=msg, link=link))
         db.session.commit()
     except: db.session.rollback()
+
+def is_mobile_device():
+    """
+    Detects if the request is coming from a mobile device using User-Agent.
+    """
+    ua = request.headers.get('User-Agent', '').lower()
+    mobile_keywords = ['android', 'iphone', 'ipad', 'mobi', 'opera mini', 'blackberry', 'webos', 'phone']
+    return any(keyword in ua for keyword in mobile_keywords)
+
+def render_auto_template(template_name, **context):
+    """
+    Automatically selects between PC and Mobile templates based on g.is_mobile.
+    Expected naming convention: name.html (PC) -> name_mobile.html (Mobile)
+    """
+    if g.get('is_mobile'):
+        # Construct the mobile template path
+        mobile_path = template_name.replace('.html', '_mobile.html')
+        
+        # Check if mobile template exists in the templates folder
+        from flask import current_app
+        import os
+        full_mobile_path = os.path.join(current_app.template_folder, mobile_path)
+        
+        if os.path.exists(full_mobile_path):
+            return flask_render_template(mobile_path, **context)
+    
+    return flask_render_template(template_name, **context)
 
 def push_global_notif(title, msg, link, exclude_uid=None):
     from models import db, User, Notification

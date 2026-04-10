@@ -1,0 +1,111 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}Bảng điều khiển - PC06 Mobile{% endblock %}
+
+{% block head %}
+<style>
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: var(--bg-surface); border-radius: 16px; padding: 16px; border: 1px solid var(--border); }
+    .stat-value { font-size: 20px; font-weight: 800; color: var(--text-main); line-height: 1; }
+    .stat-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-top: 4px; }
+    .stat-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+    
+    .quick-actions { margin-bottom: 30px; }
+    .action-btn { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; padding: 15px; display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--text-main); aspect-ratio: 1/1; justify-content: center; }
+    .action-btn i { font-size: 24px; margin-bottom: 8px; color: var(--primary); }
+    .action-btn span { font-size: 12px; font-weight: 600; text-align: center; }
+    
+    .section-title { font-size: 16px; font-weight: 800; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+    .section-title a { font-size: 12px; font-weight: 600; color: var(--primary); text-decoration: none; }
+    
+    .news-card { background: var(--bg-surface); border-radius: 16px; border: 1px solid var(--border); margin-bottom: 12px; overflow: hidden; display: flex; }
+    .news-thumb { width: 80px; height: 80px; background: #e2e8f0; display: flex; align-items: center; justify-content: center; color: #94a3b8; }
+    .news-body { padding: 12px; flex: 1; min-width: 0; }
+    .news-title { font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .news-time { font-size: 11px; color: var(--text-muted); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="animate__animated animate__fadeIn">
+    <!-- User Welcome -->
+    <div class="mb-4">
+        <h2 class="h5 fw-bold mb-1">Chào, {{ fullname }}</h2>
+        <p class="text-muted small mb-0">Hôm nay là {{ now_str if now_str else "ngày mới thành công" }}</p>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="stat-grid">
+        <div class="stat-card">
+            <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                <i class="fa-solid fa-list-check"></i>
+            </div>
+            <div class="stat-value">{{ stats.tasks if stats else 0 }}</div>
+            <div class="stat-label">CÔNG VIỆC</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon bg-success bg-opacity-10 text-success">
+                <i class="fa-solid fa-file-invoice"></i>
+            </div>
+            <div class="stat-value">{{ stats.reports if stats else 0 }}</div>
+            <div class="stat-label">BÁO CÁO CỦA TÔI</div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <div class="section-title">TRUY CẬP NHANH</div>
+        <div class="row g-2">
+            <div class="col-3">
+                <a href="/input" class="action-btn">
+                    <i class="fa-solid fa-file-pen"></i>
+                    <span>NHẬP</span>
+                </a>
+            </div>
+            <div class="col-3">
+                <a href="/tasks" class="action-btn">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span>VIỆC</span>
+                </a>
+            </div>
+            <div class="col-3">
+                <a href="/ranking" class="action-btn">
+                    <i class="fa-solid fa-ranking-star"></i>
+                    <span>HẠNG</span>
+                </a>
+            </div>
+            <div class="col-3">
+                <a href="/news" class="action-btn">
+                    <i class="fa-solid fa-newspaper"></i>
+                    <span>TIN</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Latest News -->
+    <div class="latest-news">
+        <div class="section-title">
+            <span>BẢNG TIN MỚI</span>
+            <a href="/news">XEM TẤT CẢ</a>
+        </div>
+        {% if logs %}
+            {% for log in logs %}
+            <div class="news-card">
+                <div class="news-thumb">
+                    <i class="fa-solid fa-info-circle fs-3"></i>
+                </div>
+                <div class="news-body">
+                    <div class="news-title">{{ log.action }}</div>
+                    <div class="news-time"><i class="fa-regular fa-clock me-1"></i>{{ log.created_at.strftime('%H:%M %d/%m') }} - {{ log.fullname }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-center py-4 bg-light rounded-4">
+                <p class="text-muted small mb-0">Chưa có thông báo mới</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

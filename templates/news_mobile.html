@@ -1,0 +1,66 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}Bảng tin - PC06 Mobile{% endblock %}
+
+{% block head %}
+<style>
+    .news-item-card { background: var(--bg-surface); border-radius: 20px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+    .news-img { width: 100%; height: 200px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #cbd5e1; }
+    .news-content { padding: 20px; }
+    .news-cat { font-size: 11px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .news-title-link { font-size: 18px; font-weight: 800; color: var(--text-main); text-decoration: none; line-height: 1.3; margin-bottom: 12px; display: block; }
+    .news-excerpt { font-size: 14px; color: var(--text-muted); line-height: 1.6; margin-bottom: 16px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .news-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 15px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-muted); }
+    
+    .category-pills { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 20px; scrollbar-width: none; }
+    .category-pills::-webkit-scrollbar { display: none; }
+    .cat-pill { padding: 8px 16px; border-radius: 100px; background: var(--bg-surface); border: 1px dashed var(--border); font-size: 13px; font-weight: 600; white-space: nowrap; color: var(--text-muted); }
+    .cat-pill.active { background: var(--primary-light); color: var(--primary); border-style: solid; border-color: var(--primary); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h4 fw-bold mb-0">Bảng tin</h1>
+        <div class="btn-group">
+            <button class="btn btn-sm btn-light border rounded-pill px-3"><i class="fa-solid fa-square-rss me-1"></i>VĂN BẢN</button>
+        </div>
+    </div>
+
+    <!-- Categories -->
+    <div class="category-pills">
+        <div class="cat-pill active">Tất cả</div>
+        {% for cat in configs %}
+            <div class="cat-pill">{{ cat.name }}</div>
+        {% endfor %}
+    </div>
+
+    <!-- News List -->
+    <div class="news-list">
+        {% if news %}
+            {% for n in news %}
+            <div class="news-item-card">
+                <div class="news-img">
+                    <i class="fa-regular fa-image fs-1"></i>
+                </div>
+                <div class="news-content">
+                    <div class="news-cat">{{ n.category }}</div>
+                    <a href="#" class="news-title-link">{{ n.title }}</a>
+                    <div class="news-excerpt">{{ n.content[:200]|striptags }}...</div>
+                    <div class="news-footer">
+                        <span><i class="fa-regular fa-calendar me-1"></i>{{ n.created_at.strftime('%d/%m/%Y') }}</span>
+                        <span><i class="fa-regular fa-eye me-1"></i>Lượt xem: {{ n.views if n.views else 0 }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-center py-5 mobile-card">
+                <i class="fa-solid fa-newspaper fs-1 text-muted opacity-25 mb-3"></i>
+                <p class="text-muted">Chưa có bản tin nào được cập nhật</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

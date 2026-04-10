@@ -1,9 +1,9 @@
 import os
 import json
-from flask import Flask, session, request, redirect, url_for, send_from_directory, render_template
+from flask import Flask, session, request, redirect, url_for, send_from_directory, render_template, g
 from datetime import datetime, timedelta
 from models import db, AppRole
-from utils import init_db, get_perms_labels
+from utils import init_db, get_perms_labels, is_mobile_device
 import time
 
 # --- RELIABLE PATH RESOLUTION (Improved for Mắt Bão/Passenger) ---
@@ -64,6 +64,9 @@ app.register_blueprint(shortlink_bp)
 
 @app.before_request
 def check_auth():
+    # 0. Device Detection
+    g.is_mobile = is_mobile_device()
+
     # 1. Inactivity Check
     if session.get('uid'):
         last_active = session.get('last_active')

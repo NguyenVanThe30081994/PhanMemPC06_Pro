@@ -1,9 +1,9 @@
-from flask import Blueprint, render_template, request, session, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, current_app
 from models import db, Task, TaskAssignment, TaskComment, User, MasterData, CategoryGroup, CategoryItem
 import os
 from werkzeug.utils import secure_filename
 from datetime import datetime
-from utils import log_action, push_notif
+from utils import log_action, push_notif, render_auto_template as render_template
 
 tasks_bp = Blueprint('tasks_bp', __name__)
 

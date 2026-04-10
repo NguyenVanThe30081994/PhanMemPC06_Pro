@@ -1,8 +1,8 @@
-from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify, current_app, Response, send_from_directory
+from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, jsonify, current_app, Response, send_from_directory
 from models import db, User, AppRole, MasterData, SystemLog, NewsCategory, LibraryField, ContactGroup, ReportData, Task, NewsDoc, DocumentLib, ReportConfig, ReportTemplateV2, ReportSubmissionV2, ProfessionalUnit, ContactRole, Contact, CategoryGroup, CategoryItem
 import os, json, shutil, zipfile, io, pandas as pd, sqlite3, subprocess
 from datetime import datetime, timedelta
-from utils import log_action, clear_logs, init_db
+from utils import log_action, clear_logs, init_db, render_auto_template as render_template
 
 admin_bp = Blueprint('admin_bp', __name__)
 
