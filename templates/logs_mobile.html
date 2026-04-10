@@ -1,0 +1,68 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}Nhật ký hệ thống - PC06 Mobile{% endblock %}
+
+{% block content %}
+<div class="animate__animated animate__fadeIn">
+    <div class="mb-4 d-flex justify-content-between align-items-center">
+        <h4 class="fw-bold text-dark mb-0">Nhật ký</h4>
+        <button class="btn btn-light btn-sm rounded-pill fw-bold border" data-bs-toggle="collapse" data-bs-target="#logFilters">
+            <i class="fa-solid fa-filter me-1"></i> BỘ LỌC
+        </button>
+    </div>
+
+    <!-- Collapsible Filters -->
+    <div class="collapse mb-3" id="logFilters">
+        <div class="mobile-card">
+            <form method="GET">
+                <div class="mb-3">
+                    <label class="form-label tiny fw-bold text-muted">NGƯỜI DÙNG</label>
+                    <select name="user" class="form-select small">
+                        <option value="">Tất cả người dùng</option>
+                        {% for u in user_list %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label tiny fw-bold text-muted">TỪ NGÀY</label>
+                        <input type="date" name="start" class="form-control small">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label tiny fw-bold text-muted">ĐẾN NGÀY</label>
+                        <input type="date" name="end" class="form-control small">
+                    </div>
+                </div>
+                <button type="submit" class="btn-mobile btn-mobile-primary btn-sm" style="height: 40px;">ÁP DỤNG LỌC</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="logList">
+        {% for l in logs %}
+        <div class="mobile-card p-3 mb-2">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div class="badge bg-primary bg-opacity-10 text-primary rounded-pill tiny fw-bold" style="font-size: 9px;">{{ l.module }}</div>
+                <div class="tiny text-muted fw-bold">{{ l.created_at.strftime('%H:%M %d/%m') }}</div>
+            </div>
+            
+            <div class="fw-bold text-dark small mb-1">{{ l.action }}</div>
+            <div class="text-muted small mb-2">{{ l.details }}</div>
+            
+            <div class="d-flex align-items-center gap-2 pt-2 border-top">
+                <div class="avatar-tiny bg-light text-muted rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 20px; height: 20px; font-size: 9px;">
+                    {{ l.fullname[:1].upper() }}
+                </div>
+                <div class="tiny text-muted fw-bold">{{ l.fullname }}</div>
+            </div>
+        </div>
+        {% endfor %}
+        
+        {% if not logs %}
+        <div class="text-center py-5">
+             <div class="opacity-10 mb-2"><i class="fa-solid fa-scroll fa-3x"></i></div>
+             <p class="text-muted small">Không tìm thấy nhật ký nào</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

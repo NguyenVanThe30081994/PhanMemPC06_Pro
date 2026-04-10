@@ -1,0 +1,40 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}Thông báo - PC06 Mobile{% endblock %}
+
+{% block content %}
+<div class="animate__animated animate__fadeIn">
+    <div class="mb-4 d-flex justify-content-between align-items-center">
+        <h4 class="fw-bold text-dark mb-0">Thông báo</h4>
+        <span class="badge bg-primary rounded-pill">{{ notifs|length }} mới</span>
+    </div>
+
+    <div id="notifListMobile">
+        {% for n in notifs %}
+        <div class="mobile-card p-0 overflow-hidden mb-3 border-start border-4 border-{{ 'primary' if loop.index <= 3 else 'light' }}">
+            <a href="{{ n.link or '#' }}" class="text-decoration-none p-3 d-block">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <div class="fw-bold text-dark small">{{ n.title }}</div>
+                    <div class="tiny text-muted">{{ n.created_at.strftime('%H:%M') }}</div>
+                </div>
+                <div class="text-muted small text-truncate-2">{{ n.msg }}</div>
+                <div class="mt-2 py-1 tiny text-primary fw-bold">
+                    <i class="fa-solid fa-chevron-right me-1"></i> Xem chi tiết
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+
+        {% if not notifs %}
+        <div class="text-center py-5">
+            <div class="opacity-10 mb-3"><i class="fa-solid fa-bell-slash fa-4x"></i></div>
+            <p class="text-muted">Bạn chưa có thông báo mới nào</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .border-primary { border-left-color: var(--primary) !important; }
+</style>
+{% endblock %}

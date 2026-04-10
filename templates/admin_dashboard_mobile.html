@@ -11,9 +11,10 @@
     .stat-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
     
     .quick-actions { margin-bottom: 30px; }
-    .action-btn { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; padding: 15px; display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--text-main); aspect-ratio: 1/1; justify-content: center; }
-    .action-btn i { font-size: 24px; margin-bottom: 8px; color: var(--primary); }
-    .action-btn span { font-size: 12px; font-weight: 600; text-align: center; }
+    .action-btn { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--text-main); aspect-ratio: 1/1; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.2s; }
+    .action-btn:active { transform: scale(0.95); background: var(--primary-light); }
+    .action-btn i { font-size: 22px; margin-bottom: 6px; color: var(--primary); }
+    .action-btn span { font-size: 10px; font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: 0.5px; }
     
     .section-title { font-size: 16px; font-weight: 800; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
     .section-title a { font-size: 12px; font-weight: 600; color: var(--primary); text-decoration: none; }
@@ -59,25 +60,25 @@
             <div class="col-3">
                 <a href="/input" class="action-btn">
                     <i class="fa-solid fa-file-pen"></i>
-                    <span>NHẬP</span>
+                    <span>NHẬP LIỆU</span>
                 </a>
             </div>
             <div class="col-3">
                 <a href="/tasks" class="action-btn">
                     <i class="fa-solid fa-list-check"></i>
-                    <span>VIỆC</span>
+                    <span>NHIỆM VỤ</span>
                 </a>
             </div>
             <div class="col-3">
                 <a href="/ranking" class="action-btn">
                     <i class="fa-solid fa-ranking-star"></i>
-                    <span>HẠNG</span>
+                    <span>XẾP HẠNG</span>
                 </a>
             </div>
             <div class="col-3">
                 <a href="/news" class="action-btn">
                     <i class="fa-solid fa-newspaper"></i>
-                    <span>TIN</span>
+                    <span>BẢNG TIN</span>
                 </a>
             </div>
         </div>

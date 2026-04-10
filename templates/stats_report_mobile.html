@@ -1,0 +1,96 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}Thống kê - PC06 Mobile{% endblock %}
+
+{% block content %}
+<div class="animate__animated animate__fadeIn">
+    <div class="mb-4 d-flex justify-content-between align-items-center">
+        <h4 class="fw-bold text-dark mb-0">Thống kê</h4>
+        <div class="dropdown">
+            <button class="btn btn-light btn-sm border rounded-pill px-3 fw-bold dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                {{ 'V1' if form_type == 'v1' else 'V2' if form_type == 'v2' else 'Chọn bộ' }}
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-4 p-2 mt-2">
+                <li><a class="dropdown-item py-2 rounded-3 small fw-bold" href="/stats?form_type=v1">Bộ biểu mẫu V1</a></li>
+                <li><a class="dropdown-item py-2 rounded-3 small fw-bold" href="/stats?form_type=v2">Bộ biểu mẫu V2</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Form Selector -->
+    <div class="mobile-card mb-3">
+        <label class="form-label tiny fw-bold text-muted text-uppercase mb-2">Chọn biểu mẫu cần xem</label>
+        <select class="form-select border-0 bg-light rounded-3 shadow-none fw-bold small" style="height: 50px;" onchange="window.location.href=this.value">
+            <option value="" disabled {{ 'selected' if not active and not active_v2 }}>--- Chọn một biểu mẫu ---</option>
+            {% if form_type == 'v1' %}
+                {% for c in configs %}
+                <option value="{{ url_for('forms_bp.stats', rid=c.id, form_type='v1') }}" {{ 'selected' if active and active.id == c.id }}>{{ c.name }}</option>
+                {% endfor %}
+            {% else %}
+                {% for v2 in v2_templates %}
+                <option value="{{ url_for('forms_bp.stats', rid=v2.id, v2=1, form_type='v2') }}" {{ 'selected' if active_v2 and active_v2.id == v2.id }}>{{ v2.name }}</option>
+                {% endfor %}
+            {% endif %}
+        </select>
+    </div>
+
+    {% if active or active_v2 %}
+    <div class="mobile-card">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 fw-bold tiny letter-spacing-1">BÁO CÁO CHI TIẾT</div>
+            <div class="tiny text-muted fw-bold">{{ sub_count }} đơn vị đã nộp</div>
+        </div>
+        
+        <h5 class="fw-bold text-dark mb-4">{{ active.name if active else active_v2.name }}</h5>
+
+        {% if excel_html %}
+        <div class="table-responsive border rounded-4 bg-white" style="max-height: 500px; -webkit-overflow-scrolling: touch;">
+            {{ excel_html|safe }}
+        </div>
+        {% else %}
+        <div class="text-center py-4 bg-light rounded-4">
+            <p class="text-muted small mb-0">Chưa có dữ liệu nào</p>
+        </div>
+        {% endif %}
+
+        <div class="mt-4 pt-4 border-top">
+             <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="tiny fw-bold text-danger"><i class="fa-solid fa-triangle-exclamation me-1"></i>CHƯA BÁO CÁO ({{ not_reported_count }})</span>
+             </div>
+             <div class="d-flex flex-wrap gap-1">
+                {% for u in not_reported_units %}
+                <span class="badge bg-light text-muted border tiny">{{ u }}</span>
+                {% endfor %}
+             </div>
+        </div>
+
+        <div class="mt-4">
+            <button class="btn-mobile btn-mobile-primary shadow" onclick="exportStatsToExcel()">
+                <i class="fa-solid fa-file-excel"></i> XUẤT FILE EXCEL
+            </button>
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <div class="opacity-10 mb-3"><i class="fa-solid fa-chart-line fa-4x"></i></div>
+        <p class="text-muted small">Hãy chọn một biểu mẫu để xem thống kê</p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .excel-render-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .excel-render-table td, .excel-render-table th { border: 1px solid #eee; padding: 8px; }
+    .excel-render-table tr:nth-child(even) { background: #fdfdfd; }
+</style>
+
+<script>
+    function exportStatsToExcel() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const rid = urlParams.get('rid');
+        const v2 = urlParams.get('v2');
+        if (!rid) return;
+        window.location.href = `/stats/export?rid=${rid}${v2 ? '&v2=1' : ''}`;
+    }
+</script>
+{% endblock %}

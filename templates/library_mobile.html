@@ -1,0 +1,123 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}Thư viện - PC06 Mobile{% endblock %}
+
+{% block content %}
+<div class="animate__animated animate__fadeIn">
+    <div class="mb-4 d-flex justify-content-between align-items-center">
+        <h4 class="fw-bold text-dark mb-0">Thư viện</h4>
+        {% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
+        <button class="btn btn-primary btn-sm rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#addLibraryModal">
+            <i class="fa-solid fa-plus"></i> TẢI LÊN
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- Search Box -->
+    <div class="mobile-card p-2 mb-3">
+        <div class="input-group input-group-sm border-0">
+            <span class="input-group-text bg-transparent border-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+            <input type="text" id="librarySearch" class="form-control border-0 shadow-none" placeholder="Tìm tài liệu..." onkeyup="unifiedFilter()">
+        </div>
+    </div>
+
+    <!-- Category Scroll -->
+    <div class="d-flex gap-2 overflow-auto pb-3 mb-2 no-scrollbar" id="categoryFilters">
+        <div class="pill pill-primary flex-shrink-0 active" data-cat="ALL" onclick="setCategoryFilter('ALL')">Tất cả</div>
+        {% for cat in cats %}
+        <div class="pill bg-white border flex-shrink-0 text-muted" data-cat="{{ cat.name }}" onclick="setCategoryFilter('{{ cat.name }}')">{{ cat.name }}</div>
+        {% endfor %}
+    </div>
+
+    <div id="libraryGrid">
+        {% for item in docs %}
+        <div class="mobile-card library-item" data-category="{{ item.category }}">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="bg-primary bg-opacity-10 p-2 rounded-3 text-primary">
+                    <i class="fa-solid fa-file-pdf fs-4"></i>
+                </div>
+                <div class="overflow-hidden">
+                    <div class="badge bg-light text-muted border tiny mb-1">{{ item.category }}</div>
+                    <h6 class="fw-bold text-dark mb-0 text-truncate">{{ item.title }}</h6>
+                </div>
+            </div>
+            
+            <p class="text-muted small mb-3 text-truncate-2">{{ item.description or 'Không có mô tả' }}</p>
+            
+            <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                <div class="tiny text-muted fw-bold"><i class="fa-regular fa-calendar me-1"></i>{{ item.uploaded_at.strftime('%d/%m/%Y') }}</div>
+                <a href="/dl_file/{{ item.filename }}" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold">
+                    <i class="fa-solid fa-download"></i> TẢI VỀ
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+        
+        {% if not docs %}
+        <div class="text-center py-5">
+             <div class="opacity-10 mb-2"><i class="fa-solid fa-book-open fa-3x"></i></div>
+             <p class="text-muted small">Chưa có tài liệu nào</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal Mobile -->
+<div class="modal fade" id="addLibraryModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered mx-3">
+        <div class="modal-content border-0 rounded-4">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">TẢI LÊN TÀI LIỆU</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Tên tài liệu</label>
+                        <input type="text" name="title" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Lĩnh vực</label>
+                        <select name="category" class="form-select" required>
+                            {% for c in cats %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">File đính kèm</label>
+                        <input type="file" name="file" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="submit" class="btn-mobile btn-mobile-primary">TẢI LÊN NGAY</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    #categoryFilters .active { background: var(--primary); color: white; border-color: var(--primary); }
+</style>
+
+<script>
+    let currentCat = 'ALL';
+    function setCategoryFilter(cat) {
+        currentCat = cat;
+        document.querySelectorAll('#categoryFilters .pill').forEach(p => {
+            p.classList.toggle('active', p.getAttribute('data-cat') === cat);
+            p.classList.toggle('pill-primary', p.getAttribute('data-cat') === cat);
+        });
+        unifiedFilter();
+    }
+    function unifiedFilter() {
+        const query = document.getElementById('librarySearch').value.toLowerCase();
+        document.querySelectorAll('.library-item').forEach(item => {
+            const matchText = item.innerText.toLowerCase().includes(query);
+            const matchCat = (currentCat === 'ALL' || item.getAttribute('data-category') === currentCat);
+            item.style.display = (matchText && matchCat) ? 'block' : 'none';
+        });
+    }
+</script>
+{% endblock %}

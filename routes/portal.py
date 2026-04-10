@@ -50,6 +50,16 @@ def news():
                           pro_units=pro_units,
                           now_str=now_str)
 
+@portal_bp.route('/notifications')
+def notifications():
+    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
+    from models import Notification
+    notifs = Notification.query.filter_by(user_id=session['uid']).order_by(Notification.created_at.desc()).limit(20).all()
+    # Mark as read when viewing the page
+    Notification.query.filter_by(user_id=session['uid']).update({'is_read': 1})
+    db.session.commit()
+    return render_template('notifications.html', notifs=notifs)
+
 @portal_bp.route('/library', methods=['GET', 'POST'])
 def library():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))

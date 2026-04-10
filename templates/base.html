@@ -62,11 +62,18 @@
         .notif-item { border-bottom: 1px solid var(--border); transition: background 0.2s; }
         .notif-item:hover { background: var(--bg-body); }
         .notif-item.unread { border-left: 3px solid var(--primary); background: rgba(37,99,235,0.03); }
-        .nav-link-top { height: auto; padding: 6px 15px; color: var(--text-muted); font-weight: 600; text-decoration: none; position: relative; transition: all 0.2s; border-bottom: none; display: flex; align-items: center; justify-content: center; line-height: 1; margin: auto 5px; border-radius: 50px; }
-        .dropdown { display: flex; align-items: center; justify-content: center; height: 100%; margin: 0 5px; }
+        .nav-link-top { height: auto; padding: 6px 12px; color: var(--text-muted); font-weight: 600; text-decoration: none; position: relative; transition: all 0.2s; border-bottom: none; display: flex; align-items: center; justify-content: center; line-height: 1; margin: auto 2px; border-radius: 50px; white-space: nowrap; font-size: 0.85rem; }
+        .dropdown { display: flex; align-items: center; justify-content: center; height: 100%; margin: 0 2px; }
         .chat-full-width { padding-left: 0 !important; padding-right: 0 !important; max-width: none !important; width: 100% !important; margin-top: -1.5rem !important; }
         .nav-link-top:hover { color: var(--primary); background: rgba(0, 102, 255, 0.05); }
         .nav-link-top.active { color: #fff !important; background: var(--primary) !important; box-shadow: var(--shadow-primary) !important; }
+        
+        /* Desktop Scale Fix for 14-inch screens */
+        @media (min-width: 992px) and (max-width: 1400px) {
+            :root { --font-size-base: 15px; }
+            .nav-link-top { padding: 6px 8px; font-size: 0.8rem; }
+            .nav-center { gap: 5px !important; }
+        }
         .chat-full-page { padding: 0 !important; margin: 0 !important; max-width: 100vw !important; width: 100vw !important; overflow: hidden; }
 
         /* Mobile Bottom Nav */
@@ -409,7 +416,7 @@
                 <a href="/ranking" class="nav-link-top {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">Xếp hạng</a>
                 <div class="dropdown h-100 d-flex align-items-center">
                     <a class="nav-link-top dropdown-toggle {% if request.endpoint in ['portal_bp.news', 'portal_bp.library'] %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
-                        Bảng tin và Thư viện
+                        Bảng tin & Thư viện
                     </a>
                     <ul class="dropdown-menu shadow-lg border-0 mt-0 rounded-4 p-2" style="min-width: 220px;">
                         {% if perms.get('p_news_lead') or perms.get('p_news_exec') %}
@@ -442,7 +449,7 @@
                     </ul>
                 </div>
                 
-                <a href="{{ url_for('shortlink_bp.manage_links') }}" class="nav-link-top {% if request.path.startswith('/links') %}active{% endif %}">Tiện ích QR & Link</a>
+                <a href="{{ url_for('shortlink_bp.manage_links') }}" class="nav-link-top {% if request.path.startswith('/links') %}active{% endif %}">QR & Link</a>
 
                 {% if perms.get('p_form_lead') or perms.get('p_user_lead') or perms.get('p_sys_lead') %}
                 <div class="dropdown h-100 d-flex align-items-center">
