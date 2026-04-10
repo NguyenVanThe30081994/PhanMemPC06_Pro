@@ -6,24 +6,26 @@
         <!-- Hybrid-Next Breadcrumb Flow -->
         <div class="d-flex align-items-center gap-3">
             <nav class="breadcrumb-nav glass-panel d-none d-lg-flex px-3 py-2 rounded-pill">
-                <span class="segment fw-bold text-dark">NHẬP LIỆU</span>
+                <a href="/input" class="segment fw-bold text-dark text-decoration-none hover-link" title="Quay lại danh sách">
+                    <i class="fa-solid fa-chevron-left small me-2"></i>QUAY LẠI
+                </a>
                 <div class="segmented-control glass-panel mx-3" style="background: rgba(0,0,0,0.05);">
-                    <button class="btn-seg {% if form_type == 'v1' %}active{% endif %}" onclick="window.location.href='/input?form_type=v1'">V1</button>
-                    <button class="btn-seg {% if form_type == 'v2' %}active{% endif %}" onclick="window.location.href='/input?form_type=v2'">V2</button>
+                    <button class="btn-seg active" onclick="window.location.href='/input?form_type=v1'">V1</button>
+                    <button class="btn-seg" onclick="window.location.href='/input?form_type=v2'">V2</button>
                 </div>
                 <div class="picker-chip glass-panel dropdown-toggle shadow-sm" data-bs-toggle="dropdown">
                     {% if active %}{{ active.name }}{% elif active_v2 %}{{ active_v2.name }}{% else %}Chọn biểu mẫu...{% endif %}
                 </div>
-                <ul class="dropdown-menu shadow-lg border-0 rounded-4 p-2 mt-2" style="max-height: 400px; overflow-y: auto; min-width: 250px;">
-                    {% if form_type == 'v1' %}
-                        {% for c in configs %}
-                        <li><a class="dropdown-item py-2 rounded-3 small fw-bold" href="{{ url_for('forms_bp.input_data', rid=c.id, form_type='v1') }}">{{ c.name }}</a></li>
-                        {% endfor %}
-                    {% else %}
-                        {% for v2 in v2_templates %}
-                        <li><a class="dropdown-item py-2 rounded-3 small fw-bold" href="{{ url_for('reports_v2_bp.render_report', tid=v2.id) }}">{{ v2.name }}</a></li>
-                        {% endfor %}
-                    {% endif %}
+                <ul class="dropdown-menu shadow-lg border-0 rounded-4 p-2 mt-2" style="max-height: 500px; overflow-y: auto; min-width: 320px;">
+                    <li class="dropdown-header text-primary fw-bold tiny pb-1 text-uppercase">Biểu mẫu V2 (Trang tính)</li>
+                    {% for t2 in v2_templates %}
+                    <li><a class="dropdown-item py-2 rounded-3 small fw-bold" href="/reports-v2/render/{{ t2.id }}">{{ t2.name }}</a></li>
+                    {% endfor %}
+                    <li><hr class="dropdown-divider opacity-10"></li>
+                    <li class="dropdown-header text-secondary fw-bold tiny pb-1 text-uppercase">Biểu mẫu V1 (Dữ liệu con)</li>
+                    {% for t1 in configs %}
+                    <li><a class="dropdown-item py-2 rounded-3 small fw-bold {% if active and active.id == t1.id %}active{% endif %}" href="{{ url_for('forms_bp.input_data', rid=t1.id, form_type='v1') }}">{{ t1.name }}</a></li>
+                    {% endfor %}
                 </ul>
             </nav>
             <h1 class="h4 fw-bold text-dark mb-0 d-lg-none">Nhập liệu</h1>
@@ -55,21 +57,21 @@
                 </div>
                 <div class="collapse" id="mobileFormList">
                     <div class="list-group list-group-flush border-top">
-                        {% if form_type == 'v1' %}
-                            {% for c in configs %}
-                            <a href="{{ url_for('forms_bp.input_data', rid=c.id, form_type='v1') }}" 
-                               class="list-group-item list-group-item-action border-0 px-4 py-3 {% if active and active.id == c.id %}active{% endif %}" style="background-color: var(--bg-surface);">
-                                <div class="small fw-bold text-truncate">{{ c.name }}</div>
-                            </a>
-                            {% endfor %}
-                        {% else %}
-                            {% for v2 in v2_templates %}
-                            <a href="{{ url_for('reports_v2_bp.render_report', tid=v2.id) }}" 
-                               class="list-group-item list-group-item-action border-0 px-4 py-3" style="background-color: var(--bg-surface);">
-                                <div class="small fw-bold text-truncate">{{ v2.name }}</div>
-                            </a>
-                            {% endfor %}
-                        {% endif %}
+                        <div class="list-group-item bg-light tiny fw-bold text-muted text-uppercase">Biểu mẫu V2 (Trang tính)</div>
+                        {% for v2 in v2_templates %}
+                        <a href="{{ url_for('reports_v2_bp.render_report', tid=v2.id) }}" 
+                           class="list-group-item list-group-item-action border-0 px-4 py-3" style="background-color: var(--bg-surface);">
+                            <div class="small fw-bold text-truncate"><i class="fa-solid fa-file-excel me-2 opacity-50"></i>{{ v2.name }}</div>
+                        </a>
+                        {% endfor %}
+                        
+                        <div class="list-group-item bg-light tiny fw-bold text-muted text-uppercase border-top">Biểu mẫu V1 (Dữ liệu con)</div>
+                        {% for t1 in configs %}
+                        <a href="{{ url_for('forms_bp.input_data', rid=t1.id, form_type='v1') }}" 
+                           class="list-group-item list-group-item-action border-0 px-4 py-3 {% if active and active.id == t1.id %}active{% endif %}" style="background-color: var(--bg-surface);">
+                            <div class="small fw-bold text-truncate"><i class="fa-solid fa-file-lines me-2 opacity-50"></i>{{ t1.name }}</div>
+                        </a>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
@@ -166,4 +168,7 @@
         </div>
     </div>
 </div>
+<style>
+    .hover-link:hover { color: var(--primary) !important; transform: translateX(-2px); transition: all 0.2s; }
+</style>
 {% endblock %}

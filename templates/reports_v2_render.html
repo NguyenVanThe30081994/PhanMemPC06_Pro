@@ -6,17 +6,25 @@
         <!-- Hybrid-Next Breadcrumb Flow -->
         <div class="d-flex align-items-center gap-3">
             <nav class="breadcrumb-nav glass-panel d-none d-lg-flex px-3 py-2 rounded-pill">
-                <span class="segment fw-bold text-dark">NHẬP LIỆU</span>
+                <a href="/input" class="segment fw-bold text-dark text-decoration-none hover-link" title="Quay lại danh sách">
+                    <i class="fa-solid fa-chevron-left small me-2"></i>QUAY LẠI
+                </a>
                 <div class="segmented-control glass-panel mx-3" style="background: rgba(0,0,0,0.05);">
                     <button class="btn-seg" onclick="window.location.href='/input?form_type=v1'">V1</button>
                     <button class="btn-seg active" onclick="window.location.href='/input?form_type=v2'">V2</button>
                 </div>
                 <div class="picker-chip glass-panel dropdown-toggle shadow-sm" data-bs-toggle="dropdown">
-                    {{ template.name }} <span class="badge bg-primary bg-opacity-10 text-primary ms-2 tiny">{{ version.version_tag }}</span>
+                    {{ template.name }} <span class="badge bg-primary bg-opacity-10 text-primary ms-2 tiny">{{ version.version_tag if version else 'N/A' }}</span>
                 </div>
-                <ul class="dropdown-menu shadow-lg border-0 rounded-4 p-2 mt-2" style="max-height: 400px; overflow-y: auto; min-width: 280px;">
-                    {% for t in v2_templates %}
-                    <li><a class="dropdown-item py-2 rounded-3 small fw-bold" href="/reports-v2/render/{{ t.id }}">{{ t.name }}</a></li>
+                <ul class="dropdown-menu shadow-lg border-0 rounded-4 p-2 mt-2" style="max-height: 500px; overflow-y: auto; min-width: 320px;">
+                    <li class="dropdown-header text-primary fw-bold tiny pb-1 text-uppercase">Biểu mẫu V2 (Trang tính)</li>
+                    {% for t2 in v2_templates %}
+                    <li><a class="dropdown-item py-2 rounded-3 small fw-bold {% if template.id == t2.id %}active{% endif %}" href="/reports-v2/render/{{ t2.id }}">{{ t2.name }}</a></li>
+                    {% endfor %}
+                    <li><hr class="dropdown-divider opacity-10"></li>
+                    <li class="dropdown-header text-secondary fw-bold tiny pb-1 text-uppercase">Biểu mẫu V1 (Dữ liệu con)</li>
+                    {% for t1 in v1_configs %}
+                    <li><a class="dropdown-item py-2 rounded-3 small fw-bold" href="/input?rid={{ t1.id }}&form_type=v1">{{ t1.name }}</a></li>
                     {% endfor %}
                 </ul>
             </nav>
@@ -34,6 +42,9 @@
                 <div id="saveStatus" class="tiny text-muted fw-bold d-none d-sm-block bg-white px-3 py-2 rounded-pill border-light shadow-sm">
                     <i class="fa-solid fa-cloud-check text-success me-1"></i>ĐÃ LƯU
                 </div>
+                <button class="btn btn-light rounded-pill px-3 fw-bold tiny border shadow-sm" onclick="window.print()">
+                    <i class="fa-solid fa-print me-2"></i>IN PHIẾU
+                </button>
                 <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" onclick="forceSave()">
                     <i class="fa-solid fa-floppy-disk me-2"></i>LƯU LẠI
                 </button>
@@ -83,10 +94,17 @@
         <i class="fa-solid fa-list me-2"></i>DANH SÁCH BIỂU MẪU V2
     </button>
     <div class="collapse mt-2" id="mobileV2List">
-        <div class="list-group shadow-sm rounded-4 overflow-hidden">
-            {% for t in v2_templates %}
-            <a href="{{ url_for('reports_v2_bp.render_report', tid=t.id) }}" class="list-group-item list-group-item-action border-0 py-3 small {% if template.id == t.id %}active{% endif %}">
-                {{ t.name }}
+        <div class="list-group list-group-flush shadow-sm rounded-4 overflow-hidden border">
+            <div class="list-group-item bg-light tiny fw-bold text-muted text-uppercase">Biểu mẫu V2</div>
+            {% for t2 in v2_templates %}
+            <a href="{{ url_for('reports_v2_bp.render_report', tid=t2.id) }}" class="list-group-item list-group-item-action border-0 py-3 small {% if template.id == t2.id %}active{% endif %}">
+                <i class="fa-solid fa-file-excel me-2 opacity-50"></i>{{ t2.name }}
+            </a>
+            {% endfor %}
+            <div class="list-group-item bg-light tiny fw-bold text-muted text-uppercase border-top">Biểu mẫu V1</div>
+            {% for t1 in v1_configs %}
+            <a href="/input?rid={{ t1.id }}&form_type=v1" class="list-group-item list-group-item-action border-0 py-3 small">
+                <i class="fa-solid fa-file-lines me-2 opacity-50"></i>{{ t1.name }}
             </a>
             {% endfor %}
         </div>
@@ -102,6 +120,7 @@
     .excel-render-table { border-collapse: collapse; width: 100%; min-width: 100%; border: 1px solid var(--border) !important; table-layout: auto; margin: 0 auto; box-shadow: 0 0 20px rgba(0,0,0,0.02); }
     .excel-render-table td { border: 1px solid var(--border) !important; padding: 4px 8px; background-color: #fff; }
     [data-theme="dark"] .excel-render-table td { background-color: var(--bg-surface); }
+    .hover-link:hover { color: var(--primary) !important; transform: translateX(-2px); transition: all 0.2s; }
     .grid-input { 
         border: 1px solid transparent; 
         background: transparent; 

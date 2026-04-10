@@ -85,21 +85,28 @@ def inject_global_data():
         return {'perms': {}}
     perms = {}
     is_admin = session.get('is_admin', False)
-    role_name = "Không xác định"
+    role_name = "Thành viên"
+    
+    # 1. Fetch properties from DB role if available
     try:
-        role = db.session.get(AppRole, session.get('role_id'))
+        rid = session.get('role_id')
+        role = db.session.get(AppRole, rid) if rid else None
         if role:
             role_name = role.name
-            perms = json.loads(role.perms) if role.perms else {}
-            if is_admin or role.name == 'Quản trị hệ thống':
-                modules = ["dash", "task", "lib", "news", "contact", "form", "sys", "input", "stat", "user"]
-                for m in modules:
-                    perms[f"p_{m}_lead"] = 1
-                    perms[f"p_{m}_exec"] = 1
-                # Backward compatibility keys
-                perms.update({f"p_{m}": 1 for m in modules})
+            if role.perms:
+                perms = json.loads(role.perms)
     except Exception:
         pass
+
+    # 2. Overlap with Admin permissions if flag is set
+    if is_admin or role_name == 'Quản trị hệ thống':
+        modules = ["dash", "task", "lib", "news", "contact", "form", "sys", "input", "stat", "user"]
+        for m in modules:
+            perms[f"p_{m}_lead"] = 1
+            perms[f"p_{m}_exec"] = 1
+        # Backward compatibility keys
+        perms.update({f"p_{m}": 1 for m in modules})
+
     return dict(perms=perms, role_name=role_name, fullname=session.get('fullname', ''), is_admin=is_admin, version="3.5.0", get_labels=get_perms_labels)
 
 # --- JINJA HELPERS ---

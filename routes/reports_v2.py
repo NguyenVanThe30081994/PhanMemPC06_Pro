@@ -324,15 +324,15 @@ def render_report(tid):
 
     from models import ReportConfig
     v2_templates = ReportTemplateV2.query.all()
-    configs = ReportConfig.query.all()
+    v1_configs = ReportConfig.query.all()
     return render_template('reports_v2_render.html',
                            template=template,
                            version=version,
                            sheets_html=sheets_html,
                            is_admin=is_admin,
-                           configs=configs,
                            user_unit=user_unit,
                            v2_templates=v2_templates,
+                           v1_configs=v1_configs,
                            form_type='v2')
 
 
@@ -353,8 +353,13 @@ def submit_data():
         wb = openpyxl.load_workbook(io.BytesIO(version.excel_file_blob), data_only=True)
         ws = wb.active # V2 templates usually focus on the main sheet
         
-        user_unit = session.get('unit_area', session.get('unit', ''))
-        is_admin = session.get('is_admin', False)
+        user_unit = session.get('unit_area', 'PC06')
+        is_admin = session.get('is_admin')
+        user_id = session.get('uid')
+        
+        # Load BOTH V1 and V2 templates for the unified dropdown
+        v1_configs = ReportConfig.query.all()
+        v2_templates = ReportTemplateV2.query.all()
         
         # Determine allowed rows for the current user
         # Admin or System units are allowed all rows
