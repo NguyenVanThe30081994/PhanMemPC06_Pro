@@ -1,8 +1,11 @@
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash
 from models import db, RankingUnit, RankingIndicator, RankingEntry
+from utils import normalize_unit_name, safe_float
 import pandas as pd
 import io
 import openpyxl
+from datetime import datetime
+from flask import send_file
 
 ranking_bp = Blueprint('ranking_bp', __name__)
 
@@ -46,6 +49,94 @@ def save_entry():
 def get_values(indicator_id):
     entries = RankingEntry.query.filter_by(indicator_id=indicator_id).all()
     return jsonify({e.unit_id: e.raw_value for e in entries})
+
+@ranking_bp.route('/ranking/template')
+def download_template():
+    units = RankingUnit.query.all()
+    indicators = RankingIndicator.query.all()
+    
+    # Create structure: Unit Name + Indicators
+    data = {"Đơn vị Công an xã/thị trấn": [u.name for u in units]}
+    for ind in indicators:
+        data[ind.name] = [0.0] * len(units)
+        
+    df = pd.DataFrame(data)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='DuLieuChamDiem')
+        ws = writer.sheets['DuLieuChamDiem']
+        for i, col in enumerate(df.columns):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(i+1)].width = 30
+            
+    output.seek(0)
+    return send_file(output, download_name=f"Mau_ChamDiem_{datetime.now().strftime('%Y%m%d')}.xlsx", as_attachment=True)
+
+@ranking_bp.route('/ranking/import', methods=['POST'])
+def import_excel():
+    if 'file' not in request.files:
+        return jsonify({"success": False, "message": "Không tìm thấy file!"}), 400
+        
+    file = request.files['file']
+    if not file.filename:
+        return jsonify({"success": False, "message": "File không hợp lệ!"}), 400
+        
+    try:
+        df = pd.read_excel(file)
+        # 1. Clean column names
+        df.columns = [str(c).strip() for c in df.columns]
+        
+        # 2. Identify Target Indicators
+        db_indicators = RankingIndicator.query.all()
+        ind_map = {ind.name.strip(): ind for ind in db_indicators}
+        
+        # 3. Identify Target Units
+        db_units = RankingUnit.query.all()
+        unit_map = {normalize_unit_name(u.name): u for u in db_units}
+        
+        # 4. Process Sync
+        units_col = df.columns[0] # Assume 1st column is Unit Name
+        synced_count = 0
+        unmatched_units = []
+        unmatched_inds = []
+        
+        # Identify which columns in Excel match DB indicators
+        active_cols = []
+        for col in df.columns[1:]:
+            if col in ind_map:
+                active_cols.append(col)
+            else:
+                unmatched_inds.append(col)
+        
+        for _, row in df.iterrows():
+            raw_name = str(row[units_col])
+            norm_name = normalize_unit_name(raw_name)
+            unit = unit_map.get(norm_name)
+            
+            if not unit:
+                unmatched_units.append(raw_name)
+                continue
+                
+            for col in active_cols:
+                val = safe_float(row[col])
+                ind = ind_map[col]
+                
+                entry = RankingEntry.query.filter_by(unit_id=unit.id, indicator_id=ind.id).first()
+                if not entry:
+                    entry = RankingEntry(unit_id=unit.id, indicator_id=ind.id)
+                    db.session.add(entry)
+                entry.raw_value = val
+                synced_count += 1
+                
+        db.session.commit()
+        return jsonify({
+            "success": True, 
+            "synced_entries": synced_count,
+            "unmatched_units": unmatched_units[:10], # Limit summary
+            "unmatched_indicators": unmatched_inds
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"Lỗi xử lý file: {str(e)}"}), 500
 
 @ranking_bp.route('/ranking/export')
 def export_ranking():
