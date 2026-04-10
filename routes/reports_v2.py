@@ -233,37 +233,39 @@ def render_report(tid):
         from excel_renderer import _row_height_px, _cell_css
         from openpyxl.styles.fills import PatternFill
 
-        INPUT_MARKER = 'FFE0F2FE'
+        # Robust input marker detection
+        INPUT_MARKERS = ['FFE0F2FE', '00E0F2FE', 'E0F2FE']
 
         for r in range(min_row, max_row + 1):
             if ws.row_dimensions[r].hidden:
                 continue
 
-            # Unit-row filtering for non-admin users:
-            # If any label cell in this row contains the user_unit string,
-            # this row is relevant. Header rows are always shown.
+            # Unit-row filtering for non-admin users
             if not is_admin and user_unit:
-                row_text = ''
-                for c in range(1, max_col + 1):
-                    cell = ws.cell(row=r, column=c)
-                    v = cell.value
-                    if v and not (isinstance(v, str) and v.startswith('=')):
-                        row_text += str(v)
-                # Always show rows that have NO input cells (structural/header rows)
+                # 1. Detect if row has any input cells
                 has_input = False
                 for c in range(1, max_col + 1):
                     cell = ws.cell(row=r, column=c)
                     try:
-                        if (isinstance(cell.fill, PatternFill) and
-                                cell.fill.patternType == 'solid' and
-                                str(cell.fill.fgColor.rgb) == INPUT_MARKER):
-                            has_input = True
-                            break
-                    except Exception:
-                        pass
-                # Hide data rows that don't match the user's unit
-                if has_input and user_unit not in row_text:
-                    continue
+                        fill = cell.fill
+                        if isinstance(fill, PatternFill) and fill.patternType == 'solid' and hasattr(fill.fgColor, 'rgb'):
+                            rgb = str(fill.fgColor.rgb).upper()
+                            if rgb in INPUT_MARKERS or any(m in rgb for m in INPUT_MARKERS):
+                                has_input = True
+                                break
+                    except Exception: pass
+                
+                # 2. If it's a data row (has input), check if it matches user's unit
+                if has_input:
+                    row_text = ''
+                    for c in range(1, max_col + 1):
+                        cell = ws.cell(row=r, column=c)
+                        v = cell.value
+                        if v and not (isinstance(v, str) and v.startswith('=')):
+                            row_text += str(v)
+                    
+                    if user_unit not in row_text:
+                        continue
 
             rh = _row_height_px(ws, r)
             row_parts = [f'<tr style="height:{rh}px">']
@@ -276,10 +278,11 @@ def render_report(tid):
 
                 is_input = False
                 try:
-                    if (isinstance(cell.fill, PatternFill) and
-                            cell.fill.patternType == 'solid' and
-                            str(cell.fill.fgColor.rgb) == INPUT_MARKER):
-                        is_input = True
+                    fill = cell.fill
+                    if (isinstance(fill, PatternFill) and fill.patternType == 'solid' and hasattr(fill.fgColor, 'rgb')):
+                        rgb = str(fill.fgColor.rgb).upper()
+                        if rgb in INPUT_MARKERS or any(m in rgb for m in INPUT_MARKERS):
+                            is_input = True
                 except Exception:
                     pass
 
@@ -314,8 +317,8 @@ def render_report(tid):
 
         table_html = (
             f'<table class="excel-render-table" '
-            f'style="border-collapse:collapse;font-size:12px;'
-            f'font-family:Calibri,Arial,sans-serif;">'
+            f'style="border-collapse:collapse;font-size:12px;width:100%;table-layout:fixed;'
+            f'font-family:Calibri,Arial,sans-serif;min-width:1000px;">'
             f'{colgroup}'
             f'<tbody>{"".join(rows_html)}</tbody>'
             f'</table>'
@@ -496,8 +499,14 @@ def review_submission(sub_id):
                 cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
                 # Highlight input cells but make them span/div instead of input
                 is_input = False
-                if cell.has_style and cell.fill and hasattr(cell.fill, 'fgColor'):
-                    if str(cell.fill.fgColor.rgb) == 'FFE0F2FE': is_input = True
+                INPUT_MARKERS = ['FFE0F2FE', '00E0F2FE', 'E0F2FE']
+                try:
+                    fill = cell.fill
+                    if (isinstance(fill, PatternFill) and fill.patternType == 'solid' and hasattr(fill.fgColor, 'rgb')):
+                        rgb = str(fill.fgColor.rgb).upper()
+                        if rgb in INPUT_MARKERS or any(m in rgb for m in INPUT_MARKERS):
+                            is_input = True
+                except Exception: pass
                 
                 bg = 'background-color:#f0f9ff;' if is_input else ''
                 td = f'<td{rs_attr}{cs_attr} style="padding:3px 6px;border:1px solid #d1d5db;{bg}{css}">'
@@ -507,7 +516,7 @@ def review_submission(sub_id):
 
         sheets_html.append({
             'name': ws.title,
-            'html': f'<table class="excel-render-table" style="border-collapse:collapse;font-size:12px;font-family:Calibri,Arial,sans-serif;">{colgroup}<tbody>{"".join(rows_html)}</tbody></table>'
+            'html': f'<table class="excel-render-table" style="border-collapse:collapse;font-size:12px;width:100%;table-layout:fixed;font-family:Calibri,Arial,sans-serif;min-width:1000px;">{colgroup}<tbody>{"".join(rows_html)}</tbody></table>'
         })
 
     return render_template('reports_v2_review.html', 

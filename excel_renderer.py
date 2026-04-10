@@ -24,11 +24,12 @@ from markupsafe import Markup
 def _safe_color(color_obj):
     """Return a 6-char hex string or None from an openpyxl Color object."""
     try:
-        rgb = str(color_obj.rgb)          # e.g. 'FFE0F2FE'
-        if len(rgb) == 8 and rgb not in ('00000000', 'FFFFFFFF'):
+        if not color_obj or color_obj.rgb is None:
+            return None
+        rgb = str(color_obj.rgb).upper()          # e.g. 'FFE0F2FE'
+        if len(rgb) == 8:
             return rgb[2:]                # strip alpha → 'E0F2FE'
-        if len(rgb) == 6 and rgb not in ('000000', 'FFFFFF'):
-            return rgb
+        return rgb
     except Exception:
         pass
     return None
@@ -169,13 +170,15 @@ def render_range_to_html(ws, start_row, end_row,
 
             # Detect input cell by background color
             is_input = False
+            INPUT_MARKERS = ['FFE0F2FE', '00E0F2FE', 'E0F2FE']
             if editable:
                 try:
                     fill = cell.fill
                     if (isinstance(fill, PatternFill) and
                             fill.patternType == 'solid' and
                             hasattr(fill.fgColor, 'rgb')):
-                        if str(fill.fgColor.rgb) == input_marker_hex:
+                        rgb = str(fill.fgColor.rgb).upper()
+                        if rgb in INPUT_MARKERS or any(m in rgb for m in INPUT_MARKERS):
                             is_input = True
                 except Exception:
                     pass
