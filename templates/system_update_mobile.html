@@ -1,0 +1,42 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}Cập nhật Hệ thống - PC06 Mobile{% endblock %}
+
+{% block content %}
+<div class="animate__animated animate__fadeIn">
+    <div class="mb-4">
+        <h1 class="h4 fw-bold mb-1">Cập nhật Hệ thống</h1>
+        <p class="text-muted small">Quản lý phiên bản và nâng cấp</p>
+    </div>
+
+    <!-- Current Version -->
+    <div class="mobile-card p-4 mb-4 bg-primary text-white text-center border-0">
+        <div class="text-white text-opacity-75 tiny fw-bold mb-1">PHIÊN BẢN HIỆN TẠI</div>
+        <div class="h2 fw-bold mb-0">v1.5.0</div>
+        <div class="mt-2 tiny text-white text-opacity-50">Ngày cập nhật: {{ now_str if now_str else "Tự động" }}</div>
+    </div>
+
+    <div class="mobile-card p-4 mb-3">
+        <h6 class="fw-bold text-dark mb-3 small">TẢI LÊN BẢN VÁ (.ZIP)</h6>
+        <form method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+                <div class="p-3 border-dashed rounded-3 bg-light text-center" onclick="document.getElementById('zipInput').click()" style="border: 2px dashed var(--border);">
+                    <div class="tiny fw-bold text-muted" id="zipFileName">Chạm để chọn file ZIP</div>
+                    <input type="file" name="update_pkg" id="zipInput" class="d-none" accept=".zip" onchange="document.getElementById('zipFileName').innerText = this.files[0].name; document.getElementById('zipFileName').className = 'tiny fw-bold text-success';">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">BẮT ĐẦU NÂNG CẤP</button>
+        </form>
+    </div>
+
+    <div class="mobile-card p-4 mb-4">
+        <h6 class="fw-bold text-dark mb-3 small">ĐỒNG BỘ GITHUB</h6>
+        <p class="text-muted tiny mb-3">Thực hiện 'git pull' trực tiếp từ nhánh chính. Hệ thống sẽ tự khởi động lại sau khi kéo mã nguồn.</p>
+        <form action="{{ url_for('admin_bp.git_pull') }}" method="POST">
+            <button type="button" class="btn btn-dark w-100 rounded-pill py-2 fw-bold" onclick="if(confirm('Đồng bộ GitHub và khởi động lại hệ thống?')) this.form.submit();">
+                THỰC HIỆN GIT PULL
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

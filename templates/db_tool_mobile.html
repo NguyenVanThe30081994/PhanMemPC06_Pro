@@ -1,0 +1,52 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}Công cụ Database - PC06 Mobile{% endblock %}
+
+{% block content %}
+<div class="animate__animated animate__fadeIn">
+    <div class="mb-4">
+        <h1 class="h4 fw-bold mb-1">Công cụ Database</h1>
+        <p class="text-muted small">Quản trị và bảo trì cơ sở dữ liệu</p>
+    </div>
+
+    <div class="mobile-card p-4 mb-4 border-danger border-opacity-25" style="border-left: 4px solid #ef4444;">
+        <div class="d-flex align-items-center gap-3 mb-3">
+             <div class="bg-danger bg-opacity-10 text-danger p-3 rounded-circle" style="width: 50px; height: 50px; display:flex; align-items:center; justify-content:center;">
+                <i class="fa-solid fa-triangle-exclamation fs-4"></i>
+             </div>
+             <div>
+                <h6 class="fw-bold text-danger mb-0">Reset Hệ thống</h6>
+                <div class="tiny text-muted">Hành động nguy hiểm</div>
+             </div>
+        </div>
+        <p class="text-muted small mb-4">Xóa sạch toàn bộ dữ liệu báo cáo, công việc, danh mục... Hệ thống sẽ trở về trạng thái như lúc mới cài đặt.</p>
+        
+        <form id="resetForm" action="{{ url_for('admin_bp.db_manage') }}" method="POST">
+            <input type="hidden" name="action" value="reset">
+            <button type="button" class="btn btn-danger w-100 rounded-pill fw-bold" onclick="if(confirm('CẢNH BÁO: BẠN SẮP XÓA SẠCH TOÀN BỘ HỆ THỐNG! XÁC NHẬN?')) document.getElementById('resetForm').submit();">
+                XÁC NHẬN RESET TOÀN BỘ
+            </button>
+        </form>
+    </div>
+
+    <div class="mobile-card p-4 mb-4">
+        <div class="d-flex align-items-center gap-3 mb-3">
+             <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle" style="width: 50px; height: 50px; display:flex; align-items:center; justify-content:center;">
+                <i class="fa-solid fa-cloud-arrow-down fs-4"></i>
+             </div>
+             <div>
+                <h6 class="fw-bold text-primary mb-0">Sao lưu Dữ liệu</h6>
+                <div class="tiny text-muted">Backup SQLite</div>
+             </div>
+        </div>
+        <p class="text-muted small mb-4">Tải về file database hiện tại để lưu giữ phòng trường hợp sự cố máy chủ hoặc chuyển vùng dữ liệu.</p>
+        
+        <form action="{{ url_for('admin_bp.db_manage') }}" method="POST">
+            <input type="hidden" name="action" value="backup">
+            <button type="submit" class="btn btn-outline-primary w-100 rounded-pill fw-bold">
+                TẢI FILE BACKUP (.DB)
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

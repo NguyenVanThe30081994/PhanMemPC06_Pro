@@ -1,0 +1,96 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}Thiết lập Biểu mẫu V1 - PC06 Mobile{% endblock %}
+
+{% block content %}
+<div class="animate__animated animate__fadeIn">
+    <div class="mb-4 d-flex justify-content-between align-items-center">
+        <h1 class="h4 fw-bold mb-0">Thiết lập V1</h1>
+        <button class="btn btn-primary btn-sm rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#createFormModal">
+            <i class="fa-solid fa-plus me-1"></i> TẠO MỚI
+        </button>
+    </div>
+
+    <!-- Search -->
+    <div class="mobile-card p-2 mb-3">
+        <div class="input-group input-group-sm border-0">
+            <span class="input-group-text bg-transparent border-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+            <input type="text" id="templateSearch" class="form-control border-0 shadow-none" placeholder="Tìm tên biểu mẫu..." onkeyup="filterForms()">
+        </div>
+    </div>
+
+    <div id="formList">
+        {% for f in configs %}
+        <div class="mobile-card form-item mb-3 p-3">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="badge bg-primary bg-opacity-10 text-primary tiny fw-bold">V1</span>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('forms_bp.config_form', fid=f.id) }}" class="btn btn-sm btn-light border rounded-circle" style="width: 32px; height: 32px; display:flex; align-items:center; justify-content:center;">
+                        <i class="fa-solid fa-gear text-primary"></i>
+                    </a>
+                    <button class="btn btn-sm btn-light border rounded-circle text-danger" style="width: 32px; height: 32px; display:flex; align-items:center; justify-content:center;" onclick="if(confirm('Xóa mẫu này và dữ liệu liên quan?')) window.location.href='{{ url_for('forms_bp.delete_form', fid=f.id) }}'">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            </div>
+            <h6 class="fw-bold text-dark mb-1">{{ f.name }}</h6>
+            <div class="tiny text-muted">ID: {{ f.id }}</div>
+        </div>
+        {% endfor %}
+        
+        {% if not configs %}
+        <div class="text-center py-5">
+            <i class="fa-solid fa-folder-open fa-3x text-muted opacity-25 mb-3"></i>
+            <p class="text-muted small">Chưa có biểu mẫu V1 nào</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal: Tạo Mẫu V1 Mobie -->
+<div class="modal fade" id="createFormModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered mx-3">
+        <div class="modal-content border-0 rounded-4">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">TẠO MẪU V1</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Tên biểu mẫu</label>
+                        <input type="text" name="name" class="form-control" placeholder="VD: Báo cáo Tuần..." required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">File Excel mẫu (.xlsx)</label>
+                        <input type="file" name="template_excel" class="form-control" accept=".xlsx" required>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label tiny fw-bold">Dòng Header</label>
+                            <input type="number" name="header_start" class="form-control" value="1" min="1">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label tiny fw-bold">Số dòng Header</label>
+                            <input type="number" name="header_rows" class="form-control" value="1" min="1">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="submit" class="btn-mobile btn-mobile-primary">PHÂN TÍCH & TẠO</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function filterForms() {
+        const q = document.getElementById('templateSearch').value.toLowerCase();
+        document.querySelectorAll('.form-item').forEach(item => {
+            const text = item.querySelector('h6').innerText.toLowerCase();
+            item.style.display = text.includes(q) ? 'block' : 'none';
+        });
+    }
+</script>
+{% endblock %}
