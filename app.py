@@ -55,7 +55,7 @@ def add_security_headers(response):
 
 # Rate Limiting Configuration (Simple in-memory implementation)
 from collections import defaultdict
-from time import time
+from datetime import datetime, timedelta
 
 # Rate limit storage: {ip: [(timestamp, count)]}
 rate_limit_store = defaultdict(list)
@@ -74,7 +74,7 @@ def check_rate_limit():
     if client_ip and ',' in client_ip:
         client_ip = client_ip.split(',')[0].strip()
     
-    current_time = time()
+    current_time = datetime.now().timestamp()
     
     # Clean old entries
     rate_limit_store[client_ip] = [
@@ -132,7 +132,7 @@ def check_auth():
     # 1. Inactivity Check
     if session.get('uid'):
         last_active = session.get('last_active')
-        now = time.time()
+        now = datetime.now().timestamp()
         if last_active and (now - last_active) > 1800: # 30 mins
             session.clear()
             return redirect(url_for('auth_bp.login'))
