@@ -204,8 +204,11 @@ class ExcelEngineV2:
                 cell = ws.cell(row=r, column=c)
                 is_meaningful = False
                 
-                # Check value, formula
-                if cell.value is not None: is_meaningful = True
+                # Check value - IGNORE whitespace only cells
+                if cell.value is not None:
+                    val_str = str(cell.value).strip()
+                    if val_str != '' and val_str != 'None':
+                        is_meaningful = True
                 
                 # Check for input marker (V2 logic)
                 if not is_meaningful and is_input_cell(cell):

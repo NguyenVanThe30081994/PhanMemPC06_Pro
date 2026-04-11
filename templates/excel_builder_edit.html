@@ -1,67 +1,141 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header mb-4">
+<div class="page-header mb-3">
     <div class="d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center gap-3">
-            <a href="{{ url_for('excel_builder_bp.dashboard') }}" class="btn btn-light rounded-pill">
+            <a href="{{ url_for('reports_v2_bp.dashboard') }}" class="btn btn-light rounded-pill btn-sm">
                 <i class="fa-solid fa-arrow-left"></i>
             </a>
             <div>
-                <h1 class="h3 fw-bold text-dark mb-1">Chỉnh sửa biểu mẫu</h1>
-                <p class="text-muted small mb-0">Click vào ô để nhập header</p>
-            </div>
-        </div>
-        <div class="d-flex gap-2">
-            <button class="btn btn-outline-primary rounded-pill px-4" onclick="addRow()">
-                <i class="fa-solid fa-plus me-1"></i> Dòng
-            </button>
-            <button class="btn btn-outline-primary rounded-pill px-4" onclick="addColumn()">
-                <i class="fa-solid fa-plus me-1"></i> Cột
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Toolbar -->
-<div class="card border-0 shadow-sm rounded-4 mb-4">
-    <div class="card-body py-3">
-        <div class="d-flex justify-content-between align-items-center">
-            <div class="d-flex gap-2">
-                <button class="btn btn-outline-secondary rounded-pill" onclick="mergeCells()" title="Gộp ô">
-                    <i class="fa-solid fa-object-group"></i>
-                </button>
-                <button class="btn btn-outline-secondary rounded-pill" onclick="unmergeCells()" title="Bỏ gộp">
-                    <i class="fa-solid fa-object-ungroup"></i>
-                </button>
-                <div class="vr mx-2"></div>
-                <select class="form-select form-select-sm rounded-pill" id="columnType" onchange="setColumnType()">
-                    <option value="">-- Kiểu cột --</option>
-                    <option value="number">Số</option>
-                    <option value="text">Văn bản</option>
-                    <option value="percent">Phần trăm %</option>
-                    <option value="formula">Công thức</option>
-                </select>
-            </div>
-            <div class="d-flex gap-2">
-                <button class="btn btn-outline-danger rounded-pill" onclick="previewGrid()">
-                    <i class="fa-solid fa-eye me-1"></i> Xem trước
-                </button>
-                <button class="btn btn-success rounded-pill px-4" onclick="saveAndExport()">
-                    <i class="fa-solid fa-download me-1"></i> Lưu & Xuất
-                </button>
+                <h1 class="h4 fw-bold text-dark mb-1">Excel Builder - Thiết kế biểu mẫu</h1>
+                <p class="text-muted small mb-0">Giao diện như Excel thật - Click vào ô để nhập liệu</p>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Grid Editor -->
-<div class="card border-0 shadow-sm rounded-4">
+<!-- Excel-like Toolbar -->
+<div class="card border-0 shadow-sm rounded-4 mb-3">
+    <div class="card-body py-2 px-3">
+        <div class="d-flex align-items-center gap-1 flex-wrap">
+            <!-- File Info -->
+            <div class="me-3">
+                <span class="badge bg-success">{{ grid_data.name|default('Biểu mẫu mới') }}</span>
+            </div>
+            
+            <div class="vr"></div>
+            
+            <!-- Undo/Redo -->
+            <button class="btn btn-sm btn-outline-secondary" title="Undo" onclick="alert('Tính năng đang phát triển')">
+                <i class="fa-solid fa-rotate-left"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" title="Redo" onclick="alert('Tính năng đang phát triển')">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+            
+            <div class="vr"></div>
+            
+            <!-- Font -->
+            <select class="form-select form-select-sm" style="width: 120px;" onchange="setFont(this.value)">
+                <option value="Calibri">Calibri</option>
+                <option value="Arial">Arial</option>
+                <option value="Times New Roman">Times New Roman</option>
+            </select>
+            <select class="form-select form-select-sm" style="width: 60px;" onchange="setFontSize(this.value)">
+                <option value="11">11</option>
+                <option value="12">12</option>
+                <option value="14">14</option>
+                <option value="16">16</option>
+                <option value="18">18</option>
+                <option value="20">20</option>
+            </select>
+            
+            <div class="vr"></div>
+            
+            <!-- Text Style -->
+            <button class="btn btn-sm btn-outline-secondary" onclick="toggleBold()" title="Bold (Ctrl+B)">
+                <i class="fa-solid fa-bold"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="toggleItalic()" title="Italic (Ctrl+I)">
+                <i class="fa-solid fa-italic"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="toggleUnderline()" title="Underline (Ctrl+U)">
+                <i class="fa-solid fa-underline"></i>
+            </button>
+            
+            <div class="vr"></div>
+            
+            <!-- Alignment -->
+            <button class="btn btn-sm btn-outline-secondary" onclick="setAlign('left')" title="Left Align">
+                <i class="fa-solid fa-align-left"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="setAlign('center')" title="Center Align">
+                <i class="fa-solid fa-align-center"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="setAlign('right')" title="Right Align">
+                <i class="fa-solid fa-align-right"></i>
+            </button>
+            
+            <div class="vr"></div>
+            
+            <!-- Merge -->
+            <button class="btn btn-sm btn-outline-primary" onclick="mergeSelected()" title="Gộp ô">
+                <i class="fa-solid fa-object-group"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-primary" onclick="unmergeSelected()" title="Bỏ gộp">
+                <i class="fa-solid fa-object-ungroup"></i>
+            </button>
+            
+            <div class="vr"></div>
+            
+            <!-- Column Operations -->
+            <button class="btn btn-sm btn-outline-warning" onclick="addRow()" title="Thêm dòng">
+                <i class="fa-solid fa-plus"></i> Dòng
+            </button>
+            <button class="btn btn-sm btn-outline-warning" onclick="addColumn()" title="Thêm cột">
+                <i class="fa-solid fa-plus"></i> Cột
+            </button>
+            
+            <div class="vr"></div>
+            
+            <!-- Save/Export -->
+            <button class="btn btn-sm btn-outline-success" onclick="saveTemplate()">
+                <i class="fa-solid fa-floppy-disk"></i> Lưu
+            </button>
+            <button class="btn btn-sm btn-success" onclick="exportExcel()">
+                <i class="fa-solid fa-download me-1"></i> Xuất Excel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Formula Bar -->
+<div class="card border-0 shadow-sm rounded-4 mb-3">
+    <div class="card-body py-2 px-3 d-flex align-items-center gap-2 bg-light">
+        <div class="bg-white border rounded px-2 py-1 text-muted" style="min-width: 40px; text-align: center;" id="cellAddress">
+            A1
+        </div>
+        <div class="vr"></div>
+        <input type="text" class="form-control form-control-sm border-0" id="formulaBar" 
+               placeholder="Nhập nội dung hoặc công thức (vd: =SUM(A2:B2))"
+               onkeydown="if(event.key==='Enter'){applyFormulaBar()}">
+    </div>
+</div>
+
+<!-- Excel Grid -->
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
     <div class="card-body p-0">
-        <div class="table-responsive">
+        <div class="excel-wrapper" style="overflow: auto; max-height: 500px;">
             <table class="table table-bordered mb-0 excel-grid" id="gridTable">
-                <!-- Grid will be generated by JavaScript -->
+                <!-- Generated by JavaScript -->
             </table>
+        </div>
+    </div>
+    <div class="card-footer bg-light py-2">
+        <div class="d-flex justify-content-between small text-muted">
+            <span><i class="fa-solid fa-circle-info me-1"></i> Click vào ô để nhập liệu</span>
+            <span>Kích thước: <span id="gridSize">{{ grid_data.cols }} cột × {{ grid_data.rows }} dòng</span></span>
         </div>
     </div>
 </div>
@@ -74,54 +148,116 @@
 
 <script>
 let gridData = {{ grid_data | tojson }};
-let selectedCells = [];
+let selectedCell = null;
+let selectionStart = null;
+let selectionEnd = null;
 
-// Initialize grid
+// Generate column headers (A, B, C, ...)
+function getColumnLetter(n) {
+    let result = '';
+    while (n > 0) {
+        n--;
+        result = String.fromCharCode(65 + (n % 26)) + result;
+        n = Math.floor(n / 26);
+    }
+    return result;
+}
+
+// Initialize the grid
 function initGrid() {
-    const rows = gridData.rows || 10;
+    const rows = gridData.rows || 20;
     const cols = gridData.cols || 8;
     const headers = gridData.headers || {};
+    const merges = gridData.merges || [];
     
-    let html = '';
+    let html = '<thead><tr>';
     
-    // Header area (first 3 rows highlighted)
-    for (let r = 1; r <= Math.min(3, rows); r++) {
-        html += '<tr class="header-row">';
-        html += `<td class="row-num bg-light">${r}</td>`;
-        for (let c = 1; c <= cols; c++) {
-            const colLetter = String.fromCharCode(64 + c);
-            const cellKey = `${r}_${colLetter}`;
-            const value = headers[cellKey] || '';
-            const isHeader = r === 1 || r === 2 ? 'bg-primary bg-opacity-10 fw-bold' : '';
-            
-            html += `<td class="cell ${isHeader}" contenteditable="true" 
-                        data-cell="${cellKey}"
-                        data-col="${colLetter}"
-                        onclick="selectCell(this)"
-                        onblur="saveCell(this)">${value}</td>`;
-        }
-        html += '</tr>';
+    // Corner cell
+    html += '<th class="corner-cell bg-light"></th>';
+    
+    // Column headers (A, B, C...)
+    for (let c = 1; c <= cols; c++) {
+        const colLetter = getColumnLetter(c);
+        html += `<th class="col-header bg-light text-center">${colLetter}</th>`;
     }
+    html += '</tr></thead><tbody>';
     
     // Data rows
-    for (let r = 4; r <= rows; r++) {
+    for (let r = 1; r <= rows; r++) {
         html += '<tr>';
-        html += `<td class="row-num bg-light">${r}</td>`;
+        
+        // Row number
+        html += `<td class="row-header bg-light text-center">${r}</td>`;
+        
+        // Cells
         for (let c = 1; c <= cols; c++) {
-            const colLetter = String.fromCharCode(64 + c);
+            const colLetter = getColumnLetter(c);
             const cellKey = `${r}_${colLetter}`;
             const value = headers[cellKey] || '';
+            const cellId = `${colLetter}${r}`;
             
-            html += `<td class="cell" contenteditable="true" 
+            // Check if this cell is merged
+            let mergedClass = '';
+            let colspan = '';
+            let rowspan = '';
+            
+            // Simple merge detection (for display)
+            const isInMerge = merges.some(m => {
+                try {
+                    const [start, end] = m.split(':');
+                    const [sCol, sRow] = [start.match(/[A-Z]+/)[0], parseInt(start.match(/\d+/)[0])];
+                    const [eCol, eRow] = [end.match(/[A-Z]+/)[0], parseInt(end.match(/\d+/)[0])];
+                    
+                    const sColNum = sCol.split('').reduce((a,b)=>a*26+b.charCodeAt(0)-64,0);
+                    const eColNum = eCol.split('').reduce((a,b)=>a*26+b.charCodeAt(0)-64,0);
+                    
+                    const colNum = colLetter.split('').reduce((a,b)=>a*26+b.charCodeAt(0)-64,0);
+                    
+                    return r >= sRow && r <= eRow && colNum >= sColNum && colNum <= eColNum;
+                } catch(e) { return false; }
+            });
+            
+            if (isInMerge) {
+                mergedClass = 'd-none'; // Hide if part of merge (simplified)
+            }
+            
+            html += `<td class="cell ${mergedClass}" 
+                        id="${cellId}"
+                        contenteditable="true" 
                         data-cell="${cellKey}"
+                        data-row="${r}"
                         data-col="${colLetter}"
-                        onclick="selectCell(this)"
-                        onblur="saveCell(this)">${value}</td>`;
+                        onfocus="selectCell(this)"
+                        onblur="saveCell(this)"
+                        onkeydown="handleCellKey(event)"
+                        onpaste="handlePaste(event)"
+                        >${value}</td>`;
         }
         html += '</tr>';
     }
     
+    html += '</tbody>';
     document.getElementById('gridTable').innerHTML = html;
+    
+    // Update size display
+    document.getElementById('gridSize').textContent = `${cols} cột × ${rows} dòng`;
+}
+
+// Select a cell
+function selectCell(cell) {
+    // Remove previous selection
+    document.querySelectorAll('.cell.selected').forEach(c => c.classList.remove('selected'));
+    document.querySelectorAll('.cell.selection-range').forEach(c => c.classList.remove('selection-range'));
+    
+    // Select current
+    cell.classList.add('selected');
+    selectedCell = cell;
+    
+    // Update formula bar
+    const address = cell.id;
+    const value = cell.innerText;
+    document.getElementById('cellAddress').textContent = address;
+    document.getElementById('formulaBar').value = value;
 }
 
 // Save cell value on blur
@@ -136,66 +272,107 @@ function saveCell(cell) {
     }
 }
 
-// Cell selection
-function selectCell(cell) {
-    document.querySelectorAll('.cell.selected').forEach(c => c.classList.remove('selected'));
-    cell.classList.add('selected');
-    
+// Apply formula bar value
+function applyFormulaBar() {
+    if (selectedCell) {
+        const value = document.getElementById('formulaBar').value;
+        selectedCell.innerText = value;
+        saveCell(selectedCell);
+    }
+}
+
+// Handle cell keyboard navigation
+function handleCellKey(event) {
+    const cell = event.target;
+    const row = parseInt(cell.dataset.row);
     const col = cell.dataset.col;
-    if (col) {
-        document.getElementById('columnType').value = gridData.column_types[col] || '';
+    const colNum = col.split('').reduce((a,b)=>a*26+b.charCodeAt(0)-64,0);
+    const maxCols = gridData.cols || 8;
+    const maxRows = gridData.rows || 20;
+    
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        // Move to next row
+        if (row < maxRows) {
+            const nextCell = document.getElementById(`${col}${row + 1}`);
+            if (nextCell) nextCell.focus();
+        }
+    } else if (event.key === 'Tab') {
+        event.preventDefault();
+        // Move to next column
+        if (colNum < maxCols) {
+            const nextCol = getColumnLetter(colNum + 1);
+            const nextCell = document.getElementById(`${nextCol}${row}`);
+            if (nextCell) nextCell.focus();
+        }
+    } else if (event.key === 'ArrowUp' && row > 1) {
+        event.preventDefault();
+        document.getElementById(`${col}${row - 1}`)?.focus();
+    } else if (event.key === 'ArrowDown' && row < maxRows) {
+        event.preventDefault();
+        document.getElementById(`${col}${row + 1}`)?.focus();
     }
 }
 
-// Set column type
-function setColumnType() {
-    const col = document.querySelector('.cell.selected')?.dataset.col;
-    if (col) {
-        gridData.column_types[col] = document.getElementById('columnType').value;
-    }
+// Font controls
+function setFont(font) {
+    if (selectedCell) selectedCell.style.fontFamily = font;
+}
+function setFontSize(size) {
+    if (selectedCell) selectedCell.style.fontSize = size + 'px';
+}
+function toggleBold() {
+    if (selectedCell) selectedCell.style.fontWeight = selectedCell.style.fontWeight === 'bold' ? 'normal' : 'bold';
+}
+function toggleItalic() {
+    if (selectedCell) selectedCell.style.fontStyle = selectedCell.style.fontStyle === 'italic' ? 'normal' : 'italic';
+}
+function toggleUnderline() {
+    if (selectedCell) selectedCell.style.textDecoration = selectedCell.style.textDecoration === 'underline' ? 'none' : 'underline';
+}
+function setAlign(align) {
+    if (selectedCell) selectedCell.style.textAlign = align;
 }
 
-// Add row
-function addRow() {
-    gridData.rows++;
-    initGrid();
-}
-
-// Add column
-function addColumn() {
-    gridData.cols++;
-    initGrid();
-}
-
-// Merge cells (simple - merge current selection horizontally)
-function mergeCells() {
+// Merge cells
+function mergeSelected() {
     const selected = document.querySelectorAll('.cell.selected');
     if (selected.length < 2) {
-        alert('Chọn nhiều ô để gộp');
+        alert('Chọn nhiều ô để gộp (click và kéo)');
         return;
     }
     
-    const firstCell = selected[0].dataset.cell;
-    const lastCell = selected[selected.length - 1].dataset.cell;
-    const mergeRange = `${firstCell}:${lastCell}`;
+    const firstId = selected[0].id;
+    const lastId = selected[selected.length - 1].id;
+    const mergeRange = `${firstId}:${lastId}`;
     
     if (!gridData.merges) gridData.merges = [];
     gridData.merges.push(mergeRange);
     
     alert(`Đã gộp: ${mergeRange}`);
+    initGrid();
 }
 
-// Unmerge cells
-function unmergeCells() {
+function unmergeSelected() {
     gridData.merges = [];
+    initGrid();
     alert('Đã bỏ gộp tất cả');
 }
 
-// Save and export
-function saveAndExport() {
+// Add row/column
+function addRow() {
+    gridData.rows++;
+    initGrid();
+}
+function addColumn() {
+    gridData.cols++;
+    initGrid();
+}
+
+// Save template
+function saveTemplate() {
     document.getElementById('gridDataInput').value = JSON.stringify(gridData);
     
-    // Submit and get download
     fetch('{{ url_for("excel_builder_bp.save_template") }}', {
         method: 'POST',
         body: new FormData(document.getElementById('saveForm'))
@@ -203,71 +380,80 @@ function saveAndExport() {
     .then(r => r.json())
     .then(data => {
         if (data.status === 'success') {
-            // Download
-            window.location.href = '/admin/excel-builder/export/' + data.template_id;
-        } else {
-            alert('Lỗi: ' + data.error);
+            document.getElementById('templateIdInput').value = data.template_id;
+            alert('Đã lưu template!');
         }
     });
 }
 
-// Preview
-function previewGrid() {
-    document.getElementById('gridDataInput').value = JSON.stringify(gridData);
-    
-    fetch('{{ url_for("excel_builder_bp.preview_template") }}?' + new URLSearchParams({
-        grid_data: JSON.stringify(gridData)
-    }))
-    .then(r => r.json())
-    .then(data => {
-        const modal = `
-        <div class="modal fade" id="previewModal" tabindex="-1">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Xem trước</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        ${data.html}
-                    </div>
-                </div>
-            </div>
-        </div>`;
-        
-        document.body.insertAdjacentHTML('beforeend', modal);
-        new bootstrap.Modal(document.getElementById('previewModal')).show();
+// Export to Excel
+function exportExcel() {
+    saveTemplate().then(() => {
+        const templateId = document.getElementById('templateIdInput').value || 
+            'template_' + new Date().toISOString().replace(/[-:]/g, '').split('.')[0];
+        window.location.href = '/admin/excel-builder/export/' + templateId;
     });
 }
 
-// Initialize on load
+// Handle paste
+function handlePaste(event) {
+    event.preventDefault();
+    const text = (event.clipboardData || window.clipboardData).getData('text/plain');
+    document.execCommand('insertText', false, text);
+}
+
+// Initialize
 document.addEventListener('DOMContentLoaded', initGrid);
 </script>
 
 <style>
+.excel-grid {
+    border-collapse: collapse;
+    table-layout: fixed;
+}
 .excel-grid .cell {
-    min-width: 100px;
-    min-height: 30px;
-    padding: 8px 12px;
-    cursor: text;
+    min-width: 80px;
+    height: 28px;
+    padding: 4px 8px;
+    border: 1px solid #dee2e6 !important;
+    font-family: Calibri, Arial, sans-serif;
+    font-size: 11px;
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: cell;
 }
 .excel-grid .cell:focus {
-    outline: 2px solid var(--bs-primary);
-    background: var(--bs-primary-bg-subtle);
+    outline: 2px solid var(--bs-primary) !important;
+    outline-offset: -2px;
+    background: #fffbe6 !important;
 }
 .excel-grid .cell.selected {
-    outline: 2px solid var(--bs-primary);
-    background: var(--bs-primary-bg-subtle);
+    background: #e3f2fd !important;
 }
-.excel-grid .header-row .cell {
-    background: var(--bs-primary-bg-subtle);
+.excel-grid .corner-cell,
+.excel-grid .col-header,
+.excel-grid .row-header {
+    width: 40px;
+    min-width: 40px;
     font-weight: 600;
-}
-.excel-grid .row-num {
-    width: 50px;
-    text-align: center;
-    font-weight: 600;
+    font-size: 10px;
+    color: #6c757d;
     user-select: none;
+    background: #f8f9fa !important;
+}
+.excel-grid thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+.excel-grid tbody tr:first-child td {
+    background: #e3f2fd !important;
+    font-weight: 600;
+}
+.form-select-sm {
+    font-size: 11px;
+    padding: 2px 8px;
 }
 </style>
 {% endblock %}
