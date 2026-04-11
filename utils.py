@@ -179,54 +179,6 @@ def send_zalo_message(phone, template_id, data):
             return {'status': 'failed', 'message': result.get('message', 'Lỗi gửi tin nhắn')}
     except Exception as e:
         return {'status': 'failed', 'message': str(e)}
-    
-    Args:
-        phone: Số điện thoại người nhận
-        template_id: ID template trong Zalo OA
-        data: Dict chứa các biến trong template
-    
-    Returns:
-        dict: {'status': 'success'/'failed', 'message': '...'}
-    """
-    config = get_zalo_config()
-    if not config:
-        return {'status': 'failed', 'message': 'Chưa cấu hình Zalo OA'}
-    
-    if not config.access_token:
-        return {'status': 'failed', 'message': 'Access Token không hợp lệ'}
-    
-    # Format phone (remove +84, use 0...)
-    phone = str(phone).strip()
-    if phone.startswith('+84'):
-        phone = '84' + phone[3:]
-    elif phone.startswith('84'):
-        pass
-    elif phone.startswith('0'):
-        phone = '84' + phone[1:]
-    
-    try:
-        url = f"{ZALO_OA_URL}/oa/message/push"
-        payload = {
-            'phone': phone,
-            'template_id': template_id or config.template_id,
-            'data': data
-        }
-        
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {config.access_token}'
-        }
-        
-        response = requests.post(url, json=payload, headers=headers, timeout=30)
-        result = response.json()
-        
-        if response.status_code == 200 and result.get('error') == 0:
-            return {'status': 'success', 'message': 'Đã gửi tin nhắn'}
-        else:
-            return {'status': 'failed', 'message': result.get('message', 'Lỗi gửi tin nhắn')}
-    
-    except Exception as e:
-        return {'status': 'failed', 'message': str(e)}
 
 def refresh_zalo_token():
     """Refresh access token từ Zalo OA"""
@@ -242,17 +194,17 @@ def refresh_zalo_token():
             'refresh_token': config.refresh_token
         }
         
-        response = requests.post(url, json=payload, timeout=30)
-        result = response.json()
+        req = Request(url, data=json_lib.dumps(payload).encode('utf-8'))
+        with urlopen(req, timeout=30) as response:
+            result = json_lib.loads(response.read().decode('utf-8'))
         
-        if response.status_code == 200 and result.get('error') == 0:
+        if result.get('error') == 0:
             config.access_token = result.get('access_token')
             config.refresh_token = result.get('refresh_token')
             config.last_refresh = datetime.now()
             from models import db
             db.session.commit()
             return True
-    
     except Exception as e:
         print(f"Zalo token refresh error: {e}")
         return False
