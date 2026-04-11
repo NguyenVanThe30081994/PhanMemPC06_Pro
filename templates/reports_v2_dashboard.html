@@ -47,13 +47,7 @@
                             <a href="{{ url_for('reports_v2_bp.edit_template', tid=t.id) }}" class="btn btn-tiny btn-light shadow-sm" title="Thiết lập mẫu">
                                 <i class="fa-solid fa-gear text-primary"></i>
                             </a>
-                            <button class="btn btn-tiny btn-light shadow-sm" title="Xóa mẫu" onclick="ModernConfirm('Xác nhận xóa?', 'Xóa mẫu v2 này sẽ không thể khôi phục. Tiếp tục?', 'warning', 'Xóa ngay', () => { 
-                                const form = document.createElement('form');
-                                form.method = 'POST';
-                                form.action = '{{ url_for('reports_v2_bp.delete_template', tid=t.id) }}';
-                                document.body.appendChild(form);
-                                form.submit();
-                            })">
+                            <button class="btn btn-tiny btn-light shadow-sm" title="Xóa mẫu" onclick="deleteV2Template({{ t.id }}, '{{ t.name }}')">
                                 <i class="fa-solid fa-trash-can text-danger"></i>
                             </button>
                         </div>
@@ -142,6 +136,29 @@ document.getElementById('uploadV2Form').addEventListener('submit', function(e) {
         btn.innerHTML = 'TẢI LÊN & KHỞI TẠO';
     });
 });
+</script>
+
+<script>
+function deleteV2Template(id, name) {
+    if (!confirm('Xác nhận xóa biểu mẫu "' + name + '"? Hành động này không thể khôi phục.')) {
+        return;
+    }
+    
+    fetch('/reports-v2/delete/' + id, {
+        method: 'POST'
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Lỗi: ' + (data.error || 'Không xác định'));
+        }
+    })
+    .catch(err => {
+        alert('Lỗi: ' + err);
+    });
+}
 </script>
 
 <style>
