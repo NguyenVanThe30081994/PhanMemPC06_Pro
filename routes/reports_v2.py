@@ -150,7 +150,14 @@ def upload_template():
 
     try:
         file_content = file.read()
-        temp_path = os.path.join("tmp", file.filename)
+        
+        # Sanitize filename to avoid encoding errors
+        import unicodedata
+        safe_filename = unicodedata.normalize('NFD', file.filename)
+        safe_filename = ''.join(c for c in safe_filename if unicodedata.category(c) != 'Mn')
+        safe_filename = ''.join(c if c.isalnum() or c in '._-' else '_' for c in safe_filename)
+        
+        temp_path = os.path.join("tmp", safe_filename)
         os.makedirs("tmp", exist_ok=True)
         with open(temp_path, "wb") as f:
             f.write(file_content)
