@@ -22,11 +22,12 @@
                     <form method="POST">
                         <div class="mb-3">
                             <label class="form-label fw-bold">Zalo OA ID</label>
-                            <input type="text" name="oa_id" class="form-control" value="{{ config.oa_id if config else '' }}" placeholder="Ví dụ: 1234567890" required>
+                            <input type="text" name="oa_id" class="form-control" value="{{ config.oa_id if config else '3780688921573063439' }}" placeholder="Ví dụ: 1234567890" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Access Token</label>
-                            <input type="text" name="access_token" class="form-control" value="{{ config.access_token if config else '' }}" placeholder="Access token từ Zalo OA" required>
+                            <input type="text" name="access_token" class="form-control" value="{{ config.access_token if config else '' }}" placeholder="Lấy từ Zalo OA Management → Phát triển → Access Token" required>
+                            <div class="form-text">Vào trang https://oa.zalo.memanage → Phát triển → Tạo Access Token</div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Refresh Token</label>
@@ -34,11 +35,12 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Secret Key</label>
-                            <input type="text" name="secret_key" class="form-control" value="{{ config.secret_key if config else '' }}" placeholder="Secret key của ứng dụng">
+                            <input type="text" name="secret_key" class="form-control" value="{{ config.secret_key if config else '7WiuMq53F7SSYyLK2iOF' }}" placeholder="Secret key của ứng dụng">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Template ID</label>
-                            <input type="text" name="template_id" class="form-control" value="{{ config.template_id if config else '' }}" placeholder="ID template tin nhắn nhắc việc">
+                            <input type="text" name="template_id" class="form-control" value="{{ config.template_id if config else '' }}" placeholder="Tạo template trong Zalo OA → Tin nhắn → Template">
+                            <div class="form-text">Tạo template có các biến: task_title, deadline, status, domain</div>
                         </div>
                         <div class="form-check form-switch mb-3">
                             <input class="form-check-input" type="checkbox" name="is_active" id="is_active" {% if config and config.is_active %}checked{% endif %}>
