@@ -53,17 +53,11 @@
                             <input type="hidden" name="action" value="import_items_excel">
                             <input type="hidden" name="group_id" value="{{ g.id }}">
                             <input type="file" name="items_excel" id="excel-import-{{ g.id }}" class="d-none" accept=".xlsx,.xls" onchange="this.form.submit()">
-                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 tiny fw-bold" onclick="document.getElementById('excel-import-{{ g.id }}').click()">
-                                <i class="fa-solid fa-file-excel me-1"></i> IMPORT EXCEL
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-circle shadow-sm" style="width: 32px; height: 32px; display:flex; align-items:center; justify-content:center;" onclick="document.getElementById('excel-import-{{ g.id }}').click()">
+                                <i class="fa-solid fa-paperclip"></i>
                             </button>
                         </form>
-                        <button class="btn btn-sm btn-link text-danger tiny fw-bold p-0 text-decoration-none" onclick="if(confirm('Xóa sạch nhóm danh mục này?')) { 
-                            const form = document.createElement('form');
-                            form.method = 'POST';
-                            form.innerHTML = '<input type=\"hidden\" name=\"action\" value=\"delete_group\"><input type=\"hidden\" name=\"group_id\" value=\"{{ g.id }}\">';
-                            document.body.appendChild(form);
-                            form.submit();
-                        }">XÓA NHÓM</button>
+                        <button class="btn btn-sm btn-link text-danger tiny fw-bold p-0 text-decoration-none" onclick="confirmDeleteGroup({{ g.id }}, '{{ g.name }}')">XÓA NHÓM</button>
                     </div>
                 </div>
             </div>
@@ -108,6 +102,18 @@
         </div>
     </div>
 </div>
+
+<script>
+    function confirmDeleteGroup(id, name) {
+        if(confirm(`Xác nhận xóa toàn bộ nhóm danh mục: ${name}?`)) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.innerHTML = `<input type="hidden" name="action" value="delete_group"><input type="hidden" name="group_id" value="${id}">`;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+</script>
 
 <style>
     .accordion-button:not(.collapsed) { background-color: transparent; }

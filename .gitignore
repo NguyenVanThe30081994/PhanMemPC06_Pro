@@ -11,7 +11,7 @@ venv/
 ENV/
 
 # Database (Ignore local DB to prevent overwriting server DB)
-# pc06_system.db
+pc06_system.db
 
 # Logs
 *.log
