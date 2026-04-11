@@ -57,8 +57,14 @@
                     </h6>
                 </div>
             </div>
-        </div>
         {% endfor %}
+
+        {% if not templates %}
+        <div class="col-12 py-5 text-center">
+            <div class="opacity-25 mb-3"><i class="fa-solid fa-folder-open fa-4x text-muted"></i></div>
+            <h5 class="fw-bold text-muted">Chưa có biểu mẫu V2 nào được thiết lập</h5>
+        </div>
+        {% endif %}
     </div>
 </div>
 
