@@ -1,0 +1,15 @@
+Found 14 indicators
+1: Cấp căn cước cho công dân trên địa bàn
+2: Kích hoạt tài khoản định danh điện tử mức độ 2
+3: Cấp tài khoản định danh điện tử cho tổ chức, doanh nghiệp
+4: Tích hợp giấy tờ và sử dụng VNeID (Sổ sức khỏe, An sinh...)
+5: Dữ liệu đất đai
+6: DVC căn cước, cư trú
+7: Quá hạn trả lời xác minh CT10
+8: Quá hạn hồ sơ cư trú
+9: Quá hạn hồ sơ căn cước
+10: Trả thẻ căn cước và tích hợp
+11: Tích hợp GPLX, Đăng ký xe
+12: Làm sạch dữ liệu DC01 mở rộng
+13: Hủy số định danh cá nhân
+14: Bình dân học vụ số

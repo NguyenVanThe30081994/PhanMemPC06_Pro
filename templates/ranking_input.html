@@ -22,24 +22,39 @@
                     <i class="fa-solid fa-file-arrow-up me-2"></i>Quét file chấm điểm đã hoàn tất
                 </div>
                 <div class="card-body p-4 p-lg-5">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-dark mb-2">BƯỚC 1: CHỌN CHỈ TIÊU CẦN CHẤM ĐIỂM</label>
+                        <select id="indicatorId" class="form-select form-select-lg rounded-pill border-primary border-opacity-25 shadow-sm">
+                            <option value="">-- Tự động nhận diện trong file (Mặc định) --</option>
+                            {% for ind in indicators %}
+                            <option value="{{ ind.id }}">{{ ind.name }} ({{ ind.category }})</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text tiny mt-2 text-muted">
+                            <i class="fa-solid fa-circle-info me-1"></i>
+                            Nếu chọn một chỉ tiêu cụ thể, hệ thống sẽ chỉ cập nhật điểm của chỉ tiêu đó và giữ nguyên các chỉ tiêu khác.
+                        </div>
+                    </div>
+
                     <div class="upload-dropzone rounded-4 p-5 text-center mb-4" onclick="triggerUpload()">
                         <div class="display-5 text-success mb-3">
-                            <i class="fa-solid fa-file-excel"></i>
+                            <i class="fa-solid fa-file-excel me-2"></i>
+                            <i class="fa-solid fa-file-pdf"></i>
                         </div>
-                        <h4 class="fw-bold mb-2">Chọn file Excel chấm điểm đã xong</h4>
+                        <h4 class="fw-bold mb-2">BƯỚC 2: TẢI FILE DỮ LIỆU</h4>
                         <p class="text-muted mb-3">
-                            Hệ thống sẽ quét dữ liệu trong file, đồng bộ toàn bộ điểm số và chạy lại bảng xếp hạng theo logic hiện có.
+                            Chấp nhận file Excel (.xlsx) hoặc file PDF (.pdf).<br>
+                            Hệ thống sẽ quét dữ liệu và tự động khớp với 124 xã/thị trấn.
                         </p>
                         <button type="button" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
-                            <i class="fa-solid fa-cloud-arrow-up me-2"></i>TẢI FILE CHẤM ĐIỂM
+                            <i class="fa-solid fa-cloud-arrow-up me-2"></i>CHỌN FILE TẢI LÊN
                         </button>
-                        <input type="file" id="excelUpload" class="d-none" accept=".xlsx,.xls" onchange="handleExcelUpload(this)">
+                        <input type="file" id="excelUpload" class="d-none" accept=".xlsx,.xls,.pdf" onchange="handleExcelUpload(this)">
                     </div>
 
                     <div class="alert alert-warning rounded-4 border-0 mb-4">
-                        <div class="fw-bold mb-1">Lưu ý</div>
-                        <div class="small mb-1">File tải lên sẽ thay thế toàn bộ dữ liệu chấm điểm xếp hạng hiện tại.</div>
-                        <div class="small">Hệ thống ưu tiên nhận diện theo tên cột chỉ tiêu hoặc tên sheet đã cấu hình.</div>
+                        <div class="fw-bold mb-1">Tính năng quét PDF thông minh</div>
+                        <div class="small">Hệ thống có khả năng nhận diện tên xã và điểm số trực tiếp từ file PDF. Đảm bảo file PDF rõ nét để có kết quả chính xác nhất.</div>
                     </div>
 
                     <div class="d-flex flex-wrap gap-2">
@@ -67,12 +82,16 @@ async function handleExcelUpload(input) {
     if (!input.files || input.files.length === 0) return;
 
     const file = input.files[0];
+    const indicatorId = document.getElementById('indicatorId').value;
     const formData = new FormData();
     formData.append('file', file);
+    if (indicatorId) {
+        formData.append('indicator_id', indicatorId);
+    }
 
     Swal.fire({
-        title: 'Đang quét file chấm điểm...',
-        text: 'Hệ thống đang đọc dữ liệu và cập nhật lại bảng xếp hạng',
+        title: 'Đang xử lý dữ liệu...',
+        text: 'Hệ thống đang quét file và đối soát dữ liệu 124 xã/thị trấn',
         allowOutsideClick: false,
         didOpen: () => { Swal.showLoading(); }
     });
@@ -89,10 +108,11 @@ async function handleExcelUpload(input) {
             summary.className = 'mt-4 alert alert-success rounded-4 border-0';
             summary.innerHTML =
                 `<div class="fw-bold mb-2">Đồng bộ thành công</div>` +
-                `<div class="small mb-1">Đã cập nhật <b>${d.synced_entries}</b> dữ liệu chấm điểm.</div>` +
-                `<div class="small mb-1">Nhận diện được <b>${d.matched_indicators}</b> chỉ tiêu từ <b>${(d.processed_sheets || []).length}</b> sheet.</div>` +
+                `<div class="small mb-1">Đã cập nhật <b>${d.synced_entries}</b> đơn vị.</div>` +
+                (d.indicator_name ? `<div class="small mb-1">Chỉ tiêu cập nhật: <b>${d.indicator_name}</b></div>` : 
+                `<div class="small mb-1">Nhận diện được <b>${d.matched_indicators}</b> chỉ tiêu từ <b>${(d.processed_sheets || []).length}</b> sheet.</div>`) +
                 ((d.unmatched_units || []).length > 0
-                    ? `<div class="small text-danger mb-1">Đơn vị chưa khớp: ${d.unmatched_units.join(', ')}</div>`
+                    ? `<div class="small text-danger mb-1 mt-2">Đơn vị chưa khớp (${d.unmatched_units.length}): ${d.unmatched_units.join(', ')}...</div>`
                     : '') +
                 ((d.unmatched_indicators || []).length > 0
                     ? `<div class="small text-warning">Cột/sheet chưa nhận diện: ${d.unmatched_indicators.join(', ')}</div>`
@@ -101,25 +121,25 @@ async function handleExcelUpload(input) {
 
             Swal.fire({
                 icon: 'success',
-                title: 'Đã quét file thành công',
-                text: 'Dữ liệu chấm điểm đã được đồng bộ. Hệ thống sẽ mở bảng xếp hạng mới nhất.',
-                confirmButtonText: 'Xem xếp hạng',
-                confirmButtonColor: 'var(--bs-success)'
+                title: 'Đã cập nhật thành công',
+                text: 'Dữ liệu xếp hạng đã được đồng bộ.',
+                confirmButtonText: 'Xem bảng xếp hạng',
+                confirmButtonColor: 'var(--bs-primary)'
             }).then(() => {
                 window.location.href = '/ranking';
             });
         } else {
             Swal.fire({
                 icon: 'error',
-                title: 'Quét file thất bại',
+                title: 'Lỗi xử lý',
                 text: d.message || 'Không thể đọc dữ liệu từ file tải lên.'
             });
         }
     } catch (e) {
         Swal.fire({
             icon: 'error',
-            title: 'Lỗi kết nối',
-            text: 'Không thể kết nối tới máy chủ.'
+            title: 'Lỗi hệ thống',
+            text: 'Không thể kết nối tới máy chủ hoặc xử lý file.'
         });
     } finally {
         input.value = '';

@@ -24,7 +24,8 @@ def index():
 
 @ranking_bp.route('/ranking/input')
 def input_data():
-    return render_template('ranking_input.html')
+    indicators = RankingIndicator.query.all()
+    return render_template('ranking_input.html', indicators=indicators)
 
 
 @ranking_bp.route('/ranking/api/save', methods=['POST'])
@@ -124,90 +125,154 @@ def _choose_value_column(df, unit_col):
     return ranked_candidates[0][2]
 
 
+import pdfplumber
+
 @ranking_bp.route('/ranking/import', methods=['POST'])
-def import_excel():
+def import_ranking_data():
     if 'file' not in request.files:
         return jsonify({"success": False, "message": "Không tìm thấy file!"}), 400
 
     file = request.files['file']
+    indicator_id = request.form.get('indicator_id')
     if not file.filename:
         return jsonify({"success": False, "message": "File không hợp lệ!"}), 400
 
+    filename = file.filename.lower()
+    db_units = RankingUnit.query.all()
+    unit_map = {normalize_unit_name(u.name): u for u in db_units}
+    
+    selected_indicator = None
+    if indicator_id:
+        selected_indicator = db.session.get(RankingIndicator, int(indicator_id))
+
+    imported_values = {} # (unit_id, indicator_id) -> float
+    matched_indicator_ids = set()
+    unmatched_units = set()
+    unmatched_indicators = set()
+    processed_sheets = []
+
     try:
-        excel_file = pd.ExcelFile(file)
+        if filename.endswith(('.xlsx', '.xls')):
+            # --- EXCEL LOGIC ---
+            excel_file = pd.ExcelFile(file)
+            db_indicators = RankingIndicator.query.all()
+            indicator_aliases = {}
+            for ind in db_indicators:
+                for alias in [ind.name, ind.sheet_name]:
+                    alias_key = _normalize_indicator_key(alias)
+                    if alias_key:
+                        indicator_aliases[alias_key] = ind
 
-        db_indicators = RankingIndicator.query.all()
-        indicator_aliases = {}
-        for ind in db_indicators:
-            for alias in [ind.name, ind.sheet_name]:
-                alias_key = _normalize_indicator_key(alias)
-                if alias_key:
-                    indicator_aliases[alias_key] = ind
+            for sheet_name in excel_file.sheet_names:
+                df = pd.read_excel(excel_file, sheet_name=sheet_name)
+                if df.empty or len(df.columns) == 0: continue
+                df = df.dropna(how='all')
+                if df.empty: continue
+                
+                df.columns = [str(c).strip() for c in df.columns]
+                unit_col = next((col for col in df.columns if _is_unit_column(col)), df.columns[0])
 
-        db_units = RankingUnit.query.all()
-        unit_map = {normalize_unit_name(u.name): u for u in db_units}
-
-        imported_values = {}
-        unmatched_units = set()
-        unmatched_indicators = set()
-        processed_sheets = []
-        matched_indicator_ids = set()
-
-        for sheet_name in excel_file.sheet_names:
-            df = pd.read_excel(excel_file, sheet_name=sheet_name)
-            if df.empty or len(df.columns) == 0:
-                continue
-
-            df = df.dropna(how='all')
-            if df.empty:
-                continue
-
-            df.columns = [str(c).strip() for c in df.columns]
-            unit_col = next((col for col in df.columns if _is_unit_column(col)), df.columns[0])
-
-            active_cols = []
-            for col in df.columns:
-                if col == unit_col:
-                    continue
-                indicator = indicator_aliases.get(_normalize_indicator_key(col))
-                if indicator:
-                    active_cols.append((col, indicator))
-                else:
-                    unmatched_indicators.add(str(col).strip())
-
-            if not active_cols:
-                sheet_indicator = indicator_aliases.get(_normalize_indicator_key(sheet_name))
-                if sheet_indicator:
+                active_cols = []
+                if selected_indicator:
+                    # If specific indicator selected, find the best value column (excluding unit column)
                     value_col = _choose_value_column(df, unit_col)
                     if value_col:
-                        active_cols.append((value_col, sheet_indicator))
+                        active_cols.append((value_col, selected_indicator))
+                else:
+                    # Original logic: auto-detect multiple indicators
+                    for col in df.columns:
+                        if col == unit_col: continue
+                        indicator = indicator_aliases.get(_normalize_indicator_key(col))
+                        if indicator:
+                            active_cols.append((col, indicator))
+                        else:
+                            unmatched_indicators.add(str(col).strip())
+                    
+                    if not active_cols:
+                        sheet_indicator = indicator_aliases.get(_normalize_indicator_key(sheet_name))
+                        if sheet_indicator:
+                            value_col = _choose_value_column(df, unit_col)
+                            if value_col:
+                                active_cols.append((value_col, sheet_indicator))
 
-            if not active_cols:
-                continue
+                if not active_cols: continue
+                processed_sheets.append(sheet_name)
 
-            processed_sheets.append(sheet_name)
+                for _, row in df.iterrows():
+                    raw_name = row.get(unit_col)
+                    if pd.isna(raw_name) or str(raw_name).strip() == '': continue
+                    unit = unit_map.get(normalize_unit_name(str(raw_name).strip()))
+                    if not unit:
+                        unmatched_units.add(str(raw_name).strip())
+                        continue
+                    for col, indicator in active_cols:
+                        imported_values[(unit.id, indicator.id)] = safe_float(row.get(col))
+                        matched_indicator_ids.add(indicator.id)
 
-            for _, row in df.iterrows():
-                raw_name = row.get(unit_col)
-                if pd.isna(raw_name) or str(raw_name).strip() == '':
-                    continue
+        elif filename.endswith('.pdf'):
+            # --- PDF LOGIC ---
+            if not selected_indicator:
+                return jsonify({"success": False, "message": "Vui lòng chọn Chỉ tiêu trước khi tải file PDF."}), 400
+            
+            with pdfplumber.open(file) as pdf:
+                for page in pdf.pages:
+                    # 1. Try Extracting Tables
+                    tables = page.extract_tables()
+                    for table in tables:
+                        for row in table:
+                            if not row or len(row) < 2: continue
+                            # Search for unit name in any cell
+                            unit = None
+                            val = None
+                            for cell in row:
+                                if not cell: continue
+                                u = unit_map.get(normalize_unit_name(cell))
+                                if u: 
+                                    unit = u
+                                    break
+                            
+                            if unit:
+                                # Look for a number in the row
+                                for cell in row:
+                                    f_val = safe_float(cell)
+                                    if f_val != 0 or str(cell).strip() in ['0', '0.0']:
+                                        val = f_val
+                                        break
+                                if val is not None:
+                                    imported_values[(unit.id, selected_indicator.id)] = val
+                                    matched_indicator_ids.add(selected_indicator.id)
+                    
+                    # 2. Fallback to Text extraction if no values found in tables
+                    if not imported_values:
+                        text = page.extract_text()
+                        if text:
+                            for line in text.split('\n'):
+                                for u_norm, unit in unit_map.items():
+                                    if u_norm in normalize_unit_name(line):
+                                        # Use regex to find the last number in the line
+                                        nums = re.findall(r'(\d+[.,]?\d*)', line)
+                                        if nums:
+                                            imported_values[(unit.id, selected_indicator.id)] = safe_float(nums[-1])
+                                            matched_indicator_ids.add(selected_indicator.id)
+                                        break
 
-                unit = unit_map.get(normalize_unit_name(str(raw_name).strip()))
-                if not unit:
-                    unmatched_units.add(str(raw_name).strip())
-                    continue
-
-                for col, indicator in active_cols:
-                    imported_values[(unit.id, indicator.id)] = safe_float(row.get(col))
-                    matched_indicator_ids.add(indicator.id)
+        else:
+            return jsonify({"success": False, "message": "Định dạng file không được hỗ trợ (chỉ nhận .xlsx, .xls, .pdf)"}), 400
 
         if not imported_values:
             return jsonify({
                 "success": False,
-                "message": "Không quét được dữ liệu chấm điểm hợp lệ từ file tải lên."
+                "message": "Không quét được dữ liệu hợp lệ. Vui lòng kiểm tra lại cấu trúc file."
             }), 400
 
-        db.session.query(RankingEntry).delete()
+        # --- SAVE DATA ---
+        if selected_indicator:
+            # Wipe only the specific indicator's data
+            RankingEntry.query.filter_by(indicator_id=selected_indicator.id).delete()
+        else:
+            # Wipe all only if importing whole sheet (auto-detect mode)
+            db.session.query(RankingEntry).delete()
+
         for (unit_id, indicator_id), value in imported_values.items():
             db.session.add(RankingEntry(unit_id=unit_id, indicator_id=indicator_id, raw_value=value))
 
@@ -215,14 +280,18 @@ def import_excel():
         return jsonify({
             "success": True,
             "synced_entries": len(imported_values),
+            "indicator_name": selected_indicator.name if selected_indicator else None,
             "processed_sheets": processed_sheets,
             "matched_indicators": len(matched_indicator_ids),
             "unmatched_units": sorted(unmatched_units)[:10],
             "unmatched_indicators": sorted(unmatched_indicators)[:10],
         })
+
     except Exception as e:
         db.session.rollback()
-        return jsonify({"success": False, "message": f"Lỗi xử lý file: {str(e)}"}), 500
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({"success": False, "message": f"Lỗi hệ thống: {str(e)}"}), 500
 
 
 @ranking_bp.route('/ranking/export')
