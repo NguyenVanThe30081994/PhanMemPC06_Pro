@@ -128,9 +128,13 @@ def dashboard():
     templates = ReportTemplateV2.query.order_by(ReportTemplateV2.created_at.desc()).all()
     is_admin = session.get('is_admin', False)
     
-    # Check if mobile device
+    # Check if explicitly requesting mobile version via query param
+    if request.args.get('mobile') == '1':
+        return render_template('reports_v2_dashboard_mobile.html', templates=templates, is_admin=is_admin)
+    
+    # Check User-Agent for mobile devices (simplified detection)
     user_agent = request.headers.get('User-Agent', '').lower()
-    is_mobile_request = 'mobile' in user_agent or 'android' in user_agent or 'iphone' in user_agent
+    is_mobile_request = ('android' in user_agent and 'mobile' in user_agent) or ('iphone' in user_agent and 'mobile' in user_agent)
     
     if is_mobile_request:
         return render_template('reports_v2_dashboard_mobile.html', templates=templates, is_admin=is_admin)
