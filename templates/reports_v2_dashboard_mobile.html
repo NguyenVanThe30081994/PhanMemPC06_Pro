@@ -75,9 +75,19 @@
                         <label class="form-label small fw-bold">File Excel mẫu (.xlsx)</label>
                         <input type="file" name="template_excel" class="form-control" accept=".xlsx" required>
                     </div>
-                    <div class="form-check form-switch mb-0">
+                    <div class="form-check form-switch mb-4">
                         <input class="form-check-input" type="checkbox" name="is_daily" id="isDailySwitch">
                         <label class="form-check-label fw-bold text-muted small" for="isDailySwitch">Báo cáo hàng ngày</label>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label tiny fw-bold">Dòng Header</label>
+                            <input type="number" name="header_start" class="form-control" value="1" min="1">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label tiny fw-bold">Số dòng Header</label>
+                            <input type="number" name="header_rows" class="form-control" value="1" min="1">
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
