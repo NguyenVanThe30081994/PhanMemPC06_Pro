@@ -292,4 +292,52 @@ class RankingEntry(db.Model):
     
     unit = db.relationship('RankingUnit', backref='entries')
     indicator = db.relationship('RankingIndicator', backref='entries')
+
+
+# ==================== ZALO OA MODELS ====================
+
+class ZaloConfig(db.Model):
+    """Cấu hình Zalo OA cho hệ thống nhắc việc tự động"""
+    __tablename__ = 'zalo_config'
+    id = db.Column(db.Integer, primary_key=True)
+    oa_id = db.Column(db.String(50), unique=True)           # ID Zalo OA
+    access_token = db.Column(db.String(500))              # Access Token
+    refresh_token = db.Column(db.String(500))             # Refresh Token  
+    secret_key = db.Column(db.String(200))                   # Secret Key
+    template_id = db.Column(db.String(50))                # Template ID cho tin nhắn nhắc việc
+    is_active = db.Column(db.Boolean, default=True)
+    last_refresh = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class ZaloUser(db.Model):
+    """User đăng ký nhận thông báo qua Zalo"""
+    __tablename__ = 'zalo_user'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    phone = db.Column(db.String(20), unique=True)            # Số điện thoại Zalo
+    zalo_id = db.Column(db.String(50))                  # Zalo ID (nếu có)
+    is_active = db.Column(db.Boolean, default=True)
+    is_verified = db.Column(db.Boolean, default=False)      # Đã xác thực chưa
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    
+    user = db.relationship('User', backref='zalo_info')
+
+
+class ZaloNotificationLog(db.Model):
+    """Log tin nhắn đã gửi qua Zalo"""
+    __tablename__ = 'zalo_notification_log'
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    phone = db.Column(db.String(20))
+    message = db.Column(db.Text)                           # Nội dung đã gửi
+    template_data = db.Column(db.Text)                 # Data JSON cho template
+    status = db.Column(db.String(20))                 # success, failed, pending
+    error_message = db.Column(db.Text)                  # Lỗi nếu có
+    sent_at = db.Column(db.DateTime, default=datetime.now)
+    
+    task = db.relationship('Task', backref='zalo_logs')
+    user = db.relationship('User', backref='zalo_notification_logs')
 

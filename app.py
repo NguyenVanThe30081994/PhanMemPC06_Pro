@@ -53,6 +53,50 @@ def add_security_headers(response):
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     return response
 
+# Rate Limiting Configuration (Simple in-memory implementation)
+from collections import defaultdict
+from time import time
+
+# Rate limit storage: {ip: [(timestamp, count)]}
+rate_limit_store = defaultdict(list)
+RATE_LIMIT_WINDOW = 60  # seconds
+RATE_LIMIT_MAX = 30  # max requests per window
+
+@app.before_request
+def check_rate_limit():
+    """Simple rate limiting to prevent spam and brute force"""
+    # Skip for static files and favicon
+    if request.path.startswith('/static') or request.path == '/favicon.ico':
+        return
+    
+    # Get client IP
+    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    if client_ip and ',' in client_ip:
+        client_ip = client_ip.split(',')[0].strip()
+    
+    current_time = time()
+    
+    # Clean old entries
+    rate_limit_store[client_ip] = [
+        (t, count) for t, count in rate_limit_store[client_ip]
+        if current_time - t < RATE_LIMIT_WINDOW
+    ]
+    
+    # Count requests in current window
+    total_requests = sum(count for t, count in rate_limit_store[client_ip])
+    
+    if total_requests >= RATE_LIMIT_MAX:
+        # Too many requests - return 429
+        return {'error': 'Quá nhiều yêu cầu. Vui lòng thử lại sau.'}, 429
+    
+    # Add current request
+    if rate_limit_store[client_ip]:
+        # Increment count of last window
+        last_time, last_count = rate_limit_store[client_ip][-1]
+        rate_limit_store[client_ip][-1] = (last_time, last_count + 1)
+    else:
+        rate_limit_store[client_ip].append((current_time, 1))
+
 db.init_app(app)
 with app.app_context():
     try: 
