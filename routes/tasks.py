@@ -28,7 +28,8 @@ def tasks():
     is_lead = perms.get('p_task_lead') or session.get('is_admin')
 
     if request.method == 'POST' and is_lead:
-        f = request.files.get('file')
+        # File upload - handle both 'file' and 'task_file'
+        f = request.files.get('task_file') or request.files.get('file')
         fn = ""
         if f and f.filename:
             fn = secure_filename(f.filename)
@@ -40,30 +41,41 @@ def tasks():
             try: deadline_val = datetime.strptime(deadline_raw, '%Y-%m-%d').date()
             except: pass
 
+        # Get domain from either 'unit_name' (new modal) or 'domain' (old form)
+        domain = request.form.get('unit_name') or request.form.get('domain') or 'Giao việc chung'
+        
+        # Get content from either 'description' (new modal) or 'content' (old form)
+        content = request.form.get('description') or request.form.get('content') or ''
+
         new_task = Task(
-            domain=request.form.get('domain', 'Giao việc chung'),
+            domain=domain,
             title=request.form.get('title', 'N/A'),
-            content=request.form.get('content', ''),
+            content=content,
             deadline=deadline_val,
             file_path=fn,
             author_id=session['uid'],
-            author_name=session['fullname'],
+            author_name=session.get('fullname', 'Admin'),
             priority=request.form.get('priority', 'Bình thường')
         )
         db.session.add(new_task)
         db.session.commit()
         
-        # Assignments - Updated to match HTML field name 'target_users'
+        # Assignments - handle both 'target_users' (old) and 'assignee_id' (new)
         assign_ids = request.form.getlist('target_users')
+        assignee_id = request.form.get('assignee_id')
+        if assignee_id and assignee_id not in [str(a) for a in assign_ids]:
+            assign_ids.append(assignee_id)
+            
         for aid in assign_ids:
-            db.session.add(TaskAssignment(task_id=new_task.id, user_id=aid))
-            push_notif(aid, "Công việc mới", f"Bạn vừa được giao: {new_task.title}", f"/tasks/{new_task.id}")
+            if aid:
+                db.session.add(TaskAssignment(task_id=new_task.id, user_id=int(aid)))
+                push_notif(int(aid), "Công việc mới", f"Bạn vừa được giao: {new_task.title}", f"/tasks/{new_task.id}")
         
         db.session.commit()
-        log_action(session['uid'], session['fullname'], "Giao công việc mới", "Công việc", new_task.title)
+        log_action(session['uid'], session.get('fullname', 'Admin'), "Giao công việc mới", "Công việc", new_task.title)
         
         from utils import push_global_notif
-        push_global_notif("Công việc mới", f"Có công việc mới: {new_task.title}", f"/tasks/{new_task.id}", exclude_uid=session['uid'])
+        push_global_notif("Công việc mới", f"Có công việc mới: {new_task.title}", f"/tasks/{new_task.id}", exclude_uid=session.get('uid'))
 
         flash('Đã giao công việc thành công!', 'success')
         return redirect(url_for('tasks_bp.tasks'))
@@ -94,7 +106,8 @@ def tasks():
 
     return render_template('tasks.html', 
                            tasks=all_tasks, 
-                           users=User.query.all(), 
+                           users=User.query.all(),
+                           pro_units=MasterData.query.all(),
                            domains=domains, 
                            current_domain=current_domain, 
                            now_dt=now_dt,

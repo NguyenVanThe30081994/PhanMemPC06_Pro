@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold text-primary">
+            <i class="bi bi-collection me-2"></i>Quản lý Danh mục
+        </h4>
+        <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+            <i class="bi bi-plus-lg me-1"></i> Thêm mới
+        </button>
+    </div>
+
+    <!-- Filter tabs -->
+    <ul class="nav nav-pills mb-4" id="categoryTabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="pill" data-bs-filter="all">
+                Tất cả
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-filter="position">
+                Chức vụ
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-filter="unit">
+                Đơn vị
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-filter="district">
+                Huyện
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-filter="other">
+                Khác
+            </button>
+        </li>
+    </ul>
+
+    <!-- Category list -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="categoryTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Mã</th>
+                            <th>Tên danh mục</th>
+                            <th>Loại</th>
+                            <th>Danh mục cha</th>
+                            <th>Thứ tự</th>
+                            <th>Trạng thái</th>
+                            <th class="text-end pe-4">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cat in categories %}
+                        <tr data-type="{{ cat.type }}">
+                            <td class="ps-4"><code>{{ cat.code }}</code></td>
+                            <td class="fw-bold">{{ cat.name }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'primary' if cat.type == 'position' else 'success' if cat.type == 'unit' else 'warning' if cat.type == 'district' else 'secondary' }}">
+                                    {{ cat.type }}
+                                </span>
+                            </td>
+                            <td>{{ cat.parent.name if cat.parent else '-' }}</td>
+                            <td>{{ cat.order }}</td>
+                            <td>
+                                {% if cat.is_active %}
+                                <span class="badge bg-success">Hoạt động</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Khóa</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                <button class="btn btn-sm btn-outline-primary me-1" onclick="editCategory({{ cat.id }}, '{{ cat.name }}', '{{ cat.code }}', '{{ cat.type }}', {{ cat.parent_id or 'null' }}, {{ cat.order }}, {{ 'true' if cat.is_active else 'false' }})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteCategory({{ cat.id }})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox d-block mb-2" style="font-size: 2rem;"></i>
+                                Chưa có danh mục nào
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Category Modal -->
+<div class="modal fade" id="addCategoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="addCategoryForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">Thêm Danh mục Mới</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Tên danh mục</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Mã (code)</label>
+                        <input type="text" name="code" class="form-control" placeholder="VD: CA_XA_TRUONG">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Loại</label>
+                        <select name="type" class="form-select" required>
+                            <option value="position">Chức vụ</option>
+                            <option value="unit">Đơn vị</option>
+                            <option value="district">Huyện</option>
+                            <option value="other">Khác</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Danh mục cha (nếu có)</label>
+                        <select name="parent_id" class="form-select">
+                            <option value="">-- Không có --</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}">{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Thứ tự</label>
+                        <input type="number" name="order" class="form-control" value="0">
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="isActive" checked>
+                        <label class="form-check-label" for="isActive">Hoạt động</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Thêm mới</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Category Modal -->
+<div class="modal fade" id="editCategoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="editCategoryForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">Sửa Danh mục</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="id" id="editId">
+                    <div class="mb-3">
+                        <label class="form-label">Tên danh mục</label>
+                        <input type="text" name="name" id="editName" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Mã (code)</label>
+                        <input type="text" name="code" id="editCode" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Loại</label>
+                        <select name="type" id="editType" class="form-select" required>
+                            <option value="position">Chức vụ</option>
+                            <option value="unit">Đơn vị</option>
+                            <option value="district">Huyện</option>
+                            <option value="other">Khác</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Danh mục cha</label>
+                        <select name="parent_id" id="editParent" class="form-select">
+                            <option value="">-- Không có --</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}">{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Thứ tự</label>
+                        <input type="number" name="order" id="editOrder" class="form-control" value="0">
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="editActive">
+                        <label class="form-check-label" for="editActive">Hoạt động</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Filter by type
+document.querySelectorAll('#categoryTabs .nav-link').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const filter = this.dataset.bsFilter;
+        document.querySelectorAll('#categoryTable tbody tr').forEach(row => {
+            if (filter === 'all' || row.dataset.type === filter) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+});
+
+// Add category
+document.getElementById('addCategoryForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+    data.is_active = this.is_active.checked;
+    if (data.parent_id === '') data.parent_id = null;
+    data.order = parseInt(data.order) || 0;
+    
+    try {
+        const res = await fetch('/api/categories', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            alert('Lỗi khi thêm danh mục');
+        }
+    } catch(err) { alert('Lỗi: ' + err); }
+});
+
+// Edit category
+function editCategory(id, name, code, type, parentId, order, isActive) {
+    document.getElementById('editId').value = id;
+    document.getElementById('editName').value = name;
+    document.getElementById('editCode').value = code || '';
+    document.getElementById('editType').value = type || 'other';
+    document.getElementById('editParent').value = parentId || '';
+    document.getElementById('editOrder').value = order || 0;
+    document.getElementById('editActive').checked = isActive;
+    new bootstrap.Modal(document.getElementById('editCategoryModal')).show();
+}
+
+document.getElementById('editCategoryForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const id = document.getElementById('editId').value;
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+    data.is_active = this.is_active.checked;
+    if (data.parent_id === '') data.parent_id = null;
+    data.order = parseInt(data.order) || 0;
+    
+    try {
+        const res = await fetch(`/api/categories/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            alert('Lỗi khi cập nhật');
+        }
+    } catch(err) { alert('Lỗi: ' + err); }
+});
+
+// Delete category
+async function deleteCategory(id) {
+    if (!confirm('Bạn có chắc muốn xóa danh mục này?')) return;
+    try {
+        const res = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+        if (res.ok) location.reload();
+        else {
+            const data = await res.json();
+            alert(data.error || 'Lỗi khi xóa');
+        }
+    } catch(err) { alert('Lỗi: ' + err); }
+}
+</script>
+{% endblock %}

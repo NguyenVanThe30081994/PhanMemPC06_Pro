@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-4 animate__animated animate__fadeIn">
+    <div class="header-main-group">
+        <div class="header-title-pill shadow-sm glass-card">
+            <i class="fa-solid fa-comment-sms"></i>
+            <h1 class="mb-0">Cấu hình SMS Brandname</h1>
+        </div>
+    </div>
+</div>
+
+<div class="main-content-area animate__animated animate__fadeInUp">
+    <div class="row g-4">
+        <!-- Cấu hình SMS -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-header bg-primary text-white rounded-top-4">
+                    <h5 class="mb-0"><i class="fa-solid fa-cog me-2"></i>Cấu hình kết nối SMS</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Nhà mạng</label>
+                            <select name="provider" class="form-select">
+                                <option value="viettel" {% if config and config.provider == 'viettel' %}selected{% endif %}>Viettel</option>
+                                <option value="mobifone" {% if config and config.provider == 'mobifone' %}selected{% endif %}>Mobifone</option>
+                                <option value="vinaphone" {% if config and config.provider == 'vinaphone' %}selected{% endif %}>Vinaphone</option>
+                                <option value="generic" {% if config and config.provider == 'generic' %}selected{% endif %}>Khác (API tùy chỉnh)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">API URL</label>
+                            <input type="text" name="api_url" class="form-control" value="{{ config.api_url if config else '' }}" placeholder="URL API của nhà mạng">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Username</label>
+                            <input type="text" name="username" class="form-control" value="{{ config.username if config else '' }}" placeholder="Tên đăng nhập SMS API">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Password</label>
+                            <input type="password" name="password" class="form-control" value="{{ config.password if config else '' }}" placeholder="Mật khẩu SMS API">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Brandname</label>
+                            <input type="text" name="brandname" class="form-control" value="{{ config.brandname if config else 'PC06 TUYEN QUANG' }}" placeholder="Tên hiển thị khi gửi tin nhắn">
+                            <div class="form-text">Tên brandname cần đăng ký với nhà mạng (VD: PC06 TUYEN QUANG)</div>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" name="is_active" id="is_active" {% if config and config.is_active %}checked{% endif %}>
+                            <label class="form-check-label" for="is_active">Kích hoạt gửi SMS tự động</label>
+                        </div>
+                        <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow">
+                            <i class="fa-solid fa-save me-2"></i>LƯU CẤU HÌNH
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kiểm tra & Lịch sử -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-header bg-success text-white rounded-top-4">
+                    <h5 class="mb-0"><i class="fa-solid fa-paper-plane me-2"></i>Gửi tin nhắn test</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Số điện thoại</label>
+                        <input type="text" id="test_phone" class="form-control" placeholder="0912345678">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nội dung</label>
+                        <textarea id="test_message" class="form-control" rows="2">Test tin nhắn từ PC06 Tuyên Quang</textarea>
+                    </div>
+                    <button class="btn btn-success rounded-pill" onclick="testSMS()">
+                        <i class="fa-solid fa-paper-plane me-2"></i>GỬI TEST
+                    </button>
+                    <div id="smsResult" class="mt-3"></div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-header bg-warning text-dark rounded-top-4">
+                    <h5 class="mb-0"><i class="fa-solid fa-clock me-2"></i>Lịch sử gửi SMS</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Task</th>
+                                    <th>Điện thoại</th>
+                                    <th>Trạng thái</th>
+                                    <th>Thời gian</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in logs[:10] %}
+                                <tr>
+                                    <td>{{ log.message[:25] }}...</td>
+                                    <td>{{ log.phone }}</td>
+                                    <td>
+                                        {% if log.status == 'success' %}
+                                        <span class="badge bg-success">Đã gửi</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Lỗi</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ log.sent_at.strftime('%d/%m %H:%M') }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">Chưa có tin nhắn nào</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function testSMS() {
+    const phone = document.getElementById('test_phone').value;
+    const message = document.getElementById('test_message').value;
+    const resultDiv = document.getElementById('smsResult');
+    
+    if (!phone || !message) {
+        resultDiv.innerHTML = '<div class="alert alert-warning mb-0">Vui lòng nhập số điện thoại và nội dung</div>';
+        return;
+    }
+    
+    resultDiv.innerHTML = '<div class="spinner-border text-primary" role="status"></div>';
+    
+    fetch('/admin/sms/test', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({phone: phone, message: message})
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            resultDiv.innerHTML = '<div class="alert alert-success mb-0"><i class="fa-solid fa-check me-2"></i>Đã gửi tin nhắn!</div>';
+        } else {
+            resultDiv.innerHTML = '<div class="alert alert-danger mb-0"><i class="fa-solid fa-times me-2"></i>' + data.message + '</div>';
+        }
+    })
+    .catch(err => {
+        resultDiv.innerHTML = '<div class="alert alert-danger mb-0">Lỗi: ' + err + '</div>';
+    });
+}
+</script>
+{% endblock %}

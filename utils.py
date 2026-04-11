@@ -121,183 +121,6 @@ def log_security_event(event_type, details):
     except:
         pass
 
-# ==================== ZALO OA FUNCTIONS ====================
-
-import json as json_lib
-from urllib.request import urlopen, Request
-from datetime import datetime, timedelta
-
-ZALO_API_URL = "https://openapi.zalo.me/v3"
-ZALO_OA_URL = "https://officialapi.zalo.me"
-
-def get_zalo_config():
-    """Lấy cấu hình Zalo OA đang hoạt động"""
-    from models import ZaloConfig
-    return ZaloConfig.query.filter_by(is_active=True).first()
-
-def send_zalo_message(phone, template_id, data):
-    """
-    Gửi tin nhắn qua Zalo OA sử dụng template (dùng urllib).
-    """
-    config = get_zalo_config()
-    if not config:
-        return {'status': 'failed', 'message': 'Chưa cấu hình Zalo OA'}
-    
-    if not config.access_token:
-        return {'status': 'failed', 'message': 'Access Token không hợp lệ'}
-    
-    # Format phone
-    phone = str(phone).strip()
-    if phone.startswith('+84'):
-        phone = '84' + phone[3:]
-    elif phone.startswith('84'):
-        pass
-    elif phone.startswith('0'):
-        phone = '84' + phone[1:]
-    
-    try:
-        url = f"{ZALO_OA_URL}/oa/message/push"
-        payload = {
-            'phone': phone,
-            'template_id': template_id or config.template_id,
-            'data': data
-        }
-        
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {config.access_token}'
-        }
-        
-        # Dùng urllib thay requests
-        req = Request(url, data=json_lib.dumps(payload).encode('utf-8'), headers=headers)
-        with urlopen(req, timeout=30) as response:
-            result = json_lib.loads(response.read().decode('utf-8'))
-        
-        if result.get('error') == 0:
-            return {'status': 'success', 'message': 'Đã gửi tin nhắn'}
-        else:
-            return {'status': 'failed', 'message': result.get('message', 'Lỗi gửi tin nhắn')}
-    except Exception as e:
-        return {'status': 'failed', 'message': str(e)}
-
-def refresh_zalo_token():
-    """Refresh access token từ Zalo OA"""
-    config = get_zalo_config()
-    if not config or not config.refresh_token:
-        return False
-    
-    try:
-        url = f"{ZALO_OA_URL}/oa/get/accesstoken"
-        payload = {
-            'app_id': config.oa_id,
-            'app_secret': config.secret_key,
-            'refresh_token': config.refresh_token
-        }
-        
-        req = Request(url, data=json_lib.dumps(payload).encode('utf-8'))
-        with urlopen(req, timeout=30) as response:
-            result = json_lib.loads(response.read().decode('utf-8'))
-        
-        if result.get('error') == 0:
-            config.access_token = result.get('access_token')
-            config.refresh_token = result.get('refresh_token')
-            config.last_refresh = datetime.now()
-            from models import db
-            db.session.commit()
-            return True
-    except Exception as e:
-        print(f"Zalo token refresh error: {e}")
-        return False
-
-def check_task_deadlines_and_notify():
-    """
-    Kiểm tra deadline công việc và gửi thông báo Zalo.
-    Chạy định kỳ (mỗi giờ hoặc mỗi 15 phút).
-    """
-    from models import Task, ZaloUser, ZaloNotificationLog, db, User
-    
-    config = get_zalo_config()
-    if not config or not config.is_active:
-        return {'status': 'skipped', 'message': 'Zalo OA chưa được kích hoạt'}
-    
-    now = datetime.now()
-    results = {'sent': 0, 'failed': 0}
-    
-    # 1. Tìm các task sắp hết hạn (trong 24h tới)
-    upcoming_deadline = now + timedelta(hours=24)
-    upcoming_tasks = Task.query.filter(
-        Task.deadline <= upcoming_deadline,
-        Task.deadline >= now,
-        Task.status != 'Hoàn thành'
-    ).all()
-    
-    # 2. Tìm các task đã quá hạn
-    overdue_tasks = Task.query.filter(
-        Task.deadline < now,
-        Task.status != 'Hoàn thành'
-    ).all()
-    
-    # Lấy danh sách user có Zalo
-    zalo_users = ZaloUser.query.filter_by(is_active=True, is_verified=True).all()
-    zalo_phones = {u.user_id: u.phone for u in zalo_users}
-    
-    # Gửi notification cho task sắp hết hạn
-    for task in upcoming_tasks:
-        if task.author_id in zalo_phones:
-            phone = zalo_phones[task.author_id]
-            data = {
-                'task_title': task.title,
-                'deadline': task.deadline.strftime('%d/%m/%Y'),
-                'status': 'Sắp hết hạn',
-                'domain': task.domain or ''
-            }
-            result = send_zalo_message(phone, config.template_id, data)
-            
-            # Log
-            db.session.add(ZaloNotificationLog(
-                task_id=task.id,
-                user_id=task.author_id,
-                phone=phone,
-                message=f"Nhắc nhở: {task.title} sắp hết hạn",
-                template_data=json_lib.dumps(data),
-                status=result.get('status', 'pending')
-            ))
-            
-            if result.get('status') == 'success':
-                results['sent'] += 1
-            else:
-                results['failed'] += 1
-    
-    # Gửi notification cho task quá hạn
-    for task in overdue_tasks:
-        if task.author_id in zalo_phones:
-            phone = zalo_phones[task.author_id]
-            data = {
-                'task_title': task.title,
-                'deadline': task.deadline.strftime('%d/%m/%Y'),
-                'status': 'ĐÃ QUÁ HẠN',
-                'domain': task.domain or ''
-            }
-            result = send_zalo_message(phone, config.template_id, data)
-            
-            # Log
-            db.session.add(ZaloNotificationLog(
-                task_id=task.id,
-                user_id=task.author_id,
-                phone=phone,
-                message=f"CẢNH BÁO: {task.title} đã quá hạn",
-                template_data=json_lib.dumps(data),
-                status=result.get('status', 'pending')
-            ))
-            
-            if result.get('status') == 'success':
-                results['sent'] += 1
-            else:
-                results['failed'] += 1
-    
-    db.session.commit()
-    return results
-
 def remove_accents(s):
     if not s: return ""
     import unicodedata
@@ -548,3 +371,35 @@ def clear_logs(start_date=None, end_date=None):
         q.delete()
         db.session.commit()
     except: db.session.rollback()
+
+
+# ==================== SECURITY FUNCTIONS ====================
+
+def sanitize_input(text):
+    """
+    Sanitize input to prevent XSS attacks.
+    Escapes HTML special characters.
+    """
+    if not text:
+        return ""
+    import html
+    return html.escape(str(text).strip())
+
+
+def validate_password_strength(password):
+    """
+    Validate password meets security requirements.
+    Returns: (is_valid, message)
+    """
+    import re
+    if not password:
+        return False, "Mật khẩu không được để trống"
+    if len(password) < 8:
+        return False, "Mật khẩu phải có ít nhất 8 ký tự"
+    if not re.search(r'[A-Z]', password):
+        return False, "Phải có ít nhất 1 chữ cái viết hoa"
+    if not re.search(r'[a-z]', password):
+        return False, "Phải có ít nhất 1 chữ cái viết thường"
+    if not re.search(r'[0-9]', password):
+        return False, "Phải có ít nhất 1 số"
+    return True, "Mật khẩu hợp lệ"

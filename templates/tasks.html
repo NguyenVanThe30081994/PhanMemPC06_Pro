@@ -104,9 +104,9 @@
 
 <!-- Modal stays same but cleaned up classes -->
 <div class="modal fade" id="addTaskModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0">
-            <form method="POST">
+            <form method="POST" enctype="multipart/form-data">
                 <div class="modal-header primary">
                     <h5 class="modal-title fw-bold">THÊM CÔNG VIỆC MỚI</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -130,9 +130,30 @@
                             <input type="date" name="deadline" class="form-control" required>
                         </div>
                     </div>
+                    
+                    <!-- Giao cho ai -->
+                    <div class="mt-3">
+                        <label class="form-label fw-bold small">GIAO CHO</label>
+                        <select name="assignee_id" class="form-select">
+                            <option value="">-- Chọn người thực hiện --</option>
+                            {% if users %}
+                                {% for u in users %}
+                                <option value="{{ u.id }}">{{ u.fullname }} ({{ u.unit_area or 'Chưa có đơn vị' }})</option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                    
                     <div class="mt-3">
                         <label class="form-label fw-bold small">NỘI DUNG CHI TIẾT</label>
                         <textarea name="description" class="form-control" rows="4"></textarea>
+                    </div>
+                    
+                    <!-- Đính kèm tệp -->
+                    <div class="mt-3">
+                        <label class="form-label fw-bold small">ĐÍNH KÈM TỆP</label>
+                        <input type="file" name="task_file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar">
+                        <div class="form-text">Hỗ trợ: PDF, Word, Excel, Hình ảnh, ZIP (Max 10MB)</div>
                     </div>
                 </div>
                 <div class="modal-footer border-0">

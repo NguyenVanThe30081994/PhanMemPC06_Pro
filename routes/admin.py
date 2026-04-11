@@ -55,6 +55,16 @@ def db_tool():
     if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
     return render_template('db_tool.html')
 
+
+@admin_bp.route('/admin/categories')
+def category_admin():
+    """Trang quản lý danh mục tập trung"""
+    if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    from models import Category
+    categories = Category.query.order_by(Category.type, Category.order, Category.name).all()
+    return render_template('category_admin.html', categories=categories)
+
+
 @admin_bp.route('/admin/db-manage', methods=['POST'])
 def db_manage():
     if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
@@ -590,4 +600,68 @@ def zalo_trigger_check():
     from utils import check_task_deadlines_and_notify
     
     result = check_task_deadlines_and_notify()
+    return jsonify(result)
+
+
+# ==================== SMS BRANDNAME ROUTES ====================
+
+@admin_bp.route('/admin/sms', methods=['GET', 'POST'])
+def sms_config():
+    """Trang cấu hình SMS Brandname"""
+    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
+    if not session.get('is_admin'): flash('Bạn không có quyền truy cập', 'danger'); return redirect('/')
+    
+    from models import SMSConfig, SMSLog
+    
+    if request.method == 'POST':
+        config = SMSConfig.query.first()
+        if not config:
+            config = SMSConfig()
+            db.session.add(config)
+        
+        config.provider = request.form.get('provider')
+        config.api_url = request.form.get('api_url')
+        config.username = request.form.get('username')
+        config.password = request.form.get('password')
+        config.brandname = request.form.get('brandname')
+        config.is_active = 'is_active' in request.form
+        config.updated_at = datetime.now()
+        
+        db.session.commit()
+        flash('Đã lưu cấu hình SMS!', 'success')
+        return redirect(url_for('admin_bp.sms_config'))
+    
+    config = SMSConfig.query.first()
+    logs = SMSLog.query.order_by(SMSLog.sent_at.desc()).limit(20).all()
+    
+    return render_template('sms_config.html', config=config, logs=logs)
+
+
+@admin_bp.route('/admin/sms/test', methods=['POST'])
+def sms_test():
+    """Test gửi SMS"""
+    if not session.get('uid'): return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+    
+    from utils import send_sms
+    
+    data = request.get_json()
+    phone = data.get('phone')
+    message = data.get('message')
+    
+    if not phone or not message:
+        return jsonify({'status': 'failed', 'message': 'Thiếu số điện thoại hoặc nội dung'})
+    
+    result = send_sms(phone, message)
+    return jsonify(result)
+
+
+@admin_bp.route('/admin/sms/trigger', methods=['POST'])
+def sms_trigger_check():
+    """Trigger kiểm tra deadline và gửi SMS (cho cronjob)"""
+    if not session.get('uid') and not request.headers.get('X-API-Key') == 'pc06_internal':
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+    
+    from utils import check_sms_deadlines_and_notify
+    
+    result = check_sms_deadlines_and_notify()
     return jsonify(result)

@@ -188,6 +188,7 @@
               {% endif %}
             {% endwith %}
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
                 <div class="mb-4">
                     <label class="form-label text-uppercase letter-spacing-1">Tên tài khoản</label>
                     <input type="text" name="username" class="form-control" placeholder="Nhập tên đăng nhập..." required autocomplete="username">

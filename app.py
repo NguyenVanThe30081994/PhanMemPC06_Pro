@@ -26,14 +26,27 @@ app = Flask(__name__,
             static_folder=STATIC_DIR)
 
 app.secret_key = 'PC06_FINAL_V3_5_2026'
-# Using abspath for database URI
-db_path = os.path.abspath(os.path.join(basedir, 'pc06_system.db'))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
+
+# ==================== SECURITY CONFIG ====================
+# Session Security
+app.config['SESSION_COOKIE_SECURE'] = False  # Set True if using HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent XSS stealing cookies
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)  # 30 min timeout
+
+# CSRF Protection
+app.config['WTF_CSRF_ENABLED'] = True
+app.config['WTF_CSRF_TIME_LIMIT'] = 3600  # 1 hour token lifetime
+
+# File Upload Security
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
-app.config['SESSION_PERMANENT'] = False # Default to session cookie (cleared on browser close)
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max
+
+# Allowed extensions for file upload
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'zip', 'rar', 'ppt', 'pptx'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Security Headers Configuration
 @app.after_request
