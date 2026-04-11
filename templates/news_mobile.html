@@ -68,5 +68,51 @@
             </div>
         {% endif %}
     </div>
+
+    <!-- Floating Add Button -->
+    {% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
+    <button class="btn-add-task" data-bs-toggle="modal" data-bs-target="#addNewsModal">
+        <i class="fa-solid fa-plus"></i>
+    </button>
+    {% endif %}
+</div>
+
+<!-- Add News Modal -->
+<div class="modal fade" id="addNewsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold">ĐĂNG BẢN TIN MỚI</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">TIÊU ĐỀ BẢN TIN</label>
+                        <input type="text" name="title" class="form-control" placeholder="Nhập tiêu đề..." required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">ĐỘI NGHIỆP VỤ</label>
+                        <select name="category" class="form-select" required>
+                            <option value="" disabled selected>Chọn đội nghiệp vụ...</option>
+                            {% for u in pro_units %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">NỘI DUNG</label>
+                        <textarea name="content" class="form-control" rows="4" placeholder="Nhập nội dung thông báo..."></textarea>
+                    </div>
+                    <div>
+                        <label class="form-label fw-bold small">TỆP ĐÍNH KÈM (Tùy chọn)</label>
+                        <input type="file" name="file" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light px-4 rounded-pill fw-bold border" data-bs-dismiss="modal">HỦY</button>
+                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold">ĐĂNG TIN NGAY</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}

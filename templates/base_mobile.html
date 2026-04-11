@@ -285,26 +285,26 @@
         {% block content %}{% endblock %}
     </main>
 
-    <div class="offcanvas offcanvas-start border-0 shadow-lg" tabindex="-1" id="mobileMenu" style="width: 280px; background: rgba(30, 30, 46, 0.98) !important; backdrop-filter: blur(20px); color: #fff;">
+    <div class="offcanvas offcanvas-start border-0 shadow-lg" tabindex="-1" id="mobileMenu" style="width: 280px; background: var(--bg-surface) !important; backdrop-filter: blur(20px);">
         <div class="offcanvas-header p-3 d-flex flex-column align-items-start">
             <div class="d-flex justify-content-between w-100 align-items-center mb-2">
                 <div class="d-flex align-items-center gap-2">
                     <i class="fa-solid fa-shield-halved text-primary"></i>
-                    <span class="fw-bold text-white" style="font-size: 0.95rem;">PC06 Tuyên Quang</span>
+                    <span class="fw-bold" style="font-size: 0.95rem; color: var(--text-main);">PC06 Tuyên Quang</span>
                 </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
             </div>
             
-            <div class="user-profile-section w-100 p-2 rounded-3" style="background: rgba(255, 255, 255, 0.1);">
+            <div class="user-profile-section w-100 p-2 rounded-3" style="background: var(--bg-body);">
                 <div class="text-truncate">
-                    <div class="fw-bold text-white small">{{ session.get('fullname', 'Cán bộ') }}</div>
-                    <div class="tiny opacity-75" style="font-size: 11px;">{{ session.get('role_name', 'Thành viên') }} · {{ session.get('unit', 'PC06') }}</div>
+                    <div class="fw-bold" style="color: var(--text-main);">{{ session.get('fullname', 'Cán bộ') }}</div>
+                    <div class="tiny opacity-75" style="color: var(--text-muted); font-size: 11px;">{{ session.get('role_name', 'Thành viên') }} · {{ session.get('unit', 'PC06') }}</div>
                 </div>
             </div>
         </div>
         
         <div class="offcanvas-body p-3 pt-0">
-            <div class="mb-2 px-2 tiny opacity-50 fw-bold text-uppercase" style="letter-spacing: 1px;">Menu Chính</div>
+            <div class="mb-2 px-2 tiny fw-bold text-uppercase" style="letter-spacing: 1px; color: var(--text-muted);">Menu Chính</div>
             <div class="nav-links mb-4">
                 <a href="/admin" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">
                     Tổng quan
@@ -317,7 +317,7 @@
                 </a>
             </div>
             
-            <div class="mb-2 px-2 tiny opacity-50 fw-bold text-uppercase" style="letter-spacing: 1px;">Dữ liệu & Báo cáo</div>
+            <div class="mb-2 px-2 tiny fw-bold text-uppercase" style="letter-spacing: 1px; color: var(--text-muted);">Dữ liệu & Báo cáo</div>
             <div class="nav-links mb-4">
                 <a href="{{ url_for('forms_bp.input_data') }}" class="nav-link-sidebar {% if request.endpoint == 'forms_bp.input_data' %}active{% endif %}">Nhập liệu Biểu mẫu
                 </a>
@@ -329,7 +329,7 @@
                 </a>
             </div>
             
-            <div class="mb-2 px-2 tiny opacity-50 fw-bold text-uppercase" style="letter-spacing: 1px;">Hệ thống & Quản trị</div>
+            <div class="mb-2 px-2 tiny fw-bold text-uppercase" style="letter-spacing: 1px; color: var(--text-muted);">Hệ thống & Quản trị</div>
             <div class="nav-links">
                 {% if session.get('is_admin') %}
                 <a href="/roles" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">Tài khoản & Vai trò</a>
@@ -345,7 +345,7 @@
                 <a href="/logout" class="nav-link-sidebar text-danger">Đăng xuất</a>
             </div>
         </div>
-        <div class="offcanvas-footer p-3 border-top text-center opacity-50 tiny" style="color: #fff;">
+        <div class="offcanvas-footer p-3 border-top text-center opacity-50 tiny" style="color: var(--text-muted);">
             PC06 - V1.5.0
         </div>
     </div>
