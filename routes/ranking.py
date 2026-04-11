@@ -125,7 +125,10 @@ def _choose_value_column(df, unit_col):
     return ranked_candidates[0][2]
 
 
-import pdfplumber
+try:
+    import pdfplumber
+except ImportError:
+    pdfplumber = None
 
 @ranking_bp.route('/ranking/import', methods=['POST'])
 def import_ranking_data():
@@ -211,6 +214,9 @@ def import_ranking_data():
 
         elif filename.endswith('.pdf'):
             # --- PDF LOGIC ---
+            if not pdfplumber:
+                return jsonify({"success": False, "message": "Thư viện pdfplumber chưa được cài đặt trên máy chủ. Vui lòng cài đặt: pip install pdfplumber"}), 500
+
             if not selected_indicator:
                 return jsonify({"success": False, "message": "Vui lòng chọn Chỉ tiêu trước khi tải file PDF."}), 400
             
