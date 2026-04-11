@@ -577,7 +577,7 @@ def zalo_test():
         'domain': 'PC06 System'
     }
     
-    result = send_zalo_message(session.get('username', config.template_id, test_data)
+    result = send_zalo_message(session.get('username'), config.template_id, test_data)
     return jsonify(result)
 
 

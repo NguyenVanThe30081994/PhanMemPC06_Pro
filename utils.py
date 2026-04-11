@@ -123,8 +123,8 @@ def log_security_event(event_type, details):
 
 # ==================== ZALO OA FUNCTIONS ====================
 
-import requests
 import json as json_lib
+from urllib.request import urlopen, Request
 from datetime import datetime, timedelta
 
 ZALO_API_URL = "https://openapi.zalo.me/v3"
@@ -137,7 +137,48 @@ def get_zalo_config():
 
 def send_zalo_message(phone, template_id, data):
     """
-    Gửi tin nhắn qua Zalo OA sử dụng template.
+    Gửi tin nhắn qua Zalo OA sử dụng template (dùng urllib).
+    """
+    config = get_zalo_config()
+    if not config:
+        return {'status': 'failed', 'message': 'Chưa cấu hình Zalo OA'}
+    
+    if not config.access_token:
+        return {'status': 'failed', 'message': 'Access Token không hợp lệ'}
+    
+    # Format phone
+    phone = str(phone).strip()
+    if phone.startswith('+84'):
+        phone = '84' + phone[3:]
+    elif phone.startswith('84'):
+        pass
+    elif phone.startswith('0'):
+        phone = '84' + phone[1:]
+    
+    try:
+        url = f"{ZALO_OA_URL}/oa/message/push"
+        payload = {
+            'phone': phone,
+            'template_id': template_id or config.template_id,
+            'data': data
+        }
+        
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {config.access_token}'
+        }
+        
+        # Dùng urllib thay requests
+        req = Request(url, data=json_lib.dumps(payload).encode('utf-8'), headers=headers)
+        with urlopen(req, timeout=30) as response:
+            result = json_lib.loads(response.read().decode('utf-8'))
+        
+        if result.get('error') == 0:
+            return {'status': 'success', 'message': 'Đã gửi tin nhắn'}
+        else:
+            return {'status': 'failed', 'message': result.get('message', 'Lỗi gửi tin nhắn')}
+    except Exception as e:
+        return {'status': 'failed', 'message': str(e)}
     
     Args:
         phone: Số điện thoại người nhận
