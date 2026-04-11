@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, session, redirect, url_fo
 from models import db, User
 import json
 import io
+import unicodedata
 from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -146,7 +147,18 @@ def export_template(template_id):
     wb.save(output)
     output.seek(0)
     
-    filename = f"{grid_data.get('name', 'bieumau')}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    # Safe filename - remove Vietnamese characters
+    def make_safe(s):
+        s = str(s)
+        # Remove Vietnamese diacritics
+        s = unicodedata.normalize('NFD', s)
+        s = ''.join(c for c in s if unicodedata.category(c) != 'Mn')
+        # Replace spaces and special chars
+        s = s.replace(' ', '_')
+        return ''.join(c if c.isalnum() or c in '_-' else '' for c in s)
+    
+    safe_name = make_safe(grid_data.get('name', 'bieumau'))
+    filename = f"{safe_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
     return send_file(output, as_attachment=True, download_name=filename, 
                   mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
