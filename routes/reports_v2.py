@@ -260,6 +260,106 @@ def edit_template(tid):
     return render_template('reports_v2_edit.html', template=template, versions=versions)
 
 
+@reports_v2_bp.route('/reports-v2/config/<int:tid>')
+def config_template(tid):
+    """Giao diện cấu hình cột cho template"""
+    if not session.get('is_admin'):
+        return redirect(url_for('auth_bp.login'))
+    
+    template = db.session.get(ReportTemplateV2, tid)
+    if not template:
+        flash('Không tìm thấy biểu mẫu!', 'danger')
+        return redirect(url_for('reports_v2_bp.dashboard'))
+    
+    version = ReportVersionV2.query.filter_by(template_id=tid, is_published=True).order_by(ReportVersionV2.created_at.desc()).first()
+    if not version or not version.excel_file_blob:
+        flash('Chưa có file Excel! Vui lòng upload trước.', 'warning')
+        return redirect(url_for('reports_v2_bp.edit_template', tid=tid))
+    
+    # Quét cấu trúc Excel
+    from pc06_excel_scanner import scan_excel_structure
+    detected = scan_excel_structure(version.excel_file_blob)
+    
+    # Load existing config
+    try:
+        existing_config = json.loads(version.metadata_json or '{}')
+    except:
+        existing_config = {}
+    
+    column_configs = existing_config.get('column_configs', {})
+    header_groups = existing_config.get('header_groups', [])
+    data_start_row = existing_config.get('data_start_row', detected.get('data_start_row', 4))
+    unit_column = existing_config.get('unit_column', 'B')
+    
+    return render_template('reports_v2_config.html',
+                          template=template,
+                          detected=detected,
+                          column_configs=column_configs,
+                          header_groups=header_groups,
+                          data_start_row=data_start_row,
+                          unit_column=unit_column)
+
+
+@reports_v2_bp.route('/reports-v2/config/<int:tid>', methods=['POST'])
+def save_config(tid):
+    """Lưu cấu hình cột cho template"""
+    if not session.get('is_admin'):
+        return redirect(url_for('auth_bp.login'))
+    
+    template = db.session.get(ReportTemplateV2, tid)
+    if not template:
+        flash('Không tìm thấy biểu mẫu!', 'danger')
+        return redirect(url_for('reports_v2_bp.dashboard'))
+    
+    version = ReportVersionV2.query.filter_by(template_id=tid, is_published=True).order_by(ReportVersionV2.created_at.desc()).first()
+    if not version:
+        flash('Không có phiên bản!', 'danger')
+        return redirect(url_for('reports_v2_bp.dashboard'))
+    
+    try:
+        # Load existing metadata
+        try:
+            metadata = json.loads(version.metadata_json or '{}')
+        except:
+            metadata = {}
+        
+        # Build column configs from form data
+        column_configs = {}
+        all_columns = request.form.getlist('columns') if request.form.get('columns') else []
+        
+        # If no columns in form, try to get from detected
+        if not all_columns:
+            # Get all column configs from form
+            for key in request.form.keys():
+                if key.startswith('is_numeric_') or key.startswith('is_percent_') or key.startswith('is_formula_') or key.startswith('is_sortable_'):
+                    col = key.split('_', 2)[-1]
+                    if col not in column_configs:
+                        column_configs[col] = {}
+        
+        for col in column_configs:
+            column_configs[col] = {
+                'is_numeric': f'is_numeric_{col}' in request.form,
+                'is_percent': f'is_percent_{col}' in request.form,
+                'is_formula': f'is_formula_{col}' in request.form,
+                'is_sortable': f'is_sortable_{col}' in request.form,
+            }
+        
+        metadata['column_configs'] = column_configs
+        metadata['data_start_row'] = int(request.form.get('data_start_row', 4))
+        metadata['unit_column'] = request.form.get('unit_column', 'B')
+        metadata['config_version'] = '2.0'
+        
+        version.metadata_json = json.dumps(metadata, ensure_ascii=False)
+        db.session.commit()
+        
+        flash('Đã lưu cấu hình V2!', 'success')
+        return redirect(url_for('reports_v2_bp.dashboard'))
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Lỗi: {str(e)}', 'danger')
+        return redirect(url_for('reports_v2_bp.config_template', tid=tid))
+
+
 @reports_v2_bp.route('/reports-v2/delete/<int:tid>', methods=['POST'])
 def delete_template(tid):
     if not session.get('is_admin'):

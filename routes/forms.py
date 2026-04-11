@@ -82,6 +82,17 @@ def admin_forms():
                     group_label = group_label_map.get(col_0, '')
                     combined = (cell_val + ' ' + group_label).lower()
                     is_num = any(k in combined for k in ["số", "tỷ lệ", "tổng", "năm", "tháng", "quý", "%", "tiền"])
+                    
+                    # Auto-detect sortable columns
+                    is_sortable = any(k in combined for k in ["tổng", "tỷ lệ", "%", "số", "xếp hạng"])
+                    
+                    # Auto-detect formula columns
+                    is_formula = False
+                    data_row_idx = header_start + header_rows
+                    cell = ws.cell(data_row_idx, col_1)
+                    if cell.data_type == 'f':
+                        is_formula = True
+                    
                     fields.append({
                         "idx": col_0 + 1,
                         "label": cell_val,
@@ -89,6 +100,8 @@ def admin_forms():
                         "type": "number" if is_num else "text",
                         "is_perc": "%" in cell_val or "tỷ lệ" in cell_val.lower()
                                    or "%" in group_label or "tỷ lệ" in group_label.lower(),
+                        "is_sortable": is_sortable,
+                        "is_formula": is_formula,
                         "is_visible": True
                     })
                 if not fields:
@@ -181,6 +194,7 @@ def config_form(fid):
             f['group'] = request.form.get(f'group_{idx}', f.get('group', ''))
             f['type'] = request.form.get(f'type_{idx}', 'text')
             f['is_perc'] = f'perc_{idx}' in request.form
+            f['is_sortable'] = f'sortable_{idx}' in request.form
             f['is_visible'] = f'visible_{idx}' in request.form
             f['order'] = int(request.form.get(f'order_{idx}', f['idx']))
             new_fields.append(f)

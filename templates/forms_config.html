@@ -50,6 +50,7 @@
                                 <th class="px-3 py-3 tiny fw-bold text-muted text-center" style="width: 100px;">HIỂN THỊ</th>
                                 <th class="px-3 py-3 tiny fw-bold text-muted text-center" style="width: 140px;">KIỂU DỮ LIỆU</th>
                                 <th class="px-2 py-3 tiny fw-bold text-muted text-center" style="width: 90px;">TỶ LỆ %</th>
+                                <th class="px-2 py-3 tiny fw-bold text-muted text-center" style="width: 90px;">SẮP XẾP</th>
                                 <th class="px-2 py-3 tiny fw-bold text-muted text-center" style="width: 120px;">THỨ TỰ</th>
                             </tr>
                         </thead>
@@ -63,7 +64,7 @@
                             {% if f_group and f_group != current_group.value %}
                             {% set current_group.value = f_group %}
                             <tr class="group-header-row">
-                                <td colspan="7" class="px-3 py-2">
+                                <td colspan="8" class="px-3 py-2">
                                     <div class="d-flex align-items-center gap-2">
                                         <div class="group-bar"></div>
                                         <i class="fa-solid fa-layer-group text-primary tiny opacity-75"></i>
@@ -103,6 +104,11 @@
                                 <td class="px-2 text-center">
                                     <div class="form-check d-inline-block">
                                         <input class="form-check-input" type="checkbox" name="perc_{{ idx }}" {% if f.is_perc %}checked{% endif %}>
+                                    </div>
+                                </td>
+                                <td class="px-2 text-center">
+                                    <div class="form-check d-inline-block">
+                                        <input class="form-check-input" type="checkbox" name="sortable_{{ idx }}" {% if f.get('is_sortable', False) %}checked{% endif %}>
                                     </div>
                                 </td>
                                 <td class="px-2 text-center">

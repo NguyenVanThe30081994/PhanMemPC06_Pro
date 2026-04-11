@@ -61,6 +61,21 @@
                     </div>
                 </form>
             </div>
+            
+            <!-- Config Button -->
+            <div class="card border-0 shadow-sm rounded-4 mt-4">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="fw-bold mb-1"><i class="fa-solid fa-gears me-2 text-primary"></i>Cấu hình cột V2</h6>
+                            <p class="text-muted small mb-0">Quét cấu trúc, chọn cột số, %, công thức, sắp xếp</p>
+                        </div>
+                        <a href="{{ url_for('reports_v2_bp.config_template', tid=template.id) }}" class="btn btn-primary rounded-pill px-4 fw-bold">
+                            <i class="fa-solid fa-table-columns me-2"></i>CẤU HÌNH
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Version History -->
