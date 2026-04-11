@@ -8,3 +8,4 @@ numpy<2
 waitress==2.1.2
 qrcode==7.4.2
 Pillow==10.1.0
+requests==2.31.0
