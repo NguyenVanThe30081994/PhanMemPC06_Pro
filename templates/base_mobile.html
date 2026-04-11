@@ -285,98 +285,68 @@
         {% block content %}{% endblock %}
     </main>
 
-    <div class="offcanvas offcanvas-start border-0 shadow-lg" tabindex="-1" id="mobileMenu" style="width: 280px; background: rgba(255, 255, 255, 0.95) !important; backdrop-filter: blur(20px);">
-        <div class="offcanvas-header p-4 d-flex flex-column align-items-start">
-            <div class="d-flex justify-content-between w-100 align-items-center mb-3">
-                <h5 class="offcanvas-title fw-bold text-primary d-flex align-items-center gap-2">
-                    <i class="fa-solid fa-shield-halved"></i>PC06 Tuyên Quang
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    <div class="offcanvas offcanvas-start border-0 shadow-lg" tabindex="-1" id="mobileMenu" style="width: 280px; background: rgba(30, 30, 46, 0.98) !important; backdrop-filter: blur(20px); color: #fff;">
+        <div class="offcanvas-header p-3 d-flex flex-column align-items-start">
+            <div class="d-flex justify-content-between w-100 align-items-center mb-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-shield-halved text-primary"></i>
+                    <span class="fw-bold text-white" style="font-size: 0.95rem;">PC06 Tuyên Quang</span>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
             </div>
             
-            <div class="user-profile-section w-100 mb-4 p-3 rounded-4 border shadow-sm" style="background: var(--bg-surface);">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="avatar-lg bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width: 60px; height: 60px; font-size: 20px; background: linear-gradient(135deg, var(--primary), #3b82f6);">
-                        {{ session.get('fullname', 'AD')[:2].upper() }}
-                    </div>
-                    <div class="overflow-hidden">
-                        <div class="fw-bold text-dark fs-6 text-truncate">{{ session.get('fullname', 'Cán bộ') }}</div>
-                        <div class="tiny text-muted text-truncate mb-1" style="font-size: 11px;"><i class="fa-solid fa-id-card-clip me-1"></i>{{ session.get('role_name', 'Thành viên') }}</div>
-                        <div class="tiny text-primary fw-bold text-truncate" style="font-size: 10px;"><i class="fa-solid fa-location-dot me-1"></i>{{ session.get('unit', 'Đơn vị PC06') }}</div>
-                    </div>
+            <div class="user-profile-section w-100 p-2 rounded-3" style="background: rgba(255, 255, 255, 0.1);">
+                <div class="text-truncate">
+                    <div class="fw-bold text-white small">{{ session.get('fullname', 'Cán bộ') }}</div>
+                    <div class="tiny opacity-75" style="font-size: 11px;">{{ session.get('role_name', 'Thành viên') }} · {{ session.get('unit', 'PC06') }}</div>
                 </div>
             </div>
         </div>
         
-        <div class="offcanvas-body p-3">
-            <div class="mb-2 px-2 tiny text-muted fw-bold text-uppercase" style="letter-spacing: 1px;">Menu Chính</div>
+        <div class="offcanvas-body p-3 pt-0">
+            <div class="mb-2 px-2 tiny opacity-50 fw-bold text-uppercase" style="letter-spacing: 1px;">Menu Chính</div>
             <div class="nav-links mb-4">
                 <a href="/admin" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">
-                    <i class="fa-solid fa-house-chimney"></i>Tổng quan
+                    Tổng quan
                 </a>
-                <a href="/tasks" class="nav-link-sidebar {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">
-                    <i class="fa-solid fa-list-check"></i>Nhiệm vụ
+                <a href="/tasks" class="nav-link-sidebar {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">Nhiệm vụ
                 </a>
-                <a href="/ranking" class="nav-link-sidebar {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">
-                    <i class="fa-solid fa-ranking-star"></i>Xếp hạng
+                <a href="/ranking" class="nav-link-sidebar {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">Xếp hạng
                 </a>
-                <a href="/news" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.news' %}active{% endif %}">
-                    <i class="fa-solid fa-newspaper"></i>Bảng tin
+                <a href="/news" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.news' %}active{% endif %}">Bảng tin
                 </a>
             </div>
             
-            <div class="mb-2 px-2 tiny text-muted fw-bold text-uppercase" style="letter-spacing: 1px;">Dữ liệu & Báo cáo</div>
+            <div class="mb-2 px-2 tiny opacity-50 fw-bold text-uppercase" style="letter-spacing: 1px;">Dữ liệu & Báo cáo</div>
             <div class="nav-links mb-4">
-                <a href="{{ url_for('forms_bp.input_data') }}" class="nav-link-sidebar {% if request.endpoint == 'forms_bp.input_data' %}active{% endif %}">
-                    <i class="fa-solid fa-file-pen"></i>Nhập liệu Biểu mẫu
+                <a href="{{ url_for('forms_bp.input_data') }}" class="nav-link-sidebar {% if request.endpoint == 'forms_bp.input_data' %}active{% endif %}">Nhập liệu Biểu mẫu
                 </a>
-                <a href="{{ url_for('forms_bp.stats') }}" class="nav-link-sidebar {% if request.endpoint == 'forms_bp.stats' %}active{% endif %}">
-                    <i class="fa-solid fa-chart-line"></i>Thống kê Báo cáo
+                <a href="{{ url_for('forms_bp.stats') }}" class="nav-link-sidebar {% if request.endpoint == 'forms_bp.stats' %}active{% endif %}">Thống kê Báo cáo
                 </a>
-                <a href="/library" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">
-                    <i class="fa-solid fa-book-bookmark"></i>Thư viện Tài liệu
+                <a href="/library" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">Thư viện Tài liệu
                 </a>
-                <a href="/contacts" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">
-                    <i class="fa-solid fa-address-book"></i>Danh bạ Đơn vị
+                <a href="/contacts" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">Danh bạ Đơn vị
                 </a>
             </div>
             
-            <div class="mb-2 px-2 tiny text-muted fw-bold text-uppercase" style="letter-spacing: 1px;">Hệ thống & Quản trị</div>
+            <div class="mb-2 px-2 tiny opacity-50 fw-bold text-uppercase" style="letter-spacing: 1px;">Hệ thống & Quản trị</div>
             <div class="nav-links">
                 {% if session.get('is_admin') %}
-                <a href="/roles" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">
-                    <i class="fa-solid fa-users-gear"></i>Tài khoản & Vai trò
-                </a>
-                <a href="/admin/module-categories" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">
-                    <i class="fa-solid fa-tags"></i>Thiết lập Danh mục
-                </a>
-                <a href="/admin-forms" class="nav-link-sidebar {% if request.endpoint == 'forms_bp.forms_config' %}active{% endif %}">
-                    <i class="fa-solid fa-list-check"></i>Thiết lập Mẫu V1
-                </a>
-                <a href="/reports-v2" class="nav-link-sidebar {% if request.endpoint == 'reportv2_bp.dashboard' %}active{% endif %}">
-                    <i class="fa-solid fa-file-invoice"></i>Thiết lập Mẫu V2
-                </a>
-                <a href="/logs" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">
-                    <i class="fa-solid fa-scroll"></i>Nhật ký Hệ thống
-                </a>
-                <a href="/admin/system/update" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">
-                    <i class="fa-solid fa-cloud-arrow-up"></i>Cập nhật Hệ thống
-                </a>
-                <a href="/admin/db-tool" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.db_tool' %}active{% endif %}">
-                    <i class="fa-solid fa-database"></i>Công cụ Database
-                </a>
+                <a href="/roles" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">Tài khoản & Vai trò</a>
+                <a href="/admin/module-categories" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">Thiết lập Danh mục</a>
+                <a href="/admin-forms" class="nav-link-sidebar {% if request.endpoint == 'forms_bp.forms_config' %}active{% endif %}">Thiết lập Mẫu V1</a>
+                <a href="/reports-v2" class="nav-link-sidebar {% if request.endpoint == 'reportv2_bp.dashboard' %}active{% endif %}">Thiết lập Mẫu V2</a>
+                <a href="/logs" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">Nhật ký Hệ thống</a>
+                <a href="/admin/system/update" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">Cập nhật Hệ thống</a>
+                <a href="/admin/db-tool" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.db_tool' %}active{% endif %}">Công cụ Database</a>
                 <hr class="mx-3 opacity-10">
                 {% endif %}
-                <a href="/password" class="nav-link-sidebar {% if request.endpoint == 'auth_bp.change_password' %}active{% endif %}">
-                    <i class="fa-solid fa-key"></i>Đổi mật khẩu
-                </a>
-                <a href="/logout" class="nav-link-sidebar text-danger">
-                    <i class="fa-solid fa-right-from-bracket"></i>Đăng xuất
-                </a>
+                <a href="/password" class="nav-link-sidebar {% if request.endpoint == 'auth_bp.change_password' %}active{% endif %}">Đổi mật khẩu</a>
+                <a href="/logout" class="nav-link-sidebar text-danger">Đăng xuất</a>
             </div>
         </div>
-        <div class="offcanvas-footer p-4 border-top text-center text-muted tiny">
-            PC06 TUYÊN QUANG - V1.5.0
+        <div class="offcanvas-footer p-3 border-top text-center opacity-50 tiny" style="color: #fff;">
+            PC06 - V1.5.0
         </div>
     </div>
 

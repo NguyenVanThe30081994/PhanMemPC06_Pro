@@ -128,15 +128,9 @@ def dashboard():
     templates = ReportTemplateV2.query.order_by(ReportTemplateV2.created_at.desc()).all()
     is_admin = session.get('is_admin', False)
     
-    # Check if explicitly requesting mobile version via query param
+    # Only use mobile template if explicitly requested via ?mobile=1
+    # This ensures Desktop browsers always get Desktop template
     if request.args.get('mobile') == '1':
-        return render_template('reports_v2_dashboard_mobile.html', templates=templates, is_admin=is_admin)
-    
-    # Check User-Agent for mobile devices (simplified detection)
-    user_agent = request.headers.get('User-Agent', '').lower()
-    is_mobile_request = ('android' in user_agent and 'mobile' in user_agent) or ('iphone' in user_agent and 'mobile' in user_agent)
-    
-    if is_mobile_request:
         return render_template('reports_v2_dashboard_mobile.html', templates=templates, is_admin=is_admin)
     
     return render_template('reports_v2_dashboard.html', templates=templates, is_admin=is_admin)
