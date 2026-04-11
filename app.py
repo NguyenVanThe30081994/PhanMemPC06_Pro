@@ -48,6 +48,12 @@ ALLOWED_EXTENSIONS = {'txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg',
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# ==================== DATABASE CONFIG ====================
+# Using abspath for database URI
+db_path = os.path.abspath(os.path.join(basedir, 'pc06_system.db'))
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 # Security Headers Configuration
 @app.after_request
 def add_security_headers(response):
