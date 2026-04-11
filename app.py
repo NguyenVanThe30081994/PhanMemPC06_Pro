@@ -35,6 +35,24 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 app.config['SESSION_PERMANENT'] = False # Default to session cookie (cleared on browser close)
 
+# Security Headers Configuration
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to all responses"""
+    # Prevent clickjacking
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    # XSS Protection
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    # Prevent content type sniffing
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    # Strict Transport Security (if HTTPS is enabled)
+    # response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    # Content Security Policy (basic - can be enhanced later)
+    # response.headers['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:;"
+    # Referrer Policy
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
+
 db.init_app(app)
 with app.app_context():
     try: 

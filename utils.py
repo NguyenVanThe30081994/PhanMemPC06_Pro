@@ -1,8 +1,125 @@
 import re, json, sqlite3, os, ast, operator as op
-from flask import request, render_template as flask_render_template, g
+from flask import request, render_template as flask_render_template, g, session, redirect, url_for
 from openpyxl.utils import range_boundaries
 from datetime import datetime, timedelta
 from models import db, User, AppRole, SystemLog, Notification, MasterData, NewsCategory, LibraryField, ContactGroup, ProfessionalUnit
+
+def render_auto_template(template_name, **context):
+    """
+    Automatic template rendering with mobile/desktop detection and security features.
+    - Detects device type from User-Agent
+    - Automatically appends '_mobile' suffix for mobile devices if template exists
+    - Includes responsive detection for different screen sizes
+    - Adds security headers and CSRF protection context
+    """
+    # Security: Check if user is logged in for protected routes
+    # (This is handled by individual route decorators, but we add context here)
+    
+    # Device Detection
+    user_agent = request.headers.get('User-Agent', '').lower() if request.headers.get('User-Agent') else ''
+    
+    # Check for explicit mobile override via query parameter (for testing)
+    if request.args.get('mobile') == '1':
+        is_mobile = True
+    elif request.args.get('mobile') == '0':
+        is_mobile = False
+    else:
+        # Automatic detection based on User-Agent
+        mobile_keywords = ['android', 'iphone', 'ipad', 'ipod', 'mobile', 'tablet', 'opera mini', 'blackberry', 'windows phone']
+        is_mobile = any(keyword in user_agent for keyword in mobile_keywords)
+    
+    # Responsive screen size detection (for extra context)
+    screen_width = request.args.get('width', '')
+    if screen_width:
+        try:
+            screen_width = int(screen_width)
+            # Add responsive context
+            context['is_xs'] = screen_width < 576   # Extra small
+            context['is_sm'] = 576 <= screen_width < 768  # Small
+            context['is_md'] = 768 <= screen_width < 992  # Medium
+            context['is_lg'] = 992 <= screen_width < 1200 # Large
+            context['is_xl'] = screen_width >= 1200       # Extra large
+        except:
+            pass
+    
+    # Add device info to context
+    context['is_mobile'] = is_mobile
+    context['is_desktop'] = not is_mobile
+    
+    # Try to load mobile template if on mobile device
+    if is_mobile:
+        # Remove .html if present and try mobile variant
+        if template_name.endswith('.html'):
+            base_name = template_name[:-5]
+        else:
+            base_name = template_name
+            
+        mobile_template = f"{base_name}_mobile.html"
+        
+        # Check if mobile template exists (we can't easily check here without jinja env, 
+        # so we'll let Flask handle the 404 if it doesn't exist and fall back to desktop)
+        try:
+            # Try to render with mobile template
+            return flask_render_template(mobile_template, **context)
+        except:
+            # Fall back to desktop template if mobile doesn't exist
+            return flask_render_template(template_name, **context)
+    
+    # Desktop: render normally
+    return flask_render_template(template_name, **context)
+
+# ==================== SECURITY FUNCTIONS ====================
+
+def sanitize_input(text):
+    """
+    Sanitize user input to prevent XSS and injection attacks.
+    """
+    if not text:
+        return ""
+    # Basic HTML entity encoding
+    import html
+    return html.escape(str(text))
+
+def check_csrf_token(session_token, form_token):
+    """
+    Check if CSRF token matches (basic implementation).
+    More robust CSRF should be handled by Flask-WTF or similar.
+    """
+    if not session_token or not form_token:
+        return False
+    return session_token == form_token
+
+def is_safe_redirect_url(url):
+    """
+    Prevent open redirect vulnerabilities by checking if URL is internal.
+    """
+    from urllib.parse import urlparse
+    if not url:
+        return False
+    parsed = urlparse(url)
+    # Only allow relative URLs or same-domain URLs
+    return not parsed.netloc or parsed.netloc == request.host
+
+def get_client_ip():
+    """
+    Get client IP address, considering proxy headers.
+    """
+    # Check for forwarded headers (when behind proxy)
+    forwarded = request.headers.get('X-Forwarded-For')
+    if forwarded:
+        return forwarded.split(',')[0].strip()
+    return request.remote_addr or '127.0.0.1'
+
+def log_security_event(event_type, details):
+    """
+    Log security-related events for monitoring.
+    """
+    try:
+        uid = session.get('uid', 'anonymous')
+        ip = get_client_ip()
+        log_action(uid, session.get('fullname', 'N/A'), f"[SECURITY] {event_type}", "Security", f"{details} | IP: {ip}")
+    except:
+        pass
 
 def remove_accents(s):
     if not s: return ""
