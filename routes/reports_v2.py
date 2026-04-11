@@ -124,8 +124,17 @@ def _collect_allowed_input_keys(wb, meta_data, user_unit, is_admin):
 def dashboard():
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
+    
     templates = ReportTemplateV2.query.order_by(ReportTemplateV2.created_at.desc()).all()
     is_admin = session.get('is_admin', False)
+    
+    # Check if mobile device
+    user_agent = request.headers.get('User-Agent', '').lower()
+    is_mobile_request = 'mobile' in user_agent or 'android' in user_agent or 'iphone' in user_agent
+    
+    if is_mobile_request:
+        return render_template('reports_v2_dashboard_mobile.html', templates=templates, is_admin=is_admin)
+    
     return render_template('reports_v2_dashboard.html', templates=templates, is_admin=is_admin)
 
 
@@ -241,6 +250,15 @@ def edit_template(tid):
         return redirect(url_for('reports_v2_bp.dashboard'))
 
     versions = ReportVersionV2.query.filter_by(template_id=tid).order_by(ReportVersionV2.created_at.desc()).all()
+    
+    # Check if mobile device - redirect to dashboard if so
+    user_agent = request.headers.get('User-Agent', '').lower()
+    is_mobile_request = 'mobile' in user_agent or 'android' in user_agent or 'iphone' in user_agent
+    
+    if is_mobile_request:
+        flash('Vui lòng sử dụng máy tính để chỉnh sửa biểu mẫu V2.', 'warning')
+        return redirect(url_for('reports_v2_bp.dashboard'))
+    
     return render_template('reports_v2_edit.html', template=template, versions=versions)
 
 
