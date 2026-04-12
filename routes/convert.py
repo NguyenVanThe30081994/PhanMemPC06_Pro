@@ -16,8 +16,8 @@ from werkzeug.utils import secure_filename
 
 convert_bp = Blueprint('convert', __name__)
 
-# Use PaddleOCR (lightweight OCR engine)
-USE_PADDLE = False  # Set True if paddlepaddle is installed
+# Use PaddleOCR (lightweight OCR engine) - SET TO True AFTER INSTALLING
+USE_PADDLE = True  # Enable by default
 
 # Configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
@@ -77,15 +77,22 @@ def ocr_to_excel(filepath):
     if USE_PADDLE:
         try:
             from paddleocr import PaddleOCR
+            print("Initializing PaddleOCR...")
             ocr = PaddleOCR(use_angle_cls=True, lang='vi')
+            print(f"Running OCR on: {filepath}")
             result = ocr.ocr(filepath, cls=True)
+            print(f"OCR result: {result}")
+            
+            if not result or not result[0]:
+                return jsonify({'error': 'Khong nhan duoc ket qua OCR'}), 400
             
             wb = Workbook()
             ws = wb.active
             
             for idx, line in enumerate(result[0], 1):
-                text = line[1][0]
-                ws.cell(row=idx, column=1, value=text)
+                if line and len(line) >= 2:
+                    text = line[1][0]
+                    ws.cell(row=idx, column=1, value=text)
             
             output = io.BytesIO()
             wb.save(output)
@@ -93,8 +100,12 @@ def ocr_to_excel(filepath):
             
             return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                        as_attachment=True, download_name='data.xlsx')
-        except:
-            pass
+        except ImportError:
+            print("PaddleOCR not installed")
+            return jsonify({'error': 'PaddleOCR chua cai dat. Can chay: pip install paddlepaddle paddleocr'}), 500
+        except Exception as e:
+            print(f"PaddleOCR error: {e}")
+            return jsonify({'error': 'Loi OCR: ' + str(e)}), 500
     
     # Fallback: simple PIL + basic text extraction
     img = Image.open(filepath)
