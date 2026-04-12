@@ -17,14 +17,12 @@ from werkzeug.utils import secure_filename
 
 convert_bp = Blueprint('convert', __name__)
 
-# Google Apps Script Web App URL
-GAS_URL = "https://script.google.com/macros/s/AKfycbzcQ2dRkfFrrQ5Hjohrz6DGkjvalSmlqTZBRDtSQoIs8X7ivQCDgadtUPw_GJlqTvR5/exec"
+# OCR.space API Key
+OCR_API_KEY = "K81408611188957"
 
 # Configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'uploads')
-CONVERT_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'tmp', 'convert')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(CONVERT_FOLDER, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 
@@ -33,12 +31,10 @@ def allowed_file(filename):
 
 @convert_bp.route('/convert')
 def index():
-    """Render convert page"""
     return render_template('convert.html')
 
 @convert_bp.route('/convert/process', methods=['POST'])
 def process():
-    """Handle file conversion using Google Drive API"""
     if 'file' not in request.files:
         return jsonify({'error': 'Không tìm thấy file tải lên'}), 400
     
@@ -49,7 +45,7 @@ def process():
         return jsonify({'error': 'Chưa chọn file'}), 400
     
     if not allowed_file(file.filename):
-        return jsonify({'error': 'Định dạng file không được hỗ trợ. Chỉ chấp nhận: JPG, PNG, PDF'}), 400
+        return jsonify({'error': 'Định dạng file không được hỗ trợ'}), 400
     
     filename = secure_filename(file.filename)
     filepath = os.path.join(UPLOAD_FOLDER, filename)
@@ -57,20 +53,16 @@ def process():
     
     try:
         if convert_type == 'img_excel':
-            return convert_using_gas(filepath, 'excel')
-        elif convert_type == 'pdf_excel':
-            return convert_using_gas(filepath, 'excel')
-        elif convert_type == 'pdf_word':
-            return convert_using_gas(filepath, 'word')
+            return convert_image_to_excel(filepath)
         elif convert_type == 'img_word':
-            return convert_using_gas(filepath, 'word')
+            return convert_image_to_word(filepath)
         elif convert_type == 'img_pdf':
-            return convert_image_to_pdf_simple(filepath)
+            return convert_image_to_pdf(filepath)
         else:
-            return jsonify({'error': 'Loại chuyển đổi không hợp lệ'}), 400
+            return jsonify({'error': 'Chức năng đang phát triển'}), 400
     except Exception as e:
-        print(f"Conversion error: {e}")
-        return jsonify({'error': f'Lỗi xử lý: {str(e)}'}), 500
+        print(f"Error: {e}")
+        return jsonify({'error': str(e)}), 500
     finally:
         if os.path.exists(filepath):
             try:
@@ -78,100 +70,172 @@ def process():
             except:
                 pass
 
-def convert_using_gas(filepath, target_type):
-    """Convert file using Google Apps Script (Google Drive OCR)"""
-    try:
-        # Determine mime type from file extension
-        ext = filepath.rsplit('.', 1)[1].lower()
-        if ext in ['jpg', 'jpeg']:
-            mime_type = 'image/jpeg'
-        elif ext == 'png':
-            mime_type = 'image/png'
-        elif ext == 'pdf':
-            mime_type = 'application/pdf'
-        else:
-            mime_type = 'application/octet-stream'
-        
-        # Read and encode file
-        with open(filepath, 'rb') as f:
-            file_data = base64.b64encode(f.read()).decode('utf-8')
-        
-        # Prepare payload for GAS
-        payload = {
-            'base64': file_data,
-            'fileName': os.path.basename(filepath),
-            'mimeType': mime_type,
-            'target': target_type
-        }
-        
-        # Send to Google Apps Script
-        response = requests.post(GAS_URL, json=payload, timeout=60)
-        result = response.json()
-        
-        print(f"GAS Response: {result}")
-        
-        # Check for errors
-        if result.get('status') == 'error':
-            return jsonify({'error': result.get('message', 'Lỗi chuyển đổi')}), 400
-        
-        # Decode returned file
-        if not result.get('fileData'):
-            return jsonify({'error': 'Không nhận được file chuyển đổi'}), 400
-        
-        file_bytes = base64.b64decode(result['fileData'])
-        
-        # Determine output filename and mimetype
-        if target_type == 'excel':
-            output_filename = 'bang_du_lieu.xlsx'
-            output_mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        else:
-            output_filename = 'tai_lieu.docx'
-            output_mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        
-        output = io.BytesIO(file_bytes)
-        output.seek(0)
-        
-        return send_file(
-            output,
-            mimetype=output_mime,
-            as_attachment=True,
-            download_name=output_filename
-        )
-        
-    except Exception as e:
-        print(f"Google Drive conversion error: {e}")
-        return jsonify({'error': f'Lỗi chuyển đổi: {str(e)}'}), 500
+def convert_image_to_excel(filepath):
+    """OCR Image to Excel using OCR.space"""
+    from openpyxl import Workbook
+    from PIL import Image
+    import PIL
+    
+    # Compress image if too large
+    img = Image.open(filepath)
+    if img.mode in ('RGBA', 'LA'):
+        background = Image.new('RGB', img.size, (255, 255, 255))
+        background.paste(img, mask=img.split()[-1])
+        img = background
+    
+    # Resize if needed (max 1500px for free API)
+    max_size = 1500
+    if max(img.size) > max_size:
+        ratio = max_size / max(img.size)
+        new_size = tuple(int(dim * ratio) for dim in img.size)
+        img = img.resize(new_size, Image.LANCZOS)
+    
+    # Save compressed
+    buffer = io.BytesIO()
+    img.save(buffer, format='JPEG', quality=80, optimize=True)
+    buffer.seek(0)
+    
+    # Call OCR.space API
+    files = {'file': ('image.jpg', buffer, 'image/jpeg')}
+    data = {
+        'language': 'eng',
+        'apikey': OCR_API_KEY,
+        'isTable': 'true',
+        'OCREngine': '2'
+    }
+    
+    response = requests.post(
+        'https://api.ocr.space/parse/image',
+        files=files,
+        data=data,
+        timeout=30
+    )
+    
+    result = response.json()
+    
+    if result.get('IsErroredOnProcessing'):
+        return jsonify({'error': str(result.get('ErrorMessage', ['Lỗi OCR'])[0])}), 400
+    
+    parsed = result.get('ParsedResults', [])
+    if not parsed:
+        return jsonify({'error': 'Không nhận dạng được văn bản'}), 400
+    
+    text = parsed[0].get('ParsedText', '')
+    
+    # Create Excel
+    wb = Workbook()
+    ws = wb.active
+    
+    lines = text.split('\n')
+    for row_idx, line in enumerate(lines, 1):
+        if line.strip():
+            cells = line.split('\t') if '\t' in line else line.split()
+            for col_idx, cell in enumerate(cells, 1):
+                ws.cell(row=row_idx, column=col_idx, value=cell.strip())
+    
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='bang_du_lieu.xlsx'
+    )
 
-def convert_image_to_pdf_simple(filepath):
-    """Convert image to PDF using PIL"""
-    try:
-        from PIL import Image
-        
-        img = Image.open(filepath)
-        
-        if img.mode in ('RGBA', 'LA', 'P'):
-            background = Image.new('RGB', img.size, (255, 255, 255))
-            if img.mode == 'P':
-                img = img.convert('RGBA')
-            if img.mode in ('RGBA', 'LA'):
-                background.paste(img, mask=img.split()[-1])
-                img = background
-            else:
-                img = img.convert('RGB')
-        elif img.mode != 'RGB':
+def convert_image_to_word(filepath):
+    """OCR Image to Word using OCR.space"""
+    from docx import Document
+    from PIL import Image
+    
+    # Compress image
+    img = Image.open(filepath)
+    if img.mode in ('RGBA', 'LA'):
+        background = Image.new('RGB', img.size, (255, 255, 255))
+        background.paste(img, mask=img.split()[-1])
+        img = background
+    
+    max_size = 1500
+    if max(img.size) > max_size:
+        ratio = max_size / max(img.size)
+        new_size = tuple(int(dim * ratio) for dim in img.size)
+        img = img.resize(new_size, Image.LANCZOS)
+    
+    buffer = io.BytesIO()
+    img.save(buffer, format='JPEG', quality=80, optimize=True)
+    buffer.seek(0)
+    
+    # Call OCR API
+    files = {'file': ('image.jpg', buffer, 'image/jpeg')}
+    data = {
+        'language': 'eng',
+        'apikey': OCR_API_KEY,
+        'OCREngine': '2'
+    }
+    
+    response = requests.post(
+        'https://api.ocr.space/parse/image',
+        files=files,
+        data=data,
+        timeout=30
+    )
+    
+    result = response.json()
+    
+    if result.get('IsErroredOnProcessing'):
+        return jsonify({'error': str(result.get('ErrorMessage', ['Lỗi OCR'])[0])}), 400
+    
+    parsed = result.get('ParsedResults', [])
+    if not parsed:
+        return jsonify({'error': 'Không nhận dạng được văn bản'}), 400
+    
+    text = parsed[0].get('ParsedText', '')
+    
+    # Create Word
+    doc = Document()
+    doc.add_heading('Văn bản OCR', 0)
+    
+    for line in text.split('\n'):
+        if line.strip():
+            doc.add_paragraph(line.strip())
+    
+    output = io.BytesIO()
+    doc.save(output)
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        as_attachment=True,
+        download_name='van_ban.docx'
+    )
+
+def convert_image_to_pdf(filepath):
+    """Convert Image to PDF using PIL"""
+    from PIL import Image
+    
+    img = Image.open(filepath)
+    
+    if img.mode in ('RGBA', 'LA', 'P'):
+        background = Image.new('RGB', img.size, (255, 255, 255))
+        if img.mode == 'P':
+            img = img.convert('RGBA')
+        if img.mode in ('RGBA', 'LA'):
+            background.paste(img, mask=img.split()[-1])
+            img = background
+        else:
             img = img.convert('RGB')
-        
-        output = io.BytesIO()
-        img.save(output, format='PDF')
-        output.seek(0)
-        
-        return send_file(
-            output,
-            mimetype='application/pdf',
-            as_attachment=True,
-            download_name='chuyen_doi.pdf'
-        )
-        
-    except Exception as e:
-        print(f"Image to PDF error: {e}")
-        return jsonify({'error': f'Lỗi chuyển đổi ảnh sang PDF: {str(e)}'}), 500
+    elif img.mode != 'RGB':
+        img = img.convert('RGB')
+    
+    output = io.BytesIO()
+    img.save(output, format='PDF')
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name='chuyen_doi.pdf'
+    )
