@@ -78,7 +78,8 @@ def ocr_to_excel(filepath):
         try:
             from paddleocr import PaddleOCR
             print("Initializing PaddleOCR...")
-            ocr = PaddleOCR(use_angle_cls=True, lang='vi')
+            # Use simpler settings to avoid PIR issues
+            ocr = PaddleOCR(lang='vi', show_log=False, use_gpu=False)
             print(f"Running OCR on: {filepath}")
             result = ocr.ocr(filepath)
             print(f"OCR result: {result}")
@@ -139,7 +140,7 @@ def ocr_to_word(filepath):
     if USE_PADDLE:
         try:
             from paddleocr import PaddleOCR
-            ocr = PaddleOCR(use_angle_cls=True, lang='vi')
+            ocr = PaddleOCR(lang='vi', show_log=False, use_gpu=False)
             result = ocr.ocr(filepath)
             
             doc = Document()
