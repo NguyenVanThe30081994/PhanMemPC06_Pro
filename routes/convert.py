@@ -3,24 +3,9 @@ import os
 import io
 import json
 import base64
-import sys
-
-# Fix UTF-8 encoding for Vietnamese text
-if sys.version_info[0] < 3:
-    reload(sys)
-    sys.setdefaultencoding('utf-8')
-    
-import codecs
-sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer)
-sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer)
-
+import requests
 from flask import Blueprint, request, jsonify, send_file, render_template
 from werkzeug.utils import secure_filename
-from google import genai
-
-# Cấu hình Gemini API với SDK mới
-GEMINI_API_KEY = "AIzaSyDVOb30nKEAJMNHH6pFX2xUdRULrBtE7C4"
-client = genai.Client(api_key=GEMINI_API_KEY)
 
 convert_bp = Blueprint('convert', __name__)
 
@@ -42,7 +27,7 @@ def index():
 
 @convert_bp.route('/convert/process', methods=['POST'])
 def process():
-    """Handle file conversion using Gemini AI"""
+    """Handle file conversion"""
     if 'file' not in request.files:
         return jsonify({'error': 'Không tìm thấy file tải lên'}), 400
     
@@ -61,13 +46,13 @@ def process():
     
     try:
         if convert_type == 'img_excel':
-            return convert_image_to_excel_ai(filepath)
+            return convert_image_to_excel_ocr(filepath)
         elif convert_type == 'pdf_excel':
-            return convert_pdf_to_excel_ai(filepath)
+            return convert_image_to_excel_ocr(filepath)  # Dùng chung
         elif convert_type == 'pdf_word':
-            return convert_pdf_to_word_ai(filepath)
+            return convert_image_to_word_ocr(filepath)
         elif convert_type == 'img_word':
-            return convert_image_to_word_ai(filepath)
+            return convert_image_to_word_ocr(filepath)
         elif convert_type == 'img_pdf':
             return convert_image_to_pdf_simple(filepath)
         else:
@@ -76,58 +61,56 @@ def process():
         print(f"Conversion error: {e}")
         return jsonify({'error': f'Lỗi xử lý: {str(e)}'}), 500
     finally:
-        # Clean up uploaded file
         if os.path.exists(filepath):
             try:
                 os.remove(filepath)
             except:
                 pass
 
-def convert_image_to_excel_ai(filepath):
-    """Convert image to Excel using Gemini AI"""
+def convert_image_to_excel_ocr(filepath):
+    """Convert image to Excel using OCR.space API (free)"""
     try:
         from openpyxl import Workbook
         
-        # Đọc và mã hóa ảnh
+        # Gửi file đến OCR.space API (free tier)
         with open(filepath, 'rb') as f:
-            image_data = f.read()
+            files = {'file': f}
+            data = {'language': 'vie', 'isTable': 'true'}
+            response = requests.post(
+                'https://api.ocr.space/parse/image',
+                files=files,
+                data=data,
+                timeout=30
+            )
         
-        # Gửi prompt cho Gemini phân tích bảng
-        prompt = """Phân tích hình ảnh này và trích xuất dữ liệu bảng.
-Trả về kết quả dưới dạng JSON với format:
-```json
-{"rows": [["cột 1", "cột 2", ...], ["dòng 1", "dòng 1", ...], ...]}
-```
-Chỉ trả về JSON, không giải thích thêm."""
+        result = response.json()
         
-        # Gọi Gemini với ảnh - sử dụng gemini-2.0-flash
-        response = client.models.generate_content(
-            model='gemini-2.0-flash',
-            contents=[prompt, {"mime_type": "image/jpeg", "data": base64.b64encode(image_data).decode('utf-8')}]
-        )
+        if result.get('IsErroredOnProcessing'):
+            return jsonify({'error': result.get('ErrorMessage', ['Lỗi xử lý'])[0]}), 400
         
-        # Parse kết quả
-        text = response.text
-        # Tìm và parse JSON
-        start = text.find('{')
-        end = text.rfind('}') + 1
-        if start >= 0 and end > start:
-            json_str = text[start:end]
-            data = json.loads(json_str)
-        else:
-            return jsonify({'error': 'Không phân tích được dữ liệu từ ảnh'}), 400
+        # Lấy kết quả text
+        text_results = result.get('ParsedResults', [])
+        if not text_results:
+            return jsonify({'error': 'Không nhận dạng được văn bản'}), 400
         
-        # Tạo Excel
+        text = text_results[0].get('ParsedText', '')
+        
+        # Tạo Excel với dữ liệu text
         wb = Workbook()
         ws = wb.active
-        ws.title = "Bảng dữ liệu"
+        ws.title = "Dữ liệu OCR"
         
-        rows = data.get('rows', [])
-        for row_idx, row_data in enumerate(rows, 1):
-            for col_idx, cell_data in enumerate(row_data, 1):
-                ws.cell(row=row_idx, column=col_idx, value=cell_data)
+        # Ghi text vào cells (mỗi dòng là một dòng text)
+        lines = text.split('\n')
+        for row_idx, line in enumerate(lines, 1):
+            if line.strip():
+                # Chia theo tab hoặc space nhiều
+                cells = line.split('\t')
+                if len(cells) == 1:
+                    cells = line.split()  # Chia theo space
+                for col_idx, cell in enumerate(cells, 1):
+                    ws.cell(row=row_idx, column=col_idx, value=cell.strip())
         
-        # Lưu vào buffer
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
@@ -140,151 +123,44 @@ Chỉ trả về JSON, không giải thích thêm."""
         )
         
     except Exception as e:
-        print(f"Image to Excel AI error: {e}")
-        return jsonify({'error': f'Lỗi chuyển đổi: {str(e)}'}), 500
+        print(f"OCR error: {e}")
+        return jsonify({'error': f'Lỗi OCR: {str(e)}'}), 500
 
-def convert_pdf_to_excel_ai(filepath):
-    """Convert PDF to Excel using Gemini AI"""
-    try:
-        from openpyxl import Workbook
-        
-        # Đọc file PDF
-        with open(filepath, 'rb') as f:
-            pdf_data = f.read()
-        
-        # Gửi prompt cho Gemini
-        prompt = """Phân tích file PDF này và trích xuất tất cả các bảng dữ liệu.
-Trả về kết quả dưới dạng JSON với format:
-```json
-{"tables": [[["cột 1", "cột 2"], ["dòng 1", "dòng 1"]], ...]}
-```
-Chỉ trả về JSON."""
-        
-        # Gọi Gemini với PDF
-        response = client.models.generate_content(
-            model='gemini-2.0-flash',
-            contents=[prompt, {"mime_type": "application/pdf", "data": base64.b64encode(pdf_data).decode('utf-8')}]
-        )
-        
-        # Parse kết quả
-        text = response.text
-        start = text.find('{')
-        end = text.rfind('}') + 1
-        if start >= 0 and end > start:
-            json_str = text[start:end]
-            data = json.loads(json_str)
-        else:
-            return jsonify({'error': 'Không phân tích được dữ liệu từ PDF'}), 400
-        
-        # Tạo Excel
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Bảng dữ liệu"
-        
-        tables = data.get('tables', [])
-        row_count = 1
-        for table in tables:
-            for row in table:
-                for col_idx, cell in enumerate(row, 1):
-                    ws.cell(row=row_count, column=col_idx, value=cell if cell else "")
-                row_count += 1
-            row_count += 1
-        
-        output = io.BytesIO()
-        wb.save(output)
-        output.seek(0)
-        
-        return send_file(
-            output,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            as_attachment=True,
-            download_name='bang_tu_pdf.xlsx'
-        )
-        
-    except Exception as e:
-        print(f"PDF to Excel AI error: {e}")
-        return jsonify({'error': f'Lỗi chuyển đổi: {str(e)}'}), 500
-
-def convert_pdf_to_word_ai(filepath):
-    """Convert PDF to Word using Gemini AI"""
+def convert_image_to_word_ocr(filepath):
+    """Convert image to Word using OCR.space API"""
     try:
         from docx import Document
         
-        # Đọc file PDF
+        # Gửi file đến OCR.space API
         with open(filepath, 'rb') as f:
-            pdf_data = f.read()
+            files = {'file': f}
+            data = {'language': 'vie'}
+            response = requests.post(
+                'https://api.ocr.space/parse/image',
+                files=files,
+                data=data,
+                timeout=30
+            )
         
-        # Gửi prompt cho Gemini
-        prompt = """Phân tích file PDF này và trích xuất toàn bộ nội dung văn bản.
-Giữ nguyên định dạng và cấu trúc tài liệu.
-Trả về nội dung dạng markdown."""
+        result = response.json()
         
-        # Gọi Gemini
-        response = client.models.generate_content(
-            model='gemini-2.0-flash',
-            contents=[prompt, {"mime_type": "application/pdf", "data": base64.b64encode(pdf_data).decode('utf-8')}]
-        )
+        if result.get('IsErroredOnProcessing'):
+            return jsonify({'error': result.get('ErrorMessage', ['Lỗi xử lý'])[0]}), 400
         
-        # Tạo Word document
-        doc = Document()
-        doc.add_heading('Nội dung tài liệu', 0)
+        text_results = result.get('ParsedResults', [])
+        if not text_results:
+            return jsonify({'error': 'Không nhận dạng được văn bản'}), 400
         
-        # Parse markdown và thêm vào Word
-        lines = response.text.split('\n')
-        for line in lines:
-            if line.strip():
-                # Kiểm tra nếu là heading
-                if line.startswith('# '):
-                    doc.add_heading(line[2:], 1)
-                elif line.startswith('## '):
-                    doc.add_heading(line[3:], 2)
-                else:
-                    doc.add_paragraph(line)
-        
-        output = io.BytesIO()
-        doc.save(output)
-        output.seek(0)
-        
-        return send_file(
-            output,
-            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            as_attachment=True,
-            download_name='tai_lieu.docx'
-        )
-        
-    except Exception as e:
-        print(f"PDF to Word AI error: {e}")
-        return jsonify({'error': f'Lỗi chuyển đổi: {str(e)}'}), 500
-
-def convert_image_to_word_ai(filepath):
-    """OCR image to Word using Gemini AI"""
-    try:
-        from docx import Document
-        
-        # Đọc và mã hóa ảnh
-        with open(filepath, 'rb') as f:
-            image_data = f.read()
-        
-        # Gửi prompt cho Gemini OCR
-        prompt = """Nhận dạng toàn bộ văn bản trong hình ảnh này.
-Trả về nội dung văn bản giữ nguyên format và xuống dòng.
-Hỗ trợ tiếng Việt có dấu."""
-        
-        # Gọi Gemini
-        response = client.models.generate_content(
-            model='gemini-2.0-flash',
-            contents=[prompt, {"mime_type": "image/jpeg", "data": base64.b64encode(image_data).decode('utf-8')}]
-        )
+        text = text_results[0].get('ParsedText', '')
         
         # Tạo Word document
         doc = Document()
         doc.add_heading('Văn bản nhận dạng từ ảnh', 0)
         
-        # Thêm nội dung
-        paragraphs = response.text.split('\n\n')
-        for para in paragraphs:
-            if para.strip():
-                doc.add_paragraph(para.strip())
+        lines = text.split('\n')
+        for line in lines:
+            if line.strip():
+                doc.add_paragraph(line.strip())
         
         output = io.BytesIO()
         doc.save(output)
@@ -298,18 +174,16 @@ Hỗ trợ tiếng Việt có dấu."""
         )
         
     except Exception as e:
-        print(f"Image to Word AI error: {e}")
-        return jsonify({'error': f'Lỗi chuyển đổi: {str(e)}'}), 500
+        print(f"OCR error: {e}")
+        return jsonify({'error': f'Lỗi OCR: {str(e)}'}), 500
 
 def convert_image_to_pdf_simple(filepath):
-    """Convert image to PDF using PIL (lightweight)"""
+    """Convert image to PDF using PIL"""
     try:
         from PIL import Image
         
-        # Mở ảnh
         img = Image.open(filepath)
         
-        # Chuyển đổi sang RGB nếu cần
         if img.mode in ('RGBA', 'LA', 'P'):
             background = Image.new('RGB', img.size, (255, 255, 255))
             if img.mode == 'P':
@@ -322,7 +196,6 @@ def convert_image_to_pdf_simple(filepath):
         elif img.mode != 'RGB':
             img = img.convert('RGB')
         
-        # Lưu ra PDF
         output = io.BytesIO()
         img.save(output, format='PDF')
         output.seek(0)
