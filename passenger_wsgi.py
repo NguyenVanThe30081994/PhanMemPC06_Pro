@@ -1,11 +1,11 @@
-import sys, os
+import sys
+import os
 
-# Setup path
+# Add current directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
-# Import the Flask app
+# Import WSGI app directly
 from app import app as application
 
-# Passenger requires 'application' to be defined
-if __name__ == "__main__":
-    application.run()
+# Create callable for Passenger
+application
