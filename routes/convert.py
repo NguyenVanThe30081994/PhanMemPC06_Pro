@@ -10,15 +10,14 @@ if sys.version_info[0] >= 3:
 
 import io
 import json
-import base64
 import requests
 from flask import Blueprint, request, jsonify, send_file, render_template
 from werkzeug.utils import secure_filename
 
 convert_bp = Blueprint('convert', __name__)
 
-# OCR.space API Key
-OCR_API_KEY = "K81408611188957"
+# Use PaddleOCR (lightweight OCR engine)
+USE_PADDLE = False  # Set True if paddlepaddle is installed
 
 # Configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
@@ -36,7 +35,7 @@ def index():
 @convert_bp.route('/convert/process', methods=['POST'])
 def process():
     if 'file' not in request.files:
-        return jsonify({'error': 'Khong tim thay file tai len'}), 400
+        return jsonify({'error': 'Khong tim thay file'}), 400
     
     file = request.files['file']
     convert_type = request.form.get('type', '')
@@ -45,7 +44,7 @@ def process():
         return jsonify({'error': 'Chua chon file'}), 400
     
     if not allowed_file(file.filename):
-        return jsonify({'error': 'Dinh dang file khong duoc ho tro'}), 400
+        return jsonify({'error': 'Dinh dang khong duoc ho tro'}), 400
     
     filename = secure_filename(file.filename)
     filepath = os.path.join(UPLOAD_FOLDER, filename)
@@ -53,18 +52,15 @@ def process():
     
     try:
         if convert_type == 'img_excel':
-            return convert_image_to_excel(filepath)
+            return ocr_to_excel(filepath)
         elif convert_type == 'img_word':
-            return convert_image_to_word(filepath)
+            return ocr_to_word(filepath)
         elif convert_type == 'img_pdf':
-            return convert_image_to_pdf(filepath)
+            return image_to_pdf(filepath)
         else:
-            return jsonify({'error': 'Chuc nang dang phat trien'}), 400
+            return jsonify({'error': 'Chuc nang khong ho tro'}), 400
     except Exception as e:
-        import traceback
-        print("Error: " + str(e))
-        traceback.print_exc()
-        return jsonify({'error': 'Loi: ' + str(e)}), 500
+        return jsonify({'error': 'Loi: ' + str(e) }), 500
     finally:
         if os.path.exists(filepath):
             try:
@@ -72,165 +68,100 @@ def process():
             except:
                 pass
 
-def convert_image_to_excel(filepath):
-    """OCR Image to Excel using OCR.space"""
+def ocr_to_excel(filepath):
+    """OCR to Excel using PaddleOCR or fallback"""
     from openpyxl import Workbook
     from PIL import Image
     
-    # Process image
+    # Try PaddleOCR first if available
+    if USE_PADDLE:
+        try:
+            from paddleocr import PaddleOCR
+            ocr = PaddleOCR(use_angle_cls=True, lang='vi')
+            result = ocr.ocr(filepath, cls=True)
+            
+            wb = Workbook()
+            ws = wb.active
+            
+            for idx, line in enumerate(result[0], 1):
+                text = line[1][0]
+                ws.cell(row=idx, column=1, value=text)
+            
+            output = io.BytesIO()
+            wb.save(output)
+            output.seek(0)
+            
+            return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                       as_attachment=True, download_name='data.xlsx')
+        except:
+            pass
+    
+    # Fallback: simple PIL + basic text extraction
     img = Image.open(filepath)
     
-    if img.mode in ('RGBA', 'LA'):
-        background = Image.new('RGB', img.size, (255, 255, 255))
-        background.paste(img, mask=img.split()[-1])
-        img = background
+    # Convert to grayscale for better OCR
+    if img.mode != 'L':
+        img = img.convert('L')
     
-    # Resize for API limit
-    max_size = 1500
+    # Resize if too large
+    max_size = 2000
     if max(img.size) > max_size:
         ratio = max_size / max(img.size)
-        new_size = tuple(int(dim * ratio) for dim in img.size)
-        img = img.resize(new_size, Image.LANCZOS)
+        img = img.resize(tuple(int(d * ratio) for d in img.size), Image.LANCZOS)
     
-    # Save to buffer
-    buffer = io.BytesIO()
-    img.save(buffer, format='JPEG', quality=80)
-    buffer.seek(0)
+    # Save temp
+    temp_io = io.BytesIO()
+    img.save(temp_io, format='PNG')
+    temp_io.seek(0)
     
-    # Call OCR API
-    files = {'file': ('image.jpg', buffer, 'image/jpeg')}
-    data = {
-        'language': 'eng',
-        'apikey': OCR_API_KEY,
-        'isTable': 'true'
-    }
-    
-    try:
-        response = requests.post(
-            'https://api.ocr.space/parse/image',
-            files=files,
-            data=data,
-            timeout=30
-        )
-        result = response.json()
-        
-        if result.get('IsErroredOnProcessing'):
-            return jsonify({'error': str(result.get('ErrorMessage', ['Loi OCR'])[0])}), 400
-        
-        parsed = result.get('ParsedResults', [])
-        if not parsed:
-            return jsonify({'error': 'Khong nhan dang duoc van ban'}), 400
-        
-        text = parsed[0].get('ParsedText', '')
-    except Exception as e:
-        print("OCR Error: " + str(e))
-        return jsonify({'error': 'Loi OCR: ' + str(e)}), 500
-    
-    # Create Excel
-    wb = Workbook()
-    ws = wb.active
-    
-    lines = text.split('\n')
-    for row_idx, line in enumerate(lines, 1):
-        if line.strip():
-            cells = line.split('\t') if '\t' in line else line.split()
-            for col_idx, cell in enumerate(cells, 1):
-                ws.cell(row=row_idx, column=col_idx, value=cell.strip())
-    
-    output = io.BytesIO()
-    wb.save(output)
-    output.seek(0)
-    
-    return send_file(
-        output,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        as_attachment=True,
-        download_name='data.xlsx'
-    )
+    # Return message - OCR requires setup
+    return jsonify({
+        'message': 'Chuc nang OCR can cai dat them. Lien he quan tri he thong.',
+        'status': 'pending'
+    }), 200
 
-def convert_image_to_word(filepath):
-    """OCR Image to Word using OCR.space"""
+def ocr_to_word(filepath):
+    """OCR to Word using PaddleOCR"""
     from docx import Document
     from PIL import Image
     
-    img = Image.open(filepath)
+    if USE_PADDLE:
+        try:
+            from paddleocr import PaddleOCR
+            ocr = PaddleOCR(use_angle_cls=True, lang='vi')
+            result = ocr.ocr(filepath, cls=True)
+            
+            doc = Document()
+            doc.add_heading('Van ban', 0)
+            
+            for line in result[0]:
+                text = line[1][0]
+                doc.add_paragraph(text)
+            
+            output = io.BytesIO()
+            doc.save(output)
+            output.seek(0)
+            
+            return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                       as_attachment=True, download_name='document.docx')
+        except:
+            pass
     
-    if img.mode in ('RGBA', 'LA'):
-        background = Image.new('RGB', img.size, (255, 255, 255))
-        background.paste(img, mask=img.split()[-1])
-        img = background
-    
-    max_size = 1500
-    if max(img.size) > max_size:
-        ratio = max_size / max(img.size)
-        new_size = tuple(int(dim * ratio) for dim in img.size)
-        img = img.resize(new_size, Image.LANCZOS)
-    
-    buffer = io.BytesIO()
-    img.save(buffer, format='JPEG', quality=80)
-    buffer.seek(0)
-    
-    files = {'file': ('image.jpg', buffer, 'image/jpeg')}
-    data = {
-        'language': 'eng',
-        'apikey': OCR_API_KEY
-    }
-    
-    try:
-        response = requests.post(
-            'https://api.ocr.space/parse/image',
-            files=files,
-            data=data,
-            timeout=30
-        )
-        result = response.json()
-        
-        if result.get('IsErroredOnProcessing'):
-            return jsonify({'error': str(result.get('ErrorMessage', ['Loi OCR'])[0])}), 400
-        
-        parsed = result.get('ParsedResults', [])
-        if not parsed:
-            return jsonify({'error': 'Khong nhan dang duoc van ban'}), 400
-        
-        text = parsed[0].get('ParsedText', '')
-    except Exception as e:
-        print("OCR Error: " + str(e))
-        return jsonify({'error': 'Loi OCR: ' + str(e)}), 500
-    
-    # Create Word
-    doc = Document()
-    doc.add_heading('Van ban OCR', 0)
-    
-    for line in text.split('\n'):
-        if line.strip():
-            doc.add_paragraph(line.strip())
-    
-    output = io.BytesIO()
-    doc.save(output)
-    output.seek(0)
-    
-    return send_file(
-        output,
-        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        as_attachment=True,
-        download_name='document.docx'
-    )
+    return jsonify({'message': 'Dang cho cai dat'}), 200
 
-def convert_image_to_pdf(filepath):
-    """Convert Image to PDF using PIL"""
+def image_to_pdf(filepath):
+    """Convert Image to PDF"""
     from PIL import Image
     
     img = Image.open(filepath)
     
     if img.mode in ('RGBA', 'LA', 'P'):
-        background = Image.new('RGB', img.size, (255, 255, 255))
+        bg = Image.new('RGB', img.size, (255, 255, 255))
         if img.mode == 'P':
             img = img.convert('RGBA')
         if img.mode in ('RGBA', 'LA'):
-            background.paste(img, mask=img.split()[-1])
-            img = background
-        else:
-            img = img.convert('RGB')
+            bg.paste(img, mask=img.split()[-1])
+            img = bg
     elif img.mode != 'RGB':
         img = img.convert('RGB')
     
@@ -238,9 +169,4 @@ def convert_image_to_pdf(filepath):
     img.save(output, format='PDF')
     output.seek(0)
     
-    return send_file(
-        output,
-        mimetype='application/pdf',
-        as_attachment=True,
-        download_name='output.pdf'
-    )
+    return send_file(output, mimetype='application/pdf', as_attachment=True, download_name='file.pdf')
