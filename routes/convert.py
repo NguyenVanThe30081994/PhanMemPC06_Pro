@@ -103,12 +103,16 @@ def convert_image_to_excel(filepath):
         }
         
         with open(filepath, 'rb') as f:
-            media = MediaIoBaseUpload(f, resumable=True)
-            uploaded_file = service.files().create(
-                body=file_metadata,
-                media_body=media,
-                fields='id'
-            ).execute()
+            file_content = f.read()
+        
+        from googleapiclient.http import MediaInMemoryUpload
+        media = MediaInMemoryUpload(file_content, mimetype='application/octet-stream')
+        
+        uploaded_file = service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id'
+        ).execute()
         
         print(f"Uploaded file ID: {uploaded_file.get('id')}")
         
