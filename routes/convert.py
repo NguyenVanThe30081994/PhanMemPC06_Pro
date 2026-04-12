@@ -85,15 +85,30 @@ def convert_image_to_excel_ocr(filepath):
         
         result = response.json()
         
+        # Debug: print response
+        print(f"OCR API Response: {result}")
+        
+        # Check for API errors
+        if isinstance(result, str):
+            return jsonify({'error': f'Lỗi API: {result}'}), 400
+            
         if result.get('IsErroredOnProcessing'):
-            return jsonify({'error': result.get('ErrorMessage', ['Lỗi xử lý'])[0]}), 400
+            error_msg = result.get('ErrorMessage', ['Lỗi xử lý'])
+            if isinstance(error_msg, list):
+                error_msg = error_msg[0] if error_msg else 'Lỗi xử lý'
+            return jsonify({'error': str(error_msg)}), 400
         
         # Lấy kết quả text
         text_results = result.get('ParsedResults', [])
         if not text_results:
             return jsonify({'error': 'Không nhận dạng được văn bản'}), 400
         
-        text = text_results[0].get('ParsedText', '')
+        # Get text from first result
+        first_result = text_results[0]
+        if isinstance(first_result, str):
+            text = first_result
+        else:
+            text = first_result.get('ParsedText', '')
         
         # Tạo Excel với dữ liệu text
         wb = Workbook()
@@ -144,14 +159,26 @@ def convert_image_to_word_ocr(filepath):
         
         result = response.json()
         
+        # Check for API errors
+        if isinstance(result, str):
+            return jsonify({'error': f'Lỗi API: {result}'}), 400
+            
         if result.get('IsErroredOnProcessing'):
-            return jsonify({'error': result.get('ErrorMessage', ['Lỗi xử lý'])[0]}), 400
+            error_msg = result.get('ErrorMessage', ['Lỗi xử lý'])
+            if isinstance(error_msg, list):
+                error_msg = error_msg[0] if error_msg else 'Lỗi xử lý'
+            return jsonify({'error': str(error_msg)}), 400
         
         text_results = result.get('ParsedResults', [])
         if not text_results:
             return jsonify({'error': 'Không nhận dạng được văn bản'}), 400
         
-        text = text_results[0].get('ParsedText', '')
+        # Get text from first result
+        first_result = text_results[0]
+        if isinstance(first_result, str):
+            text = first_result
+        else:
+            text = first_result.get('ParsedText', '')
         
         # Tạo Word document
         doc = Document()
