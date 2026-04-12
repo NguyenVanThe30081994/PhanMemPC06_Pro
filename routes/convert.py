@@ -21,10 +21,10 @@ convert_bp = Blueprint('convert', __name__)
 OCR_API_KEY = "K81408611188957"
 
 # Configuration
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'uploads')
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -36,16 +36,16 @@ def index():
 @convert_bp.route('/convert/process', methods=['POST'])
 def process():
     if 'file' not in request.files:
-        return jsonify({'error': 'Không tìm thấy file tải lên'}), 400
+        return jsonify({'error': 'Khong tim thay file tai len'}), 400
     
     file = request.files['file']
     convert_type = request.form.get('type', '')
     
     if file.filename == '':
-        return jsonify({'error': 'Chưa chọn file'}), 400
+        return jsonify({'error': 'Chua chon file'}), 400
     
     if not allowed_file(file.filename):
-        return jsonify({'error': 'Định dạng file không được hỗ trợ'}), 400
+        return jsonify({'error': 'Dinh dang file khong duoc ho tro'}), 400
     
     filename = secure_filename(file.filename)
     filepath = os.path.join(UPLOAD_FOLDER, filename)
@@ -59,10 +59,12 @@ def process():
         elif convert_type == 'img_pdf':
             return convert_image_to_pdf(filepath)
         else:
-            return jsonify({'error': 'Chức năng đang phát triển'}), 400
+            return jsonify({'error': 'Chuc nang dang phat trien'}), 400
     except Exception as e:
-        print(f"Error: {e}")
-        return jsonify({'error': str(e)}), 500
+        import traceback
+        print("Error: " + str(e))
+        traceback.print_exc()
+        return jsonify({'error': 'Loi: ' + str(e)}), 500
     finally:
         if os.path.exists(filepath):
             try:
@@ -74,53 +76,55 @@ def convert_image_to_excel(filepath):
     """OCR Image to Excel using OCR.space"""
     from openpyxl import Workbook
     from PIL import Image
-    import PIL
     
-    # Compress image if too large
+    # Process image
     img = Image.open(filepath)
+    
     if img.mode in ('RGBA', 'LA'):
         background = Image.new('RGB', img.size, (255, 255, 255))
         background.paste(img, mask=img.split()[-1])
         img = background
     
-    # Resize if needed (max 1500px for free API)
+    # Resize for API limit
     max_size = 1500
     if max(img.size) > max_size:
         ratio = max_size / max(img.size)
         new_size = tuple(int(dim * ratio) for dim in img.size)
         img = img.resize(new_size, Image.LANCZOS)
     
-    # Save compressed
+    # Save to buffer
     buffer = io.BytesIO()
-    img.save(buffer, format='JPEG', quality=80, optimize=True)
+    img.save(buffer, format='JPEG', quality=80)
     buffer.seek(0)
     
-    # Call OCR.space API
+    # Call OCR API
     files = {'file': ('image.jpg', buffer, 'image/jpeg')}
     data = {
         'language': 'eng',
         'apikey': OCR_API_KEY,
-        'isTable': 'true',
-        'OCREngine': '2'
+        'isTable': 'true'
     }
     
-    response = requests.post(
-        'https://api.ocr.space/parse/image',
-        files=files,
-        data=data,
-        timeout=30
-    )
-    
-    result = response.json()
-    
-    if result.get('IsErroredOnProcessing'):
-        return jsonify({'error': str(result.get('ErrorMessage', ['Lỗi OCR'])[0])}), 400
-    
-    parsed = result.get('ParsedResults', [])
-    if not parsed:
-        return jsonify({'error': 'Không nhận dạng được văn bản'}), 400
-    
-    text = parsed[0].get('ParsedText', '')
+    try:
+        response = requests.post(
+            'https://api.ocr.space/parse/image',
+            files=files,
+            data=data,
+            timeout=30
+        )
+        result = response.json()
+        
+        if result.get('IsErroredOnProcessing'):
+            return jsonify({'error': str(result.get('ErrorMessage', ['Loi OCR'])[0])}), 400
+        
+        parsed = result.get('ParsedResults', [])
+        if not parsed:
+            return jsonify({'error': 'Khong nhan dang duoc van ban'}), 400
+        
+        text = parsed[0].get('ParsedText', '')
+    except Exception as e:
+        print("OCR Error: " + str(e))
+        return jsonify({'error': 'Loi OCR: ' + str(e)}), 500
     
     # Create Excel
     wb = Workbook()
@@ -141,7 +145,7 @@ def convert_image_to_excel(filepath):
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
-        download_name='bang_du_lieu.xlsx'
+        download_name='data.xlsx'
     )
 
 def convert_image_to_word(filepath):
@@ -149,8 +153,8 @@ def convert_image_to_word(filepath):
     from docx import Document
     from PIL import Image
     
-    # Compress image
     img = Image.open(filepath)
+    
     if img.mode in ('RGBA', 'LA'):
         background = Image.new('RGB', img.size, (255, 255, 255))
         background.paste(img, mask=img.split()[-1])
@@ -163,38 +167,39 @@ def convert_image_to_word(filepath):
         img = img.resize(new_size, Image.LANCZOS)
     
     buffer = io.BytesIO()
-    img.save(buffer, format='JPEG', quality=80, optimize=True)
+    img.save(buffer, format='JPEG', quality=80)
     buffer.seek(0)
     
-    # Call OCR API
     files = {'file': ('image.jpg', buffer, 'image/jpeg')}
     data = {
         'language': 'eng',
-        'apikey': OCR_API_KEY,
-        'OCREngine': '2'
+        'apikey': OCR_API_KEY
     }
     
-    response = requests.post(
-        'https://api.ocr.space/parse/image',
-        files=files,
-        data=data,
-        timeout=30
-    )
-    
-    result = response.json()
-    
-    if result.get('IsErroredOnProcessing'):
-        return jsonify({'error': str(result.get('ErrorMessage', ['Lỗi OCR'])[0])}), 400
-    
-    parsed = result.get('ParsedResults', [])
-    if not parsed:
-        return jsonify({'error': 'Không nhận dạng được văn bản'}), 400
-    
-    text = parsed[0].get('ParsedText', '')
+    try:
+        response = requests.post(
+            'https://api.ocr.space/parse/image',
+            files=files,
+            data=data,
+            timeout=30
+        )
+        result = response.json()
+        
+        if result.get('IsErroredOnProcessing'):
+            return jsonify({'error': str(result.get('ErrorMessage', ['Loi OCR'])[0])}), 400
+        
+        parsed = result.get('ParsedResults', [])
+        if not parsed:
+            return jsonify({'error': 'Khong nhan dang duoc van ban'}), 400
+        
+        text = parsed[0].get('ParsedText', '')
+    except Exception as e:
+        print("OCR Error: " + str(e))
+        return jsonify({'error': 'Loi OCR: ' + str(e)}), 500
     
     # Create Word
     doc = Document()
-    doc.add_heading('Văn bản OCR', 0)
+    doc.add_heading('Van ban OCR', 0)
     
     for line in text.split('\n'):
         if line.strip():
@@ -208,7 +213,7 @@ def convert_image_to_word(filepath):
         output,
         mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         as_attachment=True,
-        download_name='van_ban.docx'
+        download_name='document.docx'
     )
 
 def convert_image_to_pdf(filepath):
@@ -237,5 +242,5 @@ def convert_image_to_pdf(filepath):
         output,
         mimetype='application/pdf',
         as_attachment=True,
-        download_name='chuyen_doi.pdf'
+        download_name='output.pdf'
     )
