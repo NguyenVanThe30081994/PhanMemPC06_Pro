@@ -309,16 +309,67 @@ def system_update():
                 flash(f'Lỗi cập nhật: {e}', 'danger')
                 log_action(session['uid'], session['fullname'], f"Cập nhật thất bại: {e}", "Hệ thống")
         return redirect(url_for('admin_bp.system_update'))
-    return render_template('system_update.html')
+    
+    # Get git info
+    git_info = {'branch': 'main', 'version': 'v3.5.0', 'commit_msg': 'Phiên bản hiện tại', 'commit_author': 'PC06', 'commit_date': datetime.now().strftime('%d/%m/%Y')}
+    try:
+        br = subprocess.run(['git', 'branch', '--show-current'], cwd=current_app.root_path, capture_output=True, text=True)
+        if br.stdout: git_info['branch'] = br.stdout.strip()
+        
+        ver = subprocess.run(['git', 'describe', '--tags', '--always'], cwd=current_app.root_path, capture_output=True, text=True)
+        if ver.stdout: git_info['version'] = ver.stdout.strip()
+        
+        msg = subprocess.run(['git', 'log', '-1', '--format=%s'], cwd=current_app.root_path, capture_output=True, text=True)
+        if msg.stdout: git_info['commit_msg'] = msg.stdout.strip()
+        
+        author = subprocess.run(['git', 'log', '-1', '--format=%an'], cwd=current_app.root_path, capture_output=True, text=True)
+        if author.stdout: git_info['commit_author'] = author.stdout.strip()
+        
+        date = subprocess.run(['git', 'log', '-1', '--format=%ad', '--date=short'], cwd=current_app.root_path, capture_output=True, text=True)
+        if date.stdout: git_info['commit_date'] = date.stdout.strip()
+    except: pass
+    
+    return render_template('system_update.html', git_info=git_info)
 
 @admin_bp.route('/admin/system/git-pull', methods=['POST'])
 def git_pull():
     if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    
     try:
+        # Check if git is available
+        git_check = subprocess.run(['git', '--version'], capture_output=True, text=True)
+        if git_check.returncode != 0:
+            flash('Git không khả dụng trên máy chủ này!', 'danger')
+            return redirect(url_for('admin_bp.system_update'))
+        
+        # Check if this is a git repo
+        repo_check = subprocess.run(['git', 'rev-parse', '--git-dir'], 
+                                cwd=current_app.root_path, capture_output=True, text=True)
+        if repo_check.returncode != 0:
+            flash('Thư mục này không phải là Git repository!', 'danger')
+            return redirect(url_for('admin_bp.system_update'))
+        
+        # Check remote
+        remote_check = subprocess.run(['git', 'remote', '-v'], 
+                                    cwd=current_app.root_path, capture_output=True, text=True)
+        if not remote_check.stdout.strip():
+            flash('Chưa cấu hình Git remote! Vui lòng thêm remote: git remote add origin <url>', 'warning')
+            return redirect(url_for('admin_bp.system_update'))
+        
         # Perform Git Pull
         result = subprocess.run(['git', 'pull', 'origin', 'main'], 
                              cwd=current_app.root_path, 
-                             capture_output=True, text=True, check=True)
+                             capture_output=True, text=True, timeout=120)
+        
+        if result.returncode != 0:
+            # Check if it's auth error
+            if 'Permission denied' in result.stderr or 'authentication' in result.stderr.lower():
+                flash('Lỗi xác thực GitHub! Cần cấu hình SSH Key hoặc Personal Access Token.', 'danger')
+                log_action(session['uid'], session['fullname'], "Git pull thất bại: Lỗi xác thực", "Hệ thống")
+            else:
+                flash(f'Lỗi Git: {result.stderr}', 'danger')
+                log_action(session['uid'], session['fullname'], f"Git pull thất bại: {result.stderr}", "Hệ thống")
+            return redirect(url_for('admin_bp.system_update'))
         
         # Reload Database Migrations
         init_db(current_app)
@@ -329,13 +380,77 @@ def git_pull():
         with open(restart_path, 'w') as f: f.write(str(datetime.now()))
         
         log_action(session['uid'], session['fullname'], "Cập nhật via GitHub thành công", "Hệ thống")
-        flash(f'Đã cập nhật từ GitHub thành công! Console: {result.stdout}', 'success')
-    except subprocess.CalledProcessError as e:
-        log_action(session['uid'], session['fullname'], f"Cập nhật via GitHub thất bại: {e.stderr}", "Hệ thống")
-        flash(f'Lỗi Git: {e.stderr}', 'danger')
+        flash(f'Đã cập nhật từ GitHub! {result.stdout}', 'success')
+    except subprocess.TimeoutExpired:
+        flash('Git pull quá thời gian! Kiểm tra kết nối mạng.', 'danger')
+        log_action(session['uid'], session['fullname'], "Git pull thất bại: Timeout", "Hệ thống")
     except Exception as e:
-        flash(f'Lỗi hệ thống: {e}', 'danger')
+        flash(f'Lỗi hệ thống: {str(e)}', 'danger')
+        log_action(session['uid'], session['fullname'], f"Git pull thất bại: {str(e)}", "Hệ thống")
+    
     return redirect(url_for('admin_bp.system_update'))
+
+@admin_bp.route('/admin/git/status')
+def git_status():
+    """API: Get git status"""
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    try:
+        result = subprocess.run(['git', 'status', '--short'], cwd=current_app.root_path, 
+                              capture_output=True, text=True)
+        return jsonify({'output': result.stdout or 'Không có thay đổi'})
+    except Exception as e:
+        return jsonify({'output': f'Lỗi: {str(e)}'})
+
+@admin_bp.route('/admin/git/log')
+def git_log():
+    """API: Get recent commits"""
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    try:
+        result = subprocess.run(['git', 'log', '--oneline', '-5'], cwd=current_app.root_path, 
+                              capture_output=True, text=True)
+        lines = result.stdout.strip().split('\n')
+        commits = []
+        for line in lines:
+            if ' ' in line:
+                hash_msg = line.split(' ', 1)
+                commits.append({'hash': hash_msg[0], 'msg': hash_msg[1] if len(hash_msg) > 1 else '', 
+                              'author': 'Admin', 'date': ' recently'})
+        return jsonify({'commits': commits[:5]})
+    except Exception as e:
+        return jsonify({'commits': []})
+
+@admin_bp.route('/admin/git/remote', methods=['GET', 'POST'])
+def git_remote():
+    """API: Get or set git remote"""
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    
+    if request.method == 'POST':
+        remote_url = request.form.get('remote_url', '').strip()
+        if not remote_url:
+            return jsonify({'status': 'error', 'message': 'Thiếu URL'})
+        
+        try:
+            # Check if remote exists
+            check = subprocess.run(['git', 'remote'], cwd=current_app.root_path, capture_output=True, text=True)
+            if 'origin' in check.stdout:
+                # Update existing
+                subprocess.run(['git', 'remote', 'set-url', 'origin', remote_url], 
+                             cwd=current_app.root_path, capture_output=True)
+            else:
+                # Add new
+                subprocess.run(['git', 'remote', 'add', 'origin', remote_url], 
+                             cwd=current_app.root_path, capture_output=True)
+            return jsonify({'status': 'success', 'message': 'Đã cập nhật remote URL'})
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)})
+    
+    # GET: Return current remote
+    try:
+        result = subprocess.run(['git', 'remote', '-v'], cwd=current_app.root_path, 
+                              capture_output=True, text=True)
+        return jsonify({'output': result.stdout})
+    except Exception as e:
+        return jsonify({'output': '', 'error': str(e)})
 
 @admin_bp.route('/admin/module-categories', methods=['GET', 'POST'])
 def module_categories():
