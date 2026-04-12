@@ -1,7 +1,19 @@
+# -*- coding: utf-8 -*-
 import os
 import io
 import json
 import base64
+import sys
+
+# Fix UTF-8 encoding for Vietnamese text
+if sys.version_info[0] < 3:
+    reload(sys)
+    sys.setdefaultencoding('utf-8')
+    
+import codecs
+sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer)
+sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer)
+
 from flask import Blueprint, request, jsonify, send_file, render_template
 from werkzeug.utils import secure_filename
 from google import genai
