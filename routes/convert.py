@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 convert_bp = Blueprint('convert', __name__)
 
 # OCR.space API Key (free tier)
-OCR_SPACE_API_KEY = "helloworld"
+OCR_SPACE_API_KEY = "K81408611188957"
 
 # Configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'uploads')
