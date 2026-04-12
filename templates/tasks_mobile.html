@@ -87,34 +87,61 @@
     }
 </script>
 
-<!-- Add Task Modal -->
+<!-- Add Task Modal - Full Fields like Desktop -->
 <div class="modal fade" id="addTaskModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0">
-            <form method="POST">
+            <form method="POST" enctype="multipart/form-data">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title fw-bold">THÊM CÔNG VIỆC MỚI</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
+                    <!-- Tiêu đề -->
                     <div class="mb-3">
                         <label class="form-label fw-bold small">TIÊU ĐỀ CÔNG VIỆC</label>
                         <input type="text" name="title" class="form-control" required>
                     </div>
+                    
+                    <!-- Đội nghiệp vụ + Thời hạn -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold small">ĐỘI NGHIỆP VỤ</label>
+                            <select name="unit_name" class="form-select" required>
+                                <option value="" disabled selected>Chọn đội...</option>
+                                {% for u in pro_units %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold small">THỜI HẠN</label>
+                            <input type="date" name="deadline" class="form-control" required>
+                        </div>
+                    </div>
+                    
+                    <!-- Giao cho (Assignee) -->
                     <div class="mb-3">
-                        <label class="form-label fw-bold small">ĐỘI NGHIỆP VỤ</label>
-                        <select name="unit_name" class="form-select" required>
-                            <option value="" disabled selected>Chọn đội nghiệp vụ...</option>
-                            {% for u in pro_units %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
+                        <label class="form-label fw-bold small">GIAO CHO</label>
+                        <select name="assignee_id" class="form-select">
+                            <option value="">-- Chọn người thực hiện --</option>
+                            {% if users %}
+                                {% for u in users %}
+                                <option value="{{ u.id }}">{{ u.fullname }} ({{ u.unit_area or 'Chưa có đơn vị' }})</option>
+                                {% endfor %}
+                            {% endif %}
                         </select>
                     </div>
+                    
+                    <!-- Nội dung chi tiết -->
                     <div class="mb-3">
-                        <label class="form-label fw-bold small">THỜI HẠN</label>
-                        <input type="date" name="deadline" class="form-control" required>
-                    </div>
-                    <div>
                         <label class="form-label fw-bold small">NỘI DUNG CHI TIẾT</label>
-                        <textarea name="description" class="form-control" rows="3"></textarea>
+                        <textarea name="description" class="form-control" rows="4"></textarea>
+                    </div>
+                    
+                    <!-- Đính kèm tệp -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">ĐÍNH KÈM TỆP</label>
+                        <input type="file" name="task_file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar">
+                        <div class="form-text small">Hỗ trợ: PDF, Word, Excel, Hình ảnh, ZIP (Max 10MB)</div>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
