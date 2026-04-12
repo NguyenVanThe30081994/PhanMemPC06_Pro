@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 mb-4">
+        <h4 class="page-title">
+            <i class="fa-solid fa-file-arrow-right me-2 text-primary"></i>
+            Chuyển đổi File
+        </h4>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-10 col-md-12">
+        <div class="card border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="card-body p-4">
+                
+                <!-- Navigation Tabs -->
+                <ul class="nav nav-pills mb-4 justify-content-center gap-2" id="convertTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active rounded-pill px-4 py-2 fw-bold" id="img-excel-tab" data-bs-toggle="pill" data-bs-target="#img-excel-pane" type="button" role="tab">
+                            <i class="fa-solid fa-image me-2"></i>Ảnh → Excel
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link rounded-pill px-4 py-2 fw-bold" id="pdf-excel-tab" data-bs-toggle="pill" data-bs-target="#pdf-excel-pane" type="button" role="tab">
+                            <i class="fa-solid fa-file-pdf me-2"></i>PDF → Excel
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link rounded-pill px-4 py-2 fw-bold" id="pdf-word-tab" data-bs-toggle="pill" data-bs-target="#pdf-word-pane" type="button" role="tab">
+                            <i class="fa-solid fa-file-word me-2"></i>PDF → Word
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link rounded-pill px-4 py-2 fw-bold" id="img-word-tab" data-bs-toggle="pill" data-bs-target="#img-word-pane" type="button" role="tab">
+                            <i class="fa-solid fa-image me-2"></i>Ảnh → Word
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tab Contents -->
+                <div class="tab-content" id="convertTabsContent">
+                    
+                    <!-- 1. Image to Excel -->
+                    <div class="tab-pane fade show active" id="img-excel-pane" role="tabpanel">
+                        <div class="text-center p-4 border-dashed rounded-4 bg-light-subtle">
+                            <i class="fa-solid fa-table fa-3x text-success opacity-50 mb-3"></i>
+                            <h5 class="fw-bold mb-2">Chuyển đổi bảng trong ảnh sang Excel</h5>
+                            <p class="text-muted small mb-4">Hỗ trợ ảnh chụp bảng biểu, hóa đơn, báo cáo. Nhận dạng chữ tiếng Việt chính xác cao.</p>
+                            <form action="/convert/process" method="POST" enctype="multipart/form-data" class="convert-form" data-type="img_excel">
+                                <input type="hidden" name="type" value="img_excel">
+                                <div class="input-group mx-auto" style="max-width: 400px;">
+                                    <input type="file" class="form-control" name="file" accept="image/png, image/jpeg, image/jpg" required>
+                                    <button class="btn btn-primary rounded-end px-4" type="submit">
+                                        <i class="fa-solid fa-arrow-right-arrow-left me-1"></i> Chuyển đổi
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- 2. PDF to Excel -->
+                    <div class="tab-pane fade" id="pdf-excel-pane" role="tabpanel">
+                        <div class="text-center p-4 border-dashed rounded-4 bg-light-subtle">
+                            <i class="fa-solid fa-file-excel fa-3x text-success opacity-50 mb-3"></i>
+                            <h5 class="fw-bold mb-2">Trích xuất bảng từ PDF sang Excel</h5>
+                            <p class="text-muted small mb-4">Tự động nhận dạng và trích xuất các bảng dữ liệu trong file PDF.</p>
+                            <form action="/convert/process" method="POST" enctype="multipart/form-data" class="convert-form" data-type="pdf_excel">
+                                <input type="hidden" name="type" value="pdf_excel">
+                                <div class="input-group mx-auto" style="max-width: 400px;">
+                                    <input type="file" class="form-control" name="file" accept="application/pdf" required>
+                                    <button class="btn btn-primary rounded-end px-4" type="submit">
+                                        <i class="fa-solid fa-arrow-right-arrow-left me-1"></i> Chuyển đổi
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- 3. PDF to Word -->
+                    <div class="tab-pane fade" id="pdf-word-pane" role="tabpanel">
+                        <div class="text-center p-4 border-dashed rounded-4 bg-light-subtle">
+                            <i class="fa-solid fa-file-word fa-3x text-primary opacity-50 mb-3"></i>
+                            <h5 class="fw-bold mb-2">Chuyển đổi PDF sang Word (.docx)</h5>
+                            <p class="text-muted small mb-4">Giữ nguyên định dạng văn bản, hình ảnh, bố cục.</p>
+                            <form action="/convert/process" method="POST" enctype="multipart/form-data" class="convert-form" data-type="pdf_word">
+                                <input type="hidden" name="type" value="pdf_word">
+                                <div class="input-group mx-auto" style="max-width: 400px;">
+                                    <input type="file" class="form-control" name="file" accept="application/pdf" required>
+                                    <button class="btn btn-primary rounded-end px-4" type="submit">
+                                        <i class="fa-solid fa-arrow-right-arrow-left me-1"></i> Chuyển đổi
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- 4. Image to Word -->
+                    <div class="tab-pane fade" id="img-word-pane" role="tabpanel">
+                        <div class="text-center p-4 border-dashed rounded-4 bg-light-subtle">
+                            <i class="fa-solid fa-file-lines fa-3x text-primary opacity-50 mb-3"></i>
+                            <h5 class="fw-bold mb-2">Nhận dạng chữ trong ảnh sang Word (OCR)</h5>
+                            <p class="text-muted small mb-4">Quét văn bản từ ảnh chụp tài liệu, sách, giấy tờ. Hỗ trợ tiếng Việt có dấu.</p>
+                            <form action="/convert/process" method="POST" enctype="multipart/form-data" class="convert-form" data-type="img_word">
+                                <input type="hidden" name="type" value="img_word">
+                                <div class="input-group mx-auto" style="max-width: 400px;">
+                                    <input type="file" class="form-control" name="file" accept="image/png, image/jpeg, image/jpg" required>
+                                    <button class="btn btn-primary rounded-end px-4" type="submit">
+                                        <i class="fa-solid fa-arrow-right-arrow-left me-1"></i> Chuyển đổi
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Loading State -->
+                <div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 bg-white bg-opacity-90 d-none justify-content-center align-items-center flex-column z-3">
+                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5 class="fw-bold text-primary">Đang xử lý...</h5>
+                    <p class="text-muted small">Vui lòng chờ trong giây lát</p>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="mt-4 p-4 bg-surface rounded-4 border">
+            <h6 class="fw-bold mb-3"><i class="fa-solid fa-circle-info me-2 text-info"></i>Hướng dẫn sử dụng</h6>
+            <ul class="small text-muted ps-3">
+                <li>Chọn tab tương ứng với loại chuyển đổi bạn cần.</li>
+                <li>Tải file lên (Chỉ hỗ trợ JPG, PNG, PDF).</li>
+                <li>Nhấn nút "Chuyển đổi" và đợi hệ thống xử lý (có thể mất 5-30s tùy độ phức tạp).</li>
+                <li>File kết quả sẽ tự động tải về máy.</li>
+            </ul>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    .border-dashed {
+        border: 2px dashed var(--border-color, #e2e8f0) !important;
+        transition: all 0.3s;
+    }
+    .border-dashed:hover {
+        border-color: var(--primary) !important;
+        background-color: rgba(26, 86, 219, 0.03) !important;
+    }
+    /* Custom file input styling */
+    input[type="file"] {
+        border: 1.5px solid var(--border);
+        padding: 8px 12px;
+        border-radius: 10px 0 0 10px;
+        background: var(--bg-surface);
+    }
+    .nav-pills .nav-link.active {
+        background: var(--primary);
+        color: white;
+        box-shadow: 0 4px 12px rgba(26, 86, 219, 0.3);
+    }
+    .nav-pills .nav-link {
+        color: var(--text-muted);
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const forms = document.querySelectorAll('.convert-form');
+        const loading = document.getElementById('loadingOverlay');
+
+        forms.forEach(form => {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const btn = form.querySelector('button[type="submit"]');
+                const originalBtnText = btn.innerHTML;
+                
+                // Show loading
+                loading.classList.remove('d-none');
+                loading.classList.add('d-flex');
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang xử lý...';
+
+                const formData = new FormData(form);
+
+                fetch('/convert/process', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    // Handle download
+                    if (response.ok) {
+                        const disposition = response.headers.get('Content-Disposition');
+                        let filename = 'download';
+                        if (disposition && disposition.indexOf('attachment') !== -1) {
+                            const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                            const matches = filenameRegex.exec(disposition);
+                            if (matches != null && matches[1]) { 
+                                filename = matches[1].replace(/['"]/g, '');
+                            }
+                        }
+                        
+                        return response.blob().then(blob => ({ blob, filename }));
+                    } else {
+                        return response.json().then(err => Promise.reject(err));
+                    }
+                })
+                .then(({ blob, filename }) => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    a.remove();
+                    
+                    flashMessage('Chuyển đổi thành công!', 'success');
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    let msg = 'Đã xảy ra lỗi trong quá trình xử lý.';
+                    if (error.error) msg = error.error;
+                    flashMessage(msg, 'danger');
+                })
+                .finally(() => {
+                    loading.classList.add('d-none');
+                    loading.classList.remove('d-flex');
+                    btn.disabled = false;
+                    btn.innerHTML = originalBtnText;
+                });
+            });
+        });
+
+        function flashMessage(msg, type) {
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} alert-dismissible fade show shadow-sm rounded-4 border-0 mb-4`;
+            alert.role = 'alert';
+            alert.innerHTML = `${msg}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+            
+            const container = document.querySelector('.container-fluid');
+            container.insertBefore(alert, container.firstChild);
+            
+            setTimeout(() => alert.remove(), 5000);
+        }
+    });
+</script>
+{% endblock %}
