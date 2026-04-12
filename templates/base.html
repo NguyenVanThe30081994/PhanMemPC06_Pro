@@ -451,7 +451,7 @@
                 
                 <a href="{{ url_for('shortlink_bp.manage_links') }}" class="nav-link-top {% if request.path.startswith('/links') %}active{% endif %}">QR & Link</a>
 
-                <a href="{{ url_for('convert_bp.index') }}" class="nav-link-top {% if request.path.startswith('/convert') %}active{% endif %}">Chuyển đổi</a>
+                <a href="{{ url_for('convert.index') }}" class="nav-link-top {% if request.path.startswith('/convert') %}active{% endif %}">Chuyển đổi</a>
 
                 {% if perms.get('p_form_lead') or perms.get('p_user_lead') or perms.get('p_sys_lead') %}
                 <div class="dropdown h-100 d-flex align-items-center">
