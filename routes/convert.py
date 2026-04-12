@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
+import sys
 import os
+
+# Fix UTF-8 encoding
+if sys.version_info[0] >= 3:
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer)
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer)
+
 import io
 import json
 import base64
