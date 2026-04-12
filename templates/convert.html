@@ -33,6 +33,11 @@
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
+                        <button class="nav-link rounded-pill px-4 py-2 fw-bold" id="img-pdf-tab" data-bs-toggle="pill" data-bs-target="#img-pdf-pane" type="button" role="tab">
+                            <i class="fa-solid fa-image me-2"></i>Ảnh → PDF
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
                         <button class="nav-link rounded-pill px-4 py-2 fw-bold" id="img-word-tab" data-bs-toggle="pill" data-bs-target="#img-word-pane" type="button" role="tab">
                             <i class="fa-solid fa-image me-2"></i>Ảnh → Word
                         </button>
@@ -96,7 +101,25 @@
                         </div>
                     </div>
 
-                    <!-- 4. Image to Word -->
+                    <!-- 4. Image to PDF -->
+                    <div class="tab-pane fade" id="img-pdf-pane" role="tabpanel">
+                        <div class="text-center p-4 border-dashed rounded-4 bg-light-subtle">
+                            <i class="fa-solid fa-file-pdf fa-3x text-danger opacity-50 mb-3"></i>
+                            <h5 class="fw-bold mb-2">Chuyển đổi ảnh sang PDF</h5>
+                            <p class="text-muted small mb-4">Chuyển đổi ảnh JPG, PNG sang file PDF. Giữ nguyên chất lượng hình ảnh.</p>
+                            <form action="/convert/process" method="POST" enctype="multipart/form-data" class="convert-form" data-type="img_pdf">
+                                <input type="hidden" name="type" value="img_pdf">
+                                <div class="input-group mx-auto" style="max-width: 400px;">
+                                    <input type="file" class="form-control" name="file" accept="image/png, image/jpeg, image/jpg" required>
+                                    <button class="btn btn-primary rounded-end px-4" type="submit">
+                                        <i class="fa-solid fa-arrow-right-arrow-left me-1"></i> Chuyển đổi
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- 5. Image to Word -->
                     <div class="tab-pane fade" id="img-word-pane" role="tabpanel">
                         <div class="text-center p-4 border-dashed rounded-4 bg-light-subtle">
                             <i class="fa-solid fa-file-lines fa-3x text-primary opacity-50 mb-3"></i>

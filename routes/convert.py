@@ -2,16 +2,25 @@ import os
 import io
 from flask import Blueprint, request, jsonify, send_file, render_template, session
 from werkzeug.utils import secure_filename
-import easyocr
-import pdf2docx
-import pdfplumber
-from docx import Document
-import cv2
-import numpy as np
-from PIL import Image
-from openpyxl import Workbook
+
+# Lazy imports - only load when needed
+# This prevents app crash if libraries aren't installed on hosting
 
 convert_bp = Blueprint('convert', __name__)
+
+def _get_ocr_reader():
+    """Lazy load OCR reader"""
+    import easyocr
+    global _ocr_reader
+    if _ocr_reader is None:
+        try:
+            _ocr_reader = easyocr.Reader(['vi', 'en'], gpu=False)
+        except Exception as e:
+            print(f"Error initializing OCR: {e}")
+            _ocr_reader = easyocr.Reader(['en'], gpu=False)
+    return _ocr_reader
+
+_ocr_reader = None
 
 # Configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'uploads')
@@ -23,21 +32,6 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-# Lazy load OCR reader
-_reader = None
-
-def get_reader():
-    global _reader
-    if _reader is None:
-        try:
-            # Initialize EasyOCR with Vietnamese and English
-            _reader = easyocr.Reader(['vi', 'en'], gpu=False)
-        except Exception as e:
-            print(f"Error initializing OCR: {e}")
-            # Fallback to English only
-            _reader = easyocr.Reader(['en'], gpu=False)
-    return _reader
 
 @convert_bp.route('/convert')
 def index():
@@ -72,6 +66,8 @@ def process():
             return convert_pdf_to_word(filepath)
         elif convert_type == 'img_word':
             return convert_image_to_word(filepath)
+        elif convert_type == 'img_pdf':
+            return convert_image_to_pdf(filepath)
         else:
             return jsonify({'error': 'Loại chuyển đổi không hợp lệ'}), 400
     except Exception as e:
@@ -88,13 +84,17 @@ def process():
 def convert_image_to_excel(filepath):
     """Convert table in image to Excel"""
     try:
+        # Lazy imports
+        import cv2
+        from openpyxl import Workbook
+        
         # Read image
         img = cv2.imread(filepath)
         if img is None:
             return jsonify({'error': 'Không thể đọc file ảnh'}), 400
         
         # Get OCR reader
-        reader = get_reader()
+        reader = _get_ocr_reader()
         
         # Perform OCR
         results = reader.readtext(filepath)
@@ -163,6 +163,10 @@ def convert_image_to_excel(filepath):
 def convert_pdf_to_excel(filepath):
     """Extract tables from PDF to Excel"""
     try:
+        # Lazy imports
+        import pdfplumber
+        from openpyxl import Workbook
+        
         tables_data = []
         
         with pdfplumber.open(filepath) as pdf:
@@ -216,6 +220,9 @@ def convert_pdf_to_excel(filepath):
 def convert_pdf_to_word(filepath):
     """Convert PDF to Word"""
     try:
+        # Lazy import
+        import pdf2docx
+        
         # Use pdf2docx
         doc = pdf2docx.Document(filepath)
         
@@ -238,8 +245,11 @@ def convert_pdf_to_word(filepath):
 def convert_image_to_word(filepath):
     """OCR image to Word document"""
     try:
+        # Lazy imports
+        from docx import Document
+        
         # Get OCR reader
-        reader = get_reader()
+        reader = _get_ocr_reader()
         
         # Perform OCR
         results = reader.readtext(filepath)
@@ -295,3 +305,50 @@ def convert_image_to_word(filepath):
     except Exception as e:
         print(f"Image to Word error: {e}")
         return jsonify({'error': f'Lỗi chuyển đổi ảnh sang Word: {str(e)}'}), 500
+
+def convert_image_to_pdf(filepath):
+    """Convert image to PDF"""
+    try:
+        # Lazy imports
+        from PIL import Image
+        import img2pdf
+        
+        # Read image to verify it's valid
+        img = Image.open(filepath)
+        
+        # Convert to RGB if needed (for PNG with transparency)
+        if img.mode in ('RGBA', 'LA', 'P'):
+            # Create white background
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            if img.mode in ('RGBA', 'LA'):
+                background.paste(img, mask=img.split()[-1])
+                img = background
+            else:
+                img = img.convert('RGB')
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+        
+        # Save image to temporary buffer for img2pdf
+        img_buffer = io.BytesIO()
+        img.save(img_buffer, format='JPEG', quality=95)
+        img_buffer.seek(0)
+        
+        # Convert to PDF
+        pdf_bytes = img2pdf.convert(img_buffer.read())
+        
+        # Save to output buffer
+        output = io.BytesIO(pdf_bytes)
+        output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name='chuyen_doi.pdf'
+        )
+        
+    except Exception as e:
+        print(f"Image to PDF error: {e}")
+        return jsonify({'error': f'Lỗi chuyển đổi ảnh sang PDF: {str(e)}'}), 500
