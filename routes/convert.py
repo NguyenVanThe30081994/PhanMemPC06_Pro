@@ -9,6 +9,9 @@ from werkzeug.utils import secure_filename
 
 convert_bp = Blueprint('convert', __name__)
 
+# OCR.space API Key (free tier)
+OCR_SPACE_API_KEY = "helloworld"
+
 # Configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'uploads')
 CONVERT_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'tmp', 'convert')
@@ -75,7 +78,7 @@ def convert_image_to_excel_ocr(filepath):
         # Gửi file đến OCR.space API (free tier)
         with open(filepath, 'rb') as f:
             files = {'file': f}
-            data = {'language': 'vie', 'isTable': 'true'}
+            data = {'language': 'vie', 'isTable': 'true', 'apikey': OCR_SPACE_API_KEY}
             response = requests.post(
                 'https://api.ocr.space/parse/image',
                 files=files,
@@ -149,7 +152,7 @@ def convert_image_to_word_ocr(filepath):
         # Gửi file đến OCR.space API
         with open(filepath, 'rb') as f:
             files = {'file': f}
-            data = {'language': 'vie'}
+            data = {'language': 'vie', 'apikey': OCR_SPACE_API_KEY}
             response = requests.post(
                 'https://api.ocr.space/parse/image',
                 files=files,
