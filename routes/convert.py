@@ -10,8 +10,11 @@ import google.generativeai as genai
 GEMINI_API_KEY = "AIzaSyDVOb30nKEAJMNHH6pFX2xUdRULrBtE7C4"
 genai.configure(api_key=GEMINI_API_KEY)
 
-# Sử dụng model Gemini Flash cho OCR và phân tích (nhanh hơn, miễn phí)
-model = genai.GenerativeModel('gemini-1.5-flash')
+# Model cho văn bản
+text_model = genai.GenerativeModel('gemini-pro')
+
+# Model cho hình ảnh  
+vision_model = genai.GenerativeModel('gemini-pro-vision')
 
 convert_bp = Blueprint('convert', __name__)
 
@@ -92,7 +95,7 @@ Trả về kết quả dưới dạng JSON với format:
 Chỉ trả về JSON, không giải thích thêm."""
         
         # Gọi Gemini với ảnh
-        response = model.generate_content([
+        response = vision_model.generate_content([
             prompt,
             {"mime_type": "image/jpeg", "data": image_data}
         ])
@@ -152,7 +155,7 @@ Trả về kết quả dưới dạng JSON với format:
 Chỉ trả về JSON."""
         
         # Gọi Gemini với PDF
-        response = model.generate_content([
+        response = vision_model.generate_content([
             prompt,
             {"mime_type": "application/pdf", "data": pdf_data}
         ])
@@ -211,7 +214,7 @@ Giữ nguyên định dạng và cấu trúc tài liệu.
 Trả về nội dung dạng markdown."""
         
         # Gọi Gemini
-        response = model.generate_content([
+        response = vision_model.generate_content([
             prompt,
             {"mime_type": "application/pdf", "data": pdf_data}
         ])
@@ -262,7 +265,7 @@ Trả về nội dung văn bản giữ nguyên format và xuống dòng.
 Hỗ trợ tiếng Việt có dấu."""
         
         # Gọi Gemini
-        response = model.generate_content([
+        response = vision_model.generate_content([
             prompt,
             {"mime_type": "image/jpeg", "data": image_data}
         ])
