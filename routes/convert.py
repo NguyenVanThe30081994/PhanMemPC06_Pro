@@ -1,6 +1,22 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
+import logging
+from datetime import datetime
+
+# Setup logging
+LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'convert.log')
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(LOG_FILE, encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+
+logger = logging.getLogger(__name__)
 
 # Fix UTF-8 encoding
 if sys.version_info[0] >= 3:
@@ -20,8 +36,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 
-# Service Account JSON (upload your credentials file to hosting)
-# Try multiple possible paths
+# Service Account JSON
 possible_paths = [
     'service_account.json',
     os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'service_account.json'),
@@ -35,13 +50,14 @@ for path in possible_paths:
         break
 
 if not SERVICE_ACCOUNT_FILE:
-    SERVICE_ACCOUNT_FILE = 'service_account.json'  # Default
+    SERVICE_ACCOUNT_FILE = 'service_account.json'
+
+logger.info(f"Service account file: {SERVICE_ACCOUNT_FILE}")
 
 # Folder IDs
-INPUT_FOLDER_ID = '1VM-4I2AJUG7dEXzKkmaRWE33tJSCOa0K'  # PC06_Input
-OUTPUT_FOLDER_ID = '12krphmrH8qH2vS6Y0b3hvcsxOugxZMJ2'  # PC06_Output
+INPUT_FOLDER_ID = '1VM-4I2AJUG7dEXzKkmaRWE33tJSCOa0K'
+OUTPUT_FOLDER_ID = '12krphmrH8qH2vS6Y0b3hvcsxOugxZMJ2'
 
-# Configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -53,36 +69,34 @@ def allowed_file(filename):
 def get_drive_service():
     """Get Google Drive service using Service Account"""
     try:
-        import json
+        logger.info("Starting Google Drive connection...")
         
-        # Check if file exists
         if not os.path.exists(SERVICE_ACCOUNT_FILE):
-            print(f"Service account file not found: {SERVICE_ACCOUNT_FILE}")
-            # Try to list files in current directory
-            print(f"Current directory: {os.getcwd()}")
-            print(f"Files in directory: {os.listdir('.')}")
+            logger.error(f"Service account file NOT FOUND at: {SERVICE_ACCOUNT_FILE}")
+            logger.error(f"Current dir: {os.getcwd()}")
+            logger.error(f"Files in dir: {os.listdir('.')}")
             return None
         
-        print(f"Loading service account from: {SERVICE_ACCOUNT_FILE}")
+        logger.info(f"Loading credentials from: {SERVICE_ACCOUNT_FILE}")
         
         credentials = service_account.Credentials.from_service_account_file(
             SERVICE_ACCOUNT_FILE,
             scopes=['https://www.googleapis.com/auth/drive.file']
         )
         
-        print(f"Credentials loaded for: {credentials.service_account_email}")
+        logger.info(f"Credentials loaded for email: {credentials.service_account_email}")
         
         service = build('drive', 'v3', credentials=credentials)
         
         # Test connection
         about = service.about().get(fields="user").execute()
-        print(f"Connected as: {about.get('user')}")
+        logger.info(f"Connected! User: {about.get('user')}")
         
         return service
     except Exception as e:
-        print(f"Drive service error: {str(e)}")
+        logger.error(f"DRIVE SERVICE ERROR: {str(e)}")
         import traceback
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         return None
 
 @convert_bp.route('/convert')
@@ -91,21 +105,30 @@ def index():
 
 @convert_bp.route('/convert/process', methods=['POST'])
 def process():
+    logger.info("=== START CONVERSION ===")
+    
     if 'file' not in request.files:
+        logger.error("No file in request")
         return jsonify({'error': 'Khong tim thay file'}), 400
     
     file = request.files['file']
     convert_type = request.form.get('type', '')
     
+    logger.info(f"Convert type: {convert_type}, File: {file.filename}")
+    
     if file.filename == '':
+        logger.error("Empty filename")
         return jsonify({'error': 'Chua chon file'}), 400
     
     if not allowed_file(file.filename):
+        logger.error(f"Invalid file type: {file.filename}")
         return jsonify({'error': 'Dinh dang khong ho tro'}), 400
     
     filename = secure_filename(file.filename)
     filepath = os.path.join(UPLOAD_FOLDER, filename)
     file.save(filepath)
+    
+    logger.info(f"File saved to: {filepath}")
     
     try:
         if convert_type == 'img_excel':
@@ -117,22 +140,30 @@ def process():
         else:
             return jsonify({'error': 'Chuc nang khong ho tro'}), 400
     except Exception as e:
+        logger.error(f"CONVERSION ERROR: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'error': 'Loi: ' + str(e)}), 500
     finally:
         if os.path.exists(filepath):
             try:
                 os.remove(filepath)
+                logger.info("Temp file deleted")
             except:
                 pass
 
 def convert_image_to_excel(filepath):
     """Convert image to Excel via Google Drive OCR"""
+    logger.info("Starting convert_image_to_excel")
+    
     service = get_drive_service()
     if not service:
+        logger.error("Failed to get drive service")
         return jsonify({'error': 'Loi ket noi Google Drive'}), 500
     
     try:
-        # 1. Upload file to input folder
+        # 1. Upload file
+        logger.info("Step 1: Uploading file to Google Drive...")
         file_metadata = {
             'name': os.path.basename(filepath),
             'parents': [INPUT_FOLDER_ID]
@@ -150,46 +181,52 @@ def convert_image_to_excel(filepath):
             fields='id'
         ).execute()
         
-        print(f"Uploaded file ID: {uploaded_file.get('id')}")
+        logger.info(f"Uploaded file ID: {uploaded_file.get('id')}")
         
-        # 2. Create Google Doc from image (OCR)
+        # 2. Create Google Doc with OCR
+        logger.info("Step 2: Creating Google Doc (OCR)...")
         doc_metadata = {
             'name': 'OCR_Result_' + str(int(time.time())),
             'parents': [OUTPUT_FOLDER_ID],
             'mimeType': 'application/vnd.google-apps.document'
         }
         
-        # Copy to create document with OCR
         doc = service.files().copy(
             fileId=uploaded_file.get('id'),
             body=doc_metadata,
             convert=True
         ).execute()
         
-        print(f"Created doc ID: {doc.get('id')}")
+        logger.info(f"Created doc ID: {doc.get('id')}")
         
-        # 3. Export to Word (can convert to xlsx later)
+        # 3. Export to Word
+        logger.info("Step 3: Exporting to Word...")
         export_mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         request_export = service.files().export_media(
             fileId=doc.get('id'),
             mimeType=export_mime
         )
         
-        # Download
         output = io.BytesIO()
         downloader = MediaIoBaseDownload(output, request_export)
         done = False
         while not done:
             status, done = downloader.next_chunk()
         
-        # 4. Cleanup - delete temp files
+        logger.info("Download complete")
+        
+        # 4. Cleanup
+        logger.info("Step 4: Cleaning up...")
         try:
             service.files().delete(fileId=uploaded_file.get('id')).execute()
             service.files().delete(fileId=doc.get('id')).execute()
+            logger.info("Cleanup done")
         except:
             pass
         
         output.seek(0)
+        
+        logger.info("=== CONVERSION SUCCESS ===")
         
         return send_file(
             output,
@@ -199,11 +236,13 @@ def convert_image_to_excel(filepath):
         )
         
     except Exception as e:
-        print(f"Conversion error: {e}")
+        logger.error(f"Conversion failed: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'error': 'Loi chuyen doi: ' + str(e)}), 500
 
 def convert_image_to_word(filepath):
-    """Same as Excel - returns Word for now"""
+    logger.info("convert_image_to_word called - using same as excel")
     return convert_image_to_excel(filepath)
 
 def image_to_pdf(filepath):
