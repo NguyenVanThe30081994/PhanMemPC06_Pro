@@ -1,5 +1,5 @@
 # DO NOT REMOVE. CLOUDLINUX (c)
 PassengerAppRoot "/home/dea35688/domains/pc06tuyenquang.net/public_html/PhanMemPC06_Pro"
 PassengerBaseURI "/"
-PassengerPython "/home/dea35688/domains/pc06tuyenquang.net/virtualenv/3.9/bin/python"
+PassengerPython "/home/dea35688/virtualenv/domains/pc06tuyenquang.net/public_html/PhanMemPC06_Pro/3.9/bin/python"
 # END DO NOT REMOVE
