@@ -74,17 +74,34 @@ def convert_image_to_excel_ocr(filepath):
     """Convert image to Excel using OCR.space API (free)"""
     try:
         from openpyxl import Workbook
+        from PIL import Image
+        import io
+        
+        # Compress image if too large (> 1MB = 1024KB)
+        img = Image.open(filepath)
+        img = img.convert('RGB')  # Convert to RGB if needed
+        
+        # Resize if too large (max 2000px)
+        max_size = 2000
+        if max(img.size) > max_size:
+            ratio = max_size / max(img.size)
+            new_size = tuple(int(dim * ratio) for dim in img.size)
+            img = img.resize(new_size, Image.LANCZOS)
+        
+        # Save to buffer with compression
+        buffer = io.BytesIO()
+        img.save(buffer, format='JPEG', quality=85, optimize=True)
+        buffer.seek(0)
         
         # Gửi file đến OCR.space API (free tier)
-        with open(filepath, 'rb') as f:
-            files = {'file': f}
-            data = {'language': 'auto', 'isTable': 'true', 'apikey': OCR_SPACE_API_KEY, 'OCREngine': '2'}
-            response = requests.post(
-                'https://api.ocr.space/parse/image',
-                files=files,
-                data=data,
-                timeout=30
-            )
+        files = {'file': ('image.jpg', buffer, 'image/jpeg')}
+        data = {'language': 'auto', 'isTable': 'true', 'apikey': OCR_SPACE_API_KEY, 'OCREngine': '2'}
+        response = requests.post(
+            'https://api.ocr.space/parse/image',
+            files=files,
+            data=data,
+            timeout=30
+        )
         
         result = response.json()
         
@@ -148,17 +165,32 @@ def convert_image_to_word_ocr(filepath):
     """Convert image to Word using OCR.space API"""
     try:
         from docx import Document
+        from PIL import Image
+        import io
+        
+        # Compress image if too large
+        img = Image.open(filepath)
+        img = img.convert('RGB')
+        
+        max_size = 2000
+        if max(img.size) > max_size:
+            ratio = max_size / max(img.size)
+            new_size = tuple(int(dim * ratio) for dim in img.size)
+            img = img.resize(new_size, Image.LANCZOS)
+        
+        buffer = io.BytesIO()
+        img.save(buffer, format='JPEG', quality=85, optimize=True)
+        buffer.seek(0)
         
         # Gửi file đến OCR.space API
-        with open(filepath, 'rb') as f:
-            files = {'file': f}
-            data = {'language': 'auto', 'apikey': OCR_SPACE_API_KEY, 'OCREngine': '2'}
-            response = requests.post(
-                'https://api.ocr.space/parse/image',
-                files=files,
-                data=data,
-                timeout=30
-            )
+        files = {'file': ('image.jpg', buffer, 'image/jpeg')}
+        data = {'language': 'auto', 'apikey': OCR_SPACE_API_KEY, 'OCREngine': '2'}
+        response = requests.post(
+            'https://api.ocr.space/parse/image',
+            files=files,
+            data=data,
+            timeout=30
+        )
         
         result = response.json()
         
