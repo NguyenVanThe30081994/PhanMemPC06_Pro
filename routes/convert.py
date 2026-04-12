@@ -21,7 +21,21 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 
 # Service Account JSON (upload your credentials file to hosting)
-SERVICE_ACCOUNT_FILE = 'service_account.json'
+# Try multiple possible paths
+possible_paths = [
+    'service_account.json',
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'service_account.json'),
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'service_account.json'),
+]
+
+SERVICE_ACCOUNT_FILE = None
+for path in possible_paths:
+    if os.path.exists(path):
+        SERVICE_ACCOUNT_FILE = path
+        break
+
+if not SERVICE_ACCOUNT_FILE:
+    SERVICE_ACCOUNT_FILE = 'service_account.json'  # Default
 
 # Folder IDs
 INPUT_FOLDER_ID = '1VM-4I2AJUG7dEXzKkmaRWE33tJSCOa0K'  # PC06_Input
@@ -39,14 +53,36 @@ def allowed_file(filename):
 def get_drive_service():
     """Get Google Drive service using Service Account"""
     try:
+        import json
+        
+        # Check if file exists
+        if not os.path.exists(SERVICE_ACCOUNT_FILE):
+            print(f"Service account file not found: {SERVICE_ACCOUNT_FILE}")
+            # Try to list files in current directory
+            print(f"Current directory: {os.getcwd()}")
+            print(f"Files in directory: {os.listdir('.')}")
+            return None
+        
+        print(f"Loading service account from: {SERVICE_ACCOUNT_FILE}")
+        
         credentials = service_account.Credentials.from_service_account_file(
             SERVICE_ACCOUNT_FILE,
             scopes=['https://www.googleapis.com/auth/drive.file']
         )
+        
+        print(f"Credentials loaded for: {credentials.service_account_email}")
+        
         service = build('drive', 'v3', credentials=credentials)
+        
+        # Test connection
+        about = service.about().get(fields="user").execute()
+        print(f"Connected as: {about.get('user')}")
+        
         return service
     except Exception as e:
-        print(f"Drive service error: {e}")
+        print(f"Drive service error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return None
 
 @convert_bp.route('/convert')
