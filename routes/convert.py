@@ -78,7 +78,7 @@ def convert_image_to_excel_ocr(filepath):
         # Gửi file đến OCR.space API (free tier)
         with open(filepath, 'rb') as f:
             files = {'file': f}
-            data = {'language': 'vie', 'isTable': 'true', 'apikey': OCR_SPACE_API_KEY}
+            data = {'language': 'auto', 'isTable': 'true', 'apikey': OCR_SPACE_API_KEY, 'OCREngine': '2'}
             response = requests.post(
                 'https://api.ocr.space/parse/image',
                 files=files,
@@ -152,7 +152,7 @@ def convert_image_to_word_ocr(filepath):
         # Gửi file đến OCR.space API
         with open(filepath, 'rb') as f:
             files = {'file': f}
-            data = {'language': 'vie', 'apikey': OCR_SPACE_API_KEY}
+            data = {'language': 'auto', 'apikey': OCR_SPACE_API_KEY, 'OCREngine': '2'}
             response = requests.post(
                 'https://api.ocr.space/parse/image',
                 files=files,
