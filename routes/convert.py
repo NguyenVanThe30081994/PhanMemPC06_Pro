@@ -10,8 +10,8 @@ import google.generativeai as genai
 GEMINI_API_KEY = "AIzaSyDVOb30nKEAJMNHH6pFX2xUdRULrBtE7C4"
 genai.configure(api_key=GEMINI_API_KEY)
 
-# Sử dụng model Gemini Pro Vision cho OCR và phân tích
-model = genai.GenerativeModel('gemini-1.5-pro')
+# Sử dụng model Gemini Flash cho OCR và phân tích (nhanh hơn, miễn phí)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 convert_bp = Blueprint('convert', __name__)
 
