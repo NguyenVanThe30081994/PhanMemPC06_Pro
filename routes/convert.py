@@ -4,17 +4,11 @@ import json
 import base64
 from flask import Blueprint, request, jsonify, send_file, render_template
 from werkzeug.utils import secure_filename
-import google.generativeai as genai
+from google import genai
 
-# Cấu hình Gemini API
+# Cấu hình Gemini API với SDK mới
 GEMINI_API_KEY = "AIzaSyDVOb30nKEAJMNHH6pFX2xUdRULrBtE7C4"
-genai.configure(api_key=GEMINI_API_KEY)
-
-# Model cho văn bản
-text_model = genai.GenerativeModel('gemini-pro')
-
-# Model cho hình ảnh  
-vision_model = genai.GenerativeModel('gemini-pro-vision')
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 convert_bp = Blueprint('convert', __name__)
 
@@ -94,11 +88,11 @@ Trả về kết quả dưới dạng JSON với format:
 ```
 Chỉ trả về JSON, không giải thích thêm."""
         
-        # Gọi Gemini với ảnh
-        response = vision_model.generate_content([
-            prompt,
-            {"mime_type": "image/jpeg", "data": image_data}
-        ])
+        # Gọi Gemini với ảnh - sử dụng gemini-2.0-flash
+        response = client.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=[prompt, {"mime_type": "image/jpeg", "data": base64.b64encode(image_data).decode('utf-8')}]
+        )
         
         # Parse kết quả
         text = response.text
@@ -155,10 +149,10 @@ Trả về kết quả dưới dạng JSON với format:
 Chỉ trả về JSON."""
         
         # Gọi Gemini với PDF
-        response = vision_model.generate_content([
-            prompt,
-            {"mime_type": "application/pdf", "data": pdf_data}
-        ])
+        response = client.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=[prompt, {"mime_type": "application/pdf", "data": base64.b64encode(pdf_data).decode('utf-8')}]
+        )
         
         # Parse kết quả
         text = response.text
@@ -214,10 +208,10 @@ Giữ nguyên định dạng và cấu trúc tài liệu.
 Trả về nội dung dạng markdown."""
         
         # Gọi Gemini
-        response = vision_model.generate_content([
-            prompt,
-            {"mime_type": "application/pdf", "data": pdf_data}
-        ])
+        response = client.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=[prompt, {"mime_type": "application/pdf", "data": base64.b64encode(pdf_data).decode('utf-8')}]
+        )
         
         # Tạo Word document
         doc = Document()
@@ -265,10 +259,10 @@ Trả về nội dung văn bản giữ nguyên format và xuống dòng.
 Hỗ trợ tiếng Việt có dấu."""
         
         # Gọi Gemini
-        response = vision_model.generate_content([
-            prompt,
-            {"mime_type": "image/jpeg", "data": image_data}
-        ])
+        response = client.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=[prompt, {"mime_type": "image/jpeg", "data": base64.b64encode(image_data).decode('utf-8')}]
+        )
         
         # Tạo Word document
         doc = Document()
