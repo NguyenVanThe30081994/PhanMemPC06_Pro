@@ -80,7 +80,7 @@ def ocr_to_excel(filepath):
             print("Initializing PaddleOCR...")
             ocr = PaddleOCR(use_angle_cls=True, lang='vi')
             print(f"Running OCR on: {filepath}")
-            result = ocr.ocr(filepath, cls=True)
+            result = ocr.ocr(filepath)
             print(f"OCR result: {result}")
             
             if not result or not result[0]:
@@ -140,7 +140,7 @@ def ocr_to_word(filepath):
         try:
             from paddleocr import PaddleOCR
             ocr = PaddleOCR(use_angle_cls=True, lang='vi')
-            result = ocr.ocr(filepath, cls=True)
+            result = ocr.ocr(filepath)
             
             doc = Document()
             doc.add_heading('Van ban', 0)
