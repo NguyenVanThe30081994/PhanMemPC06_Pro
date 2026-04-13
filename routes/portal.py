@@ -109,28 +109,17 @@ def contacts():
     # Logic dynamic categories for Contacts
     # 1. Nhóm danh bạ
     group_meta = CategoryGroup.query.filter_by(name='Nhóm danh bạ').first()
-    contact_groups = group_meta.items if group_meta else []
-
+    contact_groups = CategoryItem.query.filter_by(group_id=group_meta.id).all() if group_meta else []
+    
     # 2. Chức vụ 
     role_meta = CategoryGroup.query.filter_by(name='Chức vụ').first()
     if not role_meta:
-        # Fallback to 'Chức danh' if user hasn't renamed yet
         role_meta = CategoryGroup.query.filter_by(name='Chức danh').first()
-    contact_roles = role_meta.items if role_meta else []
+    contact_roles = CategoryItem.query.filter_by(group_id=role_meta.id).all() if role_meta else []
     
-    # Fallback list nếu chưa có danh mục
-    if not contact_roles:
-        contact_roles = [
-            type('obj', (object,), {'name': 'Trưởng phòng'})(),
-            type('obj', (object,), {'name': 'Phó trưởng phòng'})(),
-            type('obj', (object,), {'name': 'Cán sự'})(),
-            type('obj', (object,), {'name': 'Cán bộ'})(),
-            type('obj', (object,), {'name': 'Nhân viên'})(),
-        ]
-    
-    # 3. Đơn vị (mới chuẩn hóa)
+    # 3. Đơn vị
     unit_group = CategoryGroup.query.filter_by(name='Đơn vị').first()
-    unit_cats = unit_group.items if unit_group else []
+    unit_cats = CategoryItem.query.filter_by(group_id=unit_group.id).all() if unit_group else []
     
     return render_template('contacts.html', 
                           contacts=query.all(), 
