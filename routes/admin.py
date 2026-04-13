@@ -8,75 +8,93 @@ admin_bp = Blueprint('admin_bp', __name__)
 
 @admin_bp.route('/admin')
 def index():
-    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
-    
-    # Basic Stats
-    stats = {
-        'users': User.query.count(),
-        'reports': ReportData.query.count(),
-        'roles': AppRole.query.count(),
-        'news': NewsDoc.query.count(),
-        'tasks': Task.query.count()
-    }
-
-    # Calculate Overdue Reports
-    all_units = [u[0] for u in db.session.query(User.unit_area).distinct().all() if u[0]]
-    overdue_stats = []
-    today = datetime.now().date()
-    curr_period = f"Tuần {datetime.now().strftime('%U-%Y')}"
-
-    # V1 Reports
-    for r in ReportConfig.query.all():
-        q = db.session.query(User.unit_area).join(ReportData, User.id == ReportData.user_id)\
-            .filter(ReportData.report_id == r.id)
-        if r.is_daily: q = q.filter(ReportData.report_date == today)
-        submitted = [u[0] for u in q.distinct().all()]
-        missing = [u for u in all_units if u not in submitted]
-        if missing: overdue_stats.append({'id': r.id, 'name': r.name, 'count': len(missing)})
-
-    # V2 Reports
-    total_templates = ReportConfig.query.count()
     try:
-        v2_templates = ReportTemplateV2.query.filter_by(is_active=True).all()
-        total_templates += len(v2_templates)
-        for t in v2_templates:
-            q = db.session.query(ReportSubmissionV2.org_unit).filter(ReportSubmissionV2.status != 'draft')
-            submitted = [u[0] for u in q.filter(ReportSubmissionV2.org_unit.in_(all_units)).distinct().all()]
-            missing = [u for u in all_units if u not in submitted]
-            if missing: overdue_stats.append({'id': t.id, 'name': t.name, 'count': len(missing)})
-    except: pass
+        if not session.get('uid'): 
+            return redirect(url_for('auth_bp.login'))
+        
+        # Basic Stats - simplified
+        stats = {
+            'users': 0,
+            'reports': 0,
+            'roles': 0,
+            'news': 0,
+            'tasks': 0
+        }
+        
+        try:
+            stats['users'] = User.query.count()
+        except: pass
+        
+        try:
+            stats['reports'] = ReportData.query.count()
+        except: pass
+        
+        try:
+            stats['roles'] = AppRole.query.count()
+        except: pass
+        
+        try:
+            stats['news'] = NewsDoc.query.count()
+        except: pass
+        
+        try:
+            stats['tasks'] = Task.query.count()
+        except: pass
+        
+        overdue_stats = []
+        total_templates = 0
+        
+        # Calculate Overdue Reports - wrapped in try/except
+        try:
+            all_units = [u[0] for u in db.session.query(User.unit_area).distinct().all() if u[0]]
+            today = datetime.now().date()
+            
+            # V1 Reports
+            for r in ReportConfig.query.all():
+                q = db.session.query(User.unit_area).join(ReportData, User.id == ReportData.user_id)\
+                    .filter(ReportData.report_id == r.id)
+                if r.is_daily: q = q.filter(ReportData.report_date == today)
+                submitted = [u[0] for u in q.distinct().all()]
+                missing = [u for u in all_units if u not in submitted]
+                if missing: overdue_stats.append({'id': r.id, 'name': r.name, 'count': len(missing)})
 
-    # Query dữ liệu mới cho mobile dashboard - tạm bỏ nếu lỗi
-    new_tasks = []
-    new_news = []
-    new_docs = []
-    new_reports = []
-    # try:
-    #     recent_date = datetime.now() - timedelta(days=7)
-    #     new_tasks = Task.query.filter(Task.created_at >= recent_date).order_by(Task.created_at.desc()).limit(5).all()
-    #     new_news = NewsDoc.query.filter(NewsDoc.uploaded_at >= recent_date).order_by(NewsDoc.uploaded_at.desc()).limit(5).all()
-    #     new_docs = DocumentLib.query.filter(DocumentLib.uploaded_at >= recent_date).order_by(DocumentLib.uploaded_at.desc()).limit(5).all()
-    #     new_reports = ReportConfig.query.order_by(ReportConfig.created_at.desc()).limit(5).all()
-    # except Exception as e:
-    #     print(f"Error querying new data: {e}")
-    #     new_tasks = []
-    #     new_news = []
-    #     new_docs = []
-    #     new_reports = []
-    
-    logs = SystemLog.query.order_by(SystemLog.created_at.desc()).limit(5).all()
-    now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
-    
-    return render_auto_template('admin_dashboard.html', 
-        stats=stats, 
-        overdue_stats=overdue_stats, 
-        total_templates=total_templates, 
-        now_str=now_str, 
-        logs=logs,
-        new_tasks=new_tasks,
-        new_news=new_news,
-        new_docs=new_docs,
-        new_reports=new_reports)
+            # V2 Reports
+            total_templates = ReportConfig.query.count()
+            v2_templates = ReportTemplateV2.query.filter_by(is_active=True).all()
+            total_templates += len(v2_templates)
+            for t in v2_templates:
+                q = db.session.query(ReportSubmissionV2.org_unit).filter(ReportSubmissionV2.status != 'draft')
+                submitted = [u[0] for u in q.filter(ReportSubmissionV2.org_unit.in_(all_units)).distinct().all()]
+                missing = [u for u in all_units if u not in submitted]
+                if missing: overdue_stats.append({'id': t.id, 'name': t.name, 'count': len(missing)})
+        except Exception as e:
+            print(f"Error in admin dashboard queries: {e}")
+            overdue_stats = []
+            total_templates = 0
+
+        # Query dữ liệu mới cho mobile dashboard - tạm bỏ
+        new_tasks = []
+        new_news = []
+        new_docs = []
+        new_reports = []
+        
+        logs = SystemLog.query.order_by(SystemLog.created_at.desc()).limit(5).all()
+        now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
+        
+        return render_auto_template('admin_dashboard.html', 
+            stats=stats, 
+            overdue_stats=overdue_stats, 
+            total_templates=total_templates, 
+            now_str=now_str, 
+            logs=logs,
+            new_tasks=new_tasks,
+            new_news=new_news,
+            new_docs=new_docs,
+            new_reports=new_reports)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return f"Lỗi: {str(e)}", 500
 
 @admin_bp.route('/admin/db-tool', methods=['GET', 'POST'])
 def db_tool():
