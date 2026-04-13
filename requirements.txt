@@ -12,3 +12,7 @@ python-docx==1.1.0
 google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib
+
+# OCR Libraries (optional - for image to Excel/Word conversion)
+# Install these to enable OCR features:
+# pip install paddlepaddle paddleocr pymupdf opencv-python
