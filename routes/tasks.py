@@ -11,8 +11,9 @@ tasks_bp = Blueprint('tasks_bp', __name__)
 def tasks():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
     
-    # === ĐƠN GIẢN HÓA: LẤY TẤT CẢ DANH MỤC ===
-    all_category_items = CategoryItem.query.all()
+    # === LẤY DANH MỤC THEO NHÓM ===
+    group_dongnghiepvu = CategoryGroup.query.filter_by(name='Dong nghiep vu').first()
+    all_category_items = CategoryItem.query.filter_by(group_id=group_dongnghiepvu.id).all() if group_dongnghiepvu else []
     domains = [d.name for d in all_category_items]
     
     current_domain = request.args.get('domain', 'ALL')
@@ -60,23 +61,25 @@ def tasks():
                 try: deadline_val = datetime(now.year, now.month, day_of_month).date()
                 except: deadline_val = datetime(now.year, now.month, 28).date()
         elif deadline_type == 'quarter':
-            # Ngày cụ thể cuối quý
+            # Ngày và tháng cụ thể trong quý
             day_of_month = int(request.form.get('day_of_month', 1))
-            quarter_end_month = ((now.month - 1) // 3 + 1) * 3
-            try: deadline_val = datetime(now.year, quarter_end_month, day_of_month).date()
-            except: deadline_val = datetime(now.year, quarter_end_month, 28).date()
+            month_of_period = int(request.form.get('month_of_period', 3))  # Default tháng 3
+            quarter = (now.month - 1) // 3 + 1
+            target_month = quarter * 3 - (3 - month_of_period)
+            if target_month < 1: target_month = 1
+            try: deadline_val = datetime(now.year, target_month, day_of_month).date()
+            except: deadline_val = datetime(now.year, target_month, 28).date()
         elif deadline_type == '6months':
-            # 30/6 hoặc 31/12 tùy ngày chọn
+            # Ngày và tháng (6 hoặc 12)
             day_of_month = int(request.form.get('day_of_month', 1))
-            if day_of_month > 30: day_of_month = 30
-            if now.month <= 6:
-                deadline_val = datetime(now.year, 6, day_of_month).date()
-            else:
-                deadline_val = datetime(now.year, 12, day_of_month).date()
+            month_of_period = int(request.form.get('month_of_period', 6))
+            try: deadline_val = datetime(now.year, month_of_period, day_of_month).date()
+            except: deadline_val = datetime(now.year, 6, 28).date()
         elif deadline_type == 'year':
-            # Ngày cụ thể trong năm
+            # Ngày và tháng cụ thể trong năm
             day_of_month = int(request.form.get('day_of_month', 31))
-            try: deadline_val = datetime(now.year, 12, day_of_month).date()
+            month_of_period = int(request.form.get('month_of_period', 12))
+            try: deadline_val = datetime(now.year, month_of_period, day_of_month).date()
             except: deadline_val = datetime(now.year, 12, 31).date()
 
         # Get domain from either 'unit_name' (new modal) or 'domain' (old form)

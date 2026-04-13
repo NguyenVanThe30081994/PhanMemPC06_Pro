@@ -34,16 +34,25 @@ def news():
         return redirect(url_for('portal_bp.news'))
     now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
     
-    # === ĐƠN GIẢN HÓA: LẤY TẤT CẢ DANH MỤC TỪ CategoryItem ===
-    # Lấy tất cả CategoryItem để hiển thị trong dropdown
-    all_category_items = CategoryItem.query.all()
+    # === LẤY DANH MỤC THEO NHÓM ===
+    group_danhba = CategoryGroup.query.filter_by(name='Nhom danh ba').first()
+    danhba_items = CategoryItem.query.filter_by(group_id=group_danhba.id).all() if group_danhba else []
     
-    # News: lấy tất cả (sẽ lọc theo group_id nếu cần)
+    group_donvi = CategoryGroup.query.filter_by(name='Don vi').first()
+    donvi_items = CategoryItem.query.filter_by(group_id=group_donvi.id).all() if group_donvi else []
+    
+    # Linh vuc (for news)
+    group_linhvuc = CategoryGroup.query.filter_by(name='Linh vuc').first()
+    linhvuc_items = CategoryItem.query.filter_by(group_id=group_linhvuc.id).all() if group_linhvuc else []
+    
+    # Dong nghiep vu (for tasks)
+    group_dongnghiepvu = CategoryGroup.query.filter_by(name='Dong nghiep vu').first()
+    dongnghiepvu_items = CategoryItem.query.filter_by(group_id=group_dongnghiepvu.id).all() if group_dongnghiepvu else []
     
     return render_template('news.html',
                           news_list=NewsDoc.query.order_by(NewsDoc.uploaded_at.desc()).all(),
-                          cats=all_category_items, 
-                          pro_units=all_category_items,
+                          cats=linhvuc_items, 
+                          pro_units=dongnghiepvu_items,
                           now_str=now_str)
 
 @portal_bp.route('/notifications')
