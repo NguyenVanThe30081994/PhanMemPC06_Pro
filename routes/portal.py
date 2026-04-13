@@ -118,6 +118,16 @@ def contacts():
         role_meta = CategoryGroup.query.filter_by(name='Chức danh').first()
     contact_roles = role_meta.items if role_meta else []
     
+    # Fallback list nếu chưa có danh mục
+    if not contact_roles:
+        contact_roles = [
+            type('obj', (object,), {'name': 'Trưởng phòng'})(),
+            type('obj', (object,), {'name': 'Phó trưởng phòng'})(),
+            type('obj', (object,), {'name': 'Cán sự'})(),
+            type('obj', (object,), {'name': 'Cán bộ'})(),
+            type('obj', (object,), {'name': 'Nhân viên'})(),
+        ]
+    
     # 3. Đơn vị (mới chuẩn hóa)
     unit_group = CategoryGroup.query.filter_by(name='Đơn vị').first()
     unit_cats = unit_group.items if unit_group else []
