@@ -46,14 +46,23 @@ def index():
             if missing: overdue_stats.append({'id': t.id, 'name': t.name, 'count': len(missing)})
     except: pass
 
-    # Query dữ liệu mới cho mobile dashboard
-    from datetime import timedelta
-    recent_date = datetime.now() - timedelta(days=7)
-    
-    new_tasks = Task.query.filter(Task.created_at >= recent_date).order_by(Task.created_at.desc()).limit(5).all()
-    new_news = NewsDoc.query.filter(NewsDoc.uploaded_at >= recent_date).order_by(NewsDoc.uploaded_at.desc()).limit(5).all()
-    new_docs = DocumentLib.query.filter(DocumentLib.uploaded_at >= recent_date).order_by(DocumentLib.uploaded_at.desc()).limit(5).all()
-    new_reports = ReportConfig.query.order_by(ReportConfig.created_at.desc()).limit(5).all()
+    # Query dữ liệu mới cho mobile dashboard - tạm bỏ nếu lỗi
+    new_tasks = []
+    new_news = []
+    new_docs = []
+    new_reports = []
+    # try:
+    #     recent_date = datetime.now() - timedelta(days=7)
+    #     new_tasks = Task.query.filter(Task.created_at >= recent_date).order_by(Task.created_at.desc()).limit(5).all()
+    #     new_news = NewsDoc.query.filter(NewsDoc.uploaded_at >= recent_date).order_by(NewsDoc.uploaded_at.desc()).limit(5).all()
+    #     new_docs = DocumentLib.query.filter(DocumentLib.uploaded_at >= recent_date).order_by(DocumentLib.uploaded_at.desc()).limit(5).all()
+    #     new_reports = ReportConfig.query.order_by(ReportConfig.created_at.desc()).limit(5).all()
+    # except Exception as e:
+    #     print(f"Error querying new data: {e}")
+    #     new_tasks = []
+    #     new_news = []
+    #     new_docs = []
+    #     new_reports = []
     
     logs = SystemLog.query.order_by(SystemLog.created_at.desc()).limit(5).all()
     now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
