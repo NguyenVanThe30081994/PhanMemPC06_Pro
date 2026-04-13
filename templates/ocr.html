@@ -1,0 +1,287 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}OCR - PC06{% endblock %}
+
+{% block head %}
+<style>
+    .upload-zone {
+        border: 2px dashed var(--border);
+        border-radius: 16px;
+        padding: 40px 20px;
+        text-align: center;
+        background: var(--bg-surface);
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+    .upload-zone:active {
+        border-color: var(--primary);
+        background: var(--primary-light);
+    }
+    .upload-zone.dragover {
+        border-color: var(--primary);
+        background: var(--primary-light);
+    }
+    .file-preview {
+        background: var(--bg-surface);
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 16px;
+        display: none;
+    }
+    .file-preview.show {
+        display: block;
+    }
+    .btn-ocr {
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 14px 28px;
+        font-weight: 700;
+        font-size: 15px;
+        width: 100%;
+        margin-top: 16px;
+    }
+    .btn-ocr:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    .result-box {
+        background: #dcfce7;
+        border: 1px solid #22c55e;
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 20px;
+        display: none;
+    }
+    .result-box.show {
+        display: block;
+    }
+    .result-box.error {
+        background: #fee2e2;
+        border-color: #dc2626;
+    }
+    .format-badge {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        margin: 4px;
+        cursor: pointer;
+        border: 2px solid var(--border);
+    }
+    .format-badge.active {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+    .spinner {
+        width: 24px;
+        height: 24px;
+        border: 3px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 1s linear infinite;
+        display: inline-block;
+        vertical-align: middle;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="animate__animated animate__fadeIn">
+    <h4 class="fw-bold mb-3">
+        <i class="fa-solid fa-camera me-2"></i>OCR - Chuyển đổi Ảnh
+    </h4>
+    
+    <p class="text-muted small mb-3">
+        Chụp ảnh bảng biểu, danh sách, văn bản để chuyển sang Excel hoặc Word
+    </p>
+
+    <!-- Format Selection -->
+    <div class="mb-3">
+        <label class="small fw-bold text-muted mb-2 d-block">ĐỊNH DẠNG XUẤT</label>
+        <div>
+            <span class="format-badge active" onclick="selectFormat('excel')" id="format-excel">
+                <i class="fa-solid fa-file-excel me-1"></i>Excel
+            </span>
+            <span class="format-badge" onclick="selectFormat('word')" id="format-word">
+                <i class="fa-solid fa-file-word me-1"></i>Word
+            </span>
+        </div>
+    </div>
+
+    <!-- Upload Zone -->
+    <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <i class="fa-solid fa-cloud-arrow-up fs-1 text-primary mb-2"></i>
+        <p class="mb-1 fw-bold">Chạm để chọn ảnh</p>
+        <p class="small text-muted mb-0">Hỗ trợ: JPG, PNG, PDF, BMP</p>
+        <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.pdf,.bmp,.tiff" hidden>
+    </div>
+
+    <!-- File Preview -->
+    <div class="file-preview" id="filePreview">
+        <div class="d-flex align-items-center gap-3">
+            <i class="fa-solid fa-file-image fs-2 text-primary"></i>
+            <div class="flex-grow-1">
+                <div class="fw-bold text-truncate" id="fileName">filename.jpg</div>
+                <div class="small text-muted" id="fileSize">0 KB</div>
+            </div>
+            <button class="btn btn-sm btn-outline-danger" onclick="clearFile()">
+                <i class="fa-solid fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- OCR Button -->
+    <button class="btn-ocr" id="ocrBtn" onclick="startOCR()" disabled>
+        <span id="btnText">BẮT ĐẦU CHUYỂN ĐỔI</span>
+    </button>
+
+    <!-- Loading -->
+    <div class="text-center mt-3" id="loading" style="display: none;">
+        <div class="spinner"></div>
+        <p class="small mt-2">Đang xử lý OCR...</p>
+        <p class="tiny text-muted">Vui lòng chờ trong giây lát</p>
+    </div>
+
+    <!-- Result -->
+    <div class="result-box" id="resultBox">
+        <div class="d-flex align-items-start gap-3">
+            <i class="fa-solid fa-check-circle fs-2 text-success"></i>
+            <div class="flex-grow-1">
+                <div class="fw-bold text-success">Chuyển đổi thành công!</div>
+                <a href="#" class="btn btn-success btn-sm mt-2" id="downloadLink" target="_blank">
+                    <i class="fa-solid fa-download me-1"></i>Tải file
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error -->
+    <div class="result-box error" id="errorBox" style="display: none;">
+        <div class="d-flex align-items-start gap-3">
+            <i class="fa-solid fa-circle-exclamation fs-2 text-danger"></i>
+            <div class="flex-grow-1">
+                <div class="fw-bold text-danger">Lỗi xử lý</div>
+                <p class="small mb-0 mt-1" id="errorMsg"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedFile = null;
+let selectedFormat = 'excel';
+
+function selectFormat(fmt) {
+    selectedFormat = fmt;
+    document.querySelectorAll('.format-badge').forEach(el => el.classList.remove('active'));
+    document.getElementById('format-' + fmt).classList.add('active');
+}
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+    if (this.files && this.files[0]) {
+        selectedFile = this.files[0];
+        showFileInfo();
+    }
+});
+
+// Drag and drop
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+});
+dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('dragover');
+});
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        selectedFile = e.dataTransfer.files[0];
+        showFileInfo();
+    }
+});
+
+function showFileInfo() {
+    const preview = document.getElementById('filePreview');
+    const name = document.getElementById('fileName');
+    const size = document.getElementById('fileSize');
+    const btn = document.getElementById('ocrBtn');
+    
+    name.textContent = selectedFile.name;
+    size.textContent = (selectedFile.size / 1024).toFixed(1) + ' KB';
+    preview.classList.add('show');
+    btn.disabled = false;
+}
+
+function clearFile() {
+    selectedFile = null;
+    document.getElementById('fileInput').value = '';
+    document.getElementById('filePreview').classList.remove('show');
+    document.getElementById('ocrBtn').disabled = true;
+    hideResults();
+}
+
+function hideResults() {
+    document.getElementById('resultBox').classList.remove('show');
+    document.getElementById('errorBox').style.display = 'none';
+    document.getElementById('loading').style.display = 'none';
+}
+
+async function startOCR() {
+    if (!selectedFile) return;
+    
+    const btn = document.getElementById('ocrBtn');
+    const btnText = document.getElementById('btnText');
+    const loading = document.getElementById('loading');
+    const resultBox = document.getElementById('resultBox');
+    const errorBox = document.getElementById('errorBox');
+    const downloadLink = document.getElementById('downloadLink');
+    const errorMsg = document.getElementById('errorMsg');
+    
+    hideResults();
+    
+    btn.disabled = true;
+    loading.style.display = 'block';
+    btnText.textContent = 'ĐANG XỬ LÝ...';
+    
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    
+    const endpoint = selectedFormat === 'excel' ? '/api/ocr/to-excel' : '/api/ocr/to-word';
+    
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        loading.style.display = 'none';
+        
+        if (data.status === 'success') {
+            downloadLink.href = data.download_url;
+            resultBox.classList.add('show');
+        } else {
+            errorMsg.textContent = data.message;
+            errorBox.style.display = 'block';
+        }
+    } catch (err) {
+        loading.style.display = 'none';
+        errorMsg.textContent = 'Lỗi kết nối server';
+        errorBox.style.display = 'block';
+    }
+    
+    btn.disabled = false;
+    btnText.textContent = 'BẮT ĐẦU CHUYỂN ĐỔI';
+}
+</script>
+{% endblock %}
