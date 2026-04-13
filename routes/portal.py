@@ -37,12 +37,14 @@ def news():
     # Logic dynamic categories for News
     news_groups = CategoryGroup.query.filter(CategoryGroup.linked_modules.contains('Bảng tin')).all()
     news_cats = []
-    for g in news_groups: news_cats.extend(g.items)
+    for g in news_groups: 
+        news_cats.extend(CategoryItem.query.filter_by(group_id=g.id).all())
     
     # Logic dynamic units (used in news)
     unit_groups = CategoryGroup.query.filter(CategoryGroup.linked_modules.contains('Công việc')).all()
     pro_units = []
-    for g in unit_groups: pro_units.extend(g.items)
+    for g in unit_groups: 
+        pro_units.extend(CategoryItem.query.filter_by(group_id=g.id).all())
 
     return render_template('news.html', 
                           news_list=NewsDoc.query.order_by(NewsDoc.uploaded_at.desc()).all(), 
@@ -82,7 +84,8 @@ def library():
     # Logic dynamic categories for Library
     lib_groups = CategoryGroup.query.filter(CategoryGroup.linked_modules.contains('Thư viện')).all()
     lib_cats = []
-    for g in lib_groups: lib_cats.extend(g.items)
+    for g in lib_groups: 
+        lib_cats.extend(CategoryItem.query.filter_by(group_id=g.id).all())
     
     return render_template('library.html', docs=DocumentLib.query.all(), cats=lib_cats)
 

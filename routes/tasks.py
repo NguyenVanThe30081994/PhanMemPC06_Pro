@@ -14,7 +14,7 @@ def tasks():
     # Fetch domains from dynamic categories linked to 'Công việc'
     groups = CategoryGroup.query.filter(CategoryGroup.linked_modules.contains('Công việc')).all()
     all_units = []
-    for g in groups: all_units.extend(g.items)
+    for g in groups: all_units.extend(CategoryItem.query.filter_by(group_id=g.id).all())
     domains = [d.name for d in all_units]
     
     current_domain = request.args.get('domain', 'ALL')
