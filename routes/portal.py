@@ -109,20 +109,18 @@ def contacts():
     if not is_contact_lead:
         query = query.filter_by(unit_name=user_unit)
     
-    # Logic dynamic categories for Contacts
-    # 1. Nhóm danh bạ
-    group_meta = CategoryGroup.query.filter_by(name='Nhóm danh bạ').first()
-    contact_groups = CategoryItem.query.filter_by(group_id=group_meta.id).all() if group_meta else []
+    # === ĐƠN GIẢN HÓA: LẤY TRỰC TIẾP TỪ CONTACTS TRONG DB ===
+    # 1. Nhóm danh bạ - lấy từ contact đã có
+    existing_groups = db.session.query(Contact.contact_group).distinct().all()
+    contact_groups = [g[0] for g in existing_groups if g[0]]
     
-    # 2. Chức vụ 
-    role_meta = CategoryGroup.query.filter_by(name='Chức vụ').first()
-    if not role_meta:
-        role_meta = CategoryGroup.query.filter_by(name='Chức danh').first()
-    contact_roles = CategoryItem.query.filter_by(group_id=role_meta.id).all() if role_meta else []
+    # 2. Chức vụ - lấy từ contact đã có  
+    existing_roles = db.session.query(Contact.role).distinct().all()
+    contact_roles = [r[0] for r in existing_roles if r[0]]
     
-    # 3. Đơn vị
-    unit_group = CategoryGroup.query.filter_by(name='Đơn vị').first()
-    unit_cats = CategoryItem.query.filter_by(group_id=unit_group.id).all() if unit_group else []
+    # 3. Đơn vị - lấy từ contact đã có
+    existing_units = db.session.query(Contact.unit_name).distinct().all()
+    unit_cats = [u[0] for u in existing_units if u[0]]
     
     return render_template('contacts.html', 
                           contacts=query.all(), 
