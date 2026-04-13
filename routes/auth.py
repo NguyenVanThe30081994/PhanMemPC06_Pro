@@ -7,6 +7,16 @@ from datetime import datetime
 
 auth_bp = Blueprint('auth_bp', __name__)
 
+# Root route - redirect to admin after login
+@auth_bp.route('/')
+def index():
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    try:
+        return redirect(url_for('admin_bp.index'))
+    except:
+        return redirect('/admin')  # Fallback
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if session.get('uid'):

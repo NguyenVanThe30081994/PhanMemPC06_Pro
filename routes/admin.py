@@ -6,11 +6,6 @@ from utils import log_action, clear_logs, init_db, render_auto_template as rende
 
 admin_bp = Blueprint('admin_bp', __name__)
 
-# Root route - redirect về admin dashboard
-@admin_bp.route('/')
-def index_root():
-    return redirect(url_for('admin_bp.index'))
-
 @admin_bp.route('/admin')
 def index():
     try:
