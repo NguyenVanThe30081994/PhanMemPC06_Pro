@@ -87,13 +87,13 @@
                         <div class="col-6">
                             <label class="form-label small fw-bold">Chức vụ</label>
                             <select name="position" class="form-select">
-                                {% for r in roles %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+                                {% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}
                             </select>
                         </div>
                         <div class="col-6">
                             <label class="form-label small fw-bold">Nhóm</label>
                             <select name="category" class="form-select" required>
-                                {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+                                {% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
                             </select>
                         </div>
                     </div>

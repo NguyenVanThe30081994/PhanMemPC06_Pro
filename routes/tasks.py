@@ -11,11 +11,9 @@ tasks_bp = Blueprint('tasks_bp', __name__)
 def tasks():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
     
-    # Fetch domains from dynamic categories linked to 'Công việc'
-    groups = CategoryGroup.query.filter(CategoryGroup.linked_modules.contains('Công việc')).all()
-    all_units = []
-    for g in groups: all_units.extend(CategoryItem.query.filter_by(group_id=g.id).all())
-    domains = [d.name for d in all_units]
+    # === ĐƠN GIẢN HÓA: LẤY TẤT CẢ DANH MỤC ===
+    all_category_items = CategoryItem.query.all()
+    domains = [d.name for d in all_category_items]
     
     current_domain = request.args.get('domain', 'ALL')
     now_dt = datetime.now()
@@ -36,10 +34,50 @@ def tasks():
             f.save(os.path.join(current_app.root_path, 'task_files', fn))
         
         deadline_raw = request.form.get('deadline')
+        deadline_type = request.form.get('deadline_type', 'custom')
+        
         deadline_val = None
-        if deadline_raw:
-            try: deadline_val = datetime.strptime(deadline_raw, '%Y-%m-%d').date()
-            except: pass
+        now = datetime.now()
+        
+        if deadline_type == 'custom' and deadline_raw:
+            try:
+                deadline_val = datetime.strptime(deadline_raw, '%Y-%m-%d').date()
+            except:
+                pass
+        elif deadline_type == 'week':
+            # Chọn thứ trong tuần
+            weekday = int(request.form.get('weekday', 0))
+            days_until = (weekday - now.weekday()) % 7
+            if days_until == 0: days_until = 7  # Tuần sau
+            deadline_val = (now + timedelta(days=days_until)).date()
+        elif deadline_type == 'month':
+            # Ngày cụ thể trong tháng
+            day_of_month = int(request.form.get('day_of_month', 1))
+            if now.month == 12:
+                try: deadline_val = datetime(now.year, 12, day_of_month).date()
+                except: deadline_val = datetime(now.year, 12, 28).date()
+            else:
+                try: deadline_val = datetime(now.year, now.month, day_of_month).date()
+                except: deadline_val = datetime(now.year, now.month, 28).date()
+        elif deadline_type == 'quarter':
+            # Ngày cụ thể cuối quý
+            day_of_month = int(request.form.get('day_of_month', 1))
+            quarter_end_month = ((now.month - 1) // 3 + 1) * 3
+            try: deadline_val = datetime(now.year, quarter_end_month, day_of_month).date()
+            except: deadline_val = datetime(now.year, quarter_end_month, 28).date()
+        elif deadline_type == '6months':
+            # 30/6 hoặc 31/12 tùy ngày chọn
+            day_of_month = int(request.form.get('day_of_month', 1))
+            if day_of_month > 30: day_of_month = 30
+            if now.month <= 6:
+                deadline_val = datetime(now.year, 6, day_of_month).date()
+            else:
+                deadline_val = datetime(now.year, 12, day_of_month).date()
+        elif deadline_type == 'year':
+            # Ngày cụ thể trong năm
+            day_of_month = int(request.form.get('day_of_month', 31))
+            try: deadline_val = datetime(now.year, 12, day_of_month).date()
+            except: deadline_val = datetime(now.year, 12, 31).date()
 
         # Get domain from either 'unit_name' (new modal) or 'domain' (old form)
         domain = request.form.get('unit_name') or request.form.get('domain') or 'Giao việc chung'

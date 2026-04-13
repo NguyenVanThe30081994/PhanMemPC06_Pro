@@ -127,7 +127,44 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold small">THỜI HẠN</label>
-                            <input type="date" name="deadline" class="form-control" required>
+                            <select name="deadline_type" id="deadlineType" class="form-select" onchange="toggleDeadline()">
+                                <option value="custom">Ngày cụ thể</option>
+                                <option value="week">Định kỳ Tuần</option>
+                                <option value="month">Định kỳ Tháng</option>
+                                <option value="quarter">Định kỳ Quý</option>
+                                <option value="6months">Định kỳ 6 Tháng</option>
+                                <option value="year">Định kỳ Năm</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Custom date -->
+                        <div class="col-md-3" id="customDeadline">
+                            <label class="form-label fw-bold small">CHỌN NGÀY</label>
+                            <input type="date" name="deadline" class="form-control">
+                        </div>
+                        
+                        <!-- Weekday selector (for weekly) -->
+                        <div class="col-md-3" id="weekdaySelect" style="display:none;">
+                            <label class="form-label fw-bold small">THỨ</label>
+                            <select name="weekday" class="form-select">
+                                <option value="0">Chủ Nhật</option>
+                                <option value="1">Thứ Hai</option>
+                                <option value="2">Thứ Ba</option>
+                                <option value="3">Thứ Tư</option>
+                                <option value="4">Thứ Năm</option>
+                                <option value="5">Thứ Sáu</option>
+                                <option value="6">Thứ Bảy</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Day of month (for monthly/quarterly/6months/yearly) -->
+                        <div class="col-md-3" id="daySelect" style="display:none;">
+                            <label class="form-label fw-bold small">NGÀY</label>
+                            <select name="day_of_month" class="form-select">
+                                {% for d in range(1, 32) %}
+                                <option value="{{ d }}">{{ d }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                     </div>
                     
@@ -166,6 +203,36 @@
 </div>
 
 <script>
+    function toggleDeadline() {
+        const type = document.getElementById('deadlineType').value;
+        const customDiv = document.getElementById('customDeadline');
+        const weekdayDiv = document.getElementById('weekdaySelect');
+        const dayDiv = document.getElementById('daySelect');
+        
+        // Hide all first
+        customDiv.style.display = 'none';
+        weekdayDiv.style.display = 'none';
+        dayDiv.style.display = 'none';
+        
+        if (type === 'custom') {
+            customDiv.style.display = 'block';
+            customDiv.className = 'col-md-6';
+            customDiv.querySelector('input').setAttribute('required', 'required');
+        } else if (type === 'week') {
+            weekdayDiv.style.display = 'block';
+            weekdayDiv.className = 'col-md-3';
+        } else {
+            // month, quarter, 6months, year
+            dayDiv.style.display = 'block';
+            dayDiv.className = 'col-md-3';
+        }
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        toggleDeadline();
+    });
+    
     let currentUnit = 'ALL';
     let currentStatus = 'ALL';
 

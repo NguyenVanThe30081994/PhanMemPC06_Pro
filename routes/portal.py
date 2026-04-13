@@ -34,22 +34,16 @@ def news():
         return redirect(url_for('portal_bp.news'))
     now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
     
-    # Logic dynamic categories for News
-    news_groups = CategoryGroup.query.filter(CategoryGroup.linked_modules.contains('Bảng tin')).all()
-    news_cats = []
-    for g in news_groups: 
-        news_cats.extend(CategoryItem.query.filter_by(group_id=g.id).all())
+    # === ĐƠN GIẢN HÓA: LẤY TẤT CẢ DANH MỤC TỪ CategoryItem ===
+    # Lấy tất cả CategoryItem để hiển thị trong dropdown
+    all_category_items = CategoryItem.query.all()
     
-    # Logic dynamic units (used in news)
-    unit_groups = CategoryGroup.query.filter(CategoryGroup.linked_modules.contains('Công việc')).all()
-    pro_units = []
-    for g in unit_groups: 
-        pro_units.extend(CategoryItem.query.filter_by(group_id=g.id).all())
-
-    return render_template('news.html', 
-                          news_list=NewsDoc.query.order_by(NewsDoc.uploaded_at.desc()).all(), 
-                          cats=news_cats, 
-                          pro_units=pro_units,
+    # News: lấy tất cả (sẽ lọc theo group_id nếu cần)
+    
+    return render_template('news.html',
+                          news_list=NewsDoc.query.order_by(NewsDoc.uploaded_at.desc()).all(),
+                          cats=all_category_items, 
+                          pro_units=all_category_items,
                           now_str=now_str)
 
 @portal_bp.route('/notifications')
@@ -81,13 +75,10 @@ def library():
             push_global_notif("Thư viện", f"Tài liệu mới: {request.form['title']}", "/library", exclude_uid=session['uid'])
             flash('Đã tải lên tài liệu!', 'success')
         return redirect(url_for('portal_bp.library'))
-    # Logic dynamic categories for Library
-    lib_groups = CategoryGroup.query.filter(CategoryGroup.linked_modules.contains('Thư viện')).all()
-    lib_cats = []
-    for g in lib_groups: 
-        lib_cats.extend(CategoryItem.query.filter_by(group_id=g.id).all())
+    # === ĐƠN GIẢN HÓA: LẤY TẤT CẢ DANH MỤC ===
+    all_category_items = CategoryItem.query.all()
     
-    return render_template('library.html', docs=DocumentLib.query.all(), cats=lib_cats)
+    return render_template('library.html', docs=DocumentLib.query.all(), cats=all_category_items)
 
 @portal_bp.route('/contacts')
 def contacts():

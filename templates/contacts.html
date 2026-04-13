@@ -111,14 +111,14 @@
                             <label class="form-label fw-bold text-dark small">CHỨC VỤ</label>
                             <select name="position" class="form-select">
                                 <option value="" disabled selected>Chọn chức vụ...</option>
-                                {% for r in roles %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+                                {% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}
                             </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold text-dark small">NHÓM</label>
                             <select name="category" class="form-select" required>
                                 <option value="" disabled selected>Chọn nhóm danh bạ...</option>
-                                {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+                                {% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
                             </select>
                         </div>
                         <div class="col-12">
