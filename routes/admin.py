@@ -46,9 +46,28 @@ def index():
             if missing: overdue_stats.append({'id': t.id, 'name': t.name, 'count': len(missing)})
     except: pass
 
+    # Query dữ liệu mới cho mobile dashboard
+    from datetime import timedelta
+    recent_date = datetime.now() - timedelta(days=7)
+    
+    new_tasks = Task.query.filter(Task.created_at >= recent_date).order_by(Task.created_at.desc()).limit(5).all()
+    new_news = NewsDoc.query.filter(NewsDoc.uploaded_at >= recent_date).order_by(NewsDoc.uploaded_at.desc()).limit(5).all()
+    new_docs = DocumentLib.query.filter(DocumentLib.uploaded_at >= recent_date).order_by(DocumentLib.uploaded_at.desc()).limit(5).all()
+    new_reports = ReportConfig.query.order_by(ReportConfig.created_at.desc()).limit(5).all()
+    
     logs = SystemLog.query.order_by(SystemLog.created_at.desc()).limit(5).all()
     now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
-    return render_template('admin_dashboard.html', stats=stats, overdue_stats=overdue_stats, total_templates=total_templates, now_str=now_str, logs=logs)
+    
+    return render_auto_template('admin_dashboard.html', 
+        stats=stats, 
+        overdue_stats=overdue_stats, 
+        total_templates=total_templates, 
+        now_str=now_str, 
+        logs=logs,
+        new_tasks=new_tasks,
+        new_news=new_news,
+        new_docs=new_docs,
+        new_reports=new_reports)
 
 @admin_bp.route('/admin/db-tool', methods=['GET', 'POST'])
 def db_tool():
