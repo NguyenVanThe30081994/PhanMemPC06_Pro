@@ -5,9 +5,9 @@
 {% block content %}
 <div class="animate__animated animate__fadeIn">
     <div class="mb-4 d-flex justify-content-between align-items-center">
-        <h4 class="fw-bold text-dark mb-0">QR & Link</h4>
-        <button class="btn btn-primary btn-sm rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#addLinkModal">
-            <i class="fa-solid fa-plus"></i> TẠO MỚI
+        <h4 class="fw-bold text-dark mb-0">QR & Link Rút Gọn</h4>
+        <button class="btn btn-primary btn-sm rounded-pill fw-bold px-3" data-bs-toggle="modal" data-bs-target="#addLinkModal">
+            <i class="fa-solid fa-plus me-1"></i> TẠO MỚI
         </button>
     </div>
 
@@ -15,35 +15,61 @@
         {% for link in links %}
         {% set short_url = request.host_url.rstrip('/') ~ '/s/' ~ link.short_code %}
         <div class="mobile-card mb-3">
-            <div class="d-flex justify-content-between align-items-start mb-3">
-                <div class="overflow-hidden">
-                    <h6 class="fw-bold text-dark mb-1 text-truncate">{{ link.custom_name or 'Liên kết rút gọn' }}</h6>
-                    <div class="tiny text-muted"><i class="fa-regular fa-calendar me-1"></i>{{ link.created_at.strftime('%d/%m/%Y') }}</div>
+            <!-- Header: Tên & Clicks -->
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div class="overflow-hidden flex-grow-1 me-2">
+                    <h6 class="fw-bold text-dark mb-0 text-truncate">{{ link.custom_name or 'Liên kết rút gọn' }}</h6>
+                    {% if link.info %}
+                    <div class="tiny text-muted mt-1 text-truncate"><i class="fa-regular fa-note-sticky me-1"></i>{{ link.info }}</div>
+                    {% endif %}
+                    <div class="tiny text-muted mt-1"><i class="fa-regular fa-calendar me-1"></i>{{ link.created_at.strftime('%d/%m/%Y') }}</div>
                 </div>
-                <div class="badge bg-success bg-opacity-10 text-success rounded-pill fw-bold" style="font-size: 10px;">{{ link.clicks }} Clicks</div>
+                <div class="badge bg-success bg-opacity-10 text-success rounded-pill fw-bold flex-shrink-0" style="font-size: 10px; white-space: nowrap;">
+                    <i class="fa-solid fa-arrow-pointer me-1"></i>{{ link.clicks }}
+                </div>
             </div>
 
-            <div class="bg-light p-3 rounded-3 mb-3">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="tiny fw-bold text-muted text-uppercase">Link rút gọn:</span>
+            <!-- Link gốc -->
+            <div class="bg-light rounded-3 px-3 py-2 mb-2">
+                <div class="tiny fw-bold text-muted text-uppercase mb-1">Link gốc:</div>
+                <div class="small text-muted text-truncate" title="{{ link.original_url }}">{{ link.original_url }}</div>
+            </div>
+
+            <!-- Link rút gọn -->
+            <div class="bg-primary bg-opacity-10 p-3 rounded-3 mb-3">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <span class="tiny fw-bold text-primary text-uppercase">Link rút gọn:</span>
                     <button class="btn btn-link p-0 text-primary small fw-bold text-decoration-none" onclick="copyToClipboard('{{ short_url }}')">
                         <i class="fa-regular fa-copy me-1"></i> Sao chép
                     </button>
                 </div>
-                <div class="fw-bold text-primary small text-break">{{ short_url }}</div>
+                <a href="{{ short_url }}" target="_blank" class="fw-bold text-primary small text-break text-decoration-none">
+                    {{ short_url }}
+                </a>
             </div>
 
+            <!-- Actions -->
             <div class="row g-2">
-                <div class="col-6">
-                    <a href="{{ url_for('shortlink_bp.get_qr', code=link.short_code) }}" class="btn btn-outline-dark w-100 btn-sm rounded-pill fw-bold">
-                        <i class="fa-solid fa-qrcode me-1"></i> TẢI QR
+                <div class="col-4">
+                    <a href="{{ short_url }}" target="_blank" class="btn btn-outline-primary w-100 btn-sm rounded-pill fw-bold">
+                        <i class="fa-solid fa-up-right-from-square"></i>
                     </a>
                 </div>
-                <div class="col-6">
-                    {% if is_admin or link.created_by == session.uid %}
-                    <a href="{{ url_for('shortlink_bp.delete_link', link_id=link.id) }}" class="btn btn-outline-danger w-100 btn-sm rounded-pill fw-bold" onclick="return confirm('Bạn chắc chắn muốn xóa?')">
-                        <i class="fa-solid fa-trash-can me-1"></i> XÓA
+                <div class="col-4">
+                    <a href="{{ url_for('shortlink_bp.get_qr', code=link.short_code) }}" class="btn btn-outline-dark w-100 btn-sm rounded-pill fw-bold">
+                        <i class="fa-solid fa-qrcode"></i> QR
                     </a>
+                </div>
+                <div class="col-4">
+                    {% if is_admin or link.created_by == session.uid %}
+                    <button class="btn btn-outline-danger w-100 btn-sm rounded-pill fw-bold"
+                        onclick="ModernConfirm('Xác nhận xóa?', 'Bạn có chắc chắn muốn xóa link rút gọn này không?', 'warning', 'Xóa ngay', function() { window.location.href='{{ url_for('shortlink_bp.delete_link', link_id=link.id) }}'; })">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                    {% else %}
+                    <button class="btn btn-outline-secondary w-100 btn-sm rounded-pill fw-bold" disabled>
+                        <i class="fa-solid fa-lock"></i>
+                    </button>
                     {% endif %}
                 </div>
             </div>
@@ -52,8 +78,9 @@
 
         {% if not links %}
         <div class="text-center py-5">
-             <div class="opacity-10 mb-2"><i class="fa-solid fa-link-slash fa-3x"></i></div>
-             <p class="text-muted small">Chưa có liên kết nào</p>
+            <div class="opacity-25 mb-3"><i class="fa-solid fa-link-slash fa-3x"></i></div>
+            <h6 class="fw-bold text-dark">Chưa có link rút gọn nào</h6>
+            <p class="text-muted small">Bấm "TẠO MỚI" để bắt đầu.</p>
         </div>
         {% endif %}
     </div>
@@ -64,32 +91,58 @@
     <div class="modal-dialog modal-dialog-centered mx-3">
         <div class="modal-content border-0 rounded-4">
             <form method="POST" action="{{ url_for('shortlink_bp.add_link') }}">
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold">TẠO LINK MỚI</h5>
+                <div class="modal-header border-0 pb-0 px-4 pt-4">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-wand-magic-sparkles me-2 text-primary"></i>TẠO LINK RÚT GỌN</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body p-4">
+                <div class="modal-body px-4 py-3">
+                    <!-- URL gốc -->
                     <div class="mb-3">
-                        <label class="form-label small fw-bold text-muted">URL GỐC*</label>
+                        <label class="form-label small fw-bold text-muted text-uppercase">
+                            <i class="fa-solid fa-globe me-1 text-primary"></i> URL Gốc *
+                        </label>
                         <input type="url" name="original_url" class="form-control" placeholder="https://..." required>
                     </div>
+                    <!-- Tên gợi nhớ -->
                     <div class="mb-3">
-                        <label class="form-label small fw-bold text-muted">TÊN GỢI NHỚ</label>
-                        <input type="text" name="custom_name" class="form-control" placeholder="Tên để quản lý...">
+                        <label class="form-label small fw-bold text-muted text-uppercase">
+                            <i class="fa-solid fa-tag me-1 text-success"></i> Tên Gợi Nhớ
+                        </label>
+                        <input type="text" name="custom_name" class="form-control" placeholder="VD: Link khảo sát đội 1">
                     </div>
-                    <div class="mb-0">
-                        <label class="form-label small fw-bold text-muted">MÃ TÙY CHỈNH (NẾU MUỐN)</label>
-                        <input type="text" name="custom_code" class="form-control fw-bold text-primary" placeholder="vidu123" pattern="[a-zA-Z0-9_-]+">
+                    <!-- Ghi chú -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted text-uppercase">
+                            <i class="fa-regular fa-note-sticky me-1 text-warning"></i> Ghi Chú
+                        </label>
+                        <input type="text" name="info" class="form-control" placeholder="Nhập ghi chú...">
+                    </div>
+                    <!-- Mã tùy chỉnh -->
+                    <div class="mb-1">
+                        <label class="form-label small fw-bold text-muted text-uppercase">
+                            <i class="fa-solid fa-pen-to-square me-1 text-info"></i> Mã Tùy Chỉnh (Không bắt buộc)
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted border-end-0 small fw-bold" style="font-size: 11px;">/s/</span>
+                            <input type="text" name="custom_code" class="form-control border-start-0 fw-bold text-primary" placeholder="vidu123" pattern="[a-zA-Z0-9_-]+" title="Chỉ chứa chữ cái, số, gạch ngang, gạch dưới">
+                        </div>
+                        <div class="form-text tiny text-muted mt-1">Bỏ trống để hệ thống tự sinh mã ngẫu nhiên.</div>
                     </div>
                 </div>
-                <div class="modal-footer border-0">
-                    <button type="submit" class="btn-mobile btn-mobile-primary shadow">TẠO LINK NGAY</button>
+                <div class="modal-footer border-0 px-4 pb-4">
+                    <button type="button" class="btn btn-light rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
+                        <i class="fa-solid fa-bolt me-1"></i> Tạo Ngay
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
+<style>
+    .tiny { font-size: 11px; }
+</style>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 function copyToClipboard(text) {
@@ -101,6 +154,16 @@ function copyToClipboard(text) {
             position: 'top',
             showConfirmButton: false,
             timer: 2000
+        });
+    }).catch(err => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Lỗi sao chép',
+            text: String(err),
+            toast: true,
+            position: 'top',
+            showConfirmButton: false,
+            timer: 3000
         });
     });
 }
