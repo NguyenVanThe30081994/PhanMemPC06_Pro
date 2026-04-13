@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort, send_file
+from utils import render_auto_template
 from models import db, ShortLink, User
 import qrcode
 from io import BytesIO
@@ -27,7 +28,7 @@ def manage_links():
     else:
         links = ShortLink.query.filter_by(created_by=session['uid']).order_by(ShortLink.created_at.desc()).all()
         
-    return render_template('shortlinks.html', links=links)
+    return render_auto_template('shortlinks.html', links=links, is_admin=is_admin)
 
 @shortlink_bp.route('/links/add', methods=['POST'])
 def add_link():
