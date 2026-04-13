@@ -81,7 +81,7 @@ def index():
         logs = SystemLog.query.order_by(SystemLog.created_at.desc()).limit(5).all()
         now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
         
-        return flask_render_template('admin_dashboard.html', 
+        return render_template('admin_dashboard.html', 
             stats=stats, 
             overdue_stats=overdue_stats, 
             total_templates=total_templates, 
