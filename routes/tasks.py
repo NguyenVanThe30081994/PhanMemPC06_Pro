@@ -12,7 +12,7 @@ def tasks():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
     
     # === LẤY DANH MỤC THEO NHÓM ===
-    group_dongnghiepvu = CategoryGroup.query.filter_by(name='Dong nghiep vu').first()
+    group_dongnghiepvu = CategoryGroup.query.filter((CategoryGroup.name == 'Dong nghiep vu') | (CategoryGroup.name == 'Đội nghiệp vụ')).first()
     all_category_items = CategoryItem.query.filter_by(group_id=group_dongnghiepvu.id).all() if group_dongnghiepvu else []
     domains = [d.name for d in all_category_items]
     

@@ -189,7 +189,7 @@ def roles():
             flash(f'Lỗi: {e}', 'danger')
         return redirect(url_for('admin_bp.roles'))
     
-    unit_group = CategoryGroup.query.filter_by(name='Đơn vị').first()
+    unit_group = CategoryGroup.query.filter((CategoryGroup.name == 'Don vi') | (CategoryGroup.name == 'Đơn vị')).first()
     unit_cats = CategoryItem.query.filter_by(group_id=unit_group.id).all() if unit_group else []
     return render_template('roles.html', roles=AppRole.query.all(), users=User.query.all(), units=[u[0] for u in db.session.query(MasterData.name).distinct().all() if u[0]], unit_cats=unit_cats)
 

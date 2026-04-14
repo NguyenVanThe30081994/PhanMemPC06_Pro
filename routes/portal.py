@@ -35,18 +35,18 @@ def news():
     now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
     
     # === LẤY DANH MỤC THEO NHÓM ===
-    group_danhba = CategoryGroup.query.filter_by(name='Nhom danh ba').first()
+    group_danhba = CategoryGroup.query.filter((CategoryGroup.name == 'Nhom danh ba') | (CategoryGroup.name == 'Nhóm danh bạ')).first()
     danhba_items = CategoryItem.query.filter_by(group_id=group_danhba.id).all() if group_danhba else []
     
-    group_donvi = CategoryGroup.query.filter_by(name='Don vi').first()
+    group_donvi = CategoryGroup.query.filter((CategoryGroup.name == 'Don vi') | (CategoryGroup.name == 'Đơn vị')).first()
     donvi_items = CategoryItem.query.filter_by(group_id=group_donvi.id).all() if group_donvi else []
     
     # Linh vuc (for news)
-    group_linhvuc = CategoryGroup.query.filter_by(name='Linh vuc').first()
+    group_linhvuc = CategoryGroup.query.filter((CategoryGroup.name == 'Linh vuc') | (CategoryGroup.name == 'Lĩnh vực')).first()
     linhvuc_items = CategoryItem.query.filter_by(group_id=group_linhvuc.id).all() if group_linhvuc else []
     
     # Dong nghiep vu (for tasks)
-    group_dongnghiepvu = CategoryGroup.query.filter_by(name='Dong nghiep vu').first()
+    group_dongnghiepvu = CategoryGroup.query.filter((CategoryGroup.name == 'Dong nghiep vu') | (CategoryGroup.name == 'Đội nghiệp vụ')).first()
     dongnghiepvu_items = CategoryItem.query.filter_by(group_id=group_dongnghiepvu.id).all() if group_dongnghiepvu else []
     
     return render_template('news.html',
@@ -84,10 +84,11 @@ def library():
             push_global_notif("Thư viện", f"Tài liệu mới: {request.form['title']}", "/library", exclude_uid=session['uid'])
             flash('Đã tải lên tài liệu!', 'success')
         return redirect(url_for('portal_bp.library'))
-    # === ĐƠN GIẢN HÓA: LẤY TẤT CẢ DANH MỤC ===
-    all_category_items = CategoryItem.query.all()
+    # === LẤY DANH MỤC LĨNH VỰC ===
+    group_linhvuc = CategoryGroup.query.filter((CategoryGroup.name == 'Linh vuc') | (CategoryGroup.name == 'Lĩnh vực')).first()
+    linhvuc_items = CategoryItem.query.filter_by(group_id=group_linhvuc.id).all() if group_linhvuc else []
     
-    return render_template('library.html', docs=DocumentLib.query.all(), cats=all_category_items)
+    return render_template('library.html', docs=DocumentLib.query.all(), cats=linhvuc_items)
 
 @portal_bp.route('/contacts')
 def contacts():
@@ -109,26 +110,19 @@ def contacts():
     if not is_contact_lead:
         query = query.filter_by(unit_name=user_unit)
     
-    # === ĐƠN GIẢN HÓA: LẤY TRỰC TIẾP TỪ CONTACTS TRONG DB ===
-    # 1. Nhóm danh bạ - lấy từ contact đã có
-    existing_groups = db.session.query(Contact.contact_group).distinct().all()
-    contact_groups = [g[0] for g in existing_groups if g[0]]
+    # Lấy danh mục từ CategoryItem
+    group_danhba = CategoryGroup.query.filter((CategoryGroup.name == 'Nhom danh ba') | (CategoryGroup.name == 'Nhóm danh bạ')).first()
+    contact_groups_items = CategoryItem.query.filter_by(group_id=group_danhba.id).all() if group_danhba else []
     
-    # 2. Chức vụ - lấy từ contact đã có  
-    existing_roles = db.session.query(Contact.role).distinct().all()
-    contact_roles = [r[0] for r in existing_roles if r[0]]
-    
-    # 3. Đơn vị - lấy từ contact đã có
-    existing_units = db.session.query(Contact.unit_name).distinct().all()
-    unit_cats = [u[0] for u in existing_units if u[0]]
+    group_chucvu = CategoryGroup.query.filter((CategoryGroup.name == 'Chuc vu') | (CategoryGroup.name == 'Chức vụ')).first()
+    contact_roles_items = CategoryItem.query.filter_by(group_id=group_chucvu.id).all() if group_chucvu else []
     
     return render_template('contacts.html', 
                           contacts=query.all(), 
-                          groups=contact_groups,
-                          categories=contact_groups,
-                          roles=contact_roles, 
-                          current_group=group_filter,
-                          unit_cats=unit_cats)
+                          groups=contact_groups_items,
+                          categories=contact_groups_items,
+                          roles=contact_roles_items, 
+                          current_group=group_filter)
 
 @portal_bp.route('/contacts/edit/<int:cid>', methods=['POST'])
 def contact_edit(cid):
