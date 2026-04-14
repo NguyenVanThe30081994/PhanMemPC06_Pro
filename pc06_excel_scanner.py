@@ -6,13 +6,53 @@ from openpyxl.utils import get_column_letter, column_index_from_string, range_bo
 def scan_excel_structure(excel_blob):
     """
     Quét cấu trúc file Excel và trả về gợi ý cấu hình.
+    Chỉ quét vùng có dữ liệu thực tế (used range), không quét vùng trắng.
     """
     wb = openpyxl.load_workbook(io.BytesIO(excel_blob), data_only=False)
     ws = wb.active
     
+    # Tìm vùng thực tế có dữ liệu (used range)
+    # Thay vì dùng max_row/max_column (có thể bao gồm vùng trắng), 
+    # ta tìm last row/col có dữ liệu
+    used_min_row = ws.min_row
+    used_max_row = ws.max_row
+    used_min_col = ws.min_column
+    used_max_col = ws.max_column
+    
+    # Nếu worksheet có nhiều dòng trống ở cuối, tìn lại
+    # Duyệt từ cuối ngược lên để tìm dòng có dữ liệu
+    if used_max_row > used_min_row:
+        for row in range(used_max_row, used_min_row, -1):
+            has_data = False
+            for col in range(used_min_col, used_max_col + 1):
+                cell_val = ws.cell(row, col).value
+                if cell_val is not None and str(cell_val).strip() != '':
+                    has_data = True
+                    break
+            if has_data:
+                used_max_row = row
+                break
+            else:
+                used_max_row = row - 1  # Giảm max_row nếu dòng trống
+    
+    # Tương tự cho cột
+    if used_max_col > used_min_col:
+        for col in range(used_max_col, used_min_col, -1):
+            has_data = False
+            for row in range(used_min_row, used_max_row + 1):
+                cell_val = ws.cell(row, col).value
+                if cell_val is not None and str(cell_val).strip() != '':
+                    has_data = True
+                    break
+            if has_data:
+                used_max_col = col
+                break
+            else:
+                used_max_col = col - 1
+    
     result = {
-        'total_rows': ws.max_row,
-        'total_cols': ws.max_column,
+        'total_rows': used_max_row,
+        'total_cols': used_max_col,
         'columns': [],  # ['A', 'B', 'C', ...]
         'header_rows': [],
         'data_start_row': 4,  # Default
@@ -20,10 +60,12 @@ def scan_excel_structure(excel_blob):
         'merged_cells': [],
         'numeric_columns': [],
         'formulas': {},  # {col_letter: formula_type}
+        'original_max_row': ws.max_row,  # Lưu lại để debug
+        'original_max_col': ws.max_column,
     }
     
-    # Get columns
-    for col in range(1, ws.max_column + 1):
+    # Get columns (chỉ vùng có dữ liệu)
+    for col in range(used_min_col, used_max_col + 1):
         result['columns'].append(get_column_letter(col))
     
     # Scan merged cells
