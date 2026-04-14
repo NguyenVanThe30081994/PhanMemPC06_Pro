@@ -148,7 +148,7 @@ def tasks():
     return render_template('tasks.html', 
                            tasks=all_tasks, 
                            users=User.query.all(),
-                           pro_units=MasterData.query.all(),
+                           pro_units=all_category_items,
                            domains=domains, 
                            current_domain=current_domain, 
                            now_dt=now_dt,
