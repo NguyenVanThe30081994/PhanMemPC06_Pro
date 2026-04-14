@@ -517,10 +517,10 @@ def render_report(tid):
         min_row, min_col, max_row, max_col = _get_sheet_region(meta_data, ws, wb)
         unit_rows, unit_col = _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_unit)
         
-        # Find all unit header rows in sheet
+        # Find all unit header rows in sheet (check first 3 columns for unit names)
         all_unit_keys = set()
         for r in range(min_row, max_row + 1):
-            for c in range(min_col, max_col + 1):
+            for c in range(min_col, min(max_col + 1, min_col + 3)):
                 cell_val = ws.cell(row=r, column=c).value
                 if cell_val:
                     cell_str = str(cell_val).strip()
@@ -530,12 +530,15 @@ def render_report(tid):
                         all_unit_keys.add((r, cell_key))
                         break
         
-        # Determine show/hide for each row
         first_unit_row = min([r for r, k in all_unit_keys]) if all_unit_keys else None
         user_rows_set = set(unit_rows)
         other_unit_rows = {r for r, k in all_unit_keys if r not in user_rows_set}
         
-        # Find end of user's data section
+        # Fixed: Show ALL rows when no units found or for admins
+        if is_global or not unit_rows:
+            first_unit_row = None
+        
+        # Find user's data end (next unit row after user's)
         user_data_end = max_row
         if unit_rows:
             user_first = min(unit_rows)
@@ -549,23 +552,19 @@ def render_report(tid):
             if ws.row_dimensions[r].hidden:
                 continue
 
-            # Show user's unit + headers, hide other units
-            if not is_global and unit_rows and all_unit_keys:
-                user_first = min(unit_rows)
-                # Show user's unit rows
-                if r in unit_rows:
-                    pass
-                # Hide other unit headers
-                elif r in other_unit_rows:
-                    continue
-                # Show data between user's unit and next unit  
-                elif r > user_first and r <= user_data_end:
-                    pass
-                # Show headers before first unit in sheet
-                elif r < first_unit_row:
-                    pass
-                else:
-                    continue
+            # Simple logic: show all for admin, show user's + headers for regular
+            if is_global or not first_unit_row:
+                pass  # show all rows
+            elif r in unit_rows:
+                pass  # show user's unit
+            elif r in other_unit_rows:
+                continue  # hide other units
+            elif user_first and r > user_first and r <= user_data_end:
+                pass  # show user data
+            elif r < first_unit_row:
+                pass  # show headers (before any unit)
+            else:
+                continue
 
             rh = _row_height_px(ws, r)
             row_parts = [f'<tr style="height:{rh}px">']
