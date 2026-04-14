@@ -493,6 +493,10 @@ def render_report(tid):
     user_unit = session.get('unit', session.get('unit_area', ''))
     is_admin = session.get('is_admin', False)
     is_global = _is_global_user(is_admin, user_unit)
+    
+    # Debug log
+    import logging
+    logging.warning(f"[REPORTS_V2] unit='{user_unit}', admin={is_admin}, global={is_global}")
 
     from excel_renderer import _build_merge_lookup, _col_widths_px, _row_height_px, _cell_css, is_input_cell
     import openpyxl as _opx
@@ -515,6 +519,11 @@ def render_report(tid):
         colgroup = '<colgroup>' + ''.join(f'<col style="width:{w}px">' for w in col_widths) + '</colgroup>'
 
         min_row, min_col, max_row, max_col = _get_sheet_region(meta_data, ws, wb)
+        
+        # Debug: check first few cells 
+        sample = [(ws.cell(row=r, column=c).value) for r in range(min_row, min(min_row+3, max_row+1)) for c in range(min_col, min(min_col+3, max_col+1))]
+        logging.warning(f"[REPORTS_V2] min_row={min_row}, first_cells={sample}")
+        
         unit_rows, unit_col = _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_unit)
         
         # Find all unit header rows in sheet (check first 3 columns for unit names)
@@ -534,6 +543,9 @@ def render_report(tid):
         user_rows_set = set(unit_rows)
         other_unit_rows = {r for r, k in all_unit_keys if r not in user_rows_set}
         
+        # Debug log
+        logging.warning(f"[REPORTS_V2] unit_rows={unit_rows}, first_unit={first_unit_row}, is_global={is_global}")
+        
         # Fixed: Show ALL rows when no units found or for admins
         if is_global or not unit_rows:
             first_unit_row = None
@@ -552,6 +564,10 @@ def render_report(tid):
             if ws.row_dimensions[r].hidden:
                 continue
 
+            # Debug row filtering
+            if r <= min(min_row + 5, max_row):
+                logging.warning(f"[REPORTS_V2] row={r}, is_global={is_global}, first_unit={first_unit_row}")
+            
             # Simple logic: show all for admin, show user's + headers for regular
             if is_global or not first_unit_row:
                 pass  # show all rows
