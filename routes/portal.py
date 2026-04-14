@@ -162,8 +162,8 @@ def contact_delete(cid):
     
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
-    is_contact_lead = perms.get('p_contact_lead') or session.get('is_admin')
-    user_unit = session.get('unit_area')
+    is_contact_lead = perms.get('p_contact_lead') or perms.get('p_contact_exec') or session.get('is_admin')
+    user_unit = session.get('unit')
 
     c = Contact.query.get_or_404(cid)
     if not is_contact_lead and c.unit_name != user_unit:
@@ -184,8 +184,8 @@ def contact_add():
     
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
-    is_contact_lead = perms.get('p_contact_lead') or session.get('is_admin')
-    user_unit = session.get('unit_area')
+    is_contact_lead = perms.get('p_contact_lead') or perms.get('p_contact_exec') or session.get('is_admin')
+    user_unit = session.get('unit')
 
     name = request.form.get('name')
     phone = request.form.get('phone')

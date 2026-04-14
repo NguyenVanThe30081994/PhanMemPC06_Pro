@@ -9,7 +9,7 @@
         </div>
         
         <div class="header-actions">
-            {% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
+            {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin or session.get('uid') %}
             <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#addContactModal">
                 <i class="fa-solid fa-plus me-2"></i>THÊM LIÊN HỆ
             </button>
@@ -76,7 +76,7 @@
                                 <a href="tel:{{ c.phone }}" class="btn btn-light btn-circle btn-circle-sm border shadow-sm">
                                     <i class="fa-solid fa-phone text-success tiny"></i>
                                 </a>
-                                {% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
+                                {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
                                 <a href="/contacts/delete/{{ c.id }}" class="btn btn-light btn-circle btn-circle-sm border shadow-sm text-danger" onclick="return confirm('Xóa liên hệ này?')">
                                     <i class="fa-solid fa-trash tiny"></i>
                                 </a>

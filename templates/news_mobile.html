@@ -70,7 +70,7 @@
     </div>
 
     <!-- Floating Add Button -->
-    {% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
+    {% if perms.get('p_news_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
     <button class="btn-add-task" data-bs-toggle="modal" data-bs-target="#addNewsModal">
         <i class="fa-solid fa-plus"></i>
     </button>

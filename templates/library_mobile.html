@@ -6,7 +6,7 @@
 <div class="animate__animated animate__fadeIn">
     <div class="mb-4 d-flex justify-content-between align-items-center">
         <h4 class="fw-bold text-dark mb-0">Thư viện</h4>
-        {% if perms.get('p_sys_lead') or perms.get('p_sys_exec') or is_admin %}
+        {% if perms.get('p_lib_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
         <button class="btn btn-primary btn-sm rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#addLibraryModal">
             <i class="fa-solid fa-plus"></i> TẢI LÊN
         </button>

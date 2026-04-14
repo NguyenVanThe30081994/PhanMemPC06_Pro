@@ -9,7 +9,7 @@
         </div>
         
         <div class="header-actions">
-            {% if perms.get('p_task_lead') or perms.get('p_sys_lead') or is_admin %}
+            {% if perms.get('p_task_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
             <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#addTaskModal">
                 <i class="fa-solid fa-plus me-2"></i>THÊM CÔNG VIỆC
             </button>
