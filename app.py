@@ -13,11 +13,10 @@ STATIC_DIR = os.path.join(basedir, 'static')
 UPLOAD_FOLDER = os.path.join(basedir, 'uploads')
 TASK_FOLDER = os.path.join(basedir, 'task_files')
 LIB_FOLDER = os.path.join(basedir, 'library_files')
-CHAT_FOLDER = os.path.join(basedir, 'chat_files')
 BACKUP_FOLDER = os.path.join(basedir, 'backups') # Added for safety
 
 # Ensure directories exist with absolute paths
-for f in [UPLOAD_FOLDER, TASK_FOLDER, LIB_FOLDER, CHAT_FOLDER, BACKUP_FOLDER, os.path.join(basedir, 'tmp')]:
+for f in [UPLOAD_FOLDER, TASK_FOLDER, LIB_FOLDER, BACKUP_FOLDER, os.path.join(basedir, 'tmp')]:
     os.makedirs(f, exist_ok=True)
 
 app = Flask(__name__, 
@@ -227,7 +226,7 @@ def index(): return redirect(url_for('admin_bp.index'))
 
 @app.route('/dl_file/<path:fn>')
 def dl_file(fn): 
-    for b in [TASK_FOLDER, UPLOAD_FOLDER, LIB_FOLDER, CHAT_FOLDER]:
+    for b in [TASK_FOLDER, UPLOAD_FOLDER, LIB_FOLDER]:
         target = os.path.join(b, fn)
         if os.path.exists(target): 
             return send_from_directory(b, fn, as_attachment=True)
