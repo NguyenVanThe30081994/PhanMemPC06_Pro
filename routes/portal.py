@@ -88,7 +88,7 @@ def library():
     group_linhvuc = CategoryGroup.query.filter((CategoryGroup.name == 'Linh vuc') | (CategoryGroup.name == 'Lĩnh vực')).first()
     linhvuc_items = CategoryItem.query.filter_by(group_id=group_linhvuc.id).all() if group_linhvuc else []
     
-    return render_template('library.html', docs=DocumentLib.query.all(), cats=linhvuc_items)
+    return render_template('library.html', docs=DocumentLib.query.all(), cats=linhvuc_items, categories=linhvuc_items)
 
 @portal_bp.route('/contacts')
 def contacts():
@@ -117,11 +117,16 @@ def contacts():
     group_chucvu = CategoryGroup.query.filter((CategoryGroup.name == 'Chuc vu') | (CategoryGroup.name == 'Chức vụ')).first()
     contact_roles_items = CategoryItem.query.filter_by(group_id=group_chucvu.id).all() if group_chucvu else []
     
+    # Lấy nhóm "Lĩnh vực" cho danh bạ
+    group_linhvuc = CategoryGroup.query.filter((CategoryGroup.name == 'Linh vuc') | (CategoryGroup.name == 'Lĩnh vực')).first()
+    linhvuc_items = CategoryItem.query.filter_by(group_id=group_linhvuc.id).all() if group_linhvuc else []
+    
     return render_template('contacts.html', 
                           contacts=query.all(), 
                           groups=contact_groups_items,
                           categories=contact_groups_items,
                           roles=contact_roles_items, 
+                          linhvuc_items=linhvuc_items,
                           current_group=group_filter)
 
 @portal_bp.route('/contacts/edit/<int:cid>', methods=['POST'])

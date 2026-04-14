@@ -51,13 +51,15 @@
 
                 <div class="card-footer border-0 p-3" style="background-color: var(--bg-surface);">
                     <div class="d-flex gap-2 align-items-center">
-                        <form method="POST" class="d-flex gap-2 flex-grow-1">
+                        <form method="POST" class="d-flex flex-grow-1">
                             <input type="hidden" name="action" value="add_item">
                             <input type="hidden" name="group_id" value="{{ g.id }}">
-                            <input type="text" name="item_name" class="form-control form-control-sm border-0 shadow-sm" placeholder="Thêm thành phần..." required style="background-color: var(--bg-body) !important; color: var(--text-main) !important;">
-                            <button type="submit" class="btn btn-sm btn-success btn-circle btn-circle-sm shadow-sm" title="Thêm thủ công">
-                                <i class="fa-solid fa-plus tiny"></i>
-                            </button>
+                            <div class="input-group input-group-sm">
+                                <input type="text" name="item_name" class="form-control form-control-sm border-0 shadow-sm" placeholder="Thêm thành phần..." required style="background-color: var(--bg-body) !important; color: var(--text-main) !important;">
+                                <button type="submit" class="btn btn-sm btn-success shadow-sm" title="Thêm thủ công">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
                         </form>
 
                         <form method="POST" enctype="multipart/form-data" class="m-0">

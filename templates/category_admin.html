@@ -238,11 +238,15 @@ document.getElementById('addCategoryForm').addEventListener('submit', async func
             body: JSON.stringify(data)
         });
         if (res.ok) {
-            // Close modal and show success without reload
+            // Save scroll position before reload
+            const scrollPos = window.scrollY;
             bootstrap.Modal.getInstance(document.getElementById('addCategoryModal')).hide();
             alert('Thêm danh mục thành công!');
-            // Optionally reload after a short delay
-            setTimeout(() => location.reload(), 500);
+            // Reload and restore scroll position
+            setTimeout(() => {
+                location.reload();
+                window.scrollTo(0, scrollPos);
+            }, 500);
         } else {
             alert('Lỗi khi thêm danh mục');
         }
@@ -277,9 +281,13 @@ document.getElementById('editCategoryForm').addEventListener('submit', async fun
             body: JSON.stringify(data)
         });
         if (res.ok) {
+            const scrollPos = window.scrollY;
             bootstrap.Modal.getInstance(document.getElementById('editCategoryModal')).hide();
             alert('Cập nhật thành công!');
-            setTimeout(() => location.reload(), 500);
+            setTimeout(() => {
+                location.reload();
+                window.scrollTo(0, scrollPos);
+            }, 500);
         } else {
             alert('Lỗi khi cập nhật');
         }

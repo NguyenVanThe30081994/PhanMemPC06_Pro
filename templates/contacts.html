@@ -121,6 +121,13 @@
                                 {% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
                             </select>
                         </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-dark small">LĨNH VỰC</label>
+                            <select name="linhvuc" class="form-select">
+                                <option value="" disabled selected>Chọn lĩnh vực...</option>
+                                {% for lv in linhvuc_items %}<option value="{{ lv.name }}">{{ lv.name }}</option>{% endfor %}
+                            </select>
+                        </div>
                         <div class="col-12">
                             <label class="form-label fw-bold text-dark small">SỐ ĐIỆN THOẠI</label>
                             <input type="tel" name="phone" class="form-control"
