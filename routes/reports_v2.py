@@ -517,14 +517,19 @@ def render_report(tid):
         min_row, min_col, max_row, max_col = _get_sheet_region(meta_data, ws, wb)
         unit_rows, unit_col = _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_unit)
         first_unit_row = min(unit_rows) if unit_rows else None
+        
+        # If no matching unit found, show all rows (fallback)
+        if not unit_rows:
+            first_unit_row = None
 
         rows_html = []
         for r in range(min_row, max_row + 1):
             if ws.row_dimensions[r].hidden:
                 continue
 
-            # Hide rows NOT belonging to user's unit (only show matching unit rows)
-            if not is_global and unit_rows and r not in unit_rows:
+            # Hide data rows NOT belonging to user's unit (keep header rows + user's unit rows)
+            # Keep all rows BEFORE first unit row (headers), hide rows AFTER that don't match
+            if not is_global and first_unit_row and r > first_unit_row and r not in unit_rows:
                 continue
 
             rh = _row_height_px(ws, r)
