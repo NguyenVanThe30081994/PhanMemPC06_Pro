@@ -10,11 +10,26 @@ import datetime
 shortlink_bp = Blueprint('shortlink_bp', __name__)
 
 def generate_short_code(length=6):
+    """Generate unique short code - optimized with batch check"""
     chars = string.ascii_letters + string.digits
-    while True:
+    
+    # Get all existing codes at once (cache for performance)
+    existing_codes = set(s.short_code for s in ShortLink.query.with_entities(ShortLink.short_code).all())
+    
+    # Try up to 100 times before giving up
+    for _ in range(100):
         code = ''.join(random.choice(chars) for _ in range(length))
-        if not ShortLink.query.filter_by(short_code=code).first():
+        if code not in existing_codes:
             return code
+    
+    # Fallback: try longer length
+    for length in range(7, 12):
+        for _ in range(100):
+            code = ''.join(random.choice(chars) for _ in range(length))
+            if code not in existing_codes:
+                return code
+    
+    raise Exception("Không thể tạo mã rút gọn. Vui lòng thử lại.")
 
 @shortlink_bp.route('/links')
 def manage_links():

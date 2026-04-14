@@ -13,6 +13,7 @@ GLOBAL_UNITS = ['Hệ thống', 'Admin', 'PC06']
 
 
 def _is_global_user(is_admin, user_unit):
+    """Check if user can access all units (admin or special global unit)"""
     return bool(is_admin) or (user_unit in GLOBAL_UNITS)
 
 
@@ -29,27 +30,102 @@ def _split_v2_key(raw_key):
 
 
 def _normalize_text_for_unit_match(value):
+    """
+    Normalize unit name to a MATCH KEY.
+    Extracts the base name: "Công an xã A" -> "a", "UBND xã B" -> "b"
+    All these become the same: Công an xã A, xã A, UBND xã A → "xa a"
+    """
+    if not value:
+        return ""
+    
+    # Normalize first
     txt = normalize_unit_name(value or '')
-    return ' '.join(str(txt).split())
+    txt = ' '.join(str(txt).split())
+    
+    # If empty after normalize, use the original
+    if not txt:
+        txt = normalize_unit_name(str(value))
+    
+    return txt
+
+
+def _extract_unit_key(name):
+    """
+    Extract the CORE unit key from unit name.
+    "Công an xã An Tường" → "an tuong"
+    "UBND xã B" → "b"
+    "xã A" → "a"
+    """
+    if not name:
+        return ""
+    import unicodedata
+    # Lowercase + remove accents
+    n = str(name).lower().strip()
+    n = unicodedata.normalize('NFKD', n).encode('ascii', 'ignore').decode('utf-8')
+    
+    # Remove common prefixes but KEEP the unit name
+    prefixes = [
+        "cong an ", "cong an phuong ", "cong an xa ", "cong an huyen ", "cong an tinh ",
+        "ubnd ", "ubnd xa ", "ubnd phuong ", "ubnd huyen ",
+        "xa ", "phuong ", "huyen ", "thi tran ", "thanh pho "
+    ]
+    for p in prefixes:
+        if n.startswith(p):
+            n = n[len(p):].strip()
+            break
+    
+    # Clean up
+    n = ' '.join(n.split())
+    return n
 
 
 def _row_matches_unit(ws, row_idx, min_col, max_col, norm_user_unit):
+    """
+    Match row with user unit - SMART matching.
+    Matches if normalized names match OR if core keys match.
+    "Công an xã A" matches "Xã A", "UBND xã A", etc.
+    """
+    # Extract core key from user unit
+    user_key = _extract_unit_key(norm_user_unit)
+    
     for c in range(min_col, max_col + 1):
         cell_val = ws.cell(row=row_idx, column=c).value
         if cell_val is None:
             continue
-        norm_cell = _normalize_text_for_unit_match(str(cell_val).strip())
+        
+        cell_str = str(cell_val).strip()
+        norm_cell = _normalize_text_for_unit_match(cell_str)
+        cell_key = _extract_unit_key(cell_str)
+        
         if not norm_cell:
             continue
-        if norm_cell == norm_user_unit or norm_user_unit in norm_cell or norm_cell in norm_user_unit:
+        
+        # Match 1: Exact normalized match
+        if norm_cell == norm_user_unit:
             return True, c
+        
+        # Match 2: Core key match (e.g., "an tuong" matches "an tuong")
+        if user_key and cell_key and (user_key == cell_key):
+            return True, c
+        
+        # Match 3: User key is contained in cell (for partial matches like "Công an xã An Tường" in header)
+        if user_key and cell_key and (user_key in cell_key or cell_key in user_key):
+            return True, c
+    
     return False, None
 
 
 def _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_unit):
+    """
+    Find rows matching user unit.
+    - If user_unit is empty → return empty (no access without proper unit)
+    - Strict exact match only
+    """
     norm_user_unit = _normalize_text_for_unit_match(user_unit)
     matched_rows = []
     matched_col = None
+    
+    # If no unit assigned → no access to any row
     if not norm_user_unit:
         return matched_rows, matched_col
 
