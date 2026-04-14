@@ -523,7 +523,8 @@ def render_report(tid):
             if ws.row_dimensions[r].hidden:
                 continue
 
-            if not is_global and first_unit_row is not None and r >= first_unit_row and r not in unit_rows:
+            # Hide rows NOT belonging to user's unit (only show matching unit rows)
+            if not is_global and unit_rows and r not in unit_rows:
                 continue
 
             rh = _row_height_px(ws, r)
