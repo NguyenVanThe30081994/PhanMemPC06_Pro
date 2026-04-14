@@ -84,7 +84,8 @@
                     <div class="mb-0">
                         <label class="form-label small fw-bold">Liên kết chức năng</label>
                         <div class="row g-2">
-                            {% for m in ['Công việc', 'Bảng tin', 'Thư viện', 'Danh bạ', 'Dữ liệu', 'Hệ thống'] %}
+                            {% set modules = ['Công việc', 'Bảng tin', 'Thư viện', 'Danh bạ', 'Dữ liệu & Báo cáo', 'Tiện ích QR & Link', 'Hệ thống'] %}
+                            {% for m in modules %}
                             <div class="col-6">
                                 <div class="form-check small">
                                     <input class="form-check-input" type="checkbox" name="targets" value="{{ m }}" id="m_{{ loop.index }}">
