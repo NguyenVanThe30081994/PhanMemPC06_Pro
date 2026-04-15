@@ -10,20 +10,22 @@
     
     border-top: 1px solid rgba(255, 255, 255, 0.5) !important;
     border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
     
-    min-height: calc(100vh - 120px);
+    height: calc(100vh - 70px);
     position: sticky;
     top: 70px;
     padding: 12px 10px;
     z-index: 50;
-    box-shadow: 8px 0 30px rgba(0, 0, 0, 0.04);
+    box-shadow: 6px 0 25px rgba(0, 0, 0, 0.04);
     border-radius: 16px;
-    margin: 0 6px 10px 6px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin: 10px 6px 10px 10px;
     overflow-x: hidden;
     overflow-y: auto;
 }
+
+.flex-shrink-0 { flex-shrink: 0; }
+.flex-grow-1 { flex-grow: 1; }
+.overflow-auto { overflow-y: auto; }
 
 [data-theme="dark"] .bdhv-sidebar {
     background: rgba(30, 41, 59, 0.9) !important;
@@ -135,9 +137,9 @@
 {% endblock %}
 
 {% block content %}
-<div class="row g-0">
+<div class="d-flex" style="min-height: calc(100vh - 70px);">
     <!-- Sidebar -->
-    <div class="col-lg-2 bdhv-sidebar d-none d-lg-block">
+    <aside class="bdhv-sidebar flex-shrink-0 d-none d-lg-block" style="width: 210px;">
         <div class="bdhv-menu-title">
             <i class="fa-solid fa-school me-2"></i>Bình Dân Học Vụ
         </div>
@@ -184,8 +186,8 @@
     </div>
     
     <!-- Main Content -->
-    <div class="col-lg-10 bdhv-main-content">
+    <main class="bdhv-main-content flex-grow-1 overflow-auto">
         {% block bdhv_content %}{% endblock %}
-    </div>
+    </main>
 </div>
 {% endblock %}
