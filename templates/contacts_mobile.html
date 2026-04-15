@@ -4,6 +4,12 @@
 
 {% block content %}
 <div class="animate__animated animate__fadeIn">
+    <div class="d-flex align-items-center mb-3">
+        <a href="/" class="btn btn-outline-primary rounded-4">
+            <i class="fa-solid fa-house"></i>
+        </a>
+    </div>
+    
     <div class="mb-4 d-flex justify-content-between align-items-center">
         <h4 class="fw-bold text-dark mb-0">Danh bạ</h4>
         {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
