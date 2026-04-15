@@ -1,7 +1,10 @@
-from flask import Blueprint, request, session, redirect, url_for, flash, render_template, jsonify
+from flask import Blueprint, request, session, redirect, url_for, flash, render_template, jsonify, send_file
 from models import db, BDHV_HocVien, BDHV_DonVi, BDHV_ThongKe, BDHV_DangKyMoi, BDHV_ThiLai, BDHV_PhucTra, BDHV_DauMoi
 from datetime import datetime
 from utils import render_auto_template as render_template
+import io
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill
 
 bdhv_bp = Blueprint('bdhv_bp', __name__)
 
@@ -323,3 +326,131 @@ def update_thong_ke():
     
     db.session.commit()
     return jsonify({'success': True})
+
+
+# === EXPORT EXCEL ===
+
+@bdhv_bp.route('/bdhv/export/danh-sach', methods=['GET'])
+def export_danh_sach():
+    """Xuất danh sách học viên ra Excel"""
+    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
+    
+    # Lấy tất cả học viên
+    hoc_vien_list = BDHV_HocVien.query.all()
+    dong_dang_ky = BDHV_DangKyMoi.query.all()
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "DanhSachHV"
+    
+    # Header style
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_alignment = Alignment(horizontal="center", vertical="center")
+    
+    # Headers
+    headers = ['STT', 'Họ tên', 'CCCD', 'Đơn vị', 'Điểm học', 'Điểm thi', 'Kết quả', 'Nguồn']
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = header_alignment
+    
+    # Data - Học viên từ DS HV
+    row = 2
+    for hv in hoc_vien_list:
+        ws.cell(row=row, column=1, value=hv.stt or (row-1))
+        ws.cell(row=row, column=2, value=hv.ho_ten)
+        ws.cell(row=row, column=3, value=hv.cccd)
+        ws.cell(row=row, column=4, value=hv.don_vi)
+        ws.cell(row=row, column=5, value=hv.diem_hoc)
+        ws.cell(row=row, column=6, value=hv.diem_thi)
+        ws.cell(row=row, column=7, value=hv.ket_qua)
+        ws.cell(row=row, column=8, value=hv.nguon)
+        row += 1
+    
+    # Data - Đăng ký mới
+    for dk in dong_dang_ky:
+        ws.cell(row=row, column=1, value=dk.stt or '')
+        ws.cell(row=row, column=2, value=dk.ho_ten)
+        ws.cell(row=row, column=3, value=dk.cccd)
+        ws.cell(row=row, column=4, value=dk.don_vi)
+        ws.cell(row=row, column=5, value='')
+        ws.cell(row=row, column=6, value='')
+        ws.cell(row=row, column=7, value='Đã đăng ký')
+        ws.cell(row=row, column=8, value='DKMoi')
+        row += 1
+    
+    # Set column widths
+    ws.column_dimensions['A'].width = 8
+    ws.column_dimensions['B'].width = 30
+    ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['D'].width = 25
+    ws.column_dimensions['E'].width = 12
+    ws.column_dimensions['F'].width = 12
+    ws.column_dimensions['G'].width = 18
+    ws.column_dimensions['H'].width = 10
+    
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return send_file(
+        output,
+        download_name=f"BDHV_DanhSach_{datetime.now().strftime('%Y%m%d')}.xlsx",
+        as_attachment=True
+    )
+
+
+@bdhv_bp.route('/bdhv/export/thong-ke', methods=['GET'])
+def export_thong_ke():
+    """Xuất thống kê theo đơn vị ra Excel"""
+    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
+    
+    thong_ke = BDHV_ThongKe.query.order_by(BDHV_ThongKe.ty_le.desc()).all()
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "ThongKe"
+    
+    # Header style
+    header_fill = PatternFill(start_color="70AD47", end_color="70AD47", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_alignment = Alignment(horizontal="center", vertical="center")
+    
+    # Headers
+    headers = ['STT', 'Đơn vị', 'Tổng DS 18+', 'Đã đăng ký', 'Đã hoàn thành', 'Đã thi', 'Tỷ lệ (%)']
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = header_alignment
+    
+    # Data
+    for idx, tk in enumerate(thong_ke, 1):
+        ws.cell(row=idx+1, column=1, value=idx)
+        ws.cell(row=idx+1, column=2, value=tk.ten_don_vi)
+        ws.cell(row=idx+1, column=3, value=tk.tong_18)
+        ws.cell(row=idx+1, column=4, value=tk.da_dang_ky)
+        ws.cell(row=idx+1, column=5, value=tk.da_hoan_thanh)
+        ws.cell(row=idx+1, column=6, value=tk.diem_thi)
+        ws.cell(row=idx+1, column=7, value=tk.ty_le)
+    
+    # Set column widths
+    ws.column_dimensions['A'].width = 8
+    ws.column_dimensions['B'].width = 30
+    ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['D'].width = 15
+    ws.column_dimensions['E'].width = 18
+    ws.column_dimensions['F'].width = 12
+    ws.column_dimensions['G'].width = 12
+    
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return send_file(
+        output,
+        download_name=f"BDHV_ThongKe_{datetime.now().strftime('%Y%m%d')}.xlsx",
+        as_attachment=True
+    )
