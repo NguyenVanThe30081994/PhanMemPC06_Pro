@@ -56,28 +56,28 @@ def process():
             # Ảnh → Excel
             result = ocr_system.full_convert(input_path, target_format='excel')
             if result:
-                return send_file(result, as_attachment=True, download_url=os.path.basename(result))
+                return send_file(result, as_attachment=True, download_name=os.path.basename(result))
             flash('Không tìm thấy bảng trong ảnh!', 'warning')
             
         elif conv_type == 'img_word':
             # Ảnh → Word
             result = ocr_system.full_convert(input_path, target_format='word')
             if result:
-                return send_file(result, as_attachment=True, download_url=os.path.basename(result))
+                return send_file(result, as_attachment=True, download_name=os.path.basename(result))
             flash('Không nhận dạng được văn bản!', 'warning')
             
         elif conv_type == 'pdf_excel':
             # PDF → Excel
             result = ocr_system.full_convert(input_path, target_format='excel')
             if result:
-                return send_file(result, as_attachment=True, download_url=os.path.basename(result))
+                return send_file(result, as_attachment=True, download_name=os.path.basename(result))
             flash('Không tìm thấy bảng trong PDF!', 'warning')
             
         elif conv_type == 'pdf_word':
             # PDF → Word
             result = ocr_system.full_convert(input_path, target_format='word')
             if result:
-                return send_file(result, as_attachment=True, download_url=os.path.basename(result))
+                return send_file(result, as_attachment=True, download_name=os.path.basename(result))
             flash('Không trích xuất được dữ liệu từ PDF!', 'warning')
             
         else:
