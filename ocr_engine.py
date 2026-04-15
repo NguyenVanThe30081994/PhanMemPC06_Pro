@@ -1,8 +1,8 @@
-# PC06 OCR Engine - Tesseract Integration
-# Nhẹ, nhanh, không cần GPU
-# Designed for SERVER (auto-detect Tesseract)
+# PC06 OCR Engine - Safe version for hosting
+# Handles errors gracefully
 
 import os
+import sys
 
 # Lazy imports
 cv2 = None
@@ -12,152 +12,105 @@ pytesseract = None
 
 def _ensure_imports():
     global cv2, fitz, Document, pytesseract
-    if cv2 is None:
-        try:
+    try:
+        if cv2 is None:
             import cv2
-        except: pass
-    if fitz is None:
-        try:
+    except: pass
+    try:
+        if fitz is None:
             import fitz
-        except: pass
-    if Document is None:
-        try:
+    except: pass
+    try:
+        if Document is None:
             from docx import Document
-        except: pass
-    if pytesseract is None:
-        try:
+    except: pass
+    try:
+        if pytesseract is None:
             import pytesseract
-        except: pass
-
-# ==================== CẤU HÌNH TESSERACT ====================
-# Tự động phát hiện - KHÔNG cần sửa thủ công!
+    except: pass
 
 def get_tesseract_path():
-    """Tự động tìm đường dẫn Tesseract trên server"""
+    """Find Tesseract on server"""
     import subprocess
     
-    # Danh sách đường dẫn thông dụng theo OS
-    common_paths = [
-        # Windows
-        r'C:\Program Files\Tesseract-OCR\tesseract.exe',
-        r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe',
-        # Linux
+    # Common paths
+    paths = [
         '/usr/bin/tesseract',
         '/usr/local/bin/tesseract',
         '/opt/bin/tesseract',
-        # macOS  
-        '/opt/homebrew/bin/tesseract',
-        '/usr/local/bin/tesseract',
     ]
     
-    # 1. Thử từng đường dẫn cụ thể
-    for path in common_paths:
-        if os.path.exists(path):
-            print(f"[OCR] Found Tesseract at: {path}")
-            return path
+    for p in paths:
+        if os.path.exists(p):
+            return p
     
-    # 2. Thử lệnh which (Linux/macOS)
+    # Try which
     try:
         result = subprocess.run(['which', 'tesseract'], 
-                         capture_output=True, text=True, timeout=5)
+                         capture_output=True, text=True, timeout=3)
         if result.returncode == 0 and result.stdout.strip():
-            path = result.stdout.strip()
-            print(f"[OCR] Found Tesseract via which: {path}")
-            return path
-    except:
-        pass
+            return result.stdout.strip()
+    except: pass
     
-    # 3. Thử where (Windows)
-    try:
-        result = subprocess.run(['where', 'tesseract'],
-                         capture_output=True, text=True, shell=True, timeout=5)
-        if result.returncode == 0 and result.stdout.strip():
-            path = result.stdout.strip().split('\n')[0].strip()
-            print(f"[OCR] Found Tesseract via where: {path}")
-            return path
-    except:
-        pass
-    
-    # 4. Để pytesseract tự tìm trong PATH
-    print("[OCR] Will try to use Tesseract from system PATH")
     return None
 
-# Ngôn ngữ OCR (vie = Tiếng Việt, eng = English)
 TESSERACT_LANG = 'vie+eng'
 TESSERACT_CONFIG = '--oem 3 --psm 6'
 
 class PC06_Tesseract_OCR:
     def __init__(self):
         self.ocr_available = False
-        self.status_message = ""
+        self.status_message = "Initializing..."
         
-        _ensure_imports()
-        
-        # Kiểm tra các thư viện cơ bản
-        has_cv2 = cv2 is not None
-        has_docx = Document is not None
-        has_fitz = fitz is not None
-        has_pytesseract = pytesseract is not None
-        
-        if not has_pytesseract:
-            self.status_message = "⚠️ Chưa cài pytesseract"
-            print(f"[OCR] {self.status_message}")
-            return
-        
-        if not has_docx:
-            print("[OCR] ⚠️ Chưa cài python-docx")
-        if not has_fitz:
-            print("[OCR] ⚠️ Chưa cài pymupdf")
-        
-        # Tìm Tesseract
-        tess_path = get_tesseract_path()
-        
-        if tess_path and os.path.exists(tess_path):
-            pytesseract.pytesseract.tesseract_cmd = tess_path
-            try:
-                version = pytesseract.get_tesseract_version()
-                self.ocr_available = True
-                self.status_message = f"✅ Tesseract {version} sẵn sàng!"
-                print(f"[OCR] {self.status_message}")
-            except Exception as e:
-                self.status_message = f"⚠️ Lỗi Tesseract: {e}"
-                print(f"[OCR] {self.status_message}")
-        else:
-            # Thử chạy mà không cần đường dẫn cụ thể
-            try:
-                version = pytesseract.get_tesseract_version()
-                self.ocr_available = True
-                self.status_message = f"✅ Tesseract {version} (from PATH)"
-                print(f"[OCR] {self.status_message}")
-            except Exception as e:
-                self.status_message = f"⚠️ Tesseract not found: {e}"
-                print(f"[OCR] {self.status_message}")
+        try:
+            _ensure_imports()
+            
+            if pytesseract is None:
+                self.status_message = "pytesseract not installed"
+                return
+            
+            # Find Tesseract
+            tess_path = get_tesseract_path()
+            
+            if tess_path and os.path.exists(tess_path):
+                try:
+                    pytesseract.pytesseract.tesseract_cmd = tess_path
+                    version = pytesseract.get_tesseract_version()
+                    self.ocr_available = True
+                    self.status_message = f"OK - Tesseract {version}"
+                except Exception as e:
+                    self.status_message = f"Tesseract error: {e}"
+            else:
+                # Try from PATH
+                try:
+                    version = pytesseract.get_tesseract_version()
+                    self.ocr_available = True
+                    self.status_message = "OK - Tesseract from PATH"
+                except Exception as e:
+                    self.status_message = f"Tesseract not found: {e}"
+                    
+        except Exception as e:
+            self.status_message = f"Init error: {e}"
     
     def preprocess_image(self, img_path):
-        """Tiền xử lý ảnh để OCR tốt hơn"""
+        """Preprocess image"""
         _ensure_imports()
         if cv2 is None:
             return None
-            
         try:
             img = cv2.imread(img_path)
             if img is None:
                 return None
-            
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-            thresh = cv2.adaptiveThreshold(
-                blurred, 255, 
-                cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-                cv2.THRESH_BINARY, 11, 2
-            )
+            thresh = cv2.adaptiveThreshold(blurred, 255, 
+                cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
             return thresh
-        except Exception as e:
-            print(f"[OCR] Preprocess error: {e}")
+        except:
             return None
     
     def process_image_to_excel(self, img_path, output_path):
-        """Chuyển ảnh có bảng sang Excel"""
+        """Convert image to Excel"""
         _ensure_imports()
         import pandas as pd
         
@@ -182,7 +135,7 @@ class PC06_Tesseract_OCR:
             data = []
             for line in lines:
                 if line.strip():
-                    parts = [p.strip() for p in line.split() if p.strip()]
+                    parts = [p for p in line.split() if p.strip()]
                     if parts:
                         data.append(parts)
             
@@ -191,18 +144,17 @@ class PC06_Tesseract_OCR:
                 if not df.empty:
                     df.to_excel(output_path, index=False, header=False)
                     return True
-            
             return False
         except Exception as e:
-            print(f"[OCR] Image to Excel error: {e}")
+            print(f"[OCR] Excel error: {e}", flush=True)
             return False
     
     def process_image_to_text(self, img_path):
-        """Chuyển ảnh sang text"""
+        """Convert image to text"""
         _ensure_imports()
         
         if pytesseract is None:
-            return "[Chưa cài Tesseract]"
+            return "[pytesseract not installed]"
         
         try:
             processed_img = self.preprocess_image(img_path)
@@ -217,10 +169,10 @@ class PC06_Tesseract_OCR:
             
             return text.strip() if text.strip() else "[No text detected]"
         except Exception as e:
-            return f"[Error: {str(e)}]"
+            return f"[Error: {e}]"
     
     def process_pdf_to_word(self, pdf_path, output_word):
-        """PDF sang Word"""
+        """PDF to Word"""
         _ensure_imports()
         if fitz is None or Document is None:
             return False
@@ -228,26 +180,26 @@ class PC06_Tesseract_OCR:
         try:
             doc = fitz.open(pdf_path)
             word_doc = Document()
-            word_doc.add_heading('TRÍCH XUẤT TỪ PDF - PC06', 0)
+            word_doc.add_heading('EXTRACTED FROM PDF - PC06', 0)
             
             for page_num in range(len(doc)):
                 page = doc[page_num]
                 text = page.get_text().strip()
                 
                 if text:
-                    word_doc.add_paragraph(f"--- Trang {page_num+1} ---")
+                    word_doc.add_paragraph(f"--- Page {page_num+1} ---")
                     word_doc.add_paragraph(text)
                 else:
-                    word_doc.add_paragraph(f"--- Trang {page_num+1} (PDF scan) ---")
+                    word_doc.add_paragraph(f"--- Page {page_num+1} (scan) ---")
             
             word_doc.save(output_word)
             return True
         except Exception as e:
-            print(f"[OCR] PDF to Word error: {e}")
+            print(f"[OCR] PDF->Word error: {e}", flush=True)
             return False
     
     def process_pdf_to_excel(self, pdf_path, output_path):
-        """PDF sang Excel"""
+        """PDF to Excel"""
         _ensure_imports()
         if fitz is None:
             return False
@@ -261,7 +213,7 @@ class PC06_Tesseract_OCR:
                 page = doc[page_num]
                 text = page.get_text().strip()
                 if text:
-                    all_data.append({'Trang': page_num+1, 'Noi_dung': text[:500]})
+                    all_data.append({'Page': page_num+1, 'Content': text[:500]})
             
             if all_data:
                 df = pd.DataFrame(all_data)
@@ -269,52 +221,62 @@ class PC06_Tesseract_OCR:
                 return True
             return False
         except Exception as e:
-            print(f"[OCR] PDF to Excel error: {e}")
+            print(f"[OCR] PDF->Excel error: {e}", flush=True)
             return False
     
     def full_convert(self, input_file, target_format='excel'):
-        """Tổng hợp chuyển đổi"""
+        """Main conversion function"""
         if not self.ocr_available:
-            print("[OCR] OCR not available")
+            print("[OCR] Not available", flush=True)
             return None
         
         import pandas as pd
         
-        ext = os.path.splitext(input_file)[1].lower()
-        base_name = os.path.splitext(os.path.basename(input_file))[0]
-        timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
-        
-        os.makedirs('static/exports', exist_ok=True)
-        
-        if ext in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']:
-            if target_format == 'excel':
-                output_path = f"static/exports/{base_name}_{timestamp}.xlsx"
-                success = self.process_image_to_excel(input_file, output_path)
-                return output_path if success else None
-            else:
-                output_path = f"static/exports/{base_name}_{timestamp}.docx"
-                text = self.process_image_to_text(input_file)
-                if Document and text:
-                    doc = Document()
-                    doc.add_heading('OCR - PC06', 0)
-                    for para in text.split('\n'):
-                        if para.strip():
-                            doc.add_paragraph(para)
-                    doc.save(output_path)
-                    return output_path
-                return None
-        
-        elif ext == '.pdf':
-            if target_format == 'excel':
-                output_path = f"static/exports/{base_name}_{timestamp}.xlsx"
-                success = self.process_pdf_to_excel(input_file, output_path)
-                return output_path if success else None
-            else:
-                output_path = f"static/exports/{base_name}_{timestamp}.docx"
-                success = self.process_pdf_to_word(input_file, output_path)
-                return output_path if success else None
-        
-        return None
+        try:
+            ext = os.path.splitext(input_file)[1].lower()
+            base_name = os.path.splitext(os.path.basename(input_file))[0]
+            timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
+            
+            os.makedirs('static/exports', exist_ok=True)
+            
+            if ext in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']:
+                if target_format == 'excel':
+                    output_path = f"static/exports/{base_name}_{timestamp}.xlsx"
+                    success = self.process_image_to_excel(input_file, output_path)
+                    return output_path if success else None
+                else:
+                    output_path = f"static/exports/{base_name}_{timestamp}.docx"
+                    text = self.process_image_to_text(input_file)
+                    if Document and text:
+                        doc = Document()
+                        doc.add_heading('OCR - PC06', 0)
+                        for para in text.split('\n'):
+                            if para.strip():
+                                doc.add_paragraph(para)
+                        doc.save(output_path)
+                        return output_path
+                    return None
+            
+            elif ext == '.pdf':
+                if target_format == 'excel':
+                    output_path = f"static/exports/{base_name}_{timestamp}.xlsx"
+                    success = self.process_pdf_to_excel(input_file, output_path)
+                    return output_path if success else None
+                else:
+                    output_path = f"static/exports/{base_name}_{timestamp}.docx"
+                    success = self.process_pdf_to_word(input_file, output_path)
+                    return output_path if success else None
+            
+            return None
+        except Exception as e:
+            print(f"[OCR] Convert error: {e}", flush=True)
+            return None
 
-# Singleton
-ocr_system = PC06_Tesseract_OCR()
+# Singleton - with try/except to prevent crash
+try:
+    ocr_system = PC06_Tesseract_OCR()
+except Exception as e:
+    ocr_system = type('obj', (object,), {
+        'ocr_available': False,
+        'status_message': f'Load error: {e}'
+    })()
