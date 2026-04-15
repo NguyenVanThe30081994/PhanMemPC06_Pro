@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-4 animate__animated animate__fadeIn">
+    <div class="header-main-group">
+        <div class="header-title-pill shadow-sm">
+            <i class="fa-solid fa-id-card"></i>
+            <h1 class="mb-0">Tra cứu theo CCCD</h1>
+        </div>
+        <div class="header-actions">
+            <a href="/bdhv" class="btn btn-outline-secondary rounded-pill px-4">
+                <i class="fa-solid fa-arrow-left me-2"></i>QUAY LẠI
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 animate__animated animate__fadeInUp">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header border-0 bg-white py-3">
+                <h5 class="fw-bold mb-0">Nhập thông tin tra cứu</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Số CCCD/Căn cước</label>
+                        <input type="text" name="cccd" class="form-control" placeholder="Nhập số CCCD hoặc Căn cước công dân" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">
+                        <i class="fa-solid fa-search me-2"></i>TRA CỨU
+                    </button>
+                </form>
+                
+                {% if result %}
+                <hr class="my-4">
+                {% if result.found %}
+                <div class="alert alert-{{ 'success' if result.is_pass else 'danger' }} border-0 rounded-4">
+                    <h5 class="alert-heading fw-bold">
+                        <i class="fa-solid fa-{{ 'check-circle' if result.is_pass else 'x-circle' }} me-2"></i>
+                        {{ result.ho_ten }}
+                    </h5>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Đơn vị:</strong> {{ result.don_vi }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Kết quả:</strong> 
+                                <span class="badge bg-{{ 'success' if result.is_pass else 'danger' }}">{{ result.ket_qua }}</span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <p class="mb-0"><strong>Điểm học:</strong> {{ result.diem_hoc }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-0"><strong>Điểm thi:</strong> {{ result.diem_thi }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="alert alert-warning border-0 rounded-4">
+                    <i class="fa-solid fa-triangle-exclamation me-2"></i>{{ result.message }}
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header border-0 bg-white py-3">
+                <h6 class="fw-bold mb-0">Hướng dẫn</h6>
+            </div>
+            <div class="card-body">
+                <ul class="mb-0">
+                    <li class="mb-2">Nhập số CCCD (12 số) hoặc Căn cước công dân</li>
+                    <li class="mb-2">Hệ thống sẽ tra cứu trong cả danh sách cũ và mới</li>
+                    <li class="mb-0">Nếu chưa có thông tin, vui lòng đăng ký mới</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

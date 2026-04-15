@@ -315,4 +315,87 @@ class RankingEntry(db.Model):
     
     unit = db.relationship('RankingUnit', backref='entries')
     indicator = db.relationship('RankingIndicator', backref='entries')
-
+
+
+# --- BÌNH DÂN HỌC VỤ MODELS ---
+
+class BDHV_HocVien(db.Model):
+    """Học viên Bình dân học vụ"""
+    __tablename__ = 'bdhv_hocvien'
+    id = db.Column(db.Integer, primary_key=True)
+    stt = db.Column(db.Integer)
+    ho_ten = db.Column(db.String(255))      # Cột B
+    cccd = db.Column(db.String(20))          # Cột C - CCCD/Căn cước
+    don_vi = db.Column(db.String(255))       # Cột D - Đơn vị
+    ghi_chu = db.Column(db.String(255))     # Cột E
+    diem_hoc = db.Column(db.Float, default=0)  # Cột F - Điểm học (%)
+    diem_thi = db.Column(db.Float, default=0)   # Cột G - Điểm thi (%)
+    ket_qua = db.Column(db.String(50))       # Cột H - Kết quả
+    nguon = db.Column(db.String(20))        # 'DS HV' hoặc 'DKMoi'
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+
+class BDHV_DonVi(db.Model):
+    """Danh sách đơn vị (xã/phường)"""
+    __tablename__ = 'bdhv_donvi'
+    id = db.Column(db.Integer, primary_key=True)
+    ten_don_vi = db.Column(db.String(255), unique=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+
+class BDHV_ThongKe(db.Model):
+    """Thống kê theo đơn vị"""
+    __tablename__ = 'bdhv_thongke'
+    id = db.Column(db.Integer, primary_key=True)
+    ten_don_vi = db.Column(db.String(255))
+    tong_18 = db.Column(db.Integer, default=0)       # Tổng dân số 18+
+    da_dang_ky = db.Column(db.Integer, default=0)    # Đã đăng ký
+    da_hoan_thanh = db.Column(db.Integer, default=0)  # Đã hoàn thành
+    diem_thi = db.Column(db.Integer, default=0)       # Số người thi
+    ty_le = db.Column(db.Float, default=0)            # Tỷ lệ %
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+
+class BDHV_DangKyMoi(db.Model):
+    """Đăng ký mới học viên"""
+    __tablename__ = 'bdhv_dangky'
+    id = db.Column(db.Integer, primary_key=True)
+    stt = db.Column(db.Integer)
+    ho_ten = db.Column(db.String(255))
+    cccd = db.Column(db.String(20))
+    don_vi = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+
+class BDHV_ThiLai(db.Model):
+    """Đăng ký thi lại"""
+    __tablename__ = 'bdhv_thilai'
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.now)
+    ho_ten = db.Column(db.String(255))
+    cccd = db.Column(db.String(20))
+    don_vi = db.Column(db.String(255))
+    ly_do = db.Column(db.Text)
+
+
+class BDHV_PhucTra(db.Model):
+    """Phúc tra kết quả"""
+    __tablename__ = 'bdhv_phuctra'
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.now)
+    ho_ten = db.Column(db.String(255))
+    cccd = db.Column(db.String(20))
+    don_vi = db.Column(db.String(255))
+    ly_do = db.Column(db.Text)
+    file_url = db.Column(db.Text)
+
+
+class BDHV_DauMoi(db.Model):
+    """Danh sách đầu mối liên lạc"""
+    __tablename__ = 'bdhv_daumoi'
+    id = db.Column(db.Integer, primary_key=True)
+    don_vi = db.Column(db.String(255))
+    ten = db.Column(db.String(255))
+    phone = db.Column(db.String(20))
+    chuc_vu = db.Column(db.String(100))
+

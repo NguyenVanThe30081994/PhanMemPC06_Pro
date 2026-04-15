@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-4 animate__animated animate__fadeIn">
+    <div class="header-main-group">
+        <div class="header-title-pill shadow-sm">
+            <i class="fa-solid fa-building"></i>
+            <h1 class="mb-0">Tra cứu theo đơn vị</h1>
+        </div>
+        <div class="header-actions">
+            <a href="/bdhv" class="btn btn-outline-secondary rounded-pill px-4">
+                <i class="fa-solid fa-arrow-left me-2"></i>QUAY LẠI
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 animate__animated animate__fadeInUp">
+    <div class="col-lg-12">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header border-0 bg-white py-3">
+                <h5 class="fw-bold mb-0">Chọn đơn vị</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-8">
+                            <label class="form-label fw-bold">Đơn vị (xã/phường)</label>
+                            <select name="don_vi" class="form-select" required>
+                                <option value="">-- Chọn đơn vị --</option>
+                                {% for dv in don_vi_list %}
+                                <option value="{{ dv.ten_don_vi }}">{{ dv.ten_don_vi }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary rounded-pill px-4 w-100">
+                                <i class="fa-solid fa-search me-2"></i>TRA CỨU
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                
+                {% if result %}
+                <hr class="my-4">
+                {% if result.success %}
+                <div class="alert alert-success border-0 rounded-4">
+                    <h5 class="fw-bold">{{ result.don_vi }}</h5>
+                    <div class="row mt-2">
+                        <div class="col-md-4">
+                            <strong>Tổng học viên:</strong> {{ result.stats.total }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Đã hoàn thành:</strong> {{ result.stats.passed }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Tỷ lệ:</strong> 
+                            <span class="badge bg-{{ 'success' if result.stats.rate >= 50 else 'danger' }}">
+                                {{ result.stats.rate }}%
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">STT</th>
+                                <th>Họ tên</th>
+                                <th>Điểm học</th>
+                                <th>Điểm thi</th>
+                                <th class="text-end pe-4">Kết quả</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for hv in result.list %}
+                            <tr>
+                                <td class="ps-4">{{ hv.stt }}</td>
+                                <td class="fw-bold">{{ hv.ho_ten }}</td>
+                                <td>{{ hv.diem_hoc }}</td>
+                                <td>{{ hv.diem_thi }}</td>
+                                <td class="text-end pe-4">
+                                    <span class="badge bg-{{ 'success' if hv.is_pass else 'secondary' }}">
+                                        {{ 'Đạt' if hv.is_pass else 'Chưa đạt' }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-warning border-0 rounded-4">
+                    {{ result.message }}
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
