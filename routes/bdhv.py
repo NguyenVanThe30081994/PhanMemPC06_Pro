@@ -1,4 +1,4 @@
-from flask import Blueprint, request, session, redirect, url_for, flash, render_template, jsonify, send_file
+from flask import Blueprint, request, session, redirect, url_for, flash, render_template, jsonify, send_file, send_from_directory
 from models import db, BDHV_HocVien, BDHV_DonVi, BDHV_ThongKe, BDHV_DangKyMoi, BDHV_ThiLai, BDHV_PhucTra, BDHV_DauMoi
 from datetime import datetime
 from utils import render_auto_template as render_template
@@ -537,15 +537,17 @@ def export_danh_sach():
         ws.column_dimensions['G'].width = 18
         ws.column_dimensions['H'].width = 10
         
-        output = io.BytesIO()
-        wb.save(output)
-        output.seek(0)
+        # Save to disk first (fixes LiteSpeed streaming issue)
+        import os
+        filename = f"BDHV_DanhSach_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        basedir = os.path.dirname(os.path.abspath(__file__))
+        download_dir = os.path.join(basedir, 'downloads')
+        os.makedirs(download_dir, exist_ok=True)
+        filepath = os.path.join(download_dir, filename)
         
-        return send_file(
-            output,
-            download_name=f"BDHV_DanhSach_{datetime.now().strftime('%Y%m%d')}.xlsx",
-            as_attachment=True
-        )
+        wb.save(filepath)
+        
+        return send_from_directory(download_dir, filename, as_attachment=True)
     except Exception as e:
         import traceback
         print(f"[BDHV] ERROR export_danh_sach: {e}")
@@ -603,15 +605,17 @@ def export_thong_ke():
         ws.column_dimensions['F'].width = 12
         ws.column_dimensions['G'].width = 12
         
-        output = io.BytesIO()
-        wb.save(output)
-        output.seek(0)
+        # Save to disk first (fixes LiteSpeed streaming issue)
+        import os
+        filename = f"BDHV_ThongKe_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        basedir = os.path.dirname(os.path.abspath(__file__))
+        download_dir = os.path.join(basedir, 'downloads')
+        os.makedirs(download_dir, exist_ok=True)
+        filepath = os.path.join(download_dir, filename)
         
-        return send_file(
-            output,
-            download_name=f"BDHV_ThongKe_{datetime.now().strftime('%Y%m%d')}.xlsx",
-            as_attachment=True
-        )
+        wb.save(filepath)
+        
+        return send_from_directory(download_dir, filename, as_attachment=True)
     except Exception as e:
         import traceback
         print(f"[BDHV] ERROR export_thong_ke: {e}")
