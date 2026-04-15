@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, current_app
-from models import db, Task, TaskAssignment, TaskComment, User, MasterData, CategoryGroup, CategoryItem
+from models import db, Task, TaskAssignment, TaskComment, User, MasterData, CategoryGroup, CategoryItem, AppRole
 import os
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -61,12 +61,10 @@ def tasks():
                 try: deadline_val = datetime(now.year, now.month, day_of_month).date()
                 except: deadline_val = datetime(now.year, now.month, 28).date()
         elif deadline_type == 'quarter':
-            # Ngày và tháng cụ thể trong quý
-            day_of_month = int(request.form.get('day_of_month', 1))
-            month_of_period = int(request.form.get('month_of_period', 3))  # Default tháng 3
+            # Định kỳ Quý - tháng mặc định là tháng cuối quý, ngày cho phép chọn
             quarter = (now.month - 1) // 3 + 1
-            target_month = quarter * 3 - (3 - month_of_period)
-            if target_month < 1: target_month = 1
+            target_month = quarter * 3  # Tháng cuối quý (3, 6, 9, 12)
+            day_of_month = int(request.form.get('day_of_month', 1))
             try: deadline_val = datetime(now.year, target_month, day_of_month).date()
             except: deadline_val = datetime(now.year, target_month, 28).date()
         elif deadline_type == '6months':
@@ -104,13 +102,25 @@ def tasks():
         # Assignments - handle both 'target_users' (old) and 'assignee_id' (new)
         assign_ids = request.form.getlist('target_users')
         assignee_id = request.form.get('assignee_id')
-        if assignee_id and assignee_id not in [str(a) for a in assign_ids]:
-            assign_ids.append(assignee_id)
+        assign_type = request.form.get('assign_type', 'user')
+        assignee_role_id = request.form.get('assignee_role_id')
+        
+        # Xử lý giao theo cá nhân hoặc vai trò
+        if assign_type == 'role' and assignee_role_id:
+            # Giao cho tất cả user có role này và đang hoạt động
+            role_users = User.query.filter_by(role_id=int(assignee_role_id), is_active=True).all()
+            for u in role_users:
+                db.session.add(TaskAssignment(task_id=new_task.id, user_id=u.id))
+                push_notif(u.id, "Công việc mới", f"Bạn vừa được giao: {new_task.title}", f"/tasks/{new_task.id}")
+        else:
+            # Giao cho cá nhân (từ assignee_id hoặc target_users)
+            if assignee_id and assignee_id not in [str(a) for a in assign_ids]:
+                assign_ids.append(assignee_id)
             
-        for aid in assign_ids:
-            if aid:
-                db.session.add(TaskAssignment(task_id=new_task.id, user_id=int(aid)))
-                push_notif(int(aid), "Công việc mới", f"Bạn vừa được giao: {new_task.title}", f"/tasks/{new_task.id}")
+            for aid in assign_ids:
+                if aid:
+                    db.session.add(TaskAssignment(task_id=new_task.id, user_id=int(aid)))
+                    push_notif(int(aid), "Công việc mới", f"Bạn vừa được giao: {new_task.title}", f"/tasks/{new_task.id}")
         
         db.session.commit()
         log_action(session['uid'], session.get('fullname', 'Admin'), "Giao công việc mới", "Công việc", new_task.title)
@@ -148,6 +158,7 @@ def tasks():
     return render_template('tasks.html', 
                            tasks=all_tasks, 
                            users=User.query.all(),
+                           roles=AppRole.query.all(),
                            pro_units=all_category_items,
                            domains=domains, 
                            current_domain=current_domain, 

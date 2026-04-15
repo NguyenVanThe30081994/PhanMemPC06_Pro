@@ -190,14 +190,42 @@
                     <!-- Giao cho ai -->
                     <div class="mt-3">
                         <label class="form-label fw-bold small">GIAO CHO</label>
-                        <select name="assignee_id" class="form-select">
-                            <option value="">-- Chọn người thực hiện --</option>
-                            {% if users %}
-                                {% for u in users %}
-                                <option value="{{ u.id }}">{{ u.fullname }} ({{ u.unit_area or 'Chưa có đơn vị' }})</option>
-                                {% endfor %}
-                            {% endif %}
-                        </select>
+                        
+                        <!-- Chọn loại giao việc -->
+                        <div class="mb-2">
+                            <div class="btn-group" role="group">
+                                <input type="radio" class="btn-check" name="assign_type" id="assign_user" value="user" checked onchange="toggleAssignType()">
+                                <label class="btn btn-outline-primary btn-sm" for="assign_user">Cá nhân</label>
+                                
+                                <input type="radio" class="btn-check" name="assign_type" id="assign_role" value="role" onchange="toggleAssignType()">
+                                <label class="btn btn-outline-primary btn-sm" for="assign_role">Theo vai trò</label>
+                            </div>
+                        </div>
+                        
+                        <!-- Chọn cá nhân -->
+                        <div id="userSelect">
+                            <select name="assignee_id" class="form-select">
+                                <option value="">-- Chọn người thực hiện --</option>
+                                {% if users %}
+                                    {% for u in users %}
+                                    <option value="{{ u.id }}">{{ u.fullname }} ({{ u.unit_area or 'Chưa có đơn vị' }})</option>
+                                    {% endfor %}
+                                {% endif %}
+                            </select>
+                        </div>
+                        
+                        <!-- Chọn vai trò -->
+                        <div id="roleSelect" style="display:none;">
+                            <select name="assignee_role_id" class="form-select">
+                                <option value="">-- Chọn vai trò --</option>
+                                {% if roles %}
+                                    {% for r in roles %}
+                                    <option value="{{ r.id }}">{{ r.name }}</option>
+                                    {% endfor %}
+                                {% endif %}
+                            </select>
+                            <div class="form-text small text-muted">Sẽ giao cho tất cả tài khoản có vai trò này</div>
+                        </div>
                     </div>
                     
                     <div class="mt-3">
@@ -258,7 +286,30 @@
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
         toggleDeadline();
+        updateQuarterDefaults();
     });
+    
+    function toggleAssignType() {
+        const assignType = document.querySelector('input[name="assign_type"]:checked').value;
+        document.getElementById('userSelect').style.display = (assignType === 'user') ? 'block' : 'none';
+        document.getElementById('roleSelect').style.display = (assignType === 'role') ? 'block' : 'none';
+    }
+    
+    function updateQuarterDefaults() {
+        const type = document.getElementById('deadlineType').value;
+        if (type === 'quarter') {
+            const currentMonth = new Date().getMonth() + 1;
+            const quarter = Math.ceil(currentMonth / 3);
+            const lastMonthOfQuarter = quarter * 3; // 3, 6, 9, 12
+            const monthSelect = document.querySelector('select[name="month_of_period"]');
+            if (monthSelect) {
+                monthSelect.value = lastMonthOfQuarter;
+            }
+        }
+    }
+    
+    // Add event listener to update quarter month when type changes
+    document.getElementById('deadlineType').addEventListener('change', updateQuarterDefaults);
     
     let currentUnit = 'ALL';
     let currentStatus = 'ALL';
