@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify, g
 from models import db, ReportTemplateV2, ReportVersionV2, ReportSubmissionV2, ReportValueV2, ReportAuditV2, User
 from pc06_excel_engine import ExcelEngineV2
 from utils import normalize_unit_name
+from utils import render_auto_template as _render_template
 import json
 import io
 import os
@@ -209,7 +210,7 @@ def dashboard():
     if request.args.get('mobile') == '1':
         return render_template('reports_v2_dashboard_mobile.html', templates=templates, is_admin=is_admin)
     
-    return render_template('reports_v2_dashboard.html', templates=templates, is_admin=is_admin)
+    return _render_template('reports_v2_dashboard.html', templates=templates, is_admin=is_admin)
 
 
 @reports_v2_bp.route('/reports-v2/upload', methods=['POST'])
@@ -340,7 +341,7 @@ def edit_template(tid):
         flash('Vui lòng sử dụng máy tính để chỉnh sửa biểu mẫu V2.', 'warning')
         return redirect(url_for('reports_v2_bp.dashboard'))
     
-    return render_template('reports_v2_edit.html', template=template, versions=versions)
+    return _render_template('reports_v2_edit.html', template=template, versions=versions)
 
 
 @reports_v2_bp.route('/reports-v2/config/<int:tid>')
@@ -374,7 +375,7 @@ def config_template(tid):
     data_start_row = existing_config.get('data_start_row', detected.get('data_start_row', 4))
     unit_column = existing_config.get('unit_column', 'B')
     
-    return render_template('reports_v2_config.html',
+    return _render_template('reports_v2_config.html',
                           template=template,
                           detected=detected,
                           column_configs=column_configs,
@@ -546,9 +547,9 @@ def render_report(tid):
         # Debug log
         logging.warning(f"[REPORTS_V2] unit_rows={unit_rows}, first_unit={first_unit_row}, is_global={is_global}")
         
-        # Fixed: Show ALL rows when no units found or for admins
-        if is_global or not unit_rows:
-            first_unit_row = None
+        # Debug: FORCE show all rows for now to test
+        # should_filter = not is_global and unit_rows and first_unit_row
+        should_filter = False
         
         # Find user's data end (next unit row after user's)
         user_data_end = max_row
@@ -564,23 +565,24 @@ def render_report(tid):
             if ws.row_dimensions[r].hidden:
                 continue
 
-            # Debug row filtering
+            # Debug: log first few row decisions
             if r <= min(min_row + 5, max_row):
-                logging.warning(f"[REPORTS_V2] row={r}, is_global={is_global}, first_unit={first_unit_row}")
+                show_or_hide = "SHOW" if should_filter and ((r < first_unit_row) or (r in unit_rows) or (r > user_first and r <= user_data_end)) else "HIDE"
+                logging.warning(f"[REPORTS_V2] row={r}, decision={show_or_hide}")
             
-            # Simple logic: show all for admin, show user's + headers for regular
-            if is_global or not first_unit_row:
-                pass  # show all rows
+            # Use should_filter flag: only filter non-admin users with actual unit matches
+            if not should_filter:
+                pass  # show all (admin or no matches found)
+            elif r < first_unit_row:
+                pass  # show header rows (before first unit)
             elif r in unit_rows:
                 pass  # show user's unit
             elif r in other_unit_rows:
-                continue  # hide other units
-            elif user_first and r > user_first and r <= user_data_end:
-                pass  # show user data
-            elif r < first_unit_row:
-                pass  # show headers (before any unit)
+                continue  # hide other unit headers
+            elif r > user_first and r <= user_data_end:
+                pass  # show user's data
             else:
-                continue
+                continue  # hide other rows
 
             rh = _row_height_px(ws, r)
             row_parts = [f'<tr style="height:{rh}px">']
@@ -639,7 +641,7 @@ def render_report(tid):
     from models import ReportConfig
     v2_templates = ReportTemplateV2.query.all()
     v1_configs = ReportConfig.query.all()
-    return render_template(
+    return _render_template(
         'reports_v2_render.html',
         template=template,
         version=version,
@@ -859,4 +861,4 @@ def review_submission(sub_id):
             'html': f'<table class="excel-render-table" style="border-collapse:collapse;font-size:12px;width:100%;table-layout:fixed;font-family:Calibri,Arial,sans-serif;min-width:1000px;">{colgroup}<tbody>{"".join(rows_html)}</tbody></table>'
         })
 
-    return render_template('reports_v2_review.html', submission=submission, template=template, sheets=sheets_html)
+    return _render_template('reports_v2_review.html', submission=submission, template=template, sheets=sheets_html)

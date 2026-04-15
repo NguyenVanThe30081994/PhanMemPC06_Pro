@@ -24,8 +24,33 @@
     </div>
 
     {% if not active %}
-        <!-- Template Selection for Mobile -->
-        <div class="row g-3">
+        <!-- V2 Templates Section -->
+        {% if v2_templates %}
+        <div class="mb-4">
+            <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-file-excel me-2"></i>Biểu mẫu V2 (Excel)</h6>
+            <div class="row g-2">
+            {% for t2 in v2_templates %}
+            <div class="col-12">
+                <a href="{{ url_for('reports_v2_bp.render_report', tid=t2.id) }}" class="mobile-card d-flex align-items-center text-decoration-none text-dark">
+                    <div class="bg-success bg-opacity-10 text-success p-3 rounded-3 me-3">
+                        <i class="fa-solid fa-file-excel fs-4"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold">{{ t2.name }}</div>
+                        <div class="tiny text-muted">Hệ thống V2</div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+                </a>
+            </div>
+            {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- V1 Templates Section -->
+        <div class="mb-4">
+            <h6 class="fw-bold text-secondary mb-3"><i class="fa-solid fa-file-lines me-2"></i>Biểu mẫu V1</h6>
+            <div class="row g-2">
             {% for t1 in configs %}
             <div class="col-12">
                 <a href="{{ url_for('forms_bp.input_data', rid=t1.id, form_type='v1') }}" class="mobile-card d-flex align-items-center text-decoration-none text-dark">
@@ -40,8 +65,9 @@
                 </a>
             </div>
             {% endfor %}
+            </div>
         </div>
-    {% else %}
+        {% endif %}
         <!-- Input Form -->
         <form method="POST" id="inputForm">
             {% set seen_groups = [] %}
