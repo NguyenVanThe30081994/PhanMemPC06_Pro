@@ -329,26 +329,24 @@
                 </a>
                 <a href="/links" class="nav-link-sidebar {% if request.endpoint == 'shortlink_bp.manage_links' %}active{% endif %}">QR &amp; Link Rút gọn
                 </a>
-                <a href="/ocr" class="nav-link-sidebar {% if request.endpoint == 'ocr_bp.ocr_index' %}active{% endif %}">
-                    <i class="fa-solid fa-camera me-2"></i>OCR Chuyển ảnh
-                </a>
+                <a href="/ocr" class="nav-link-sidebar {% if request.endpoint == 'ocr_bp.ocr_index' %}active{% endif %}">OCR Chuyển ảnh</a>
             </div>
             
             <div class="mb-2 px-2 tiny fw-bold text-uppercase" style="letter-spacing: 1px; color: var(--text-muted);">Bình dân học vụ số</div>
             <div class="nav-links mb-4">
-                <a href="/bdhv" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.index' %}active{% endif %}">
-                    <i class="fa-solid fa-house me-2"></i>Trang chủ BDHV
-                </a>
-                <a href="/bdhv/tra-cuu" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.tra_cuu' %}active{% endif %}">Tra cứu CCCD
-                </a>
-                <a href="/bdhv/tra-cuu-don-vi" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.tra_cuu_don_vi' %}active{% endif %}">Tra cứu Đơn vị
-                </a>
-                <a href="/bdhv/dang-ky" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.dang_ky' %}active{% endif %}">Đăng ký mới
-                </a>
-                <a href="/bdhv/thi-lai" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.thi_lai' %}active{% endif %}">Thi lại/Phúc tra
-                </a>
-                <a href="/bdhv/thong-ke" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.thong_ke' %}active{% endif %}">Thống kê
-                </a>
+                <a href="/bdhv" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.index' %}active{% endif %}">Trang chủ BDHV</a>
+                <a href="/bdhv/tra-cuu" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.tra_cuu' %}active{% endif %}">Tra cứu CCCD</a>
+                <a href="/bdhv/tra-cuu-don-vi" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.tra_cuu_don_vi' %}active{% endif %}">Tra cứu Đơn vị</a>
+                <a href="/bdhv/dang-ky" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.dang_ky' %}active{% endif %}">Đăng ký mới</a>
+                <a href="/bdhv/thi-lai" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.thi_lai' %}active{% endif %}">Thi lại</a>
+                <a href="/bdhv/phuc-tra" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.phuc_tra' %}active{% endif %}">Phúc tra</a>
+                <a href="/bdhv/thong-ke" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.thong_ke' %}active{% endif %}">Thống kê</a>
+                <a href="/bdhv/xep-hang" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.xep_hang' %}active{% endif %}">Xếp hạng</a>
+                <a href="/bdhv/export/danh-sach" class="nav-link-sidebar">Xuất danh sách</a>
+                <a href="/bdhv/export/thong-ke" class="nav-link-sidebar">Xuất thống kê</a>
+                {% if session.get('is_admin') %}
+                <a href="/bdhv/database" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.database' %}active{% endif %}">Database</a>
+                {% endif %}
             </div>
             
             <div class="mb-2 px-2 tiny fw-bold text-uppercase" style="letter-spacing: 1px; color: var(--text-muted);">Hệ thống & Quản trị</div>
@@ -422,6 +420,19 @@
         }
         setInterval(checkMobileNotif, 10000);
         checkMobileNotif();
+        
+        // Save/restore sidebar scroll position
+        const sidebar = document.querySelector('.offcanvas-body');
+        if (sidebar) {
+            // Restore scroll on page load
+            const savedScroll = sessionStorage.getItem('sidebarScroll');
+            if (savedScroll) sidebar.scrollTop = parseInt(savedScroll);
+            
+            // Save scroll before navigating away
+            sidebar.addEventListener('click', function(e) {
+                sessionStorage.setItem('sidebarScroll', sidebar.scrollTop);
+            });
+        }
     </script>
     {% block scripts %}{% endblock %}
 </body>
