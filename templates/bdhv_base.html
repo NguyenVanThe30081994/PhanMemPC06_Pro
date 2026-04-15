@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+/* BDHV Sidebar - Simple Floating Pillbox */
+.bdhv-sidebar {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: var(--shadow-lvl2);
+    
+    min-height: calc(100vh - 140px);
+    position: sticky;
+    top: 85px;
+    padding: 16px 12px;
+    z-index: 100;
+}
+
+/* Simple list - No icons, no underlines */
+.bdhv-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.bdhv-item {
+    padding: 10px 16px;
+    border-radius: 10px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 13px;
+    transition: all 0.2s ease;
+    display: block;
+}
+
+/* Hover */
+.bdhv-item:hover {
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+/* Active - Blue pill wrapping */
+.bdhv-item.active {
+    background: var(--primary);
+    color: #fff !important;
+    box-shadow: 0 4px 12px rgba(0, 102, 255, 0.25);
+}
+
+.bdhv-main-content {
+    padding: 24px;
+    min-height: calc(100vh - 80px);
+    background: var(--bg-body);
+}
+
+/* Cards */
+.bdhv-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-lvl1);
+}
+
+.bdhv-card .card-header {
+    background: transparent;
+    border-bottom: 1px solid var(--border);
+    padding: 14px 18px;
+    font-weight: 600;
+}
+
+.bdhv-card .card-body {
+    padding: 18px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-0">
+    <!-- Sidebar -->
+    <div class="col-lg-2 bdhv-sidebar d-none d-lg-block">
+        <!-- Simple menu - No title, no icons -->
+        <nav class="bdhv-menu">
+            <a href="/bdhv" class="bdhv-item {% if request.endpoint == 'bdhv_bp.index' %}active{% endif %}">Trang chủ</a>
+            <a href="/bdhv/tra-cuu" class="bdhv-item {% if request.endpoint == 'bdhv_bp.tra_cuu' %}active{% endif %}">Tra cứu CCCD</a>
+            <a href="/bdhv/tra-cuu-don-vi" class="bdhv-item {% if request.endpoint == 'bdhv_bp.tra_cuu_don_vi' %}active{% endif %}">Tra cứu đơn vị</a>
+            <a href="/bdhv/dang-ky" class="bdhv-item {% if request.endpoint == 'bdhv_bp.dang_ky' %}active{% endif %}">Đăng ký mới</a>
+            <a href="/bdhv/thi-lai" class="bdhv-item {% if request.endpoint == 'bdhv_bp.thi_lai' %}active{% endif %}">Thi lại</a>
+            <a href="/bdhv/phuc-tra" class="bdhv-item {% if request.endpoint == 'bdhv_bp.phuc_tra' %}active{% endif %}">Phúc tra</a>
+            <a href="/bdhv/thong-ke" class="bdhv-item {% if request.endpoint == 'bdhv_bp.thong_ke' %}active{% endif %}">Thống kê</a>
+            <a href="/bdhv/xep-hang" class="bdhv-item {% if request.endpoint == 'bdhv_bp.xep_hang' %}active{% endif %}">Xếp hạng</a>
+            {% if session.get('is_admin') %}
+            <a href="/bdhv/database" class="bdhv-item {% if request.endpoint == 'bdhv_bp.database' %}active{% endif %}">Database</a>
+            {% endif %}
+            <a href="/bdhv/export/danh-sach" class="bdhv-item">Xuất danh sách</a>
+            <a href="/bdhv/export/thong-ke" class="bdhv-item">Xuất thống kê</a>
+        </nav>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="col-lg-10 bdhv-main-content">
+        {% block bdhv_content %}{% endblock %}
+    </div>
+</div>
+{% endblock %}
