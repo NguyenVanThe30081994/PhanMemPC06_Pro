@@ -85,8 +85,15 @@ def library():
             flash('Đã tải lên tài liệu!', 'success')
         return redirect(url_for('portal_bp.library'))
     # === LẤY DANH MỤC LĨNH VỰC ===
-    group_linhvuc = CategoryGroup.query.filter((CategoryGroup.name == 'Linh vuc') | (CategoryGroup.name == 'Lĩnh vực')).first()
-    linhvuc_items = CategoryItem.query.filter_by(group_id=group_linhvuc.id).all() if group_linhvuc else []
+    # Tìm nhóm Lĩnh vực - hỗ trợ mọi cách viết
+    group_linhvuc = CategoryGroup.query.filter(
+        CategoryGroup.name.ilike('%linh%vuc%')
+    ).first()
+    
+    if group_linhvuc:
+        linhvuc_items = CategoryItem.query.filter_by(group_id=group_linhvuc.id).all()
+    else:
+        linhvuc_items = []
     
     return render_template('library.html', docs=DocumentLib.query.all(), cats=linhvuc_items, categories=linhvuc_items)
 
