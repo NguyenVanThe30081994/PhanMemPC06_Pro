@@ -473,12 +473,17 @@ def delete_all():
 @bdhv_bp.route('/bdhv/export/danh-sach', methods=['GET'])
 def export_danh_sach():
     """Xuất danh sách học viên ra Excel"""
-    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
+    print(f"[BDHV] export_danh_sach called, uid={session.get('uid')}")
+    
+    if not session.get('uid'): 
+        print("[BDHV] No session uid, redirecting to login")
+        return redirect(url_for('auth_bp.login'))
     
     try:
         # Lấy tất cả học viên
         hoc_vien_list = BDHV_HocVien.query.all()
         dong_dang_ky = BDHV_DangKyMoi.query.all()
+        print(f"[BDHV] Found {len(hoc_vien_list)} hoc_vien, {len(dong_dang_ky)} dang_ky")
         
         wb = Workbook()
         ws = wb.active
@@ -542,6 +547,9 @@ def export_danh_sach():
             as_attachment=True
         )
     except Exception as e:
+        import traceback
+        print(f"[BDHV] ERROR export_danh_sach: {e}")
+        print(traceback.format_exc())
         flash(f'Lỗi xuất Excel: {str(e)}', 'danger')
         return redirect(url_for('bdhv_bp.index'))
 
@@ -549,10 +557,15 @@ def export_danh_sach():
 @bdhv_bp.route('/bdhv/export/thong-ke', methods=['GET'])
 def export_thong_ke():
     """Xuất thống kê theo đơn vị ra Excel"""
-    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
+    print(f"[BDHV] export_thong_ke called, uid={session.get('uid')}")
+    
+    if not session.get('uid'): 
+        print("[BDHV] No session uid, redirecting to login")
+        return redirect(url_for('auth_bp.login'))
     
     try:
         thong_ke = BDHV_ThongKe.query.order_by(BDHV_ThongKe.ty_le.desc()).all()
+        print(f"[BDHV] Found {len(thong_ke)} thong_ke records")
         
         wb = Workbook()
         ws = wb.active
@@ -600,5 +613,8 @@ def export_thong_ke():
             as_attachment=True
         )
     except Exception as e:
+        import traceback
+        print(f"[BDHV] ERROR export_thong_ke: {e}")
+        print(traceback.format_exc())
         flash(f'Lỗi xuất Excel: {str(e)}', 'danger')
         return redirect(url_for('bdhv_bp.index'))
