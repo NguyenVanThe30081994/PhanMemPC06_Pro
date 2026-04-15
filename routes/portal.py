@@ -86,11 +86,16 @@ def library():
         return redirect(url_for('portal_bp.library'))
     
     # === LẤY DANH MỤC LĨNH VỰC ===
-    # Tìm nhóm Lĩnh vực - theo ID hoặc tên
+    # Tìm nhóm Lĩnh vực chính xác theo tên, tránh nhầm với Đơn vị
     group_linhvuc = CategoryGroup.query.filter(
-        (CategoryGroup.id == 6) | 
-        (CategoryGroup.name.ilike('%linh%vuc%'))
+        CategoryGroup.name.ilike('%Lĩnh vực%')
     ).first()
+    
+    if not group_linhvuc:
+        # Thử tìm theo tên không dấu
+        group_linhvuc = CategoryGroup.query.filter(
+            CategoryGroup.name.ilike('%Linh vuc%')
+        ).first()
     
     if group_linhvuc:
         linhvuc_items = CategoryItem.query.filter_by(group_id=group_linhvuc.id).all()
