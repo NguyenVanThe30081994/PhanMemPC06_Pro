@@ -1,187 +1,261 @@
 {% extends "base_mobile.html" %}
 
-{% block extra_head %}
+{% block title %}Bình Dân Học Vụ - PC06 Mobile{% endblock %}
+
+{% block head %}
 <style>
-/* BDHV Mobile Sidebar */
-.bdhv-sidebar {
+/* BDHV Mobile - Clean Mobile Design */
+.bdhv-card {
     background: var(--bg-surface);
-    border-bottom: 1px solid var(--border);
-    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 12px;
 }
 
-.bdhv-menu {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 8px;
-}
-
-.bdhv-menu-title {
-    font-size: 11px;
+.bdhv-card-header {
+    font-size: 15px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-muted);
-    padding: 8px;
-    opacity: 0.85;
+    color: var(--text-main);
+    margin-bottom: 8px;
 }
 
-.bdhv-item {
-    padding: 12px 16px;
-    border-radius: 8px;
+.bdhv-stat {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.bdhv-stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.bdhv-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 8px;
     color: var(--text-main);
     text-decoration: none;
     font-weight: 500;
     font-size: 14px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 10px;
 }
 
-.bdhv-item i {
-    font-size: 18px;
-    color: var(--primary);
-}
-
-.bdhv-item.active {
+.bdhv-menu-item:active {
+    transform: scale(0.98);
     background: var(--primary);
     color: #fff;
 }
 
-.bdhv-item.active i {
-    color: #fff;
+.bdhv-menu-item i {
+    font-size: 20px;
+    width: 28px;
+    text-align: center;
 }
 
-.bdhv-divider {
-    height: 1px;
-    background: var(--border);
-    margin: 8px;
+.bdhv-menu-item .badge {
+    margin-left: auto;
+    font-size: 12px;
 }
 
-/* Mobile Cards */
-.bdhv-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    margin-bottom: 16px;
-    overflow: hidden;
-}
-
-.bdhv-card-header {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
-    font-weight: 600;
-    background: var(--bg-body);
-}
-
-.bdhv-card-body {
-    padding: 16px;
-}
-
-/* Form mobile */
-.bdhv-form-group {
-    margin-bottom: 16px;
-}
-
-.bdhv-form-label {
-    font-weight: 500;
-    margin-bottom: 6px;
-    display: block;
-}
-
+/* Form Styles */
 .bdhv-form-input {
     width: 100%;
-    padding: 12px;
+    padding: 14px;
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 12px;
     background: var(--bg-surface);
     color: var(--text-main);
     font-size: 14px;
 }
 
 .bdhv-btn {
-    padding: 12px 20px;
-    border-radius: 8px;
-    font-weight: 600;
-    text-align: center;
-    background: var(--primary);
-    color: #fff;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 14px;
     border: none;
     width: 100%;
 }
 
-.bdhv-btn secondary {
+.bdhv-btn-primary {
+    background: var(--primary);
+    color: #fff;
+}
+
+.bdhv-btn-secondary {
     background: var(--bg-surface);
     color: var(--text-main);
     border: 1px solid var(--border);
+}
+
+.bdhv-select {
+    width: 100%;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-surface);
+    color: var(--text-main);
+    font-size: 14px;
+}
+
+/* Table */
+.bdhv-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.bdhv-table th {
+    padding: 12px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+}
+
+.bdhv-table td {
+    padding: 14px 12px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Quick Actions */
+.bdhv-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 16px 0;
+}
+
+.bdhv-quick-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 8px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-main);
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.bdhv-quick-btn i {
+    font-size: 22px;
+    color: var(--primary);
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="page-content">
-    <!-- Mobile Sidebar / Menu -->
-    <div class="bdhv-sidebar">
-        <div class="bdhv-menu-title">
-            <i class="fa-solid fa-school me-2"></i>Bình Dân Học Vụ số
-        </div>
-        <nav class="bdhv-menu">
-            <a href="/bdhv" class="bdhv-item {% if request.endpoint == 'bdhv_bp.index' %}active{% endif %}">
-                <i class="fa-solid fa-house"></i>Trang chủ
-            </a>
-            <a href="/bdhv/tra-cuu" class="bdhv-item {% if request.endpoint == 'bdhv_bp.tra_cuu' %}active{% endif %}">
-                <i class="fa-solid fa-search"></i>Tra cứu CCCD
-            </a>
-            <a href="/bdhv/tra-cuu-don-vi" class="bdhv-item {% if request.endpoint == 'bdhv_bp.tra_cuu_don_vi' %}active{% endif %}">
-                <i class="fa-solid fa-building"></i>Tra cứu đơn vị
-            </a>
-            <div class="bdhv-divider"></div>
-            <a href="/bdhv/dang-ky" class="bdhv-item {% if request.endpoint == 'bdhv_bp.dang_ky' %}active{% endif %}">
-                <i class="fa-solid fa-user-plus"></i>Đăng ký mới
-            </a>
-            <a href="/bdhv/thi-lai" class="bdhv-item {% if request.endpoint == 'bdhv_bp.thi_lai' %}active{% endif %}">
-                <i class="fa-solid fa-rotate-left"></i>Thi lại
-            </a>
-            <a href="/bdhv/phuc-tra" class="bdhv-item {% if request.endpoint == 'bdhv_bp.phuc_tra' %}active{% endif %}">
-                <i class="fa-solid fa-question-circle"></i>Phúc tra
-            </a>
-            <div class="bdhv-divider"></div>
-            <a href="/bdhv/thong-ke" class="bdhv-item {% if request.endpoint == 'bdhv_bp.thong_ke' %}active{% endif %}">
-                <i class="fa-solid fa-chart-bar"></i>Thống kê
-            </a>
-            <a href="/bdhv/xep-hang" class="bdhv-item {% if request.endpoint == 'bdhv_bp.xep_hang' %}active{% endif %}">
-                <i class="fa-solid fa-ranking-star"></i>Xếp hạng
-            </a>
-            {% if session.get('is_admin') %}
-            <div class="bdhv-divider"></div>
-            <a href="/bdhv/database" class="bdhv-item {% if request.endpoint == 'bdhv_bp.database' %}active{% endif %}">
-                <i class="fa-solid fa-database"></i>Database
-            </a>
-            {% endif %}
-        </nav>
+<div class="animate__animated animate__fadeIn">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h4 fw-bold mb-0">Bình Dân Học Vụ</h1>
     </div>
-    
+
+    <!-- Quick Actions -->
+    <div class="bdhv-quick-actions">
+        <a href="/bdhv/tra-cuu" class="bdhv-quick-btn">
+            <i class="fa-solid fa-search"></i>Tra cứu
+        </a>
+        <a href="/bdhv/dang-ky" class="bdhv-quick-btn">
+            <i class="fa-solid fa-user-plus"></i>Đăng ký
+        </a>
+        <a href="/bdhv/thong-ke" class="bdhv-quick-btn">
+            <i class="fa-solid fa-chart-bar"></i>Thống kê
+        </a>
+        <a href="/bdhv/xep-hang" class="bdhv-quick-btn">
+            <i class="fa-solid fa-ranking-star"></i>Xếp hạng
+        </a>
+    </div>
+
     <!-- Main Content -->
-    <div class="bdhv-content">
-        {% block bdhv_content %}{% endblock %}
+    {% block bdhv_content %}
+    
+    <!-- Default: Home Stats -->
+    <div class="row g-3 mb-3">
+        <div class="col-6">
+            <div class="bdhv-card text-center">
+                <div class="bdhv-stat">{{ total_18 or 0 }}</div>
+                <div class="bdhv-stat-label">Dân số 18+</div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="bdhv-card text-center">
+                <div class="bdhv-stat text-success">{{ total_dang_ky or 0 }}</div>
+                <div class="bdhv-stat-label">Đã đăng ký</div>
+            </div>
+        </div>
     </div>
     
-    <!-- Footer Nav -->
-    <div class="mobile-nav">
-        <a href="/bdhv" class="nav-item">
-            <i class="fa-solid fa-house"></i><span>Trang chủ</span>
+    <!-- Menu Links -->
+    <div class="mb-3">
+        <a href="/bdhv/tra-cuu-don-vi" class="bdhv-menu-item">
+            <i class="fa-solid fa-building text-primary"></i>
+            Tra cứu đơn vị
+            <i class="fa-solid fa-chevron-right text-muted ms-auto"></i>
         </a>
-        <a href="/bdhv/tra-cuu" class="nav-item">
-            <i class="fa-solid fa-search"></i><span>Tra cứu</span>
+        
+        <a href="/bdhv/dang-ky" class="bdhv-menu-item">
+            <i class="fa-solid fa-user-plus text-success"></i>
+            Đăng ký mới
+            <i class="fa-solid fa-chevron-right text-muted ms-auto"></i>
         </a>
-        <a href="/bdhv/dang-ky" class="nav-item">
-            <i class="fa-solid fa-plus"></i><span>Đăng ký</span>
+        
+        <a href="/bdhv/thi-lai" class="bdhv-menu-item">
+            <i class="fa-solid fa-rotate-left text-warning"></i>
+            Thi lại
+            <i class="fa-solid fa-chevron-right text-muted ms-auto"></i>
         </a>
-        <a href="/bdhv/thong-ke" class="nav-item">
-            <i class="fa-solid fa-chart-bar"></i><span>Thống kê</span>
+        
+        <a href="/bdhv/phuc-tra" class="bdhv-menu-item">
+            <i class="fa-solid fa-question-circle text-info"></i>
+            Phúc tra
+            <i class="fa-solid fa-chevron-right text-muted ms-auto"></i>
+        </a>
+        
+        <a href="/bdhv/thong-ke" class="bdhv-menu-item">
+            <i class="fa-solid fa-chart-bar text-primary"></i>
+            Thống kê
+            <i class="fa-solid fa-chevron-right text-muted ms-auto"></i>
+        </a>
+        
+        <a href="/bdhv/xep-hang" class="bdhv-menu-item">
+            <i class="fa-solid fa-ranking-star text-warning"></i>
+            Xếp hạng
+            <i class="fa-solid fa-chevron-right text-muted ms-auto"></i>
+        </a>
+        
+        {% if session.get('is_admin') %}
+        <a href="/bdhv/database" class="bdhv-menu-item">
+            <i class="fa-solid fa-database text-danger"></i>
+            Database
+            <i class="fa-solid fa-chevron-right text-muted ms-auto"></i>
+        </a>
+        {% endif %}
+        
+        <a href="/bdhv/export/danh-sach" class="bdhv-menu-item">
+            <i class="fa-solid fa-file-excel text-success"></i>
+            Xuất danh sách
+            <i class="fa-solid fa-chevron-right text-muted ms-auto"></i>
+        </a>
+        
+        <a href="/bdhv/export/thong-ke" class="bdhv-menu-item">
+            <i class="fa-solid fa-file-chart-pie text-info"></i>
+            Xuất thống kê
+            <i class="fa-solid fa-chevron-right text-muted ms-auto"></i>
         </a>
     </div>
+    
+    {% endblock %}
 </div>
 {% endblock %}
