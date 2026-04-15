@@ -2,128 +2,105 @@
 
 {% block extra_head %}
 <style>
-/* BDHV Sidebar - Glassmorphism & Liquid Design */
+/* BDHV Sidebar - Match Desktop Nav Exact Style */
 .bdhv-sidebar {
     min-height: calc(100vh - 80px);
+    background: var(--bg-body);
     position: sticky;
     top: 70px;
-    padding: 16px 12px;
+    padding: 12px;
     z-index: 100;
-    overflow-y: auto;
+    border-right: 1px solid var(--border);
 }
 
-/* Glass Card Container */
-.bdhv-glass {
-    background: var(--glass-bg);
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
-    border: 1px solid var(--glass-border);
-    border-radius: var(--corner-card);
-    box-shadow: var(--glass-shadow);
-    padding: 20px;
-}
-
-/* Header with Gradient Badge */
+/* Header Badge */
 .bdhv-header {
     text-align: center;
-    padding-bottom: 16px;
+    padding: 12px 8px 16px;
     border-bottom: 1px solid var(--border);
-    margin-bottom: 20px;
+    margin-bottom: 12px;
 }
 
 .bdhv-header .badge {
-    font-size: 15px;
-    padding: 10px 20px;
+    font-size: 13px;
+    padding: 6px 14px;
     border-radius: 50px;
-    background: var(--primary-gradient);
+    background: var(--primary);
     color: #fff;
-    font-weight: 700;
-    box-shadow: var(--shadow-primary);
+    font-weight: 600;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .bdhv-header .sub {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-muted);
-    margin-top: 8px;
+    margin-top: 6px;
     text-transform: uppercase;
-    letter-spacing: 1.5px;
+    letter-spacing: 1px;
     font-weight: 600;
 }
 
-/* Pill Navigation - Modern */
+/* Navigation - EXACT match .nav-link-top from desktop */
 .bdhv-nav {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
+    align-items: center;
 }
 
+/* EXACT copy from .nav-link-top in base.html */
 .bdhv-pill {
+    height: auto;
+    padding: 8px 16px;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-decoration: none;
+    position: relative;
+    transition: all 0.2s;
+    border-bottom: none;
     display: flex;
     align-items: center;
-    padding: 10px 14px;
-    border-radius: 10px;
-    color: var(--text-muted);
-    text-decoration: none;
-    font-weight: 500;
+    justify-content: center;
+    line-height: 1;
+    width: 100%;
+    border-radius: 50px;
+    white-space: nowrap;
     font-size: 13px;
-    transition: var(--transition);
-    position: relative;
-    border: 1px solid transparent;
+    background: transparent;
+    border: none;
+    cursor: pointer;
 }
 
 .bdhv-pill i {
-    width: 20px;
-    margin-right: 10px;
-    font-size: 14px;
+    width: 16px;
+    margin-right: 8px;
+    font-size: 12px;
     text-align: center;
-    transition: var(--transition);
 }
 
 .bdhv-pill:hover {
-    background: var(--primary-soft);
     color: var(--primary);
-    border-color: var(--border);
-    transform: translateX(3px);
-}
-
-.bdhv-pill:hover i {
-    transform: scale(1.1);
+    background: rgba(0, 102, 255, 0.05);
 }
 
 .bdhv-pill.active {
-    background: var(--primary-gradient);
     color: #fff !important;
-    box-shadow: var(--shadow-primary);
-    border-color: transparent;
-    transform: translateX(3px);
+    background: var(--primary) !important;
+    box-shadow: var(--shadow-primary) !important;
 }
 
-.bdhv-pill.active i {
-    color: #fff;
-}
-
-/* Section Label - Uppercase small */
+/* Section label - match style */
 .bdhv-label {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 1.5px;
+    letter-spacing: 1.2px;
     color: var(--text-muted);
-    margin: 16px 12px 8px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.bdhv-label::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-    opacity: 0.6;
+    margin: 14px 8px 6px;
+    width: 100%;
+    text-align: center;
 }
 
 .bdhv-main-content {
@@ -150,22 +127,6 @@
 .bdhv-card .card-body {
     padding: 18px;
 }
-
-/* Badges */
-.bdhv-badge {
-    background: rgba(0, 102, 255, 0.1);
-    color: var(--primary);
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: 600;
-    margin-left: auto;
-}
-
-.bdhv-pill.active .bdhv-badge {
-    background: rgba(255,255,255,0.2);
-    color: #fff;
-}
 </style>
 {% endblock %}
 
@@ -173,66 +134,62 @@
 <div class="row g-0">
     <!-- Sidebar -->
     <div class="col-lg-2 bdhv-sidebar d-none d-lg-block">
-        <div class="bdhv-glass">
-            <!-- Header -->
-            <div class="bdhv-header">
-                <span class="badge">
-                    <i class="fa-solid fa-graduation-cap"></i>BDHV
-                </span>
-                <div class="sub">Bình dân học vụ</div>
-            </div>
-            
-            <!-- Navigation -->
-            <nav class="bdhv-nav">
-                <a href="/bdhv" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.index' %}active{% endif %}">
-                    <i class="fa-solid fa-house"></i>Trang chủ
-                </a>
-                
-                <div class="bdhv-label">Tra cứu</div>
-                <a href="/bdhv/tra-cuu" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.tra_cuu' %}active{% endif %}">
-                    <i class="fa-solid fa-id-card"></i>Theo CCCD
-                </a>
-                <a href="/bdhv/tra-cuu-don-vi" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.tra_cuu_don_vi' %}active{% endif %}">
-                    <i class="fa-solid fa-building-ngo"></i>Theo đơn vị
-                </a>
-                
-                <div class="bdhv-label">Đăng ký</div>
-                <a href="/bdhv/dang-ky" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.dang_ky' %}active{% endif %}">
-                    <i class="fa-solid fa-user-plus"></i>Đăng ký mới
-                </a>
-                <a href="/bdhv/thi-lai" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.thi_lai' %}active{% endif %}">
-                    <i class="fa-solid fa-rotate-left"></i>Thi lại
-                </a>
-                <a href="/bdhv/phuc-tra" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.phuc_tra' %}active{% endif %}">
-                    <i class="fa-solid fa-file-signature"></i>Phúc tra
-                </a>
-                
-                <div class="bdhv-label">Báo cáo</div>
-                <a href="/bdhv/thong-ke" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.thong_ke' %}active{% endif %}">
-                    <i class="fa-solid fa-chart-pie"></i>Thống kê
-                </a>
-                <a href="/bdhv/xep-hang" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.xep_hang' %}active{% endif %}">
-                    <i class="fa-solid fa-trophy"></i>Xếp hạng
-                </a>
-                
-                {% if session.get('is_admin') %}
-                <div class="bdhv-label">Quản trị</div>
-                <a href="/bdhv/database" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.database' %}active{% endif %}">
-                    <i class="fa-solid fa-database"></i>Database
-                </a>
-                {% endif %}
-                
-                <div class="bdhv-label">Xuất file</div>
-                <a href="/bdhv/export/danh-sach" class="bdhv-pill">
-                    <i class="fa-solid fa-file-excel"></i>Danh sách HV
-                    <span class="bdhv-badge">Excel</span>
-                </a>
-                <a href="/bdhv/export/thong-ke" class="bdhv-pill">
-                    <i class="fa-solid fa-file-csv"></i>Thống kê
-                    <span class="bdhv-badge">CSV</span>
-                </a>
-            </nav>
+        <!-- Header -->
+        <div class="bdhv-header">
+            <span class="badge">
+                <i class="fa-solid fa-graduation-cap"></i>BDHV
+            </span>
+            <div class="sub">Bình dân học vụ</div>
         </div>
+        
+        <!-- Navigation - Exact same as desktop nav pills -->
+        <nav class="bdhv-nav">
+            <a href="/bdhv" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.index' %}active{% endif %}">
+                <i class="fa-solid fa-house"></i>Trang chủ
+            </a>
+            
+            <div class="bdhv-label">Tra cứu</div>
+            <a href="/bdhv/tra-cuu" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.tra_cuu' %}active{% endif %}">
+                <i class="fa-solid fa-id-card"></i>Theo CCCD
+            </a>
+            <a href="/bdhv/tra-cuu-don-vi" class="bdhev-pill {% if request.endpoint == 'bdhv_bp.tra_cuu_don_vi' %}active{% endif %}">
+                <i class="fa-solid fa-building-ngo"></i>Theo đơn vị
+            </a>
+            
+            <div class="bdhv-label">Đăng ký</div>
+            <a href="/bdhv/dang-ky" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.dang_ky' %}active{% endif %}">
+                <i class="fa-solid fa-user-plus"></i>Đăng ký mới
+            </a>
+            <a href="/bdhv/thi-lai" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.thi_lai' %}active{% endif %}">
+                <i class="fa-solid fa-rotate-left"></i>Thi lại
+            </a>
+            <a href="/bdhv/phuc-tra" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.phuc_tra' %}active{% endif %}">
+                <i class="fa-solid fa-file-signature"></i>Phúc tra
+            </a>
+            
+            <div class="bdhv-label">Báo cáo</div>
+            <a href="/bdhv/thong-ke" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.thong_ke' %}active{% endif %}">
+                <i class="fa-solid fa-chart-pie"></i>Thống kê
+            </a>
+            <a href="/bdhv/xep-hang" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.xep_hang' %}active{% endif %}">
+                <i class="fa-solid fa-trophy"></i>Xếp hạng
+            </a>
+            
+            {% if session.get('is_admin') %}
+            <div class="bdhv-label">Quản trị</div>
+            <a href="/bdhv/database" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.database' %}active{% endif %}">
+                <i class="fa-solid fa-database"></i>Database
+            </a>
+            {% endif %}
+            
+            <div class="bdhv-label">Xuất file</div>
+            <a href="/bdhv/export/danh-sach" class="bdhv-pill">
+                <i class="fa-solid fa-file-excel"></i>Danh sách HV
+            </a>
+            <a href="/bdhv/export/thong-ke" class="bdhv-pill">
+                <i class="fa-solid fa-file-csv"></i>Thống kê
+            </a>
+        </nav>
     </div>
     
     <!-- Main Content -->
