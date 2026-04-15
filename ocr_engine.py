@@ -73,7 +73,7 @@ class PC06_OCR_API:
             return False
     
     def process_pdf_to_word(self, pdf_path, output_path):
-        """PDF có text → Word (giữ nguyên format)"""
+        """PDF → Word sử dụng trực tiếp OCR.space để trị dứt điểm lỗi Tiếng Việt / Font cũ"""
         _ensure_imports()
         if fitz is None or Document is None:
             return False
@@ -81,24 +81,52 @@ class PC06_OCR_API:
         try:
             doc = fitz.open(pdf_path)
             word_doc = Document()
-            word_doc.add_heading("CHUYỂN ĐỔI TỪ PDF - PC06", 0)
+            word_doc.add_heading("CHUYỂN ĐỔI TỪ PDF (OCR TIẾNG VIỆT) - PC06", 0)
             
-            for page_num in range(len(doc)):
+            # Để tránh quá tải API và tránh timeout, giới hạn scan tối đa 5 trang đầu
+            max_pages = min(len(doc), 5)
+            
+            for page_num in range(max_pages):
                 page = doc[page_num]
-                text = page.get_text().strip()
+                # Render trang PDF ra ảnh chất lượng cao
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+                img_bytes = pix.tobytes("png")
                 
-                if text:
-                    word_doc.add_paragraph(f"--- Trang {page_num+1} ---")
-                    for line in text.split("\n"):
-                        if line.strip():
-                            word_doc.add_paragraph(line.strip())
+                word_doc.add_paragraph(f"--- Trang {page_num+1} ---")
+                
+                # Gọi thẳng lên OCR.space API (Giống ảnh -> Word)
+                files = {"filename": (f"page_{page_num}.png", img_bytes, "image/png")}
+                data = {
+                    "apikey": OCR_API_KEY,
+                    "language": "vie",
+                    "isTable": "true",
+                    "scale": "true"
+                }
+                
+                response = requests.post(OCR_API_URL, files=files, data=data, timeout=40)
+                if response.status_code == 200:
+                    result = response.json()
+                    if result.get("IsErroredOnProcessing") == False:
+                        parsed = result.get("ParsedResults", [])
+                        if parsed:
+                            text = parsed[0].get("ParsedText", "")
+                            if text.strip():
+                                for line in text.strip().split("\n"):
+                                    if line.strip():
+                                        word_doc.add_paragraph(line.strip())
+                            else:
+                                word_doc.add_paragraph("(Trang trắng / Không nhận diện được chữ)")
                 else:
-                    word_doc.add_paragraph(f"--- Trang {page_num+1} (PDF scan) ---")
+                    word_doc.add_paragraph("(Lỗi kết nối OCR)")
             
+            if len(doc) > 5:
+                word_doc.add_paragraph(f"\n... (Đã ẩn {len(doc)-5} trang còn lại. Hệ thống chỉ hỗ trợ OCR tối đa 5 trang/lần để đảm bảo tốc độ).")
+                
             word_doc.save(output_path)
             return True
         except Exception as e:
-            print(f"[OCR] Error: {e}", flush=True)
+            try: print(f"[OCR PDF Error] {e}", flush=True)
+            except: pass
             return False
     
     def full_convert(self, input_file, target_format="word"):
