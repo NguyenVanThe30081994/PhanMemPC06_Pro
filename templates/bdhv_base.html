@@ -2,64 +2,27 @@
 
 {% block extra_head %}
 <style>
+/* BDHV Sidebar - Pillbox Style */
 .bdhv-sidebar {
     min-height: calc(100vh - 80px);
-    background: linear-gradient(180deg, var(--bs-body-bg) 0%, rgba(0,102,255,0.02) 100%);
+    background: var(--bs-body-bg);
     border-right: 1px solid var(--border);
     position: sticky;
     top: 70px;
     overflow-y: auto;
     z-index: 100;
+    padding: 16px;
 }
 .bdhv-sidebar::-webkit-scrollbar { width: 4px; }
 .bdhv-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-.bdhv-menu-header {
-    padding: 16px 20px 8px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 8px;
-}
-
-.bdhv-menu-header .logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.bdhv-menu-header .logo-icon {
-    width: 36px;
-    height: 36px;
-    background: linear-gradient(135deg, #0066cc, #0099ff);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 18px;
-    box-shadow: 0 4px 12px rgba(0,102,255,0.3);
-}
-
-.bdhv-menu-header .logo-text {
+.bdhv-section-title {
+    font-size: 11px;
     font-weight: 700;
-    font-size: 14px;
-    color: var(--bs-body-color);
-    letter-spacing: 0.5px;
-}
-
-.bdhv-menu-header .logo-sub {
-    font-size: 10px;
-    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 1px;
-}
-
-.bdhv-section-title {
-    padding: 16px 20px 8px;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
     color: var(--text-muted);
+    margin: 16px 8px 8px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -70,71 +33,53 @@
     flex: 1;
     height: 1px;
     background: var(--border);
-    opacity: 0.5;
+}
+
+.bdhv-menu-pills {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 4px;
 }
 
 .bdhv-menu-item {
     display: flex;
     align-items: center;
-    padding: 12px 20px;
-    margin: 2px 12px;
-    border-radius: 10px;
-    color: var(--bs-body-color);
+    padding: 10px 14px;
+    border-radius: 50px;
+    color: var(--text-muted);
     text-decoration: none;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    font-weight: 500;
-    font-size: 14px;
-    position: relative;
-    overflow: hidden;
-}
-
-.bdhv-menu-item::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 0;
-    background: var(--primary);
-    border-radius: 0 3px 3px 0;
-    transition: height 0.2s ease;
-}
-
-.bdhv-menu-item:hover {
-    background: linear-gradient(90deg, rgba(0,102,255,0.08) 0%, transparent 100%);
-    color: var(--primary);
-    transform: translateX(4px);
-}
-
-.bdhv-menu-item:hover::before {
-    height: 60%;
-}
-
-.bdhv-menu-item.active {
-    background: linear-gradient(90deg, var(--primary) 0%, rgba(0,102,255,0.85) 100%);
-    color: white;
-    box-shadow: 0 4px 15px rgba(0,102,255,0.3);
-    transform: translateX(4px);
-}
-
-.bdhv-menu-item.active::before {
-    height: 80%;
-    background: white;
+    transition: all 0.2s ease;
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
 }
 
 .bdhv-menu-item i {
-    width: 20px;
-    margin-right: 12px;
-    font-size: 15px;
+    width: 18px;
+    margin-right: 10px;
+    font-size: 14px;
     text-align: center;
+}
+
+.bdhv-menu-item:hover {
+    color: var(--primary);
+    background: rgba(0, 102, 255, 0.08);
+}
+
+.bdhv-menu-item.active {
+    color: #fff !important;
+    background: var(--primary) !important;
+    box-shadow: 0 4px 12px rgba(0, 102, 255, 0.25);
 }
 
 .bdhv-menu-item .badge {
     margin-left: auto;
     font-size: 10px;
-    padding: 3px 8px;
+    font-weight: 700;
+    padding: 2px 8px;
     border-radius: 20px;
+    background: rgba(255,255,255,0.2);
 }
 
 .bdhv-main-content {
@@ -143,18 +88,12 @@
     background: var(--bs-body-bg);
 }
 
-/* Modern Card Styling */
+/* Card Styling */
 .bdhv-card {
     background: var(--bs-body-bg);
     border: 1px solid var(--border);
     border-radius: 16px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    transition: all 0.3s ease;
-}
-
-.bdhv-card:hover {
-    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-    transform: translateY(-2px);
 }
 
 .bdhv-card .card-header {
@@ -167,16 +106,6 @@
 .bdhv-card .card-body {
     padding: 20px;
 }
-
-/* Dark mode support */
-{% if session.get('theme') == 'dark' %}
-.bdhv-sidebar {
-    background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-}
-.bdhv-menu-item:hover {
-    background: linear-gradient(90deg, rgba(0,102,255,0.15) 0%, transparent 100%);
-}
-{% endif %}
 </style>
 {% endblock %}
 
@@ -184,21 +113,15 @@
 <div class="row g-0">
     <!-- Sidebar -->
     <div class="col-lg-2 bdhv-sidebar d-none d-lg-block">
-        <!-- Logo Header -->
-        <div class="bdhv-menu-header">
-            <div class="logo">
-                <div class="logo-icon">
-                    <i class="fa-solid fa-graduation-cap"></i>
-                </div>
-                <div>
-                    <div class="logo-text">BDHV</div>
-                    <div class="logo-sub">Bình dân học vụ</div>
-                </div>
-            </div>
+        <!-- Simple Title -->
+        <div class="text-center py-3 border-bottom mb-3">
+            <i class="fa-solid fa-graduation-cap fa-lg text-primary"></i>
+            <div class="fw-bold mt-2" style="font-size: 14px;">BDHV</div>
+            <div class="tiny text-muted">Bình dân học vụ</div>
         </div>
         
-        <!-- Navigation -->
-        <nav class="nav flex-column">
+        <!-- Navigation Pills -->
+        <nav class="bdhv-menu-pills">
             <a href="/bdhv" class="bdhv-menu-item {% if request.endpoint == 'bdhv_bp.index' %}active{% endif %}">
                 <i class="fa-solid fa-house"></i>Trang chủ
             </a>
