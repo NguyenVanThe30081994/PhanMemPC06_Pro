@@ -100,12 +100,12 @@ class PC06_OCR_API:
     
     def full_convert(self, input_file, target_format="word"):
         """PDF & Ảnh → Word"""
-        import pandas as pd
+        import datetime
         
         try:
             ext = os.path.splitext(input_file)[1].lower()
             base_name = os.path.splitext(os.path.basename(input_file))[0]
-            timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             
             os.makedirs("static/exports", exist_ok=True)
             
