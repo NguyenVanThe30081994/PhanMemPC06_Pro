@@ -48,23 +48,60 @@
 
 .bdhv-menu-item:active {
     transform: scale(0.98);
-    background: var(--primary);
-    color: #fff;
 }
 
-.bdhv-menu-item i {
+.bdhv-menu-item i:first-child {
     font-size: 20px;
     width: 28px;
     text-align: center;
 }
 
-.bdhv-menu-item .badge {
-    margin-left: auto;
-    font-size: 12px;
+.bdhv-menu-item .ms-auto {
+    color: var(--text-muted);
+}
+
+/* Quick Actions Grid */
+.bdhv-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 16px 0;
+}
+
+.bdhv-quick-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 8px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-main);
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.bdhv-quick-btn i {
+    font-size: 22px;
+    color: var(--primary);
 }
 
 /* Form Styles */
-.bdhv-form-input {
+.bdhv-form-group {
+    margin-bottom: 16px;
+}
+
+.bdhv-form-label {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 8px;
+    display: block;
+    color: var(--text-main);
+}
+
+.bdhv-form-input, .bdhv-form-select {
     width: 100%;
     padding: 14px;
     border: 1px solid var(--border);
@@ -94,16 +131,6 @@
     border: 1px solid var(--border);
 }
 
-.bdhv-select {
-    width: 100%;
-    padding: 14px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: var(--bg-surface);
-    color: var(--text-main);
-    font-size: 14px;
-}
-
 /* Table */
 .bdhv-table {
     width: 100%;
@@ -116,7 +143,7 @@
     font-size: 12px;
     font-weight: 700;
     color: var(--text-muted);
-    border-bottom: 1px solid var(--border);
+    background: var(--bg-body);
 }
 
 .bdhv-table td {
@@ -125,137 +152,24 @@
     border-bottom: 1px solid var(--border);
 }
 
-/* Quick Actions */
-.bdhv-quick-actions {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-    padding: 16px 0;
-}
-
-.bdhv-quick-btn {
+/* Page Header */
+.bdhv-page-header {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 6px;
-    padding: 12px 8px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    color: var(--text-main);
-    font-size: 11px;
-    font-weight: 600;
-    text-decoration: none;
+    justify-content: space-between;
+    margin-bottom: 16px;
 }
 
-.bdhv-quick-btn i {
-    font-size: 22px;
-    color: var(--primary);
+.bdhv-page-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
 }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="animate__animated animate__fadeIn">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="h4 fw-bold mb-0">Bình Dân Học Vụ</h1>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="bdhv-quick-actions">
-        <a href="/bdhv/tra-cuu" class="bdhv-quick-btn">
-            <i class="fa-solid fa-search"></i>Tra cứu
-        </a>
-        <a href="/bdhv/dang-ky" class="bdhv-quick-btn">
-            <i class="fa-solid fa-user-plus"></i>Đăng ký
-        </a>
-        <a href="/bdhv/thong-ke" class="bdhv-quick-btn">
-            <i class="fa-solid fa-chart-bar"></i>Thống kê
-        </a>
-        <a href="/bdhv/xep-hang" class="bdhv-quick-btn">
-            <i class="fa-solid fa-ranking-star"></i>Xếp hạng
-        </a>
-    </div>
-
-    <!-- Main Content -->
-    {% block bdhv_content %}
-    
-    <!-- Default: Home Stats -->
-    <div class="row g-3 mb-3">
-        <div class="col-6">
-            <div class="bdhv-card text-center">
-                <div class="bdhv-stat">{{ total_18 or 0 }}</div>
-                <div class="bdhv-stat-label">Dân số 18+</div>
-            </div>
-        </div>
-        <div class="col-6">
-            <div class="bdhv-card text-center">
-                <div class="bdhv-stat text-success">{{ total_dang_ky or 0 }}</div>
-                <div class="bdhv-stat-label">Đã đăng ký</div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Menu Links -->
-    <div class="mb-3">
-        <a href="/bdhv/tra-cuu-don-vi" class="bdhv-menu-item">
-            <i class="fa-solid fa-building text-primary"></i>
-            Tra cứu đơn vị
-            <i class="fa-solid fa-chevron-right text-muted ms-auto"></i>
-        </a>
-        
-        <a href="/bdhv/dang-ky" class="bdhv-menu-item">
-            <i class="fa-solid fa-user-plus text-success"></i>
-            Đăng ký mới
-            <i class="fa-solid fa-chevron-right text-muted ms-auto"></i>
-        </a>
-        
-        <a href="/bdhv/thi-lai" class="bdhv-menu-item">
-            <i class="fa-solid fa-rotate-left text-warning"></i>
-            Thi lại
-            <i class="fa-solid fa-chevron-right text-muted ms-auto"></i>
-        </a>
-        
-        <a href="/bdhv/phuc-tra" class="bdhv-menu-item">
-            <i class="fa-solid fa-question-circle text-info"></i>
-            Phúc tra
-            <i class="fa-solid fa-chevron-right text-muted ms-auto"></i>
-        </a>
-        
-        <a href="/bdhv/thong-ke" class="bdhv-menu-item">
-            <i class="fa-solid fa-chart-bar text-primary"></i>
-            Thống kê
-            <i class="fa-solid fa-chevron-right text-muted ms-auto"></i>
-        </a>
-        
-        <a href="/bdhv/xep-hang" class="bdhv-menu-item">
-            <i class="fa-solid fa-ranking-star text-warning"></i>
-            Xếp hạng
-            <i class="fa-solid fa-chevron-right text-muted ms-auto"></i>
-        </a>
-        
-        {% if session.get('is_admin') %}
-        <a href="/bdhv/database" class="bdhv-menu-item">
-            <i class="fa-solid fa-database text-danger"></i>
-            Database
-            <i class="fa-solid fa-chevron-right text-muted ms-auto"></i>
-        </a>
-        {% endif %}
-        
-        <a href="/bdhv/export/danh-sach" class="bdhv-menu-item">
-            <i class="fa-solid fa-file-excel text-success"></i>
-            Xuất danh sách
-            <i class="fa-solid fa-chevron-right text-muted ms-auto"></i>
-        </a>
-        
-        <a href="/bdhv/export/thong-ke" class="bdhv-menu-item">
-            <i class="fa-solid fa-file-chart-pie text-info"></i>
-            Xuất thống kê
-            <i class="fa-solid fa-chevron-right text-muted ms-auto"></i>
-        </a>
-    </div>
-    
-    {% endblock %}
+    {% block bdhv_content %}{% endblock %}
 </div>
 {% endblock %}

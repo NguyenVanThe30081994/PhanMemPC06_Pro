@@ -1,0 +1,107 @@
+{% extends "bdhv_base_mobile.html" %}
+
+{% block title %}Bình Dân Học Vụ - PC06 Mobile{% endblock %}
+
+{% block bdhv_content %}
+<!-- Header -->
+<div class="bdhv-page-header">
+    <h1 class="bdhv-page-title">Bình Dân Học Vụ</h1>
+</div>
+
+<!-- Stats Row -->
+<div class="row g-3 mb-3">
+    <div class="col-6">
+        <div class="bdhv-card text-center">
+            <div class="bdhv-stat">{{ total_hv or 0 }}</div>
+            <div class="bdhv-stat-label">Học viên</div>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="bdhv-card text-center">
+            <div class="bdhv-stat text-success">{{ total_dv or 0 }}</div>
+            <div class="bdhv-stat-label">Đơn vị</div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="bdhv-quick-actions">
+    <a href="/bdhv/tra-cuu" class="bdhv-quick-btn">
+        <i class="fa-solid fa-search"></i>Tra cứu
+    </a>
+    <a href="/bdhv/dang-ky" class="bdhv-quick-btn">
+        <i class="fa-solid fa-user-plus"></i>Đăng ký
+    </a>
+    <a href="/bdhv/thong-ke" class="bdhv-quick-btn">
+        <i class="fa-solid fa-chart-bar"></i>Thống kê
+    </a>
+    <a href="/bdhv/xep-hang" class="bdhv-quick-btn">
+        <i class="fa-solid fa-ranking-star"></i>Xếp hạng
+    </a>
+</div>
+
+<!-- Menu List -->
+<div class="mb-3">
+    <a href="/bdhv/tra-cuu" class="bdhv-menu-item">
+        <i class="fa-solid fa-id-card text-primary"></i>
+        Tra cứu CCCD
+        <i class="fa-solid fa-chevron-right ms-auto"></i>
+    </a>
+    
+    <a href="/bdhv/tra-cuu-don-vi" class="bdhv-menu-item">
+        <i class="fa-solid fa-building text-primary"></i>
+        Tra cứu đơn vị
+        <i class="fa-solid fa-chevron-right ms-auto"></i>
+    </a>
+    
+    <a href="/bdhv/dang-ky" class="bdhv-menu-item">
+        <i class="fa-solid fa-user-plus text-success"></i>
+        Đăng ký mới
+        <i class="fa-solid fa-chevron-right ms-auto"></i>
+    </a>
+    
+    <a href="/bdhv/thi-lai" class="bdhv-menu-item">
+        <i class="fa-solid fa-rotate-left text-warning"></i>
+        Thi lại
+        <i class="fa-solid fa-chevron-right ms-auto"></i>
+    </a>
+    
+    <a href="/bdhv/phuc-tra" class="bdhv-menu-item">
+        <i class="fa-solid fa-question-circle text-info"></i>
+        Phúc tra
+        <i class="fa-solid fa-chevron-right ms-auto"></i>
+    </a>
+    
+    <a href="/bdhv/thong-ke" class="bdhv-menu-item">
+        <i class="fa-solid fa-chart-bar text-primary"></i>
+        Thống kê
+        <i class="fa-solid fa-chevron-right ms-auto"></i>
+    </a>
+    
+    <a href="/bdhv/xep-hang" class="bdhv-menu-item">
+        <i class="fa-solid fa-ranking-star text-warning"></i>
+        Xếp hạng
+        <i class="fa-solid fa-chevron-right ms-auto"></i>
+    </a>
+    
+    {% if session.get('is_admin') %}
+    <a href="/bdhv/database" class="bdhv-menu-item">
+        <i class="fa-solid fa-database text-danger"></i>
+        Database
+        <i class="fa-solid fa-chevron-right ms-auto"></i>
+    </a>
+    {% endif %}
+    
+    <a href="/bdhv/export/danh-sach" class="bdhv-menu-item">
+        <i class="fa-solid fa-file-excel text-success"></i>
+        Xuất danh sách
+        <i class="fa-solid fa-chevron-right ms-auto"></i>
+    </a>
+    
+    <a href="/bdhv/export/thong-ke" class="bdhv-menu-item">
+        <i class="fa-solid fa-file-chart-pie text-info"></i>
+        Xuất thống kê
+        <i class="fa-solid fa-chevron-right ms-auto"></i>
+    </a>
+</div>
+{% endblock %}
