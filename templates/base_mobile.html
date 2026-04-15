@@ -226,6 +226,27 @@
         .nav-link-sidebar.active { background: var(--primary); color: white; }
         .nav-link-sidebar.active i { opacity: 1; }
         .nav-link-sidebar.text-danger:active { background: #fee2e2; color: #dc2626; }
+        
+        /* Dropdown Menu Styles */
+        .nav-dropdown {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            border-radius: 12px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            font-weight: 700;
+            font-size: 15px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .nav-dropdown:hover { background: var(--primary-light); color: var(--primary); }
+        .nav-dropdown[aria-expanded="true"] { background: var(--primary); color: white; }
+        
+        /* Dropdown Content */
+        .collapse { padding-left: 8px; border-left: 2px solid var(--border); margin: 8px 0; }
     </style>
     {% block head %}{% endblock %}
 </head>
@@ -304,65 +325,83 @@
         </div>
         
         <div class="offcanvas-body p-3 pt-0">
-            <div class="mb-2 px-2 tiny fw-bold text-uppercase" style="letter-spacing: 1px; color: var(--text-muted);">Menu Chính</div>
-            <div class="nav-links mb-4">
-                <a href="/admin" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">
-                    Tổng quan
-                </a>
-                <a href="/tasks" class="nav-link-sidebar {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">Nhiệm vụ
-                </a>
-                <a href="/ranking" class="nav-link-sidebar {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">Xếp hạng
-                </a>
-                <a href="/news" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.news' %}active{% endif %}">Bảng tin
-                </a>
+            <!-- Main Dropdown -->
+            <div class="mb-2">
+                <button class="nav-dropdown w-100" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu">
+                    <i class="fa-solid fa-house me-2"></i>Menu Chính <i class="fa-solid fa-chevron-down ms-auto small"></i>
+                </button>
+                <div class="collapse" id="mainMenu">
+                    <div class="nav-links">
+                        <a href="/admin" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">Tổng quan</a>
+                        <a href="/tasks" class="nav-link-sidebar {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">Nhiệm vụ</a>
+                        <a href="/ranking" class="nav-link-sidebar {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">Xếp hạng</a>
+                        <a href="/news" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.news' %}active{% endif %}">Bảng tin</a>
+                    </div>
+                </div>
             </div>
             
-            <div class="mb-2 px-2 tiny fw-bold text-uppercase" style="letter-spacing: 1px; color: var(--text-muted);">Dữ liệu & Báo cáo</div>
-            <div class="nav-links mb-4">
-                <a href="{{ url_for('forms_bp.input_data') }}" class="nav-link-sidebar {% if request.endpoint == 'forms_bp.input_data' %}active{% endif %}">Nhập liệu Biểu mẫu
-                </a>
-                <a href="{{ url_for('forms_bp.stats') }}" class="nav-link-sidebar {% if request.endpoint == 'forms_bp.stats' %}active{% endif %}">Thống kê Báo cáo
-                </a>
-                <a href="/library" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">Thư viện Tài liệu
-                </a>
-                <a href="/contacts" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">Danh bạ Đơn vị
-                </a>
-                <a href="/links" class="nav-link-sidebar {% if request.endpoint == 'shortlink_bp.manage_links' %}active{% endif %}">QR &amp; Link Rút gọn
-                </a>
-                <a href="/ocr" class="nav-link-sidebar {% if request.endpoint == 'ocr_bp.ocr_index' %}active{% endif %}">OCR Chuyển ảnh</a>
+            <!-- Data & Reports Dropdown -->
+            <div class="mb-2">
+                <button class="nav-dropdown w-100" type="button" data-bs-toggle="collapse" data-bs-target="#dataMenu">
+                    <i class="fa-solid fa-database me-2"></i>Dữ liệu & Báo cáo <i class="fa-solid fa-chevron-down ms-auto small"></i>
+                </button>
+                <div class="collapse" id="dataMenu">
+                    <div class="nav-links">
+                        <a href="{{ url_for('forms_bp.input_data') }}" class="nav-link-sidebar {% if request.endpoint == 'forms_bp.input_data' %}active{% endif %}">Nhập liệu</a>
+                        <a href="{{ url_for('forms_bp.stats') }}" class="nav-link-sidebar {% if request.endpoint == 'forms_bp.stats' %}active{% endif %}">Thống kê</a>
+                        <a href="/library" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">Thư viện Tài liệu</a>
+                        <a href="/contacts" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">Danh bạ Đơn vị</a>
+                        <a href="/links" class="nav-link-sidebar {% if request.endpoint == 'shortlink_bp.manage_links' %}active{% endif %}">QR & Link</a>
+                        <a href="/ocr" class="nav-link-sidebar {% if request.endpoint == 'ocr_bp.ocr_index' %}active{% endif %}">OCR Chuyển ảnh</a>
+                    </div>
+                </div>
             </div>
             
-            <div class="mb-2 px-2 tiny fw-bold text-uppercase" style="letter-spacing: 1px; color: var(--text-muted);">Bình dân học vụ số</div>
-            <div class="nav-links mb-4">
-                <a href="/bdhv" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.index' %}active{% endif %}">Trang chủ BDHV</a>
-                <a href="/bdhv/tra-cuu" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.tra_cuu' %}active{% endif %}">Tra cứu CCCD</a>
-                <a href="/bdhv/tra-cuu-don-vi" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.tra_cuu_don_vi' %}active{% endif %}">Tra cứu Đơn vị</a>
-                <a href="/bdhv/dang-ky" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.dang_ky' %}active{% endif %}">Đăng ký mới</a>
-                <a href="/bdhv/thi-lai" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.thi_lai' %}active{% endif %}">Thi lại</a>
-                <a href="/bdhv/phuc-tra" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.phuc_tra' %}active{% endif %}">Phúc tra</a>
-                <a href="/bdhv/thong-ke" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.thong_ke' %}active{% endif %}">Thống kê</a>
-                <a href="/bdhv/xep-hang" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.xep_hang' %}active{% endif %}">Xếp hạng</a>
-                <a href="/bdhv/export/danh-sach" class="nav-link-sidebar">Xuất danh sách</a>
-                <a href="/bdhv/export/thong-ke" class="nav-link-sidebar">Xuất thống kê</a>
-                {% if session.get('is_admin') %}
-                <a href="/bdhv/database" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.database' %}active{% endif %}">Database</a>
-                {% endif %}
+            <!-- BDHV Dropdown -->
+            <div class="mb-2">
+                <button class="nav-dropdown w-100" type="button" data-bs-toggle="collapse" data-bs-target="#bdhvMenu">
+                    <i class="fa-solid fa-id-card me-2"></i>Bình dân học vụ số <i class="fa-solid fa-chevron-down ms-auto small"></i>
+                </button>
+                <div class="collapse" id="bdhvMenu">
+                    <div class="nav-links">
+                        <a href="/bdhv" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.index' %}active{% endif %}">Trang chủ BDHV</a>
+                        <a href="/bdhv/tra-cuu" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.tra_cuu' %}active{% endif %}">Tra cứu CCCD</a>
+                        <a href="/bdhv/tra-cuu-don-vi" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.tra_cuu_don_vi' %}active{% endif %}">Tra cứu Đơn vị</a>
+                        <a href="/bdhv/dang-ky" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.dang_ky' %}active{% endif %}">Đăng ký mới</a>
+                        <a href="/bdhv/thi-lai" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.thi_lai' %}active{% endif %}">Thi lại</a>
+                        <a href="/bdhv/phuc-tra" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.phuc_tra' %}active{% endif %}">Phúc tra</a>
+                        <a href="/bdhv/thong-ke" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.thong_ke' %}active{% endif %}">Thống kê</a>
+                        <a href="/bdhv/xep-hang" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.xep_hang' %}active{% endif %}">Xếp hạng</a>
+                        <a href="/bdhv/export/danh-sach" class="nav-link-sidebar">Xuất danh sách</a>
+                        <a href="/bdhv/export/thong-ke" class="nav-link-sidebar">Xuất thống kê</a>
+                        {% if session.get('is_admin') %}
+                        <a href="/bdhv/database" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.database' %}active{% endif %}">Database</a>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
             
-            <div class="mb-2 px-2 tiny fw-bold text-uppercase" style="letter-spacing: 1px; color: var(--text-muted);">Hệ thống & Quản trị</div>
-            <div class="nav-links">
-                {% if session.get('is_admin') %}
-                <a href="/roles" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">Tài khoản & Vai trò</a>
-                <a href="/admin/module-categories" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">Thiết lập Danh mục</a>
-                <a href="/admin-forms" class="nav-link-sidebar {% if request.endpoint == 'forms_bp.admin_forms' %}active{% endif %}">Thiết lập Mẫu V1</a>
-                <a href="/reports-v2" class="nav-link-sidebar {% if request.endpoint == 'reports_v2_bp.dashboard' %}active{% endif %}">Thiết lập Mẫu V2</a>
-                <a href="/logs" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">Nhật ký Hệ thống</a>
-                <a href="/admin/system/update" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">Cập nhật Hệ thống</a>
-                <a href="/admin/db-tool" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.db_tool' %}active{% endif %}">Công cụ Database</a>
-                <hr class="mx-3 opacity-10">
-                {% endif %}
-                <a href="/password" class="nav-link-sidebar {% if request.endpoint == 'auth_bp.change_password' %}active{% endif %}">Đổi mật khẩu</a>
-                <a href="/logout" class="nav-link-sidebar text-danger">Đăng xuất</a>
+            <!-- System Dropdown -->
+            <div class="mb-2">
+                <button class="nav-dropdown w-100" type="button" data-bs-toggle="collapse" data-bs-target="#sysMenu">
+                    <i class="fa-solid fa-gear me-2"></i>Hệ thống & Quản trị <i class="fa-solid fa-chevron-down ms-auto small"></i>
+                </button>
+                <div class="collapse" id="sysMenu">
+                    <div class="nav-links">
+                        {% if session.get('is_admin') %}
+                        <a href="/admin-forms" class="nav-link-sidebar {% if request.endpoint == 'forms_bp.admin_forms' %}active{% endif %}">Thiết lập Mẫu V1</a>
+                        <a href="/reports-v2" class="nav-link-sidebar {% if request.endpoint == 'reports_v2_bp.dashboard' %}active{% endif %}">Thiết lập Mẫu V2</a>
+                        <a href="/admin/module-categories" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">Thiết lập Danh mục</a>
+                        <a href="/roles" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">Tài khoản & Vai trò</a>
+                        <a href="/logs" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">Nhật ký Hệ thống</a>
+                        <a href="/admin/system/update" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">Cập nhật Hệ thống</a>
+                        <a href="/admin/db-tool" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.db_tool' %}active{% endif %}">Công cụ Database</a>
+                        <hr class="mx-3 opacity-10">
+                        {% endif %}
+                        <a href="/password" class="nav-link-sidebar {% if request.endpoint == 'auth_bp.change_password' %}active{% endif %}">Đổi mật khẩu</a>
+                        <a href="/logout" class="nav-link-sidebar text-danger">Đăng xuất</a>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="offcanvas-footer p-3 border-top text-center opacity-50 tiny" style="color: var(--text-muted);">
