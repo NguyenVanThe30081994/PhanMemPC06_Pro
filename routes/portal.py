@@ -86,13 +86,23 @@ def library():
         return redirect(url_for('portal_bp.library'))
     
     # === LẤY DANH MỤC LĨNH VỰC ===
-    # Tìm nhóm Lĩnh vực chính xác theo tên, tránh nhầm với Đơn vị
-    group_linhvuc = CategoryGroup.query.filter(
-        CategoryGroup.name.ilike('%Lĩnh vực%')
-    ).first()
+    # Tìm nhóm Lĩnh vực - ưu tiên tìm theo linked_modules = "Thu vien"
+    group_linhvuc = None
     
+    # Cách 1: Tìm theo linked_modules có chứa "Thu vien"
+    for g in CategoryGroup.query.all():
+        if g.linked_modules and 'Thu vien' in g.linked_modules:
+            group_linhvuc = g
+            break
+    
+    # Cách 2: Nếu không có, tìm theo tên chứa "Lĩnh vực"
     if not group_linhvuc:
-        # Thử tìm theo tên không dấu
+        group_linhvuc = CategoryGroup.query.filter(
+            CategoryGroup.name.ilike('%Lĩnh vực%')
+        ).first()
+    
+    # Cách 3: Thử tên không dấu
+    if not group_linhvuc:
         group_linhvuc = CategoryGroup.query.filter(
             CategoryGroup.name.ilike('%Linh vuc%')
         ).first()
