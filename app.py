@@ -83,6 +83,9 @@ RATE_LIMIT_MAX = 30  # max requests per window
 @app.before_request
 def check_rate_limit():
     """Simple rate limiting to prevent spam and brute force"""
+    # Temporarily disabled for debugging login issue
+    return
+    
     # Skip for static files and favicon
     if request.path.startswith('/static') or request.path == '/favicon.ico':
         return
@@ -104,8 +107,9 @@ def check_rate_limit():
     total_requests = sum(count for t, count in rate_limit_store[client_ip])
     
     if total_requests >= RATE_LIMIT_MAX:
-        # Too many requests - return 429
-        return {'error': 'Quá nhiều yêu cầu. Vui lòng thử lại sau.'}, 429
+        # Too many requests - return 429 with proper JSON response
+        from flask import jsonify
+        return jsonify({'error': 'Quá nhiều yêu cầu. Vui lòng thử lại sau.'}), 429
     
     # Add current request
     if rate_limit_store[client_ip]:
