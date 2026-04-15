@@ -26,8 +26,11 @@ OCR_API_URL = "https://api.ocr.space/ocr"
 class PC06_OCR_API:
     def __init__(self):
         self.ocr_available = True
-        self.status_message = "OCR - Ready (PDF & Ảnh → Word)"
-        print(f"[OCR] {self.status_message}")
+        self.status_message = "OCR - Ready (PDF and Image to Word)"
+        try:
+            print(f"[OCR] {self.status_message}", flush=True)
+        except:
+            pass
     
     def process_image_to_word(self, img_path, output_path):
         """Ảnh → Word (OCR Tiếng Việt)"""
@@ -128,7 +131,9 @@ class PC06_OCR_API:
 try:
     ocr_system = PC06_OCR_API()
 except Exception as e:
-    ocr_system = type("obj", (object,), {
-        "ocr_available": False,
-        "status_message": f"Error: {e}"
-    })()
+    class DummyOCR:
+        ocr_available = False
+        status_message = f"Error: {e}"
+        def full_convert(self, input_file, target_format="word"):
+            return None
+    ocr_system = DummyOCR()
