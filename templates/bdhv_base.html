@@ -4,9 +4,13 @@
 <style>
 /* BDHV Sidebar - Modern Glassmorphism */
 .bdhv-sidebar {
+    /* Fallback for RGB variables */
+    --primary-rgb: 0, 102, 255;
+    --bg-surface-rgb: 255, 255, 255;
+    
     background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.75) !important;
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
+    backdrop-filter: blur(var(--glass-blur, 25px)) saturate(var(--glass-saturate, 180%)) !important;
+    -webkit-backdrop-filter: blur(var(--glass-blur, 25px)) saturate(var(--glass-saturate, 180%)) !important;
     
     /* Liquid Specularity */
     border-top: 1px solid rgba(255, 255, 255, 0.4) !important;
@@ -25,6 +29,7 @@
 
 [data-theme="dark"] .bdhv-sidebar {
     background: rgba(15, 23, 42, 0.85) !important;
+    --bg-surface-rgb: 30, 41, 59;
 }
 
 /* BDHV Menu */
@@ -66,7 +71,7 @@
 
 /* Hover */
 .bdhv-item:hover {
-    background: rgba(var(--primary-rgb, 37, 99, 235), 0.08) !important;
+    background: rgba(0, 102, 255, 0.08) !important;
     transform: translateX(5px);
     color: var(--primary);
 }
