@@ -471,6 +471,22 @@
             sidebar.addEventListener('click', function(e) {
                 sessionStorage.setItem('sidebarScroll', sidebar.scrollTop);
             });
+            
+            // Accordion: Close other dropdowns when one opens
+            document.querySelectorAll('.nav-dropdown').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    const targetId = this.getAttribute('data-bs-target');
+                    const targetCollapse = document.querySelector(targetId);
+                    if (!targetCollapse.classList.contains('show')) {
+                        // This one is opening - close all others
+                        document.querySelectorAll('.collapse.show').forEach(collapse => {
+                            if ('#' + collapse.id !== targetId) {
+                                collapse.classList.remove('show');
+                            }
+                        });
+                    }
+                });
+            });
         }
     </script>
     {% block scripts %}{% endblock %}
