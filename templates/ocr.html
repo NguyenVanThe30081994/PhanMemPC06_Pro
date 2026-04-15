@@ -99,17 +99,14 @@
     </h4>
     
     <p class="text-muted small mb-3">
-        Chụp ảnh bảng biểu, danh sách, văn bản để chuyển sang Excel hoặc Word
+        Chụp ảnh bảng biểu, danh sách, văn bản để chuyển sang định dạng Word
     </p>
 
     <!-- Format Selection -->
     <div class="mb-3">
         <label class="small fw-bold text-muted mb-2 d-block">ĐỊNH DẠNG XUẤT</label>
         <div>
-            <span class="format-badge active" onclick="selectFormat('excel')" id="format-excel">
-                <i class="fa-solid fa-file-excel me-1"></i>Excel
-            </span>
-            <span class="format-badge" onclick="selectFormat('word')" id="format-word">
+            <span class="format-badge active" id="format-word">
                 <i class="fa-solid fa-file-word me-1"></i>Word
             </span>
         </div>
@@ -255,7 +252,7 @@ async function startOCR() {
     const formData = new FormData();
     formData.append('file', selectedFile);
     
-    const endpoint = selectedFormat === 'excel' ? '/api/ocr/to-excel' : '/api/ocr/to-word';
+    const endpoint = '/api/ocr/to-word'; // Chỉ xuất Word
     
     try {
         const response = await fetch(endpoint, {

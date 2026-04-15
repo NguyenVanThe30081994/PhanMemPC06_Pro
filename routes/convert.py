@@ -50,7 +50,12 @@ def process():
         result = ocr_system.full_convert(input_path, target_format='word')
         
         if result and os.path.exists(result):
-            return send_file(result, as_attachment=True, download_name=os.path.basename(result))
+            return send_file(
+                result, 
+                as_attachment=True, 
+                download_name=os.path.basename(result),
+                mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            )
         else:
             flash('Không thể chuyển đổi file này!', 'warning')
             
