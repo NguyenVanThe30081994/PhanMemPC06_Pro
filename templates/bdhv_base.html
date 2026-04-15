@@ -2,105 +2,120 @@
 
 {% block extra_head %}
 <style>
-/* BDHV Sidebar - Match Desktop Nav Exact Style */
+/* BDHV Sidebar - Minimalist Glassmorphism */
 .bdhv-sidebar {
     min-height: calc(100vh - 80px);
-    background: var(--bg-body);
     position: sticky;
     top: 70px;
-    padding: 12px;
+    padding: 16px 12px;
     z-index: 100;
-    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    
+    /* Glassmorphism Effect */
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border-right: none;
+    border-radius: 0 20px 20px 0;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* Header Badge */
+/* Header */
 .bdhv-header {
     text-align: center;
-    padding: 12px 8px 16px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 12px;
+    padding: 16px 12px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    margin-bottom: 16px;
 }
 
 .bdhv-header .badge {
-    font-size: 13px;
-    padding: 6px 14px;
+    font-size: 14px;
+    padding: 8px 18px;
     border-radius: 50px;
-    background: var(--primary);
+    background: linear-gradient(135deg, #0066FF, #0099FF);
     color: #fff;
     font-weight: 600;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(0, 102, 255, 0.3);
 }
 
 .bdhv-header .sub {
     font-size: 10px;
     color: var(--text-muted);
-    margin-top: 6px;
+    margin-top: 8px;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
     font-weight: 600;
 }
 
-/* Navigation - EXACT match .nav-link-top from desktop */
+/* Navigation */
 .bdhv-nav {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    align-items: center;
+    gap: 4px;
+    align-items: stretch;
 }
 
-/* EXACT copy from .nav-link-top in base.html */
+/* Pill - Glassmorphism Style */
 .bdhv-pill {
-    height: auto;
-    padding: 8px 16px;
+    padding: 10px 16px;
     color: var(--text-muted);
-    font-weight: 600;
+    font-weight: 500;
+    font-size: 13px;
     text-decoration: none;
-    position: relative;
-    transition: all 0.2s;
-    border-bottom: none;
+    transition: all 0.2s ease;
+    border-radius: 15px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    line-height: 1;
-    width: 100%;
-    border-radius: 50px;
-    white-space: nowrap;
-    font-size: 13px;
     background: transparent;
     border: none;
     cursor: pointer;
+    position: relative;
+    overflow: hidden;
 }
 
 .bdhv-pill i {
-    width: 16px;
-    margin-right: 8px;
-    font-size: 12px;
+    width: 18px;
+    margin-right: 10px;
+    font-size: 13px;
     text-align: center;
+    transition: all 0.2s ease;
 }
 
 .bdhv-pill:hover {
+    background: rgba(255, 255, 255, 0.2);
     color: var(--primary);
-    background: rgba(0, 102, 255, 0.05);
+    transform: translateX(5px);
 }
 
+.bdhv-pill:hover i {
+    transform: scale(1.1);
+}
+
+/* Active - Gradient with Glow */
 .bdhv-pill.active {
+    background: linear-gradient(135deg, #0066FF, #0099FF);
     color: #fff !important;
-    background: var(--primary) !important;
-    box-shadow: var(--shadow-primary) !important;
+    box-shadow: 0 4px 20px rgba(0, 102, 255, 0.4), 0 0 30px rgba(0, 102, 255, 0.2);
+    transform: translateX(5px);
 }
 
-/* Section label - match style */
+.bdhv-pill.active i {
+    color: #fff;
+}
+
+/* Label - macOS Style */
 .bdhv-label {
     font-size: 9px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 1.2px;
+    letter-spacing: 2px;
     color: var(--text-muted);
-    margin: 14px 8px 6px;
-    width: 100%;
-    text-align: center;
+    margin: 18px 12px 8px;
+    padding: 0 8px;
 }
 
 .bdhv-main-content {
@@ -142,7 +157,7 @@
             <div class="sub">Bình dân học vụ</div>
         </div>
         
-        <!-- Navigation - Exact same as desktop nav pills -->
+        <!-- Navigation -->
         <nav class="bdhv-nav">
             <a href="/bdhv" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.index' %}active{% endif %}">
                 <i class="fa-solid fa-house"></i>Trang chủ
@@ -152,7 +167,7 @@
             <a href="/bdhv/tra-cuu" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.tra_cuu' %}active{% endif %}">
                 <i class="fa-solid fa-id-card"></i>Theo CCCD
             </a>
-            <a href="/bdhv/tra-cuu-don-vi" class="bdhev-pill {% if request.endpoint == 'bdhv_bp.tra_cuu_don_vi' %}active{% endif %}">
+            <a href="/bdhv/tra-cuu-don-vi" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.tra_cuu_don_vi' %}active{% endif %}">
                 <i class="fa-solid fa-building-ngo"></i>Theo đơn vị
             </a>
             
