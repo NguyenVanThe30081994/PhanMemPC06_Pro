@@ -145,23 +145,69 @@ class PC06_OCR_API:
             return False
 
     def process_pdf_to_excel(self, pdf_path, output_path):
-        """PDF sang Excel"""
+        """PDF sang Excel với table detection"""
+        import pandas as pd
+        
+        # Thử OCR.space API trước (hỗ trợ table detection)
+        try:
+            with open(pdf_path, "rb") as f:
+                pdf_data = f.read()
+            
+            files = {"filename": ("document.pdf", pdf_data, "application/pdf")}
+            data = {
+                "apikey": OCR_API_KEY,
+                "language": "eng",
+                "isTable": "true",  # Bật table detection
+                "detectOrientation": "true"
+            }
+            
+            response = requests.post(OCR_API_URL, files=files, data=data, timeout=60)
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get("IsErroredOnProcessing") == False:
+                    parsed = result.get("ParsedResults", [])
+                    if parsed:
+                        # Lấy text từ API
+                        all_text = ""
+                        for p in parsed:
+                            all_text += p.get("ParsedText", "")
+                        
+                        if all_text.strip():
+                            # Parse thành rows (tách theo newlines và tabs)
+                            lines = all_text.strip().split("\n")
+                            data = []
+                            for line in lines:
+                                if line.strip():
+                                    # Tách theo tab hoặc nhiều spaces
+                                    parts = [p.strip() for p in line.split("\t") if p.strip()]
+                                    if not parts:
+                                        parts = [p.strip() for p in line.split() if p.strip()]
+                                    if parts:
+                                        data.append(parts)
+                            
+                            if data:
+                                df = pd.DataFrame(data)
+                                df.to_excel(output_path, index=False, header=False)
+                                return True
+        except Exception as e:
+            print(f"[OCR] PDF API error: {e}", flush=True)
+        
+        # Fallback: Trích xuất text thường
         _ensure_imports()
         if fitz is None:
             return False
-
+        
         try:
-            import pandas as pd
-
             doc = fitz.open(pdf_path)
-
+            
             all_data = []
             for page_num in range(len(doc)):
                 page = doc[page_num]
                 text = page.get_text().strip()
                 if text:
                     all_data.append({"Page": page_num + 1, "Content": text[:500]})
-
+            
             if all_data:
                 df = pd.DataFrame(all_data)
                 df.to_excel(output_path, index=False)
