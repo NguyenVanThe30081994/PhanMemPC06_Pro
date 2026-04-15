@@ -1,0 +1,102 @@
+{% extends "bdhv_base.html" %}
+
+{% block bdhv_content %}
+<div class="page-header mb-4 animate__animated animate__fadeIn">
+    <div class="header-main-group">
+        <div class="header-title-pill shadow-sm">
+            <i class="fa-solid fa-ranking-star"></i>
+            <h1 class="mb-0">Xếp hạng đơn vị</h1>
+        </div>
+        <div class="header-actions">
+            <a href="/bdhv" class="btn btn-outline-secondary rounded-pill px-4">
+                <i class="fa-solid fa-arrow-left me-2"></i>QUAY LẠI
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4 animate__animated animate__fadeInUp">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body text-center py-4">
+                <div class="display-4 text-primary mb-2">{{ total_18 or 0 }}</div>
+                <h6 class="text-muted mb-0">Tổng dân số 18+</h6>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body text-center py-4">
+                <div class="display-4 text-success mb-2">{{ total_dang_ky or 0 }}</div>
+                <h6 class="text-muted mb-0">Đã đăng ký</h6>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body text-center py-4">
+                <div class="display-4 text-warning mb-2">{{ total_thi or 0 }}</div>
+                <h6 class="text-muted mb-0">Đã thi</h6>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body text-center py-4">
+                <div class="display-4 text-{{ 'success' if overall_rate >= 50 else 'danger' }} mb-2">{{ overall_rate or 0 }}%</div>
+                <h6 class="text-muted mb-0">Tỷ lệ chung</h6>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4 animate__animated animate__fadeInUp">
+    <div class="card-header border-0 bg-white py-3">
+        <h5 class="fw-bold mb-0"><i class="fa-solid fa-trophy text-warning me-2"></i>Bảng xếp hạng</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center" style="width: 60px;">Hạng</th>
+                        <th>Đơn vị</th>
+                        <th>Tổng 18+</th>
+                        <th>Đã đăng ký</th>
+                        <th>Đã thi</th>
+                        <th class="text-end pe-4">Tỷ lệ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in ranking_data %}
+                    <tr class="hover-effect {% if item.rank_class == 'top-1' %}bg-warning bg-opacity-10{% elif item.rank_class == 'top-2' %}bg-secondary bg-opacity-10{% elif item.rank_class == 'top-3' %}bg-danger bg-opacity-10{% endif %}">
+                        <td class="text-center">
+                            {% if item.rank == 1 %}<i class="fa-solid fa-trophy text-warning"></i>{% elif item.rank == 2 %}<i class="fa-solid fa-medal text-secondary"></i>{% elif item.rank == 3 %}<i class="fa-solid fa-medal text-danger"></i>{% else %}{{ item.rank }}{% endif %}
+                        </td>
+                        <td class="fw-bold">{{ item.ten_don_vi }}</td>
+                        <td>{{ item.tong_18 }}</td>
+                        <td>{{ item.da_dang_ky }}</td>
+                        <td>{{ item.diem_thi }}</td>
+                        <td class="text-end pe-4">
+                            <span class="badge bg-{{ 'success' if item.ty_le >= 50 else 'danger' }}">
+                                {{ item.ty_le }}%
+                            </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">Chưa có dữ liệu xếp hạng</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+.hover-effect:hover {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+}
+</style>
+{% endblock bdhv_content %}
