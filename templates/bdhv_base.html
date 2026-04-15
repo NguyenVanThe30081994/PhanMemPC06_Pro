@@ -2,73 +2,79 @@
 
 {% block extra_head %}
 <style>
-/* BDHV Sidebar - Modern Glassmorphism */
+/* BDHV Sidebar - Modern Glassmorphism v2 */
 .bdhv-sidebar {
-    background: rgba(255, 255, 255, 0.75) !important;
+    background: rgba(255, 255, 255, 0.85) !important;
     backdrop-filter: blur(25px) saturate(180%) !important;
     -webkit-backdrop-filter: blur(25px) saturate(180%) !important;
     
-    /* Liquid Specularity */
-    border-top: 1px solid rgba(255, 255, 255, 0.4) !important;
-    border-right: 1px solid rgba(0, 0, 0, 0.05) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.5) !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
     
-    min-height: calc(100vh - 140px);
+    min-height: calc(100vh - 120px);
     position: sticky;
     top: 70px;
-    padding: 16px 12px;
-    z-index: 100;
-    box-shadow: 10px 0 40px rgba(0, 0, 0, 0.05);
-    border-radius: 20px;
-    margin: 0 8px;
+    padding: 12px 10px;
+    z-index: 50;
+    box-shadow: 8px 0 30px rgba(0, 0, 0, 0.04);
+    border-radius: 16px;
+    margin: 0 6px 10px 6px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 [data-theme="dark"] .bdhv-sidebar {
-    background: rgba(15, 23, 42, 0.85) !important;
-    border-top-color: rgba(255, 255, 255, 0.1) !important;
+    background: rgba(30, 41, 59, 0.9) !important;
+    border-top-color: rgba(255, 255, 255, 0.08) !important;
+    border-right-color: rgba(255, 255, 255, 0.05) !important;
 }
 
-/* BDHV Menu */
+/* BDHV Menu - gọn hơn */
 .bdhv-menu {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
 }
 
 .bdhv-menu-title {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.2px;
     color: var(--text-muted);
-    padding: 12px 12px 8px;
-    margin-bottom: 4px;
+    padding: 10px 10px 6px;
+    margin-bottom: 2px;
+    opacity: 0.85;
 }
 
 .bdhv-item {
-    padding: 12px 16px;
-    border-radius: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
     color: var(--text-main);
     text-decoration: none;
     font-weight: 500;
-    font-size: 14px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 13px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .bdhv-item i {
-    width: 20px;
-    font-size: 16px;
-    opacity: 0.7;
+    width: 18px;
+    font-size: 14px;
+    opacity: 0.65;
     text-align: center;
+    flex-shrink: 0;
 }
 
-/* Hover */
+/* Hover - chỉ translate, không background */
 .bdhv-item:hover {
-    background: rgba(0, 102, 255, 0.08) !important;
-    transform: translateX(5px);
+    background: rgba(0, 102, 255, 0.06) !important;
     color: var(--primary);
 }
 
@@ -76,50 +82,54 @@
     opacity: 1;
 }
 
-/* Active - Gradient */
+/* Active - Gradient nhẹ */
 .bdhv-item.active {
-    background: linear-gradient(135deg, var(--primary), #3b82f6) !important;
-    color: #fff !important;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
-    transform: translateX(5px);
+    background: linear-gradient(135deg, rgba(0, 102, 255, 0.12), rgba(0, 102, 255, 0.08)) !important;
+    color: var(--primary) !important;
+    font-weight: 600;
+    border-left: 3px solid var(--primary);
+    padding-left: 9px;
 }
 
 .bdhv-item.active i {
     opacity: 1;
-    color: #fff !important;
+    color: var(--primary) !important;
 }
 
-/* Section Divider */
+/* Divider mảnh */
 .bdhv-divider {
     height: 1px;
     background: var(--border);
-    margin: 12px 16px;
-    opacity: 0.5;
+    margin: 8px 12px;
+    opacity: 0.4;
 }
 
+/* Main Content - đẩy ra đúng vị trí */
 .bdhv-main-content {
-    padding: 20px 24px;
-    min-height: calc(100vh - 80px);
+    padding: 16px 20px;
+    min-height: calc(100vh - 70px);
     background: var(--bg-body);
 }
 
-/* Cards */
-.bdhv-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    box-shadow: var(--shadow-lvl1);
+/* Responsive - tự động ẩn hiện */
+@media (max-width: 991px) {
+    .bdhv-sidebar {
+        display: none !important;
+    }
+    .bdhv-main-content {
+        padding: 12px 16px;
+    }
 }
 
-.bdhv-card .card-header {
-    background: transparent;
-    border-bottom: 1px solid var(--border);
-    padding: 14px 18px;
-    font-weight: 600;
-}
-
-.bdhv-card .card-body {
-    padding: 18px;
+@media (min-width: 992px) and (max-width: 1199px) {
+    .bdhv-item {
+        font-size: 12px;
+        padding: 8px 10px;
+    }
+    .bdhv-item i {
+        width: 16px;
+        font-size: 13px;
+    }
 }
 </style>
 {% endblock %}
