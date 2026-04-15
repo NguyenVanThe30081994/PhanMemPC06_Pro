@@ -259,6 +259,42 @@ def thong_ke():
                            overall_rate=overall_rate)
 
 
+@bdhv_bp.route('/bdhv/xep-hang', methods=['GET'])
+def xep_hang():
+    """Xếp hạng đơn vị theo tỷ lệ hoàn thành"""
+    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
+    
+    # Lấy thống kê sắp xếp theo tỷ lệ giảm dần
+    thong_ke = BDHV_ThongKe.query.order_by(BDHV_ThongKe.ty_le.desc()).all()
+    
+    # Tính tổng
+    total_18 = sum(t.tong_18 for t in thong_ke)
+    total_dang_ky = sum(t.da_dang_ky for t in thong_ke)
+    total_thi = sum(t.diem_thi for t in thong_ke)
+    overall_rate = round((total_thi / total_18 * 100) if total_18 > 0 else 0)
+    
+    # Xếp hạng
+    ranking_data = []
+    for idx, tk in enumerate(thong_ke, 1):
+        ranking_data.append({
+            'rank': idx,
+            'ten_don_vi': tk.ten_don_vi,
+            'tong_18': tk.tong_18,
+            'da_dang_ky': tk.da_dang_ky,
+            'da_hoan_thanh': tk.da_hoan_thanh,
+            'diem_thi': tk.diem_thi,
+            'ty_le': tk.ty_le,
+            'rank_class': 'top-1' if idx == 1 else 'top-2' if idx == 2 else 'top-3' if idx == 3 else 'normal'
+        })
+    
+    return render_template('bdhv_xep_hang.html',
+                           ranking_data=ranking_data,
+                           total_18=total_18,
+                           total_dang_ky=total_dang_ky,
+                           total_thi=total_thi,
+                           overall_rate=overall_rate)
+
+
 # === API CHO ADMIN ===
 
 @bdhv_bp.route('/api/bdhv/import-hocvien', methods=['POST'])
