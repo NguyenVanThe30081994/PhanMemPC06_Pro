@@ -374,6 +374,8 @@ def config_template(tid):
     header_groups = existing_config.get('header_groups', [])
     data_start_row = existing_config.get('data_start_row', detected.get('data_start_row', 4))
     unit_column = existing_config.get('unit_column', 'B')
+    header_row = existing_config.get('header_row', 3)  # Default row 3
+    header_column = existing_config.get('header_column', 'A')
     
     return _render_template('reports_v2_config.html',
                           template=template,
@@ -381,7 +383,9 @@ def config_template(tid):
                           column_configs=column_configs,
                           header_groups=header_groups,
                           data_start_row=data_start_row,
-                          unit_column=unit_column)
+                          unit_column=unit_column,
+                          header_row=header_row,
+                          header_column=header_column)
 
 
 @reports_v2_bp.route('/reports-v2/config/<int:tid>', methods=['POST'])
@@ -431,6 +435,8 @@ def save_config(tid):
         metadata['column_configs'] = column_configs
         metadata['data_start_row'] = int(request.form.get('data_start_row', 4))
         metadata['unit_column'] = request.form.get('unit_column', 'B')
+        metadata['header_row'] = int(request.form.get('header_row', 3))
+        metadata['header_column'] = request.form.get('header_column', 'A')
         metadata['config_version'] = '2.0'
         
         version.metadata_json = json.dumps(metadata, ensure_ascii=False)
@@ -547,9 +553,15 @@ def render_report(tid):
         # Debug log
         logging.warning(f"[REPORTS_V2] unit_rows={unit_rows}, first_unit={first_unit_row}, is_global={is_global}")
         
-        # Debug: FORCE show all rows for now to test
-        # should_filter = not is_global and unit_rows and first_unit_row
-        should_filter = False
+        # Enable filtering based on config
+        # Check if config has header_row/header_column set
+        header_row_cfg = meta_data.get('header_row', 3)
+        header_col_cfg = meta_data.get('header_column', 'A')
+        
+        # Only filter for non-admin users with unit assigned
+        should_filter = not is_global and unit_rows and header_row_cfg
+        
+        logging.warning(f"[REPORTS_V2] header_config: row={header_row_cfg}, col={header_col_cfg}, should_filter={should_filter}")
         
         # Find user's data end (next unit row after user's)
         user_data_end = max_row
