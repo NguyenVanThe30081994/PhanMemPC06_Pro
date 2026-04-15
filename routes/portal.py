@@ -86,25 +86,25 @@ def library():
         return redirect(url_for('portal_bp.library'))
     
     # === LẤY DANH MỤC LĨNH VỰC ===
-    # Tìm nhóm Lĩnh vực - ưu tiên tìm theo linked_modules = "Thu vien"
+    # Tìm nhóm Lĩnh vực bằng cách tìm category_group có linked_modules chứa "Thu vien"
+    # Vì trong database: linked_modules='Bang tin,Thu vien' cho group 'Linh vuc'
     group_linhvuc = None
     
-    # Cách 1: Tìm theo linked_modules có chứa "Thu vien"
-    for g in CategoryGroup.query.all():
-        if g.linked_modules and 'Thu vien' in g.linked_modules:
+    # Lấy tất cả groups
+    all_groups = CategoryGroup.query.all()
+    for g in all_groups:
+        # Kiểm tra linked_modules có chứa "Thu vien" hoặc "Thư viện"
+        if g.linked_modules and ('Thu vien' in g.linked_modules or 'Thư viện' in g.linked_modules):
             group_linhvuc = g
             break
     
-    # Cách 2: Nếu không có, tìm theo tên chứa "Lĩnh vực"
+    # Fallback: tìm theo tên
     if not group_linhvuc:
         group_linhvuc = CategoryGroup.query.filter(
-            CategoryGroup.name.ilike('%Lĩnh vực%')
-        ).first()
-    
-    # Cách 3: Thử tên không dấu
-    if not group_linhvuc:
-        group_linhvuc = CategoryGroup.query.filter(
-            CategoryGroup.name.ilike('%Linh vuc%')
+            db.or_(
+                CategoryGroup.name == 'Linh vuc',
+                CategoryGroup.name == 'Lĩnh vực'
+            )
         ).first()
     
     if group_linhvuc:
