@@ -18,23 +18,8 @@
                 <!-- Navigation Tabs -->
                 <ul class="nav nav-pills mb-4 justify-content-center gap-2" id="convertTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active rounded-pill px-4 py-2 fw-bold" id="img-excel-tab" data-bs-toggle="pill" data-bs-target="#img-excel-pane" type="button" role="tab">
-                            <i class="fa-solid fa-image me-2"></i>Ảnh → Excel
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link rounded-pill px-4 py-2 fw-bold" id="pdf-excel-tab" data-bs-toggle="pill" data-bs-target="#pdf-excel-pane" type="button" role="tab">
-                            <i class="fa-solid fa-file-pdf me-2"></i>PDF → Excel
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link rounded-pill px-4 py-2 fw-bold" id="pdf-word-tab" data-bs-toggle="pill" data-bs-target="#pdf-word-pane" type="button" role="tab">
+                        <button class="nav-link active rounded-pill px-4 py-2 fw-bold" id="pdf-word-tab" data-bs-toggle="pill" data-bs-target="#pdf-word-pane" type="button" role="tab">
                             <i class="fa-solid fa-file-word me-2"></i>PDF → Word
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link rounded-pill px-4 py-2 fw-bold" id="img-pdf-tab" data-bs-toggle="pill" data-bs-target="#img-pdf-pane" type="button" role="tab">
-                            <i class="fa-solid fa-image me-2"></i>Ảnh → PDF
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
@@ -62,33 +47,12 @@
                                     </button>
                                 </div>
                             </form>
-                        </div>
-                    </div>
-
-                    <!-- 2. PDF to Excel -->
-                    <div class="tab-pane fade" id="pdf-excel-pane" role="tabpanel">
-                        <div class="text-center p-4 border-dashed rounded-4 bg-light-subtle">
-                            <i class="fa-solid fa-file-excel fa-3x text-success opacity-50 mb-3"></i>
-                            <h5 class="fw-bold mb-2">Trích xuất bảng từ PDF sang Excel</h5>
-                            <p class="text-muted small mb-4">Tự động nhận dạng và trích xuất các bảng dữ liệu trong file PDF.</p>
-                            <form action="/convert/process" method="POST" enctype="multipart/form-data" class="convert-form" data-type="pdf_excel">
-                                <input type="hidden" name="type" value="pdf_excel">
-                                <div class="input-group mx-auto" style="max-width: 400px;">
-                                    <input type="file" class="form-control" name="file" accept="application/pdf" required>
-                                    <button class="btn btn-primary rounded-end px-4" type="submit">
-                                        <i class="fa-solid fa-arrow-right-arrow-left me-1"></i> Chuyển đổi
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
-                    <!-- 3. PDF to Word -->
-                    <div class="tab-pane fade" id="pdf-word-pane" role="tabpanel">
+                    <!-- 1. PDF to Word -->
+                    <div class="tab-pane fade show active" id="pdf-word-pane" role="tabpanel">
                         <div class="text-center p-4 border-dashed rounded-4 bg-light-subtle">
                             <i class="fa-solid fa-file-word fa-3x text-primary opacity-50 mb-3"></i>
                             <h5 class="fw-bold mb-2">Chuyển đổi PDF sang Word (.docx)</h5>
-                            <p class="text-muted small mb-4">Giữ nguyên định dạng văn bản, hình ảnh, bố cục.</p>
+                            <p class="text-muted small mb-4">Giữ nguyên định dạng văn bản, hình ảnh, bố cục. Chuyên dùng cho văn bản Tiếng Việt.</p>
                             <form action="/convert/process" method="POST" enctype="multipart/form-data" class="convert-form" data-type="pdf_word">
                                 <input type="hidden" name="type" value="pdf_word">
                                 <div class="input-group mx-auto" style="max-width: 400px;">
@@ -101,30 +65,12 @@
                         </div>
                     </div>
 
-                    <!-- 4. Image to PDF -->
-                    <div class="tab-pane fade" id="img-pdf-pane" role="tabpanel">
-                        <div class="text-center p-4 border-dashed rounded-4 bg-light-subtle">
-                            <i class="fa-solid fa-file-pdf fa-3x text-danger opacity-50 mb-3"></i>
-                            <h5 class="fw-bold mb-2">Chuyển đổi ảnh sang PDF</h5>
-                            <p class="text-muted small mb-4">Chuyển đổi ảnh JPG, PNG sang file PDF. Giữ nguyên chất lượng hình ảnh.</p>
-                            <form action="/convert/process" method="POST" enctype="multipart/form-data" class="convert-form" data-type="img_pdf">
-                                <input type="hidden" name="type" value="img_pdf">
-                                <div class="input-group mx-auto" style="max-width: 400px;">
-                                    <input type="file" class="form-control" name="file" accept="image/png, image/jpeg, image/jpg" required>
-                                    <button class="btn btn-primary rounded-end px-4" type="submit">
-                                        <i class="fa-solid fa-arrow-right-arrow-left me-1"></i> Chuyển đổi
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
-                    <!-- 5. Image to Word -->
+                    <!-- 2. Image to Word -->
                     <div class="tab-pane fade" id="img-word-pane" role="tabpanel">
                         <div class="text-center p-4 border-dashed rounded-4 bg-light-subtle">
                             <i class="fa-solid fa-file-lines fa-3x text-primary opacity-50 mb-3"></i>
                             <h5 class="fw-bold mb-2">Nhận dạng chữ trong ảnh sang Word (OCR)</h5>
-                            <p class="text-muted small mb-4">Quét văn bản từ ảnh chụp tài liệu, sách, giấy tờ. Hỗ trợ tiếng Việt có dấu.</p>
+                            <p class="text-muted small mb-4">Quét văn bản từ ảnh chụp tài liệu, sách, giấy tờ. Tối ưu nhận dạng tiếng Việt có dấu.</p>
                             <form action="/convert/process" method="POST" enctype="multipart/form-data" class="convert-form" data-type="img_word">
                                 <input type="hidden" name="type" value="img_word">
                                 <div class="input-group mx-auto" style="max-width: 400px;">

@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
-# Convert module - File conversion (Image ↔ PDF, OCR for Excel/Word)
-
+# Convert module - PDF & Image to Word
 import os
 import uuid
 from flask import Blueprint, request, render_template, jsonify, send_file, current_app, flash, redirect, url_for
@@ -9,7 +7,6 @@ from ocr_engine import ocr_system
 
 convert_bp = Blueprint('convert', __name__)
 
-# Cấu hình upload
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf', 'bmp', 'tiff'}
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -24,12 +21,12 @@ def get_upload_path(filename):
 
 @convert_bp.route('/convert')
 def index():
-    """Trang chủ chuyển đổi file"""
+    """Trang chủ chuyển đổi"""
     return render_template('convert.html')
 
 @convert_bp.route('/convert/process', methods=['POST'])
 def process():
-    """Xử lý chuyển đổi file"""
+    """Xử lý: PDF & Ảnh → Word"""
     if 'file' not in request.files:
         flash('Không tìm thấy file!', 'danger')
         return redirect(url_for('convert.index'))
@@ -49,45 +46,18 @@ def process():
     file.save(input_path)
     
     try:
-        # Xác định loại chuyển đổi
-        conv_type = request.form.get('type', 'img_excel')
+        # Chỉ chuyển sang Word
+        result = ocr_system.full_convert(input_path, target_format='word')
         
-        if conv_type == 'img_excel':
-            # Ảnh → Excel
-            result = ocr_system.full_convert(input_path, target_format='excel')
-            if result:
-                return send_file(result, as_attachment=True, download_name=os.path.basename(result))
-            flash('Không tìm thấy bảng trong ảnh!', 'warning')
-            
-        elif conv_type == 'img_word':
-            # Ảnh → Word
-            result = ocr_system.full_convert(input_path, target_format='word')
-            if result:
-                return send_file(result, as_attachment=True, download_name=os.path.basename(result))
-            flash('Không nhận dạng được văn bản!', 'warning')
-            
-        elif conv_type == 'pdf_excel':
-            # PDF → Excel
-            result = ocr_system.full_convert(input_path, target_format='excel')
-            if result:
-                return send_file(result, as_attachment=True, download_name=os.path.basename(result))
-            flash('Không tìm thấy bảng trong PDF!', 'warning')
-            
-        elif conv_type == 'pdf_word':
-            # PDF → Word
-            result = ocr_system.full_convert(input_path, target_format='word')
-            if result:
-                return send_file(result, as_attachment=True, download_name=os.path.basename(result))
-            flash('Không trích xuất được dữ liệu từ PDF!', 'warning')
-            
+        if result and os.path.exists(result):
+            return send_file(result, as_attachment=True, download_name=os.path.basename(result))
         else:
-            flash('Loại chuyển đổi không hỗ trợ!', 'danger')
+            flash('Không thể chuyển đổi file này!', 'warning')
             
     except Exception as e:
         flash(f'Lỗi xử lý: {str(e)}', 'danger')
         
     finally:
-        # Xóa file tạm
         try:
             if os.path.exists(input_path):
                 os.remove(input_path)
@@ -101,5 +71,5 @@ def status():
     return jsonify({
         'status': 'success',
         'available': ocr_system.ocr_available,
-        'engine': 'PaddleOCR' if ocr_system.ocr_available else 'None'
+        'message': ocr_system.status_message
     })
