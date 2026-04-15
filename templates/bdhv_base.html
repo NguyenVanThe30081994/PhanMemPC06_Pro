@@ -2,7 +2,7 @@
 
 {% block extra_head %}
 <style>
-/* BDHV Sidebar - Pillbox Style */
+/* BDHV Sidebar - Desktop nav style */
 .bdhv-sidebar {
     min-height: calc(100vh - 80px);
     background: var(--bs-body-bg);
@@ -11,66 +11,51 @@
     top: 70px;
     overflow-y: auto;
     z-index: 100;
-    padding: 16px;
+    padding: 12px;
 }
 .bdhv-sidebar::-webkit-scrollbar { width: 4px; }
 .bdhv-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-.bdhv-section-title {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-muted);
-    margin: 16px 8px 8px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.bdhv-section-title::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-}
-
-.bdhv-menu-pills {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 0 4px;
-}
-
+/* Use same styling as main desktop nav */
 .bdhv-menu-item {
     display: flex;
     align-items: center;
-    padding: 10px 14px;
-    border-radius: 50px;
+    padding: 12px 16px;
+    border-radius: 8px;
     color: var(--text-muted);
     text-decoration: none;
-    transition: all 0.2s ease;
     font-weight: 600;
-    font-size: 13px;
-    white-space: nowrap;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    position: relative;
 }
 
 .bdhv-menu-item i {
-    width: 18px;
-    margin-right: 10px;
-    font-size: 14px;
+    width: 20px;
+    margin-right: 12px;
+    font-size: 16px;
     text-align: center;
+    opacity: 0.7;
 }
 
 .bdhv-menu-item:hover {
-    color: var(--primary);
     background: rgba(0, 102, 255, 0.08);
+    color: var(--primary);
+}
+
+.bdhv-menu-item:hover i {
+    opacity: 1;
 }
 
 .bdhv-menu-item.active {
+    background: var(--primary);
     color: #fff !important;
-    background: var(--primary) !important;
     box-shadow: 0 4px 12px rgba(0, 102, 255, 0.25);
+}
+
+.bdhv-menu-item.active i {
+    opacity: 1;
+    color: #fff;
 }
 
 .bdhv-menu-item .badge {
@@ -78,8 +63,9 @@
     font-size: 10px;
     font-weight: 700;
     padding: 2px 8px;
-    border-radius: 20px;
-    background: rgba(255,255,255,0.2);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.25);
+    color: inherit;
 }
 
 .bdhv-main-content {
@@ -92,19 +78,19 @@
 .bdhv-card {
     background: var(--bs-body-bg);
     border: 1px solid var(--border);
-    border-radius: 16px;
+    border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .bdhv-card .card-header {
     background: transparent;
     border-bottom: 1px solid var(--border);
-    padding: 16px 20px;
+    padding: 14px 18px;
     font-weight: 600;
 }
 
 .bdhv-card .card-body {
-    padding: 20px;
+    padding: 18px;
 }
 </style>
 {% endblock %}
@@ -113,20 +99,21 @@
 <div class="row g-0">
     <!-- Sidebar -->
     <div class="col-lg-2 bdhv-sidebar d-none d-lg-block">
-        <!-- Simple Title -->
-        <div class="text-center py-3 border-bottom mb-3">
-            <i class="fa-solid fa-graduation-cap fa-lg text-primary"></i>
-            <div class="fw-bold mt-2" style="font-size: 14px;">BDHV</div>
-            <div class="tiny text-muted">Bình dân học vụ</div>
+        <!-- Title Badge -->
+        <div class="text-center py-3 mb-2">
+            <span class="badge bg-primary-subtle text-primary px-3 py-2 rounded-pill fw-bold">
+                <i class="fa-solid fa-graduation-cap me-2"></i>BDHV
+            </span>
+            <div class="tiny text-muted mt-1">Bình dân học vụ</div>
         </div>
         
-        <!-- Navigation Pills -->
-        <nav class="bdhv-menu-pills">
+        <!-- Navigation - Same as desktop nav -->
+        <nav class="d-flex flex-column gap-1">
             <a href="/bdhv" class="bdhv-menu-item {% if request.endpoint == 'bdhv_bp.index' %}active{% endif %}">
-                <i class="fa-solid fa-house"></i>Trang chủ
+                <i class="fa-solid fa-house-chimney"></i>Trang chủ
             </a>
             
-            <div class="bdhv-section-title">Tra cứu</div>
+            <div class="text-uppercase tiny fw-bold text-muted mt-3 mb-1 px-3">Tra cứu</div>
             <a href="/bdhv/tra-cuu" class="bdhv-menu-item {% if request.endpoint == 'bdhv_bp.tra_cuu' %}active{% endif %}">
                 <i class="fa-solid fa-id-card"></i>Theo CCCD
             </a>
@@ -134,7 +121,7 @@
                 <i class="fa-solid fa-building-ngo"></i>Theo đơn vị
             </a>
             
-            <div class="bdhv-section-title">Đăng ký</div>
+            <div class="text-uppercase tiny fw-bold text-muted mt-3 mb-1 px-3">Đăng ký</div>
             <a href="/bdhv/dang-ky" class="bdhv-menu-item {% if request.endpoint == 'bdhv_bp.dang_ky' %}active{% endif %}">
                 <i class="fa-solid fa-user-plus"></i>Đăng ký mới
             </a>
@@ -145,22 +132,22 @@
                 <i class="fa-solid fa-file-signature"></i>Phúc tra
             </a>
             
-            <div class="bdhv-section-title">Báo cáo</div>
+            <div class="text-uppercase tiny fw-bold text-muted mt-3 mb-1 px-3">Báo cáo</div>
             <a href="/bdhv/thong-ke" class="bdhv-menu-item {% if request.endpoint == 'bdhv_bp.thong_ke' %}active{% endif %}">
                 <i class="fa-solid fa-chart-pie"></i>Thống kê
             </a>
             <a href="/bdhv/xep-hang" class="bdhv-menu-item {% if request.endpoint == 'bdhv_bp.xep_hang' %}active{% endif %}">
-                <i class="fa-solid fa-trophy"></i>Xếp hạng
+                <i class="fa-solid fa-ranking-star"></i>Xếp hạng
             </a>
             
             {% if session.get('is_admin') %}
-            <div class="bdhv-section-title">Quản trị</div>
+            <div class="text-uppercase tiny fw-bold text-muted mt-3 mb-1 px-3">Quản trị</div>
             <a href="/bdhv/database" class="bdhv-menu-item {% if request.endpoint == 'bdhv_bp.database' %}active{% endif %}">
                 <i class="fa-solid fa-database"></i>Database
             </a>
             {% endif %}
             
-            <div class="bdhv-section-title">Xuất file</div>
+            <div class="text-uppercase tiny fw-bold text-muted mt-3 mb-1 px-3">Xuất file</div>
             <a href="/bdhv/export/danh-sach" class="bdhv-menu-item">
                 <i class="fa-solid fa-file-excel"></i>Danh sách HV
             </a>
