@@ -295,6 +295,23 @@ def xep_hang():
                            overall_rate=overall_rate)
 
 
+@bdhv_bp.route('/bdhv/database', methods=['GET'])
+def database():
+    """Quản lý database BDHV"""
+    if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    
+    stats = {
+        'hoc_vien': BDHV_HocVien.query.count(),
+        'don_vi': BDHV_DonVi.query.count(),
+        'dang_ky': BDHV_DangKyMoi.query.count(),
+        'thi_lai': BDHV_ThiLai.query.count(),
+        'phuc_tra': BDHV_PhucTra.query.count(),
+        'thong_ke': BDHV_ThongKe.query.count()
+    }
+    
+    return render_template('bdhv_database.html', stats=stats)
+
+
 # === API CHO ADMIN ===
 
 @bdhv_bp.route('/api/bdhv/import-hocvien', methods=['POST'])
@@ -362,6 +379,93 @@ def update_thong_ke():
     
     db.session.commit()
     return jsonify({'success': True})
+
+
+@bdhv_bp.route('/api/bdhv/delete-hocvien', methods=['POST'])
+def delete_hocvien():
+    """Xóa tất cả học viên"""
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    
+    count = BDHV_HocVien.query.delete()
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': f'Đã xóa {count} học viên!'})
+
+
+@bdhv_bp.route('/api/bdhv/delete-dangky', methods=['POST'])
+def delete_dangky():
+    """Xóa tất cả đăng ký mới"""
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    
+    count = BDHV_DangKyMoi.query.delete()
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': f'Đã xóa {count} đăng ký!'})
+
+
+@bdhv_bp.route('/api/bdhv/delete-thilai', methods=['POST'])
+def delete_thilai():
+    """Xóa tất cả đăng ký thi lại"""
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    
+    count = BDHV_ThiLai.query.delete()
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': f'Đã xóa {count} đăng ký thi lại!'})
+
+
+@bdhv_bp.route('/api/bdhv/delete-phuctra', methods=['POST'])
+def delete_phuctra():
+    """Xóa tất cả phúc tra"""
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    
+    count = BDHV_PhucTra.query.delete()
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': f'Đã xóa {count} phúc tra!'})
+
+
+@bdhv_bp.route('/api/bdhv/delete-thongke', methods=['POST'])
+def delete_thongke():
+    """Xóa tất cả thống kê"""
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    
+    count = BDHV_ThongKe.query.delete()
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': f'Đã xóa {count} thống kê!'})
+
+
+@bdhv_bp.route('/api/bdhv/delete-donvi', methods=['POST'])
+def delete_donvi():
+    """Xóa tất cả đơn vị"""
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    
+    # Xóa thống kê trước
+    BDHV_ThongKe.query.delete()
+    # Xóa đơn vị
+    count = BDHV_DonVi.query.delete()
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': f'Đã xóa {count} đơn vị!'})
+
+
+@bdhv_bp.route('/api/bdhv/delete-all', methods=['POST'])
+def delete_all():
+    """Xóa tất cả dữ liệu BDHV"""
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    
+    counts = {}
+    counts['hoc_vien'] = BDHV_HocVien.query.delete()
+    counts['dang_ky'] = BDHV_DangKyMoi.query.delete()
+    counts['thi_lai'] = BDHV_ThiLai.query.delete()
+    counts['phuc_tra'] = BDHV_PhucTra.query.delete()
+    counts['thong_ke'] = BDHV_ThongKe.query.delete()
+    counts['don_vi'] = BDHV_DonVi.query.delete()
+    db.session.commit()
+    
+    total = sum(counts.values())
+    return jsonify({'success': True, 'message': f'Đã xóa tất cả dữ liệu BDHV ({total} bản ghi)!'})
 
 
 # === EXPORT EXCEL ===
