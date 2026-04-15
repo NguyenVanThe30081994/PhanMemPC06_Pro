@@ -83,11 +83,12 @@ RATE_LIMIT_MAX = 30  # max requests per window
 @app.before_request
 def check_rate_limit():
     """Simple rate limiting to prevent spam and brute force"""
-    # Temporarily disabled for debugging login issue
-    return
-    
     # Skip for static files and favicon
     if request.path.startswith('/static') or request.path == '/favicon.ico':
+        return
+    
+    # Skip login route to allow login attempts
+    if request.endpoint == 'auth_bp.login':
         return
     
     # Get client IP
@@ -95,29 +96,32 @@ def check_rate_limit():
     if client_ip and ',' in client_ip:
         client_ip = client_ip.split(',')[0].strip()
     
+    if not client_ip:
+        return
+    
     current_time = datetime.now().timestamp()
     
     # Clean old entries
-    rate_limit_store[client_ip] = [
-        (t, count) for t, count in rate_limit_store[client_ip]
-        if current_time - t < RATE_LIMIT_WINDOW
-    ]
-    
-    # Count requests in current window
-    total_requests = sum(count for t, count in rate_limit_store[client_ip])
-    
-    if total_requests >= RATE_LIMIT_MAX:
-        # Too many requests - return 429 with proper JSON response
-        from flask import jsonify
-        return jsonify({'error': 'Quá nhiều yêu cầu. Vui lòng thử lại sau.'}), 429
-    
-    # Add current request
-    if rate_limit_store[client_ip]:
-        # Increment count of last window
-        last_time, last_count = rate_limit_store[client_ip][-1]
-        rate_limit_store[client_ip][-1] = (last_time, last_count + 1)
-    else:
-        rate_limit_store[client_ip].append((current_time, 1))
+    if client_ip in rate_limit_store:
+        rate_limit_store[client_ip] = [
+            (t, count) for t, count in rate_limit_store[client_ip]
+            if current_time - t < RATE_LIMIT_WINDOW
+        ]
+        
+        # Count requests in current window
+        total_requests = sum(count for t, count in rate_limit_store[client_ip])
+        
+        if total_requests >= RATE_LIMIT_MAX:
+            # Too many requests - return 429 with proper JSON response
+            from flask import jsonify
+            return jsonify({'error': 'Quá nhiều yêu cầu. Vui lòng thử lại sau.'}), 429
+        
+        # Add current request
+        if rate_limit_store[client_ip]:
+            last_time, last_count = rate_limit_store[client_ip][-1]
+            rate_limit_store[client_ip][-1] = (last_time, last_count + 1)
+        else:
+            rate_limit_store[client_ip].append((current_time, 1))
 
 db.init_app(app)
 with app.app_context():
