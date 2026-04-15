@@ -30,7 +30,7 @@
     </div>
 
     {% if not active %}
-        <!-- V2 Templates Section -->
+    <!-- Show List of Templates when no active form selected -->
         {% if v2_templates %}
         <div class="mb-4">
             <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-file-excel me-2"></i>Biểu mẫu V2 (Excel)</h6>
@@ -53,7 +53,7 @@
         </div>
         {% endif %}
         
-        <!-- V1 Templates Section -->
+        {% if configs %}
         <div class="mb-4">
             <h6 class="fw-bold text-secondary mb-3"><i class="fa-solid fa-file-lines me-2"></i>Biểu mẫu V1</h6>
             <div class="row g-2">
@@ -74,10 +74,18 @@
             </div>
         </div>
         {% endif %}
-        <!-- Input Form -->
+    {% else %}
+    <!-- Show Input Form when active form is selected -->
         <form method="POST" id="inputForm">
             {% set seen_groups = [] %}
-            {% for f in fields %}{% if f.get('is_visible', True) %}{% set g = f.get('group', '') %}{% if g and g not in seen_groups %}{% set _ = seen_groups.append(g) %}{% endif %}{% endif %}{% endfor %}
+            {% for f in fields %}
+                {% if f.get('is_visible', True) %}
+                    {% set g = f.get('group', '') %}
+                    {% if g and g not in seen_groups %}
+                        {% set _ = seen_groups.append(g) %}
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
 
             {% if fields|length > 0 %}
                 <div class="form-group-card">
@@ -103,7 +111,7 @@
                 {% endfor %}
             {% endif %}
 
-            <div style="height: 100px;"></div> <!-- Spacer -->
+            <div style="height: 100px;"></div>
             
             <div class="floating-save">
                 <button type="submit" class="btn-submit animate__animated animate__bounceInUp">
