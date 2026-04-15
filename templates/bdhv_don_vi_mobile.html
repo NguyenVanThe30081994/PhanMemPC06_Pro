@@ -1,0 +1,32 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}Tra cứu đơn vị - BDHV{% endblock %}
+
+{% block content %}
+<div class="animate__animated animate__fadeIn">
+    <h1 class="h5 fw-bold mb-3">Tra cứu đơn vị</h1>
+    
+    <form method="POST" action="/bdhv/tra-cuu-don-vi">
+        <div class="mb-3">
+            <label class="form-label fw-bold">Chọn đơn vị</label>
+            <select name="don_vi" class="form-select" required>
+                <option value="">-- Chọn xã/phường --</option>
+                {% for dv in don_vi_list %}
+                <option value="{{ dv.ten_don_vi }}">{{ dv.ten_don_vi }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <button type="submit" class="btn btn-primary w-100 rounded-4">Tra cứu</button>
+    </form>
+    
+    {% if result %}
+    <div class="mt-4 p-3 bg-light rounded-4">
+        <h5 class="fw-bold">{{ result.ten_don_vi }}</h5>
+        <p class="mb-1"><strong>Tổng DS 18+:</strong> {{ result.tong_18 }}</p>
+        <p class="mb-1"><strong>Đã đăng ký:</strong> {{ result.da_dang_ky }}</p>
+        <p class="mb-0"><strong>Tỷ lệ:</strong> {{ result.ty_le }}%</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
