@@ -137,9 +137,9 @@
 {% endblock %}
 
 {% block content %}
-<div class="d-flex" style="min-height: calc(100vh - 70px);">
+<div class="d-flex align-items-stretch" style="min-height: calc(100vh - 70px);">
     <!-- Sidebar -->
-    <aside class="bdhv-sidebar flex-shrink-0 d-none d-lg-block" style="width: 210px;">
+    <aside class="bdhv-sidebar d-none d-lg-block" style="width: 210px; flex-shrink: 0;">
         <div class="bdhv-menu-title">
             <i class="fa-solid fa-school me-2"></i>Bình Dân Học Vụ
         </div>
@@ -186,7 +186,7 @@
     </div>
     
     <!-- Main Content -->
-    <main class="bdhv-main-content flex-grow-1 overflow-auto">
+    <main class="bdhv-main-content" style="flex-grow: 1; overflow-y: auto;">
         {% block bdhv_content %}{% endblock %}
     </main>
 </div>
