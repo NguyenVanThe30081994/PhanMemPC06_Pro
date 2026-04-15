@@ -453,6 +453,23 @@
 
                 <a href="{{ url_for('convert.index') }}" class="nav-link-top {% if request.path.startswith('/convert') %}active{% endif %}">Chuyển đổi</a>
 
+                <div class="dropdown h-100 d-flex align-items-center">
+                    <a class="nav-link-top dropdown-toggle {% if request.endpoint.startswith('bdhv_bp') %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
+                        Bình dân học vụ số
+                    </a>
+                    <ul class="dropdown-menu shadow-lg border-0 mt-0 rounded-4 p-2" style="min-width: 260px;">
+                        <li><a class="dropdown-item py-2 rounded-3" href="/bdhv"><i class="fa-solid fa-house me-2 opacity-50"></i>Trang chủ BDHV</a></li>
+                        <li><hr class="dropdown-divider opacity-10 mx-2"></li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="/bdhv/tra-cuu"><i class="fa-solid fa-magnifying-glass me-2 opacity-50"></i>Tra cứu theo CCCD</a></li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="/bdhv/tra-cuu-don-vi"><i class="fa-solid fa-building me-2 opacity-50"></i>Tra cứu theo đơn vị</a></li>
+                        <li><hr class="dropdown-divider opacity-10 mx-2"></li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="/bdhv/dang-ky"><i class="fa-solid fa-user-plus me-2 opacity-50"></i>Đăng ký mới</a></li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="/bdhv/thi-lai"><i class="fa-solid fa-rotate-left me-2 opacity-50"></i>Thi lại/Phúc tra</a></li>
+                        <li><hr class="dropdown-divider opacity-10 mx-2"></li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="/bdhv/thong-ke"><i class="fa-solid fa-chart-bar me-2 opacity-50"></i>Thống kê</a></li>
+                    </ul>
+                </div>
+
                 {% if perms.get('p_form_lead') or perms.get('p_user_lead') or perms.get('p_sys_lead') %}
                 <div class="dropdown h-100 d-flex align-items-center">
                     <a class="nav-link-top dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Hệ thống</a>

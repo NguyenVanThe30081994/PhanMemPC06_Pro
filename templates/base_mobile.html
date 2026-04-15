@@ -334,6 +334,23 @@
                 </a>
             </div>
             
+            <div class="mb-2 px-2 tiny fw-bold text-uppercase" style="letter-spacing: 1px; color: var(--text-muted);">Bình dân học vụ số</div>
+            <div class="nav-links mb-4">
+                <a href="/bdhv" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.index' %}active{% endif %}">
+                    <i class="fa-solid fa-house me-2"></i>Trang chủ BDHV
+                </a>
+                <a href="/bdhv/tra-cuu" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.tra_cuu' %}active{% endif %}">Tra cứu CCCD
+                </a>
+                <a href="/bdhv/tra-cuu-don-vi" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.tra_cuu_don_vi' %}active{% endif %}">Tra cứu Đơn vị
+                </a>
+                <a href="/bdhv/dang-ky" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.dang_ky' %}active{% endif %}">Đăng ký mới
+                </a>
+                <a href="/bdhv/thi-lai" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.thi_lai' %}active{% endif %}">Thi lại/Phúc tra
+                </a>
+                <a href="/bdhv/thong-ke" class="nav-link-sidebar {% if request.endpoint == 'bdhv_bp.thong_ke' %}active{% endif %}">Thống kê
+                </a>
+            </div>
+            
             <div class="mb-2 px-2 tiny fw-bold text-uppercase" style="letter-spacing: 1px; color: var(--text-muted);">Hệ thống & Quản trị</div>
             <div class="nav-links">
                 {% if session.get('is_admin') %}
