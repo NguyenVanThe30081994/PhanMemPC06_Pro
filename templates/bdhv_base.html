@@ -2,214 +2,177 @@
 
 {% block extra_head %}
 <style>
-/* BDHV Sidebar - Minimalist Glassmorphism */
-.bdhv-sidebar {
-    min-height: calc(100vh - 80px);
-    position: sticky;
-    top: 70px;
-    padding: 16px 12px;
-    z-index: 100;
-    overflow-y: auto;
-    
-    /* Glassmorphism Effect */
-    background: rgba(255, 255, 255, 0.4);
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
-    border-right: none;
-    border-radius: 0 20px 20px 0;
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+/* 1. Root Variables cho Glassmorphism */
+:root {
+    --glass-bg: rgba(255, 255, 255, 0.45);
+    --glass-border: rgba(255, 255, 255, 0.3);
+    --glass-shadow: rgba(31, 38, 135, 0.1);
+    --primary-gradient: linear-gradient(135deg, #0066FF, #0099FF);
 }
 
-/* Header */
+/* 2. Sidebar Main Container */
+.bdhv-sidebar {
+    min-height: calc(100vh - 100px);
+    position: sticky;
+    top: 85px;
+    padding: 24px 16px;
+    z-index: 100;
+    margin-left: 15px; /* Tạo khoảng cách để sidebar trông như đang "lơ lửng" */
+    
+    /* Hiệu ứng Kính mờ */
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    
+    /* Bo góc và Viền mảnh */
+    border-radius: 24px;
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 8px 32px 0 var(--glass-shadow);
+    
+    transition: all 0.3s ease;
+}
+
+/* 3. Header tinh tế hơn */
 .bdhv-header {
     text-align: center;
-    padding: 16px 12px 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-    margin-bottom: 16px;
+    padding-bottom: 24px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .bdhv-header .badge {
-    font-size: 14px;
-    padding: 8px 18px;
+    font-size: 15px;
+    padding: 10px 20px;
     border-radius: 50px;
-    background: linear-gradient(135deg, #0066FF, #0099FF);
-    color: #fff;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    box-shadow: 0 4px 15px rgba(0, 102, 255, 0.3);
+    background: var(--primary-gradient);
+    border: none;
+    box-shadow: 0 10px 20px rgba(0, 102, 255, 0.2);
 }
 
 .bdhv-header .sub {
-    font-size: 10px;
-    color: var(--text-muted);
-    margin-top: 8px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    font-weight: 600;
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
 }
 
-/* Navigation */
+/* 4. Menu Items (Pills) */
 .bdhv-nav {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    align-items: stretch;
+    gap: 6px;
 }
 
-/* Pill - Glassmorphism Style */
 .bdhv-pill {
-    padding: 10px 16px;
-    color: var(--text-muted);
+    padding: 12px 18px;
+    color: #475569;
     font-weight: 500;
-    font-size: 13px;
+    font-size: 14px;
     text-decoration: none;
-    transition: all 0.2s ease;
-    border-radius: 15px;
+    border-radius: 16px;
     display: flex;
     align-items: center;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
 }
 
 .bdhv-pill i {
-    width: 18px;
-    margin-right: 10px;
-    font-size: 13px;
-    text-align: center;
-    transition: all 0.2s ease;
+    width: 24px;
+    font-size: 16px;
+    margin-right: 12px;
+    opacity: 0.8;
 }
 
+/* Hover Effect */
 .bdhv-pill:hover {
-    background: rgba(255, 255, 255, 0.2);
-    color: var(--primary);
-    transform: translateX(5px);
+    background: rgba(255, 255, 255, 0.5);
+    color: #0066FF;
+    transform: translateX(8px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
-.bdhv-pill:hover i {
-    transform: scale(1.1);
-}
-
-/* Active - Gradient with Glow */
+/* Active State */
 .bdhv-pill.active {
-    background: linear-gradient(135deg, #0066FF, #0099FF);
-    color: #fff !important;
-    box-shadow: 0 4px 20px rgba(0, 102, 255, 0.4), 0 0 30px rgba(0, 102, 255, 0.2);
+    background: var(--primary-gradient);
+    color: #ffffff !important;
+    font-weight: 600;
+    box-shadow: 0 10px 25px rgba(0, 102, 255, 0.3);
     transform: translateX(5px);
 }
 
 .bdhv-pill.active i {
-    color: #fff;
+    opacity: 1;
+    transform: scale(1.1);
 }
 
-/* Label - macOS Style */
+/* 5. Labels (macOS Style) */
 .bdhv-label {
-    font-size: 9px;
-    font-weight: 700;
+    font-size: 10px;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 2px;
-    color: var(--text-muted);
-    margin: 18px 12px 8px;
-    padding: 0 8px;
+    letter-spacing: 1.5px;
+    color: #94a3b8;
+    margin: 25px 0 10px 15px;
 }
 
+/* Layout Adjustment */
 .bdhv-main-content {
-    padding: 24px;
+    padding: 30px;
     min-height: calc(100vh - 80px);
-    background: var(--bg-body);
-}
-
-/* Cards */
-.bdhv-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    box-shadow: var(--shadow-lvl1);
-}
-
-.bdhv-card .card-header {
-    background: transparent;
-    border-bottom: 1px solid var(--border);
-    padding: 14px 18px;
-    font-weight: 600;
-}
-
-.bdhv-card .card-body {
-    padding: 18px;
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="row g-0">
-    <!-- Sidebar -->
-    <div class="col-lg-2 bdhv-sidebar d-none d-lg-block">
-        <!-- Header -->
-        <div class="bdhv-header">
-            <span class="badge">
-                <i class="fa-solid fa-graduation-cap"></i>BDHV
-            </span>
-            <div class="sub">Bình dân học vụ</div>
+<div class="container-fluid py-4">
+    <div class="row g-4">
+        <div class="col-lg-2 d-none d-lg-block">
+            <div class="bdhv-sidebar">
+                <div class="bdhv-header">
+                    <span class="badge">
+                        <i class="fa-solid fa-graduation-cap"></i> BDHV
+                    </span>
+                    <div class="sub">BÌNH DÂN HỌC VỤ</div>
+                </div>
+                
+                <nav class="bdhv-nav">
+                    <a href="/bdhv" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.index' %}active{% endif %}">
+                        <i class="fa-solid fa-house"></i>Trang chủ
+                    </a>
+                    
+                    <div class="bdhv-label">Tra cứu</div>
+                    <a href="/bdhv/tra-cuu" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.tra_cuu' %}active{% endif %}">
+                        <i class="fa-solid fa-id-card"></i>Theo CCCD
+                    </a>
+                    <a href="/bdhv/tra-cuu-don-vi" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.tra_cuu_don_vi' %}active{% endif %}">
+                        <i class="fa-solid fa-building-circle-check"></i>Theo đơn vị
+                    </a>
+                    
+                    <div class="bdhv-label">Đăng ký</div>
+                    <a href="/bdhv/dang-ky" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.dang_ky' %}active{% endif %}">
+                        <i class="fa-solid fa-user-plus"></i>Đăng ký mới
+                    </a>
+                    <a href="/bdhv/thi-lai" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.thi_lai' %}active{% endif %}">
+                        <i class="fa-solid fa-rotate-left"></i>Thi lại
+                    </a>
+                    
+                    <div class="bdhv-label">Báo cáo</div>
+                    <a href="/bdhv/thong-ke" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.thong_ke' %}active{% endif %}">
+                        <i class="fa-solid fa-chart-line"></i>Thống kê
+                    </a>
+                    <a href="/bdhv/xep-hang" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.xep_hang' %}active{% endif %}">
+                        <i class="fa-solid fa-crown"></i>Xếp hạng
+                    </a>
+                </nav>
+            </div>
         </div>
         
-        <!-- Navigation -->
-        <nav class="bdhv-nav">
-            <a href="/bdhv" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.index' %}active{% endif %}">
-                <i class="fa-solid fa-house"></i>Trang chủ
-            </a>
-            
-            <div class="bdhv-label">Tra cứu</div>
-            <a href="/bdhv/tra-cuu" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.tra_cuu' %}active{% endif %}">
-                <i class="fa-solid fa-id-card"></i>Theo CCCD
-            </a>
-            <a href="/bdhv/tra-cuu-don-vi" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.tra_cuu_don_vi' %}active{% endif %}">
-                <i class="fa-solid fa-building-ngo"></i>Theo đơn vị
-            </a>
-            
-            <div class="bdhv-label">Đăng ký</div>
-            <a href="/bdhv/dang-ky" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.dang_ky' %}active{% endif %}">
-                <i class="fa-solid fa-user-plus"></i>Đăng ký mới
-            </a>
-            <a href="/bdhv/thi-lai" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.thi_lai' %}active{% endif %}">
-                <i class="fa-solid fa-rotate-left"></i>Thi lại
-            </a>
-            <a href="/bdhv/phuc-tra" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.phuc_tra' %}active{% endif %}">
-                <i class="fa-solid fa-file-signature"></i>Phúc tra
-            </a>
-            
-            <div class="bdhv-label">Báo cáo</div>
-            <a href="/bdhv/thong-ke" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.thong_ke' %}active{% endif %}">
-                <i class="fa-solid fa-chart-pie"></i>Thống kê
-            </a>
-            <a href="/bdhv/xep-hang" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.xep_hang' %}active{% endif %}">
-                <i class="fa-solid fa-trophy"></i>Xếp hạng
-            </a>
-            
-            {% if session.get('is_admin') %}
-            <div class="bdhv-label">Quản trị</div>
-            <a href="/bdhv/database" class="bdhv-pill {% if request.endpoint == 'bdhv_bp.database' %}active{% endif %}">
-                <i class="fa-solid fa-database"></i>Database
-            </a>
-            {% endif %}
-            
-            <div class="bdhv-label">Xuất file</div>
-            <a href="/bdhv/export/danh-sach" class="bdhv-pill">
-                <i class="fa-solid fa-file-excel"></i>Danh sách HV
-            </a>
-            <a href="/bdhv/export/thong-ke" class="bdhv-pill">
-                <i class="fa-solid fa-file-csv"></i>Thống kê
-            </a>
-        </nav>
-    </div>
-    
-    <!-- Main Content -->
-    <div class="col-lg-10 bdhv-main-content">
-        {% block bdhv_content %}{% endblock %}
+        <div class="col-lg-10">
+            <div class="bdhv-main-content">
+                {% block bdhv_content %}{% endblock %}
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
