@@ -84,10 +84,12 @@ def library():
             push_global_notif("Thư viện", f"Tài liệu mới: {request.form['title']}", "/library", exclude_uid=session['uid'])
             flash('Đã tải lên tài liệu!', 'success')
         return redirect(url_for('portal_bp.library'))
+    
     # === LẤY DANH MỤC LĨNH VỰC ===
-    # Tìm nhóm Lĩnh vực - hỗ trợ mọi cách viết
+    # Tìm nhóm Lĩnh vực - theo ID hoặc tên
     group_linhvuc = CategoryGroup.query.filter(
-        CategoryGroup.name.ilike('%linh%vuc%')
+        (CategoryGroup.id == 6) | 
+        (CategoryGroup.name.ilike('%linh%vuc%'))
     ).first()
     
     if group_linhvuc:
