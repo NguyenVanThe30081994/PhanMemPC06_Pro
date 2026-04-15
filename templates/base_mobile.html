@@ -243,7 +243,7 @@
             transition: all 0.2s;
         }
         .nav-dropdown:hover { background: var(--primary-light); color: var(--primary); }
-        .nav-dropdown[aria-expanded="true"] { background: var(--primary); color: white; }
+        .nav-dropdown.open { background: var(--primary); color: white; border-color: var(--primary); }
         
         /* Dropdown Content */
         .collapse { padding-left: 8px; border-left: 2px solid var(--border); margin: 8px 0; }
@@ -484,6 +484,13 @@
                                 collapse.classList.remove('show');
                             }
                         });
+                        // Remove .open from all buttons first
+                        document.querySelectorAll('.nav-dropdown').forEach(b => b.classList.remove('open'));
+                        // Add .open to this button
+                        this.classList.add('open');
+                    } else {
+                        // This one is closing - remove .open
+                        this.classList.remove('open');
                     }
                 });
             });
