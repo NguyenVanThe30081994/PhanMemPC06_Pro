@@ -354,8 +354,8 @@
                 {% if session.get('is_admin') %}
                 <a href="/roles" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">Tài khoản & Vai trò</a>
                 <a href="/admin/module-categories" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">Thiết lập Danh mục</a>
-                <a href="/admin-forms" class="nav-link-sidebar {% if request.endpoint == 'forms_bp.forms_config' %}active{% endif %}">Thiết lập Mẫu V1</a>
-                <a href="/reports-v2" class="nav-link-sidebar {% if request.endpoint == 'reportv2_bp.dashboard' %}active{% endif %}">Thiết lập Mẫu V2</a>
+                <a href="/admin-forms" class="nav-link-sidebar {% if request.endpoint == 'forms_bp.admin_forms' %}active{% endif %}">Thiết lập Mẫu V1</a>
+                <a href="/reports-v2" class="nav-link-sidebar {% if request.endpoint == 'reports_v2_bp.dashboard' %}active{% endif %}">Thiết lập Mẫu V2</a>
                 <a href="/logs" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">Nhật ký Hệ thống</a>
                 <a href="/admin/system/update" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">Cập nhật Hệ thống</a>
                 <a href="/admin/db-tool" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.db_tool' %}active{% endif %}">Công cụ Database</a>
