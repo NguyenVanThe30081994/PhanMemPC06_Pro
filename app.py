@@ -1,4 +1,6 @@
 import os
+import logging
+from logging.handlers import RotatingFileHandler
 import json
 from flask import Flask, session, request, redirect, url_for, send_from_directory, render_template, g
 from datetime import datetime, timedelta
@@ -25,6 +27,21 @@ app = Flask(__name__,
             static_folder=STATIC_DIR)
 
 app.secret_key = 'PC06_FINAL_V3_5_2026'
+
+# ==================== FILE LOGGING ====================
+# Create logs directory
+LOG_DIR = os.path.join(basedir, 'logs')
+os.makedirs(LOG_DIR, exist_ok=True)
+
+# Configure logging
+log_file = os.path.join(LOG_DIR, 'app.log')
+file_handler = RotatingFileHandler(log_file, maxBytes=10*1024*1024, backupCount=5)
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(logging.Formatter(
+    '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+))
+app.logger.addHandler(file_handler)
+app.logger.setLevel(logging.INFO)
 
 # ==================== SECURITY CONFIG ====================
 # Session Security
@@ -218,6 +235,13 @@ def page_not_found(e):
 
 @app.errorhandler(500)
 def internal_server_error(e):
+    app.logger.error(f"500 Error: {str(e)}")
+    return render_template('500.html'), 500
+
+# Global exception handler - logs ALL errors
+@app.errorhandler(Exception)
+def handle_exception(e):
+    app.logger.error(f"Unhandled Exception: {str(e)}", exc_info=True)
     return render_template('500.html'), 500
 
 @app.route('/favicon.ico')
