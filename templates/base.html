@@ -1,21 +1,24 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{{ title|default("Hệ thống Quản trị PC06 Tuyên Quang") }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.5.0">
     <link rel="icon" type="image/x-icon" href="https://cdn-icons-png.flaticon.com/512/3593/3593503.png">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
+
     <script>
-        (function() {
+        (function () {
             const savedTheme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-theme', savedTheme);
-            
+
             // Nhận diện thiết bị (Mobile vs PC)
             window.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             document.documentElement.classList.add(window.isMobile ? 'device-mobile' : 'device-desktop');
@@ -30,8 +33,8 @@
         });
 
         // Việt hóa thông báo mặc định của trình duyệt
-        document.addEventListener('invalid', (function(){
-            return function(e) {
+        document.addEventListener('invalid', (function () {
+            return function (e) {
                 e.preventDefault();
                 if (e.target.validity.valueMissing) {
                     e.target.setCustomValidity("Vui lòng không bỏ trống trường này.");
@@ -45,36 +48,119 @@
                 e.target.reportValidity();
             };
         })(), true);
-        document.addEventListener('input', function(e) {
+        document.addEventListener('input', function (e) {
             e.target.setCustomValidity("");
         });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        [data-theme="light"] .dark-icon-only { display: block; }
-        [data-theme="light"] .light-icon-only { display: none; }
-        [data-theme="dark"] .dark-icon-only { display: none; }
-        [data-theme="dark"] .light-icon-only { display: block; }
+        [data-theme="light"] .dark-icon-only {
+            display: block;
+        }
 
-        .notif-badge { position: absolute; top: -5px; right: -5px; padding: 2px 6px; border-radius: 50%; font-size: 10px; display: none; }
-        .toast-container { position: fixed; bottom: 85px; right: 20px; z-index: 9999; }
-        #notif-dropdown { width: 320px; max-height: 400px; overflow-y: auto; }
-        .notif-item { border-bottom: 1px solid var(--border); transition: background 0.2s; }
-        .notif-item:hover { background: var(--bg-body); }
-        .notif-item.unread { border-left: 3px solid var(--primary); background: rgba(37,99,235,0.03); }
-        .nav-link-top { height: auto; padding: 6px 12px; color: var(--text-muted); font-weight: 600; text-decoration: none; position: relative; transition: all 0.2s; border-bottom: none; display: flex; align-items: center; justify-content: center; line-height: 1; margin: auto 2px; border-radius: 50px; white-space: nowrap; font-size: 0.85rem; }
-        .dropdown { display: flex; align-items: center; justify-content: center; height: 100%; margin: 0 2px; }
-        
-        .nav-link-top:hover { color: var(--primary); background: rgba(0, 102, 255, 0.05); }
-        .nav-link-top.active { color: #fff !important; background: var(--primary) !important; box-shadow: var(--shadow-primary) !important; }
-        
+        [data-theme="light"] .light-icon-only {
+            display: none;
+        }
+
+        [data-theme="dark"] .dark-icon-only {
+            display: none;
+        }
+
+        [data-theme="dark"] .light-icon-only {
+            display: block;
+        }
+
+        .notif-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            padding: 2px 6px;
+            border-radius: 50%;
+            font-size: 10px;
+            display: none;
+        }
+
+        .toast-container {
+            position: fixed;
+            bottom: 85px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        #notif-dropdown {
+            width: 320px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .notif-item {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+
+        .notif-item:hover {
+            background: var(--bg-body);
+        }
+
+        .notif-item.unread {
+            border-left: 3px solid var(--primary);
+            background: rgba(37, 99, 235, 0.03);
+        }
+
+        .nav-link-top {
+            height: auto;
+            padding: 6px 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-decoration: none;
+            position: relative;
+            transition: all 0.2s;
+            border-bottom: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            margin: auto 2px;
+            border-radius: 50px;
+            white-space: nowrap;
+            font-size: 0.85rem;
+        }
+
+        .dropdown {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            margin: 0 2px;
+        }
+
+        .nav-link-top:hover {
+            color: var(--primary);
+            background: rgba(0, 102, 255, 0.05);
+        }
+
+        .nav-link-top.active {
+            color: #fff !important;
+            background: var(--primary) !important;
+            box-shadow: var(--shadow-primary) !important;
+        }
+
         /* Desktop Scale Fix for 14-inch screens */
         @media (min-width: 992px) and (max-width: 1400px) {
-            :root { --font-size-base: 15px; }
-            .nav-link-top { padding: 6px 8px; font-size: 0.8rem; }
-            .nav-center { gap: 5px !important; }
+            :root {
+                --font-size-base: 15px;
+            }
+
+            .nav-link-top {
+                padding: 6px 8px;
+                font-size: 0.8rem;
+            }
+
+            .nav-center {
+                gap: 5px !important;
+            }
         }
-        
+
 
         /* Mobile Bottom Nav */
         .mobile-bottom-nav {
@@ -89,9 +175,10 @@
             align-items: center;
             border-top: 1px solid var(--border);
             z-index: 1000;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
             padding-bottom: env(safe-area-inset-bottom);
         }
+
         .mobile-bottom-nav .nav-item {
             display: flex;
             flex-direction: column;
@@ -103,15 +190,24 @@
             transition: all 0.2s;
             width: 25%;
         }
-        .mobile-bottom-nav .nav-item i { font-size: 20px; margin-bottom: 4px; }
-        .mobile-bottom-nav .nav-item.active { color: var(--primary); }
-        
+
+        .mobile-bottom-nav .nav-item i {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+
+        .mobile-bottom-nav .nav-item.active {
+            color: var(--primary);
+        }
+
         @media (max-width: 991px) {
-            body { padding-bottom: 70px !important; }
+            body {
+                padding-bottom: 70px !important;
+            }
         }
 
         /* Ultra-Global Dark Mode Overrides - PC06 Final Polish */
-        [data-theme="dark"] .bg-white, 
+        [data-theme="dark"] .bg-white,
         [data-theme="dark"] .bg-light,
         [data-theme="dark"] [class*="bg-light"],
         [data-theme="dark"] [class*="bg-white"],
@@ -144,7 +240,7 @@
             border-color: var(--border) !important;
             color: var(--text-main) !important;
         }
-        
+
         [data-theme="dark"] table:not(.excel-wrapper table) td,
         [data-theme="dark"] table:not(.excel-wrapper table) th {
             background-color: var(--bg-surface) !important;
@@ -152,21 +248,21 @@
 
         [data-theme="dark"] .btn-white,
         [data-theme="dark"] .btn-light {
-            background-color: rgba(255,255,255,0.05) !important;
+            background-color: rgba(255, 255, 255, 0.05) !important;
             border-color: var(--border) !important;
             color: var(--text-main) !important;
         }
 
         [data-theme="dark"] .btn-white:hover,
         [data-theme="dark"] .btn-light:hover {
-            background-color: rgba(255,255,255,0.1) !important;
+            background-color: rgba(255, 255, 255, 0.1) !important;
         }
 
         [data-theme="dark"] .form-control,
         [data-theme="dark"] .form-select,
         [data-theme="dark"] .dropdown-item,
         [data-theme="dark"] .form-check-input:not(:checked) {
-            background-color: rgba(0,0,0,0.2) !important;
+            background-color: rgba(0, 0, 0, 0.2) !important;
             color: var(--text-main) !important;
             border-color: var(--border) !important;
         }
@@ -174,27 +270,55 @@
         [data-theme="dark"] label,
         [data-theme="dark"] .form-label,
         [data-theme="dark"] .form-check-label,
-        [data-theme="dark"] .text-dark { 
-            color: var(--text-main) !important; 
+        [data-theme="dark"] .text-dark {
+            color: var(--text-main) !important;
         }
 
-        [data-theme="dark"] .text-muted { color: var(--text-muted) !important; }
-        [data-theme="dark"] .table-custom thead th { background-color: rgba(255,255,255,0.02) !important; }
-        [data-theme="dark"] .bg-indigo-light { background-color: rgba(79, 70, 229, 0.1) !important; color: #a5b4fc !important; }
-        [data-theme="dark"] .alert-success { background-color: rgba(16, 185, 129, 0.15) !important; color: #34d399 !important; border: 0 !important; }
-        [data-theme="dark"] .alert-danger { background-color: rgba(220, 38, 38, 0.2) !important; color: #f87171 !important; border: 0 !important; }
-        [data-theme="dark"] .bg-primary-subtle, [data-theme="dark"] .bg-info-subtle { background-color: rgba(37, 99, 235, 0.15) !important; color: #60a5fa !important; border: 1px solid rgba(37, 99, 235, 0.2) !important; }
-        [data-theme="dark"] .hover-bg-light:hover { background-color: rgba(255,255,255,0.05) !important; }
+        [data-theme="dark"] .text-muted {
+            color: var(--text-muted) !important;
+        }
+
+        [data-theme="dark"] .table-custom thead th {
+            background-color: rgba(255, 255, 255, 0.02) !important;
+        }
+
+        [data-theme="dark"] .bg-indigo-light {
+            background-color: rgba(79, 70, 229, 0.1) !important;
+            color: #a5b4fc !important;
+        }
+
+        [data-theme="dark"] .alert-success {
+            background-color: rgba(16, 185, 129, 0.15) !important;
+            color: #34d399 !important;
+            border: 0 !important;
+        }
+
+        [data-theme="dark"] .alert-danger {
+            background-color: rgba(220, 38, 38, 0.2) !important;
+            color: #f87171 !important;
+            border: 0 !important;
+        }
+
+        [data-theme="dark"] .bg-primary-subtle,
+        [data-theme="dark"] .bg-info-subtle {
+            background-color: rgba(37, 99, 235, 0.15) !important;
+            color: #60a5fa !important;
+            border: 1px solid rgba(37, 99, 235, 0.2) !important;
+        }
+
+        [data-theme="dark"] .hover-bg-light:hover {
+            background-color: rgba(255, 255, 255, 0.05) !important;
+        }
 
         /* Raised 3D Zalo Button Styling */
         .btn-zalo-3d {
             background-color: #0068ff !important;
             color: #fff !important;
             border: none;
-            border-top: 1px solid rgba(255,255,255,0.3);
-            box-shadow: 0 4px 0 #0045aa, 0 8px 15px rgba(0,0,0,0.15);
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 0 #0045aa, 0 8px 15px rgba(0, 0, 0, 0.15);
             transition: all 0.1s ease;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
             letter-spacing: 0.5px;
             font-size: 11px !important;
             font-weight: 800 !important;
@@ -204,14 +328,16 @@
             justify-content: center;
             text-decoration: none !important;
         }
+
         .btn-zalo-3d:hover {
             background-color: #0077ff !important;
             transform: translateY(-1px);
-            box-shadow: 0 5px 0 #0045aa, 0 10px 20px rgba(0,0,0,0.2);
+            box-shadow: 0 5px 0 #0045aa, 0 10px 20px rgba(0, 0, 0, 0.2);
         }
+
         .btn-zalo-3d:active {
             transform: translateY(3px);
-            box-shadow: 0 1px 0 #0045aa, 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 0 #0045aa, 0 2px 5px rgba(0, 0, 0, 0.1);
         }
 
         /* Excel Data & Matrix Table Force Dark */
@@ -228,38 +354,56 @@
         }
 
         /* Custom Scrollbar for Dark Mode */
-        [data-theme="dark"] ::-webkit-scrollbar { width: 8px; height: 8px; }
-        [data-theme="dark"] ::-webkit-scrollbar-track { background: var(--bg-body); }
-        [data-theme="dark"] ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
-        [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+        [data-theme="dark"] ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        [data-theme="dark"] ::-webkit-scrollbar-track {
+            background: var(--bg-body);
+        }
+
+        [data-theme="dark"] ::-webkit-scrollbar-thumb {
+            background: #3f3f46;
+            border-radius: 10px;
+        }
+
+        [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+            background: #52525b;
+        }
 
         /* Fix white form elements in dark mode */
-        [data-theme="dark"] input[type="checkbox"], 
+        [data-theme="dark"] input[type="checkbox"],
         [data-theme="dark"] input[type="radio"] {
             filter: invert(1) hue-rotate(180deg) brightness(0.8);
         }
+
         [data-theme="dark"] hr {
             background-color: var(--border);
             opacity: 0.1;
         }
 
         /* Global Table Custom Styling - PC06 Spec */
-        .table-custom { 
-            border: none !important; 
-            border-collapse: collapse !important; 
-            width: 100% !important; 
+        .table-custom {
+            border: none !important;
+            border-collapse: collapse !important;
+            width: 100% !important;
             border-radius: 0 !important;
             text-align: center !important;
         }
-        .table-custom th, .table-custom td { 
-            border: 1px solid var(--border) !important; 
-            border-top: none !important; 
+
+        .table-custom th,
+        .table-custom td {
+            border: 1px solid var(--border) !important;
+            border-top: none !important;
             border-radius: 0 !important;
             vertical-align: middle !important;
         }
-        .table-custom thead, .table-custom thead th { 
+
+        .table-custom thead,
+        .table-custom thead th {
             border-radius: 0 !important;
-            background-color: #f8fafc; 
+            background-color: #f8fafc;
             border-top: none !important;
             color: #64748b;
             text-transform: uppercase;
@@ -267,10 +411,25 @@
             padding: 12px 16px !important;
             text-align: center !important;
         }
-        .table-custom tr th:first-child, .table-custom tr td:first-child { border-left: none !important; }
-        .table-custom tr th:last-child, .table-custom tr td:last-child { border-right: none !important; }
-        .table-custom tr:last-child td { border-bottom: none !important; }
-        .table-responsive { border-radius: 0 !important; border: none !important; }
+
+        .table-custom tr th:first-child,
+        .table-custom tr td:first-child {
+            border-left: none !important;
+        }
+
+        .table-custom tr th:last-child,
+        .table-custom tr td:last-child {
+            border-right: none !important;
+        }
+
+        .table-custom tr:last-child td {
+            border-bottom: none !important;
+        }
+
+        .table-responsive {
+            border-radius: 0 !important;
+            border: none !important;
+        }
     </style>
     <style>
         /* Mobile UI Enhancements */
@@ -281,11 +440,13 @@
                 flex-direction: column;
                 justify-content: center;
             }
+
             .mobile-logo-top {
                 font-size: 16px;
                 font-weight: 800;
                 letter-spacing: 0.5px;
             }
+
             .mobile-logo-bottom {
                 font-size: 11px;
                 font-weight: 500;
@@ -306,29 +467,45 @@
             height: var(--circle-size, 40px);
             transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-        .btn-circle:hover { transform: scale(1.05); }
-        .btn-circle:active { transform: scale(0.95); }
-        .btn-circle-sm { --circle-size: 30px; }
-        .btn-circle-md { --circle-size: 45px; }
-        .btn-circle-lg { --circle-size: 55px; }
+
+        .btn-circle:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-circle:active {
+            transform: scale(0.95);
+        }
+
+        .btn-circle-sm {
+            --circle-size: 30px;
+        }
+
+        .btn-circle-md {
+            --circle-size: 45px;
+        }
+
+        .btn-circle-lg {
+            --circle-size: 55px;
+        }
 
         /* Modern Sidebar Glassmorphism & Animations */
         .mobile-sidebar {
             background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.75) !important;
             backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
             -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
-            
+
             /* Liquid Specularity: Top glowing border, Right subtle border */
             border-top: 1px solid rgba(255, 255, 255, 0.4) !important;
             border-right: 1px solid rgba(0, 0, 0, 0.05) !important;
-            
+
             transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             box-shadow: 10px 0 40px rgba(0, 0, 0, 0.05);
         }
+
         [data-theme="dark"] .mobile-sidebar {
             background: rgba(15, 23, 42, 0.85) !important;
         }
-        
+
         .mobile-sidebar .list-group-item {
             background: transparent !important;
             border: none !important;
@@ -356,7 +533,8 @@
         .mobile-sidebar .collapse .list-group-item {
             font-size: 0.9rem;
             opacity: 0.85;
-            padding-left: 3rem !important; /* Visual hierarchy without misalignment of icons */
+            padding-left: 3rem !important;
+            /* Visual hierarchy without misalignment of icons */
             margin-left: 12px;
             margin-right: 12px;
         }
@@ -370,15 +548,31 @@
         }
 
         /* Global Micro-animations */
-        .animate-hover:hover { transform: translateY(-3px); transition: transform 0.3s ease; }
-        .fade-in-up { animation: fadeInUp 0.5s ease-out forwards; }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(15px); }
-            to { opacity: 1; transform: translateY(0); }
+        .animate-hover:hover {
+            transform: translateY(-3px);
+            transition: transform 0.3s ease;
         }
-        
+
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         /* Smooth Collapse Animation override */
-        .collapse { transition: height 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important; }
+        .collapse {
+            transition: height 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
 
         /* Setup Pages Distinction */
         .page-header.setup-mode {
@@ -387,119 +581,177 @@
             padding: 20px;
             border-radius: 20px;
         }
+
         .page-header.setup-mode .bg-primary {
-            background-color: var(--text-main) !important; /* Darker icon for setup */
+            background-color: var(--text-main) !important;
+            /* Darker icon for setup */
         }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-responsive.css') }}?v=1.0.0">
     {% block extra_head %}{% endblock %}
 </head>
+
 <body>
     <nav class="top-navbar">
         <div class="nav-container px-4">
             <div class="nav-left d-flex align-items-center">
                 <!-- Mobile Toggle: Stitch Styled -->
-                <button class="btn btn-light d-lg-none me-3 btn-circle btn-circle-sm border-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
+                <button class="btn btn-light d-lg-none me-3 btn-circle btn-circle-sm border-0" type="button"
+                    data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
                     <i class="fa-solid fa-bars-staggered text-primary"></i>
                 </button>
 
                 <a href="/admin" class="nav-logo text-decoration-none d-flex align-items-center">
-                    <div class="header-title-pill shadow-sm glass-card" style="background: var(--primary-gradient) !important; border-top: 1px solid rgba(255,255,255,0.4) !important; padding: 5px 12px; color: #fff;">
+                    <div class="header-title-pill shadow-sm glass-card"
+                        style="background: var(--primary-gradient) !important; border-top: 1px solid rgba(255,255,255,0.4) !important; padding: 5px 12px; color: #fff;">
                         <i class="fa-solid fa-shield-halved text-white" style="font-size: 0.75rem;"></i>
                         <span class="fw-bold" style="font-size: 0.75rem; letter-spacing: 0.3px;">PC06 TQ</span>
                     </div>
                 </a>
             </div>
-            
+
             <div class="nav-center d-none d-lg-flex h-100 justify-content-center align-items-stretch flex-grow-1 px-4">
-                {% if perms.get('p_dash_lead') or perms.get('p_dash_exec') %}<a href="/admin" class="nav-link-top {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">Tổng quan</a>{% endif %}
-                {% if perms.get('p_task_lead') or perms.get('p_task_exec') %}<a href="/tasks" class="nav-link-top {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">Công việc</a>{% endif %}
-                <a href="/ranking" class="nav-link-top {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">Xếp hạng</a>
+                {% if perms.get('p_dash_lead') or perms.get('p_dash_exec') %}<a href="/admin"
+                    class="nav-link-top {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">Tổng quan</a>{%
+                endif %}
+                {% if perms.get('p_task_lead') or perms.get('p_task_exec') %}<a href="/tasks"
+                    class="nav-link-top {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">Công việc</a>{%
+                endif %}
+                <a href="/ranking"
+                    class="nav-link-top {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">Xếp hạng</a>
                 <div class="dropdown h-100 d-flex align-items-center">
-                    <a class="nav-link-top dropdown-toggle {% if request.endpoint in ['portal_bp.news', 'portal_bp.library'] %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
+                    <a class="nav-link-top dropdown-toggle {% if request.endpoint in ['portal_bp.news', 'portal_bp.library'] %}active{% endif %}"
+                        href="#" role="button" data-bs-toggle="dropdown">
                         Bảng tin & Thư viện
                     </a>
                     <ul class="dropdown-menu shadow-lg border-0 mt-0 rounded-4 p-2" style="min-width: 220px;">
                         {% if perms.get('p_news_lead') or perms.get('p_news_exec') %}
                         <li><a class="dropdown-item py-2 rounded-3" href="/news">Bảng tin</a></li>
                         {% endif %}
-                        {% if (perms.get('p_news_lead') or perms.get('p_news_exec')) and (perms.get('p_lib_lead') or perms.get('p_lib_exec')) %}<li><hr class="dropdown-divider opacity-10 mx-2"></li>{% endif %}
+                        {% if (perms.get('p_news_lead') or perms.get('p_news_exec')) and (perms.get('p_lib_lead') or
+                        perms.get('p_lib_exec')) %}<li>
+                            <hr class="dropdown-divider opacity-10 mx-2">
+                        </li>{% endif %}
                         {% if perms.get('p_lib_lead') or perms.get('p_lib_exec') %}
                         <li><a class="dropdown-item py-2 rounded-3" href="/library">Thư viện</a></li>
                         {% endif %}
                     </ul>
                 </div>
-                {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') %}<a href="/contacts" class="nav-link-top {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">Danh bạ</a>{% endif %}
-                
+                {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') %}<a href="/contacts"
+                    class="nav-link-top {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">Danh
+                    bạ</a>{% endif %}
+
                 <!-- Separated Data Modules -->
                 <div class="dropdown h-100 d-flex align-items-center">
-                    <a class="nav-link-top dropdown-toggle {% if request.endpoint in ['forms_bp.input_data', 'forms_bp.stats', 'forms_bp.progress'] %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
+                    <a class="nav-link-top dropdown-toggle {% if request.endpoint in ['forms_bp.input_data', 'forms_bp.stats', 'forms_bp.progress'] %}active{% endif %}"
+                        href="#" role="button" data-bs-toggle="dropdown">
                         Dữ liệu & Báo cáo
                     </a>
                     <ul class="dropdown-menu shadow-lg border-0 mt-0 rounded-4 p-2" style="min-width: 250px;">
                         {% if perms.get('p_input_lead') or perms.get('p_input_exec') %}
-                        <li><a class="dropdown-item py-2 rounded-3" href="{{ url_for('forms_bp.input_data', form_type='v1') }}"><i class="fa-solid fa-file-lines me-2 opacity-50"></i>Nhập liệu Biểu mẫu V1</a></li>
-                        <li><a class="dropdown-item py-2 rounded-3" href="{{ url_for('forms_bp.input_data', form_type='v2') }}"><i class="fa-solid fa-file-excel me-2 opacity-50"></i>Nhập liệu Biểu mẫu V2</a></li>
+                        <li><a class="dropdown-item py-2 rounded-3"
+                                href="{{ url_for('forms_bp.input_data', form_type='v1') }}"><i
+                                    class="fa-solid fa-file-lines me-2 opacity-50"></i>Nhập liệu Biểu mẫu V1</a></li>
+                        <li><a class="dropdown-item py-2 rounded-3"
+                                href="{{ url_for('forms_bp.input_data', form_type='v2') }}"><i
+                                    class="fa-solid fa-file-excel me-2 opacity-50"></i>Nhập liệu Biểu mẫu V2</a></li>
                         {% endif %}
-                        {% if (perms.get('p_input_lead') or perms.get('p_input_exec')) and (perms.get('p_stat_lead') or perms.get('p_stat_exec')) %}<li><hr class="dropdown-divider opacity-10 mx-2"></li>{% endif %}
+                        {% if (perms.get('p_input_lead') or perms.get('p_input_exec')) and (perms.get('p_stat_lead') or
+                        perms.get('p_stat_exec')) %}<li>
+                            <hr class="dropdown-divider opacity-10 mx-2">
+                        </li>{% endif %}
                         {% if perms.get('p_stat_lead') or perms.get('p_stat_exec') %}
-                        <li><a class="dropdown-item py-2 rounded-3" href="{{ url_for('forms_bp.stats') }}">Thống kê Báo cáo</a></li>
-                        <li><hr class="dropdown-divider opacity-10 mx-2"></li>
-                        <li><a class="dropdown-item py-2 rounded-3" href="{{ url_for('forms_bp.progress') }}">Tiến độ Báo cáo</a></li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="{{ url_for('forms_bp.stats') }}">Thống kê Báo
+                                cáo</a></li>
+                        <li>
+                            <hr class="dropdown-divider opacity-10 mx-2">
+                        </li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="{{ url_for('forms_bp.progress') }}">Tiến độ
+                                Báo cáo</a></li>
                         {% endif %}
                     </ul>
                 </div>
+
+                <a href="{{ url_for('shortlink_bp.manage_links') }}"
+                    class="nav-link-top {% if request.path.startswith('/links') %}active{% endif %}">QR & Link</a>
+
+                <a href="{{ url_for('convert.index') }}"
+                    class="nav-link-top {% if request.path.startswith('/convert') %}active{% endif %}">Chuyển đổi</a>
                 
                 <a href="{{ url_for('shortlink_bp.manage_links') }}" class="nav-link-top {% if request.path.startswith('/links') %}active{% endif %}">QR & Link</a>
 
-                <a href="{{ url_for('convert.index') }}" class="nav-link-top {% if request.path.startswith('/convert') %}active{% endif %}">Chuyển đổi</a>
-
                 {% if perms.get('p_form_lead') or perms.get('p_user_lead') or perms.get('p_sys_lead') %}
                 <div class="dropdown h-100 d-flex align-items-center">
-                    <a class="nav-link-top dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Hệ thống</a>
+                    <a class="nav-link-top dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Hệ
+                        thống</a>
                     <ul class="dropdown-menu shadow-lg border-0 mt-0 rounded-4 p-2" style="min-width: 240px;">
                         {% if perms.get('p_form_lead') %}
                         <li><a class="dropdown-item py-2 rounded-3" href="/admin-forms"> Thiết lập mẫu V1</a></li>
-                        <li><hr class="dropdown-divider opacity-10 mx-2"></li>
+                        <li>
+                            <hr class="dropdown-divider opacity-10 mx-2">
+                        </li>
                         <li><a class="dropdown-item py-2 rounded-3" href="/reports-v2"> Thiết lập mẫu V2</a></li>
-                        <li><hr class="dropdown-divider opacity-10 mx-2"></li>
+                        <li>
+                            <hr class="dropdown-divider opacity-10 mx-2">
+                        </li>
                         {% endif %}
                         {% if perms.get('p_user_lead') %}
                         <li><a class="dropdown-item py-2 rounded-3" href="/roles"> Tài khoản & Vai trò</a></li>
-                        <li><hr class="dropdown-divider opacity-10 mx-2"></li>
+                        <li>
+                            <hr class="dropdown-divider opacity-10 mx-2">
+                        </li>
                         {% endif %}
                         {% if perms.get('p_sys_lead') %}
-                        <li><a class="dropdown-item py-2 rounded-3" href="/admin/module-categories"> Thiết lập danh mục</a></li>
-                        <li><hr class="dropdown-divider opacity-10 mx-2"></li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="/admin/module-categories"> Thiết lập danh
+                                mục</a></li>
+                        <li>
+                            <hr class="dropdown-divider opacity-10 mx-2">
+                        </li>
                         <li><a class="dropdown-item py-2 rounded-3" href="/logs"> Nhật ký hoạt động</a></li>
-                        <li><hr class="dropdown-divider opacity-10 mx-2"></li>
-                        <li><a class="dropdown-item py-2 rounded-3" href="/admin/system/update"> Cập nhật bản vá</a></li>
-                        <li><hr class="dropdown-divider opacity-10 mx-2"></li>
+                        <li>
+                            <hr class="dropdown-divider opacity-10 mx-2">
+                        </li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="/admin/system/update"> Cập nhật bản vá</a>
+                        </li>
+                        <li>
+                            <hr class="dropdown-divider opacity-10 mx-2">
+                        </li>
                         <li><a class="dropdown-item py-2 rounded-3" href="/admin/db-tool"> Công cụ Database</a></li>
                         {% endif %}
                     </ul>
                 </div>
                 {% endif %}
             </div>
-            
+
             <div class="nav-right d-flex align-items-center gap-3">
                 <div class="dropdown">
-                    <button class="btn btn-light position-relative rounded-pill p-2" type="button" data-bs-toggle="dropdown" id="bellBtn">
+                    <button class="btn btn-light position-relative rounded-pill p-2" type="button"
+                        data-bs-toggle="dropdown" id="bellBtn">
                         <i class="fa-regular fa-bell fs-5"></i>
                         <span class="badge bg-danger notif-badge" id="notifCount">0</span>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 mt-1 rounded-4 p-2" id="notif-dropdown" style="min-width: 320px;">
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 mt-1 rounded-4 p-2"
+                        id="notif-dropdown" style="min-width: 320px;">
                         <div class="dropdown-header fw-bold text-dark fs-6 border-bottom pb-2 mb-2">THÔNG BÁO</div>
-                        <div id="notifList"><li class="p-4 text-center text-muted tiny">Không có thông báo mới</li></div>
+                        <div id="notifList">
+                            <li class="p-4 text-center text-muted tiny">Không có thông báo mới</li>
+                        </div>
                     </ul>
                 </div>
                 <div class="dropdown">
-                    <button class="user-btn dropdown-toggle btn btn-primary rounded-pill px-3 py-2 fw-medium d-flex align-items-center gap-2 border-0 shadow-sm" type="button" data-bs-toggle="dropdown">
-                        <span class="user-name-text">{{ 'Tài khoản quản trị' if (session.get('username') or '')|lower in ['root', 'admin'] else session.get('username', 'Khách') }}</span>
+                    <button
+                        class="user-btn dropdown-toggle btn btn-primary rounded-pill px-3 py-2 fw-medium d-flex align-items-center gap-2 border-0 shadow-sm"
+                        type="button" data-bs-toggle="dropdown">
+                        <span class="user-name-text">{{ 'Tài khoản quản trị' if (session.get('username') or '')|lower in
+                            ['root', 'admin'] else session.get('username', 'Khách') }}</span>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 mt-0 p-2 rounded-4" style="min-width: 180px;">
-                        <li><a class="dropdown-item py-2 rounded-3 fw-bold" href="/password"><i class="fa-solid fa-key me-2 small opacity-50"></i>Đổi mật khẩu</a></li>
-                        <li><a class="dropdown-item text-danger fw-bold py-2 rounded-3 bg-danger-subtle bg-opacity-10 mt-1" href="/logout"><i class="fa-solid fa-right-from-bracket me-2 small opacity-50"></i>Đăng xuất</a></li>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 mt-0 p-2 rounded-4"
+                        style="min-width: 180px;">
+                        <li><a class="dropdown-item py-2 rounded-3 fw-bold" href="/password"><i
+                                    class="fa-solid fa-key me-2 small opacity-50"></i>Đổi mật khẩu</a></li>
+                        <li><a class="dropdown-item text-danger fw-bold py-2 rounded-3 bg-danger-subtle bg-opacity-10 mt-1"
+                                href="/logout"><i class="fa-solid fa-right-from-bracket me-2 small opacity-50"></i>Đăng
+                                xuất</a></li>
                     </ul>
                 </div>
 
@@ -511,39 +763,41 @@
         </div>
     </nav>
 
-    <main class="main-content" style="padding-top: calc(var(--nav-height) + env(safe-area-inset-top, 0px)); min-height: 100vh;">
+    <main class="main-content"
+        style="padding-top: calc(var(--nav-height) + env(safe-area-inset-top, 0px)); min-height: 100vh;">
         <div class="container-fluid px-lg-5 py-4 h-100">
             {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    <script>
-                        document.addEventListener('DOMContentLoaded', function() {
-                            const Toast = Swal.mixin({
-                                toast: true,
-                                position: 'top-end',
-                                showConfirmButton: false,
-                                timer: 3000,
-                                timerProgressBar: true
-                            });
-                            {% for category, message in messages %}
-                                {% if category == 'success' %}
-                                    Toast.fire({ icon: 'success', title: '{{ message }}' });
-                                {% else %}
-                                    Swal.fire({ 
-                                        icon: '{{ "error" if category == "danger" else category }}', 
-                                        text: '{{ message }}',
-                                        confirmButtonColor: 'var(--bs-primary)'
-                                    });
-                                {% endif %}
-                            {% endfor %}
-                        });
-                    </script>
-                {% endif %}
+            {% if messages %}
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    const Toast = Swal.mixin({
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 3000,
+                        timerProgressBar: true
+                    });
+                    {% for category, message in messages %}
+                    {% if category == 'success' %}
+                    Toast.fire({ icon: 'success', title: '{{ message }}' });
+                    {% else %}
+                    Swal.fire({
+                        icon: '{{ "error" if category == "danger" else category }}',
+                        text: '{{ message }}',
+                        confirmButtonColor: 'var(--bs-primary)'
+                    });
+                    {% endif %}
+                    {% endfor %}
+                });
+            </script>
+            {% endif %}
             {% endwith %}
             {% block content %}{% endblock %}
         </div>
     </main>
-    
-    <div class="offcanvas offcanvas-start border-0 shadow-lg mobile-sidebar d-lg-none" tabindex="-1" id="mobileMenu" style="width: 300px;">
+
+    <div class="offcanvas offcanvas-start border-0 shadow-lg mobile-sidebar d-lg-none" tabindex="-1" id="mobileMenu"
+        style="width: 300px;">
         <div class="offcanvas-header p-4 d-flex flex-column align-items-start">
             <div class="d-flex justify-content-between w-100 align-items-center mb-3">
                 <h5 class="offcanvas-title fw-bold text-primary d-flex align-items-center gap-2">
@@ -551,81 +805,95 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
             </div>
-            
+
             <div class="sidebar-unit-info w-100">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <div class="small text-muted">Đơn vị:</div>
-                    <a href="#mobileAccountCollapse" class="text-primary text-decoration-none tiny fw-bold" data-bs-toggle="collapse">
-                         <i class="fa-solid fa-user-gear ms-1"></i>
+                    <a href="#mobileAccountCollapse" class="text-primary text-decoration-none tiny fw-bold"
+                        data-bs-toggle="collapse">
+                        <i class="fa-solid fa-user-gear ms-1"></i>
                     </a>
                 </div>
                 <div class="fw-bold text-dark mb-1">{{ session.get('unit', 'Phòng Cảnh sát QLHC về TTXH') }}</div>
-                
+
                 <div class="collapse mt-2" id="mobileAccountCollapse">
                     <div class="card card-body p-2 border-0 bg-white shadow-sm rounded-3">
                         <div class="d-flex align-items-center gap-3 mb-2 p-1">
-                            <div class="btn-circle btn-circle-sm bg-primary text-white tiny fw-bold">{{ session.get('fullname', 'AD')[:2].upper() }}</div>
+                            <div class="btn-circle btn-circle-sm bg-primary text-white tiny fw-bold">{{
+                                session.get('fullname', 'AD')[:2].upper() }}</div>
                             <div>
                                 <div class="tiny fw-bold text-dark">{{ session.get('fullname', 'User') }}</div>
                                 <div class="tiny text-muted">{{ session.get('role_name', 'Thành viên') }}</div>
                             </div>
                         </div>
-                        <a href="/password" class="list-group-item list-group-item-action py-2 px-3 border-0 rounded-2 small">
+                        <a href="/password"
+                            class="list-group-item list-group-item-action py-2 px-3 border-0 rounded-2 small">
                             <i class="fa-solid fa-key me-2 opacity-50"></i>Đổi mật khẩu
                         </a>
-                        <a href="/logout" class="list-group-item list-group-item-action py-2 px-3 border-0 rounded-2 small text-danger">
+                        <a href="/logout"
+                            class="list-group-item list-group-item-action py-2 px-3 border-0 rounded-2 small text-danger">
                             <i class="fa-solid fa-right-from-bracket me-2 opacity-50"></i>Đăng xuất
                         </a>
                     </div>
                 </div>
-                
+
             </div>
         </div>
-        
+
         <div class="offcanvas-body p-0">
             <div class="list-group">
                 {% if perms.get('p_dash_lead') or perms.get('p_dash_exec') %}
-                <a href="/admin" class="list-group-item py-3 px-4 {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">
+                <a href="/admin"
+                    class="list-group-item py-3 px-4 {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">
                     <i class="fa-solid fa-house-chimney me-3 opacity-75"></i>Tổng quan
                 </a>
                 {% endif %}
-                
+
                 {% if perms.get('p_task_lead') or perms.get('p_task_exec') %}
-                <a href="/tasks" class="list-group-item py-3 px-4 {% if request.endpoint == 'tasks_bp.index' %}active{% endif %}">
+                <a href="/tasks"
+                    class="list-group-item py-3 px-4 {% if request.endpoint == 'tasks_bp.index' %}active{% endif %}">
                     <i class="fa-solid fa-list-check me-3 opacity-75"></i>Công việc
                 </a>
                 {% endif %}
-                
-                <a href="/ranking" class="list-group-item py-3 px-4 {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">
+
+                <a href="/ranking"
+                    class="list-group-item py-3 px-4 {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">
                     <i class="fa-solid fa-ranking-star me-3 opacity-75"></i>Xếp hạng
                 </a>
 
                 <!-- Group: Bảng tin và Thư viện -->
-                <a href="#mobileNewsLibCollapse" class="list-group-item py-3 px-4 d-flex justify-content-between align-items-center" data-bs-toggle="collapse">
+                <a href="#mobileNewsLibCollapse"
+                    class="list-group-item py-3 px-4 d-flex justify-content-between align-items-center"
+                    data-bs-toggle="collapse">
                     <span><i class="fa-solid fa-newspaper me-3 opacity-75"></i>Bảng tin & Thư viện</span>
                     <i class="fa-solid fa-chevron-down small opacity-50 transition-transform"></i>
                 </a>
                 <div class="collapse" id="mobileNewsLibCollapse">
                     {% if perms.get('p_news_lead') or perms.get('p_news_exec') %}
-                    <a href="/news" class="list-group-item py-2 ps-5 {% if request.endpoint == 'portal_bp.news' %}active{% endif %}">
+                    <a href="/news"
+                        class="list-group-item py-2 ps-5 {% if request.endpoint == 'portal_bp.news' %}active{% endif %}">
                         <i class="fa-solid fa-caret-right me-2 small opacity-50"></i>Bảng tin
                     </a>
                     {% endif %}
                     {% if perms.get('p_lib_lead') or perms.get('p_lib_exec') %}
-                    <a href="/library" class="list-group-item py-2 ps-5 {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">
+                    <a href="/library"
+                        class="list-group-item py-2 ps-5 {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">
                         <i class="fa-solid fa-caret-right me-2 small opacity-50"></i>Thư viện
                     </a>
                     {% endif %}
                 </div>
 
                 {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') %}
-                <a href="/contacts" class="list-group-item py-3 px-4 {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">
+                <a href="/contacts"
+                    class="list-group-item py-3 px-4 {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">
                     <i class="fa-solid fa-address-book me-3 opacity-75"></i>Danh bạ
                 </a>
                 {% endif %}
 
                 <!-- Group: Dữ liệu và Báo cáo -->
-                <a href="#mobileDataReportCollapse" class="list-group-item py-3 px-4 d-flex justify-content-between align-items-center" data-bs-toggle="collapse">
+                <a href="#mobileDataReportCollapse"
+                    class="list-group-item py-3 px-4 d-flex justify-content-between align-items-center"
+                    data-bs-toggle="collapse">
                     <span><i class="fa-solid fa-chart-line me-3 opacity-75"></i>Dữ liệu & Báo cáo</span>
                     <i class="fa-solid fa-chevron-down small opacity-50 transition-transform"></i>
                 </a>
@@ -659,7 +927,9 @@
 
                 <!-- Group: Hệ thống -->
                 {% if perms.get('p_form_lead') or perms.get('p_user_lead') or perms.get('p_sys_lead') %}
-                <a href="#mobileSystemCollapse" class="list-group-item py-3 px-4 d-flex justify-content-between align-items-center text-primary fw-bold" data-bs-toggle="collapse">
+                <a href="#mobileSystemCollapse"
+                    class="list-group-item py-3 px-4 d-flex justify-content-between align-items-center text-primary fw-bold"
+                    data-bs-toggle="collapse">
                     <span><i class="fa-solid fa-gears me-3 opacity-75"></i>Quản trị hệ thống</span>
                     <i class="fa-solid fa-chevron-down small opacity-50 transition-transform"></i>
                 </a>
@@ -681,7 +951,7 @@
                 {% endif %}
             </div>
         </div>
-        
+
         <div class="offcanvas-footer p-4 border-top bg-light bg-opacity-50">
             <div class="text-center text-muted tiny">HỆ THỐNG PC06</div>
         </div>
@@ -718,7 +988,7 @@
             try {
                 const r = await fetch('/api/notifications');
                 const d = await r.json();
-                if(!Array.isArray(d)) return;
+                if (!Array.isArray(d)) return;
                 const unread = d.filter(x => !x.is_read).length;
                 const badge = document.getElementById('notifCount');
                 if (unread > 0) { badge.innerText = unread; badge.style.display = 'block'; }
@@ -753,7 +1023,7 @@
         // Clock & Weather
         function updateClock() {
             const el = document.getElementById('dashboard-clock');
-            if(!el) return;
+            if (!el) return;
             const now = new Date();
             const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
             const d = days[now.getDay()];
@@ -769,7 +1039,7 @@
 
         async function updateWeather() {
             const el = document.getElementById('dashboard-weather');
-            if(!el) return;
+            if (!el) return;
             try {
                 const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=21.82&longitude=105.21&current=temperature_2m,weather_code&timezone=Asia%2FBangkok');
                 const d = await r.json();
@@ -788,7 +1058,7 @@
         setInterval(updateWeather, 600000);
 
         // Modern Confirm Helper
-        window.ModernConfirm = function(title, text, icon, confirmText, callback) {
+        window.ModernConfirm = function (title, text, icon, confirmText, callback) {
             Swal.fire({
                 title: title,
                 text: text,
@@ -806,7 +1076,7 @@
         };
 
         // --- SECURITY: AUTO LOGOUT SYSTEM (30 MINS) ---
-        (function() {
+        (function () {
             const TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
             const WARNING_MS = 60 * 1000;      // 1 minute warning
             const SYNC_KEY = 'pc06_last_activity';
@@ -839,7 +1109,7 @@
                     if (!warningVisible && !Swal.isVisible()) {
                         warningVisible = true;
                         let timeLeft = Math.round((TIMEOUT_MS - elapsed) / 1000);
-                        
+
                         Swal.fire({
                             title: 'Phiên làm việc sắp hết hạn!',
                             html: `Bạn đã không hoạt động trong một thời gian dài. Hệ thống sẽ tự động đăng xuất sau <b>${timeLeft}</b> giây để bảo mật.`,
@@ -867,7 +1137,7 @@
                                 // Refresh activity
                                 updateActivity();
                                 // Optional: ping a small API to keep server session alive
-                                fetch('/api/notifications'); 
+                                fetch('/api/notifications');
                                 warningVisible = false;
                             } else if (result.isDismissed && result.dismiss === Swal.DismissReason.timer) {
                                 window.location.href = '/logout';
@@ -886,4 +1156,5 @@
         })();
     </script>
 </body>
+
 </html>
