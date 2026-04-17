@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Offline Launcher for PhanMemPC06_Pro
-Entry point cho PyInstaller - khởi động Flask server
+Entry point for PyInstaller - start Flask server
+Compatible with Python 3.9
 """
 
 import os
@@ -12,48 +13,51 @@ import webbrowser
 import time
 from datetime import datetime
 
-# Fix UTF-8 encoding for console output
+# Fix UTF-8 encoding for console output - MUST be first
 if sys.platform == 'win32':
-    import locale
-    # Set UTF-8 mode
+    # Set environment before any I/O
     os.environ['PYTHONIOENCODING'] = 'utf-8'
+    os.environ['PYTHONUTF8'] = '1'
+    
+    # Reconfigure stdout/stderr early
     try:
-        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
-    except:
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+    except Exception:
         pass
 
-# Xác định thư mục của executable (khi đóng gói) hoặc script (khi chạy dev)
+# Determine executable directory (when packaged) or script location (when running dev)
 if getattr(sys, 'frozen', False):
-    # Đang chạy từ executable
+    # Running from executable
     APP_DIR = sys._MEIPASS
     BASE_DIR = os.path.dirname(sys.executable)
 else:
-    # Đang chạy từ source
+    # Running from source
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     APP_DIR = BASE_DIR
 
-# Đảm bảo các thư mục cần thiết tồn tại
+# Ensure required directories exist
 def ensure_dirs():
     dirs = ['uploads', 'backups', 'logs', 'task_files', 'library_files', 'tmp']
     for d in dirs:
         path = os.path.join(BASE_DIR, d)
         if not os.path.exists(path):
             os.makedirs(path, exist_ok=True)
-            print(f"[INIT] Tạo thư mục: {d}")
+            print(f"[INIT] Created directory: {d}")
 
-# Kiểm tra và tạo database nếu chưa có
+# Check and create database if not exists
 def init_database():
     db_path = os.path.join(BASE_DIR, 'pc06_system.db')
     if not os.path.exists(db_path):
-        print("[INIT] Database chưa tồn tại. Khởi tạo...")
-        # Import và chạy init_db
+        print("[INIT] Database not exists. Initializing...")
+        # Import and run init_db
         sys.path.insert(0, BASE_DIR)
         try:
             from models import db
             from utils import init_db
             
-            # Tạo Flask app tạm để init DB
+            # Create temporary Flask app to init DB
             from flask import Flask
             app = Flask(__name__)
             app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
@@ -62,32 +66,32 @@ def init_database():
             
             with app.app_context():
                 init_db(app)
-                print("[OK] Database da duoc khoi tao thanh cong!")
+                print("[OK] Database initialized successfully!")
                 return True
         except Exception as e:
-            print(f"[ERROR] Lỗi khởi tạo database: {e}")
+            print(f"[ERROR] Database init error: {e}")
             return False
     return True
 
-# Xóa màn hình console
+# Clear console screen
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
-# Hiển thị banner (ASCII-safe)
+# Display banner (ASCII-safe)
 def show_banner():
     clear_screen()
     print("=" * 60)
-    print("   PHAN MEM QUAN LY PC06 - PHIEN BAN OFFLINE")
+    print("   PHAN MEM QUAN LY PC06 - OFFLINE VERSION")
     print("=" * 60)
     print()
-    print("   Phien ban: 3.5.0 (Offline)")
-    print(f"   Thoi gian khoi dong: {datetime.now().strftime('%H:%M:%S %d/%m/%Y')}")
-    print(f"   Thu muc du lieu: {BASE_DIR}")
+    print("   Version: 3.5.0 (Offline)")
+    print(f"   Start time: {datetime.now().strftime('%H:%M:%S %d/%m/%Y')}")
+    print(f"   Data directory: {BASE_DIR}")
     print()
     print("=" * 60)
     print()
 
-# Lay dia chi IP local
+# Get local IP address
 def get_local_ip():
     import socket
     try:
@@ -99,43 +103,43 @@ def get_local_ip():
     except:
         return "127.0.0.1"
 
-# Khởi động Flask server
+# Start Flask server
 def start_server():
-    print("[INFO] Dang khoi dong server...")
+    print("[INFO] Starting server...")
     print()
     
-    # Thêm BASE_DIR vào sys.path để import modules
+    # Add BASE_DIR to sys.path for imports
     if BASE_DIR not in sys.path:
         sys.path.insert(0, BASE_DIR)
     
     # Import Flask app
     try:
-        # Doc app.py va thiet lap duong dan
+        # Set working directory
         os.chdir(BASE_DIR)
         
-        # Import ung dung
+        # Import application
         import app as flask_app
         
-        print("[OK] Ung dung da duoc load thanh cong!")
+        print("[OK] Application loaded successfully!")
         print()
         print("-" * 60)
-        print("   TRUY CẬP ỨNG DỤNG:")
+        print("   APPLICATION ACCESS:")
         print(f"   - Local:   http://localhost:5000")
         print(f"   - Network: http://{get_local_ip()}:5000")
         print("-" * 60)
         print()
-        print("Nhấn Ctrl+C để dừng server")
+        print("Press Ctrl+C to stop server")
         print()
         
-        # Chạy server với waitress (production-ready)
+        # Run server with waitress (production-ready)
         from waitress import serve
         serve(flask_app.app, host='0.0.0.0', port=5000)
         
     except Exception as e:
-        print(f"[ERROR] Lỗi khởi động server: {e}")
+        print(f"[ERROR] Server startup error: {e}")
         import traceback
         traceback.print_exc()
-        input("\nNhấn Enter để thoát...")
+        input("\nPress Enter to exit...")
         sys.exit(1)
 
 # Main
@@ -144,6 +148,6 @@ if __name__ == '__main__':
     ensure_dirs()
     
     if not init_database():
-        print("[WARNING] Tiếp tục khởi động server (database sẽ được tạo khi truy cập)...")
+        print("[WARNING] Continue starting server (DB will be created on first access)...")
     
     start_server()

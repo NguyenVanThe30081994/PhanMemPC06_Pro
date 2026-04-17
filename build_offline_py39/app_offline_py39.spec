@@ -1,7 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
 PyInstaller spec file for PhanMemPC06_Pro - Offline Standalone Version
-Chạy: pyinstaller app_offline.spec --clean --noconfirm
+Build: pyinstaller app_offline_py39.spec --clean --noconfirm
+Python 3.9 Compatible
 """
 
 import os
@@ -9,16 +10,23 @@ import sys
 import shutil
 from PyInstaller.utils.hooks import collect_all, collect_submodules, collect_data_files
 
-# Collect data files for numpy and pandas (if available at runtime)
-numpy_data_files = collect_data_files('numpy')
-pandas_data_files = collect_data_files('pandas')
+# Collect all data files for core dependencies
+try:
+    numpy_data_files = collect_data_files('numpy')
+except:
+    numpy_data_files = []
+
+try:
+    pandas_data_files = collect_data_files('pandas')
+except:
+    pandas_data_files = []
 
 block_cipher = None
 
-# Đường dẫn gốc của project
+# Project root directory
 ROOT_DIR = os.path.abspath(os.path.dirname(SPEC))
 
-# Các thư mục cần đóng gói
+# Directories to include
 DATA_DIRS = [
     ('templates', 'templates'),
     ('static', 'static'),
@@ -26,7 +34,7 @@ DATA_DIRS = [
     ('v2_logic_configs', 'v2_logic_configs'),
 ]
 
-# Các file cần đóng gói
+# Individual files to include
 DATA_FILES = [
     ('models.py', '.'),
     ('utils.py', '.'),
@@ -42,22 +50,22 @@ DATA_FILES = [
     ('requirements.txt', '.'),
 ]
 
-# Tạo danh sách datas cho PyInstaller
+# Create datas list for PyInstaller
 datas = []
 
-# Thêm thư mục
+# Add directories
 for src, dst in DATA_DIRS:
     src_path = os.path.join(ROOT_DIR, src)
     if os.path.exists(src_path):
         datas.append((src_path, dst))
 
-# Thêm file
+# Add individual files
 for src, dst in DATA_FILES:
     src_path = os.path.join(ROOT_DIR, src)
     if os.path.exists(src_path):
         datas.append((src_path, dst))
 
-# Hidden imports - các module cần thiết
+# Hidden imports - core modules needed
 hiddenimports = [
     # Flask core
     'flask',
@@ -95,7 +103,6 @@ hiddenimports = [
     'openpyxl.cell',
     'openpyxl.styles',
     'openpyxl.utils',
-    # Note: pandas/numpy handled lazily at runtime with try/except
     
     # Image processing
     'PIL',
@@ -103,7 +110,7 @@ hiddenimports = [
     'PIL.ImageDraw',
     'PIL.ImageFont',
     
-    # Utils
+    # Standard library
     'logging',
     'logging.handlers',
     'json',
@@ -143,7 +150,7 @@ hiddenimports = [
     'PIL.ImageQt',
 ]
 
-# Collect submodules - skip pandas/numpy since they're handled lazily
+# Collect submodules for major packages
 for module in ['flask', 'werkzeug', 'sqlalchemy', 'openpyxl', 'PIL', 'jinja2', 'markupsafe', 'itsdangerous', 'click', 'blinker', 'dateutil', 'pytz']:
     try:
         submodules = collect_submodules(module)
@@ -151,16 +158,17 @@ for module in ['flask', 'werkzeug', 'sqlalchemy', 'openpyxl', 'PIL', 'jinja2', '
     except:
         pass
 
-# Note: pandas/numpy handled at runtime via try/except ImportError
+# Add numpy/pandas data files
+try:
+    datas = datas + list(numpy_data_files) + list(pandas_data_files)
+except:
+    pass
 
-# Also add numpy data files to datas
-datas = datas + list(numpy_data_files) + list(pandas_data_files)
-
-# No binaries needed since pandas/numpy handled lazily at runtime
+# No binaries needed for this setup
 binaries = []
 
 a = Analysis(
-    ['offline_launcher.py'],  # Entry point
+    ['offline_launcher.py'],
     pathex=[ROOT_DIR],
     binaries=binaries,
     datas=datas,
@@ -186,18 +194,18 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='PhanMemPC06_Server_v2',
+    name='PhanMemPC06_Server',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,  # Hiển thị console để thấy logs
+    console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,  # Có thể thêm icon sau
+    icon=None,
 )
 
 coll = COLLECT(
@@ -208,5 +216,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='PhanMemPC06_Server_v2',
+    name='PhanMemPC06_Server',
 )

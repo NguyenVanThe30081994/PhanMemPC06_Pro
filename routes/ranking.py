@@ -3,7 +3,12 @@ import io
 import re
 
 import openpyxl
-import pandas as pd
+try:
+    import pandas as pd
+    HAS_PANDAS = True
+except ImportError:
+    HAS_PANDAS = False
+    pd = None
 from flask import Blueprint, jsonify, render_template, request, send_file
 from utils import normalize_unit_name, remove_accents, safe_float, render_auto_template
 
@@ -56,6 +61,9 @@ def get_values(indicator_id):
 
 @ranking_bp.route('/ranking/template')
 def download_template():
+    if not HAS_PANDAS:
+        return "Pandas chưa được cài đặt. Vui lòng cài đặt: pip install pandas", 500
+    
     units = RankingUnit.query.all()
     indicators = RankingIndicator.query.all()
 
@@ -132,6 +140,9 @@ except ImportError:
 
 @ranking_bp.route('/ranking/import', methods=['POST'])
 def import_ranking_data():
+    if not HAS_PANDAS:
+        return jsonify({"success": False, "message": "Pandas chưa được cài đặt. Vui lòng cài đặt: pip install pandas"}), 500
+    
     if 'file' not in request.files:
         return jsonify({"success": False, "message": "Không tìm thấy file!"}), 400
 
@@ -302,6 +313,9 @@ def import_ranking_data():
 
 @ranking_bp.route('/ranking/export')
 def export_ranking():
+    if not HAS_PANDAS:
+        return "Pandas chưa được cài đặt. Vui lòng cài đặt: pip install pandas", 500
+    
     leaderboard = calculate_leaderboard()
 
     data = []

@@ -1,6 +1,12 @@
 from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, jsonify, current_app, Response, send_from_directory
 from models import db, User, AppRole, MasterData, SystemLog, NewsCategory, LibraryField, ContactGroup, ReportData, Task, NewsDoc, DocumentLib, ReportConfig, ReportTemplateV2, ReportSubmissionV2, ProfessionalUnit, ContactRole, Contact, CategoryGroup, CategoryItem
-import os, json, shutil, zipfile, io, pandas as pd, sqlite3, subprocess
+import os, json, shutil, zipfile, io, sqlite3, subprocess
+try:
+    import pandas as pd
+    HAS_PANDAS = True
+except ImportError:
+    HAS_PANDAS = False
+    pd = None
 from datetime import datetime, timedelta
 from utils import log_action, clear_logs, init_db, render_auto_template as render_template
 
