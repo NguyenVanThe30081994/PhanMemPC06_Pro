@@ -156,6 +156,7 @@ from routes.reports_v2 import reports_v2_bp
 from routes.shortlink import shortlink_bp
 from routes.excel_builder import excel_builder_bp
 from routes.zalo import zalo_bp
+from routes.excel_api import excel_api
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
@@ -168,6 +169,7 @@ app.register_blueprint(reports_v2_bp)
 app.register_blueprint(shortlink_bp)
 app.register_blueprint(excel_builder_bp)
 app.register_blueprint(zalo_bp)
+app.register_blueprint(excel_api)
 
 @app.before_request
 def check_auth():
