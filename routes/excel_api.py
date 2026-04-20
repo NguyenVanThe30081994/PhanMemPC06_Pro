@@ -3,7 +3,7 @@
 Excel API - Nhan du lieu tu Luckysheet/Univer
 """
 from flask import Blueprint, request, jsonify, session, redirect, url_for
-from models import db, FormConfig, FormSubmission
+from models import db, ReportConfig, ReportData
 from datetime import datetime
 import json
 from utils import normalize_unit_name
@@ -48,7 +48,7 @@ def import_luckysheet():
         config_id = data.get('config_id')
         form_config = None
         if config_id:
-            form_config = FormConfig.query.get(config_id)
+            form_config = ReportConfig.query.get(config_id)
         
         # Extract data based on structure
         submissions = []
@@ -124,7 +124,7 @@ def preview_template(config_id):
         return redirect(url_for('auth_bp.login'))
         
     try:
-        config = FormConfig.query.get(config_id)
+        config = ReportConfig.query.get(config_id)
         if not config:
             return jsonify({'error': 'Khong tim thay cau hinh'}), 404
         
