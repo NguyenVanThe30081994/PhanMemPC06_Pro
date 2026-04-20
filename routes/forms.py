@@ -685,6 +685,8 @@ def export_form_progress(ftype, fid):
 @forms_bp.route('/stats/export', methods=['GET'])
 def stats_export():
     """Export statistics as native Excel for Luckysheet rendering (No HTML)."""
+    current_app.logger.info("STATS_EXPORT STARTED - rid: %s, v2: %s", request.args.get('rid'), request.args.get('v2'))
+    
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
     
