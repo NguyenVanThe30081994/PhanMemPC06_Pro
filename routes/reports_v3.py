@@ -19,7 +19,7 @@ def _render_template(name, **kwargs):
 @reports_v3_bp.route('/reports-v3/dashboard')
 def dashboard():
     """Trang chủ quản lý biểu mẫu V3 (Dùng Luckysheet)"""
-    if not session.get('user_id'):
+    if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
         
     templates = ReportTemplateV3.query.order_by(ReportTemplateV3.created_at.desc()).all()
@@ -125,7 +125,7 @@ def config_save(tid):
 @reports_v3_bp.route('/reports-v3/input/<int:tid>')
 def input_form(tid):
     """Giao diện Cán bộ nhập liệu (Lock)"""
-    if not session.get('user_id'):
+    if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
         
     template = db.session.get(ReportTemplateV3, tid)
