@@ -695,9 +695,15 @@ def stats_export():
         return "Missing report ID", 400
     
     try:
-        # Simple test - just create an empty workbook
-        from openpyxl import Workbook
-        wb = Workbook()
+        # Debug: test openpyxl import explicit
+        try:
+            import openpyxl as opx
+            wb = opx.Workbook()
+        except ImportError as imp_err:
+            current_app.logger.error(f"Import error openpyxl: {imp_err}")
+            return f"Missing module: openpyxl - {imp_err}", 500
+        
+        wb = opx.Workbook()
         ws = wb.active
         ws.title = "Test"
         ws.append(["Test", "OK"])
@@ -711,4 +717,7 @@ def stats_export():
         import traceback
         error_msg = traceback.format_exc()
         current_app.logger.error(f"Stats export error: {e}\n{error_msg}")
-        return f"Export error: {str(e)[:500]}\n\n{error_msg[:500]}", 500
+        # Return detailed error for debugging
+        import sys
+        py_version = sys.version
+        return f"Error: {str(e)}\nPython: {py_version}\nTrace: {error_msg[:300]}", 500
