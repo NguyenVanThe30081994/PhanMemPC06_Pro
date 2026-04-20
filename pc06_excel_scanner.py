@@ -1,15 +1,37 @@
 # -*- coding: utf-8 -*-
-# Excel Scanner for V2 Reports - Quét cấu trúc Excel
+# Excel Scanner for V2 Reports - Quet cau truc Excel
 import io
+import sys
+
+# Fix UTF-8 encoding for Excel reading
+if sys.version_info[0] >= 3:
+    import codecs
+    sys.stdout = sys.stderr = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+else:
+    reload(sys)
+    sys.setdefaultencoding('utf-8')
+
 import openpyxl
 from openpyxl.utils import get_column_letter, column_index_from_string, range_boundaries
+
+
+def _load_workbook_utf8(buffer, **kwargs):
+    """Load workbook with UTF-8 encoding support"""
+    kwargs.setdefault('read_only', False)
+    kwargs.setdefault('keep_vba', True)
+    # Try with rich_text for better UTF-8 handling
+    try:
+        return openpyxl.load_workbook(buffer, rich_text=True, **kwargs)
+    except:
+        return openpyxl.load_workbook(buffer, **kwargs)
+
 
 def scan_excel_structure(excel_blob):
     """
     Quét cấu trúc file Excel và trả về gợi ý cấu hình.
     Chỉ quét vùng có dữ liệu thực tế (used range), không quét vùng trắng.
     """
-    wb = openpyxl.load_workbook(io.BytesIO(excel_blob), data_only=False)
+    wb = _load_workbook_utf8(io.BytesIO(excel_blob))
     ws = wb.active
     
     # Tìm vùng thực tế có dữ liệu (used range)

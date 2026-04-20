@@ -27,7 +27,11 @@ def admin_forms():
             file_blob = file.read()
             try:
                 import openpyxl as _openpyxl
-                wb = _openpyxl.load_workbook(io.BytesIO(file_blob))
+                # Load with UTF-8 support
+                try:
+                    wb = _openpyxl.load_workbook(io.BytesIO(file_blob), rich_text=True)
+                except:
+                    wb = _openpyxl.load_workbook(io.BytesIO(file_blob))
                 ws = wb.active
 
                 # Build merge map: (row, col) -> value of the top-left cell of that merge

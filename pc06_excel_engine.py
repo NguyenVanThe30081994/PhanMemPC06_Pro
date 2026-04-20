@@ -12,7 +12,11 @@ class ExcelEngineV2:
 
     @staticmethod
     def parse_template(file_path, input_marker_hex="FFE0F2FE"):
-        wb = openpyxl.load_workbook(file_path, data_only=False)
+        # Load with UTF-8 support
+        try:
+            wb = openpyxl.load_workbook(file_path, rich_text=True, data_only=False)
+        except:
+            wb = openpyxl.load_workbook(file_path, data_only=False)
         metadata = {
             "sheets": [],
             "parser_version": "3.0"  # Incremented for region support

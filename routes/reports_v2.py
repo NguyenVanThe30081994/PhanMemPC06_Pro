@@ -671,7 +671,11 @@ def submit_data():
 
     try:
         import openpyxl
-        wb = openpyxl.load_workbook(io.BytesIO(version.excel_file_blob), data_only=True)
+        # Load with UTF-8 support
+        try:
+            wb = openpyxl.load_workbook(io.BytesIO(version.excel_file_blob), rich_text=True, data_only=True)
+        except:
+            wb = openpyxl.load_workbook(io.BytesIO(version.excel_file_blob), data_only=True)
 
         meta_data = {}
         try:
@@ -757,7 +761,11 @@ def export_submission(sid):
 
     try:
         import openpyxl
-        wb = openpyxl.load_workbook(io.BytesIO(version.excel_file_blob))
+        # Load with UTF-8 support
+        try:
+            wb = openpyxl.load_workbook(io.BytesIO(version.excel_file_blob), rich_text=True)
+        except:
+            wb = openpyxl.load_workbook(io.BytesIO(version.excel_file_blob))
 
         ws_by_title = {ws.title: ws for ws in wb.worksheets}
         for val in submission.values:

@@ -275,7 +275,11 @@ def build_stats_table_html(file_blob, config, submissions):
 
     try:
         # Use data_only=True to get cached formula values
-        wb = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=True)
+        # Load with UTF-8 support
+        try:
+            wb = openpyxl.load_workbook(io.BytesIO(file_blob), rich_text=True, data_only=True)
+        except:
+            wb = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=True)
         ws = wb.active
     except Exception as e:
         return Markup(f'<p class="text-danger">Lỗi đọc file Excel: {e}</p>')
@@ -398,7 +402,11 @@ def build_v2_stats_table_html(file_blob, metadata, all_values):
         return Markup('<p class="text-muted">Không có file Excel gốc.</p>')
 
     try:
-        wb = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=True)
+        # Load with UTF-8 support
+        try:
+            wb = openpyxl.load_workbook(io.BytesIO(file_blob), rich_text=True, data_only=True)
+        except:
+            wb = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=True)
     except Exception as e:
         return Markup(f'<p class="text-danger">Lỗi đọc file Excel: {e}</p>')
 
