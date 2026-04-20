@@ -146,7 +146,7 @@ def preview_page():
     Trang Preview Excel bang Luckysheet
     """
     if not session.get('uid'):
-        return redirect(url_for('auth_bp.login'))
+        return redirect('/login')
         
     from flask import render_template
     config_id = request.args.get('config_id', type=int)
