@@ -97,14 +97,15 @@
                         </div>
                     </div>
 
-                    <!-- Native Excel Viewer -->
+                    <!-- Native Excel Viewer - Live Luckysheet Render -->
                     <div id="excel-render-container" class="animate__animated animate__zoomIn border-primary shadow-sm" style="display: block; height: 800px; border-radius: 12px; border: 2px solid var(--primary); position: relative; overflow: hidden;">
                         <div id="luckysheet-stats-container" style="margin:0px;padding:0px;position:absolute;width:100%;height:100%;left:0px;top:0px;"></div>
-                        <div id="luckysheet-loading" style="position: absolute; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.9); z-index: 10;">
+                        <div id="luckysheet-loading" style="position: absolute; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.95); z-index: 10;">
                             <div class="text-center">
                                 <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
                                 <h5 class="fw-bold text-primary mb-1">Đang trích xuất Dữ liệu Kế toán gốc...</h5>
-                                <div class="small text-muted">Bảng tính sẽ dựa trên File xuất Excel chuẩn của hệ thống</div>
+                                <div class="small text-muted">Vui lòng chờ trong giây lát</div>
+                                <div id="loading-status" class="mt-2 small text-info"></div>
                             </div>
                         </div>
                     </div>
@@ -149,7 +150,7 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Automatically load Excel if any template is active
+        // Auto-load when page loads with existing rid param
         loadLuckysheet();
     });
 
@@ -170,16 +171,26 @@
         const v2 = urlParams.get('v2');
         if (!rid) return;
 
+        document.getElementById('loading-status').textContent = 'Đang kết nối server...';
         let fetchUrl = `/stats/export?rid=${rid}${v2 ? '&v2=1' : ''}`;
         
-        // Fetch the generated EXCEL file
         fetch(fetchUrl)
-            .then(res => res.blob())
+            .then(res => {
+                if (!res.ok) {
+                    return res.text().then(text => { throw new Error(`Lỗi ${res.status}: ${text}`) });
+                }
+                document.getElementById('loading-status').textContent = 'Đang tải dữ liệu...';
+                return res.blob();
+            })
             .then(blob => {
+                if (blob.size === 0) throw new Error('File rỗng');
+                document.getElementById('loading-status').textContent = 'Đang chuyển đổi định dạng...';
                 const file = new File([blob], "thong_ke.xlsx", {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
                 LuckyExcel.transformExcelToLucky(file, function(exportJson, luckysheetfile) {
                     document.getElementById('luckysheet-loading').style.display = 'none';
-                    if (exportJson.sheets == null || exportJson.sheets.length == 0) return;
+                    if (!exportJson || !exportJson.sheets || exportJson.sheets.length === 0) {
+                        throw new Error('Không có dữ liệu');
+                    }
                     window.luckysheet.destroy();
                     window.luckysheet.create({
                         container: 'luckysheet-stats-container',
@@ -192,7 +203,9 @@
                     });
                 });
             }).catch(err => {
-                document.getElementById('luckysheet-loading').innerHTML = '<div class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-2"></i>Không thể tải dữ liệu Excel.<br><small>'+err+'</small></div>';
+                document.getElementById('loading-status').textContent = '';
+                document.getElementById('luckysheet-loading').innerHTML = 
+                    '<div class="text-danger fw-bold p-3"><i class="fa-solid fa-triangle-exclamation me-2"></i>Lỗi: '+err.message+'</div>';
             });
     }
 </script>

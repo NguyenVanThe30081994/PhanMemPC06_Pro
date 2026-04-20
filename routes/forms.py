@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, send_file, jsonify
+from flask import current_app
 from models import db, ReportConfig, ReportData, User, ReportTemplateV2, ReportVersionV2, ReportSubmissionV2, ReportValueV2, AppRole
 import json, io
 from datetime import datetime
@@ -801,5 +802,6 @@ def stats_export():
     
     except Exception as e:
         import traceback
-        traceback.print_exc()
-        return f"Export error: {e}", 500
+        error_msg = traceback.format_exc()
+        current_app.logger.error(f"Stats export error: {e}\n{error_msg}")
+        return f"Export error: {str(e)[:200]}", 500
