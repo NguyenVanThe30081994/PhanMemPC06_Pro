@@ -721,37 +721,36 @@ def stats_export():
             from flask import Response
             return Response(content, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": f"attachment; filename={filename}"})
         else:
-            # === V1: LẤY FILE EXCEL GỐC ===
-            # Tìm file Excel từ template V1 (ReportTemplate hoặc từ submissions)
-            from models import ReportTemplateV1
+            # === V1: LẤY FILE EXCEL TỪ DỮ LIỆU ĐỘC GIẢ ===
+            # V1 không có file Excel gốc như V2, tạo mới từ submissions
+            import openpyxl as opx
+            from openpyxl.styles import Font, Alignment
             
-            # Thử tìm template V1
-            template_v1 = db.session.get(ReportTemplateV1, rid)
-            if template_v1 and hasattr(template_v1, 'file_blob') and template_v1.file_blob:
-                # Dùng template file
-                content = template_v1.file_blob
-                filename = f"ThongKe_{template_v1.name}_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
-            else:
-                # Thử từ ReportConfig (V1 cũ)
-                config = db.session.get(ReportConfig, rid)
-                if config and hasattr(config, 'file_blob') and config.file_blob:
-                    content = config.file_blob
-                    filename = f"ThongKe_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
-                else:
-                    # Tạo mới từ dữ liệu submissions
-                    import openpyxl as opx
-                    wb = opx.Workbook()
-                    ws = wb.active
-                    ws.title = "Thống kê"
-                    ws.append(["STT", "Đơn vị", "Người nộp", "Ngày nộp", "Trạng thái"])
-                    raw = db.session.query(ReportData, User).join(User, ReportData.user_id == User.id).filter(ReportData.report_id == rid).all()
-                    for i, (d, u) in enumerate(raw, 1):
-                        ws.append([i, u.unit_area or u.fullname, u.fullname, d.report_date.strftime('%d/%m/%Y') if d.report_date else '', 'Đã nộp'])
-                    output = io.BytesIO()
-                    wb.save(output)
-                    output.seek(0)
-                    content = output.getvalue()
-                    filename = f"ThongKe_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
+            wb = opx.Workbook()
+            ws = wb.active
+            ws.title = "Thống kê"
+            
+            # Header
+            ws.append(["STT", "Đơn vị", "Người nộp", "Ngày nộp", "Trạng thái"])
+            header_font = Font(bold=True, size=12)
+            header_align = Alignment(horizontal="center", vertical="center")
+            for col in range(1, 6):
+                ws.cell(1, col).font = header_font
+                ws.cell(1, col).alignment = header_align
+            
+            # Lấy dữ liệu từ ReportData
+            raw = db.session.query(ReportData, User).join(User, ReportData.user_id == User.id).filter(ReportData.report_id == rid).all()
+            
+            for i, (d, u) in enumerate(raw, 1):
+                ws.append([i, u.unit_area or u.fullname, u.fullname, d.report_date.strftime('%d/%m/%Y') if d.report_date else '', 'Đã nộp'])
+            
+            # Lưu và trả về
+            output = io.BytesIO()
+            wb.save(output)
+            output.seek(0)
+            content = output.getvalue()
+            
+            filename = f"ThongKe_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
             
             from flask import Response
             return Response(content, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": f"attachment; filename={filename}"})
