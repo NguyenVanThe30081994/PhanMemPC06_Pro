@@ -1,16 +1,6 @@
 # -*- coding: utf-8 -*-
-# Excel Scanner for V2 Reports - Quet cau truc Excel
+# Excel Scanner for V2 Reports
 import io
-import sys
-
-# Fix UTF-8 encoding for Excel reading
-if sys.version_info[0] >= 3:
-    import codecs
-    sys.stdout = sys.stderr = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
-else:
-    reload(sys)
-    sys.setdefaultencoding('utf-8')
-
 import openpyxl
 from openpyxl.utils import get_column_letter, column_index_from_string, range_boundaries
 

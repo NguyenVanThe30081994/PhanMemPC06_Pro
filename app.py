@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-import io
 
-# Fix UTF-8 encoding for file operations
-if sys.getdefaultencoding() != 'utf-8':
-    reload(sys)
-    sys.setdefaultencoding('utf-8')
+# ── UTF-8 Environment (safe for Python 3.9 on Mắt Bão / cPanel) ──
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+os.environ.setdefault('LC_ALL', 'C.UTF-8')
+os.environ.setdefault('LANG', 'C.UTF-8')
 
-# Also fix stdout/stderr
+# Reconfigure stdout/stderr to UTF-8 (Python 3.7+)
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 if hasattr(sys.stderr, 'reconfigure'):
@@ -41,6 +40,7 @@ app = Flask(__name__,
             static_folder=STATIC_DIR)
 
 app.secret_key = 'PC06_FINAL_V3_5_2026'
+app.config['JSON_AS_ASCII'] = False  # Giữ nguyên tiếng Việt trong jsonify()
 
 # ==================== FILE LOGGING ====================
 # Create logs directory

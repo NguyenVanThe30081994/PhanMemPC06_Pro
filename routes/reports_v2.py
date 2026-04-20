@@ -11,7 +11,7 @@ from datetime import datetime
 
 reports_v2_bp = Blueprint('reports_v2_bp', __name__)
 
-GLOBAL_UNITS = ['He thong', 'Admin', 'PC06']
+GLOBAL_UNITS = ['H\u1ec7 th\u1ed1ng', 'Admin', 'PC06']
 
 
 def _is_global_user(is_admin, user_unit):
@@ -301,7 +301,14 @@ def edit_template(tid):
         if file and file.filename:
             try:
                 file_content = file.read()
-                temp_path = os.path.join("tmp", file.filename)
+                
+                # Sanitize filename to avoid ASCII encoding errors on Linux
+                import unicodedata
+                safe_fn = unicodedata.normalize('NFD', file.filename)
+                safe_fn = ''.join(c for c in safe_fn if unicodedata.category(c) != 'Mn')
+                safe_fn = ''.join(c if c.isalnum() or c in '._-' else '_' for c in safe_fn)
+                
+                temp_path = os.path.join("tmp", safe_fn)
                 os.makedirs("tmp", exist_ok=True)
                 with open(temp_path, "wb") as f:
                     f.write(file_content)
