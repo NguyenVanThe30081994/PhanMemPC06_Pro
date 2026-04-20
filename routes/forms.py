@@ -721,39 +721,48 @@ def stats_export():
             from flask import Response
             return Response(content, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": f"attachment; filename={filename}"})
         else:
-            # === V1: LẤY FILE EXCEL TỪ DỮ LIỆU ĐỘC GIẢ ===
-            # V1 không có file Excel gốc như V2, tạo mới từ submissions
-            import openpyxl as opx
-            from openpyxl.styles import Font, Alignment
+            # === V1: LẤY FILE EXCEL TỪ ReportConfig ===
+            # V1 template stored in ReportConfig.file_blob
+            config = db.session.get(ReportConfig, rid)
+            if not config:
+                return "Config not found", 404
             
-            wb = opx.Workbook()
-            ws = wb.active
-            ws.title = "Thống kê"
-            
-            # Header
-            ws.append(["STT", "Đơn vị", "Người nộp", "Ngày nộp", "Trạng thái"])
-            header_font = Font(bold=True, size=12)
-            header_align = Alignment(horizontal="center", vertical="center")
-            for col in range(1, 6):
-                ws.cell(1, col).font = header_font
-                ws.cell(1, col).alignment = header_align
-            
-            # Lấy dữ liệu từ ReportData
-            raw = db.session.query(ReportData, User).join(User, ReportData.user_id == User.id).filter(ReportData.report_id == rid).all()
-            
-            for i, (d, u) in enumerate(raw, 1):
-                ws.append([i, u.unit_area or u.fullname, u.fullname, d.report_date.strftime('%d/%m/%Y') if d.report_date else '', 'Đã nộp'])
-            
-            # Lưu và trả về
-            output = io.BytesIO()
-            wb.save(output)
-            output.seek(0)
-            content = output.getvalue()
-            
-            filename = f"ThongKe_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
+            if config.file_blob:
+                # Dùng file Excel gốc từ V1 template
+                content = config.file_blob
+                filename = f"ThongKe_{config.name}_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
+            else:
+                # Nếu không có file, tạo mới từ submissions
+                import openpyxl as opx
+                from openpyxl.styles import Font, Alignment
+                
+                wb = opx.Workbook()
+                ws = wb.active
+                ws.title = "Thống kê"
+                
+                ws.append(["STT", "Đơn vị", "Người nộp", "Ngày nộp", "Trạng thái"])
+                header_font = Font(bold=True, size=12)
+                header_align = Alignment(horizontal="center", vertical="center")
+                for col in range(1, 6):
+                    ws.cell(1, col).font = header_font
+                    ws.cell(1, col).alignment = header_align
+                
+                raw = db.session.query(ReportData, User).join(User, ReportData.user_id == User.id).filter(ReportData.report_id == rid).all()
+                
+                for i, (d, u) in enumerate(raw, 1):
+                    ws.append([i, u.unit_area or u.fullname, u.fullname, d.report_date.strftime('%d/%m/%Y') if d.report_date else '', 'Đã nộp'])
+                
+                output = io.BytesIO()
+                wb.save(output)
+                output.seek(0)
+                content = output.getvalue()
+                filename = f"ThongKe_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
             
             from flask import Response
-            return Response(content, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": f"attachment; filename={filename}"})
+            # Set proper encoding for Vietnamese characters
+            response = Response(content, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+            return response
     except Exception as e:
         import traceback
         error_msg = traceback.format_exc()
