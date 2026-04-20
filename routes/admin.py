@@ -354,7 +354,7 @@ def system_update():
                 shutil.unpack_archive(p, current_app.root_path)
                 restart = os.path.join(current_app.root_path, 'tmp', 'restart.txt')
                 os.makedirs(os.path.dirname(restart), exist_ok=True)
-                with open(restart, 'w') as f_out: f_out.write(str(datetime.now()))
+                with open(restart, 'w', encoding='utf-8') as f_out: f_out.write(str(datetime.now()))
                 
                 log_action(session['uid'], session['fullname'], "Cập nhật hệ thống thành công (V3.5.0)", "Hệ thống")
                 flash('Cập nhật thành công! Hệ thống đang khởi động lại...', 'success')
