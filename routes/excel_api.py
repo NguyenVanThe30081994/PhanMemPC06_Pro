@@ -1,24 +1,31 @@
 # -*- coding: utf-8 -*-
 """
-Excel API - Nhận dữ liệu từ Luckysheet/Univer
+Excel API - Nhan du lieu tu Luckysheet/Univer
 """
-from flask import Blueprint, request, jsonify
-from flask_login import login_required, current_user
+from flask import Blueprint, request, jsonify, session, redirect, url_for
 from models import db, FormConfig, FormSubmission
 from datetime import datetime
-import pandas as pd
 import json
 from utils import normalize_unit_name
 
 excel_api = Blueprint('excel_api', __name__, url_prefix='/api/excel')
 
 
+def login_required():
+    """Simple session-based login check"""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    return None
+
+
 @excel_api.route('/import-luckysheet', methods=['POST'])
-@login_required
 def import_luckysheet():
     """
-    Nhận dữ liệu JSON từ Luckysheet/Univer và lưu vào DB
+    Nhan du lieu JSON tu Luckysheet/Univer va luu vao DB
     """
+    # Check login
+    if not session.get('uid'):
+        return jsonify({'error': 'Chua dang nhap'}), 401
     try:
         data = request.get_json()
         
@@ -88,7 +95,7 @@ def import_luckysheet():
                 config_id=config_id,
                 unit_name=unit,
                 values=json.dumps(values, ensure_ascii=False),
-                submitted_by=current_user.id,
+                submitted_by=session.get('uid'),
                 submitted_at=datetime.now()
             )
             db.session.add(submission)
@@ -109,11 +116,13 @@ def import_luckysheet():
 
 
 @excel_api.route('/preview-template/<int:config_id>', methods=['GET'])
-@login_required
 def preview_template(config_id):
     """
     Lay du lieu template de hien thi tren Luckysheet
     """
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+        
     try:
         config = FormConfig.query.get(config_id)
         if not config:
@@ -132,11 +141,13 @@ def preview_template(config_id):
 
 
 @excel_api.route('/preview')
-@login_required
 def preview_page():
     """
     Trang Preview Excel bang Luckysheet
     """
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+        
     from flask import render_template
     config_id = request.args.get('config_id', type=int)
     start_row = request.args.get('start_row', 1, type=int)
