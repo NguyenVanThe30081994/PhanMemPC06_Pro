@@ -6,25 +6,52 @@ from flask import Blueprint, request, jsonify, session, redirect
 from models import db, ReportConfig, ReportData
 from datetime import datetime
 import json
+import os
 from utils import normalize_unit_name
 
 excel_api = Blueprint('excel_api', __name__, url_prefix='/api/excel')
 
 
+@excel_api.route('/upload-template', methods=['POST'])
+def upload_template():
+    """Upload template Excel - use Luckysheet to parse"""
+    if not session.get('uid'):
+        return redirect('/login')
+    
+    # Check if file in request
+    if 'file' not in request.files:
+        return jsonify({'error': 'Khong co file'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'File trong'}), 400
+    
+    # Save file to temp directory
+    from flask import current_app
+    temp_dir = os.path.join(current_app.root_path, 'tmp')
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    filepath = os.path.join(temp_dir, 'temp_' + str(session.get('uid')) + '.xlsx')
+    file.save(filepath)
+    
+    return jsonify({
+        'status': 'success',
+        'filepath': filepath,
+        'message': 'File uploaded'
+    })
+
+
 @excel_api.route('/import-luckysheet', methods=['POST'])
 def import_luckysheet():
-    # Check login
     if not session.get('uid'):
         return jsonify({'error': 'Chua dang nhap'}), 401
     
     try:
         data = request.get_json()
         
-        # Validate data
         if not data or 'sheets' not in data:
             return jsonify({'error': 'Du lieu khong hop le'}), 400
         
-        # Get first sheet
         sheets = data.get('sheets', [])
         if not sheets:
             return jsonify({'error': 'Sheet trong'}), 400
@@ -35,31 +62,19 @@ def import_luckysheet():
         if not rows:
             return jsonify({'error': 'Du lieu trong'}), 400
         
-        # Get config_id if provided
         config_id = data.get('config_id')
-        form_config = None
-        if config_id:
-            form_config = ReportConfig.query.get(config_id)
-        
-        # Extract data based on structure
         submissions = []
         errors = []
         
-        # First row is header
-        headers = rows[0] if rows else []
-        
-        # Process data rows starting from row 1 (or configured start row)
         start_row = data.get('start_row', 1)
         
         for idx, row in enumerate(rows[start_row:], start=start_row):
             if not row:
                 continue
             
-            # Skip empty rows
             if all(cell is None for cell in row):
                 continue
             
-            # Try to extract unit name from first column
             unit_name = row[0] if row else None
             if not unit_name:
                 continue
@@ -68,20 +83,16 @@ def import_luckysheet():
             if not unit_name:
                 continue
             
-            # Use existing logic to find/create unit
             unit = normalize_unit_name(unit_name)
             if not unit:
-                errors.append("Dong %d: Khong nhan dien duoc don vi '%s'" % (idx, unit_name))
+                errors.append("Dong %d: Khong nhan dien duoc don vi" % idx)
                 continue
             
-            # Extract field values
             values = {}
             for col_idx, cell in enumerate(row[1:], 1):
                 if cell is not None:
-                    # Handle number formatting - keep as-is from JSON
                     values[str(col_idx)] = cell
             
-            # Save submission
             submission = ReportData(
                 report_config_id=config_id,
                 unit_name=unit,
@@ -103,28 +114,6 @@ def import_luckysheet():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-
-@excel_api.route('/preview-template/<int:config_id>', methods=['GET'])
-def preview_template(config_id):
-    if not session.get('uid'):
-        return redirect('/login')
-        
-    try:
-        config = ReportConfig.query.get(config_id)
-        if not config:
-            return jsonify({'error': 'Khong tim thay cau hinh'}), 404
-        
-        # Load template metadata
-        metadata = json.loads(config.metadata) if config.metadata else {}
-        
-        return jsonify({
-            'status': 'success',
-            'template': metadata
-        })
-        
-    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
