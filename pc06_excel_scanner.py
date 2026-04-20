@@ -134,14 +134,14 @@ def scan_excel_structure(excel_blob):
     if header_candidates:
         result['data_start_row'] = max(header_candidates) + 1
     
-    # Scan headers
+    # Scan headers - use raw value directly, don't convert
     for row in header_candidates:
         result['headers'][row] = {}
         for col in range(1, ws.max_column + 1):
             cell_val = ws.cell(row, col).value
             if cell_val:
-                # Use _fmt_val to format numeric values correctly
-                result['headers'][row][get_column_letter(col)] = _fmt_val(cell_val)
+                # Use raw value - don't convert to avoid float precision issues
+                result['headers'][row][get_column_letter(col)] = cell_val
     
     # Detect numeric columns
     data_row = result['data_start_row']
