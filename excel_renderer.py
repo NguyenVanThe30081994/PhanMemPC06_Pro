@@ -354,51 +354,10 @@ def build_stats_table_html(file_blob, config, submissions):
                 if is_field:
                     val = matched_sub['values'].get(str(c), '')
 
-            # Format numbers properly
+            # Display values as-is from database
             display = ""
             if val is not None:
-                # Handle string numbers
-                if isinstance(val, str):
-                    val = val.strip()
-                    if val == '':
-                        display = ''
-                    else:
-                        try:
-                            val = float(val)
-                        except:
-                            display = val
-                
-                # Now handle numeric types
-                if isinstance(val, (int, float)):
-                    try:
-                        f_val = float(val)
-                        # Check percentage field config
-                        is_percent = any(f.get('is_percent') and f['idx'] == c for f in fields)
-                        
-                        # Get fractional part
-                        frac_part = f_val - int(f_val)
-                        
-                        if is_percent:
-                            # Force show as percentage
-                            display = f"{f_val * 100:.2f}%"
-                        elif frac_part < 0.001 and frac_part > -0.001:
-                            # Essentially a whole number
-                            display = str(int(f_val))
-                        elif frac_part > 0 and f_val < 1:
-                            # Small decimal < 1, likely percentage
-                            display = f"{f_val * 100:.2f}%"
-                        elif f_val < 0:
-                            # Negative
-                            display = str(int(f_val))
-                        else:
-                            # Regular decimal
-                            display = f"{f_val:.2f}".replace(",", ".")
-                    except:
-                        display = str(val)
-                elif isinstance(val, str) and val.startswith('='):
-                    display = ""
-                else:
-                    display = str(val)
+                display = str(val)
 
             rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
             cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
@@ -497,46 +456,10 @@ def build_v2_stats_table_html(file_blob, metadata, all_values):
                 val = all_values.get(coord,
                       cell.value if cell.value and not str(cell.value).startswith('=') else '')
 
-                # Format numbers properly for V2
+                # Display values as-is from database
                 display = ""
                 if val is not None:
-                    # Handle string numbers
-                    if isinstance(val, str):
-                        val = val.strip()
-                        if val == '':
-                            display = ''
-                        else:
-                            try:
-                                val = float(val)
-                            except:
-                                display = val
-                    
-                    if isinstance(val, (int, float)):
-                        try:
-                            f_val = float(val)
-                            # Check column config from metadata
-                            col_config = metadata.get('column_configs', {}).get(coord, {})
-                            is_percent = col_config.get('is_percent', False)
-                            
-                            # Get fractional part
-                            frac_part = f_val - int(f_val)
-                            
-                            if is_percent:
-                                display = f"{f_val * 100:.2f}%"
-                            elif frac_part < 0.001 and frac_part > -0.001:
-                                display = str(int(f_val))
-                            elif frac_part > 0 and f_val < 1:
-                                display = f"{f_val * 100:.2f}%"
-                            elif f_val < 0:
-                                display = str(int(f_val))
-                            else:
-                                display = f"{f_val:.2f}".replace(",", ".")
-                        except:
-                            display = str(val)
-                    elif isinstance(val, str) and val.startswith('='):
-                        display = ""
-                    else:
-                        display = str(val)
+                    display = str(val)
                 rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
                 cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
 
