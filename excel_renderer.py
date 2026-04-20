@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 excel_renderer.py
 -----------------
@@ -353,8 +354,25 @@ def build_stats_table_html(file_blob, config, submissions):
                 if is_field:
                     val = matched_sub['values'].get(str(c), '')
 
-            display = "" if val is None else str(val)
-            if isinstance(val, str) and val.startswith('='): display = ""
+            # Format numbers properly
+            display = ""
+            if val is not None:
+                if isinstance(val, (int, float)):
+                    # Check if this is a percentage field
+                    is_percent = any(f.get('is_percent') and f['idx'] == c for f in fields)
+                    if isinstance(val, float):
+                        if is_percent or (val >= 0 and val <= 1):
+                            display = f"{val * 100:.2f}%"
+                        elif abs(val - round(val)) < 0.0001:
+                            display = str(int(round(val)))
+                        else:
+                            display = f"{val:,.2f}".replace(",", ".")
+                    else:
+                        display = str(int(val))
+                elif isinstance(val, str) and val.startswith('='):
+                    display = ""
+                else:
+                    display = str(val)
 
             rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
             cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
@@ -453,7 +471,28 @@ def build_v2_stats_table_html(file_blob, metadata, all_values):
                 val = all_values.get(coord,
                       cell.value if cell.value and not str(cell.value).startswith('=') else '')
 
-                display = '' if val is None else str(val)
+                # Format numbers properly for V2
+                display = ""
+                if val is not None:
+                    if isinstance(val, (int, float)):
+                        # Check column config from metadata
+                        col_config = metadata.get('column_configs', {}).get(coord, {})
+                        is_percent = col_config.get('is_percent', False)
+                        is_numeric = col_config.get('is_numeric', True)
+                        
+                        if isinstance(val, float):
+                            if is_percent or (val >= 0 and val <= 1):
+                                display = f"{val * 100:.2f}%"
+                            elif abs(val - round(val)) < 0.0001:
+                                display = str(int(round(val)))
+                            else:
+                                display = f"{val:,.2f}".replace(",", ".")
+                        else:
+                            display = str(int(val))
+                    elif isinstance(val, str) and val.startswith('='):
+                        display = ""
+                    else:
+                        display = str(val)
                 rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
                 cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
 

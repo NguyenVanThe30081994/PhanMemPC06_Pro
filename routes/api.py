@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from flask import Blueprint, jsonify, session, request
 from models import db, Notification, ReportData, User
 import json, random

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort, send_file
 from utils import render_auto_template
 from models import db, ShortLink, User

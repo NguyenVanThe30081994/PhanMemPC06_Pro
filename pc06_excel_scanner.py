@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Excel Scanner for V2 Reports - Quét cấu trúc Excel
 import io
 import openpyxl

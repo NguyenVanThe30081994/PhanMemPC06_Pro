@@ -13,6 +13,8 @@ google-auth-httplib2
 google-auth-oauthlib
 qrcode
 markdown
+phonenumbers       # Phone number validation E.164
+APScheduler      # Background scheduler for Zalo reminders
 
 # OCR Libraries (optional - for image to Excel/Word conversion)
 # Install these to enable OCR features:

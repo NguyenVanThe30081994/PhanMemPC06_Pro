@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, current_app, send_from_directory
 import os, pandas as pd, io, json
 from werkzeug.utils import secure_filename

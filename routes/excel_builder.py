@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify, send_file
 from models import db, User
 import json

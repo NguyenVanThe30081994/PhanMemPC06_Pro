@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import re, json, sqlite3, os, ast, operator as op
 from flask import request, render_template as flask_render_template, g, session, redirect, url_for
 from openpyxl.utils import range_boundaries

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import openpyxl
 from openpyxl.styles import PatternFill
 import json
