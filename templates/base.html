@@ -655,6 +655,9 @@
                         <li><a class="dropdown-item py-2 rounded-3"
                                 href="{{ url_for('forms_bp.input_data', form_type='v2') }}"><i
                                     class="fa-solid fa-file-excel me-2 opacity-50"></i>Nhập liệu Biểu mẫu V2</a></li>
+                        <li><a class="dropdown-item py-2 rounded-3"
+                                href="{{ url_for('reports_v3_bp.dashboard') }}"><i
+                                    class="fa-solid fa-table-cells me-2 opacity-50"></i>Nhập liệu V3 (Luckysheet)</a></li>
                         {% endif %}
                         {% if (perms.get('p_input_lead') or perms.get('p_input_exec')) and (perms.get('p_stat_lead') or
                         perms.get('p_stat_exec')) %}<li>
@@ -685,6 +688,10 @@
                             <hr class="dropdown-divider opacity-10 mx-2">
                         </li>
                         <li><a class="dropdown-item py-2 rounded-3" href="/reports-v2"> Thiết lập mẫu V2</a></li>
+                        <li>
+                            <hr class="dropdown-divider opacity-10 mx-2">
+                        </li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="/reports-v3/dashboard"> Thiết lập mẫu V3</a></li>
                         <li>
                             <hr class="dropdown-divider opacity-10 mx-2">
                         </li>

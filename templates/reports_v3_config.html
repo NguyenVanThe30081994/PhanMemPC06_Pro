@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block content %}
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/css/pluginsCss.css' />
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/plugins.css' />
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/css/luckysheet.css' />
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/assets/iconfont/iconfont.css' />
+<script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/js/plugin.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/luckysheet.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luckyexcel/dist/luckyexcel.umd.js"></script>
+
+<div class="container-fluid" style="height: 85vh; display: flex; flex-direction: column;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="mb-0 fw-bold">Thiết lập: {{ template.name }}</h4>
+            <div class="text-muted small">ID: {{ template.id }} | Tải file Excel và chọn vùng nhập liệu (Admin)</div>
+        </div>
+        <div class="d-flex gap-2">
+            <div class="input-group input-group-sm" style="width: 250px;">
+                <span class="input-group-text fw-bold">Cột Tên Đơn Vị</span>
+                <input type="text" id="unitColumn" class="form-control" value="B" placeholder="Ví dụ: B">
+            </div>
+            <button class="btn btn-warning btn-sm fw-bold" onclick="setRange()">
+                <i class="fa-solid fa-expand me-1"></i>Đánh dấu Vùng Nhập (Bôi đen)
+            </button>
+            <button class="btn btn-primary btn-sm fw-bold" onclick="saveConfig()" id="saveBtn">
+                <i class="fa-solid fa-save me-1"></i>LƯU THIẾT LẬP
+            </button>
+            <a href="{{ url_for('reports_v3_bp.dashboard') }}" class="btn btn-outline-secondary btn-sm">Quay lại</a>
+        </div>
+    </div>
+
+    <!-- This is where Luckysheet mounts -->
+    <div id="luckysheet-container" style="margin:0px;padding:0px;position:relative;width:100%;flex:1;border: 1px solid #ccc;"></div>
+</div>
+
+<script>
+    let currentInputRange = []; 
+
+    $(function () {
+        // Fetch excel file from backend and load it
+        loadExcelToLuckysheet();
+    });
+
+    function loadExcelToLuckysheet() {
+        const url = "/reports-v3/api/file/{{ version.id }}";
+        fetch(url)
+            .then(res => res.blob())
+            .then(blob => {
+                const file = new File([blob], "template.xlsx", {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+                LuckyExcel.transformExcelToLucky(file, function(exportJson, luckysheetfile) {
+                    if (exportJson.sheets == null || exportJson.sheets.length == 0) {
+                        alert("Không đọc được file Excel.");
+                        return;
+                    }
+                    window.luckysheet.destroy();
+                    window.luckysheet.create({
+                        container: 'luckysheet-container',
+                        showinfobar: false,
+                        showtoolbar: false,
+                        showstatisticBar: false,
+                        sheetBottomConfig: false,
+                        allowEdit: false,
+                        data: exportJson.sheets,
+                        title: exportJson.info.name,
+                        userInfo: exportJson.info.name.creator
+                    });
+                    
+                    // Restore previous config if any
+                    loadExistingConfig();
+                });
+            });
+    }
+
+    function loadExistingConfig() {
+        // We can inject version.metadata_json
+        const metadataRaw = '{{ version.metadata_json | safe }}';
+        if(metadataRaw && metadataRaw !== 'None') {
+            try {
+                const config = JSON.parse(metadataRaw);
+                if(config.unit_column) document.getElementById('unitColumn').value = config.unit_column;
+                if(config.input_range && config.input_range.length > 0) {
+                    currentInputRange = config.input_range;
+                    // Bôi màu highlight dải ô đã chọn
+                    highlightRange(currentInputRange);
+                }
+            } catch(e) {}
+        }
+    }
+
+    function setRange() {
+        const range = luckysheet.getRange(); 
+        if(!range || range.length === 0) {
+            alert('Vui lòng bôi đen một vùng trên bảng tính trước khi nhấn Đánh dấu!');
+            return;
+        }
+        currentInputRange = range;
+        highlightRange(currentInputRange);
+        alert('Đã thiết lập vùng nhập liệu thành công! Hãy nhấn LƯU Thiết Lập để ghi lại.');
+    }
+
+    function highlightRange(ranges) {
+        // Khôi phục background cũ (nếu muốn) thì hơi khó tự động, nên ta chỉ phủ màu nhẹ
+        ranges.forEach(r => {
+            for(let row = r.row[0]; row <= r.row[1]; row++) {
+                for(let col = r.column[0]; col <= r.column[1]; col++) {
+                    luckysheet.setCellValue(row, col, {bg: '#e0f2fe'}); // Màu xanh nhạt
+                }
+            }
+        });
+    }
+
+    function saveConfig() {
+        const unitCol = document.getElementById('unitColumn').value;
+        if(currentInputRange.length === 0) {
+            alert('Vui lòng đánh dấu Vùng nhập liệu!');
+            return;
+        }
+        if(!unitCol) {
+            alert('Vui lòng nhập cột chứa tên Đơn vị (VD: B)');
+            return;
+        }
+
+        const data = {
+            input_range: currentInputRange,
+            unit_column: unitCol
+        };
+
+        const btn = document.getElementById('saveBtn');
+        btn.disabled = true;
+        btn.innerText = "Đang lưu...";
+
+        fetch('/reports-v3/config/save/{{ template.id }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        })
+        .then(r => r.json())
+        .then(res => {
+            if(res.success) {
+                alert('Khởi tạo cấu hình thành công!');
+                window.location.href = "{{ url_for('reports_v3_bp.dashboard') }}";
+            } else {
+                alert('Lỗi: ' + res.error);
+                btn.disabled = false;
+                btn.innerText = "LƯU THIẾT LẬP";
+            }
+        });
+    }
+</script>
+{% endblock %}

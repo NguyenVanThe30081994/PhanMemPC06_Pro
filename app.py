@@ -49,7 +49,7 @@ os.makedirs(LOG_DIR, exist_ok=True)
 
 # Configure logging
 log_file = os.path.join(LOG_DIR, 'app.log')
-file_handler = RotatingFileHandler(log_file, maxBytes=10*1024*1024, backupCount=5)
+file_handler = RotatingFileHandler(log_file, maxBytes=10*1024*1024, backupCount=5, encoding='utf-8')
 file_handler.setLevel(logging.INFO)
 file_handler.setFormatter(logging.Formatter(
     '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
@@ -167,6 +167,7 @@ from routes.tasks import tasks_bp
 from routes.ranking import ranking_bp
 from routes.api import api_bp
 from routes.reports_v2 import reports_v2_bp
+from routes.reports_v3 import reports_v3_bp
 from routes.shortlink import shortlink_bp
 from routes.excel_builder import excel_builder_bp
 from routes.zalo import zalo_bp
@@ -183,6 +184,7 @@ app.register_blueprint(tasks_bp)
 app.register_blueprint(ranking_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(reports_v2_bp)
+app.register_blueprint(reports_v3_bp)
 app.register_blueprint(shortlink_bp)
 app.register_blueprint(excel_builder_bp)
 app.register_blueprint(zalo_bp)

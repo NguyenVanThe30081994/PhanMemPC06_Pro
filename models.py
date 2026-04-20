@@ -263,6 +263,51 @@ class ReportAuditV2(db.Model):
     new_value = db.Column(db.Text)
     changed_at = db.Column(db.DateTime, default=datetime.now)
 
+# --- REPORT V3 MODELS (LUCKYSHEET) ---
+
+class ReportTemplateV3(db.Model):
+    __tablename__ = 'report_template_v3'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    created_by = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    is_active = db.Column(db.Boolean, default=True)
+
+class ReportVersionV3(db.Model):
+    __tablename__ = 'report_version_v3'
+    id = db.Column(db.Integer, primary_key=True)
+    template_id = db.Column(db.Integer, db.ForeignKey('report_template_v3.id'))
+    version_tag = db.Column(db.String(20))
+    metadata_json = db.Column(db.Text)  # Stores config {input_range, unit_column, etc}
+    luckysheet_json = db.Column(db.Text)  # Core Luckysheet parsed structure
+    excel_file_blob = db.Column(db.LargeBinary)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    is_published = db.Column(db.Boolean, default=False)
+    template = db.relationship('ReportTemplateV3', backref='versions')
+
+class ReportSubmissionV3(db.Model):
+    __tablename__ = 'report_submission_v3'
+    id = db.Column(db.Integer, primary_key=True)
+    version_id = db.Column(db.Integer, db.ForeignKey('report_version_v3.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    org_unit = db.Column(db.String(100))
+    period_name = db.Column(db.String(100))
+    status = db.Column(db.String(20), default='draft') # draft, submitted
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    version = db.relationship('ReportVersionV3', backref='submissions')
+    user = db.relationship('User', backref='submissions_v3')
+    values = db.relationship('ReportValueV3', backref='submission', cascade='all, delete-orphan')
+
+class ReportValueV3(db.Model):
+    __tablename__ = 'report_value_v3'
+    id = db.Column(db.Integer, primary_key=True)
+    submission_id = db.Column(db.Integer, db.ForeignKey('report_submission_v3.id'))
+    cell_r = db.Column(db.Integer)  # Row index in Luckysheet
+    cell_c = db.Column(db.Integer)  # Col index in Luckysheet
+    value = db.Column(db.Text)
+
 # --- SHORT URL / QR GENERATOR MODELS ---
 
 class ShortLink(db.Model):

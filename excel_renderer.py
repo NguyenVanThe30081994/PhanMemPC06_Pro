@@ -13,6 +13,17 @@ Used by:
 
 import io
 import openpyxl
+
+
+def _fmt_val(val):
+    """Format value for display: 5.0 → '5', 3.14 → '3.14', None → ''"""
+    if val is None:
+        return ''
+    if isinstance(val, float):
+        if val == int(val):
+            return str(int(val))
+        return str(val)
+    return str(val)
 from openpyxl.utils import get_column_letter
 from openpyxl.styles.fills import PatternFill
 from markupsafe import Markup
@@ -240,7 +251,7 @@ def render_range_to_html(ws, start_row, end_row,
                 # For formula cells use openpyxl cached value (data_only mode)
                 if isinstance(raw_val, str) and raw_val.startswith('='):
                     raw_val = ''
-                display = '' if raw_val is None else str(raw_val)
+                display = _fmt_val(raw_val)
                 td_inner = display
 
             html.append(f'{td_open}{td_inner}</td>')
@@ -359,9 +370,7 @@ def build_stats_table_html(file_blob, config, submissions):
                     val = matched_sub['values'].get(str(c), '')
 
             # Display values as-is from database
-            display = ""
-            if val is not None:
-                display = str(val)
+            display = _fmt_val(val)
 
             rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
             cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
@@ -464,10 +473,7 @@ def build_v2_stats_table_html(file_blob, metadata, all_values):
                 val = all_values.get(coord,
                       cell.value if cell.value and not str(cell.value).startswith('=') else '')
 
-                # Display values as-is from database
-                display = ""
-                if val is not None:
-                    display = str(val)
+                display = _fmt_val(val)
                 rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
                 cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
 

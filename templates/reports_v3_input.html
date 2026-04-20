@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block content %}
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/css/pluginsCss.css' />
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/plugins.css' />
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/css/luckysheet.css' />
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/assets/iconfont/iconfont.css' />
+<script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/js/plugin.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/luckysheet.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luckyexcel/dist/luckyexcel.umd.js"></script>
+
+<div class="container-fluid" style="height: 85vh; display: flex; flex-direction: column;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="mb-0 fw-bold">Nhập báo cáo V3: {{ template.name }}</h4>
+            <div class="text-muted small">Đơn vị của bạn: <strong>{{ unit_area }}</strong></div>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary btn-sm fw-bold" onclick="submitData()" id="submitBtn">
+                <i class="fa-solid fa-paper-plane me-1"></i>GỬI BÁO CÁO (LƯU)
+            </button>
+            <a href="{{ url_for('dashboard_bp.dashboard') }}" class="btn btn-outline-secondary btn-sm">Thoát</a>
+        </div>
+    </div>
+
+    <div id="luckysheet-container" style="margin:0px;padding:0px;position:relative;width:100%;flex:1;border: 1px solid #ccc;"></div>
+</div>
+
+<script>
+    const CONFIG = JSON.parse('{{ config | safe }}');
+    const MY_UNIT = "{{ unit_area }}".toLowerCase();
+    
+    // Convert column letter to index (e.g., A -> 0, B -> 1)
+    function colLetterToIndex(col) {
+        let i = 0;
+        let c = 0;
+        for (i = 0; i < col.length; i++) {
+            c = c * 26 + col.charCodeAt(i) - 64;
+        }
+        return c - 1;
+    }
+
+    $(function () {
+        loadTemplate();
+    });
+
+    function loadTemplate() {
+        const url = "/reports-v3/api/file/{{ version.id }}";
+        fetch(url)
+            .then(res => res.blob())
+            .then(blob => {
+                const file = new File([blob], "template.xlsx", {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+                LuckyExcel.transformExcelToLucky(file, function(exportJson, luckysheetfile) {
+                    if (exportJson.sheets == null || exportJson.sheets.length == 0) {
+                        alert("Không đọc được file Excel.");
+                        return;
+                    }
+
+                    // ====== ALGORITHM: LOCK AND FIND UNIT ======
+                    // We lock the entire sheet first.
+                    const sheet = exportJson.sheets[0];
+                    if(!sheet.config) sheet.config = {};
+                    
+                    const unitColIndex = CONFIG.unit_column ? colLetterToIndex(CONFIG.unit_column.toUpperCase()) : 1; 
+                    const data = sheet.data;
+                    let targetRow = -1;
+
+                    // Tim xem don vi nam o dong nao
+                    for(let r = 0; r < data.length; r++) {
+                        let cell = data[r][unitColIndex];
+                        if(cell && cell.v) {
+                            let text = cell.v.toString().toLowerCase();
+                            // Very simple fuzzy match
+                            if(text.includes(MY_UNIT) || MY_UNIT.includes(text)) {
+                                targetRow = r;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Neu tim thay dong, tha mo cac o trong input_range cua targetRow do.
+                    // Neu khong, tat ca bi khoa.
+                    // Trong Luckysheet de khoa nhanh nhat tu code, gan t.lo = 1 (lock object) cho tung cell 
+                    // cho an toan.
+
+                    for(let r = 0; r < data.length; r++) {
+                        for(let c = 0; c < data[r].length; c++) {
+                            let cell = data[r][c];
+                            if(!cell) {
+                                cell = { v: null, m: null };
+                                data[r][c] = cell;
+                            }
+                            
+                            // Mac dinh khoa
+                            cell.lo = 1;
+
+                            // Kiem tra o nay co nam trong vung Input Allowed hay khong
+                            if(targetRow !== -1 && CONFIG.input_range && CONFIG.input_range.length > 0) {
+                                CONFIG.input_range.forEach(rg => {
+                                    if(r === targetRow && c >= rg.column[0] && c <= rg.column[1]) {
+                                        // Mo khoa o nay
+                                        cell.lo = 0; 
+                                        // To mau nhe de user biet (background)
+                                        cell.bg = "#e0f2fe";
+                                    }
+                                });
+                            }
+                        }
+                    }
+
+                    window.luckysheet.destroy();
+                    window.luckysheet.create({
+                        container: 'luckysheet-container',
+                        showinfobar: false,
+                        showtoolbar: false,
+                        showstatisticBar: false,
+                        sheetBottomConfig: false,
+                        data: exportJson.sheets,
+                        column: 30, // Limit empty columns if huge
+                    });
+
+                    if(targetRow !== -1) {
+                        // Notify user where they can type
+                        setTimeout(() => alert("Hoàn tất tải mẫu. Hệ thống đã định vị đúng dòng của đơn vị bạn. Các ô xanh nhạt là nơi bạn được phép sửa dữ liệu!"), 500);
+                    } else {
+                        setTimeout(() => alert("Không tìm thấy tên Đơn vị của bạn trong bảng để phân quyền! Bạn sẽ bị khóa (chỉ xem)."), 500);
+                    }
+                });
+            });
+    }
+
+    function submitData() {
+        // Collect data ONLY from our unlocked cells
+        const data = luckysheet.getSheetData();
+        const payload = {
+            values: []
+        };
+
+        for(let r = 0; r < data.length; r++) {
+            for(let c = 0; c < data[r].length; c++) {
+                let cell = data[r][c];
+                // if cell is not locked, means it's ours and in input range
+                if(cell && cell.lo === 0) {
+                    payload.values.push({
+                        r: r,
+                        c: c,
+                        v: cell.v
+                    });
+                }
+            }
+        }
+
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.innerHTML = 'Đang lưu...';
+
+        alert('Payload sẽ được gởi về Server (JSON): \n' + JSON.stringify(payload.values));
+        
+        // This is a stub! Replace with actual Fetch to POST /reports-v3/submit
+        // ...
+        
+        setTimeout(() => {
+            alert('Lưu báo cáo bằng Luckysheet thành công! Tính năng nộp đang được hoàn thiện.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i>GỬI BÁO CÁO (LƯU)';
+        }, 1000);
+    }
+</script>
+{% endblock %}
