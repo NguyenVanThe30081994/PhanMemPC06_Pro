@@ -11,7 +11,16 @@ import random
 import hashlib
 import hmac
 from datetime import datetime, timedelta
-from phonenumbers import parse as phone_parse, is_valid_number, PhoneNumberFormat, NumberParseException
+# Optional dependency for phone validation
+try:
+    from phonenumbers import parse as phone_parse, is_valid_number, PhoneNumberFormat, NumberParseException
+    PHONENUMBERS_AVAILABLE = True
+except ImportError:
+    PHONENUMBERS_AVAILABLE = False
+    phone_parse = None
+    is_valid_number = None
+    PhoneNumberFormat = None
+    NumberParseException = None
 
 # API Endpoints
 TOKEN_URL = "https://oauth.zaloapp.com/v4/oa/access_token"
