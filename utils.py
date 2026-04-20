@@ -139,12 +139,12 @@ def init_db(app):
         if not admin_role:
             try:
                 full_perms = {k:1 for k in ["p_dash", "p_task", "p_task_assign", "p_task_do", "p_lib", "p_news", "p_contact", "p_form", "p_sys", "p_input", "p_stat", "p_user"]}
-                admin_role = AppRole(name='Quản trị hệ thống', perms=json.dumps(full_perms))
+                admin_role = AppRole(name='admin_system', perms=json.dumps(full_perms, ensure_ascii=False))
                 db.session.add(admin_role)
                 db.session.commit()
             except Exception:
                 db.session.rollback()
-                admin_role = AppRole.query.filter_by(name='Quản trị hệ thống').first()
+                admin_role = AppRole.query.filter_by(name='admin_system').first()
             
         # Admin User
         if admin_role and not User.query.filter_by(username='admin').first():

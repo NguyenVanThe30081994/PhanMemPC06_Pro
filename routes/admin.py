@@ -153,7 +153,7 @@ def roles():
             if action == 'add_role':
                 name = request.form['name']
                 p_list = request.form.getlist('perms')
-                p_json = json.dumps({p: 1 for p in p_list})
+                p_json = json.dumps({p: 1 for p in p_list}, ensure_ascii=False)
                 db.session.add(AppRole(name=name, perms=p_json))
                 log_action(session['uid'], session['fullname'], "Thêm vai trò", "Vai trò", name)
             elif action == 'edit_perms':
@@ -161,7 +161,7 @@ def roles():
                 p_list = request.form.getlist('perms')
                 r = db.session.get(AppRole, rid)
                 if r:
-                    r.perms = json.dumps({p: 1 for p in p_list})
+                    r.perms = json.dumps({p: 1 for p in p_list}, ensure_ascii=False)
                     log_action(session['uid'], session['fullname'], "Sửa quyền vai trò", "Vai trò", r.name)
             elif action == 'add_user':
                 username = request.form.get('username')
