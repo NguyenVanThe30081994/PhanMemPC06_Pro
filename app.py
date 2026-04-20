@@ -172,7 +172,6 @@ app.register_blueprint(reports_v2_bp)
 app.register_blueprint(shortlink_bp)
 app.register_blueprint(excel_builder_bp)
 app.register_blueprint(zalo_bp)
-app.register_blueprint(excel_api)
 
 @app.before_request
 def check_auth():

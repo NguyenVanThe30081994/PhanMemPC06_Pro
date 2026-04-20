@@ -290,8 +290,7 @@
             const payload = {
                 sheets: allData,
                 config_id: {{ config_id | default('null') }},
-                start_row: {{ start_row | default(1) }},
-                csrf_token: '{{ csrf_token() }}'
+                start_row: {{ start_row | default(1) }}
             };
             
             // Send to backend
