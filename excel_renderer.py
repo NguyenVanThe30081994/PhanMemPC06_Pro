@@ -16,13 +16,26 @@ import openpyxl
 
 
 def _fmt_val(val):
-    """Format value for display: 5.0 → '5', 3.14 → '3.14', None → ''"""
+    """Format value for display: 5.0 → '5', 3.14 → '3.14', 74843.87999999999 → '74843.88', None → ''"""
     if val is None:
         return ''
+    if isinstance(val, str):
+        val = val.strip()
+        if '.' in val:
+            try:
+                fval = float(val)
+                fval = round(fval, 10)
+                if fval == int(fval): 
+                    return str(int(fval))
+                return f"{fval:.6f}".rstrip('0').rstrip('.')
+            except ValueError:
+                pass
+        return val
     if isinstance(val, float):
+        val = round(val, 10)
         if val == int(val):
             return str(int(val))
-        return str(val)
+        return f"{val:.6f}".rstrip('0').rstrip('.')
     return str(val)
 from openpyxl.utils import get_column_letter
 from openpyxl.styles.fills import PatternFill
