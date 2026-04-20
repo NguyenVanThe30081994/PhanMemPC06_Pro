@@ -700,12 +700,37 @@ def stats_export():
         import openpyxl as opx
         from openpyxl.styles import Font, Alignment
         
+        # Import _fmt_val for proper number formatting
+        import sys
+        sys.path.insert(0, '.')
+        try:
+            from excel_renderer import _fmt_val
+        except:
+            # Fallback inline if import fails
+            def _fmt_val(val):
+                if val is None: return ''
+                if isinstance(val, float):
+                    val = round(val, 10)
+                    if val == int(val): return str(int(val))
+                    return f"{val:.6f}".rstrip('0').rstrip('.')
+                if isinstance(val, str):
+                    val = val.strip()
+                    if '.' in val:
+                        try:
+                            fval = float(val)
+                            fval = round(fval, 10)
+                            if fval == int(fval): return str(int(fval))
+                            return f"{fval:.6f}".rstrip('0').rstrip('.')
+                        except: pass
+                    return val
+                return str(val)
+        
         wb = opx.Workbook()
         ws = wb.active
         ws.title = "Thống kê"
         
         if is_v2:
-            # === V2 EXPORT LOGIC ===
+            # === V2: LẤY FILE EXCEL GỐC ===
             template = db.session.get(ReportTemplateV2, rid)
             if not template:
                 return "Template not found", 404
@@ -714,65 +739,16 @@ def stats_export():
             if not version or not version.excel_file_blob:
                 return "No published version", 400
             
-            # Load template
-            tmpl_wb = opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=False)
-            tmpl_ws = tmpl_wb.active
+            # Serve file gốc trực tiếp - không xử lý gì cả!
+            output = io.BytesIO(version.excel_file_blob)
+            output.seek(0)
+            content = output.getvalue()
             
-            # Copy template structure to output (keep headers)
-            for r in range(1, min(tmpl_ws.max_row, 15) + 1):
-                for c in range(1, min(tmpl_ws.max_column, 20) + 1):
-                    cell = tmpl_ws.cell(r, c)
-                    out_cell = ws.cell(r, c)
-                    out_cell.value = cell.value
-                    if cell.font: 
-                        out_cell.font = Font(bold=cell.font.bold, size=cell.font.size)
-                    if cell.alignment: 
-                        out_cell.alignment = Alignment(horizontal=cell.alignment.horizontal, vertical=cell.alignment.vertical)
-                    if cell.fill and cell.fill.patternType:
-                        out_cell.fill = cell.fill
+            filename = f"ThongKe_{template.name}_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
             
-            # Fetch submissions
-            raw_subs = ReportSubmissionV2.query.filter_by(version_id=version.id).all()
-            sub_ids = [s.id for s in raw_subs]
-            
-            # Get data
-            if sub_ids:
-                all_vals = ReportValueV2.query.filter(ReportValueV2.submission_id.in_(sub_ids)).all()
-                
-                # Build unit->values map
-                unit_data = {}
-                for v in all_vals:
-                    key = str(v.cell_key or '').strip()
-                    sub = next((s for s in raw_subs if s.id == v.submission_id), None)
-                    unit = sub.org_unit if sub else 'Unknown'
-                    
-                    if unit not in unit_data:
-                        unit_data[unit] = {}
-                    
-                    if '!' in key:
-                        _, coord = key.split('!', 1)
-                    else:
-                        coord = key
-                    unit_data[unit][coord] = v.value
-                
-                # Append data rows (start below template)
-                start_row = tmpl_ws.max_row + 2
-                for unit, vals in unit_data.items():
-                    start_row += 1
-                    ws.cell(start_row, 1).value = unit
-                    ws.cell(start_row, 1).font = Font(bold=True)
-                    
-                    for coord, val in vals.items():
-                        try:
-                            match = re.match(r'([A-Z]+)(\d+)', coord)
-                            if match:
-                                col_letter = match.group(1)
-                                col_idx = opx.utils.column_index_from_string(col_letter)
-                                ws.cell(start_row, col_idx).value = val
-                        except:
-                            pass
-        else:
-            # === V1 EXPORT LOGIC ===
+            from flask import Response
+            # V2 đã return ở trên rồi
+            # V1: Tạo mới và xuất
             config = db.session.get(ReportConfig, rid)
             if not config or not config.file_blob:
                 return "Config not found", 404
@@ -789,7 +765,7 @@ def stats_export():
             for i, (d, u) in enumerate(raw, 1):
                 ws.append([i, u.unit_area or u.fullname, u.fullname, d.report_date.strftime('%d/%m/%Y') if d.report_date else '', 'Đã nộp'])
         
-        # Save and return as Response
+        # Save V1 workbook
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)

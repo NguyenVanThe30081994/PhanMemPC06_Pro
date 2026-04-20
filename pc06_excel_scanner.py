@@ -5,6 +5,30 @@ import openpyxl
 from openpyxl.utils import get_column_letter, column_index_from_string, range_boundaries
 
 
+def _fmt_val(val):
+    """Format value: 5.0 → '5', 3.14 → '3.14', 74843.87999999999 → '74843.88', None → ''"""
+    if val is None:
+        return ''
+    if isinstance(val, str):
+        val = val.strip()
+        if '.' in val:
+            try:
+                fval = float(val)
+                fval = round(fval, 10)
+                if fval == int(fval): 
+                    return str(int(fval))
+                return f"{fval:.6f}".rstrip('0').rstrip('.')
+            except ValueError:
+                pass
+        return val
+    if isinstance(val, float):
+        val = round(val, 10)
+        if val == int(val):
+            return str(int(val))
+        return f"{val:.6f}".rstrip('0').rstrip('.')
+    return str(val)
+
+
 def _load_workbook_utf8(buffer, **kwargs):
     """Load workbook with UTF-8 encoding support"""
     kwargs.setdefault('read_only', False)
@@ -116,7 +140,8 @@ def scan_excel_structure(excel_blob):
         for col in range(1, ws.max_column + 1):
             cell_val = ws.cell(row, col).value
             if cell_val:
-                result['headers'][row][get_column_letter(col)] = str(cell_val).strip()
+                # Use _fmt_val to format numeric values correctly
+                result['headers'][row][get_column_letter(col)] = _fmt_val(cell_val)
     
     # Detect numeric columns
     data_row = result['data_start_row']
