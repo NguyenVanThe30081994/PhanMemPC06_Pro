@@ -2,7 +2,7 @@
 """
 Excel API - Nhan du lieu tu Luckysheet/Univer
 """
-from flask import Blueprint, request, jsonify, session, redirect, url_for
+from flask import Blueprint, request, jsonify, session, redirect
 from models import db, ReportConfig, ReportData
 from datetime import datetime
 import json
@@ -11,21 +11,12 @@ from utils import normalize_unit_name
 excel_api = Blueprint('excel_api', __name__, url_prefix='/api/excel')
 
 
-def login_required():
-    """Simple session-based login check"""
-    if not session.get('uid'):
-        return redirect(url_for('auth_bp.login'))
-    return None
-
-
 @excel_api.route('/import-luckysheet', methods=['POST'])
 def import_luckysheet():
-    """
-    Nhan du lieu JSON tu Luckysheet/Univer va luu vao DB
-    """
     # Check login
     if not session.get('uid'):
         return jsonify({'error': 'Chua dang nhap'}), 401
+    
     try:
         data = request.get_json()
         
@@ -80,7 +71,7 @@ def import_luckysheet():
             # Use existing logic to find/create unit
             unit = normalize_unit_name(unit_name)
             if not unit:
-                errors.append(f"Dong {idx}: Khong nhan dien duoc don vi '{unit_name}'")
+                errors.append("Dong %d: Khong nhan dien duoc don vi '%s'" % (idx, unit_name))
                 continue
             
             # Extract field values
@@ -91,8 +82,8 @@ def import_luckysheet():
                     values[str(col_idx)] = cell
             
             # Save submission
-            submission = FormSubmission(
-                config_id=config_id,
+            submission = ReportData(
+                report_config_id=config_id,
                 unit_name=unit,
                 values=json.dumps(values, ensure_ascii=False),
                 submitted_by=session.get('uid'),
@@ -107,7 +98,7 @@ def import_luckysheet():
             'status': 'success',
             'submissions': len(submissions),
             'errors': errors,
-            'message': f'Da luu {len(submissions)} ban ghi'
+            'message': 'Da luu %d ban ghi' % len(submissions)
         })
         
     except Exception as e:
@@ -117,11 +108,8 @@ def import_luckysheet():
 
 @excel_api.route('/preview-template/<int:config_id>', methods=['GET'])
 def preview_template(config_id):
-    """
-    Lay du lieu template de hien thi tren Luckysheet
-    """
     if not session.get('uid'):
-        return redirect(url_for('auth_bp.login'))
+        return redirect('/login')
         
     try:
         config = ReportConfig.query.get(config_id)
@@ -142,9 +130,6 @@ def preview_template(config_id):
 
 @excel_api.route('/preview')
 def preview_page():
-    """
-    Trang Preview Excel bang Luckysheet
-    """
     if not session.get('uid'):
         return redirect('/login')
         
