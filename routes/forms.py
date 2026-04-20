@@ -713,8 +713,11 @@ def stats_export():
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
+        content = output.getvalue()
         
-        return send_file(output, as_attachment=True, download_name="test.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        # Return as Response instead of send_file to fix cPanel/Passenger fileno issue
+        from flask import Response
+        return Response(content, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=test.xlsx"})
     except Exception as e:
         import traceback
         error_msg = traceback.format_exc()
