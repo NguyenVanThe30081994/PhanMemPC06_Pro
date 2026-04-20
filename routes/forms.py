@@ -695,113 +695,20 @@ def stats_export():
         return "Missing report ID", 400
     
     try:
+        # Simple test - just create an empty workbook
         from openpyxl import Workbook
-        from openpyxl.styles import Font, Alignment
-        
         wb = Workbook()
         ws = wb.active
-        ws.title = "Thống kê"
+        ws.title = "Test"
+        ws.append(["Test", "OK"])
         
-        # Header style
-        header_font = Font(bold=True, size=12)
-        header_align = Alignment(horizontal="center", vertical="center")
-        
-        if is_v2:
-            # === V2 EXPORT LOGIC ===
-            template = db.session.get(ReportTemplateV2, rid)
-            if not template:
-                return "Template not found", 404
-            
-            version = ReportVersionV2.query.filter_by(template_id=rid, is_published=True).order_by(ReportVersionV2.created_at.desc()).first()
-            if not version or not version.excel_file_blob:
-                return "No published version", 400
-            
-            # Load template
-            try:
-                import openpyxl
-                tmpl_wb = openpyxl.load_workbook(io.BytesIO(version.excel_file_blob), data_only=False)
-            except:
-                tmpl_wb = openpyxl.load_workbook(io.BytesIO(version.excel_file_blob))
-            
-            tmpl_ws = tmpl_wb.active
-            
-            # Copy template structure to output (keep headers)
-            for r in range(1, min(tmpl_ws.max_row, 10) + 1):
-                for c in range(1, min(tmpl_ws.max_column, 20) + 1):
-                    cell = tmpl_ws.cell(r, c)
-                    out_cell = ws.cell(r, c)
-                    out_cell.value = cell.value
-                    if cell.font: out_cell.font = Font(bold=cell.font.bold, size=cell.font.size)
-                    if cell.alignment: out_cell.alignment = Alignment(horizontal=cell.alignment.horizontal, vertical=cell.alignment.vertical)
-                    if cell.fill and cell.fill.patternType:
-                        out_cell.fill = cell.fill
-            
-            # Fetch submissions
-            raw_subs = ReportSubmissionV2.query.filter_by(version_id=version.id).all()
-            sub_ids = [s.id for s in raw_subs]
-            
-            # Get data
-            if sub_ids:
-                all_vals = ReportValueV2.query.filter(ReportValueV2.submission_id.in_(sub_ids)).all()
-                
-                # Build unit->values map
-                unit_data = {}
-                for v in all_vals:
-                    key = str(v.cell_key or '').strip()
-                    sub = next((s for s in raw_subs if s.id == v.submission_id), None)
-                    unit = sub.org_unit if sub else 'Unknown'
-                    
-                    if unit not in unit_data:
-                        unit_data[unit] = {}
-                    
-                    if '!' in key:
-                        _, coord = key.split('!', 1)
-                    else:
-                        coord = key
-                    unit_data[unit][coord] = v.value
-                
-                # Append data rows (start below template)
-                start_row = tmpl_ws.max_row + 2
-                for unit, vals in unit_data.items():
-                    start_row += 1
-                    ws.cell(start_row, 1).value = unit
-                    ws.cell(start_row, 1).font = Font(bold=True)
-                    
-                    for coord, val in vals.items():
-                        try:
-                            from openpyxl.utils import coordinate_to_tuple
-                            col_idx, _ = coordinate_to_tuple(coord)
-                            ws.cell(start_row, col_idx).value = val
-                        except:
-                            pass
-        else:
-            # === V1 EXPORT LOGIC ===
-            config = db.session.get(ReportConfig, rid)
-            if not config or not config.file_blob:
-                return "Config not found", 404
-            
-            ws.append(["STT", "Đơn vị", "Người nộp", "Ngày nộp", "Trạng thái"])
-            for col in range(1, 6):
-                ws.cell(1, col).font = header_font
-                ws.cell(1, col).alignment = header_align
-            
-            # Get submissions
-            from models import ReportData, User
-            raw = db.session.query(ReportData, User).join(User, ReportData.user_id == User.id).filter(ReportData.report_id == rid).all()
-            
-            for i, (d, u) in enumerate(raw, 1):
-                ws.append([i, u.unit_area or u.fullname, u.fullname, d.report_date.strftime('%d/%m/%Y') if d.report_date else '', 'Đã nộp'])
-        
-        # Save and send
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
         
-        filename = f"ThongKe_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
-        return send_file(output, as_attachment=True, download_name=filename, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    
+        return send_file(output, as_attachment=True, download_name="test.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     except Exception as e:
         import traceback
         error_msg = traceback.format_exc()
         current_app.logger.error(f"Stats export error: {e}\n{error_msg}")
-        return f"Export error: {str(e)[:200]}", 500
+        return f"Export error: {str(e)[:500]}\n\n{error_msg[:500]}", 500
