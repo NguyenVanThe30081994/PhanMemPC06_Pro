@@ -129,3 +129,15 @@ def preview_template(config_id):
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@excel_api.route('/preview')
+@login_required
+def preview_page():
+    """
+    Trang Preview Excel bang Luckysheet
+    """
+    from flask import render_template
+    config_id = request.args.get('config_id', type=int)
+    start_row = request.args.get('start_row', 1, type=int)
+    return render_template('excel_preview.html', config_id=config_id, start_row=start_row)
