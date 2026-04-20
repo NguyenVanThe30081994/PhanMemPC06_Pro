@@ -375,15 +375,24 @@ def build_stats_table_html(file_blob, config, submissions):
                         # Check percentage field config
                         is_percent = any(f.get('is_percent') and f['idx'] == c for f in fields)
                         
-                        if is_percent or (f_val >= 0 and f_val <= 1 and f_val != int(f_val)):
-                            # Percentage: show as 75.00%
+                        # Get fractional part
+                        frac_part = f_val - int(f_val)
+                        
+                        if is_percent:
+                            # Force show as percentage
                             display = f"{f_val * 100:.2f}%"
-                        elif abs(f_val - round(f_val)) < 0.0001:
-                            # Whole number: show as integer
-                            display = str(int(round(f_val)))
+                        elif frac_part < 0.001 and frac_part > -0.001:
+                            # Essentially a whole number
+                            display = str(int(f_val))
+                        elif frac_part > 0 and f_val < 1:
+                            # Small decimal < 1, likely percentage
+                            display = f"{f_val * 100:.2f}%"
+                        elif f_val < 0:
+                            # Negative
+                            display = str(int(f_val))
                         else:
-                            # Decimal: use dot as separator
-                            display = f"{f_val:,.2f}".replace(",", ".")
+                            # Regular decimal
+                            display = f"{f_val:.2f}".replace(",", ".")
                     except:
                         display = str(val)
                 elif isinstance(val, str) and val.startswith('='):
@@ -509,12 +518,19 @@ def build_v2_stats_table_html(file_blob, metadata, all_values):
                             col_config = metadata.get('column_configs', {}).get(coord, {})
                             is_percent = col_config.get('is_percent', False)
                             
-                            if is_percent or (f_val >= 0 and f_val <= 1 and f_val != int(f_val)):
+                            # Get fractional part
+                            frac_part = f_val - int(f_val)
+                            
+                            if is_percent:
                                 display = f"{f_val * 100:.2f}%"
-                            elif abs(f_val - round(f_val)) < 0.0001:
-                                display = str(int(round(f_val)))
+                            elif frac_part < 0.001 and frac_part > -0.001:
+                                display = str(int(f_val))
+                            elif frac_part > 0 and f_val < 1:
+                                display = f"{f_val * 100:.2f}%"
+                            elif f_val < 0:
+                                display = str(int(f_val))
                             else:
-                                display = f"{f_val:,.2f}".replace(",", ".")
+                                display = f"{f_val:.2f}".replace(",", ".")
                         except:
                             display = str(val)
                     elif isinstance(val, str) and val.startswith('='):
