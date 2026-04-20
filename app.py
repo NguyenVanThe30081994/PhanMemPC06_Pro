@@ -1,5 +1,19 @@
 # -*- coding: utf-8 -*-
 import os
+import sys
+import io
+
+# Fix UTF-8 encoding for file operations
+if sys.getdefaultencoding() != 'utf-8':
+    reload(sys)
+    sys.setdefaultencoding('utf-8')
+
+# Also fix stdout/stderr
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 import logging
 from logging.handlers import RotatingFileHandler
 import json
