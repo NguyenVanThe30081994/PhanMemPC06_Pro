@@ -2,7 +2,7 @@
 from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, send_file, jsonify
 from flask import current_app
 from models import db, ReportConfig, ReportData, User, ReportTemplateV2, ReportVersionV2, ReportSubmissionV2, ReportValueV2, AppRole
-import json, io
+import json, io, re
 from datetime import datetime
 from utils import remove_accents, log_action, render_auto_template as render_template
 
@@ -697,32 +697,112 @@ def stats_export():
         return "Missing report ID", 400
     
     try:
-        # Debug: test openpyxl import explicit
-        try:
-            import openpyxl as opx
-            wb = opx.Workbook()
-        except ImportError as imp_err:
-            current_app.logger.error(f"Import error openpyxl: {imp_err}")
-            return f"Missing module: openpyxl - {imp_err}", 500
+        import openpyxl as opx
+        from openpyxl.styles import Font, Alignment
         
         wb = opx.Workbook()
         ws = wb.active
-        ws.title = "Test"
-        ws.append(["Test", "OK"])
+        ws.title = "Thống kê"
         
+        if is_v2:
+            # === V2 EXPORT LOGIC ===
+            template = db.session.get(ReportTemplateV2, rid)
+            if not template:
+                return "Template not found", 404
+            
+            version = ReportVersionV2.query.filter_by(template_id=rid, is_published=True).order_by(ReportVersionV2.created_at.desc()).first()
+            if not version or not version.excel_file_blob:
+                return "No published version", 400
+            
+            # Load template
+            tmpl_wb = opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=False)
+            tmpl_ws = tmpl_wb.active
+            
+            # Copy template structure to output (keep headers)
+            for r in range(1, min(tmpl_ws.max_row, 15) + 1):
+                for c in range(1, min(tmpl_ws.max_column, 20) + 1):
+                    cell = tmpl_ws.cell(r, c)
+                    out_cell = ws.cell(r, c)
+                    out_cell.value = cell.value
+                    if cell.font: 
+                        out_cell.font = Font(bold=cell.font.bold, size=cell.font.size)
+                    if cell.alignment: 
+                        out_cell.alignment = Alignment(horizontal=cell.alignment.horizontal, vertical=cell.alignment.vertical)
+                    if cell.fill and cell.fill.patternType:
+                        out_cell.fill = cell.fill
+            
+            # Fetch submissions
+            raw_subs = ReportSubmissionV2.query.filter_by(version_id=version.id).all()
+            sub_ids = [s.id for s in raw_subs]
+            
+            # Get data
+            if sub_ids:
+                all_vals = ReportValueV2.query.filter(ReportValueV2.submission_id.in_(sub_ids)).all()
+                
+                # Build unit->values map
+                unit_data = {}
+                for v in all_vals:
+                    key = str(v.cell_key or '').strip()
+                    sub = next((s for s in raw_subs if s.id == v.submission_id), None)
+                    unit = sub.org_unit if sub else 'Unknown'
+                    
+                    if unit not in unit_data:
+                        unit_data[unit] = {}
+                    
+                    if '!' in key:
+                        _, coord = key.split('!', 1)
+                    else:
+                        coord = key
+                    unit_data[unit][coord] = v.value
+                
+                # Append data rows (start below template)
+                start_row = tmpl_ws.max_row + 2
+                for unit, vals in unit_data.items():
+                    start_row += 1
+                    ws.cell(start_row, 1).value = unit
+                    ws.cell(start_row, 1).font = Font(bold=True)
+                    
+                    for coord, val in vals.items():
+                        try:
+                            match = re.match(r'([A-Z]+)(\d+)', coord)
+                            if match:
+                                col_letter = match.group(1)
+                                col_idx = opx.utils.column_index_from_string(col_letter)
+                                ws.cell(start_row, col_idx).value = val
+                        except:
+                            pass
+        else:
+            # === V1 EXPORT LOGIC ===
+            config = db.session.get(ReportConfig, rid)
+            if not config or not config.file_blob:
+                return "Config not found", 404
+            
+            ws.append(["STT", "Đơn vị", "Người nộp", "Ngày nộp", "Trạng thái"])
+            header_font = Font(bold=True, size=12)
+            header_align = Alignment(horizontal="center", vertical="center")
+            for col in range(1, 6):
+                ws.cell(1, col).font = header_font
+                ws.cell(1, col).alignment = header_align
+            
+            raw = db.session.query(ReportData, User).join(User, ReportData.user_id == User.id).filter(ReportData.report_id == rid).all()
+            
+            for i, (d, u) in enumerate(raw, 1):
+                ws.append([i, u.unit_area or u.fullname, u.fullname, d.report_date.strftime('%d/%m/%Y') if d.report_date else '', 'Đã nộp'])
+        
+        # Save and return as Response
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
         content = output.getvalue()
         
-        # Return as Response instead of send_file to fix cPanel/Passenger fileno issue
+        filename = f"ThongKe_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
+        
         from flask import Response
-        return Response(content, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=test.xlsx"})
+        return Response(content, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": f"attachment; filename={filename}"})
     except Exception as e:
         import traceback
         error_msg = traceback.format_exc()
         current_app.logger.error(f"Stats export error: {e}\n{error_msg}")
-        # Return detailed error for debugging
         import sys
         py_version = sys.version
         return f"Error: {str(e)}\nPython: {py_version}\nTrace: {error_msg[:300]}", 500
