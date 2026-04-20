@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, send_file, jsonify
+from models import db, ReportConfig, ReportData, User, ReportTemplateV2, ReportVersionV2, ReportSubmissionV2, ReportValueV2, AppRole
 import json, io
 from datetime import datetime
 from utils import remove_accents, log_action, render_auto_template as render_template
@@ -695,7 +696,6 @@ def stats_export():
     try:
         from openpyxl import Workbook
         from openpyxl.styles import Font, Alignment
-        from openpyxl.utils import get_column_letter
         
         wb = Workbook()
         ws = wb.active
