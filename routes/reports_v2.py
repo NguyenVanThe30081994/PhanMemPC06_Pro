@@ -11,7 +11,7 @@ from datetime import datetime
 
 reports_v2_bp = Blueprint('reports_v2_bp', __name__)
 
-GLOBAL_UNITS = ['Hệ thống', 'Admin', 'PC06']
+GLOBAL_UNITS = ['He thong', 'Admin', 'PC06']
 
 
 def _is_global_user(is_admin, user_unit):
