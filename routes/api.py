@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, session
+from flask import Blueprint, jsonify, session, request
 from models import db, Notification, ReportData, User
 import json, random
 from datetime import datetime

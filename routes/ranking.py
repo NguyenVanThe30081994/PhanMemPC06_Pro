@@ -13,7 +13,6 @@ from flask import Blueprint, jsonify, render_template, request, send_file
 from utils import normalize_unit_name, remove_accents, safe_float, render_auto_template
 
 from models import RankingEntry, RankingIndicator, RankingUnit, db
-from utils import normalize_unit_name, remove_accents, safe_float
 
 
 ranking_bp = Blueprint('ranking_bp', __name__)

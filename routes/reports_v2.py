@@ -501,9 +501,6 @@ def render_report(tid):
     is_admin = session.get('is_admin', False)
     is_global = _is_global_user(is_admin, user_unit)
     
-    # Debug log
-    import logging
-    logging.warning(f"[REPORTS_V2] unit='{user_unit}', admin={is_admin}, global={is_global}")
 
     from excel_renderer import _build_merge_lookup, _col_widths_px, _row_height_px, _cell_css, is_input_cell
     import openpyxl as _opx
@@ -527,10 +524,7 @@ def render_report(tid):
 
         min_row, min_col, max_row, max_col = _get_sheet_region(meta_data, ws, wb)
         
-        # Debug: check first few cells 
-        sample = [(ws.cell(row=r, column=c).value) for r in range(min_row, min(min_row+3, max_row+1)) for c in range(min_col, min(min_col+3, max_col+1))]
-        logging.warning(f"[REPORTS_V2] min_row={min_row}, first_cells={sample}")
-        
+
         unit_rows, unit_col = _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_unit)
         
         # Find all unit header rows in sheet (check first 3 columns for unit names)
@@ -550,9 +544,7 @@ def render_report(tid):
         user_rows_set = set(unit_rows)
         other_unit_rows = {r for r, k in all_unit_keys if r not in user_rows_set}
         
-        # Debug log
-        logging.warning(f"[REPORTS_V2] unit_rows={unit_rows}, first_unit={first_unit_row}, is_global={is_global}")
-        
+
         # Enable filtering based on config
         # Check if config has header_row/header_column set
         header_row_cfg = meta_data.get('header_row', 3)
@@ -560,9 +552,7 @@ def render_report(tid):
         
         # Only filter for non-admin users with unit assigned
         should_filter = not is_global and unit_rows and header_row_cfg
-        
-        logging.warning(f"[REPORTS_V2] header_config: row={header_row_cfg}, col={header_col_cfg}, should_filter={should_filter}")
-        
+
         # Find user's data end (next unit row after user's)
         user_data_end = max_row
         if unit_rows:
@@ -577,11 +567,7 @@ def render_report(tid):
             if ws.row_dimensions[r].hidden:
                 continue
 
-            # Debug: log first few row decisions
-            if r <= min(min_row + 5, max_row):
-                show_or_hide = "SHOW" if should_filter and ((r < first_unit_row) or (r in unit_rows) or (r > user_first and r <= user_data_end)) else "HIDE"
-                logging.warning(f"[REPORTS_V2] row={r}, decision={show_or_hide}")
-            
+
             # Use should_filter flag: only filter non-admin users with actual unit matches
             if not should_filter:
                 pass  # show all (admin or no matches found)

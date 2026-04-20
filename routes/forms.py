@@ -676,15 +676,3 @@ def export_form_progress(ftype, fid):
     output.seek(0)
     safe_name = "".join([c if c.isalnum() else "_" for c in form_name])
     return send_file(output, as_attachment=True, download_name=f"Tien_do_{safe_name}.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-    ws.column_dimensions['A'].width = 8
-    ws.column_dimensions['B'].width = 50
-    ws.column_dimensions['C'].width = 10
-    ws.column_dimensions['D'].width = 80
-
-    out = BytesIO()
-    wb.save(out)
-    out.seek(0)
-    import datetime
-    filename = f"Danh_Sach_Don_Vi_Chua_Bao_Cao_{datetime.datetime.now().strftime('%Y%m%d')}.xlsx"
-    return send_file(out, download_name=filename, as_attachment=True)

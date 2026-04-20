@@ -2,11 +2,10 @@ import os
 import logging
 from logging.handlers import RotatingFileHandler
 import json
-from flask import Flask, session, request, redirect, url_for, send_from_directory, render_template, g
+from flask import Flask, session, request, redirect, url_for, send_from_directory, render_template, g, jsonify
 from datetime import datetime, timedelta
 from models import db, AppRole
 from utils import init_db, get_perms_labels, is_mobile_device
-import time
 
 # --- RELIABLE PATH RESOLUTION (Improved for Mắt Bão/Passenger) ---
 basedir = os.path.dirname(os.path.abspath(__file__))
@@ -90,7 +89,6 @@ def add_security_headers(response):
 
 # Rate Limiting Configuration (Simple in-memory implementation)
 from collections import defaultdict
-from datetime import datetime, timedelta
 
 # Rate limit storage: {ip: [(timestamp, count)]}
 rate_limit_store = defaultdict(list)
@@ -130,7 +128,6 @@ def check_rate_limit():
         
         if total_requests >= RATE_LIMIT_MAX:
             # Too many requests - return 429 with proper JSON response
-            from flask import jsonify
             return jsonify({'error': 'Quá nhiều yêu cầu. Vui lòng thử lại sau.'}), 429
         
         # Add current request

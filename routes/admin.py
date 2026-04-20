@@ -355,7 +355,7 @@ def system_update():
                 os.makedirs(os.path.dirname(restart), exist_ok=True)
                 with open(restart, 'w') as f_out: f_out.write(str(datetime.now()))
                 
-                log_action(session['uid'], session['fullname'], "Cập nhật hệ thống thành công (V3.5.2)", "Hệ thống")
+                log_action(session['uid'], session['fullname'], "Cập nhật hệ thống thành công (V3.5.0)", "Hệ thống")
                 flash('Cập nhật thành công! Hệ thống đang khởi động lại...', 'success')
             except Exception as e: 
                 flash(f'Lỗi cập nhật: {e}', 'danger')
@@ -615,50 +615,9 @@ def module_categories():
 
 @admin_bp.route('/admin/categories/delete-old/<string:cat_type>/<int:cat_id>')
 def delete_category_old(cat_type, cat_id):
-    # Keeping old route structure for any legacy links if needed, but logic is redirected
+    """Legacy route - chuyển hướng về module_categories"""
     return redirect(url_for('admin_bp.module_categories'))
-    if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
-    force = request.args.get('force') == '1'
-    try:
-        obj = None
-        count = 0
-        if cat_type == 'news': 
-            obj = NewsCategory.query.get(cat_id)
-            if obj: count = NewsDoc.query.filter_by(category=obj.name).count()
-        elif cat_type == 'lib': 
-            obj = LibraryField.query.get(cat_id)
-            if obj: count = DocumentLib.query.filter_by(category=obj.name).count()
-        elif cat_type == 'contact': 
-            obj = ContactGroup.query.get(cat_id)
-            if obj: count = Contact.query.filter_by(contact_group=obj.name).count()
-        elif cat_type == 'role_contact':
-            obj = ContactRole.query.get(cat_id)
-            if obj: count = Contact.query.filter_by(role=obj.name).count()
-        elif cat_type == 'pro_unit': 
-            obj = ProfessionalUnit.query.get(cat_id)
-            if obj: 
-                # Check NewsDoc and Task as ProfessionalUnit is used in both now
-                count = Task.query.filter_by(domain=obj.name).count()
-                count += NewsDoc.query.filter_by(category=obj.name).count()
-        
-        if not obj:
-            flash('Không tìm thấy danh mục!', 'warning')
-            return redirect(url_for('admin_bp.module_categories'))
 
-        # Safety Check
-        if count > 0 and not force:
-            flash(f'CẢNH BÁO: Danh mục "{obj.name}" đang có {count} mục dữ liệu liên quan. <a href="{url_for("admin_bp.delete_category", cat_type=cat_type, cat_id=cat_id, force=1)}" class="fw-bold text-danger">XÁC NHẬN VẪN XÓA?</a>', 'warning')
-            return redirect(url_for('admin_bp.module_categories'))
-
-        name = obj.name
-        db.session.delete(obj)
-        db.session.commit()
-        log_action(session['uid'], session['fullname'], f"Xóa danh mục {cat_type}", "Danh mục", name)
-        flash(f'Đã xóa danh mục: {name}', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Lỗi khi xóa: {e}', 'danger')
-    return redirect(url_for('admin_bp.module_categories'))
 @admin_bp.route('/admin/fix-db')
 def fix_db_manually():
     if not session.get('is_admin'): return "Unauthorized", 403
@@ -696,5 +655,3 @@ def fix_db_manually():
     except Exception as e:
         return f"<h3>LỖI NGHIÊM TRỌNG:</h3>{str(e)}"
 
-
-# ==================== SMS BRANDNAME ROUTES ====================
