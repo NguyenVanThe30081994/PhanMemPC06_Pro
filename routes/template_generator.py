@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-LuckyTemplate Generator - Admin setup range, User input
+Template Generator - LuckySheet integration for V2 template setup
 """
-from flask import Blueprint, request, jsonify, session, redirect, send_file
-from models import db
+from flask import Blueprint, request, jsonify, session, redirect
+from models import db, ReportTemplateV2, ReportVersionV2, ReportSubmissionV2, ReportValueV2
 from datetime import datetime
 import json
 import os
@@ -21,19 +21,20 @@ def login_required():
 
 @template_bp.route('/admin/upload', methods=['GET', 'POST'])
 def admin_upload():
-    """Admin: Upload template Excel"""
     check = login_required()
     if check: return check
     
+    if not session.get('is_admin'):
+        return jsonify({'error': 'Chi admin duoc phep'}), 403
+    
     if request.method == 'POST':
         if 'file' not in request.files:
-            return jsonify({'error': 'Khong co file'}), 400
+            return jsonify({'error': 'No file'}), 400
         
         file = request.files['file']
         if file.filename == '':
-            return jsonify({'error': 'File trong'}), 400
+            return jsonify({'error': 'Empty file'}), 400
         
-        # Save to templates folder
         from flask import current_app
         template_dir = os.path.join(current_app.root_path, 'templates_files')
         os.makedirs(template_dir, exist_ok=True)
@@ -48,267 +49,320 @@ def admin_upload():
             'filename': file.filename
         })
     
-    return '''
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Upload Template - Admin</title>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/css/luckysheet.css" />
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/assets/iconfont/iconfont.css" />
-        <script src="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/plugins/js/plugin.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/luckysheet.umd.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/luckyexcel@latest/dist/luckyexcel.umd.js"></script>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    </head>
-    <body style="margin:0;padding:20px;background:#f5f5f5;">
-        <div style="max-width:800px;margin:0 auto;background:white;padding:20px;border-radius:8px;">
-            <h2><i class="fa-solid fa-upload"></i> Upload Template Excel</h2>
-            <form id="uploadForm" enctype="multipart/form-data">
-                <input type="file" name="file" accept=".xlsx" style="margin:20px 0;" required>
-                <button type="submit" class="btn btn-primary">Upload</button>
-            </form>
-            <div id="luckysheet" style="margin:20px 0;min-height:500px;"></div>
-            <div style="margin-top:20px;">
-                <button id="saveRangeBtn" class="btn btn-success" disabled>
-                    <i class="fa-solid fa-save"></i> Thiet lap vung nhap lieu
-                </button>
-                <span id="rangeInfo" style="margin-left:10px;color:green;"></span>
-            </div>
+    # Return HTML with LuckySheet
+    return '''<!DOCTYPE html>
+<html>
+<head>
+    <title>Setup Template - Admin</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/css/luckysheet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/assets/iconfont/iconfont.css" />
+    <script src="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/plugins/js/plugin.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/luckysheet.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luckyexcel@latest/dist/luckyexcel.umd.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        body { margin: 0; padding: 20px; background: #f5f5f5; font-family: 'Segoe UI', sans-serif; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin: 5px; }
+        .btn-primary { background: #2196F3; color: white; }
+        .btn-success { background: #4CAF50; color: white; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        h2 { margin-top: 0; color: #333; }
+        .upload-section { padding: 15px; background: #f9f9f9; border-radius: 4px; margin-bottom: 15px; }
+        .luckysheet-container { min-height: 500px; border: 1px solid #ddd; border-radius: 4px; }
+        #rangeInfo { margin-left: 10px; color: green; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2><i class="fa-solid fa-upload"></i> Cai dat Mau V2 - LuckySheet</h2>
+        
+        <div class="upload-section">
+            <label>Chon file Excel:</label>
+            <input type="file" id="excelFile" accept=".xlsx" />
+            <button id="uploadBtn" class="btn btn-primary">
+                <i class="fa-solid fa-upload"></i> Tai len
+            </button>
         </div>
-        <script>
-            let selectedRange = null;
+        
+        <div id="luckysheet" class="luckysheet-container"></div>
+        
+        <div style="margin-top: 15px;">
+            <button id="saveRangeBtn" class="btn btn-success" disabled>
+                <i class="fa-solid fa-save"></i> Luu vung nhap lieu
+            </button>
+            <span id="rangeInfo"></span>
+        </div>
+    </div>
+    
+    <script>
+        let selectedRange = null;
+        let loadedFile = null;
+        
+        // Load file when selected
+        document.getElementById('excelFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
             
-            // Watch for selection changes in Luckysheet
-            function watchSelection() {
-                if (luckysheet && luckysheet.getActiveSheet()) {
-                    // Get current selection
+            document.getElementById('uploadBtn').disabled = true;
+            document.getElementById('uploadBtn').innerHTML = 'Dang tai...';
+            
+            LuckyExcel.transformExcelToLucky(file, function(exportJson) {
+                luckysheet.create({
+                    container: 'luckysheet',
+                    data: exportJson.sheets,
+                    title: exportJson.info.name
+                });
+                loadedFile = file.name;
+                document.getElementById('saveRangeBtn').disabled = false;
+                document.getElementById('uploadBtn').disabled = false;
+                document.getElementById('uploadBtn').innerHTML = 'Tai len';
+            }, function(error) {
+                alert('Loi: ' + error.message);
+                document.getElementById('uploadBtn').disabled = false;
+            });
+        });
+        
+        // Watch for selection
+        setInterval(function() {
+            try {
+                const sheet = luckysheet.getActiveSheet();
+                if (sheet && sheet.data) {
                     const selection = luckysheet.getSelection();
                     if (selection && selection.length > 0) {
                         const s = selection[0];
-                        selectedRange = {
-                            row: [s.row, s.row + s.row_count - 1],
-                            col: [s.column, s.column + s.column_count - 1]
-                        };
+                        selectedRange = 'Row ' + (s.row + 1) + '-' + (s.row + s.row_count) + 
+                                     ', Col ' + (s.column + 1) + '-' + (s.column + s.column_count);
+                        document.getElementById('rangeInfo').textContent = selectedRange;
                     }
                 }
-                setTimeout(watchSelection, 1000);
+            } catch(e) {}
+        }, 1000);
+        
+        // Save range
+        document.getElementById('saveRangeBtn').addEventListener('click', function() {
+            if (!selectedRange) {
+                alert('Chon mot vung truoc!');
+                return;
             }
             
-            document.getElementById('uploadForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                const formData = new FormData(this);
-                
-                fetch('/template/admin/upload', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        // Load file into Luckysheet
-                        fetch(data.filepath)
-                        .then(r => r.blob())
-                        .then(blob => {
-                            const file = new File([blob], data.filename, {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-                            LuckyExcel.transformExcelToLucky(file, function(exportJson) {
-                                luckysheet.create({
-                                    container: 'luckysheet',
-                                    data: exportJson.sheets,
-                                    title: exportJson.info.name
-                                });
-                                document.getElementById('saveRangeBtn').disabled = false;
-                                setTimeout(watchSelection, 2000);
-                            });
-                        });
-                    }
-                });
-            });
+            // Get all data from LuckySheet
+            const allData = luckysheet.getAllSheets();
             
-            document.getElementById('saveRangeBtn').addEventListener('click', function() {
-                if (!selectedRange) {
-                    alert('Hay chon mot vung truoc!');
-                    return;
+            // Save via API
+            fetch('/template/save-config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    filename: loadedFile,
+                    range: selectedRange,
+                    data: allData
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert(data.message);
+                if (data.status === 'success') {
+                    window.close();
                 }
-                // Save range to hidden field or submit
-                alert('Da chon vung: Hang ' + (selectedRange.row[0]+1) + '-' + (selectedRange.row[1]+1) + 
-                      ', Cot ' + (selectedRange.col[0]+1) + '-' + (selectedRange.col[1]+1));
-                // TODO: Save to database via API
             });
-        </script>
-    </body>
-    </html>
-    '''
+        });
+    </script>
+</body>
+</html>'''
 
 
-@template_bp.route('/admin/save-range', methods=['POST'])
-def admin_save_range():
-    """Admin: Save input range to database"""
+@template_bp.route('/save-config', methods=['POST'])
+def save_config():
     check = login_required()
     if check: return check
     
-    data = request.get_json()
-    config_id = data.get('config_id')
-    sheet_name = data.get('sheet_name', 'Sheet1')
-    start_cell = data.get('start_cell')  # A5
-    end_cell = data.get('end_cell')      # G10
+    if not session.get('is_admin'):
+        return jsonify({'error': 'Admin only'}), 403
     
-    # Save to template config (use session for now)
-    session['template_range_%s' % config_id] = {
-        'sheet_name': sheet_name,
-        'start_cell': start_cell,
-        'end_cell': end_cell
-    }
-    
-    return jsonify({'status': 'success', 'message': 'Da luu vung nhap lieu'})
+    try:
+        data = request.get_json()
+        filename = data.get('filename')
+        range_info = data.get('range')
+        sheet_data = data.get('data')
+        
+        # Save template - use session for now (in production, save to DB)
+        template_key = 'v2_template_%s' % session.get('uid')
+        session[template_key] = {
+            'filename': filename,
+            'range': range_info,
+            'data': sheet_data[0] if sheet_data else {}
+        }
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Template saved'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
-# ============== USER: Load Template (Read-only) ==============
+# ============== USER: Input with LuckySheet ==============
 
 @template_bp.route('/user/input/<int:config_id>')
 def user_input(config_id):
-    """User: Load template for data entry (read-only headers)"""
     check = login_required()
     if check: return check
     
-    # Get template range from session (or DB)
-    range_config = session.get('template_range_%s' % config_id)
+    # Get user's unit
+    user_unit = session.get('unit_area', '')
     
-    template_html = '''
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Nhap Bao Cao</title>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/css/luckysheet.css" />
-        <script src="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/plugins/js/plugin.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/luckysheet.umd.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/luckyexcel@latest/dist/luckyexcel.umd.js"></script>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-        <style>
-            .locked-cell { background: #f0f0f0 !important; }
-            .input-cell { background: #fff !important; }
-        </style>
-    </head>
-    <body style="margin:0;padding:20px;background:#f5f5f5;">
-        <div style="max-width:1200px;margin:0 auto;background:white;padding:20px;border-radius:8px;">
-            <h2><i class="fa-solid fa-edit"></i> Nhap Bao Cao - Don vi: %s</h2>
-            <div id="luckysheet" style="margin:20px 0;min-height:500px;"></div>
-            <button id="submitBtn" class="btn btn-success">
-                <i class="fa-solid fa-check"></i> Gui Bao Cao
-            </button>
-        </div>
-        <script>
-            const configId = %d;
-            const inputRange = %s;
-            
-            // Load template (mock - replace with actual template URL)
-            // luckysheet.create({...});
-            
-            // Apply lock/unlock based on inputRange
-            function applyLocks() {
-                if (!inputRange || !luckysheet) return;
-                // TODO: Lock cells outside inputRange
-            }
-            
-            document.getElementById('submitBtn').addEventListener('click', function() {
-                const data = luckysheet.getAllSheets();
-                fetch('/template/extract-data', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        config_id: configId,
-                        sheets: data,
-                        unit_name: '%s'
-                    })
-                })
-                .then(r => r.json())
-                .then(data => {
-                    alert(data.message);
-                    if (data.status === 'success') window.close();
+    # Get template from session
+    template_key = 'v2_template_%s' % config_id
+    template_data = session.get(template_key)
+    
+    if not template_data:
+        return '''<!DOCTYPE html>
+<html>
+<head>
+    <title>Error</title>
+</head>
+<body style="padding:20px;text-align:center;">
+    <h2>Chua co template</h2>
+    <p>Lien he admin de cau hinh mau truoc</p>
+</body>
+</html>'''
+    
+    # Return HTML for user input (read-only headers, editable data area)
+    return '''<!DOCTYPE html>
+<html>
+<head>
+    <title>Nhap Bao cao</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/css/luckysheet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/assets/iconfont/iconfont.css" />
+    <script src="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/plugins/js/plugin.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/luckysheet.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luckyexcel@latest/dist/luckyexcel.umd.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        body { margin: 0; padding: 20px; background: #f5f5f5; font-family: 'Segoe UI', sans-serif; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        .btn-success { background: #4CAF50; color: white; }
+        h2 { margin-top: 0; color: #333; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2><i class="fa-solid fa-edit"></i> Nhap Bao cao - Don vi: %s</h2>
+        <div id="luckysheet" style="min-height:500px;border:1px solid #ddd;"></div>
+        <button id="submitBtn" class="btn btn-success">
+            <i class="fa-solid fa-check"></i> Gui Bao cao
+        </button>
+    </div>
+    <script>
+        const configId = %d;
+        
+        // Load template
+        fetch('/template/get-template/%d' % configId)
+        .then(r => r.json())
+        .then(data => {
+            if (data.template) {
+                luckysheet.create({
+                    container: 'luckysheet',
+                    data: [data.template],
+                    title: 'Bao cao'
                 });
+            }
+        });
+        
+        document.getElementById('submitBtn').addEventListener('click', function() {
+            const allData = luckysheet.getAllSheets();
+            fetch('/template/user/save', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    config_id: configId,
+                    unit_name: '%s',
+                    data: allData
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert(data.message);
+                if (data.status === 'success') window.close();
             });
-        </script>
-    </body>
-    </html>
-    ''' % (session.get('unit_area', 'Unknown'), config_id, json.dumps(range_config), session.get('unit_area', 'Unknown'))
+        });
+    </script>
+</body>
+</html>
+''' % (user_unit, config_id, config_id, user_unit)
+
+
+@template_bp.route('/get-template/<int:config_id>')
+def get_template(config_id):
+    check = login_required()
+    if check: return check
     
-    return template_html
+    template_key = 'v2_template_%s' % config_id
+    template_data = session.get(template_key)
+    
+    if not template_data:
+        return jsonify({'error': 'No template'}), 404
+    
+    return jsonify({'template': template_data.get('data', {})})
 
 
-# ============== EXTRACT DATA with Proper Type Handling ==============
-
-@template_bp.route('/extract-data', methods=['POST'])
-def extract_data():
-    """Extract data from Luckysheet JSON with proper dtype handling"""
+@template_bp.route('/user/save', methods=['POST'])
+def user_save():
     check = login_required()
     if check: return check
     
     try:
         data = request.get_json()
-        sheets = data.get('sheets', [])
         config_id = data.get('config_id')
         unit_name = data.get('unit_name', session.get('unit_area', ''))
+        sheet_data = data.get('data', [])
         
-        if not sheets:
-            return jsonify({'error': 'Sheet trong'}), 400
+        if not sheet_data:
+            return jsonify({'error': 'No data'}), 400
         
-        # Get input range from session/DB
-        range_config = session.get('template_range_%s' % config_id)
+        # Extract data - handle int vs decimal
+        rows = sheet_data[0].get('data', [])
+        submissions = []
         
-        # Extract data from specified range
-        sheet = sheets[0]
-        rows = sheet.get('data', [])
-        
-        if not rows:
-            return jsonify({'error': 'Du lieu trong'}), 400
-        
-        # Parse range if available
-        start_row = 1  # Default: skip header
-        end_row = len(rows)
-        
-        if range_config:
-            # Parse range like A5:G10
-            # Simplified: just use all data after header
-            pass
-        
-        # Extract values with proper type handling
-        extracted = []
-        for idx, row in enumerate(rows[start_row:], start=start_row):
-            if not row:
-                continue
-            if all(cell is None for cell in row):
+        for idx, row in enumerate(rows[1:], 1):  # Skip header
+            if not row or all(c is None for c in row):
                 continue
             
-            # Get unit name from first column
             unit = str(row[0]).strip() if row[0] else None
             if not unit:
                 continue
             
-            # Extract other columns with type detection
+            # Only allow user's unit to edit their own
+            if unit != unit_name and not session.get('is_admin'):
+                continue
+            
+            # Extract values with type handling
             values = {}
             for col_idx, cell in enumerate(row[1:], 1):
                 if cell is not None:
-                    # Type detection: check if it's a float that should be int
                     if isinstance(cell, float):
-                        # If value is essentially an integer (like 491.0)
                         if cell == int(cell):
-                            values[str(col_idx)] = int(cell)  # Convert to int
+                            values[str(col_idx)] = int(cell)
                         else:
-                            values[str(col_idx)] = round(cell, 2)  # Keep 2 decimals
+                            values[str(col_idx)] = round(cell, 2)
                     else:
                         values[str(col_idx)] = cell
             
-            extracted.append({
+            submissions.append({
                 'unit': unit,
                 'values': values
             })
         
-        # TODO: Save to database (ReportData)
+        # Save to session (in production, save to DB)
+        save_key = 'submissions_%d_%s' % (config_id, unit_name)
+        session[save_key] = submissions
         
         return jsonify({
             'status': 'success',
-            'submissions': len(extracted),
-            'message': 'Da luu %d ban ghi' % len(extracted),
-            'data': extracted  # Debug
+            'message': 'Da luu %d ban ghi' % len(submissions)
         })
         
     except Exception as e:
