@@ -1,21 +1,16 @@
 # -*- coding: utf-8 -*-
 """
 Offline Launcher for PhanMemPC06_Pro
-Entry point cho PyInstaller - khởi động Flask server
+Entry point cho PyInstaller - Khoi dong Flask server voi console visible
 """
 
 import os
 import sys
-import shutil
-import subprocess
-import webbrowser
-import time
+import traceback
 from datetime import datetime
 
-# Fix UTF-8 encoding for console output
+# Fix UTF-8 encoding
 if sys.platform == 'win32':
-    import locale
-    # Set UTF-8 mode
     os.environ['PYTHONIOENCODING'] = 'utf-8'
     try:
         sys.stdout.reconfigure(encoding='utf-8', errors='replace')
@@ -23,71 +18,61 @@ if sys.platform == 'win32':
     except:
         pass
 
-# Xác định thư mục của executable (khi đóng gói) hoặc script (khi chạy dev)
+# Xac dinh thu muc
 if getattr(sys, 'frozen', False):
-    # Đang chạy từ executable
     APP_DIR = sys._MEIPASS
     BASE_DIR = os.path.dirname(sys.executable)
 else:
-    # Đang chạy từ source
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     APP_DIR = BASE_DIR
 
-# Đảm bảo các thư mục cần thiết tồn tại
+# Tao thu muc can thiet
 def ensure_dirs():
     dirs = ['uploads', 'backups', 'logs', 'task_files', 'library_files', 'tmp']
     for d in dirs:
         path = os.path.join(BASE_DIR, d)
         if not os.path.exists(path):
             os.makedirs(path, exist_ok=True)
-            print(f"[INIT] Tạo thư mục: {d}")
+            print(f"[INIT] Tao thu muc: {d}")
 
-# Kiểm tra và tạo database nếu chưa có
+# Khoi tao database
 def init_database():
     db_path = os.path.join(BASE_DIR, 'pc06_system.db')
     if not os.path.exists(db_path):
-        print("[INIT] Database chưa tồn tại. Khởi tạo...")
-        # Import và chạy init_db
+        print("[INIT] Database chua ton tai. Khoi tao...")
         sys.path.insert(0, BASE_DIR)
         try:
             from models import db
             from utils import init_db
-            
-            # Tạo Flask app tạm để init DB
             from flask import Flask
             app = Flask(__name__)
             app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
             app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
             db.init_app(app)
-            
             with app.app_context():
                 init_db(app)
-                print("[OK] Database da duoc khoi tao thanh cong!")
+                print("[OK] Database da duoc khoi tao!")
                 return True
         except Exception as e:
-            print(f"[ERROR] Lỗi khởi tạo database: {e}")
+            print(f"[ERROR] Loi khoi tao database: {e}")
+            traceback.print_exc()
             return False
     return True
 
-# Xóa màn hình console
-def clear_screen():
-    os.system('cls' if os.name == 'nt' else 'clear')
-
-# Hiển thị banner (ASCII-safe)
+# Hien thi banner
 def show_banner():
-    clear_screen()
     print("=" * 60)
     print("   PHAN MEM QUAN LY PC06 - PHIEN BAN OFFLINE")
     print("=" * 60)
     print()
-    print("   Phien ban: 3.5.0 (Offline)")
+    print(f"   Phien ban: 3.5.2 (Offline)")
     print(f"   Thoi gian khoi dong: {datetime.now().strftime('%H:%M:%S %d/%m/%Y')}")
     print(f"   Thu muc du lieu: {BASE_DIR}")
     print()
     print("=" * 60)
     print()
 
-# Lay dia chi IP local
+# Lay IP local
 def get_local_ip():
     import socket
     try:
@@ -99,44 +84,43 @@ def get_local_ip():
     except:
         return "127.0.0.1"
 
-# Khởi động Flask server
+# Khoi dong Flask server
 def start_server():
     print("[INFO] Dang khoi dong server...")
     print()
     
-    # Thêm BASE_DIR vào sys.path để import modules
     if BASE_DIR not in sys.path:
         sys.path.insert(0, BASE_DIR)
     
-    # Import Flask app
+    os.chdir(BASE_DIR)
+    
     try:
-        # Doc app.py va thiet lap duong dan
-        os.chdir(BASE_DIR)
-        
-        # Import ung dung
         import app as flask_app
         
-        print("[OK] Ung dung da duoc load thanh cong!")
+        print("[OK] Ung dung da duoc load!")
         print()
         print("-" * 60)
-        print("   TRUY CẬP ỨNG DỤNG:")
+        print("   TRUY CAP UNG DUNG:")
         print(f"   - Local:   http://localhost:5000")
         print(f"   - Network: http://{get_local_ip()}:5000")
         print("-" * 60)
         print()
-        print("Nhấn Ctrl+C để dừng server")
+        print("Nhan Ctrl+C de dung server")
         print()
         
-        # Chạy server với waitress (production-ready)
+        # Chay server voi waitress - console luon hien thi
         from waitress import serve
         serve(flask_app.app, host='0.0.0.0', port=5000)
         
     except Exception as e:
-        print(f"[ERROR] Lỗi khởi động server: {e}")
-        import traceback
+        print(f"[ERROR] Loi khoi dong server: {e}")
         traceback.print_exc()
-        input("\nNhấn Enter để thoát...")
-        sys.exit(1)
+        print()
+        print("=" * 60)
+        print("   SERVER BI LOI - VUI LONG KIEM TRA LOI PHIA TREN")
+        print("=" * 60)
+        print()
+        input("Nhan Enter de thoat...")
 
 # Main
 if __name__ == '__main__':
@@ -144,6 +128,6 @@ if __name__ == '__main__':
     ensure_dirs()
     
     if not init_database():
-        print("[WARNING] Tiếp tục khởi động server (database sẽ được tạo khi truy cập)...")
+        print("[WARNING] Tiep tuc khoi dong server...")
     
     start_server()

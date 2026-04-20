@@ -1,24 +1,20 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
 PyInstaller spec file for PhanMemPC06_Pro - Offline Standalone Version
-Chạy: pyinstaller app_offline.spec --clean --noconfirm
+Chay: pyinstaller app_offline.spec --clean --noconfirm
 """
 
 import os
-import sys
-import shutil
 from PyInstaller.utils.hooks import collect_all, collect_submodules, collect_data_files
 
-# Collect data files for numpy and pandas (if available at runtime)
+# Collect data files
 numpy_data_files = collect_data_files('numpy')
 pandas_data_files = collect_data_files('pandas')
 
 block_cipher = None
-
-# Đường dẫn gốc của project
 ROOT_DIR = os.path.abspath(os.path.dirname(SPEC))
 
-# Các thư mục cần đóng gói
+# Thu muc can dong goi
 DATA_DIRS = [
     ('templates', 'templates'),
     ('static', 'static'),
@@ -26,7 +22,7 @@ DATA_DIRS = [
     ('v2_logic_configs', 'v2_logic_configs'),
 ]
 
-# Các file cần đóng gói
+# File can dong goi
 DATA_FILES = [
     ('models.py', '.'),
     ('utils.py', '.'),
@@ -42,22 +38,19 @@ DATA_FILES = [
     ('requirements.txt', '.'),
 ]
 
-# Tạo danh sách datas cho PyInstaller
+# Tao danh sach datas
 datas = []
-
-# Thêm thư mục
 for src, dst in DATA_DIRS:
     src_path = os.path.join(ROOT_DIR, src)
     if os.path.exists(src_path):
         datas.append((src_path, dst))
 
-# Thêm file
 for src, dst in DATA_FILES:
     src_path = os.path.join(ROOT_DIR, src)
     if os.path.exists(src_path):
         datas.append((src_path, dst))
 
-# Hidden imports - các module cần thiết
+# Hidden imports
 hiddenimports = [
     # Flask core
     'flask',
@@ -88,14 +81,13 @@ hiddenimports = [
     'werkzeug.wrappers',
     'werkzeug.wsgi',
     
-    # Data processing
+    # Excel processing
     'openpyxl',
     'openpyxl.workbook',
     'openpyxl.worksheet',
     'openpyxl.cell',
     'openpyxl.styles',
     'openpyxl.utils',
-    # Note: pandas/numpy handled lazily at runtime with try/except
     
     # Image processing
     'PIL',
@@ -117,7 +109,7 @@ hiddenimports = [
     'zipfile',
     'io',
     
-    # Routes modules
+    # Routes
     'routes',
     'routes.auth',
     'routes.admin',
@@ -130,7 +122,7 @@ hiddenimports = [
     'routes.shortlink',
     'routes.excel_builder',
     
-    # Other modules
+    # Other
     'googleapiclient',
     'google_auth_httplib2',
     'google_auth_oauthlib',
@@ -141,9 +133,10 @@ hiddenimports = [
     'markdown',
     'markdown.core',
     'PIL.ImageQt',
+    'waitress',
 ]
 
-# Collect submodules - skip pandas/numpy since they're handled lazily
+# Collect submodules
 for module in ['flask', 'werkzeug', 'sqlalchemy', 'openpyxl', 'PIL', 'jinja2', 'markupsafe', 'itsdangerous', 'click', 'blinker', 'dateutil', 'pytz']:
     try:
         submodules = collect_submodules(module)
@@ -151,16 +144,13 @@ for module in ['flask', 'werkzeug', 'sqlalchemy', 'openpyxl', 'PIL', 'jinja2', '
     except:
         pass
 
-# Note: pandas/numpy handled at runtime via try/except ImportError
-
-# Also add numpy data files to datas
+# Add numpy/pandas data files
 datas = datas + list(numpy_data_files) + list(pandas_data_files)
 
-# No binaries needed since pandas/numpy handled lazily at runtime
 binaries = []
 
 a = Analysis(
-    ['offline_launcher.py'],  # Entry point
+    ['offline_launcher.py'],
     pathex=[ROOT_DIR],
     binaries=binaries,
     datas=datas,
@@ -186,18 +176,18 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='PhanMemPC06_Server_v2',
+    name='PhanMemPC06_Server',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,  # Hiển thị console để thấy logs
+    console=True,  # Hien thi console de xem logs
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,  # Có thể thêm icon sau
+    icon=None,
 )
 
 coll = COLLECT(
@@ -208,5 +198,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='PhanMemPC06_Server_v2',
+    name='PhanMemPC06_Server',
 )
