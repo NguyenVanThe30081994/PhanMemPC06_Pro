@@ -351,9 +351,8 @@ def stats():
                             'status': sub.status
                         })
                     
-                    from excel_renderer import build_v2_stats_table_html
-                    metadata = json.loads(ver.metadata_json or '{}')
-                    excel_html = build_v2_stats_table_html(ver.excel_file_blob, metadata, all_vals)
+                    # Backend HTML rendering dropped in favor of native Excel display (Luckysheet)
+                    excel_html = ""
         else:
             active = db.session.get(ReportConfig, rid)
             if active:
@@ -393,9 +392,8 @@ def stats():
                         reported_unit_set.add(unit)
                         submissions.append(row)
 
-                # Render V1 Excel
-                from excel_renderer import build_stats_table_html
-                excel_html = build_stats_table_html(active.file_blob, active, submissions)
+                # Backend HTML rendering dropped in favor of native Excel display (Luckysheet)
+                excel_html = ""
 
     # Final stats
     sub_count = len(reported_unit_set)

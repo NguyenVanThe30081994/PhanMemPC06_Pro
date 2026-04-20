@@ -97,15 +97,16 @@
                         </div>
                     </div>
 
-                    <div class="table-responsive custom-scrollbar animate__animated animate__zoomIn" style="max-height: 800px; border-radius: 12px; border: 1px solid var(--border);">
-                        {% if excel_html %}
-                            {{ excel_html|safe }}
-                        {% else %}
-                            <div class="p-5 text-center text-muted opacity-50">
-                                <i class="fa-solid fa-ghost fa-3x mb-3"></i>
-                                <p>Chưa có dữ liệu nào để hiển thị</p>
+                    <!-- Native Excel Viewer -->
+                    <div id="excel-render-container" class="animate__animated animate__zoomIn border-primary shadow-sm" style="display: block; height: 800px; border-radius: 12px; border: 2px solid var(--primary); position: relative; overflow: hidden;">
+                        <div id="luckysheet-stats-container" style="margin:0px;padding:0px;position:absolute;width:100%;height:100%;left:0px;top:0px;"></div>
+                        <div id="luckysheet-loading" style="position: absolute; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.9); z-index: 10;">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+                                <h5 class="fw-bold text-primary mb-1">Đang trích xuất Dữ liệu Kế toán gốc...</h5>
+                                <div class="small text-muted">Bảng tính sẽ dựa trên File xuất Excel chuẩn của hệ thống</div>
                             </div>
-                        {% endif %}
+                        </div>
                     </div>
 
                     <div class="glass-header warning mt-5 rounded-4">
@@ -138,7 +139,20 @@
     .excel-render-table tr:nth-child(even) { background-color: rgba(0,0,0,0.01); }
 </style>
 
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/css/pluginsCss.css' />
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/plugins.css' />
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/css/luckysheet.css' />
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/assets/iconfont/iconfont.css' />
+<script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/js/plugin.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/luckysheet.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luckyexcel/dist/luckyexcel.umd.js"></script>
+
 <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Automatically load Excel if any template is active
+        loadLuckysheet();
+    });
+
     function exportStatsToExcel() {
         const urlParams = new URLSearchParams(window.location.search);
         const rid = urlParams.get('rid');
@@ -148,6 +162,38 @@
             return;
         }
         window.location.href = `/stats/export?rid=${rid}${v2 ? '&v2=1' : ''}`;
+    }
+
+    function loadLuckysheet() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const rid = urlParams.get('rid');
+        const v2 = urlParams.get('v2');
+        if (!rid) return;
+
+        let fetchUrl = `/stats/export?rid=${rid}${v2 ? '&v2=1' : ''}`;
+        
+        // Fetch the generated EXCEL file
+        fetch(fetchUrl)
+            .then(res => res.blob())
+            .then(blob => {
+                const file = new File([blob], "thong_ke.xlsx", {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+                LuckyExcel.transformExcelToLucky(file, function(exportJson, luckysheetfile) {
+                    document.getElementById('luckysheet-loading').style.display = 'none';
+                    if (exportJson.sheets == null || exportJson.sheets.length == 0) return;
+                    window.luckysheet.destroy();
+                    window.luckysheet.create({
+                        container: 'luckysheet-stats-container',
+                        showinfobar: false,
+                        showtoolbar: false,
+                        showstatisticBar: false,
+                        sheetBottomConfig: false,
+                        allowEdit: false,
+                        data: exportJson.sheets
+                    });
+                });
+            }).catch(err => {
+                document.getElementById('luckysheet-loading').innerHTML = '<div class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-2"></i>Không thể tải dữ liệu Excel.<br><small>'+err+'</small></div>';
+            });
     }
 </script>
 {% endblock %}
