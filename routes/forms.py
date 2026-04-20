@@ -700,31 +700,6 @@ def stats_export():
         import openpyxl as opx
         from openpyxl.styles import Font, Alignment
         
-        # Import _fmt_val for proper number formatting
-        import sys
-        sys.path.insert(0, '.')
-        try:
-            from excel_renderer import _fmt_val
-        except:
-            # Fallback inline if import fails
-            def _fmt_val(val):
-                if val is None: return ''
-                if isinstance(val, float):
-                    val = round(val, 10)
-                    if val == int(val): return str(int(val))
-                    return f"{val:.6f}".rstrip('0').rstrip('.')
-                if isinstance(val, str):
-                    val = val.strip()
-                    if '.' in val:
-                        try:
-                            fval = float(val)
-                            fval = round(fval, 10)
-                            if fval == int(fval): return str(int(fval))
-                            return f"{fval:.6f}".rstrip('0').rstrip('.')
-                        except: pass
-                    return val
-                return str(val)
-        
         wb = opx.Workbook()
         ws = wb.active
         ws.title = "Thống kê"
