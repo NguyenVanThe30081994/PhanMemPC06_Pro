@@ -308,6 +308,17 @@ class ReportValueV3(db.Model):
     cell_c = db.Column(db.Integer)  # Col index in Luckysheet
     value = db.Column(db.Text)
 
+class ReportAuditV3(db.Model):
+    __tablename__ = 'report_audit_v3'
+    id = db.Column(db.Integer, primary_key=True)
+    submission_id = db.Column(db.Integer, db.ForeignKey('report_submission_v3.id'))
+    user_id = db.Column(db.Integer)
+    cell_r = db.Column(db.Integer)
+    cell_c = db.Column(db.Integer)
+    old_value = db.Column(db.Text)
+    new_value = db.Column(db.Text)
+    changed_at = db.Column(db.DateTime, default=datetime.now)
+
 # --- SHORT URL / QR GENERATOR MODELS ---
 
 class ShortLink(db.Model):
