@@ -649,3 +649,27 @@ def input_report(tid):
                  version=version, 
                  config=json.dumps(schema),
                  report_id=report_id)
+
+
+@reports_v3_bp.route('/reports-v3/dashboard')
+def dashboard():
+    """Trang quan ly V3 - admin"""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    
+    templates = ReportTemplateV3.query.filter_by(is_active=True).order_by(ReportTemplateV3.created_at.desc()).all()
+    
+    data = []
+    for t in templates:
+        pub_versions = [v for v in t.versions if v.is_published]
+        data.append({
+            'id': t.id,
+            'name': t.name,
+            'template_code': t.template_code,
+            'field_count': len(t.fields),
+            'version_count': len(t.versions),
+            'has_published': len(pub_versions) > 0,
+            'created_at': t.created_at.strftime('%d/%m/%Y') if t.created_at else ''
+        })
+    
+    return _render('reports_v3_config.html', templates=data)
