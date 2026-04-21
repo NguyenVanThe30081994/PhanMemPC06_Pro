@@ -672,7 +672,7 @@ def dashboard():
             'created_at': t.created_at.strftime('%d/%m/%Y') if t.created_at else ''
         })
     
-    return _render('reports_v3_config.html', templates=data)
+    return _render('reports_v3_dashboard.html', templates_data=data)
 
 
 @reports_v3_bp.route('/reports-v3/config/<int:tid>')

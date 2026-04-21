@@ -1,99 +1,120 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header mb-4 animate__animated animate__fadeIn">
-    <div class="header-main-group">
-        <div class="header-title-pill shadow-sm glass-card" style="background:#fce7f3;">
-            <h1 class="mb-0 text-pink-700"><i class="fa-solid fa-table-cells text-pink-500 me-2"></i>Thiết lập Biểu mẫu V3 (Luckysheet)</h1>
-            <span class="badge bg-pink-500 rounded-pill ms-3">Mới</span>
-        </div>
+<style>
+    .template-card { transition: transform 0.2s; }
+    .template-card:hover { transform: translateY(-3px); }
+    .badge-new { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+</style>
 
-        <div class="header-actions">
+<div class="container-fluid py-3" style="min-height: 85vh;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-0 fw-bold text-primary">
+                <i class="fa-solid fa-table-cells me-2"></i>Thiết lập Biểu mẫu V3
+            </h4>
+            <div class="text-muted small">Metadata-driven reporting system</div>
+        </div>
+        <div>
             {% if is_admin %}
-            <button class="btn btn-pink rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#uploadV3Modal" style="background-color: #ec4899; color: white; border:none;">
-                <i class="fa-solid fa-plus me-2"></i>TẠO MẪU V3 MỚI
+            <button class="btn btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                <i class="fa-solid fa-upload me-2"></i>TẢI LÊN TEMPLATE MỚI
             </button>
             {% endif %}
         </div>
     </div>
-</div>
 
-<div class="main-content-area animate__animated animate__fadeInUp">
-    <div class="card glass-card border-0 shadow-none mb-4" style="background: transparent !important; backdrop-filter: none !important;">
-        <div class="filter-bar-unified animate__animated animate__fadeInUp mb-4 glass-card" style="background: rgba(255,255,255,0.7) !important;">
-            <div class="search-box-modern w-100">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" id="v3Search" placeholder="Tìm tên biểu mẫu V3..." onkeyup="unifiedFilter()">
-            </div>
-        </div>
-
-        <div class="row g-3">
-            {% for t_data in templates_data %}
-            {% set t = t_data.template %}
-            <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 template-item">
-                <div class="card compact-admin-card shadow-sm border-0 h-100" style="border-top: 4px solid #ec4899 !important;">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="badge bg-pink-100 text-pink-700 tiny fw-bold px-2 py-1" style="background:#fce7f3; color:#be185d;">V3 LUCKYSHEET</span>
-                            <div class="admin-actions d-flex gap-1">
-                                <a href="{{ url_for('reports_v3_bp.input_form', tid=t.id) }}" class="btn btn-tiny btn-light shadow-sm" title="Vào trang nhập liệu">
-                                    <i class="fa-solid fa-pen-to-square text-success"></i>
-                                </a>
+    {% if templates_data and templates_data|length > 0 %}
+    <div class="row g-3">
+        {% for t_data in templates_data %}
+        <div class="col-xl-3 col-lg-4 col-md-6 template-card">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="badge badge-new text-white">V3</span>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-light" data-bs-toggle="dropdown">
+                                <i class="fa-solid fa-ellipsis"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{{ url_for('reports_v3_bp.input_form', tid=t_data.id) }}">
+                                    <i class="fa-solid fa-pen me-2"></i>Nhập liệu
+                                </a></li>
                                 {% if is_admin %}
-                                <a href="{{ url_for('reports_v3_bp.config_template', tid=t.id) }}" class="btn btn-tiny btn-light shadow-sm" title="Quản lý & Cấu hình vùng nhập">
-                                    <i class="fa-solid fa-gear text-primary"></i>
-                                </a>
-                                <button class="btn btn-tiny btn-light shadow-sm" title="Xóa mẫu" onclick="deleteV3Template({{ t.id }}, '{{ t.name }}')">
-                                    <i class="fa-solid fa-trash-can text-danger"></i>
-                                </button>
+                                <li><a class="dropdown-item" href="{{ url_for('reports_v3_bp.config_template', tid=t_data.id) }}">
+                                    <i class="fa-solid fa-gear me-2"></i>Cấu hình
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><button class="dropdown-item text-danger" onclick="deleteTemplate({{ t_data.id }}, '{{ t_data.name }}')">
+                                    <i class="fa-solid fa-trash me-2"></i>Xóa
+                                </button></li>
                                 {% endif %}
-                            </div>
+                            </ul>
                         </div>
-                        
-                        <h6 class="fw-bold text-dark mb-0 line-clamp-2 mt-2" style="font-size: 0.9rem; line-height: 1.4; min-height: 2.4rem;" title="{{ t.name }}">
-                            {{ t.name }}
-                        </h6>
+                    </div>
+                    <h5 class="card-title mb-1">{{ t_data.name }}</h5>
+                    {% if t_data.description %}
+                    <p class="text-muted small mb-2">{{ t_data.description[:50] }}</p>
+                    {% endif %}
+                    <div class="d-flex gap-3 small text-muted">
+                        <span><i class="fa-solid fa-layer-group me-1"></i>{{ t_data.field_count }} fields</span>
+                        <span><i class="fa-solid fa-code-branch me-1"></i>{{ t_data.version_count }} versions</span>
+                    </div>
+                    <div class="mt-3">
+                        <a href="{{ url_for('reports_v3_bp.input_form', tid=t_data.id) }}" class="btn btn-outline-primary btn-sm w-100">
+                            <i class="fa-solid fa-pen me-1"></i>Vào nhập liệu
+                        </a>
                     </div>
                 </div>
+                <div class="card-footer bg-transparent border-0 pt-0">
+                    <small class="text-muted">Tạo: {{ t_data.created_at }}</small>
+                </div>
             </div>
-            {% endfor %}
-
-            {% if not templates_data %}
-            <div class="col-12 py-5 text-center">
-                <div class="opacity-25 mb-3"><i class="fa-solid fa-file-excel fa-4x text-pink-500"></i></div>
-                <h5 class="fw-bold text-muted">Chưa có biểu mẫu V3 nào được thiết lập. Hãy tạo mới!</h5>
-            </div>
-            {% endif %}
         </div>
+        {% endfor %}
     </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="fa-solid fa-folder-open fa-4x mb-3 opacity-25"></i>
+        <h5>Chưa có biểu mẫu nào</h5>
+        {% if is_admin %}
+        <p>Tải lên template Excel để bắt đầu</p>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 
-<!-- Upload V3 Modal -->
-<div class="modal fade" id="uploadV3Modal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-            <form id="uploadV3Form" enctype="multipart/form-data">
-                <div class="modal-header text-white p-4 border-0" style="background: linear-gradient(135deg, #ec4899 0%, #be185d 100%);">
-                    <h5 class="modal-title fw-bold">TẠO MẪU BIỂU MẪU V3 MỚI</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Tải lên Template V3</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('reports_v3_bp.upload_template') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Tên biểu mẫu</label>
+                        <input type="text" name="name" class="form-control" required placeholder="VD: Báo cáo tháng">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Mô tả</label>
+                        <textarea name="description" class="form-control" rows="2" placeholder="Mô tả ngắn..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Số dòng header</label>
+                        <input type="number" name="header_row_count" class="form-control" value="3" min="1" max="10">
+                        <small class="text-muted">Số dòng header trong Excel template</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">File Excel</label>
+                        <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
+                    </div>
                 </div>
-                <div class="modal-body p-4">
-                    <div class="mb-4">
-                        <label class="form-label fw-bold text-dark small">TÊN BIỂU MẪU (V3)</label>
-                        <input type="text" name="name" class="form-control" placeholder="Ví dụ: Báo cáo V3 có Luckysheet" required>
-                    </div>
-                    <div class="mb-4">
-                        <label class="form-label fw-bold text-dark small">FILE EXCEL MẪU (.xlsx)</label>
-                        <input type="file" name="template_excel" class="form-control" accept=".xlsx" required>
-                    </div>
-                    <div class="alert alert-info tiny mt-3 mb-0" style="background:#f0f9ff; border-color:#bae6fd; color:#0369a1;">
-                        <i class="fa-solid fa-circle-info me-1"></i>
-                        V3 sử dụng Luckysheet. Sau khi tải lên, hệ thống sẽ mở ra giao diện Excel để bạn chọn Vùng nhập liệu (Input Range).
-                    </div>
-                </div>
-                <div class="modal-footer bg-light border-0">
-                    <button type="button" class="btn btn-light border rounded-pill px-4 fw-bold" data-bs-dismiss="modal">HỦY</button>
-                    <button type="submit" class="btn px-5 rounded-pill fw-bold shadow text-white" id="uploadBtn" style="background-color: #ec4899;">TẢI LÊN & KHỞI TẠO</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Tải lên</button>
                 </div>
             </form>
         </div>
@@ -101,71 +122,21 @@
 </div>
 
 <script>
-document.getElementById('uploadV3Form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(this);
-    const btn = document.getElementById('uploadBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Đang xử lý...';
+function deleteTemplate(id, name) {
+    if (!confirm('Xóa biểu mẫu "' + name + '"?\nDữ liệu đã nhập sẽ bị mất!')) return;
     
-    fetch('{{ url_for("reports_v3_bp.add_template") }}', {
+    fetch('/reports-v3/templates/' + id + '/delete', {
         method: 'POST',
-        body: formData
+        headers: {'Content-Type': 'application/json'}
     })
     .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            bootstrap.Modal.getInstance(document.getElementById('uploadV3Modal')).hide();
-            // Redirect immediately to config page!
-            window.location.href = '/reports-v3/config/' + data.template_id;
-        } else {
-            alert('Lỗi: ' + (data.error || 'Không xác định'));
-            btn.disabled = false;
-            btn.innerHTML = 'TẢI LÊN & KHỞI TẠO';
-        }
-    })
-    .catch(err => {
-        alert('Lỗi: ' + err);
-        btn.disabled = false;
-        btn.innerHTML = 'TẢI LÊN & KHỞI TẠO';
-    });
-});
-
-function deleteV3Template(id, name) {
-    if (!confirm('Xác nhận xóa biểu mẫu V3 "' + name + '"?')) return;
-    
-    fetch('/reports-v3/delete/' + id, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            alert('Đã xóa thành công! ' + data.message);
+    .then(d => {
+        if (d.success) {
             location.reload();
         } else {
-            alert('Lỗi: ' + (data.error || 'Không xác định'));
+            alert('Lỗi: ' + (d.message || 'Không rõ'));
         }
-    })
-    .catch(e => {
-        alert('Lỗi kết nối: ' + e);
-    });
-}
-
-function unifiedFilter() {
-    const query = document.getElementById('v3Search').value.toLowerCase();
-    document.querySelectorAll('.template-item').forEach(el => {
-        const title = el.querySelector('h6').innerText.toLowerCase();
-        el.style.display = title.includes(query) ? 'block' : 'none';
     });
 }
 </script>
-
-<style>
-    .compact-admin-card { transition: transform 0.2s; background: #fff; border-radius: 12px; }
-    .compact-admin-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.05) !important; }
-    .btn-tiny { width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; border-radius: 6px; }
-    .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .tiny { font-size: 11px; }
-</style>
 {% endblock %}
