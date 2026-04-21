@@ -719,7 +719,11 @@ def stats_export():
             filename = f"ThongKe_{template.name}_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
             
             from flask import Response
-            return Response(content, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": f"attachment; filename={filename}"})
+            # Set proper encoding for Vietnamese characters
+            response = Response(content, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=utf-8")
+            response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            return response
         else:
             # === V1: LẤY FILE EXCEL TỪ ReportConfig ===
             # V1 template stored in ReportConfig.file_blob
@@ -760,8 +764,9 @@ def stats_export():
             
             from flask import Response
             # Set proper encoding for Vietnamese characters
-            response = Response(content, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+            response = Response(content, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=utf-8")
+            response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+            response.headers["X-Content-Type-Options"] = "nosniff"
             return response
     except Exception as e:
         import traceback

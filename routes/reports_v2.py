@@ -19,6 +19,25 @@ def _is_global_user(is_admin, user_unit):
     return bool(is_admin) or (user_unit in GLOBAL_UNITS)
 
 
+def _format_cell_value(val):
+    """
+    Format value for proper display - fixes floating-point precision errors.
+    Example: 74843.87999999999 -> 74844, 4185.719999999999 -> 4186
+    """
+    if val is None:
+        return ''
+    if isinstance(val, float):
+        # Check if it's a whole number
+        if val == int(val):
+            return str(int(val))
+        # Round to reasonable precision to avoid floating-point errors
+        rounded = round(val, 10)
+        if rounded == int(rounded):
+            return str(int(rounded))
+        return str(rounded).rstrip('0').rstrip('.')
+    return str(val)
+
+
 def _normalize_v2_key(sheet_name, coord):
     return f"{sheet_name}!{coord}"
 
@@ -606,7 +625,8 @@ def render_report(tid):
                 td = f'<td{rs_attr}{cs_attr} style="{full_css}">'
 
                 if is_input:
-                    val = existing_values.get(key, existing_values.get(coord, ''))
+                    raw_val = existing_values.get(key, existing_values.get(coord, ''))
+                    val = _format_cell_value(raw_val)
                     safe_val = str(val).replace('"', '&quot;')
                     inner = (
                         f'<input type="text" class="grid-input" '
@@ -616,7 +636,9 @@ def render_report(tid):
                     )
                 else:
                     raw = cell.value
-                    if isinstance(raw, str) and raw.startswith('='):
+                    if isinstance(raw, float):
+                        raw = _format_cell_value(raw)
+                    elif isinstance(raw, str) and raw.startswith('='):
                         raw = ''
                     inner = '' if raw is None else str(raw)
 
