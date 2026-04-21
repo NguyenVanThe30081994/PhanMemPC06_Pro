@@ -1,32 +1,9 @@
 # -*- coding: utf-8 -*-
 # Excel Scanner for V2 Reports
+# Uses raw values from Excel - no conversion to avoid float precision errors
 import io
 import openpyxl
 from openpyxl.utils import get_column_letter, column_index_from_string, range_boundaries
-
-
-def _fmt_val(val):
-    """Format value: 5.0 → '5', 3.14 → '3.14', 74843.87999999999 → '74843.88', None → ''"""
-    if val is None:
-        return ''
-    if isinstance(val, str):
-        val = val.strip()
-        if '.' in val:
-            try:
-                fval = float(val)
-                fval = round(fval, 10)
-                if fval == int(fval): 
-                    return str(int(fval))
-                return f"{fval:.6f}".rstrip('0').rstrip('.')
-            except ValueError:
-                pass
-        return val
-    if isinstance(val, float):
-        val = round(val, 10)
-        if val == int(val):
-            return str(int(val))
-        return f"{val:.6f}".rstrip('0').rstrip('.')
-    return str(val)
 
 
 def _load_workbook_utf8(buffer, **kwargs):
