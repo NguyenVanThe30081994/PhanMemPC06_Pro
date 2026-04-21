@@ -53,11 +53,11 @@
 </div>
 
 <script>
-    const SCHEMA = JSON.parse('{{ config | safe }}');
+    const SCHEMA = {{ config | safe if config else '{}' }};
     const MY_UNIT = "{{ session.get('unit_area', '') }}".toLowerCase();
     const TEMPLATE_ID = {{ template.id }};
     const VERSION_ID = {{ version.id }};
-    const REPORT_ID = {{ report_id if report_id else 'null' }};
+    let REPORT_ID = {{ report_id if report_id else 'null' }};
     
     let dataValues = {};      // { field_code: value }
     let fieldIndexMap = {};   // field_code -> col index
@@ -65,9 +65,14 @@
     let currentStatus = 'draft';
 
     $(function () {
-        buildGrid();
-        if (REPORT_ID) {
-            loadData();
+        try {
+            buildGrid();
+            if (REPORT_ID) {
+                loadData();
+            }
+        } catch (e) {
+            console.error("Error building grid:", e);
+            document.getElementById('dataGrid').innerHTML = `<tr><td colspan="100%" class="text-danger">Lỗi khi tải biểu mẫu: ${e.message}</td></tr>`;
         }
     });
 

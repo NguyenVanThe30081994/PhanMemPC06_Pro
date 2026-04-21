@@ -691,43 +691,6 @@ def config_template(tid):
     return _render('reports_v3_config.html', template=template, versions=versions)
 
 
-@reports_v3_bp.route('/reports-v3/input/<int:tid>')
-def input_form(tid):
-    """Vao trang nhap lieu"""
-    if not session.get('uid'):
-        return redirect(url_for('auth_bp.login'))
-    
-    template = db.session.get(ReportTemplateV3, tid)
-    if not template:
-        flash('Khong tim thay!', 'danger')
-        return redirect(url_for('excel_builder_bp.dashboard'))
-    
-    version = ReportVersionV3.query.filter_by(template_id=tid, is_published=True).order_by(ReportVersionV3.created_at.desc()).first()
-    if not version:
-        flash('Chua co phien banублиe!', 'danger')
-        return redirect(url_for('reports_v3.dashboard'))
-    
-    schema = {}
-    if version.schema_json:
-        try:
-            schema = json.loads(version.schema_json)
-        except:
-            pass
-    
-    unit_id = session.get('unit_area', '')
-    submission = ReportSubmissionV3.query.filter_by(
-        version_id=version.id,
-        unit_id=unit_id
-    ).first()
-    
-    report_id = submission.id if submission else None
-    
-    return _render('reports_v3_input.html', 
-                 template=template, 
-                 version=version, 
-                 config=json.dumps(schema),
-                 report_id=report_id)
-
 
 @reports_v3_bp.route('/reports-v3/add', methods=['POST'])
 def add_template():
