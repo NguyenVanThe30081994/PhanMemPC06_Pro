@@ -193,12 +193,12 @@
                     }
                     
                     // ============================================
-                    // FIX LỖI FONT TIẾNG VIỆT - Deep Unicode NFC Normalization
-                    // V2 từ Excel trên macOS có thể chứa chuỗi NFD trong nhiều nhánh JSON
-                    // của LuckyExcel (không chỉ data/celldata mà còn style, rich text, config...)
+                    // FIX LỖI FONT TIẾNG VIỆT - Safe Unicode NFC Normalization
+                    // Chỉ chuẩn hóa GIÁ TRỊ chuỗi, không đụng vào key để tránh làm hỏng
+                    // cấu trúc JSON nội bộ của LuckyExcel/Luckysheet.
                     // ============================================
                     const normalizeNFC = (val) => (typeof val === 'string' ? val.normalize('NFC') : val);
-                    const normalizeDeep = (input, seen = new WeakSet()) => {
+                    const normalizeValuesDeep = (input, seen = new WeakSet()) => {
                         if (input === null || input === undefined) return input;
                         if (typeof input === 'string') return normalizeNFC(input);
                         if (typeof input !== 'object') return input;
@@ -207,36 +207,29 @@
 
                         if (Array.isArray(input)) {
                             for (let i = 0; i < input.length; i++) {
-                                input[i] = normalizeDeep(input[i], seen);
+                                input[i] = normalizeValuesDeep(input[i], seen);
                             }
                             return input;
                         }
 
                         Object.keys(input).forEach(key => {
-                            const normalizedKey = normalizeNFC(key);
-                            const normalizedValue = normalizeDeep(input[key], seen);
-                            if (normalizedKey !== key) {
-                                delete input[key];
-                            }
-                            input[normalizedKey] = normalizedValue;
+                            input[key] = normalizeValuesDeep(input[key], seen);
                         });
                         return input;
                     };
 
-                    exportJson = normalizeDeep(exportJson);
-
-                    // Ép font an toàn cho tiếng Việt khi Luckysheet vẽ bằng canvas
-                    const SAFE_VI_FONT = 'Arial';
+                    exportJson = normalizeValuesDeep(exportJson);
                     exportJson.sheets.forEach(sheet => {
                         if (!sheet.config) sheet.config = {};
                         if (!sheet.defaultRowHeight) sheet.defaultRowHeight = 24;
-                        sheet.showGridLines = true;
                     });
                     // ============================================
                     // END FIX LỖI FONT
                     // ============================================
                     
-                    window.luckysheet.destroy();
+                    if (window.luckysheet && typeof window.luckysheet.destroy === 'function') {
+                        window.luckysheet.destroy();
+                    }
                     window.luckysheet.create({
                         container: 'luckysheet-stats-container',
                         showinfobar: false,
@@ -245,8 +238,6 @@
                         sheetBottomConfig: false,
                         allowEdit: false,
                         lang: 'vi',
-                        fontList: [{ fontName: SAFE_VI_FONT, url: '' }],
-                        defaultFont: SAFE_VI_FONT,
                         data: exportJson.sheets
                     });
                 });
