@@ -717,9 +717,21 @@ def stats_export():
             # Load template and merge data
             try:
                 import openpyxl as opx
+                import unicodedata
                 from io import BytesIO
                 wb = opx.load_workbook(BytesIO(version.excel_file_blob))
                 ws = wb.active
+                
+                def _normalize_nfc(value):
+                    return unicodedata.normalize('NFC', value) if isinstance(value, str) else value
+                
+                # Chuẩn hóa toàn bộ workbook trước khi merge để tránh text NFD từ file mẫu MacOS
+                for sheet in wb.worksheets:
+                    sheet.title = _normalize_nfc(sheet.title)
+                    for row in sheet.iter_rows():
+                        for cell in row:
+                            if isinstance(cell.value, str):
+                                cell.value = _normalize_nfc(cell.value)
                 
                 # Get all submissions for this version
                 subs = ReportSubmissionV2.query.filter_by(version_id=version.id, status='draft').all()
@@ -729,11 +741,13 @@ def stats_export():
                     for val in sub.values:
                         key = str(val.cell_key or '').strip()
                         if '!' in key:
-                            _, coord = key.split('!', 1)
+                            sheet_name, coord = key.split('!', 1)
+                            target_ws = wb[sheet_name] if sheet_name in wb.sheetnames else ws
                         else:
                             coord = key
+                            target_ws = ws
                         try:
-                            ws[coord].value = val.value
+                            target_ws[coord].value = _normalize_nfc(val.value)
                         except:
                             pass
                 
