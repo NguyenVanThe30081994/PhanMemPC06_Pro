@@ -56,6 +56,43 @@
                         return;
                     }
 
+                    // Fix floating point precision issues in the data
+                    // LuckyExcel stores numbers as JS floats which causes precision errors
+                    // We need to format the 'm' (display) value properly
+                    if (sheet.data) {
+                        for (let r = 0; r < sheet.data.length; r++) {
+                            const row = sheet.data[r];
+                            if (!row) continue;
+                            for (let c = 0; c < row.length; c++) {
+                                const cell = row[c];
+                                if (cell && cell.v !== null && cell.v !== undefined && typeof cell.v === 'number') {
+                                    // Format the display value to avoid floating point artifacts
+                                    let val = cell.v;
+                                    if (Number.isInteger(val)) {
+                                        cell.m = val.toString();
+                                    } else {
+                                        // Round to reasonable decimal places to avoid precision errors
+                                        // Check how many decimal places the original had
+                                        const valStr = val.toString();
+                                        if (valStr.includes('e')) {
+                                            // Scientific notation - use fixed precision
+                                            cell.m = val.toFixed(10).replace(/\.?0+$/, '');
+                                        } else {
+                                            // Regular number - preserve original precision but clean up artifacts
+                                            const decimalPart = valStr.split('.')[1];
+                                            if (decimalPart && decimalPart.length > 10) {
+                                                // Likely a precision artifact, round to 2 decimal places
+                                                cell.m = val.toFixed(2);
+                                            } else {
+                                                cell.m = valStr;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Lock entire sheet first, then unlock user's unit row
                     const sheet = exportJson.sheets[0];
                     if(!sheet.config) sheet.config = {};
