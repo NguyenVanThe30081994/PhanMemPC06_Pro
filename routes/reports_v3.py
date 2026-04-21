@@ -109,6 +109,12 @@ def build_schema(ws, header_row_count=3):
     fields = []
     grid_header_tree = []
     
+    # Xay grid_header_tree
+    for col_idx in range(len(matrix[0])):
+        col_headers = []
+        for row_idx in range(header_row_count):
+            val = matrix[row_idx][col_idx]['value']
+            col_headers.append(str(val) if val else '')
         grid_header_tree.append(col_headers)
     
     # Extract row names (Unit column - usually column 1 or 2)
