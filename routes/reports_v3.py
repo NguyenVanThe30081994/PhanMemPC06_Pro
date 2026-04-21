@@ -18,7 +18,7 @@ import io
 import re
 import unicodedata
 
-reports_v3_bp = Blueprint('reports_v3', __name__)
+reports_v3_bp = Blueprint('reports_v3_bp', __name__)
 
 
 # ==================== MODULE 1: TEMPLATE IMPORTER ====================
@@ -673,3 +673,89 @@ def dashboard():
         })
     
     return _render('reports_v3_config.html', templates=data)
+
+
+@reports_v3_bp.route('/reports-v3/config/<int:tid>')
+def config_template(tid):
+    """Cau hinh template (admin)"""
+    if not session.get('is_admin'):
+        return redirect(url_for('auth_bp.login'))
+    
+    template = db.session.get(ReportTemplateV3, tid)
+    if not template:
+        flash('Khong tim thay!', 'danger')
+        return redirect(url_for('reports_v3.dashboard'))
+    
+    versions = template.versions.order_by(ReportVersionV3.created_at.desc()).all()
+    
+    return _render('reports_v3_config.html', template=template, versions=versions)
+
+
+@reports_v3_bp.route('/reports-v3/input/<int:tid>')
+def input_form(tid):
+    """Vao trang nhap lieu"""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    
+    template = db.session.get(ReportTemplateV3, tid)
+    if not template:
+        flash('Khong tim thay!', 'danger')
+        return redirect(url_for('dashboard_bp.dashboard'))
+    
+    version = ReportVersionV3.query.filter_by(template_id=tid, is_published=True).order_by(ReportVersionV3.created_at.desc()).first()
+    if not version:
+        flash('Chua co phien banублиe!', 'danger')
+        return redirect(url_for('reports_v3.dashboard'))
+    
+    schema = {}
+    if version.schema_json:
+        try:
+            schema = json.loads(version.schema_json)
+        except:
+            pass
+    
+    unit_id = session.get('unit_area', '')
+    submission = ReportSubmissionV3.query.filter_by(
+        version_id=version.id,
+        unit_id=unit_id
+    ).first()
+    
+    report_id = submission.id if submission else None
+    
+    return _render('reports_v3_input.html', 
+                 template=template, 
+                 version=version, 
+                 config=json.dumps(schema),
+                 report_id=report_id)
+
+
+@reports_v3_bp.route('/reports-v3/add', methods=['POST'])
+def add_template():
+    """Tao template moi (admin)"""
+    if not session.get('is_admin'):
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    
+    name = request.form.get('name', '').strip()
+    description = request.form.get('description', '')
+    
+    if not name:
+        return jsonify({'success': False, 'message': 'Ten khong duoc trong'}), 400
+    
+    # Generate template_code
+    base_code = re.sub(r'[^a-z0-9]', '_', name.lower())
+    template_code = re.sub(r'_+', '_', base_code).strip('_')
+    
+    existing = ReportTemplateV3.query.filter_by(template_code=template_code).first()
+    if existing:
+        template_code = f"{template_code}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    
+    template = ReportTemplateV3(
+        name=name,
+        description=description,
+        template_code=template_code,
+        created_by=session.get('fullname')
+    )
+    db.session.add(template)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Tao template thanh cong', 'template_id': template.id})
