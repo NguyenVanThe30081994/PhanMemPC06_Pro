@@ -450,3 +450,35 @@ def submit_data():
     db.session.commit()
 
     return jsonify({'success': True, 'message': 'Đã lưu báo cáo'})
+
+@reports_v3_bp.route('/reports-v3/delete/<int:tid>', methods=['POST'])
+def delete_template(tid):
+    """Xóa template V3 và tất cả dữ liệu liên quan"""
+    if not session.get('is_admin'):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    template = db.session.get(ReportTemplateV3, tid)
+    if not template:
+        return jsonify({"error": "Template không tồn tại"}), 404
+
+    try:
+        # Xóa tất cả submissions và values, audits của tất cả versions
+        for version in template.versions:
+            submissions = ReportSubmissionV3.query.filter_by(version_id=version.id).all()
+            for sub in submissions:
+                ReportAuditV3.query.filter_by(submission_id=sub.id).delete()
+                ReportValueV3.query.filter_by(submission_id=sub.id).delete()
+                db.session.delete(sub)
+
+        # Xóa tất cả versions
+        for version in template.versions:
+            db.session.delete(version)
+
+        # Xóa template
+        db.session.delete(template)
+        db.session.commit()
+
+        return jsonify({"success": True, "message": f"Đã xóa template '{template.name}'"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500

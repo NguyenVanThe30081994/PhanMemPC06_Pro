@@ -133,7 +133,23 @@ document.getElementById('uploadV3Form').addEventListener('submit', function(e) {
 
 function deleteV3Template(id, name) {
     if (!confirm('Xác nhận xóa biểu mẫu V3 "' + name + '"?')) return;
-    alert("Chức năng xóa V3 đang được phát triển.");
+    
+    fetch('/reports-v3/delete/' + id, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('Đã xóa thành công! ' + data.message);
+            location.reload();
+        } else {
+            alert('Lỗi: ' + (data.error || 'Không xác định'));
+        }
+    })
+    .catch(e => {
+        alert('Lỗi kết nối: ' + e);
+    });
 }
 
 function unifiedFilter() {
