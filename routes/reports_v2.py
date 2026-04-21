@@ -573,9 +573,13 @@ def render_report(tid):
         # Tìm danh sách dòng thuộc về user
         unit_rows, unit_col = _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_identifiers)
         
-        # Tìm tất cả các dòng chứa tên đơn vị (Header của đơn vị)
+ # --- BẮT ĐẦU FIX LỖI MẤT HEADER ---
+        # Lấy cấu hình dòng bắt đầu dữ liệu (mặc định là 4 nếu Admin chưa cấu hình)
+        data_start_row = meta_data.get('data_start_row', 4)
+        
+        # Chỉ tìm các đơn vị TỪ dòng dữ liệu trở đi (bỏ qua khu vực Header)
         all_unit_keys = set()
-        for r in range(min_row, max_row + 1):
+        for r in range(max(min_row, data_start_row), max_row + 1):
             for c in range(min_col, min(max_col + 1, min_col + 3)):
                 cell_val = ws.cell(row=r, column=c).value
                 if cell_val:
@@ -584,14 +588,13 @@ def render_report(tid):
                         all_unit_keys.add((r, cell_core_id))
                         break
         
-        first_unit_row = min([r for r, k in all_unit_keys]) if all_unit_keys else None
         user_rows_set = set(unit_rows)
         other_unit_rows = {r for r, k in all_unit_keys if r not in user_rows_set}
         
         header_row_cfg = meta_data.get('header_row', 3)
         should_filter = not is_global and unit_rows and header_row_cfg
 
-        # Tìm điểm kết thúc dữ liệu của user (ẩn đơn vị tiếp theo)
+        # Tìm điểm kết thúc dữ liệu của user (để ẩn đơn vị tiếp theo)
         user_data_end = max_row
         if unit_rows:
             user_first = min(unit_rows)
@@ -607,7 +610,7 @@ def render_report(tid):
 
             if not should_filter:
                 pass  # show all
-            elif r < first_unit_row:
+            elif r < data_start_row:   # <--- ĐIỂM MẤU CHỐT: Luôn hiển thị mọi thứ nằm trên data_start_row
                 pass  # show headers
             elif r in unit_rows:
                 pass  # show user's unit
