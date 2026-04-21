@@ -705,7 +705,7 @@ def stats_export():
         ws.title = "Thống kê"
         
         if is_v2:
-            # === V2: LẤY FILE EXCEL GỐC ===
+            # === V2: MERGE DỮ LIỆU VÀO FILE EXCEL ===
             template = db.session.get(ReportTemplateV2, rid)
             if not template:
                 return "Template not found", 404
@@ -714,8 +714,37 @@ def stats_export():
             if not version or not version.excel_file_blob:
                 return "No published version", 400
             
-            # Serve file gốc trực tiếp cho Luckysheet
-            content = version.excel_file_blob
+            # Load template and merge data
+            try:
+                import openpyxl as opx
+                from io import BytesIO
+                wb = opx.load_workbook(BytesIO(version.excel_file_blob))
+                ws = wb.active
+                
+                # Get all submissions for this version
+                subs = ReportSubmissionV2.query.filter_by(version_id=version.id, status='draft').all()
+                
+                # Merge data from each submission
+                for sub in subs:
+                    for val in sub.values:
+                        key = str(val.cell_key or '').strip()
+                        if '!' in key:
+                            _, coord = key.split('!', 1)
+                        else:
+                            coord = key
+                        try:
+                            ws[coord].value = val.value
+                        except:
+                            pass
+                
+                # Save merged content
+                output = BytesIO()
+                wb.save(output)
+                output.seek(0)
+                content = output.getvalue()
+            except Exception as e:
+                return f"Error merging data: {str(e)}", 500
+            
             filename = f"ThongKe_{template.name}_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
             
             from flask import Response
