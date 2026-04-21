@@ -529,6 +529,8 @@ def render_report(tid):
             wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=False)
         except:
             wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob))
+    except Exception as e:
+        return f"Error loading Excel: {e}", 500
 
     meta_data = {}
     try:
@@ -839,6 +841,8 @@ def review_submission(sub_id):
             wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=False)
         except:
             wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob))
+    except Exception as e:
+        return f"Error loading Excel: {e}", 500
 
     sheets_html = []
     meta_data = {}
