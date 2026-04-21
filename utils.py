@@ -332,3 +332,127 @@ def validate_password_strength(password):
     if not re.search(r'[0-9]', password):
         return False, "Phải có ít nhất 1 số"
     return True, "Mật khẩu hợp lệ"
+
+
+# ==================== NUMBER FORMATTING (V2 Support) ====================
+
+def format_cell_value(value, number_format):
+    """
+    Apply Excel number format to a value.
+    
+    Supports common Excel formats:
+      "0"           -> Integer (no decimals)
+      "0.00"        -> 2 decimal places
+      "0.0"         -> 1 decimal place
+      "#,##0"       -> Integer with thousand separator
+      "#,##0.00"    -> 2 decimals with thousand separator
+      "0.0%"        -> Percentage (multiply by 100)
+      "0%"          -> Percentage integer
+      
+    SMART FALLBACK: If format says "0" (integer) but value has decimals,
+    intelligently detect the needed decimal places.
+      
+    Args:
+        value: The cell value (number, float, int, or string)
+        number_format: Excel format code (e.g., "0.00", "#,##0")
+        
+    Returns:
+        Formatted string representation
+    """
+    if value is None or value == '':
+        return ''
+    
+    # Handle None and empty formats - use default
+    if not number_format:
+        return _format_cell_value_default(value)
+    
+    number_format = str(number_format).strip()
+    
+    try:
+        # Try to convert to float if not already numeric
+        if isinstance(value, str):
+            if value.startswith('='):  # Formula - don't format
+                return ''
+            try:
+                numeric_val = float(value)
+            except ValueError:
+                return str(value)  # Not a number, return as-is
+        else:
+            numeric_val = float(value)
+        
+        # Handle percentage formats
+        if '%' in number_format:
+            if 'h' not in number_format.lower():  # Not time format
+                numeric_val = numeric_val * 100
+        
+        # Determine if we have thousand separators and how many decimals
+        has_thousand_sep = ',' in number_format
+        decimal_places = 0
+        
+        if '.' in number_format:
+            # Count zeros after the decimal point
+            format_after_decimal = number_format.split('.')[-1]
+            # Count only the leading zeros (until we hit a non-zero char)
+            decimal_places = 0
+            for ch in format_after_decimal:
+                if ch == '0':
+                    decimal_places += 1
+                elif ch in ['#', '%']:
+                    break
+                else:
+                    break
+        else:
+            # No decimal point in format - check if it's "0" or similar
+            # SMART FALLBACK: If value has decimals, detect how many to show
+            if number_format.replace(',', '').replace('#', '') == '0':
+                # Format is pure integer, but check if value needs decimals
+                if numeric_val != int(numeric_val):
+                    # Value has decimal part - detect needed decimal places
+                    val_str = f"{numeric_val:.10f}".rstrip('0').rstrip('.')
+                    if '.' in val_str:
+                        decimal_places = len(val_str.split('.')[-1])
+        
+        # Format based on components
+        if decimal_places > 0:
+            # Has decimal places
+            formatted = f"{numeric_val:.{decimal_places}f}"
+            if has_thousand_sep:
+                # Add thousand separators
+                parts = formatted.split('.')
+                parts[0] = f"{int(parts[0]):,}"
+                formatted = '.'.join(parts)
+            return formatted
+        else:
+            # Integer format
+            int_val = int(round(numeric_val))
+            if has_thousand_sep:
+                return f"{int_val:,}"
+            else:
+                return str(int_val)
+        
+    except (ValueError, TypeError):
+        return str(value)
+
+
+def _format_cell_value_default(val):
+    """Default formatting when no format code or fallback."""
+    if val is None or val == '':
+        return ''
+    if isinstance(val, str):
+        val = val.strip()
+        if val.startswith('='):
+            return ''
+        try:
+            fval = float(val)
+            fval = round(fval, 10)
+            if fval == int(fval):
+                return str(int(fval))
+            return f"{fval:.6f}".rstrip('0').rstrip('.')
+        except ValueError:
+            return val
+    if isinstance(val, float):
+        val = round(val, 10)
+        if val == int(val):
+            return str(int(val))
+        return f"{val:.6f}".rstrip('0').rstrip('.')
+    return str(val)

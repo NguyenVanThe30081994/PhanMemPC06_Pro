@@ -39,23 +39,59 @@ def _is_global_user(is_admin, user_unit):
     return bool(is_admin) or (user_unit in GLOBAL_UNITS)
 
 
-def _format_cell_value(val):
+def _format_cell_value(val, number_format=None):
     """
-    Format value for proper display - fixes floating-point precision errors.
-    Example: 74843.87999999999 -> 74844, 4185.719999999999 -> 4186
+    Format value for proper display using Excel number format if available.
+    Falls back to default formatting if no format code provided.
+    
+    Args:
+        val: The cell value
+        number_format: Excel format code (e.g., "0", "0.00", "#,##0")
     """
+    from utils import format_cell_value
+    
+    if number_format:
+        return format_cell_value(val, number_format)
+    
+    # Fallback: use default formatting
     if val is None:
         return ''
     if isinstance(val, float):
-        # Check if it's a whole number
         if val == int(val):
             return str(int(val))
-        # Round to reasonable precision to avoid floating-point errors
         rounded = round(val, 10)
         if rounded == int(rounded):
             return str(int(rounded))
         return str(rounded).rstrip('0').rstrip('.')
     return str(val)
+
+
+def _get_cell_format(meta_data, sheet_name, coord):
+    """
+    Get the number format for a cell from metadata.
+    
+    Args:
+        meta_data: Parsed metadata from ExcelEngineV2
+        sheet_name: Name of the worksheet
+        coord: Cell coordinate (e.g., "A1", "F13")
+    
+    Returns:
+        Format string (e.g., "0.00") or None if not found
+    """
+    if not meta_data or not meta_data.get('sheets'):
+        return None
+    
+    for sheet in meta_data['sheets']:
+        if sheet.get('name') != sheet_name:
+            continue
+        
+        for row in sheet.get('rows', []):
+            for cell in row.get('cells', []):
+                if cell.get('coord') == coord:
+                    return cell.get('numberFormat')
+    
+    return None
+
 
 
 def _normalize_v2_key(sheet_name, coord):
@@ -651,7 +687,8 @@ def render_report(tid):
 
                 if is_input:
                     raw_val = existing_values.get(key, existing_values.get(coord, ''))
-                    val = _format_cell_value(raw_val)
+                    cell_format = _get_cell_format(meta_data, ws.title, coord)
+                    val = _format_cell_value(raw_val, cell_format)
                     safe_val = str(val).replace('"', '&quot;')
                     inner = (
                         f'<input type="text" class="grid-input" '
@@ -661,8 +698,9 @@ def render_report(tid):
                     )
                 else:
                     raw = cell.value
-                    if isinstance(raw, float):
-                        raw = _format_cell_value(raw)
+                    if isinstance(raw, float) or isinstance(raw, int):
+                        cell_format = _get_cell_format(meta_data, ws.title, coord)
+                        raw = _format_cell_value(raw, cell_format)
                     elif isinstance(raw, str) and raw.startswith('='):
                         raw = ''
                     inner = '' if raw is None else str(raw)
