@@ -74,79 +74,110 @@
             }
         } catch (e) {
             console.error("Error building grid:", e);
-            document.getElementById('dataGrid').innerHTML = `<tr><td colspan="100%" class="text-danger">Lỗi khi tải biểu mẫu: ${e.message}</td></tr>`;
+            document.getElementById('grid-container').innerHTML = `<div class="alert alert-danger m-3">Lỗi khi tải biểu mẫu: ${e.message}</div>`;
         }
     });
 
     function buildGrid() {
-        const table = document.getElementById('dataGrid');
-        const headerTree = SCHEMA.grid_header_tree || [];
-        const fields = SCHEMA.fields || [];
-        const headerCount = SCHEMA.header_row_count || 3;
-
-        // Build header rows (multi-level)
-        for (let r = 0; r < headerCount; r++) {
-            const tr = document.createElement('tr');
-            tr.className = 'header-merged';
-            
-            for (let c = 0; c < headerTree.length; c++) {
-                const th = document.createElement('th');
-                th.textContent = headerTree[c] ? (headerTree[c][r] || '') : '';
-                tr.appendChild(th);
-            }
-            table.appendChild(tr);
+        console.log("V3 Grid: Building grid with schema:", SCHEMA);
+        const container = document.getElementById('grid-container');
+        if (!container) {
+            console.error("V3 Grid: Container 'grid-container' not found!");
+            return;
         }
-
-        // Map field_code to column
-        fields.forEach((f, i) => {
-            fieldIndexMap[f.field_code] = i;
-        });
-
-        // Build data rows
-        const dataRows = SCHEMA.total_rows - headerCount || 10;
-        const rowUnitKeys = SCHEMA.row_unit_keys || [];
-
-        for (let r = 0; r < dataRows; r++) {
-            const tr = document.createElement('tr');
+        container.innerHTML = '';
+        
+        try {
+            const fields = SCHEMA.fields || [];
+            const headerCount = SCHEMA.header_row_count || 1;
+            const tree = SCHEMA.grid_header_tree || [];
             
-            // Check if this row belongs to the user
-            const rowUnitKey = rowUnitKeys[r] || "";
-            const isMyRow = IS_ADMIN || (USER_UNIT_KEY && rowUnitKey === USER_UNIT_KEY);
-            
-            if (isMyRow && !IS_ADMIN) {
-                tr.style.backgroundColor = '#fff9db'; // Highlight my row
-            } else if (!isMyRow && !IS_ADMIN) {
-                tr.style.opacity = '0.7'; // Fade out other rows
+            if (fields.length === 0) {
+                container.innerHTML = '<div class="alert alert-warning m-3"><i class="fa-solid fa-triangle-exclamation me-2"></i>Không tìm thấy cột dữ liệu nào trong biểu mẫu này. Vui lòng kiểm tra lại cấu hình header.</div>';
+                return;
             }
 
-            for (let c = 0; c < fields.length; c++) {
-                const td = document.createElement('td');
-                const fc = fields[c].field_code;
-                
-                const input = document.createElement('input');
-                input.type = fields[c].data_type === 'number' ? 'number' : 'text';
-                
-                // Row-level editable check
-                const canEdit = fields[c].editable && isMyRow;
-                
-                input.className = 'grid-input' + (canEdit ? ' editable' : ' readonly');
-                input.readOnly = !canEdit;
-                input.setAttribute('data-field', fc);
-                input.setAttribute('placeholder', fields[c].field_name || fc);
-                
-                if (canEdit) {
-                    input.onchange = function () {
-                        dataValues[fc] = this.value;
-                        dirtyFields.add(fc);
-                        updateStatus('unsaved');
-                    };
+            const table = document.createElement('table');
+            table.className = 'grid-table';
+            
+            const thead = document.createElement('thead');
+            for (let r = 0; r < headerCount; r++) {
+                const tr = document.createElement('tr');
+                for (let c = 0; c < tree.length; c++) {
+                    const th = document.createElement('th');
+                    th.textContent = (tree[c] && tree[c][r]) || '';
+                    tr.appendChild(th);
                 }
-                
-                td.appendChild(input);
-                td.className = 'data-cell' + (fields[c].editable ? ' editable' : '');
-                tr.appendChild(td);
+                thead.appendChild(tr);
             }
-            table.appendChild(tr);
+            table.appendChild(thead);
+            
+            const tbody = document.createElement('tbody');
+            
+            // Build data rows
+            const dataRows = (SCHEMA.total_rows && SCHEMA.total_rows > headerCount) ? (SCHEMA.total_rows - headerCount) : 10;
+            const rowUnitKeys = SCHEMA.row_unit_keys || [];
+            const rowNames = SCHEMA.row_names || [];
+
+            console.log(`V3 Grid: Rendering ${dataRows} rows`);
+
+            for (let r = 0; r < dataRows; r++) {
+                const tr = document.createElement('tr');
+                
+                // Check if this row belongs to the user
+                const rowUnitKey = rowUnitKeys[r] || "";
+                const rowName = rowNames[r] || "";
+                
+                // Smart match: if Admin, or if key matches, or if row is empty (new row)
+                const isMyRow = IS_ADMIN || (USER_UNIT_KEY && rowUnitKey === USER_UNIT_KEY);
+                
+                if (isMyRow && !IS_ADMIN) {
+                    tr.classList.add('my-unit-row');
+                    tr.style.backgroundColor = '#fff9db';
+                } else if (!isMyRow && !IS_ADMIN) {
+                    tr.style.opacity = '0.7';
+                }
+
+                for (let c = 0; c < fields.length; c++) {
+                    const td = document.createElement('td');
+                    const fc = fields[c].field_code;
+                    
+                    const input = document.createElement('input');
+                    input.type = fields[c].data_type === 'number' ? 'number' : 'text';
+                    
+                    // Row-level editable check
+                    const canEdit = fields[c].editable && isMyRow;
+                    
+                    input.className = 'grid-input' + (canEdit ? ' editable' : ' readonly');
+                    input.readOnly = !canEdit;
+                    input.setAttribute('data-field', fc);
+                    if (r === 0) input.setAttribute('placeholder', fields[c].field_name || fc);
+                    
+                    if (canEdit) {
+                        input.onchange = function () {
+                            const val = this.value;
+                            if (!dataValues[r]) dataValues[r] = {};
+                            dataValues[r][fc] = val;
+                            dirtyFields.add(`${r}_${fc}`);
+                        };
+                    }
+                    
+                    td.appendChild(input);
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            }
+            table.appendChild(tbody);
+            container.appendChild(table);
+            
+            console.log("V3 Grid: Render complete.");
+        } catch (err) {
+            console.error("V3 Grid Render Error:", err);
+            container.innerHTML = `<div class="alert alert-danger m-3">
+                <h5><i class="fa-solid fa-circle-exclamation me-2"></i>Lỗi hiển thị biểu mẫu</h5>
+                <p>${err.message}</p>
+                <pre class="small mt-2">${err.stack}</pre>
+            </div>`;
         }
     }
 
