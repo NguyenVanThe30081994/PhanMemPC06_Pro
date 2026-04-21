@@ -46,25 +46,19 @@ def _format_cell_value(val, number_format=None):
         return ''
         
     if isinstance(val, (int, float)):
-        # Nếu có format, thử bóc tách các trường hợp phổ biến
         if number_format:
             fmt = str(number_format).lower()
             if '%' in fmt:
-                # Hiển thị phần trăm (ví dụ: 0.00%)
                 decimals = 2 if '.0' in fmt else 0
                 return f"{val * 100:.{decimals}f}%".replace('.', ',')
             if '0.0' in fmt:
-                # Số thập phân (có giữ số sau dấu phẩy)
                 return f"{val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
             if '#' in fmt or '0' in fmt:
-                # Làm tròn thành số nguyên và có phân cách hàng nghìn
                 return f"{int(round(val)):,}".replace(',', '.')
                 
-        # Fallback nếu không có number_format hoặc không khớp chuẩn
         if val == int(val):
             return str(int(val))
         
-        # Chỉ lấy tối đa 2-4 số thập phân để tránh lỗi floating-point dị dạng
         rounded = round(val, 4)
         if rounded == int(rounded):
             return str(int(rounded))
@@ -74,16 +68,12 @@ def _format_cell_value(val, number_format=None):
 
 
 def _get_cell_format(meta_data, sheet_name, coord):
-    """
-    Get the number format for a cell from metadata.
-    """
     if not meta_data or not meta_data.get('sheets'):
         return None
     
     for sheet in meta_data['sheets']:
         if sheet.get('name') != sheet_name:
             continue
-        
         for row in sheet.get('rows', []):
             for cell in row.get('cells', []):
                 if cell.get('coord') == coord:
@@ -106,9 +96,6 @@ def _split_v2_key(raw_key):
 def _get_core_unit_id(name):
     """
     Trích xuất 'lõi' định danh duy nhất của đơn vị, loại bỏ mọi tiền tố hành chính và khoảng trắng.
-    Giải quyết triệt để vấn đề:
-    - Username viết liền: "ubndxatantrao", "caxatantrao" -> "tantrao"
-    - Tên đầy đủ/Excel: "Công an xã Tân Trào", "UBND xã Tân Trào", "Xã Tân Trào" -> "tantrao"
     """
     if not name:
         return ""
@@ -116,13 +103,10 @@ def _get_core_unit_id(name):
     n = str(name).lower().strip()
     n = unicodedata.normalize('NFKD', n).encode('ascii', 'ignore').decode('utf-8')
     
-    # Xóa các ký tự đặc biệt
     for char in ['-', '_', '.', ',', '/']:
         n = n.replace(char, ' ')
         
-    # Xử lý chuỗi viết liền (như username)
     if ' ' not in n:
-        # Xếp các tiền tố từ dài đến ngắn để tránh cắt sai
         solid_prefixes = ['ubndthitran', 'ubndphuong', 'ubndxa', 'cathitran', 'caphuong', 
                           'congphuong', 'congxa', 'caxa', 'ubnd', 'ca', 'thitran', 'phuong', 'xa', 'tt']
         for p in solid_prefixes:
@@ -130,12 +114,10 @@ def _get_core_unit_id(name):
                 n = n[len(p):]
                 break
     else:
-        # Xử lý chuỗi có dấu cách (như fullname, dữ liệu ô Excel)
         prefixes = [
             "uy ban nhan dan ", "cong an ", "thi tran ", "thanh pho ", "ubnd ", 
             "ca ", "xa ", "phuong ", "huyen ", "tt "
         ]
-        # Lặp để bóc sạch nhiều lớp tiền tố (VD: bóc "Công an" xong bóc tiếp "xã")
         changed = True
         while changed:
             changed = False
@@ -144,19 +126,60 @@ def _get_core_unit_id(name):
                     n = n[len(p):].strip()
                     changed = True
                     
-    # Ép dính toàn bộ để khớp tuyệt đối
-    return n.replace(" ", "").strip()
+    n = n.replace(" ", "").strip()
+    
+    # --- BẢO VỆ TỪ KHÓA HEADER ---
+    # Ngăn thuật toán nhận diện nhầm các từ ngữ trong Header thành tên đơn vị
+    blocklist = [
+        'stt', 'tendonvi', 'tendonvihanhchinh', 'hanhchinh', 'chitieu', 
+        'ketqua', 'tyle', 'hoanthanh', 'tongso', 'toantinh', 'toanhuyen', 
+        'baocao', 'danhsach', 'capmoi', 'capdoi', 'xaydung', 'csdl', 
+        'ghichu', 'tong', 'cong', 'luoidiachinh', 'tongcong', 'ngay', 'thang', 'nam'
+    ]
+    if n in blocklist or len(n) < 2:
+        return ""
+        
+    return n
+
+
+def _find_smart_data_start_row(ws, min_row, max_row, min_col, max_col):
+    """
+    Thuật toán Auto-Detect ranh giới Header (dựa trên STT và Đánh số cột).
+    Trả về dòng đầu tiên chứa dữ liệu (nằm ngay dưới Header).
+    """
+    scan_limit = min(max_row, min_row + 20)
+    
+    # Ưu tiên 1: Tìm dòng đánh số thứ tự ngang
+    for r in range(min_row, scan_limit):
+        num_count = 0
+        for c in range(min_col, min(max_col + 1, min_col + 15)):
+            val = ws.cell(row=r, column=c).value
+            if val is not None:
+                try:
+                    v = float(str(val).strip())
+                    if v.is_integer() and 1 <= v <= 20:
+                        num_count += 1
+                except ValueError:
+                    pass
+        if num_count >= 3:
+            return r + 1
+            
+    # Ưu tiên 2: Tìm dòng chứa chữ "STT" hoặc "Tên đơn vị"
+    for r in range(min_row, scan_limit):
+        for c in range(min_col, min(max_col + 1, min_col + 3)):
+            val = ws.cell(row=r, column=c).value
+            if val:
+                txt = str(val).lower().replace(' ', '')
+                if 'stt' in txt or 'tendonvi' in txt or 'hanhchinh' in txt:
+                    return r + 1
+                    
+    return None
 
 
 def _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_identifiers):
-    """
-    Tìm các dòng thuộc quyền quản lý của đơn vị dựa trên list nhận dạng (username, fullname...)
-    """
-    # Xây dựng danh sách các mã Core ID của user
     user_core_ids = set()
     for uid in user_identifiers:
         core_id = _get_core_unit_id(uid)
-        # Bỏ qua nếu mã lõi quá ngắn hoặc là các từ khóa hệ thống
         if core_id and len(core_id) >= 2 and core_id not in ['pc06', 'admin', 'hethong']:
             user_core_ids.add(core_id)
             
@@ -167,7 +190,6 @@ def _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_identif
         return matched_rows, matched_col
 
     for r in range(min_row, max_row + 1):
-        # Chỉ quét 3 cột đầu tiên để tìm tên đơn vị (tăng tốc độ và độ chính xác)
         for c in range(min_col, min(max_col + 1, min_col + 3)):
             cell_val = ws.cell(row=r, column=c).value
             if not cell_val:
@@ -177,12 +199,11 @@ def _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_identif
             if not cell_core_id:
                 continue
                 
-            # Nếu Core ID của ô Excel nằm trong danh sách Core ID của user
             if cell_core_id in user_core_ids:
                 matched_rows.append(r)
                 if matched_col is None:
                     matched_col = c
-                break # Đã tìm thấy đơn vị ở dòng này thì xét tiếp dòng dưới
+                break 
                 
     return matched_rows, matched_col
 
@@ -221,13 +242,17 @@ def _get_sheet_region(meta_data, ws, wb):
 def _collect_allowed_input_keys(wb, meta_data, user_identifiers, is_admin):
     from excel_renderer import is_input_cell
 
-    # Check global access dựa trên unit_area có sẵn trong session
     is_global = _is_global_user(is_admin, session.get('unit', ''))
     allowed_keys = set()
 
     for ws in wb.worksheets:
         min_row, min_col, max_row, max_col = _get_sheet_region(meta_data, ws, wb)
-        unit_rows, unit_col = _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_identifiers)
+        
+        # Áp dụng thuật toán nhận diện ranh giới vào cả bảo mật input
+        smart_start_row = _find_smart_data_start_row(ws, min_row, max_row, min_col, max_col)
+        actual_data_start = smart_start_row if smart_start_row else meta_data.get('data_start_row', 4)
+        
+        unit_rows, unit_col = _find_unit_rows_and_col(ws, actual_data_start, max_row, min_col, max_col, user_identifiers)
 
         for r in range(min_row, max_row + 1):
             for c in range(min_col, max_col + 1):
@@ -536,7 +561,6 @@ def render_report(tid):
     user_unit = session.get('unit_area', session.get('unit', ''))
     is_global = _is_global_user(is_admin, user_unit)
     
-    # Gom tất cả "nhân dạng" của user để quét khớp thông minh
     user_identifiers = [
         session.get('username', ''),
         session.get('fullname', ''),
@@ -570,31 +594,29 @@ def render_report(tid):
 
         min_row, min_col, max_row, max_col = _get_sheet_region(meta_data, ws, wb)
         
-        # Tìm danh sách dòng thuộc về user
-        unit_rows, unit_col = _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_identifiers)
+        # BẢN VÁ: Tìm data_start_row bằng thuật toán nhận diện STT
+        smart_start_row = _find_smart_data_start_row(ws, min_row, max_row, min_col, max_col)
+        actual_data_start = smart_start_row if smart_start_row else meta_data.get('data_start_row', 4)
+
+        unit_rows, unit_col = _find_unit_rows_and_col(ws, actual_data_start, max_row, min_col, max_col, user_identifiers)
         
- # --- BẮT ĐẦU FIX LỖI MẤT HEADER ---
-        # Lấy cấu hình dòng bắt đầu dữ liệu (mặc định là 4 nếu Admin chưa cấu hình)
-        data_start_row = meta_data.get('data_start_row', 4)
-        
-        # Chỉ tìm các đơn vị TỪ dòng dữ liệu trở đi (bỏ qua khu vực Header)
         all_unit_keys = set()
-        for r in range(max(min_row, data_start_row), max_row + 1):
+        for r in range(actual_data_start, max_row + 1):
             for c in range(min_col, min(max_col + 1, min_col + 3)):
                 cell_val = ws.cell(row=r, column=c).value
                 if cell_val:
                     cell_core_id = _get_core_unit_id(str(cell_val))
-                    if cell_core_id and len(cell_core_id) >= 2:
+                    if cell_core_id:
                         all_unit_keys.add((r, cell_core_id))
                         break
         
+        first_unit_row = min([r for r, k in all_unit_keys]) if all_unit_keys else None
         user_rows_set = set(unit_rows)
         other_unit_rows = {r for r, k in all_unit_keys if r not in user_rows_set}
         
         header_row_cfg = meta_data.get('header_row', 3)
         should_filter = not is_global and unit_rows and header_row_cfg
 
-        # Tìm điểm kết thúc dữ liệu của user (để ẩn đơn vị tiếp theo)
         user_data_end = max_row
         if unit_rows:
             user_first = min(unit_rows)
@@ -609,17 +631,17 @@ def render_report(tid):
                 continue
 
             if not should_filter:
-                pass  # show all
-            elif r < data_start_row:   # <--- ĐIỂM MẤU CHỐT: Luôn hiển thị mọi thứ nằm trên data_start_row
-                pass  # show headers
+                pass
+            elif r < actual_data_start:  # BẢO VỆ HEADER
+                pass
             elif r in unit_rows:
-                pass  # show user's unit
+                pass
             elif r in other_unit_rows:
-                continue  # hide other unit headers
+                continue
             elif r > user_first and r <= user_data_end:
-                pass  # show user's data
+                pass
             else:
-                continue  # hide other rows
+                continue
 
             rh = _row_height_px(ws, r)
             row_parts = [f'<tr style="height:{rh}px">']
