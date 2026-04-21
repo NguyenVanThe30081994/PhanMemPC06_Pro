@@ -657,6 +657,7 @@ def input_report(tid):
     
     from utils import extract_unit_key
     user_unit_key = extract_unit_key(unit_id)
+    report_id = submission.id if submission else None
     
     return _render('reports_v3_input.html', 
                  template=template, 
