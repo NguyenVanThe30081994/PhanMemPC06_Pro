@@ -41,28 +41,37 @@ def _is_global_user(is_admin, user_unit):
 
 def _format_cell_value(val, number_format=None):
     """
-    Format value for proper display using Excel number format if available.
-    Falls back to default formatting if no format code provided.
-    
-    Args:
-        val: The cell value
-        number_format: Excel format code (e.g., "0", "0.00", "#,##0")
+    Format value cho hiển thị, ưu tiên nhận diện định dạng % và số nguyên của Excel
     """
-    from utils import format_cell_value
-    
-    if number_format:
-        return format_cell_value(val, number_format)
-    
-    # Fallback: use default formatting
     if val is None:
         return ''
-    if isinstance(val, float):
+        
+    if isinstance(val, (int, float)):
+        # Nếu có format, thử bóc tách các trường hợp phổ biến
+        if number_format:
+            fmt = str(number_format).lower()
+            if '%' in fmt:
+                # Hiển thị phần trăm (ví dụ: 0.00%)
+                decimals = 2 if '.0' in fmt else 0
+                return f"{val * 100:.{decimals}f}%".replace('.', ',')
+            if '0.0' in fmt:
+                # Số thập phân (có giữ số sau dấu phẩy)
+                return f"{val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+            if '#' in fmt or '0' in fmt:
+                # Làm tròn thành số nguyên và có phân cách hàng nghìn
+                return f"{int(round(val)):,}".replace(',', '.')
+                
+        # Fallback nếu không có number_format hoặc không khớp chuẩn
         if val == int(val):
             return str(int(val))
-        rounded = round(val, 10)
+        
+        # Chỉ lấy tối đa 2-4 số thập phân để tránh lỗi floating-point dị dạng (VD: 491.140000001)
+        rounded = round(val, 4)
         if rounded == int(rounded):
             return str(int(rounded))
-        return str(rounded).rstrip('0').rstrip('.')
+        # Thay dấu chấm thành phẩy cho chuẩn Việt Nam (tuỳ chọn)
+        return str(rounded).rstrip('0').rstrip('.').replace('.', ',')
+        
     return str(val)
 
 
@@ -579,10 +588,9 @@ def render_report(tid):
     import openpyxl as _opx
 
     try:
-        # Load WITHOUT data_only to preserve original values (no re-calculation)
-        # This fixes floating-point errors like 74843.87999999999
+        # BẮT BUỘC dùng data_only=True để lấy giá trị (value) đã được Excel tính toán sẵn từ các ô công thức.
         try:
-            wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=False)
+            wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=True)
         except:
             wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob))
     except Exception as e:
@@ -646,7 +654,7 @@ def render_report(tid):
                 continue
 
 
-            # Use should_filter flag: only filter non-admin users with actual unit matches
+            # Use should_filter flag: only filter non-admin users với actual unit matches
             if not should_filter:
                 pass  # show all (admin or no matches found)
             elif r < first_unit_row:
@@ -698,11 +706,12 @@ def render_report(tid):
                     )
                 else:
                     raw = cell.value
-                    if isinstance(raw, float) or isinstance(raw, int):
-                        cell_format = _get_cell_format(meta_data, ws.title, coord)
+                    if isinstance(raw, (float, int)):
+                        # Ưu tiên lấy format chuẩn của openpyxl trước, nếu không có mới dùng metadata
+                        cell_format = cell.number_format or _get_cell_format(meta_data, ws.title, coord)
                         raw = _format_cell_value(raw, cell_format)
-                    elif isinstance(raw, str) and raw.startswith('='):
-                        raw = ''
+                    
+                    # Đã dùng data_only=True ở trên nên không cần chặn .startswith('=') nữa
                     inner = '' if raw is None else str(raw)
 
                 row_parts.append(f'{td}{inner}</td>')
