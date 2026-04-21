@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block content %}
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/css/pluginsCss.css' />
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/plugins.css' />
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/css/luckysheet.css' />
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/assets/iconfont/iconfont.css' />
+<script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/js/plugin.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/luckysheet.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luckyexcel/dist/luckyexcel.umd.js"></script>
+
+<div class="container-fluid" style="height: 85vh; display: flex; flex-direction: column;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="mb-0 fw-bold">Nhập báo cáo V2: {{ template.name }}</h4>
+            <div class="text-muted small">Đơn vị của bạn: <strong>{{ user_unit }}</strong></div>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary btn-sm fw-bold" onclick="submitData()" id="submitBtn">
+                <i class="fa-solid fa-paper-plane me-1"></i>GỬI BÁO CÁO (LƯU)
+            </button>
+            <a href="{{ url_for('reports_v2_bp.dashboard') }}" class="btn btn-outline-secondary btn-sm">Thoát</a>
+        </div>
+    </div>
+
+    <div id="luckysheet-container" style="margin:0px;padding:0px;position:relative;width:100%;flex:1;border: 1px solid #ccc;"></div>
+</div>
+
+<script>
+    const TEMPLATE_ID = {{ template.id }};
+    const VERSION_ID = {{ version.id }};
+    const USER_UNIT = "{{ user_unit }}".toLowerCase();
+    const CONFIG = JSON.parse('{{ config_json | safe }}');
+
+    function colLetterToIndex(col) {
+        let i = 0, c = 0;
+        for (i = 0; i < col.length; i++) {
+            c = c * 26 + col.charCodeAt(i) - 64;
+        }
+        return c - 1;
+    }
+
+    $(function () {
+        loadTemplate();
+    });
+
+    function loadTemplate() {
+        const url = "/reports-v2/api/file/" + VERSION_ID;
+        fetch(url)
+            .then(res => res.blob())
+            .then(blob => {
+                const file = new File([blob], "template.xlsx", {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+                LuckyExcel.transformExcelToLucky(file, function(exportJson, luckysheetfile) {
+                    if (exportJson.sheets == null || exportJson.sheets.length == 0) {
+                        alert("Không đọc được file Excel.");
+                        return;
+                    }
+
+                    // Lock entire sheet first, then unlock user's unit row
+                    const sheet = exportJson.sheets[0];
+                    if(!sheet.config) sheet.config = {};
+                    
+                    const unitColIndex = CONFIG.unit_column ? colLetterToIndex(CONFIG.unit_column.toUpperCase()) : 1;
+                    const data = sheet.data;
+                    let targetRow = -1;
+
+                    // Find user's unit row
+                    for(let r = 0; r < data.length; r++) {
+                        let cell = data[r][unitColIndex];
+                        if(cell && cell.v) {
+                            let text = cell.v.toString().toLowerCase();
+                            if(text.includes(USER_UNIT) || USER_UNIT.includes(text)) {
+                                targetRow = r;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Lock all cells first, then unlock user's row input range
+                    for(let r = 0; r < data.length; r++) {
+                        for(let c = 0; c < data[r].length; c++) {
+                            let cell = data[r][c];
+                            if(!cell) {
+                                cell = { v: null, m: null };
+                                data[r][c] = cell;
+                            }
+                            cell.lo = 1; // Lock by default
+
+                            // Unlock if in user's row and input range
+                            if(targetRow !== -1 && CONFIG.input_range && CONFIG.input_range.length > 0) {
+                                CONFIG.input_range.forEach(rg => {
+                                    if(r === targetRow && c >= rg.column[0] && c <= rg.column[1]) {
+                                        cell.lo = 0; // Unlock
+                                        cell.bg = "#e0f2fe";
+                                    }
+                                });
+                            }
+                        }
+                    }
+
+                    window.luckysheet.destroy();
+                    window.luckysheet.create({
+                        container: 'luckysheet-container',
+                        showinfobar: false,
+                        showtoolbar: false,
+                        showstatisticBar: false,
+                        sheetBottomConfig: false,
+                        data: exportJson.sheets,
+                        column: 30,
+                    });
+
+                    if(targetRow !== -1) {
+                        setTimeout(() => alert("Đã tải xong! Hàng của đơn vị bạn đã được mở khóa nhập liệu."), 500);
+                    } else {
+                        setTimeout(() => alert("Không tìm thấy đơn vị '" + USER_UNIT + "' trong danh sách. Bạn sẽ bị khóa (chỉ xem)."), 500);
+                    }
+                });
+            });
+    }
+
+    function submitData() {
+        const data = luckysheet.getSheetData();
+        const payload = { values: [] };
+
+        for(let r = 0; r < data.length; r++) {
+            for(let c = 0; c < data[r].length; c++) {
+                let cell = data[r][c];
+                if(cell && cell.lo === 0) { // Unlocked cells only
+                    payload.values.push({ r: r, c: c, v: cell.v });
+                }
+            }
+        }
+
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.innerHTML = 'Đang lưu...';
+
+        fetch('/reports-v2/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ version_id: VERSION_ID, values: payload.values })
+        })
+        .then(res => res.json())
+        .then(d => {
+            if(d.success) {
+                alert('Lưu báo cáo thành công!');
+            } else {
+                alert('Lỗi: ' + (d.message || 'Không rõ'));
+            }
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i>GỬI BÁO CÁO (LƯU)';
+        })
+        .catch(e => {
+            alert('Lỗi kết nối: ' + e);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i>GỬI BÁO CÁO (LƯU)';
+        });
+    }
+</script>
+{% endblock %}

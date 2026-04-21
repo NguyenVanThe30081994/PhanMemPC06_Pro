@@ -11,6 +11,26 @@ from datetime import datetime
 
 reports_v2_bp = Blueprint('reports_v2_bp', __name__)
 
+
+@reports_v2_bp.route('/reports-v2/api/file/<int:vid>')
+def get_version_file(vid):
+    """API tra ve file Excel thu cho LuckyExcel"""
+    if not session.get('uid'):
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    version = db.session.get(ReportVersionV2, vid)
+    if not version or not version.excel_file_blob:
+        return jsonify({"error": "Not found"}), 404
+    
+    from flask import send_file
+    return send_file(
+        io.BytesIO(version.excel_file_blob),
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='template.xlsx'
+    )
+
+
 GLOBAL_UNITS = ['H\u1ec7 th\u1ed1ng', 'Admin', 'PC06']
 
 
@@ -674,6 +694,44 @@ def render_report(tid):
         v2_templates=v2_templates,
         v1_configs=v1_configs,
         form_type='v2'
+    )
+
+
+@reports_v2_bp.route('/reports-v2/input-lucky/<int:tid>')
+def input_lucky(tid):
+    """Giao diện LuckyExcel cho V2 - hien thi truc tiep khong qua chuyen doi"""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    
+    template = db.session.get(ReportTemplateV2, tid)
+    if not template:
+        return "Template Not Found", 404
+    
+    version = ReportVersionV2.query.filter_by(template_id=tid, is_published=True).order_by(ReportVersionV2.created_at.desc()).first()
+    if not version:
+        return "No published version found", 404
+    
+    if not version.excel_file_blob:
+        return "No Excel file stored", 400
+    
+    # Load config for unit column and input range
+    config_json = '{}'
+    try:
+        meta = json.loads(version.metadata_json or '{}')
+        config_json = json.dumps({
+            'unit_column': meta.get('unit_column', 'B'),
+            'input_range': meta.get('input_range', [])
+        })
+    except:
+        config_json = json.dumps({'unit_column': 'B', 'input_range': []})
+    
+    user_unit = session.get('unit_area', session.get('unit', ''))
+    
+    return render_template('reports_v2_input_lucky.html',
+        template=template,
+        version=version,
+        user_unit=user_unit,
+        config_json=config_json
     )
 
 
