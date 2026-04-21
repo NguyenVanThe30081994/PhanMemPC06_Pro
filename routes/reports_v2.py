@@ -523,9 +523,12 @@ def render_report(tid):
     import openpyxl as _opx
 
     try:
-        wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=True)
-    except Exception as e:
-        return f"Error loading Excel: {e}", 500
+        # Load WITHOUT data_only to preserve original values (no re-calculation)
+        # This fixes floating-point errors like 74843.87999999999
+        try:
+            wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=False)
+        except:
+            wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob))
 
     meta_data = {}
     try:
@@ -831,9 +834,11 @@ def review_submission(sub_id):
     import openpyxl as _opx
 
     try:
-        wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=True)
-    except Exception as e:
-        return f"Error loading Excel: {e}", 500
+        # Load WITHOUT data_only to preserve original values
+        try:
+            wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=False)
+        except:
+            wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob))
 
     sheets_html = []
     meta_data = {}
