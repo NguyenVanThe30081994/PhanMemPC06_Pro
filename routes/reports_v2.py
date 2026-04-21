@@ -2,7 +2,6 @@
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify, g
 from models import db, ReportTemplateV2, ReportVersionV2, ReportSubmissionV2, ReportValueV2, ReportAuditV2, User
 from pc06_excel_engine import ExcelEngineV2
-from utils import normalize_unit_name
 from utils import render_auto_template as _render_template
 import json
 import io
@@ -65,11 +64,10 @@ def _format_cell_value(val, number_format=None):
         if val == int(val):
             return str(int(val))
         
-        # Chỉ lấy tối đa 2-4 số thập phân để tránh lỗi floating-point dị dạng (VD: 491.140000001)
+        # Chỉ lấy tối đa 2-4 số thập phân để tránh lỗi floating-point dị dạng
         rounded = round(val, 4)
         if rounded == int(rounded):
             return str(int(rounded))
-        # Thay dấu chấm thành phẩy cho chuẩn Việt Nam (tuỳ chọn)
         return str(rounded).rstrip('0').rstrip('.').replace('.', ',')
         
     return str(val)
@@ -78,14 +76,6 @@ def _format_cell_value(val, number_format=None):
 def _get_cell_format(meta_data, sheet_name, coord):
     """
     Get the number format for a cell from metadata.
-    
-    Args:
-        meta_data: Parsed metadata from ExcelEngineV2
-        sheet_name: Name of the worksheet
-        coord: Cell coordinate (e.g., "A1", "F13")
-    
-    Returns:
-        Format string (e.g., "0.00") or None if not found
     """
     if not meta_data or not meta_data.get('sheets'):
         return None
@@ -98,9 +88,7 @@ def _get_cell_format(meta_data, sheet_name, coord):
             for cell in row.get('cells', []):
                 if cell.get('coord') == coord:
                     return cell.get('numberFormat')
-    
     return None
-
 
 
 def _normalize_v2_key(sheet_name, coord):
@@ -115,112 +103,87 @@ def _split_v2_key(raw_key):
     return None, key.upper()
 
 
-def _normalize_text_for_unit_match(value):
+def _get_core_unit_id(name):
     """
-    Normalize unit name to a MATCH KEY.
-    Extracts the base name: "Công an xã A" -> "a", "UBND xã B" -> "b"
-    All these become the same: Công an xã A, xã A, UBND xã A → "xa a"
-    """
-    if not value:
-        return ""
-    
-    # Normalize first
-    txt = normalize_unit_name(value or '')
-    txt = ' '.join(str(txt).split())
-    
-    # If empty after normalize, use the original
-    if not txt:
-        txt = normalize_unit_name(str(value))
-    
-    return txt
-
-
-def _extract_unit_key(name):
-    """
-    Extract the CORE unit key from unit name.
-    "Công an xã An Tường" → "an tuong"
-    "UBND xã B" → "b"
-    "xã A" → "a"
+    Trích xuất 'lõi' định danh duy nhất của đơn vị, loại bỏ mọi tiền tố hành chính và khoảng trắng.
+    Giải quyết triệt để vấn đề:
+    - Username viết liền: "ubndxatantrao", "caxatantrao" -> "tantrao"
+    - Tên đầy đủ/Excel: "Công an xã Tân Trào", "UBND xã Tân Trào", "Xã Tân Trào" -> "tantrao"
     """
     if not name:
         return ""
     import unicodedata
-    # Lowercase + remove accents
     n = str(name).lower().strip()
     n = unicodedata.normalize('NFKD', n).encode('ascii', 'ignore').decode('utf-8')
     
-    # Remove common prefixes but KEEP the unit name
-    prefixes = [
-        "cong an ", "cong an phuong ", "cong an xa ", "cong an huyen ", "cong an tinh ",
-        "ubnd ", "ubnd xa ", "ubnd phuong ", "ubnd huyen ",
-        "xa ", "phuong ", "huyen ", "thi tran ", "thanh pho "
-    ]
-    for p in prefixes:
-        if n.startswith(p):
-            n = n[len(p):].strip()
-            break
-    
-    # Clean up
-    n = ' '.join(n.split())
-    return n
+    # Xóa các ký tự đặc biệt
+    for char in ['-', '_', '.', ',', '/']:
+        n = n.replace(char, ' ')
+        
+    # Xử lý chuỗi viết liền (như username)
+    if ' ' not in n:
+        # Xếp các tiền tố từ dài đến ngắn để tránh cắt sai
+        solid_prefixes = ['ubndthitran', 'ubndphuong', 'ubndxa', 'cathitran', 'caphuong', 
+                          'congphuong', 'congxa', 'caxa', 'ubnd', 'ca', 'thitran', 'phuong', 'xa', 'tt']
+        for p in solid_prefixes:
+            if n.startswith(p):
+                n = n[len(p):]
+                break
+    else:
+        # Xử lý chuỗi có dấu cách (như fullname, dữ liệu ô Excel)
+        prefixes = [
+            "uy ban nhan dan ", "cong an ", "thi tran ", "thanh pho ", "ubnd ", 
+            "ca ", "xa ", "phuong ", "huyen ", "tt "
+        ]
+        # Lặp để bóc sạch nhiều lớp tiền tố (VD: bóc "Công an" xong bóc tiếp "xã")
+        changed = True
+        while changed:
+            changed = False
+            for p in prefixes:
+                if n.startswith(p):
+                    n = n[len(p):].strip()
+                    changed = True
+                    
+    # Ép dính toàn bộ để khớp tuyệt đối
+    return n.replace(" ", "").strip()
 
 
-def _row_matches_unit(ws, row_idx, min_col, max_col, norm_user_unit):
+def _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_identifiers):
     """
-    Match row with user unit - SMART matching.
-    Matches if normalized names match OR if core keys match.
-    "Công an xã A" matches "Xã A", "UBND xã A", etc.
+    Tìm các dòng thuộc quyền quản lý của đơn vị dựa trên list nhận dạng (username, fullname...)
     """
-    # Extract core key from user unit
-    user_key = _extract_unit_key(norm_user_unit)
-    
-    for c in range(min_col, max_col + 1):
-        cell_val = ws.cell(row=row_idx, column=c).value
-        if cell_val is None:
-            continue
-        
-        cell_str = str(cell_val).strip()
-        norm_cell = _normalize_text_for_unit_match(cell_str)
-        cell_key = _extract_unit_key(cell_str)
-        
-        if not norm_cell:
-            continue
-        
-        # Match 1: Exact normalized match
-        if norm_cell == norm_user_unit:
-            return True, c
-        
-        # Match 2: Core key match (e.g., "an tuong" matches "an tuong")
-        if user_key and cell_key and (user_key == cell_key):
-            return True, c
-        
-        # Match 3: User key is contained in cell (for partial matches like "Công an xã An Tường" in header)
-        if user_key and cell_key and (user_key in cell_key or cell_key in user_key):
-            return True, c
-    
-    return False, None
-
-
-def _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_unit):
-    """
-    Find rows matching user unit.
-    - If user_unit is empty → return empty (no access without proper unit)
-    - Strict exact match only
-    """
-    norm_user_unit = _normalize_text_for_unit_match(user_unit)
+    # Xây dựng danh sách các mã Core ID của user
+    user_core_ids = set()
+    for uid in user_identifiers:
+        core_id = _get_core_unit_id(uid)
+        # Bỏ qua nếu mã lõi quá ngắn hoặc là các từ khóa hệ thống
+        if core_id and len(core_id) >= 2 and core_id not in ['pc06', 'admin', 'hethong']:
+            user_core_ids.add(core_id)
+            
     matched_rows = []
     matched_col = None
     
-    # If no unit assigned → no access to any row
-    if not norm_user_unit:
+    if not user_core_ids:
         return matched_rows, matched_col
 
     for r in range(min_row, max_row + 1):
-        is_match, col_idx = _row_matches_unit(ws, r, min_col, max_col, norm_user_unit)
-        if is_match:
-            matched_rows.append(r)
-            if matched_col is None and col_idx is not None:
-                matched_col = col_idx
+        # Chỉ quét 3 cột đầu tiên để tìm tên đơn vị (tăng tốc độ và độ chính xác)
+        for c in range(min_col, min(max_col + 1, min_col + 3)):
+            cell_val = ws.cell(row=r, column=c).value
+            if not cell_val:
+                continue
+                
+            cell_core_id = _get_core_unit_id(str(cell_val))
+            if not cell_core_id:
+                continue
+                
+            # Nếu Core ID của ô Excel nằm trong danh sách Core ID của user
+            if cell_core_id in user_core_ids:
+                matched_rows.append(r)
+                if matched_col is None:
+                    matched_col = c
+                break # Đã tìm thấy đơn vị ở dòng này thì xét tiếp dòng dưới
+                
     return matched_rows, matched_col
 
 
@@ -255,15 +218,16 @@ def _get_sheet_region(meta_data, ws, wb):
     return min_row, min_col, max_row, max_col
 
 
-def _collect_allowed_input_keys(wb, meta_data, user_unit, is_admin):
+def _collect_allowed_input_keys(wb, meta_data, user_identifiers, is_admin):
     from excel_renderer import is_input_cell
 
-    is_global = _is_global_user(is_admin, user_unit)
+    # Check global access dựa trên unit_area có sẵn trong session
+    is_global = _is_global_user(is_admin, session.get('unit', ''))
     allowed_keys = set()
 
     for ws in wb.worksheets:
         min_row, min_col, max_row, max_col = _get_sheet_region(meta_data, ws, wb)
-        unit_rows, unit_col = _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_unit)
+        unit_rows, unit_col = _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_identifiers)
 
         for r in range(min_row, max_row + 1):
             for c in range(min_col, max_col + 1):
@@ -290,8 +254,6 @@ def dashboard():
     templates = ReportTemplateV2.query.order_by(ReportTemplateV2.created_at.desc()).all()
     is_admin = session.get('is_admin', False)
     
-    # Only use mobile template if explicitly requested via ?mobile=1
-    # This ensures Desktop browsers always get Desktop template
     if request.args.get('mobile') == '1':
         return render_template('reports_v2_dashboard_mobile.html', templates=templates, is_admin=is_admin)
     
@@ -415,7 +377,6 @@ def edit_template(tid):
 
     versions = ReportVersionV2.query.filter_by(template_id=tid).order_by(ReportVersionV2.created_at.desc()).all()
     
-    # Check if mobile device - redirect to dashboard if so
     user_agent = request.headers.get('User-Agent', '').lower()
     is_mobile_request = 'mobile' in user_agent or 'android' in user_agent or 'iphone' in user_agent
     
@@ -428,7 +389,6 @@ def edit_template(tid):
 
 @reports_v2_bp.route('/reports-v2/config/<int:tid>')
 def config_template(tid):
-    """Giao diện cấu hình cột cho template"""
     if not session.get('is_admin'):
         return redirect(url_for('auth_bp.login'))
     
@@ -442,11 +402,9 @@ def config_template(tid):
         flash('Chưa có file Excel! Vui lòng upload trước.', 'warning')
         return redirect(url_for('reports_v2_bp.edit_template', tid=tid))
     
-    # Quét cấu trúc Excel
     from pc06_excel_scanner import scan_excel_structure
     detected = scan_excel_structure(version.excel_file_blob)
     
-    # Load existing config
     try:
         existing_config = json.loads(version.metadata_json or '{}')
     except:
@@ -456,7 +414,7 @@ def config_template(tid):
     header_groups = existing_config.get('header_groups', [])
     data_start_row = existing_config.get('data_start_row', detected.get('data_start_row', 4))
     unit_column = existing_config.get('unit_column', 'B')
-    header_row = existing_config.get('header_row', 3)  # Default row 3
+    header_row = existing_config.get('header_row', 3)
     header_column = existing_config.get('header_column', 'A')
     
     return _render_template('reports_v2_config.html',
@@ -472,7 +430,6 @@ def config_template(tid):
 
 @reports_v2_bp.route('/reports-v2/config/<int:tid>', methods=['POST'])
 def save_config(tid):
-    """Lưu cấu hình cột cho template"""
     if not session.get('is_admin'):
         return redirect(url_for('auth_bp.login'))
     
@@ -487,19 +444,15 @@ def save_config(tid):
         return redirect(url_for('reports_v2_bp.dashboard'))
     
     try:
-        # Load existing metadata
         try:
             metadata = json.loads(version.metadata_json or '{}')
         except:
             metadata = {}
         
-        # Build column configs from form data
         column_configs = {}
         all_columns = request.form.getlist('columns') if request.form.get('columns') else []
         
-        # If no columns in form, try to get from detected
         if not all_columns:
-            # Get all column configs from form
             for key in request.form.keys():
                 if key.startswith('is_numeric_') or key.startswith('is_percent_') or key.startswith('is_formula_') or key.startswith('is_sortable_'):
                     col = key.split('_', 2)[-1]
@@ -579,16 +532,23 @@ def render_report(tid):
         for val in submission.values:
             existing_values[val.cell_key] = val.value
 
-    user_unit = session.get('unit_area', session.get('unit', ''))
     is_admin = session.get('is_admin', False)
+    user_unit = session.get('unit_area', session.get('unit', ''))
     is_global = _is_global_user(is_admin, user_unit)
     
+    # Gom tất cả "nhân dạng" của user để quét khớp thông minh
+    user_identifiers = [
+        session.get('username', ''),
+        session.get('fullname', ''),
+        session.get('unit_area', ''),
+        session.get('unit', '')
+    ]
+    user_identifiers = [str(u) for u in user_identifiers if u]
 
     from excel_renderer import _build_merge_lookup, _col_widths_px, _row_height_px, _cell_css, is_input_cell
     import openpyxl as _opx
 
     try:
-        # BẮT BUỘC dùng data_only=True để lấy giá trị (value) đã được Excel tính toán sẵn từ các ô công thức.
         try:
             wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=True)
         except:
@@ -610,42 +570,34 @@ def render_report(tid):
 
         min_row, min_col, max_row, max_col = _get_sheet_region(meta_data, ws, wb)
         
-
-        unit_rows, unit_col = _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_unit)
+        # Tìm danh sách dòng thuộc về user
+        unit_rows, unit_col = _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_identifiers)
         
-        # Find all unit header rows in sheet (check first 3 columns for unit names)
+        # Tìm tất cả các dòng chứa tên đơn vị (Header của đơn vị)
         all_unit_keys = set()
         for r in range(min_row, max_row + 1):
             for c in range(min_col, min(max_col + 1, min_col + 3)):
                 cell_val = ws.cell(row=r, column=c).value
                 if cell_val:
-                    cell_str = str(cell_val).strip()
-                    norm_cell = _normalize_text_for_unit_match(cell_str)
-                    cell_key = _extract_unit_key(norm_cell)
-                    if cell_key:
-                        all_unit_keys.add((r, cell_key))
+                    cell_core_id = _get_core_unit_id(str(cell_val))
+                    if cell_core_id and len(cell_core_id) >= 2:
+                        all_unit_keys.add((r, cell_core_id))
                         break
         
         first_unit_row = min([r for r, k in all_unit_keys]) if all_unit_keys else None
         user_rows_set = set(unit_rows)
         other_unit_rows = {r for r, k in all_unit_keys if r not in user_rows_set}
         
-
-        # Enable filtering based on config
-        # Check if config has header_row/header_column set
         header_row_cfg = meta_data.get('header_row', 3)
-        header_col_cfg = meta_data.get('header_column', 'A')
-        
-        # Only filter for non-admin users with unit assigned
         should_filter = not is_global and unit_rows and header_row_cfg
 
-        # Find user's data end (next unit row after user's)
+        # Tìm điểm kết thúc dữ liệu của user (ẩn đơn vị tiếp theo)
         user_data_end = max_row
         if unit_rows:
             user_first = min(unit_rows)
             for r, key in sorted(all_unit_keys):
-                if r > user_first:
-                    user_data_end = r
+                if r > user_first and r not in unit_rows:
+                    user_data_end = r - 1
                     break
 
         rows_html = []
@@ -653,12 +605,10 @@ def render_report(tid):
             if ws.row_dimensions[r].hidden:
                 continue
 
-
-            # Use should_filter flag: only filter non-admin users với actual unit matches
             if not should_filter:
-                pass  # show all (admin or no matches found)
+                pass  # show all
             elif r < first_unit_row:
-                pass  # show header rows (before first unit)
+                pass  # show headers
             elif r in unit_rows:
                 pass  # show user's unit
             elif r in other_unit_rows:
@@ -707,11 +657,8 @@ def render_report(tid):
                 else:
                     raw = cell.value
                     if isinstance(raw, (float, int)):
-                        # Ưu tiên lấy format chuẩn của openpyxl trước, nếu không có mới dùng metadata
                         cell_format = cell.number_format or _get_cell_format(meta_data, ws.title, coord)
                         raw = _format_cell_value(raw, cell_format)
-                    
-                    # Đã dùng data_only=True ở trên nên không cần chặn .startswith('=') nữa
                     inner = '' if raw is None else str(raw)
 
                 row_parts.append(f'{td}{inner}</td>')
@@ -746,7 +693,6 @@ def render_report(tid):
 
 @reports_v2_bp.route('/reports-v2/input-lucky/<int:tid>')
 def input_lucky(tid):
-    """Giao diện LuckyExcel cho V2 - hien thi truc tiep khong qua chuyen doi"""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
     
@@ -761,7 +707,6 @@ def input_lucky(tid):
     if not version.excel_file_blob:
         return "No Excel file stored", 400
     
-    # Load config for unit column and input range
     config_json = '{}'
     try:
         meta = json.loads(version.metadata_json or '{}')
@@ -800,7 +745,6 @@ def submit_data():
 
     try:
         import openpyxl
-        # Load with UTF-8 support
         try:
             wb = openpyxl.load_workbook(io.BytesIO(version.excel_file_blob), rich_text=True, data_only=True)
         except:
@@ -812,10 +756,16 @@ def submit_data():
         except Exception:
             meta_data = {}
 
-        user_unit = session.get('unit_area', session.get('unit', 'PC06'))
         is_admin = session.get('is_admin', False)
+        user_identifiers = [
+            session.get('username', ''),
+            session.get('fullname', ''),
+            session.get('unit_area', ''),
+            session.get('unit', '')
+        ]
+        user_identifiers = [str(u) for u in user_identifiers if u]
 
-        allowed_prefixed_keys = _collect_allowed_input_keys(wb, meta_data, user_unit, is_admin)
+        allowed_prefixed_keys = _collect_allowed_input_keys(wb, meta_data, user_identifiers, is_admin)
 
         normalized_payload = {}
         for raw_key, val in values.items():
@@ -890,7 +840,6 @@ def export_submission(sid):
 
     try:
         import openpyxl
-        # Load with UTF-8 support
         try:
             wb = openpyxl.load_workbook(io.BytesIO(version.excel_file_blob), rich_text=True)
         except:
@@ -941,7 +890,6 @@ def review_submission(sub_id):
     import openpyxl as _opx
 
     try:
-        # Load WITHOUT data_only to preserve original values
         try:
             wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=False)
         except:
