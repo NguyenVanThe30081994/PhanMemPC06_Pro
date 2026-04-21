@@ -620,12 +620,12 @@ def input_report(tid):
     template = db.session.get(ReportTemplateV3, tid)
     if not template:
         flash('Khong tim thay template!', 'danger')
-        return redirect(url_for('dashboard_bp.dashboard'))
+        return redirect(url_for('excel_builder_bp.dashboard'))
     
     version = ReportVersionV3.query.filter_by(template_id=tid, is_published=True).order_by(ReportVersionV3.created_at.desc()).first()
     if not version:
         flash('Khong co phien ban nao!', 'danger')
-        return redirect(url_for('dashboard_bp.dashboard'))
+        return redirect(url_for('excel_builder_bp.dashboard'))
     
     # Parse schema
     schema = {}
@@ -700,7 +700,7 @@ def input_form(tid):
     template = db.session.get(ReportTemplateV3, tid)
     if not template:
         flash('Khong tim thay!', 'danger')
-        return redirect(url_for('dashboard_bp.dashboard'))
+        return redirect(url_for('excel_builder_bp.dashboard'))
     
     version = ReportVersionV3.query.filter_by(template_id=tid, is_published=True).order_by(ReportVersionV3.created_at.desc()).first()
     if not version:
