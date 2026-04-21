@@ -570,7 +570,7 @@ def render_report(tid):
         for val in submission.values:
             existing_values[val.cell_key] = val.value
 
-    user_unit = session.get('unit', session.get('unit_area', ''))
+    user_unit = session.get('unit_area', session.get('unit', ''))
     is_admin = session.get('is_admin', False)
     is_global = _is_global_user(is_admin, user_unit)
     

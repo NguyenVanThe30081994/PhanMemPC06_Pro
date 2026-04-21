@@ -82,6 +82,57 @@ def normalize_unit_name(name):
     n = re.sub(r'\s+', ' ', n).strip()
     return n
 
+def extract_unit_key(name):
+    """
+    Extracts the core unit key from a unit name by removing all common prefixes.
+    'Công an xã An Tường' -> 'an tuong'
+    'UBND xã An Tường' -> 'an tuong'
+    """
+    if not name: return ""
+    import unicodedata
+    # 1. Lowercase and remove accents
+    n = str(name).lower().strip()
+    n = unicodedata.normalize('NFKD', n).encode('ascii', 'ignore').decode('utf-8')
+    
+    # 2. Remove common prefixes and noise words
+    prefixes = [
+        "cong an phuong", "cong an xa", "cong an huyen", "cong an thanh pho", "cong an tinh", "cong an",
+        "ubnd xa", "ubnd phuong", "ubnd",
+        "phuong", "xa", "huyen", "thanh pho", "thi tran", "tinh", "don vi"
+    ]
+    # Replace whole words for prefixes
+    for p in prefixes:
+        n = re.sub(r'\b' + re.escape(p) + r'\b', '', n).strip()
+    
+    # 3. Clean up extra spaces
+    n = re.sub(r'\s+', ' ', n).strip()
+    return n
+
+def is_unit_match(name1, name2):
+    """
+    Smart matching for unit names.
+    Handles 'UBND xã A' vs 'Công an xã A' as the same unit.
+    """
+    if not name1 or not name2: return False
+    
+    # 1. Exact normalized match
+    norm1 = normalize_unit_name(name1)
+    norm2 = normalize_unit_name(name2)
+    if norm1 == norm2: return True
+    
+    # 2. Core key match
+    key1 = extract_unit_key(name1)
+    key2 = extract_unit_key(name2)
+    if key1 and key2 and key1 == key2: return True
+    
+    # 3. Partial match (one key contained in another)
+    if key1 and key2 and (key1 in key2 or key2 in key1):
+        # Additional check: ensure they are not completely different (e.g. 'A' vs 'B')
+        # This is simple; if one is 'an tuong' and other is 'cong an an tuong', it matches.
+        return True
+        
+    return False
+
 def slugify_unit(name):
     if not name: return ""
     n = normalize_unit_name(name)

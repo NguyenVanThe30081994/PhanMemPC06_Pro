@@ -29,6 +29,7 @@ def login():
             session['username'] = usr.username
             session['fullname'] = usr.fullname
             session['unit'] = usr.unit_area
+            session['unit_area'] = usr.unit_area
             session['role_id'] = usr.role_id
             session['must_change'] = usr.must_change_password
             

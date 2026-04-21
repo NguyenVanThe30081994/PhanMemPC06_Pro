@@ -109,13 +109,18 @@ def build_schema(ws, header_row_count=3):
     fields = []
     grid_header_tree = []
     
-    # Xay grid_header_tree
-    for col_idx in range(len(matrix[0])):
-        col_headers = []
-        for row_idx in range(header_row_count):
-            val = matrix[row_idx][col_idx]['value']
-            col_headers.append(str(val) if val else '')
         grid_header_tree.append(col_headers)
+    
+    # Extract row names (Unit column - usually column 1 or 2)
+    # We take column 1 (index 0) as the default Unit column
+    row_names = []
+    row_unit_keys = []
+    from utils import extract_unit_key
+    for r in range(header_row_count, len(matrix)):
+        val = matrix[r][0]['value']
+        val_str = str(val) if val else ''
+        row_names.append(val_str)
+        row_unit_keys.append(extract_unit_key(val_str))
     
     # Xay fields cho data columns (sau header rows)
     data_start_row = header_row_count
@@ -156,6 +161,8 @@ def build_schema(ws, header_row_count=3):
         'header_row_count': header_row_count,
         'fields': fields,
         'grid_header_tree': grid_header_tree,
+        'row_names': row_names,
+        'row_unit_keys': row_unit_keys,
         'total_rows': data['max_row'],
         'total_cols': data['max_col']
     }
@@ -642,13 +649,15 @@ def input_report(tid):
         unit_id=unit_id
     ).first()
     
-    report_id = submission.id if submission else None
+    from utils import extract_unit_key
+    user_unit_key = extract_unit_key(unit_id)
     
     return _render('reports_v3_input.html', 
                  template=template, 
                  version=version, 
                  config=json.dumps(schema),
-                 report_id=report_id)
+                 report_id=report_id,
+                 user_unit_key=user_unit_key)
 
 
 @reports_v3_bp.route('/reports-v3/dashboard')

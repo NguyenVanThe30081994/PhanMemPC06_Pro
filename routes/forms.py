@@ -305,8 +305,8 @@ def stats():
     perms = json.loads(role.perms) if role and role.perms else {}
     is_lead = perms.get('p_stat_lead') or session.get('is_admin')
     is_exec = perms.get('p_stat_exec')
-    user_unit = session.get('unit_area')
-
+    user_unit = session.get('unit_area', session.get('unit', ''))
+    
     # --- Task: Summary Statistics ---
     all_units_query = db.session.query(User.unit_area).distinct()
     if not is_lead:
