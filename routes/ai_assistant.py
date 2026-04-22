@@ -1,0 +1,200 @@
+# -*- coding: utf-8 -*-
+from flask import Blueprint, render_template, request, session, jsonify, redirect, url_for
+import requests
+from bs4 import BeautifulSoup
+import re
+import json
+from datetime import datetime
+from models import db, AppRole
+
+ai_bp = Blueprint('ai_bp', __name__, url_prefix='/ai')
+
+# TTHC Knowledge Base - Thủ tục hành chính PC06
+TTHC_KNOWLEDGE = {
+    "cấp giấy giới thiệu": {
+        "answer": "Để cấp giấy giới thiệu, công dân cần chuẩn bị: 1) Đơn xin cấp giấy giới thiệu; 2) CMND/CCCD; 3) Các giấy tờ liên quan đến mục đích giới thiệu. Thời gian giải quyết: trong ngày hoặc tối đa 3 ngày làm việc.",
+        "keywords": ["giấy giới thiệu", "cấp giấy", "xác nhận"]
+    },
+    "đăng ký thường trú": {
+        "answer": "Hồ sơ đăng ký thường trú gồm: 1) Tờ khai đăng ký thường trú; 2) CMND/CCCD của người đăng ký; 3) Sổ hộ khẩu hoặc giấy tờ chứng minh chỗ ở hợp pháp. Thời gian: 15 ngày kể từ ngày nhận đủ hồ sơ.",
+        "keywords": ["thường trú", "đăng ký", "hộ khẩu", "cư trú"]
+    },
+    "đăng ký tạm trú": {
+        "answer": "Hồ sơ đăng ký tạm trú: 1) Tờ khai đăng ký tạm trú; 2) CMND/CCCD; 3) Giấy tờ chứng minh chỗ ở hợp pháp (hợp đồng thuê nhà, xác nhận của chủ nhà...). Thời gian: 3 ngày làm việc.",
+        "keywords": ["tạm trú", "đăng ký", "tạm vắng"]
+    },
+    "lý lịch tư pháp": {
+        "answer": "Giấy lý lịch tư pháp được cấp tại Công an cấp huyện hoặc cấp tỉnh. Hồ sơ: 1) Đơn xin cấp; 2) CMND/CCCD; 3) Sổ hộ khẩu. Thời gian: 10 ngày làm việc.",
+        "keywords": ["lý lịch", "tư pháp", "phi pháp"]
+    },
+    "hộ chiếu": {
+        "answer": "Hồ sơ xin cấp hộ chiếu: 1) Tờ khai theo mẫu; 2) 02 ảnh 4x6; 3) CMND/CCCD; 4) Sổ hộ khẩu. Nộp tại Công an tỉnh hoặc Phòng quản lý xuất nhập cảnh. Thời gian: 15 ngày làm việc.",
+        "keywords": ["hộ chiếu", "passport", "xuất cảnh", "nhập cảnh"]
+    },
+    "đăng ký kinh doanh": {
+        "answer": "Đăng ký kinh doanh tại Phòng Đăng ký kinh doanh thuộc Sở Kế hoạch và Đầu tư. Hồ sơ: 1) Giấy đề nghị đăng ký; 2) Điều lệ công ty; 3) Danh sách thành viên/cổ đông. Thời gian: 3 ngày làm việc.",
+        "keywords": ["kinh doanh", "đăng ký", "thành lập", "doanh nghiệp"]
+    },
+    "thuế": {
+        "answer": "Các thủ tục thuế thường gặp: 1) Đăng ký thuế; 2) Khai thuế; 3) Hoàn thuế; 4) Gia hạn nộp thuế. Nộp hồ sơ tại Chi cục Thuế hoặc qua cổng thuế điện tử.",
+        "keywords": ["thuế", "khai thuế", "hoàn thuế", "mã số thuế"]
+    },
+    "bhxh": {
+        "answer": "Thủ tục BHXH gồm: 1) Đăng ký tham gia BHXH, BHYT; 2) Cấp thẻ BHYT; 3) Hưởng chế độ thai sản, ốm đau, hưu trí. Nộp tại Bảo hiểm xã hội quận/huyện.",
+        "keywords": ["bảo hiểm", "bhxh", "bhyt", "thẻ bhyt", "hưu trí"]
+    },
+    "giấy phép lái xe": {
+        "answer": "Hồ sơ thi GPLX: 1) Đơn đề nghị; 2) CMND/CCCD; 3) Giấy khám sức khỏe; 4) Ảnh 3x4. Thi tại Sở Giao thông Vận tải. GPLX hạng A1, A2: 550.000đ; B1, B2: 135.000đ.",
+        "keywords": ["lái xe", "gplx", "bằng lái", "thi bằng"]
+    },
+    "xây dựng": {
+        "answer": "Giấy phép xây dựng: Hồ sơ gồm đơn xin cấp phép, bản vẽ mặt bằng, thiết kế, cam kết đảm bảo an toàn. Thời gian: 15-30 ngày tùy loại công trình.",
+        "keywords": ["xây dựng", "gpxd", "cấp phép", "xây nhà"]
+    }
+}
+
+# Canned responses for common questions
+CANNED_RESPONSES = {
+    "xin chào": "Xin chào! Tôi là trợ lý AI của PC06 Tuyên Quang. Tôi có thể hỗ trợ bạn về các thủ tục hành chính. Bạn cần tìm hiểu về thủ tục gì?",
+    "cảm ơn": "Cảm ơn bạn đã sử dụng dịch vụ! Nếu cần hỗ trợ thêm, hãy liên hệ PC06 Tuyên Quang.",
+    "help": "Tôi có thể giúp bạn về các thủ tục hành chính như: cấp giấy giới thiệu, đăng ký thường trú/tạm trú, lý lịch tư pháp, hộ chiếu, đăng ký kinh doanh, thuế, BHXH, GPLX, xây dựng...",
+    "liên hệ": "Bạn có thể liên hệ PC06 Tuyên Quang qua: Địa chỉ: ..., Điện thoại: ..., Email: ...",
+    "giờ làm việc": "PC06 Tuyên Quang làm việc từ thứ 2 đến thứ 6, sáng từ 7h30 - 11h30, chiều từ 13h00 - 17h00."
+}
+
+
+def find_answer(query):
+    """Tìm câu trả lời phù hợp từ knowledge base"""
+    query_lower = query.lower()
+    
+    # Check canned responses first
+    for key, response in CANNED_RESPONSES.items():
+        if key in query_lower:
+            return response
+    
+    # Check TTHC knowledge base
+    for topic, data in TTHC_KNOWLEDGE.items():
+        if topic in query_lower:
+            return data["answer"]
+        
+        # Check keywords
+        for keyword in data["keywords"]:
+            if keyword in query_lower:
+                return data["answer"]
+    
+    return None
+
+
+def fetch_gov_news(limit=10):
+    """Fetch latest news from tuyenquang.gov.vn"""
+    articles = []
+    try:
+        # Try to fetch from official government RSS or page
+        url = "https://tuyenquang.gov.vn"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Try to find news items (structure varies)
+            news_items = soup.select('article, .news-item, .post-item, .article-item, .list-news li')
+            
+            for item in news_items[:limit]:
+                try:
+                    title_elem = item.select_one('h3, h4, .title, a')
+                    link_elem = item.select_one('a')
+                    date_elem = item.select_one('.date, .time, time, .created')
+                    
+                    if title_elem:
+                        title = title_elem.get_text(strip=True)
+                        link = link_elem.get('href', '') if link_elem else ''
+                        
+                        if link and not link.startswith('http'):
+                            link = url + link
+                        
+                        if title and len(title) > 10:
+                            articles.append({
+                                'title': title,
+                                'link': link,
+                                'source': 'tuyenquang.gov.vn',
+                                'date': date_elem.get_text(strip=True) if date_elem else ''
+                            })
+                except Exception:
+                    continue
+                    
+    except Exception as e:
+        print(f"Error fetching news: {e}")
+    
+    # Return demo data if fetch fails
+    if not articles:
+        articles = [
+            {'title': 'PC06 Tuyên Quang triển khai nhiệm vụ công tác năm 2026', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': '22/04/2026'},
+            {'title': 'Hướng dẫn thủ tục hành chính mới nhất', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': '21/04/2026'},
+            {'title': 'Công bố quyết định điều động cán bộ', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': '20/04/2026'},
+        ]
+    
+    return articles
+
+
+@ai_bp.route('/')
+def index():
+    """AI Assistant main page"""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    
+    # Fetch latest news
+    news = fetch_gov_news(10)
+    
+    return render_template('ai_assistant.html', 
+                         title='Trợ lý AI - TTHC',
+                         news=news)
+
+
+@ai_bp.route('/chat', methods=['POST'])
+def chat():
+    """Handle AI chat request"""
+    if not session.get('uid'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json()
+    query = data.get('message', '').strip()
+    
+    if not query:
+        return jsonify({'error': 'Vui lòng nhập câu hỏi'}), 400
+    
+    # Find answer
+    answer = find_answer(query)
+    
+    if answer:
+        return jsonify({
+            'success': True,
+            'answer': answer,
+            'type': 'ttc'
+        })
+    else:
+        # No match found
+        suggestions = list(TTHC_KNOWLEDGE.keys())[:5]
+        return jsonify({
+            'success': False,
+            'answer': "Xin lỗi, tôi chưa có thông tin về vấn đề này. Bạn có thể hỏi về: " + ", ".join(suggestions),
+            'type': 'no_match',
+            'suggestions': suggestions
+        })
+
+
+@ai_bp.route('/news')
+def news():
+    """Get latest news from government website"""
+    if not session.get('uid'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    limit = request.args.get('limit', 10, type=int)
+    articles = fetch_gov_news(limit)
+    
+    return jsonify({
+        'success': True,
+        'articles': articles
+    })
