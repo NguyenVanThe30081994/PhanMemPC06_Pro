@@ -9,12 +9,12 @@ from models import db, CategoryGroup, CategoryItem
 
 # Định nghĩa các nhóm danh mục và các mục mặc định của chúng
 DEFAULT_CATEGORIES = {
-    # Nhóm danh bạ
     "Nhóm danh bạ": {
         "linked_modules": "Danh bạ",
+        "aliases": ["Nhom danh ba"],
         "items": [
             "Cán bộ chủ chốt",
-            "Cán bộ địa bàn", 
+            "Cán bộ địa bàn",
             "Cộng tác viên",
             "Cơ quan ban ngành",
             "Tổ chức xã hội",
@@ -23,10 +23,9 @@ DEFAULT_CATEGORIES = {
             "Ngoại lệ"
         ]
     },
-    
-    # Chức vụ
     "Chức vụ": {
         "linked_modules": "Danh bạ",
+        "aliases": ["Chuc vu"],
         "items": [
             "Trưởng CA xã",
             "Phó CA xã",
@@ -42,10 +41,9 @@ DEFAULT_CATEGORIES = {
             "Khác"
         ]
     },
-    
-    # Lĩnh vực (dùng chung cho Bảng tin, Thư viện, Danh bạ)
     "Lĩnh vực": {
         "linked_modules": "Bảng tin,Thư viện,Danh bạ",
+        "aliases": ["Linh vuc"],
         "items": [
             "An ninh chính trị nội bộ",
             "An ninh kinh tế",
@@ -67,10 +65,9 @@ DEFAULT_CATEGORIES = {
             "Tổng hợp"
         ]
     },
-    
-    # Đơn vị (phân loại đơn vị)
     "Đơn vị": {
         "linked_modules": "Danh bạ",
+        "aliases": ["Don vi"],
         "items": [
             "Phòng PC06",
             "Công an huyện",
@@ -85,10 +82,9 @@ DEFAULT_CATEGORIES = {
             "Ban Công an xã"
         ]
     },
-    
-    # Đội nghiệp vụ
     "Đội nghiệp vụ": {
-        "linked_modules": "Công việc",
+        "linked_modules": "Công việc,Bảng tin",
+        "aliases": ["Dong nghiep vu"],
         "items": [
             "Đội An ninh",
             "Đội Trật tự",
@@ -105,10 +101,9 @@ DEFAULT_CATEGORIES = {
             "Phòng Hậu cần"
         ]
     },
-    
-    # Loại công việc
     "Loại công việc": {
         "linked_modules": "Công việc",
+        "aliases": ["Loai cong viec"],
         "items": [
             "Công việc thường xuyên",
             "Công việc đột xuất",
@@ -125,10 +120,9 @@ DEFAULT_CATEGORIES = {
             "Học tập"
         ]
     },
-    
-    # Mức độ ưu tiên
     "Mức độ ưu tiên": {
         "linked_modules": "Công việc",
+        "aliases": ["Muc do uu tien"],
         "items": [
             "Khẩn cấp",
             "Cao",
@@ -136,10 +130,9 @@ DEFAULT_CATEGORIES = {
             "Thấp"
         ]
     },
-    
-    # Trạng thái công việc
     "Trạng thái công việc": {
         "linked_modules": "Công việc",
+        "aliases": ["Trang thai cong viec"],
         "items": [
             "Chưa bắt đầu",
             "Đang thực hiện",
@@ -149,10 +142,9 @@ DEFAULT_CATEGORIES = {
             "Đã hủy"
         ]
     },
-    
-    # Loại tài liệu
     "Loại tài liệu": {
         "linked_modules": "Thư viện",
+        "aliases": ["Loai tai lieu"],
         "items": [
             "Văn bản pháp luật",
             "Công văn chỉ đạo",
@@ -176,25 +168,33 @@ def seed_categories():
         
         created_groups = 0
         created_items = 0
+        updated_groups = 0
         
         for group_name, group_data in DEFAULT_CATEGORIES.items():
-            # Kiểm tra nhóm đã tồn tại chưa
-            group = CategoryGroup.query.filter_by(name=group_name).first()
+            aliases = group_data.get("aliases", [])
+            group = CategoryGroup.query.filter(
+                CategoryGroup.name.in_([group_name, *aliases])
+            ).first()
             
             if not group:
-                # Tạo nhóm mới
                 group = CategoryGroup(
                     name=group_name,
                     linked_modules=group_data.get("linked_modules", "")
                 )
                 db.session.add(group)
-                db.session.flush()  # Để lấy ID
+                db.session.flush()
                 created_groups += 1
                 print(f"  ✅ Tạo nhóm: {group_name}")
             else:
+                if group.name != group_name:
+                    print(f"  🔁 Chuẩn hóa tên nhóm: {group.name} -> {group_name}")
+                    group.name = group_name
+                    updated_groups += 1
+                if group.linked_modules != group_data.get("linked_modules", ""):
+                    group.linked_modules = group_data.get("linked_modules", "")
+                    updated_groups += 1
                 print(f"  ⏭️  Nhóm đã tồn tại: {group_name}")
             
-            # Tạo các mục trong nhóm
             existing_items = {item.name for item in group.items}
             
             for item_name in group_data.get("items", []):
@@ -207,11 +207,11 @@ def seed_categories():
                     created_items += 1
                     print(f"      ➕ Thêm mục: {item_name}")
         
-        # Commit tất cả thay đổi
         db.session.commit()
         
         print(f"\n✅ Hoàn thành!")
         print(f"   - Nhóm danh mục mới: {created_groups}")
+        print(f"   - Nhóm danh mục cập nhật: {updated_groups}")
         print(f"   - Mục danh mục mới: {created_items}")
         print(f"\n📝 Người quản trị có thể vào 'Thiết lập danh mục' để thêm/sửa/xóa các mục.")
 

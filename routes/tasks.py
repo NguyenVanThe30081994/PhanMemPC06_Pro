@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, current_app
 from models import db, Task, TaskAssignment, TaskComment, User, MasterData, CategoryGroup, CategoryItem, AppRole
+from category_helpers import get_category_items
 import os
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
@@ -12,10 +13,11 @@ tasks_bp = Blueprint('tasks_bp', __name__)
 def tasks():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
     
-    # === LẤY DANH MỤC THEO NHÓM ===
-    group_dongnghiepvu = CategoryGroup.query.filter((CategoryGroup.name == 'Dong nghiep vu') | (CategoryGroup.name == 'Đội nghiệp vụ')).first()
-    all_category_items = CategoryItem.query.filter_by(group_id=group_dongnghiepvu.id).all() if group_dongnghiepvu else []
-    domains = [d.name for d in all_category_items]
+    pro_units = get_category_items('Đội nghiệp vụ')
+    task_types = get_category_items('Loại công việc')
+    priority_items = get_category_items('Mức độ ưu tiên')
+    status_items = get_category_items('Trạng thái công việc')
+    domains = [d.name for d in pro_units]
     
     current_domain = request.args.get('domain', 'ALL')
     now_dt = datetime.now()
@@ -95,7 +97,9 @@ def tasks():
             file_path=fn,
             author_id=session['uid'],
             author_name=session.get('fullname', 'Admin'),
-            priority=request.form.get('priority', 'Bình thường')
+            priority=request.form.get('priority', 'Trung bình'),
+            task_type=request.form.get('task_type') or 'Công việc thường xuyên',
+            initial_status=request.form.get('initial_status') or 'Chưa bắt đầu'
         )
         db.session.add(new_task)
         db.session.commit()
@@ -111,7 +115,7 @@ def tasks():
             # Giao cho tất cả user có role này và đang hoạt động
             role_users = User.query.filter_by(role_id=int(assignee_role_id), is_active=True).all()
             for u in role_users:
-                db.session.add(TaskAssignment(task_id=new_task.id, user_id=u.id))
+                db.session.add(TaskAssignment(task_id=new_task.id, user_id=u.id, status=new_task.initial_status))
                 push_notif(u.id, "Công việc mới", f"Bạn vừa được giao: {new_task.title}", f"/tasks/{new_task.id}")
         else:
             # Giao cho cá nhân (từ assignee_id hoặc target_users)
@@ -120,7 +124,7 @@ def tasks():
             
             for aid in assign_ids:
                 if aid:
-                    db.session.add(TaskAssignment(task_id=new_task.id, user_id=int(aid)))
+                    db.session.add(TaskAssignment(task_id=new_task.id, user_id=int(aid), status=new_task.initial_status))
                     push_notif(int(aid), "Công việc mới", f"Bạn vừa được giao: {new_task.title}", f"/tasks/{new_task.id}")
         
         db.session.commit()
@@ -160,7 +164,10 @@ def tasks():
                            tasks=all_tasks, 
                            users=User.query.all(),
                            roles=AppRole.query.all(),
-                           pro_units=all_category_items,
+                           pro_units=pro_units,
+                           task_types=task_types,
+                           priority_items=priority_items,
+                           status_items=status_items,
                            domains=domains, 
                            current_domain=current_domain, 
                            now_dt=now_dt,
@@ -188,4 +195,4 @@ def task_detail(tid):
             flash('Đã gửi phản hồi!', 'success')
             return redirect(url_for('tasks_bp.task_detail', tid=tid))
             
-    return render_template('task_detail.html', task=task, comments=comments, assigns=assigns)
+    return render_template('task_detail.html', task=task, comments=comments, assigns=assigns, now_dt=datetime.now())

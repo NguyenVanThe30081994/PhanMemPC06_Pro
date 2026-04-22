@@ -103,6 +103,8 @@ class Task(db.Model):
     author_id = db.Column(db.Integer)
     author_name = db.Column(db.String(100))
     priority = db.Column(db.String(50))
+    task_type = db.Column(db.String(100))
+    initial_status = db.Column(db.String(50), default='Chưa bắt đầu')
     created_at = db.Column(db.DateTime, default=datetime.now)
     assignments = db.relationship('TaskAssignment', backref='task', cascade='all, delete-orphan')
 
