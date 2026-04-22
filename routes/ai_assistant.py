@@ -9,7 +9,7 @@ from datetime import datetime
 ai_bp = Blueprint('ai_bp', __name__, url_prefix='/ai')
 
 # OpenAI API Key - Đọc trực tiếp từ env
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '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')
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', 'sk-abcdef1234567890abcdef1234567890abcdef12')
 
 # TTHC Knowledge Base - Thủ tục hành chính PC06
 TTHC_KNOWLEDGE = {
