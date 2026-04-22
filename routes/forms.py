@@ -402,8 +402,12 @@ def stats():
 
                                     coord = cell.coordinate
                                     full_key = _normalize_v2_key(ws.title, coord)
-                                    val = all_vals.get(full_key, all_vals.get(coord, cell.value if cell.value and not str(cell.value).startswith('=') else ''))
-                                    val = _normalize_text(val)
+                                    raw_val = all_vals.get(full_key, all_vals.get(coord, cell.value if cell.value and not str(cell.value).startswith('=') else ''))
+                                    number_format = _get_cell_format(meta_data, ws.title, coord) or getattr(cell, 'number_format', None)
+                                    if isinstance(raw_val, (int, float)):
+                                        val = _format_cell_value(raw_val, number_format)
+                                    else:
+                                        val = _normalize_text(raw_val)
 
                                     rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
                                     cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
