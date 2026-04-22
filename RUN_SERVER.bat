@@ -18,6 +18,14 @@ REM Kiểm tra xem có đang chạy từ thư mục package không
 set "SCRIPT_DIR=%~dp0"
 cd /d "%SCRIPT_DIR%"
 
+REM Kiểm tra file exe có tồn tại không
+if not exist "PhanMemPC06_Server.exe" (
+    echo [ERROR] Khong tim thay file PhanMemPC06_Server.exe!
+    echo Vui long kiem tra lai thu muc cai dat.
+    pause
+    exit /b 1
+)
+
 REM Tạo thư mục cần thiết nếu chưa có
 if not exist "uploads" mkdir uploads
 if not exist "backups" mkdir backups
@@ -47,11 +55,13 @@ echo.
 echo ============================================================
 echo.
 
-REM Chạy server
-start "" "http://localhost:5000"
+REM Chạy server và giữ cửa sổ để xem logs/lỗi
 PhanMemPC06_Server.exe
 
-REM Nếu chương trình kết thúc (lỗi), đợi người dùng
+REM Nếu chương trình kết thúc (lỗi), hiển thị thông báo
 echo.
-echo Server da dung!
+echo ============================================================
+echo [ERROR] Server bi dong!
+echo Vui long kiem tra loi phia tren.
+echo.
 pause
