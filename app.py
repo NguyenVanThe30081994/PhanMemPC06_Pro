@@ -172,6 +172,7 @@ from routes.excel_builder import excel_builder_bp
 from routes.zalo import zalo_bp
 from routes.ai_assistant import ai_bp
 from routes.excel_api import excel_api
+from routes.template_generator import template_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(excel_api)
