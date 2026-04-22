@@ -223,9 +223,6 @@
                             if (!sheet.config) sheet.config = {};
                             if (!sheet.defaultRowHeight) sheet.defaultRowHeight = 24;
                         });
-                        // ============================================
-                        // END FIX LỖI FONT
-                        // ============================================
                         
                         if (window.luckysheet && typeof window.luckysheet.destroy === 'function') {
                             window.luckysheet.destroy();
@@ -237,7 +234,6 @@
                             showstatisticBar: false,
                             sheetBottomConfig: false,
                             allowEdit: false,
-                            lang: 'vi',
                             data: exportJson.sheets
                         });
                         document.getElementById('luckysheet-loading').style.display = 'none';
