@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, render_template, request, session, jsonify, redirect, url_for
 import requests
-from bs4 import BeautifulSoup
 import re
 import json
 from datetime import datetime
-from models import db, AppRole
 
 ai_bp = Blueprint('ai_bp', __name__, url_prefix='/ai')
 
@@ -86,10 +84,9 @@ def find_answer(query):
 
 
 def fetch_gov_news(limit=10):
-    """Fetch latest news from tuyenquang.gov.vn"""
+    """Fetch latest news from tuyenquang.gov.vn using regex only"""
     articles = []
     try:
-        # Try to fetch from official government RSS or page
         url = "https://tuyenquang.gov.vn"
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -97,33 +94,33 @@ def fetch_gov_news(limit=10):
         
         response = requests.get(url, headers=headers, timeout=10)
         if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
+            html = response.text
             
-            # Try to find news items (structure varies)
-            news_items = soup.select('article, .news-item, .post-item, .article-item, .list-news li')
+            # Simple regex to find links with titles
+            # Pattern: <a href="...">Title</a>
+            link_pattern = re.compile(r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>([^<]+)</a>', re.IGNORECASE)
             
-            for item in news_items[:limit]:
-                try:
-                    title_elem = item.select_one('h3, h4, .title, a')
-                    link_elem = item.select_one('a')
-                    date_elem = item.select_one('.date, .time, time, .created')
+            for match in link_pattern.finditer(html):
+                href = match.group(1)
+                title = match.group(2).strip()
+                
+                # Filter: only valid titles
+                if title and len(title) > 15 and len(title) < 200:
+                    # Clean HTML tags from title
+                    title = re.sub(r'<[^>]+>', '', title).strip()
                     
-                    if title_elem:
-                        title = title_elem.get_text(strip=True)
-                        link = link_elem.get('href', '') if link_elem else ''
+                    if title and not title.startswith('http'):
+                        full_url = href if href.startswith('http') else url + href
                         
-                        if link and not link.startswith('http'):
-                            link = url + link
+                        articles.append({
+                            'title': title,
+                            'link': full_url,
+                            'source': 'tuyenquang.gov.vn',
+                            'date': ''
+                        })
                         
-                        if title and len(title) > 10:
-                            articles.append({
-                                'title': title,
-                                'link': link,
-                                'source': 'tuyenquang.gov.vn',
-                                'date': date_elem.get_text(strip=True) if date_elem else ''
-                            })
-                except Exception:
-                    continue
+                        if len(articles) >= limit:
+                            break
                     
     except Exception as e:
         print(f"Error fetching news: {e}")
