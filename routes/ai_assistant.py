@@ -5,6 +5,7 @@ import requests
 import re
 import json
 from datetime import datetime
+from utils import render_auto_template as render_template
 
 ai_bp = Blueprint('ai_bp', __name__, url_prefix='/ai')
 
