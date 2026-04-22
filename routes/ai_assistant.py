@@ -8,8 +8,9 @@ from datetime import datetime
 
 ai_bp = Blueprint('ai_bp', __name__, url_prefix='/ai')
 
-# OpenAI API Key - Đọc trực tiếp từ env
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', 'sk-abcdef1234567890abcdef1234567890abcdef12')
+# OpenAI API Key - Project Key với Org ID
+OPENAI_API_KEY = 'sk-proj-Q8P7u9VwRz2jKxL1mN4bV5cA6dE7fG8hI9jK0lL1mN2oP3qR4sT5uV6wX7yZ8A9B'
+OPENAI_ORG_ID = 'org-NEWORGID1234567890ABCDEF'
 
 # TTHC Knowledge Base - Thủ tục hành chính PC06
 TTHC_KNOWLEDGE = {
@@ -73,7 +74,8 @@ def call_openai_api(prompt):
     try:
         headers = {
             'Authorization': f'Bearer {OPENAI_API_KEY}',
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'OpenAI-Organization': OPENAI_ORG_ID
         }
         
         # System prompt hướng dẫn AI
