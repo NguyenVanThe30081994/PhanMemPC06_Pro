@@ -358,7 +358,7 @@ def stats():
                         import openpyxl as _opx
                         import unicodedata
                         from io import BytesIO
-                        from reports_v2 import _get_sheet_region, _normalize_v2_key
+                        from routes.reports_v2 import _get_sheet_region, _normalize_v2_key
                         from excel_renderer import _build_merge_lookup, _row_height_px, _cell_css
 
                         def _normalize_text(value):
