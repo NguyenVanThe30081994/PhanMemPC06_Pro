@@ -187,59 +187,67 @@
                 document.getElementById('loading-status').textContent = 'Đang chuyển đổi định dạng...';
                 const file = new File([blob], "thong_ke.xlsx", {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
                 LuckyExcel.transformExcelToLucky(file, function(exportJson, luckysheetfile) {
-                    document.getElementById('luckysheet-loading').style.display = 'none';
-                    if (!exportJson || !exportJson.sheets || exportJson.sheets.length === 0) {
-                        throw new Error('Không có dữ liệu');
-                    }
-                    
-                    // ============================================
-                    // FIX LỖI FONT TIẾNG VIỆT - Safe Unicode NFC Normalization
-                    // Chỉ chuẩn hóa GIÁ TRỊ chuỗi, không đụng vào key để tránh làm hỏng
-                    // cấu trúc JSON nội bộ của LuckyExcel/Luckysheet.
-                    // ============================================
-                    const normalizeNFC = (val) => (typeof val === 'string' ? val.normalize('NFC') : val);
-                    const normalizeValuesDeep = (input, seen = new WeakSet()) => {
-                        if (input === null || input === undefined) return input;
-                        if (typeof input === 'string') return normalizeNFC(input);
-                        if (typeof input !== 'object') return input;
-                        if (seen.has(input)) return input;
-                        seen.add(input);
-
-                        if (Array.isArray(input)) {
-                            for (let i = 0; i < input.length; i++) {
-                                input[i] = normalizeValuesDeep(input[i], seen);
-                            }
-                            return input;
+                    try {
+                        if (!exportJson || !exportJson.sheets || exportJson.sheets.length === 0) {
+                            throw new Error('Không có dữ liệu');
                         }
+                        
+                        // ============================================
+                        // FIX LỖI FONT TIẾNG VIỆT - Safe Unicode NFC Normalization
+                        // Chỉ chuẩn hóa GIÁ TRỊ chuỗi, không đụng vào key để tránh làm hỏng
+                        // cấu trúc JSON nội bộ của LuckyExcel/Luckysheet.
+                        // ============================================
+                        const normalizeNFC = (val) => (typeof val === 'string' ? val.normalize('NFC') : val);
+                        const normalizeValuesDeep = (input, seen = new WeakSet()) => {
+                            if (input === null || input === undefined) return input;
+                            if (typeof input === 'string') return normalizeNFC(input);
+                            if (typeof input !== 'object') return input;
+                            if (seen.has(input)) return input;
+                            seen.add(input);
 
-                        Object.keys(input).forEach(key => {
-                            input[key] = normalizeValuesDeep(input[key], seen);
+                            if (Array.isArray(input)) {
+                                for (let i = 0; i < input.length; i++) {
+                                    input[i] = normalizeValuesDeep(input[i], seen);
+                                }
+                                return input;
+                            }
+
+                            Object.keys(input).forEach(key => {
+                                input[key] = normalizeValuesDeep(input[key], seen);
+                            });
+                            return input;
+                        };
+
+                        exportJson = normalizeValuesDeep(exportJson);
+                        exportJson.sheets.forEach(sheet => {
+                            if (!sheet.config) sheet.config = {};
+                            if (!sheet.defaultRowHeight) sheet.defaultRowHeight = 24;
                         });
-                        return input;
-                    };
-
-                    exportJson = normalizeValuesDeep(exportJson);
-                    exportJson.sheets.forEach(sheet => {
-                        if (!sheet.config) sheet.config = {};
-                        if (!sheet.defaultRowHeight) sheet.defaultRowHeight = 24;
-                    });
-                    // ============================================
-                    // END FIX LỖI FONT
-                    // ============================================
-                    
-                    if (window.luckysheet && typeof window.luckysheet.destroy === 'function') {
-                        window.luckysheet.destroy();
+                        // ============================================
+                        // END FIX LỖI FONT
+                        // ============================================
+                        
+                        if (window.luckysheet && typeof window.luckysheet.destroy === 'function') {
+                            window.luckysheet.destroy();
+                        }
+                        window.luckysheet.create({
+                            container: 'luckysheet-stats-container',
+                            showinfobar: false,
+                            showtoolbar: false,
+                            showstatisticBar: false,
+                            sheetBottomConfig: false,
+                            allowEdit: false,
+                            lang: 'vi',
+                            data: exportJson.sheets
+                        });
+                        document.getElementById('luckysheet-loading').style.display = 'none';
+                    } catch (err) {
+                        document.getElementById('loading-status').textContent = '';
+                        document.getElementById('luckysheet-loading').style.display = 'flex';
+                        document.getElementById('luckysheet-loading').innerHTML =
+                            '<div class="text-danger fw-bold p-3"><i class="fa-solid fa-triangle-exclamation me-2"></i>Lỗi render LuckyExcel: ' + err.message + '</div>';
+                        console.error('LuckyExcel stats render error:', err, exportJson);
                     }
-                    window.luckysheet.create({
-                        container: 'luckysheet-stats-container',
-                        showinfobar: false,
-                        showtoolbar: false,
-                        showstatisticBar: false,
-                        sheetBottomConfig: false,
-                        allowEdit: false,
-                        lang: 'vi',
-                        data: exportJson.sheets
-                    });
                 });
             }).catch(err => {
                 document.getElementById('loading-status').textContent = '';
