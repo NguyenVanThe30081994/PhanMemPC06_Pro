@@ -141,13 +141,14 @@ def slugify_unit(name):
     return n
 
 def apply_migrations(app):
-    db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
-    if not db_uri.startswith('sqlite:///'): return
-    db_path = db_uri.replace('sqlite:///', '')
-    if not os.path.exists(db_path):
-        # Try relative to root_path as fallback
-        db_path = os.path.join(app.root_path, 'pc06_system.db')
-        if not os.path.exists(db_path): return
+    with app.app_context():
+        db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+        if not db_uri.startswith('sqlite:///'): return
+        db_path = db_uri.replace('sqlite:///', '')
+        if not os.path.exists(db_path):
+            # Try relative to root_path as fallback
+            db_path = os.path.join(app.root_path, 'pc06_system.db')
+            if not os.path.exists(db_path): return
     
     conn = sqlite3.connect(db_path, timeout=30)
     cursor = conn.cursor()
@@ -170,7 +171,14 @@ def apply_migrations(app):
         ("task", "initial_status", "VARCHAR(50) DEFAULT 'Chưa bắt đầu'"),
         ("task", "created_at", "DATETIME"),
         ("task_comment", "assignee_id", "INTEGER DEFAULT 0"),
-        ("system_log", "module", "VARCHAR(100)")
+        ("system_log", "module", "VARCHAR(100)"),
+        ("category_group", "code", "VARCHAR(100)"),
+        ("category_group", "description", "VARCHAR(255)"),
+        ("category_group", "is_active", "BOOLEAN DEFAULT 1"),
+        ("category_group", "sort_order", "INTEGER DEFAULT 0"),
+        ("category_item", "code", "VARCHAR(100)"),
+        ("category_item", "is_active", "BOOLEAN DEFAULT 1"),
+        ("category_item", "sort_order", "INTEGER DEFAULT 0")
     ]
     for table, col, col_type in migrations:
         try:
@@ -180,6 +188,42 @@ def apply_migrations(app):
                 conn.commit()
         except Exception as e: 
             print(f"Migration Error on {table}.{col}: {e}")
+
+    create_table_statements = [
+        """
+        CREATE TABLE IF NOT EXISTS module_registry (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code VARCHAR(50) UNIQUE,
+            name VARCHAR(100) UNIQUE,
+            is_active BOOLEAN DEFAULT 1,
+            sort_order INTEGER DEFAULT 0
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS category_group_module (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_id INTEGER NOT NULL,
+            module_id INTEGER NOT NULL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS module_field_binding (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            module_id INTEGER NOT NULL,
+            field_code VARCHAR(100) NOT NULL,
+            field_label VARCHAR(255),
+            group_id INTEGER NOT NULL,
+            is_required BOOLEAN DEFAULT 0,
+            allow_multiple_groups BOOLEAN DEFAULT 0
+        )
+        """
+    ]
+    for stmt in create_table_statements:
+        try:
+            cursor.execute(stmt)
+            conn.commit()
+        except Exception as e:
+            print(f"Create Table Migration Error: {e}")
     conn.close()
 
 def init_db(app):

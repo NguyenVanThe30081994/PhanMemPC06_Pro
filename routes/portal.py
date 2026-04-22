@@ -4,7 +4,7 @@ import os, pandas as pd, io, json
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from models import db, NewsDoc, DocumentLib, Contact, MasterData, CategoryGroup, CategoryItem, AppRole
-from category_helpers import get_category_items
+from category_helpers import get_category_items, get_module_field_items
 from utils import log_action, push_global_notif, render_auto_template as render_template
 
 portal_bp = Blueprint('portal_bp', __name__)
@@ -36,13 +36,15 @@ def news():
         return redirect(url_for('portal_bp.news'))
     now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
 
-    linhvuc_items = get_category_items('Lĩnh vực')
-    pro_units = get_category_items('Đội nghiệp vụ')
+    news_category_items = get_module_field_items('news', 'category')
+    if not news_category_items:
+        news_category_items = get_category_items('Lĩnh vực', 'Đội nghiệp vụ')
+    pro_units = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
 
     return render_template('news.html',
                           news_list=NewsDoc.query.order_by(NewsDoc.uploaded_at.desc()).all(),
-                          cats=linhvuc_items,
-                          pro_units=pro_units,
+                          cats=news_category_items,
+                          pro_units=news_category_items or pro_units,
                           now_str=now_str)
 
 @portal_bp.route('/notifications')
@@ -75,9 +77,11 @@ def library():
             flash('Đã tải lên tài liệu!', 'success')
         return redirect(url_for('portal_bp.library'))
     
-    linhvuc_items = get_category_items('Lĩnh vực')
+    library_category_items = get_module_field_items('library', 'category')
+    if not library_category_items:
+        library_category_items = get_category_items('Lĩnh vực', 'Loại tài liệu')
 
-    return render_template('library.html', docs=DocumentLib.query.all(), cats=linhvuc_items, categories=linhvuc_items, items=DocumentLib.query.all())
+    return render_template('library.html', docs=DocumentLib.query.all(), cats=library_category_items, categories=library_category_items, items=DocumentLib.query.all())
 
 @portal_bp.route('/contacts')
 def contacts():
@@ -99,9 +103,10 @@ def contacts():
     if not is_contact_lead:
         query = query.filter_by(unit_name=user_unit)
     
-    contact_groups_items = get_category_items('Nhóm danh bạ')
-    contact_roles_items = get_category_items('Chức vụ')
-    linhvuc_items = get_category_items('Lĩnh vực')
+    contact_groups_items = get_module_field_items('contacts', 'contact_group') or get_category_items('Nhóm danh bạ')
+    contact_roles_items = get_module_field_items('contacts', 'role') or get_category_items('Chức vụ')
+    linhvuc_items = get_module_field_items('contacts', 'category') or get_category_items('Lĩnh vực')
+    unit_items = get_module_field_items('contacts', 'unit_name') or get_category_items('Đơn vị')
 
     return render_template('contacts.html', 
                           contacts=query.all(), 
@@ -109,6 +114,7 @@ def contacts():
                           categories=contact_groups_items,
                           roles=contact_roles_items, 
                           linhvuc_items=linhvuc_items,
+                          unit_items=unit_items,
                           current_group=group_filter)
 
 @portal_bp.route('/contacts/edit/<int:cid>', methods=['POST'])

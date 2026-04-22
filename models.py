@@ -67,15 +67,52 @@ class Category(db.Model):
 
 class CategoryGroup(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(100), unique=True, index=True)
     name = db.Column(db.String(100), unique=True)
-    linked_modules = db.Column(db.Text) # Comma-separated or JSON list of topbar labels
+    linked_modules = db.Column(db.Text) # Legacy compatibility field
+    description = db.Column(db.String(255))
+    is_active = db.Column(db.Boolean, default=True)
+    sort_order = db.Column(db.Integer, default=0)
 
 
 class CategoryItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     group_id = db.Column(db.Integer, db.ForeignKey('category_group.id'))
+    code = db.Column(db.String(100), index=True)
     name = db.Column(db.String(255))
+    is_active = db.Column(db.Boolean, default=True)
+    sort_order = db.Column(db.Integer, default=0)
     group = db.relationship('CategoryGroup', backref='items')
+
+
+class ModuleRegistry(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, index=True)
+    name = db.Column(db.String(100), unique=True)
+    is_active = db.Column(db.Boolean, default=True)
+    sort_order = db.Column(db.Integer, default=0)
+
+
+class CategoryGroupModule(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('category_group.id'), nullable=False, index=True)
+    module_id = db.Column(db.Integer, db.ForeignKey('module_registry.id'), nullable=False, index=True)
+
+    group = db.relationship('CategoryGroup', backref='module_links')
+    module = db.relationship('ModuleRegistry', backref='group_links')
+
+
+class ModuleFieldBinding(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    module_id = db.Column(db.Integer, db.ForeignKey('module_registry.id'), nullable=False, index=True)
+    field_code = db.Column(db.String(100), nullable=False, index=True)
+    field_label = db.Column(db.String(255))
+    group_id = db.Column(db.Integer, db.ForeignKey('category_group.id'), nullable=False, index=True)
+    is_required = db.Column(db.Boolean, default=False)
+    allow_multiple_groups = db.Column(db.Boolean, default=False)
+
+    module = db.relationship('ModuleRegistry', backref='field_bindings')
+    group = db.relationship('CategoryGroup', backref='field_bindings')
 
 
 class User(db.Model):

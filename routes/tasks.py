@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, current_app
 from models import db, Task, TaskAssignment, TaskComment, User, MasterData, CategoryGroup, CategoryItem, AppRole
-from category_helpers import get_category_items
+from category_helpers import get_category_items, get_module_field_items
 import os
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
@@ -13,10 +13,10 @@ tasks_bp = Blueprint('tasks_bp', __name__)
 def tasks():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
     
-    pro_units = get_category_items('Đội nghiệp vụ')
-    task_types = get_category_items('Loại công việc')
-    priority_items = get_category_items('Mức độ ưu tiên')
-    status_items = get_category_items('Trạng thái công việc')
+    pro_units = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
+    task_types = get_module_field_items('tasks', 'task_type') or get_category_items('Loại công việc')
+    priority_items = get_module_field_items('tasks', 'priority') or get_category_items('Mức độ ưu tiên')
+    status_items = get_module_field_items('tasks', 'initial_status') or get_category_items('Trạng thái công việc')
     domains = [d.name for d in pro_units]
     
     current_domain = request.args.get('domain', 'ALL')
