@@ -65,7 +65,7 @@
                         </thead>
                         <tbody>
                             {% for t in tasks %}
-                            <tr class="task-row" data-unit="{{ t.domain or t.unit_name }}" data-status="{{ t.assignments[0].status if t.assignments else (t.initial_status or 'Chưa bắt đầu') }}">
+                            <tr class="task-row" data-unit="{{ t.domain or t.unit_name }}" data-status="{{ t.display_status or (t.assignments[0].status if t.assignments else (t.initial_status or 'Chưa bắt đầu')) }}">
                                 <td class="ps-4 py-3" data-label="Tên công việc">
                                     <div class="fw-bold text-dark">{{ t.title }}</div>
                                     <div class="tiny text-muted text-truncate mt-1" style="max-width: 300px;">{{ t.content or t.description }}</div>
@@ -82,12 +82,12 @@
                                     <span class="badge bg-primary bg-opacity-10 text-primary border-primary border-opacity-25 px-2 tiny fw-bold">{{ t.domain or t.unit_name }}</span>
                                 </td>
                                 <td data-label="Thời hạn">
-                                    <div class="small fw-bold {{ 'text-danger' if (t.assignments and not all(a.status == 'Hoàn thành' for a in t.assignments) and t.deadline and t.deadline < now_dt.date()) else 'text-muted' }}">
+                                    <div class="small fw-bold {{ 'text-danger' if t.is_overdue else 'text-muted' }}">
                                         <i class="fa-regular fa-calendar-clock me-1"></i>{{ t.deadline.strftime('%d/%m/%Y') if t.deadline else 'Chưa xác định' }}
                                     </div>
                                 </td>
                                 <td data-label="Trạng thái">
-                                    {% set display_status = t.assignments[0].status if t.assignments else (t.initial_status or 'Chưa bắt đầu') %}
+                                    {% set display_status = t.display_status or (t.assignments[0].status if t.assignments else (t.initial_status or 'Chưa bắt đầu')) %}
                                     {% if display_status == 'Hoàn thành' %}
                                     <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill tiny fw-bold"><i class="fa-solid fa-circle-check me-1"></i>HOÀN THÀNH</span>
                                     {% elif display_status == 'Đang thực hiện' %}
@@ -97,7 +97,7 @@
                                     {% endif %}
                                 </td>
                                 <td class="pe-4 text-end" data-label="Chi tiết">
-                                    <a href="{{ url_for('tasks_bp.detail', tid=t.id) }}" class="btn btn-light btn-circle btn-circle-sm border shadow-sm">
+                                    <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}" class="btn btn-light btn-circle btn-circle-sm border shadow-sm">
                                         <i class="fa-solid fa-chevron-right fs-6"></i>
                                     </a>
                                 </td>

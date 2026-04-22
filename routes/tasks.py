@@ -5,7 +5,7 @@ from category_helpers import get_category_items, get_module_field_items
 import os
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
-from utils import log_action, push_notif, render_auto_template as render_template
+from utils import log_action, push_notif, render_auto_template as render_template, apply_migrations
 
 tasks_bp = Blueprint('tasks_bp', __name__)
 
@@ -13,6 +13,11 @@ tasks_bp = Blueprint('tasks_bp', __name__)
 def tasks():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
     
+    try:
+        apply_migrations(current_app)
+    except Exception as migration_error:
+        current_app.logger.warning(f"TASKS migration safeguard failed: {migration_error}")
+
     pro_units = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
     task_types = get_module_field_items('tasks', 'task_type') or get_category_items('Loại công việc')
     priority_items = get_module_field_items('tasks', 'priority') or get_category_items('Mức độ ưu tiên')
@@ -28,6 +33,7 @@ def tasks():
     role = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = json.loads(role.perms) if role and role.perms else {}
     is_lead = perms.get('p_task_lead') or session.get('is_admin')
+    is_admin = bool(session.get('is_admin'))
 
     if request.method == 'POST' and is_lead:
         # File upload - handle both 'file' and 'task_file'
@@ -151,12 +157,17 @@ def tasks():
     overdue_count = 0
     completed_count = 0
     for t in all_tasks:
-        if t.deadline and t.deadline < now_dt.date():
+        display_status = t.assignments[0].status if t.assignments else (t.initial_status or 'Chưa bắt đầu')
+        is_overdue = bool(t.deadline and t.deadline < now_dt.date() and display_status != 'Hoàn thành')
+        setattr(t, 'display_status', display_status)
+        setattr(t, 'is_overdue', is_overdue)
+        if is_overdue:
             overdue_count += 1
-        # Check if all assignments are completed
         if t.assignments:
             if all(a.status == 'Hoàn thành' for a in t.assignments):
                 completed_count += 1
+        elif display_status == 'Hoàn thành':
+            completed_count += 1
     
     pending_count = total_count - completed_count
 
@@ -171,6 +182,8 @@ def tasks():
                            domains=domains, 
                            current_domain=current_domain, 
                            now_dt=now_dt,
+                           perms=perms,
+                           is_admin=is_admin,
                            stats={
                                'total': total_count,
                                'completed': completed_count,
