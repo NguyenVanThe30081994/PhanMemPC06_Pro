@@ -135,24 +135,10 @@
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small">LOẠI CÔNG VIỆC</label>
-                            <select name="task_type" class="form-select">
-                                <option value="">Chọn loại công việc...</option>
-                                {% for item in task_types %}<option value="{{ item.name }}">{{ item.name }}</option>{% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6">
                             <label class="form-label fw-bold small">MỨC ĐỘ ƯU TIÊN</label>
                             <select name="priority" class="form-select">
                                 <option value="">Chọn mức độ ưu tiên...</option>
                                 {% for item in priority_items %}<option value="{{ item.name }}">{{ item.name }}</option>{% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small">TRẠNG THÁI KHỞI TẠO</label>
-                            <select name="initial_status" class="form-select">
-                                <option value="">Chọn trạng thái...</option>
-                                {% for item in status_items %}<option value="{{ item.name }}">{{ item.name }}</option>{% endfor %}
                             </select>
                         </div>
                         <div class="col-md-6">
