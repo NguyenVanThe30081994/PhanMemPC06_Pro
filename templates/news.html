@@ -107,9 +107,9 @@
                         <input type="text" name="title" class="form-control shadow-none" placeholder="Nhập tiêu đề..." required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold text-dark small">ĐỘI NGHIỆP VỤ</label>
+                        <label class="form-label fw-bold text-dark small">LĨNH VỰC / ĐỘI NGHIỆP VỤ</label>
                         <select name="category" class="form-select shadow-none" required>
-                            <option value="" disabled selected>Chọn đội nghiệp vụ...</option>
+                            <option value="" disabled selected>Chọn danh mục...</option>
                             {% for u in pro_units %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
                         </select>
                     </div>

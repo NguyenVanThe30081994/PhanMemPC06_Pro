@@ -65,30 +65,39 @@
                         </thead>
                         <tbody>
                             {% for t in tasks %}
-                            <tr class="task-row" data-unit="{{ t.unit_name }}" data-status="{{ t.status }}">
+                            <tr class="task-row" data-unit="{{ t.domain or t.unit_name }}" data-status="{{ t.display_status or (t.assignments[0].status if t.assignments else (t.initial_status or 'Chưa bắt đầu')) }}">
                                 <td class="ps-4 py-3" data-label="Tên công việc">
                                     <div class="fw-bold text-dark">{{ t.title }}</div>
-                                    <div class="tiny text-muted text-truncate mt-1" style="max-width: 300px;">{{ t.description }}</div>
+                                    <div class="tiny text-muted text-truncate mt-1" style="max-width: 300px;">{{ t.content or t.description }}</div>
+                                    <div class="d-flex flex-wrap gap-2 mt-2">
+                                        {% if t.task_type %}
+                                        <span class="badge bg-light text-dark border tiny fw-bold">{{ t.task_type }}</span>
+                                        {% endif %}
+                                        {% if t.priority %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 tiny fw-bold">Ưu tiên: {{ t.priority }}</span>
+                                        {% endif %}
+                                    </div>
                                 </td>
                                 <td data-label="Đội nghiệp vụ">
-                                    <span class="badge bg-primary bg-opacity-10 text-primary border-primary border-opacity-25 px-2 tiny fw-bold">{{ t.unit_name }}</span>
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border-primary border-opacity-25 px-2 tiny fw-bold">{{ t.domain or t.unit_name }}</span>
                                 </td>
                                 <td data-label="Thời hạn">
-                                    <div class="small fw-bold {{ 'text-danger' if t.status != 'Hoàn thành' else 'text-muted' }}">
-                                        <i class="fa-regular fa-calendar-clock me-1"></i>{{ t.deadline.strftime('%d/%m/%Y') }}
+                                    <div class="small fw-bold {{ 'text-danger' if t.is_overdue else 'text-muted' }}">
+                                        <i class="fa-regular fa-calendar-clock me-1"></i>{{ t.deadline.strftime('%d/%m/%Y') if t.deadline else 'Chưa xác định' }}
                                     </div>
                                 </td>
                                 <td data-label="Trạng thái">
-                                    {% if t.status == 'Hoàn thành' %}
+                                    {% set display_status = t.display_status or (t.assignments[0].status if t.assignments else (t.initial_status or 'Chưa bắt đầu')) %}
+                                    {% if display_status == 'Hoàn thành' %}
                                     <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill tiny fw-bold"><i class="fa-solid fa-circle-check me-1"></i>HOÀN THÀNH</span>
-                                    {% elif t.status == 'Đang thực hiện' %}
+                                    {% elif display_status == 'Đang thực hiện' %}
                                     <span class="badge bg-warning bg-opacity-10 text-warning px-3 py-2 rounded-pill tiny fw-bold"><i class="fa-solid fa-spinner fa-spin me-1"></i>ĐANG LÀM</span>
                                     {% else %}
-                                    <span class="badge bg-danger bg-opacity-10 text-danger px-3 py-2 rounded-pill tiny fw-bold"><i class="fa-solid fa-clock me-1"></i>CHƯA XỬ LÝ</span>
+                                    <span class="badge bg-danger bg-opacity-10 text-danger px-3 py-2 rounded-pill tiny fw-bold"><i class="fa-solid fa-clock me-1"></i>{{ display_status|upper }}</span>
                                     {% endif %}
                                 </td>
                                 <td class="pe-4 text-end" data-label="Chi tiết">
-                                    <a href="{{ url_for('tasks_bp.detail', tid=t.id) }}" class="btn btn-light btn-circle btn-circle-sm border shadow-sm">
+                                    <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}" class="btn btn-light btn-circle btn-circle-sm border shadow-sm">
                                         <i class="fa-solid fa-chevron-right fs-6"></i>
                                     </a>
                                 </td>
@@ -123,6 +132,27 @@
                             <select name="unit_name" class="form-select" required>
                                 <option value="" disabled selected>Chọn đội nghiệp vụ...</option>
                                 {% for u in pro_units %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">LOẠI CÔNG VIỆC</label>
+                            <select name="task_type" class="form-select">
+                                <option value="">Chọn loại công việc...</option>
+                                {% for item in task_types %}<option value="{{ item.name }}">{{ item.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">MỨC ĐỘ ƯU TIÊN</label>
+                            <select name="priority" class="form-select">
+                                <option value="">Chọn mức độ ưu tiên...</option>
+                                {% for item in priority_items %}<option value="{{ item.name }}">{{ item.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">TRẠNG THÁI KHỞI TẠO</label>
+                            <select name="initial_status" class="form-select">
+                                <option value="">Chọn trạng thái...</option>
+                                {% for item in status_items %}<option value="{{ item.name }}">{{ item.name }}</option>{% endfor %}
                             </select>
                         </div>
                         <div class="col-md-6">

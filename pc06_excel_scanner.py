@@ -1,14 +1,28 @@
-# Excel Scanner for V2 Reports - Quét cấu trúc Excel
+# -*- coding: utf-8 -*-
+# Excel Scanner for V2 Reports
+# Uses raw values from Excel - no conversion to avoid float precision errors
 import io
 import openpyxl
 from openpyxl.utils import get_column_letter, column_index_from_string, range_boundaries
+
+
+def _load_workbook_utf8(buffer, **kwargs):
+    """Load workbook with UTF-8 encoding support"""
+    kwargs.setdefault('read_only', False)
+    kwargs.setdefault('keep_vba', True)
+    # Try with rich_text for better UTF-8 handling
+    try:
+        return openpyxl.load_workbook(buffer, rich_text=True, **kwargs)
+    except:
+        return openpyxl.load_workbook(buffer, **kwargs)
+
 
 def scan_excel_structure(excel_blob):
     """
     Quét cấu trúc file Excel và trả về gợi ý cấu hình.
     Chỉ quét vùng có dữ liệu thực tế (used range), không quét vùng trắng.
     """
-    wb = openpyxl.load_workbook(io.BytesIO(excel_blob), data_only=False)
+    wb = _load_workbook_utf8(io.BytesIO(excel_blob))
     ws = wb.active
     
     # Tìm vùng thực tế có dữ liệu (used range)
@@ -97,13 +111,14 @@ def scan_excel_structure(excel_blob):
     if header_candidates:
         result['data_start_row'] = max(header_candidates) + 1
     
-    # Scan headers
+    # Scan headers - use raw value directly, don't convert
     for row in header_candidates:
         result['headers'][row] = {}
         for col in range(1, ws.max_column + 1):
             cell_val = ws.cell(row, col).value
             if cell_val:
-                result['headers'][row][get_column_letter(col)] = str(cell_val).strip()
+                # Use raw value - don't convert to avoid float precision issues
+                result['headers'][row][get_column_letter(col)] = cell_val
     
     # Detect numeric columns
     data_row = result['data_start_row']

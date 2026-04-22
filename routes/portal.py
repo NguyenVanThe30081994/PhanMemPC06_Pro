@@ -1,8 +1,10 @@
+# -*- coding: utf-8 -*-
 from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, current_app, send_from_directory
 import os, pandas as pd, io, json
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from models import db, NewsDoc, DocumentLib, Contact, MasterData, CategoryGroup, CategoryItem, AppRole
+from category_helpers import get_category_items, get_module_field_items
 from utils import log_action, push_global_notif, render_auto_template as render_template
 
 portal_bp = Blueprint('portal_bp', __name__)
@@ -33,26 +35,16 @@ def news():
         flash('Đã đăng tin mới!', 'success')
         return redirect(url_for('portal_bp.news'))
     now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
-    
-    # === LẤY DANH MỤC THEO NHÓM ===
-    group_danhba = CategoryGroup.query.filter((CategoryGroup.name == 'Nhom danh ba') | (CategoryGroup.name == 'Nhóm danh bạ')).first()
-    danhba_items = CategoryItem.query.filter_by(group_id=group_danhba.id).all() if group_danhba else []
-    
-    group_donvi = CategoryGroup.query.filter((CategoryGroup.name == 'Don vi') | (CategoryGroup.name == 'Đơn vị')).first()
-    donvi_items = CategoryItem.query.filter_by(group_id=group_donvi.id).all() if group_donvi else []
-    
-    # Linh vuc (for news)
-    group_linhvuc = CategoryGroup.query.filter((CategoryGroup.name == 'Linh vuc') | (CategoryGroup.name == 'Lĩnh vực')).first()
-    linhvuc_items = CategoryItem.query.filter_by(group_id=group_linhvuc.id).all() if group_linhvuc else []
-    
-    # Dong nghiep vu (for tasks)
-    group_dongnghiepvu = CategoryGroup.query.filter((CategoryGroup.name == 'Dong nghiep vu') | (CategoryGroup.name == 'Đội nghiệp vụ')).first()
-    dongnghiepvu_items = CategoryItem.query.filter_by(group_id=group_dongnghiepvu.id).all() if group_dongnghiepvu else []
-    
+
+    news_category_items = get_module_field_items('news', 'category')
+    if not news_category_items:
+        news_category_items = get_category_items('Lĩnh vực', 'Đội nghiệp vụ')
+    pro_units = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
+
     return render_template('news.html',
                           news_list=NewsDoc.query.order_by(NewsDoc.uploaded_at.desc()).all(),
-                          cats=linhvuc_items, 
-                          pro_units=dongnghiepvu_items,
+                          cats=news_category_items,
+                          pro_units=news_category_items or pro_units,
                           now_str=now_str)
 
 @portal_bp.route('/notifications')
@@ -85,34 +77,11 @@ def library():
             flash('Đã tải lên tài liệu!', 'success')
         return redirect(url_for('portal_bp.library'))
     
-    # === LẤY DANH MỤC LĨNH VỰC ===
-    # Tìm nhóm Lĩnh vực bằng cách tìm category_group có linked_modules chứa "Thu vien"
-    # Vì trong database: linked_modules='Bang tin,Thu vien' cho group 'Linh vuc'
-    group_linhvuc = None
-    
-    # Lấy tất cả groups
-    all_groups = CategoryGroup.query.all()
-    for g in all_groups:
-        # Kiểm tra linked_modules có chứa "Thu vien" hoặc "Thư viện"
-        if g.linked_modules and ('Thu vien' in g.linked_modules or 'Thư viện' in g.linked_modules):
-            group_linhvuc = g
-            break
-    
-    # Fallback: tìm theo tên
-    if not group_linhvuc:
-        group_linhvuc = CategoryGroup.query.filter(
-            db.or_(
-                CategoryGroup.name == 'Linh vuc',
-                CategoryGroup.name == 'Lĩnh vực'
-            )
-        ).first()
-    
-    if group_linhvuc:
-        linhvuc_items = CategoryItem.query.filter_by(group_id=group_linhvuc.id).all()
-    else:
-        linhvuc_items = []
-    
-    return render_template('library.html', docs=DocumentLib.query.all(), cats=linhvuc_items, categories=linhvuc_items)
+    library_category_items = get_module_field_items('library', 'category')
+    if not library_category_items:
+        library_category_items = get_category_items('Lĩnh vực', 'Loại tài liệu')
+
+    return render_template('library.html', docs=DocumentLib.query.all(), cats=library_category_items, categories=library_category_items, items=DocumentLib.query.all())
 
 @portal_bp.route('/contacts')
 def contacts():
@@ -134,23 +103,18 @@ def contacts():
     if not is_contact_lead:
         query = query.filter_by(unit_name=user_unit)
     
-    # Lấy danh mục từ CategoryItem
-    group_danhba = CategoryGroup.query.filter((CategoryGroup.name == 'Nhom danh ba') | (CategoryGroup.name == 'Nhóm danh bạ')).first()
-    contact_groups_items = CategoryItem.query.filter_by(group_id=group_danhba.id).all() if group_danhba else []
-    
-    group_chucvu = CategoryGroup.query.filter((CategoryGroup.name == 'Chuc vu') | (CategoryGroup.name == 'Chức vụ')).first()
-    contact_roles_items = CategoryItem.query.filter_by(group_id=group_chucvu.id).all() if group_chucvu else []
-    
-    # Lấy nhóm "Lĩnh vực" cho danh bạ
-    group_linhvuc = CategoryGroup.query.filter((CategoryGroup.name == 'Linh vuc') | (CategoryGroup.name == 'Lĩnh vực')).first()
-    linhvuc_items = CategoryItem.query.filter_by(group_id=group_linhvuc.id).all() if group_linhvuc else []
-    
+    contact_groups_items = get_module_field_items('contacts', 'contact_group') or get_category_items('Nhóm danh bạ')
+    contact_roles_items = get_module_field_items('contacts', 'role') or get_category_items('Chức vụ')
+    linhvuc_items = get_module_field_items('contacts', 'category') or get_category_items('Lĩnh vực')
+    unit_items = get_module_field_items('contacts', 'unit_name') or get_category_items('Đơn vị')
+
     return render_template('contacts.html', 
                           contacts=query.all(), 
                           groups=contact_groups_items,
                           categories=contact_groups_items,
                           roles=contact_roles_items, 
                           linhvuc_items=linhvuc_items,
+                          unit_items=unit_items,
                           current_group=group_filter)
 
 @portal_bp.route('/contacts/edit/<int:cid>', methods=['POST'])

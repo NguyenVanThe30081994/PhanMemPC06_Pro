@@ -1,7 +1,7 @@
+# -*- coding: utf-8 -*-
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify, g
 from models import db, ReportTemplateV2, ReportVersionV2, ReportSubmissionV2, ReportValueV2, ReportAuditV2, User
 from pc06_excel_engine import ExcelEngineV2
-from utils import normalize_unit_name
 from utils import render_auto_template as _render_template
 import json
 import io
@@ -10,12 +10,75 @@ from datetime import datetime
 
 reports_v2_bp = Blueprint('reports_v2_bp', __name__)
 
-GLOBAL_UNITS = ['Hệ thống', 'Admin', 'PC06']
+
+@reports_v2_bp.route('/reports-v2/api/file/<int:vid>')
+def get_version_file(vid):
+    """API tra ve file Excel thu cho LuckyExcel"""
+    if not session.get('uid'):
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    version = db.session.get(ReportVersionV2, vid)
+    if not version or not version.excel_file_blob:
+        return jsonify({"error": "Not found"}), 404
+    
+    from flask import send_file
+    return send_file(
+        io.BytesIO(version.excel_file_blob),
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='template.xlsx'
+    )
+
+
+GLOBAL_UNITS = ['H\u1ec7 th\u1ed1ng', 'Admin', 'PC06']
 
 
 def _is_global_user(is_admin, user_unit):
     """Check if user can access all units (admin or special global unit)"""
     return bool(is_admin) or (user_unit in GLOBAL_UNITS)
+
+
+def _format_cell_value(val, number_format=None):
+    """
+    Format value cho hiển thị, ưu tiên nhận diện định dạng % và số nguyên của Excel
+    """
+    if val is None:
+        return ''
+        
+    if isinstance(val, (int, float)):
+        if number_format:
+            fmt = str(number_format).lower()
+            if '%' in fmt:
+                decimals = 2 if '.0' in fmt else 0
+                return f"{val * 100:.{decimals}f}%".replace('.', ',')
+            if '0.0' in fmt:
+                return f"{val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+            if '#' in fmt or '0' in fmt:
+                return f"{int(round(val)):,}".replace(',', '.')
+                
+        if val == int(val):
+            return str(int(val))
+        
+        rounded = round(val, 4)
+        if rounded == int(rounded):
+            return str(int(rounded))
+        return str(rounded).rstrip('0').rstrip('.').replace('.', ',')
+        
+    return str(val)
+
+
+def _get_cell_format(meta_data, sheet_name, coord):
+    if not meta_data or not meta_data.get('sheets'):
+        return None
+    
+    for sheet in meta_data['sheets']:
+        if sheet.get('name') != sheet_name:
+            continue
+        for row in sheet.get('rows', []):
+            for cell in row.get('cells', []):
+                if cell.get('coord') == coord:
+                    return cell.get('numberFormat')
+    return None
 
 
 def _normalize_v2_key(sheet_name, coord):
@@ -30,112 +93,118 @@ def _split_v2_key(raw_key):
     return None, key.upper()
 
 
-def _normalize_text_for_unit_match(value):
+def _get_core_unit_id(name):
     """
-    Normalize unit name to a MATCH KEY.
-    Extracts the base name: "Công an xã A" -> "a", "UBND xã B" -> "b"
-    All these become the same: Công an xã A, xã A, UBND xã A → "xa a"
-    """
-    if not value:
-        return ""
-    
-    # Normalize first
-    txt = normalize_unit_name(value or '')
-    txt = ' '.join(str(txt).split())
-    
-    # If empty after normalize, use the original
-    if not txt:
-        txt = normalize_unit_name(str(value))
-    
-    return txt
-
-
-def _extract_unit_key(name):
-    """
-    Extract the CORE unit key from unit name.
-    "Công an xã An Tường" → "an tuong"
-    "UBND xã B" → "b"
-    "xã A" → "a"
+    Trích xuất 'lõi' định danh duy nhất của đơn vị, loại bỏ mọi tiền tố hành chính và khoảng trắng.
     """
     if not name:
         return ""
     import unicodedata
-    # Lowercase + remove accents
     n = str(name).lower().strip()
     n = unicodedata.normalize('NFKD', n).encode('ascii', 'ignore').decode('utf-8')
     
-    # Remove common prefixes but KEEP the unit name
-    prefixes = [
-        "cong an ", "cong an phuong ", "cong an xa ", "cong an huyen ", "cong an tinh ",
-        "ubnd ", "ubnd xa ", "ubnd phuong ", "ubnd huyen ",
-        "xa ", "phuong ", "huyen ", "thi tran ", "thanh pho "
-    ]
-    for p in prefixes:
-        if n.startswith(p):
-            n = n[len(p):].strip()
-            break
+    for char in ['-', '_', '.', ',', '/']:
+        n = n.replace(char, ' ')
+        
+    if ' ' not in n:
+        solid_prefixes = ['ubndthitran', 'ubndphuong', 'ubndxa', 'cathitran', 'caphuong', 
+                          'congphuong', 'congxa', 'caxa', 'ubnd', 'ca', 'thitran', 'phuong', 'xa', 'tt']
+        for p in solid_prefixes:
+            if n.startswith(p):
+                n = n[len(p):]
+                break
+    else:
+        prefixes = [
+            "uy ban nhan dan ", "cong an ", "thi tran ", "thanh pho ", "ubnd ", 
+            "ca ", "xa ", "phuong ", "huyen ", "tt "
+        ]
+        changed = True
+        while changed:
+            changed = False
+            for p in prefixes:
+                if n.startswith(p):
+                    n = n[len(p):].strip()
+                    changed = True
+                    
+    n = n.replace(" ", "").strip()
     
-    # Clean up
-    n = ' '.join(n.split())
+    # --- BẢO VỆ TỪ KHÓA HEADER ---
+    # Ngăn thuật toán nhận diện nhầm các từ ngữ trong Header thành tên đơn vị
+    blocklist = [
+        'stt', 'tendonvi', 'tendonvihanhchinh', 'hanhchinh', 'chitieu', 
+        'ketqua', 'tyle', 'hoanthanh', 'tongso', 'toantinh', 'toanhuyen', 
+        'baocao', 'danhsach', 'capmoi', 'capdoi', 'xaydung', 'csdl', 
+        'ghichu', 'tong', 'cong', 'luoidiachinh', 'tongcong', 'ngay', 'thang', 'nam'
+    ]
+    if n in blocklist or len(n) < 2:
+        return ""
+        
     return n
 
 
-def _row_matches_unit(ws, row_idx, min_col, max_col, norm_user_unit):
+def _find_smart_data_start_row(ws, min_row, max_row, min_col, max_col):
     """
-    Match row with user unit - SMART matching.
-    Matches if normalized names match OR if core keys match.
-    "Công an xã A" matches "Xã A", "UBND xã A", etc.
+    Thuật toán Auto-Detect ranh giới Header (dựa trên STT và Đánh số cột).
+    Trả về dòng đầu tiên chứa dữ liệu (nằm ngay dưới Header).
     """
-    # Extract core key from user unit
-    user_key = _extract_unit_key(norm_user_unit)
+    scan_limit = min(max_row, min_row + 20)
     
-    for c in range(min_col, max_col + 1):
-        cell_val = ws.cell(row=row_idx, column=c).value
-        if cell_val is None:
-            continue
-        
-        cell_str = str(cell_val).strip()
-        norm_cell = _normalize_text_for_unit_match(cell_str)
-        cell_key = _extract_unit_key(cell_str)
-        
-        if not norm_cell:
-            continue
-        
-        # Match 1: Exact normalized match
-        if norm_cell == norm_user_unit:
-            return True, c
-        
-        # Match 2: Core key match (e.g., "an tuong" matches "an tuong")
-        if user_key and cell_key and (user_key == cell_key):
-            return True, c
-        
-        # Match 3: User key is contained in cell (for partial matches like "Công an xã An Tường" in header)
-        if user_key and cell_key and (user_key in cell_key or cell_key in user_key):
-            return True, c
-    
-    return False, None
+    # Ưu tiên 1: Tìm dòng đánh số thứ tự ngang
+    for r in range(min_row, scan_limit):
+        num_count = 0
+        for c in range(min_col, min(max_col + 1, min_col + 15)):
+            val = ws.cell(row=r, column=c).value
+            if val is not None:
+                try:
+                    v = float(str(val).strip())
+                    if v.is_integer() and 1 <= v <= 20:
+                        num_count += 1
+                except ValueError:
+                    pass
+        if num_count >= 3:
+            return r + 1
+            
+    # Ưu tiên 2: Tìm dòng chứa chữ "STT" hoặc "Tên đơn vị"
+    for r in range(min_row, scan_limit):
+        for c in range(min_col, min(max_col + 1, min_col + 3)):
+            val = ws.cell(row=r, column=c).value
+            if val:
+                txt = str(val).lower().replace(' ', '')
+                if 'stt' in txt or 'tendonvi' in txt or 'hanhchinh' in txt:
+                    return r + 1
+                    
+    return None
 
 
-def _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_unit):
-    """
-    Find rows matching user unit.
-    - If user_unit is empty → return empty (no access without proper unit)
-    - Strict exact match only
-    """
-    norm_user_unit = _normalize_text_for_unit_match(user_unit)
+def _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_identifiers):
+    user_core_ids = set()
+    for uid in user_identifiers:
+        core_id = _get_core_unit_id(uid)
+        if core_id and len(core_id) >= 2 and core_id not in ['pc06', 'admin', 'hethong']:
+            user_core_ids.add(core_id)
+            
     matched_rows = []
     matched_col = None
     
-    # If no unit assigned → no access to any row
-    if not norm_user_unit:
+    if not user_core_ids:
         return matched_rows, matched_col
 
     for r in range(min_row, max_row + 1):
-        is_match, col_idx = _row_matches_unit(ws, r, min_col, max_col, norm_user_unit)
-        if is_match:
-            matched_rows.append(r)
-            if matched_col is None and col_idx is not None:
-                matched_col = col_idx
+        for c in range(min_col, min(max_col + 1, min_col + 3)):
+            cell_val = ws.cell(row=r, column=c).value
+            if not cell_val:
+                continue
+                
+            cell_core_id = _get_core_unit_id(str(cell_val))
+            if not cell_core_id:
+                continue
+                
+            if cell_core_id in user_core_ids:
+                matched_rows.append(r)
+                if matched_col is None:
+                    matched_col = c
+                break 
+                
     return matched_rows, matched_col
 
 
@@ -170,15 +239,20 @@ def _get_sheet_region(meta_data, ws, wb):
     return min_row, min_col, max_row, max_col
 
 
-def _collect_allowed_input_keys(wb, meta_data, user_unit, is_admin):
+def _collect_allowed_input_keys(wb, meta_data, user_identifiers, is_admin):
     from excel_renderer import is_input_cell
 
-    is_global = _is_global_user(is_admin, user_unit)
+    is_global = _is_global_user(is_admin, session.get('unit', ''))
     allowed_keys = set()
 
     for ws in wb.worksheets:
         min_row, min_col, max_row, max_col = _get_sheet_region(meta_data, ws, wb)
-        unit_rows, unit_col = _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_unit)
+        
+        # Áp dụng thuật toán nhận diện ranh giới vào cả bảo mật input
+        smart_start_row = _find_smart_data_start_row(ws, min_row, max_row, min_col, max_col)
+        actual_data_start = smart_start_row if smart_start_row else meta_data.get('data_start_row', 4)
+        
+        unit_rows, unit_col = _find_unit_rows_and_col(ws, actual_data_start, max_row, min_col, max_col, user_identifiers)
 
         for r in range(min_row, max_row + 1):
             for c in range(min_col, max_col + 1):
@@ -205,8 +279,6 @@ def dashboard():
     templates = ReportTemplateV2.query.order_by(ReportTemplateV2.created_at.desc()).all()
     is_admin = session.get('is_admin', False)
     
-    # Only use mobile template if explicitly requested via ?mobile=1
-    # This ensures Desktop browsers always get Desktop template
     if request.args.get('mobile') == '1':
         return render_template('reports_v2_dashboard_mobile.html', templates=templates, is_admin=is_admin)
     
@@ -228,13 +300,8 @@ def upload_template():
     try:
         file_content = file.read()
         
-        # Sanitize filename to avoid encoding errors
-        import unicodedata
-        safe_filename = unicodedata.normalize('NFD', file.filename)
-        safe_filename = ''.join(c for c in safe_filename if unicodedata.category(c) != 'Mn')
-        safe_filename = ''.join(c if c.isalnum() or c in '._-' else '_' for c in safe_filename)
-        
-        temp_path = os.path.join("tmp", safe_filename)
+        import uuid
+        temp_path = os.path.join("tmp", f"{uuid.uuid4().hex}.xlsx")
         os.makedirs("tmp", exist_ok=True)
         with open(temp_path, "wb") as f:
             f.write(file_content)
@@ -300,7 +367,9 @@ def edit_template(tid):
         if file and file.filename:
             try:
                 file_content = file.read()
-                temp_path = os.path.join("tmp", file.filename)
+                
+                import uuid
+                temp_path = os.path.join("tmp", f"{uuid.uuid4().hex}.xlsx")
                 os.makedirs("tmp", exist_ok=True)
                 with open(temp_path, "wb") as f:
                     f.write(file_content)
@@ -333,7 +402,6 @@ def edit_template(tid):
 
     versions = ReportVersionV2.query.filter_by(template_id=tid).order_by(ReportVersionV2.created_at.desc()).all()
     
-    # Check if mobile device - redirect to dashboard if so
     user_agent = request.headers.get('User-Agent', '').lower()
     is_mobile_request = 'mobile' in user_agent or 'android' in user_agent or 'iphone' in user_agent
     
@@ -346,7 +414,6 @@ def edit_template(tid):
 
 @reports_v2_bp.route('/reports-v2/config/<int:tid>')
 def config_template(tid):
-    """Giao diện cấu hình cột cho template"""
     if not session.get('is_admin'):
         return redirect(url_for('auth_bp.login'))
     
@@ -360,11 +427,9 @@ def config_template(tid):
         flash('Chưa có file Excel! Vui lòng upload trước.', 'warning')
         return redirect(url_for('reports_v2_bp.edit_template', tid=tid))
     
-    # Quét cấu trúc Excel
     from pc06_excel_scanner import scan_excel_structure
     detected = scan_excel_structure(version.excel_file_blob)
     
-    # Load existing config
     try:
         existing_config = json.loads(version.metadata_json or '{}')
     except:
@@ -374,7 +439,7 @@ def config_template(tid):
     header_groups = existing_config.get('header_groups', [])
     data_start_row = existing_config.get('data_start_row', detected.get('data_start_row', 4))
     unit_column = existing_config.get('unit_column', 'B')
-    header_row = existing_config.get('header_row', 3)  # Default row 3
+    header_row = existing_config.get('header_row', 3)
     header_column = existing_config.get('header_column', 'A')
     
     return _render_template('reports_v2_config.html',
@@ -390,7 +455,6 @@ def config_template(tid):
 
 @reports_v2_bp.route('/reports-v2/config/<int:tid>', methods=['POST'])
 def save_config(tid):
-    """Lưu cấu hình cột cho template"""
     if not session.get('is_admin'):
         return redirect(url_for('auth_bp.login'))
     
@@ -405,19 +469,15 @@ def save_config(tid):
         return redirect(url_for('reports_v2_bp.dashboard'))
     
     try:
-        # Load existing metadata
         try:
             metadata = json.loads(version.metadata_json or '{}')
         except:
             metadata = {}
         
-        # Build column configs from form data
         column_configs = {}
         all_columns = request.form.getlist('columns') if request.form.get('columns') else []
         
-        # If no columns in form, try to get from detected
         if not all_columns:
-            # Get all column configs from form
             for key in request.form.keys():
                 if key.startswith('is_numeric_') or key.startswith('is_percent_') or key.startswith('is_formula_') or key.startswith('is_sortable_'):
                     col = key.split('_', 2)[-1]
@@ -497,19 +557,26 @@ def render_report(tid):
         for val in submission.values:
             existing_values[val.cell_key] = val.value
 
-    user_unit = session.get('unit', session.get('unit_area', ''))
     is_admin = session.get('is_admin', False)
+    user_unit = session.get('unit_area', session.get('unit', ''))
     is_global = _is_global_user(is_admin, user_unit)
     
-    # Debug log
-    import logging
-    logging.warning(f"[REPORTS_V2] unit='{user_unit}', admin={is_admin}, global={is_global}")
+    user_identifiers = [
+        session.get('username', ''),
+        session.get('fullname', ''),
+        session.get('unit_area', ''),
+        session.get('unit', '')
+    ]
+    user_identifiers = [str(u) for u in user_identifiers if u]
 
     from excel_renderer import _build_merge_lookup, _col_widths_px, _row_height_px, _cell_css, is_input_cell
     import openpyxl as _opx
 
     try:
-        wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=True)
+        try:
+            wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=True)
+        except:
+            wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob))
     except Exception as e:
         return f"Error loading Excel: {e}", 500
 
@@ -527,49 +594,35 @@ def render_report(tid):
 
         min_row, min_col, max_row, max_col = _get_sheet_region(meta_data, ws, wb)
         
-        # Debug: check first few cells 
-        sample = [(ws.cell(row=r, column=c).value) for r in range(min_row, min(min_row+3, max_row+1)) for c in range(min_col, min(min_col+3, max_col+1))]
-        logging.warning(f"[REPORTS_V2] min_row={min_row}, first_cells={sample}")
+        # BẢN VÁ: Tìm data_start_row bằng thuật toán nhận diện STT
+        smart_start_row = _find_smart_data_start_row(ws, min_row, max_row, min_col, max_col)
+        actual_data_start = smart_start_row if smart_start_row else meta_data.get('data_start_row', 4)
+
+        unit_rows, unit_col = _find_unit_rows_and_col(ws, actual_data_start, max_row, min_col, max_col, user_identifiers)
         
-        unit_rows, unit_col = _find_unit_rows_and_col(ws, min_row, max_row, min_col, max_col, user_unit)
-        
-        # Find all unit header rows in sheet (check first 3 columns for unit names)
         all_unit_keys = set()
-        for r in range(min_row, max_row + 1):
+        for r in range(actual_data_start, max_row + 1):
             for c in range(min_col, min(max_col + 1, min_col + 3)):
                 cell_val = ws.cell(row=r, column=c).value
                 if cell_val:
-                    cell_str = str(cell_val).strip()
-                    norm_cell = _normalize_text_for_unit_match(cell_str)
-                    cell_key = _extract_unit_key(norm_cell)
-                    if cell_key:
-                        all_unit_keys.add((r, cell_key))
+                    cell_core_id = _get_core_unit_id(str(cell_val))
+                    if cell_core_id:
+                        all_unit_keys.add((r, cell_core_id))
                         break
         
         first_unit_row = min([r for r, k in all_unit_keys]) if all_unit_keys else None
         user_rows_set = set(unit_rows)
         other_unit_rows = {r for r, k in all_unit_keys if r not in user_rows_set}
         
-        # Debug log
-        logging.warning(f"[REPORTS_V2] unit_rows={unit_rows}, first_unit={first_unit_row}, is_global={is_global}")
-        
-        # Enable filtering based on config
-        # Check if config has header_row/header_column set
         header_row_cfg = meta_data.get('header_row', 3)
-        header_col_cfg = meta_data.get('header_column', 'A')
-        
-        # Only filter for non-admin users with unit assigned
         should_filter = not is_global and unit_rows and header_row_cfg
-        
-        logging.warning(f"[REPORTS_V2] header_config: row={header_row_cfg}, col={header_col_cfg}, should_filter={should_filter}")
-        
-        # Find user's data end (next unit row after user's)
+
         user_data_end = max_row
         if unit_rows:
             user_first = min(unit_rows)
             for r, key in sorted(all_unit_keys):
-                if r > user_first:
-                    user_data_end = r
+                if r > user_first and r not in unit_rows:
+                    user_data_end = r - 1
                     break
 
         rows_html = []
@@ -577,24 +630,18 @@ def render_report(tid):
             if ws.row_dimensions[r].hidden:
                 continue
 
-            # Debug: log first few row decisions
-            if r <= min(min_row + 5, max_row):
-                show_or_hide = "SHOW" if should_filter and ((r < first_unit_row) or (r in unit_rows) or (r > user_first and r <= user_data_end)) else "HIDE"
-                logging.warning(f"[REPORTS_V2] row={r}, decision={show_or_hide}")
-            
-            # Use should_filter flag: only filter non-admin users with actual unit matches
             if not should_filter:
-                pass  # show all (admin or no matches found)
-            elif r < first_unit_row:
-                pass  # show header rows (before first unit)
+                pass
+            elif r < actual_data_start:  # BẢO VỆ HEADER
+                pass
             elif r in unit_rows:
-                pass  # show user's unit
+                pass
             elif r in other_unit_rows:
-                continue  # hide other unit headers
+                continue
             elif r > user_first and r <= user_data_end:
-                pass  # show user's data
+                pass
             else:
-                continue  # hide other rows
+                continue
 
             rh = _row_height_px(ws, r)
             row_parts = [f'<tr style="height:{rh}px">']
@@ -622,7 +669,9 @@ def render_report(tid):
                 td = f'<td{rs_attr}{cs_attr} style="{full_css}">'
 
                 if is_input:
-                    val = existing_values.get(key, existing_values.get(coord, ''))
+                    raw_val = existing_values.get(key, existing_values.get(coord, ''))
+                    cell_format = _get_cell_format(meta_data, ws.title, coord)
+                    val = _format_cell_value(raw_val, cell_format)
                     safe_val = str(val).replace('"', '&quot;')
                     inner = (
                         f'<input type="text" class="grid-input" '
@@ -632,8 +681,9 @@ def render_report(tid):
                     )
                 else:
                     raw = cell.value
-                    if isinstance(raw, str) and raw.startswith('='):
-                        raw = ''
+                    if isinstance(raw, (float, int)):
+                        cell_format = cell.number_format or _get_cell_format(meta_data, ws.title, coord)
+                        raw = _format_cell_value(raw, cell_format)
                     inner = '' if raw is None else str(raw)
 
                 row_parts.append(f'{td}{inner}</td>')
@@ -666,6 +716,42 @@ def render_report(tid):
     )
 
 
+@reports_v2_bp.route('/reports-v2/input-lucky/<int:tid>')
+def input_lucky(tid):
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    
+    template = db.session.get(ReportTemplateV2, tid)
+    if not template:
+        return "Template Not Found", 404
+    
+    version = ReportVersionV2.query.filter_by(template_id=tid, is_published=True).order_by(ReportVersionV2.created_at.desc()).first()
+    if not version:
+        return "No published version found", 404
+    
+    if not version.excel_file_blob:
+        return "No Excel file stored", 400
+    
+    config_json = '{}'
+    try:
+        meta = json.loads(version.metadata_json or '{}')
+        config_json = json.dumps({
+            'unit_column': meta.get('unit_column', 'B'),
+            'input_range': meta.get('input_range', [])
+        })
+    except:
+        config_json = json.dumps({'unit_column': 'B', 'input_range': []})
+    
+    user_unit = session.get('unit_area', session.get('unit', ''))
+    
+    return render_template('reports_v2_input_lucky.html',
+        template=template,
+        version=version,
+        user_unit=user_unit,
+        config_json=config_json
+    )
+
+
 @reports_v2_bp.route('/reports-v2/submit', methods=['POST'])
 def submit_data():
     if not session.get('uid'):
@@ -684,7 +770,10 @@ def submit_data():
 
     try:
         import openpyxl
-        wb = openpyxl.load_workbook(io.BytesIO(version.excel_file_blob), data_only=True)
+        try:
+            wb = openpyxl.load_workbook(io.BytesIO(version.excel_file_blob), rich_text=True, data_only=True)
+        except:
+            wb = openpyxl.load_workbook(io.BytesIO(version.excel_file_blob), data_only=True)
 
         meta_data = {}
         try:
@@ -692,10 +781,16 @@ def submit_data():
         except Exception:
             meta_data = {}
 
-        user_unit = session.get('unit_area', session.get('unit', 'PC06'))
         is_admin = session.get('is_admin', False)
+        user_identifiers = [
+            session.get('username', ''),
+            session.get('fullname', ''),
+            session.get('unit_area', ''),
+            session.get('unit', '')
+        ]
+        user_identifiers = [str(u) for u in user_identifiers if u]
 
-        allowed_prefixed_keys = _collect_allowed_input_keys(wb, meta_data, user_unit, is_admin)
+        allowed_prefixed_keys = _collect_allowed_input_keys(wb, meta_data, user_identifiers, is_admin)
 
         normalized_payload = {}
         for raw_key, val in values.items():
@@ -770,7 +865,10 @@ def export_submission(sid):
 
     try:
         import openpyxl
-        wb = openpyxl.load_workbook(io.BytesIO(version.excel_file_blob))
+        try:
+            wb = openpyxl.load_workbook(io.BytesIO(version.excel_file_blob), rich_text=True)
+        except:
+            wb = openpyxl.load_workbook(io.BytesIO(version.excel_file_blob))
 
         ws_by_title = {ws.title: ws for ws in wb.worksheets}
         for val in submission.values:
@@ -817,7 +915,10 @@ def review_submission(sub_id):
     import openpyxl as _opx
 
     try:
-        wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=True)
+        try:
+            wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=False)
+        except:
+            wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob))
     except Exception as e:
         return f"Error loading Excel: {e}", 500
 

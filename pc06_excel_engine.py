@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import openpyxl
 from openpyxl.styles import PatternFill
 import json
@@ -11,7 +12,11 @@ class ExcelEngineV2:
 
     @staticmethod
     def parse_template(file_path, input_marker_hex="FFE0F2FE"):
-        wb = openpyxl.load_workbook(file_path, data_only=False)
+        # Load with UTF-8 support
+        try:
+            wb = openpyxl.load_workbook(file_path, rich_text=True, data_only=False)
+        except:
+            wb = openpyxl.load_workbook(file_path, data_only=False)
         metadata = {
             "sheets": [],
             "parser_version": "3.0"  # Incremented for region support
@@ -87,6 +92,12 @@ class ExcelEngineV2:
                     if cell.data_type == 'n': data_type = "number"
                     elif cell.data_type == 'd': data_type = "date"
 
+                    # Extract number format (e.g., "0", "0.00", "#,##0")
+                    number_format = None
+                    if cell.data_type in ('n', 'd', 'f'):  # numeric, date, or formula
+                        if cell.number_format:
+                            number_format = cell.number_format
+
                     cell_meta = {
                         "coord": cell_coord,
                         "type": cell_type,
@@ -94,7 +105,8 @@ class ExcelEngineV2:
                         "value": cell.value if not is_input else None,
                         "formula": cell.value if cell.data_type == 'f' else None,
                         "style": style,
-                        "bindingKey": ExcelEngineV2._get_binding_key(wb, ws, cell)
+                        "bindingKey": ExcelEngineV2._get_binding_key(wb, ws, cell),
+                        "numberFormat": number_format
                     }
                     row_meta["cells"].append(cell_meta)
 

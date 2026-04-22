@@ -5,13 +5,16 @@ gunicorn==21.2.0
 openpyxl==3.1.2
 pandas==2.1.1
 numpy<2
-waitress==2.1.2
 Pillow==10.1.0
 requests==2.31.0
 python-docx==1.1.0
 google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib
+qrcode
+markdown
+phonenumbers       # Phone number validation E.164
+APScheduler      # Background scheduler for Zalo reminders
 
 # OCR Libraries (optional - for image to Excel/Word conversion)
 # Install these to enable OCR features:

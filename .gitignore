@@ -34,3 +34,11 @@ chat_files/*
 !chat_files/.gitkeep
 backups/*
 !backups/.gitkeep
+
+# PyInstaller / Build artifacts
+build/
+dist/
+*.spec
+
+# Scratch/debug scripts
+scratch/

@@ -41,7 +41,10 @@
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span class="badge bg-indigo-light text-indigo tiny fw-bold">V2</span>
                         <div class="admin-actions d-flex gap-1">
-                            <a href="{{ url_for('reports_v2_bp.edit_template', tid=t.id) }}" class="btn btn-tiny btn-light shadow-sm" title="Thiết lập mẫu">
+                            <a href="{{ url_for('reports_v2_bp.input_lucky', tid=t.id) }}" target="_blank" class="btn btn-tiny btn-light shadow-sm" title="Nhap bao cao Excel">
+                                <i class="fa-solid fa-file-excel text-success"></i>
+                            </a>
+                            <a href="{{ url_for('reports_v2_bp.edit_template', tid=t.id) }}" class="btn btn-tiny btn-light shadow-sm" title="Thiet lap mau">
                                 <i class="fa-solid fa-gear text-primary"></i>
                             </a>
                             <button class="btn btn-tiny btn-light shadow-sm" title="Xóa mẫu" onclick="deleteV2Template({{ t.id }}, '{{ t.name }}')">

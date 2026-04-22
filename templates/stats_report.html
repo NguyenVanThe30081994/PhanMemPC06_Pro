@@ -97,16 +97,25 @@
                         </div>
                     </div>
 
-                    <div class="table-responsive custom-scrollbar animate__animated animate__zoomIn" style="max-height: 800px; border-radius: 12px; border: 1px solid var(--border);">
+                    <!-- Report Viewer -->
+                    <div id="excel-render-container" class="animate__animated animate__zoomIn border-primary shadow-sm" style="display: block; min-height: 800px; border-radius: 12px; border: 2px solid var(--primary); position: relative; overflow: hidden; background: #fff;">
                         {% if excel_html %}
+                        <div id="excel-html-container" class="p-2 p-md-3" style="overflow:auto; max-height:800px;">
                             {{ excel_html|safe }}
+                        </div>
                         {% else %}
-                            <div class="p-5 text-center text-muted opacity-50">
-                                <i class="fa-solid fa-ghost fa-3x mb-3"></i>
-                                <p>Chưa có dữ liệu nào để hiển thị</p>
+                        <div id="luckysheet-stats-container" style="margin:0px;padding:0px;position:absolute;width:100%;height:100%;left:0px;top:0px;"></div>
+                        <div id="luckysheet-loading" style="position: absolute; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.95); z-index: 10;">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+                                <h5 class="fw-bold text-primary mb-1">Đang trích xuất Dữ liệu Kế toán gốc...</h5>
+                                <div class="small text-muted">Vui lòng chờ trong giây lát</div>
+                                <div id="loading-status" class="mt-2 small text-info"></div>
                             </div>
+                        </div>
                         {% endif %}
                     </div>
+
 
                     <div class="glass-header warning mt-5 rounded-4">
                         <i class="fa-solid fa-triangle-exclamation me-2"></i>Danh sách đơn vị chưa báo cáo ({{ not_reported_count }})
@@ -134,11 +143,53 @@
 
 <style>
     .excel-render-table { width: 100%; border-collapse: collapse; }
-    .excel-render-table td { border: 1px solid var(--border); padding: 5px; }
+    .excel-render-table td { border: 1px solid var(--border); padding: 5px; unicode-bidi: plaintext; }
     .excel-render-table tr:nth-child(even) { background-color: rgba(0,0,0,0.01); }
+    .stats-sheet-tab.active,
+    .stats-sheet-tab.btn-primary {
+        box-shadow: 0 8px 20px rgba(59,130,246,0.18);
+    }
 </style>
 
+
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/css/pluginsCss.css' />
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/plugins.css' />
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/css/luckysheet.css' />
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/assets/iconfont/iconfont.css' />
+<script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/js/plugin.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/luckysheet.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luckyexcel/dist/luckyexcel.umd.js"></script>
+
 <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const hasServerHtml = !!document.getElementById('excel-html-container');
+        if (hasServerHtml) {
+            initStatsSheetTabs();
+        } else {
+            loadLuckysheet();
+        }
+    });
+
+    function initStatsSheetTabs() {
+        document.querySelectorAll('.stats-sheet-tab').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const targetId = this.getAttribute('data-target');
+                document.querySelectorAll('.stats-sheet-tab').forEach(tab => {
+                    tab.classList.remove('btn-primary');
+                    tab.classList.remove('active');
+                    tab.classList.add('btn-light', 'border');
+                });
+                document.querySelectorAll('.stats-sheet-pane').forEach(pane => {
+                    pane.style.display = 'none';
+                });
+                this.classList.remove('btn-light', 'border');
+                this.classList.add('btn-primary', 'active');
+                const pane = document.getElementById(targetId);
+                if (pane) pane.style.display = 'block';
+            });
+        });
+    }
+
     function exportStatsToExcel() {
         const urlParams = new URLSearchParams(window.location.search);
         const rid = urlParams.get('rid');
@@ -148,6 +199,88 @@
             return;
         }
         window.location.href = `/stats/export?rid=${rid}${v2 ? '&v2=1' : ''}`;
+    }
+
+    function loadLuckysheet() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const rid = urlParams.get('rid');
+        const v2 = urlParams.get('v2');
+        if (!rid) return;
+
+        document.getElementById('loading-status').textContent = 'Đang kết nối server...';
+        let fetchUrl = `/stats/export?rid=${rid}${v2 ? '&v2=1' : ''}`;
+        
+        fetch(fetchUrl)
+            .then(res => {
+                if (!res.ok) {
+                    return res.text().then(text => { throw new Error(`Lỗi ${res.status}: ${text}`) });
+                }
+                document.getElementById('loading-status').textContent = 'Đang tải dữ liệu...';
+                return res.blob();
+            })
+            .then(blob => {
+                if (blob.size === 0) throw new Error('File rỗng');
+                document.getElementById('loading-status').textContent = 'Đang chuyển đổi định dạng...';
+                const file = new File([blob], "thong_ke.xlsx", {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+                LuckyExcel.transformExcelToLucky(file, function(exportJson, luckysheetfile) {
+                    try {
+                        if (!exportJson || !exportJson.sheets || exportJson.sheets.length === 0) {
+                            throw new Error('Không có dữ liệu');
+                        }
+                        
+                        const normalizeNFC = (val) => (typeof val === 'string' ? val.normalize('NFC') : val);
+                        const normalizeValuesDeep = (input, seen = new WeakSet()) => {
+                            if (input === null || input === undefined) return input;
+                            if (typeof input === 'string') return normalizeNFC(input);
+                            if (typeof input !== 'object') return input;
+                            if (seen.has(input)) return input;
+                            seen.add(input);
+
+                            if (Array.isArray(input)) {
+                                for (let i = 0; i < input.length; i++) {
+                                    input[i] = normalizeValuesDeep(input[i], seen);
+                                }
+                                return input;
+                            }
+
+                            Object.keys(input).forEach(key => {
+                                input[key] = normalizeValuesDeep(input[key], seen);
+                            });
+                            return input;
+                        };
+
+                        exportJson = normalizeValuesDeep(exportJson);
+                        exportJson.sheets.forEach(sheet => {
+                            if (!sheet.config) sheet.config = {};
+                            if (!sheet.defaultRowHeight) sheet.defaultRowHeight = 24;
+                        });
+                        
+                        if (window.luckysheet && typeof window.luckysheet.destroy === 'function') {
+                            window.luckysheet.destroy();
+                        }
+                        window.luckysheet.create({
+                            container: 'luckysheet-stats-container',
+                            showinfobar: false,
+                            showtoolbar: false,
+                            showstatisticBar: false,
+                            sheetBottomConfig: false,
+                            allowEdit: false,
+                            data: exportJson.sheets
+                        });
+                        document.getElementById('luckysheet-loading').style.display = 'none';
+                    } catch (err) {
+                        document.getElementById('loading-status').textContent = '';
+                        document.getElementById('luckysheet-loading').style.display = 'flex';
+                        document.getElementById('luckysheet-loading').innerHTML =
+                            '<div class="text-danger fw-bold p-3"><i class="fa-solid fa-triangle-exclamation me-2"></i>Lỗi render LuckyExcel: ' + err.message + '</div>';
+                        console.error('LuckyExcel stats render error:', err, exportJson);
+                    }
+                });
+            }).catch(err => {
+                document.getElementById('loading-status').textContent = '';
+                document.getElementById('luckysheet-loading').innerHTML = 
+                    '<div class="text-danger fw-bold p-3"><i class="fa-solid fa-triangle-exclamation me-2"></i>Lỗi: '+err.message+'</div>';
+            });
     }
 </script>
 {% endblock %}

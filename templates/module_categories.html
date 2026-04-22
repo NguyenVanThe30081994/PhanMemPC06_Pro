@@ -26,10 +26,22 @@
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100 d-flex flex-column">
                 <div class="card-header border-0 py-3 px-4 border-bottom" style="background-color: var(--bg-surface);">
                     <div class="d-flex justify-content-between align-items-start mb-1">
-                        <h6 class="fw-bold mb-0 text-primary">{{ g.name|upper }}</h6>
+                        <div>
+                            <h6 class="fw-bold mb-1 text-primary">{{ g.name|upper }}</h6>
+                            <div class="tiny text-muted">CODE: {{ g.code or 'chưa đặt' }}</div>
+                        </div>
                         <span class="badge bg-light text-muted fw-normal tiny border">ID: {{ g.id }}</span>
                     </div>
-                    <div class="tiny text-muted opacity-75">Liên kết: {{ g.linked_modules or 'Chưa liên kết' }}</div>
+                    <div class="tiny text-muted opacity-75">
+                        Liên kết:
+                        {% if g.module_links %}
+                            {% for link in g.module_links %}
+                                <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle me-1">{{ link.module.name }}</span>
+                            {% endfor %}
+                        {% else %}
+                            {{ g.linked_modules or 'Chưa liên kết' }}
+                        {% endif %}
+                    </div>
                 </div>
 
                 <div class="card-body p-0 flex-grow-1 overflow-auto" style="max-height: 400px;">
@@ -78,6 +90,82 @@
     </div>
 </div>
 
+<div class="main-content-area animate__animated animate__fadeInUp mt-4">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header border-0 p-4 d-flex justify-content-between align-items-center" style="background-color: var(--bg-surface);">
+            <div>
+                <h5 class="mb-1 fw-bold text-primary">Cấu hình liên kết field theo chức năng</h5>
+                <div class="tiny text-muted">Quản trị viên chọn trực tiếp field nào dùng nhóm danh mục nào. Đây là cấu hình ưu tiên cao nhất cho dropdown nghiệp vụ.</div>
+            </div>
+        </div>
+        <div class="card-body p-4" style="background-color: var(--bg-surface);">
+            <div class="row g-4">
+                {% for module in modules %}
+                <div class="col-xl-6">
+                    <div class="border rounded-4 p-3 h-100" style="background-color: var(--bg-body); border-color: rgba(255,255,255,0.08) !important;">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h6 class="mb-1 fw-bold text-main">{{ module.name }}</h6>
+                                <div class="tiny text-muted">MODULE CODE: {{ module.code }}</div>
+                            </div>
+                            <span class="badge rounded-pill bg-light text-muted border">{{ module_fields.get(module.code, [])|length }} field</span>
+                        </div>
+
+                        <div class="d-flex flex-column gap-3">
+                            {% for field in module_fields.get(module.code, []) %}
+                                {% set binding = binding_map.get((module.id, field.code)) %}
+                                <form method="POST" class="border rounded-4 p-3" style="background-color: var(--bg-surface); border-color: rgba(255,255,255,0.06) !important;">
+                                    <input type="hidden" name="action" value="save_binding">
+                                    <input type="hidden" name="module_id" value="{{ module.id }}">
+                                    <input type="hidden" name="field_code" value="{{ field.code }}">
+
+                                    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                                        <div>
+                                            <div class="fw-semibold text-main">{{ field.label }}</div>
+                                            <div class="tiny text-muted">FIELD CODE: {{ field.code }}</div>
+                                        </div>
+                                        {% if binding %}
+                                            <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle">Đang bind</span>
+                                        {% else %}
+                                            <span class="badge rounded-pill bg-warning-subtle text-warning border border-warning-subtle">Chưa bind</span>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label tiny fw-bold text-uppercase text-muted">Nhãn field</label>
+                                        <input type="text" name="field_label" class="form-control border-0 shadow-sm" value="{{ binding.field_label if binding else field.label }}" style="background-color: var(--bg-body); color: var(--text-main);">
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label tiny fw-bold text-uppercase text-muted">Nhóm danh mục</label>
+                                        <select name="group_id" class="form-select border-0 shadow-sm" required style="background-color: var(--bg-body); color: var(--text-main);">
+                                            <option value="" disabled {% if not binding %}selected{% endif %}>Chọn nhóm danh mục...</option>
+                                            {% for g in groups %}
+                                                <option value="{{ g.id }}" {% if binding and binding.group_id == g.id %}selected{% endif %}>{{ g.name }}{% if g.code %} ({{ g.code }}){% endif %}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="is_required" id="required_{{ module.id }}_{{ loop.index }}" {% if binding and binding.is_required %}checked{% endif %}>
+                                            <label class="form-check-label tiny fw-medium" for="required_{{ module.id }}_{{ loop.index }}">Bắt buộc nhập</label>
+                                        </div>
+                                        <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold shadow-sm">LƯU BINDING</button>
+                                    </div>
+                                </form>
+                            {% else %}
+                                <div class="tiny text-muted">Chưa khai báo field cấu hình cho module này.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal: THÊM DANH MỤC -->
 <div class="modal fade" id="addGroupModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -93,16 +181,20 @@
                         <label class="form-label fw-bold text-dark small">TÊN DANH MỤC (VÍ DỤ: ĐỘI NGHIỆP VỤ)</label>
                         <input type="text" name="name" class="form-control border-0 bg-light py-2 px-3 rounded-3 shadow-sm" placeholder="Nhập tên..." required>
                     </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-dark small">MÃ ỔN ĐỊNH (TÙY CHỌN)</label>
+                        <input type="text" name="code" class="form-control border-0 bg-light py-2 px-3 rounded-3 shadow-sm" placeholder="Ví dụ: task_unit hoặc news_domain">
+                        <div class="tiny text-muted mt-2">Nếu bỏ trống, hệ thống sẽ tự tạo code từ tên danh mục.</div>
+                    </div>
                     <div class="mb-2">
-                        <label class="form-label fw-bold text-dark small">LIÊN KẾT VỚI CHỨC NĂNG TOPBAR</label>
+                        <label class="form-label fw-bold text-dark small">LIÊN KẾT VỚI CHỨC NĂNG</label>
                         <div class="bg-light p-3 rounded-4 shadow-sm border border-dashed">
-                            {% set modules = ['Công việc', 'Bảng tin', 'Thư viện', 'Danh bạ', 'Dữ liệu & Báo cáo', 'Tiện ích QR & Link', 'Hệ thống'] %}
                             <div class="row">
                                 {% for m in modules %}
                                 <div class="col-6 mb-2">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="targets" value="{{ m }}" id="m_{{ loop.index }}">
-                                        <label class="form-check-label small fw-medium text-dark" for="m_{{ loop.index }}">{{ m|upper }}</label>
+                                        <input class="form-check-input" type="checkbox" name="targets" value="{{ m.name }}" id="m_{{ loop.index }}">
+                                        <label class="form-check-label small fw-medium text-dark" for="m_{{ loop.index }}">{{ m.name|upper }}</label>
                                     </div>
                                 </div>
                                 {% endfor %}

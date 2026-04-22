@@ -11,8 +11,8 @@
             <p class="text-muted mb-0">Theo dõi tiến độ và phản hồi về công việc được giao.</p>
         </div>
         <div>
-            <span class="badge {% if task.priority == 'Khẩn cấp' %}bg-danger{% elif task.priority == 'Quan trọng' %}bg-warning{% else %}bg-primary{% endif %} rounded-pill px-3 py-2 shadow-sm">
-                Ưu tiên: {{ task.priority }}
+            <span class="badge {% if task.priority == 'Khẩn cấp' %}bg-danger{% elif task.priority in ['Cao', 'Quan trọng'] %}bg-warning{% else %}bg-primary{% endif %} rounded-pill px-3 py-2 shadow-sm">
+                Ưu tiên: {{ task.priority or 'Trung bình' }}
             </span>
         </div>
     </div>
@@ -32,6 +32,14 @@
             </div>
             <div class="card-body p-4">
                 <div class="mb-4">
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        {% if task.task_type %}
+                        <span class="badge bg-light text-dark border px-3 py-2 rounded-pill">{{ task.task_type }}</span>
+                        {% endif %}
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2 rounded-pill">
+                            Trạng thái khởi tạo: {{ task.initial_status or 'Chưa bắt đầu' }}
+                        </span>
+                    </div>
                     <h6 class="fw-bold text-muted small text-uppercase mb-3">NỘI DUNG YÊU CẦU</h6>
                     <div class="p-4 rounded-4 text-main shadow-inset" style="background-color: var(--bg-body); white-space: pre-line; line-height: 1.6;">
                         {{ task.content }}
@@ -122,6 +130,14 @@
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <span class="text-white-50 small">Người giao:</span>
                 <span class="fw-bold">{{ task.author_name }}</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-white-50 small">Loại công việc:</span>
+                <span class="fw-bold">{{ task.task_type or 'Công việc thường xuyên' }}</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-white-50 small">Trạng thái khởi tạo:</span>
+                <span class="fw-bold">{{ task.initial_status or 'Chưa bắt đầu' }}</span>
             </div>
             <div class="d-flex justify-content-between align-items-center">
                 <span class="text-white-50 small">Đội nghiệp vụ:</span>

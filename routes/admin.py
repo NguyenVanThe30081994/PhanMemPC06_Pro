@@ -1,8 +1,17 @@
+# -*- coding: utf-8 -*-
 from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, jsonify, current_app, Response, send_from_directory
-from models import db, User, AppRole, MasterData, SystemLog, NewsCategory, LibraryField, ContactGroup, ReportData, Task, NewsDoc, DocumentLib, ReportConfig, ReportTemplateV2, ReportSubmissionV2, ProfessionalUnit, ContactRole, Contact, CategoryGroup, CategoryItem
-import os, json, shutil, zipfile, io, pandas as pd, sqlite3, subprocess
+from models import db, User, AppRole, MasterData, SystemLog, NewsCategory, LibraryField, ContactGroup, ReportData, Task, NewsDoc, DocumentLib, ReportConfig, ReportTemplateV2, ReportSubmissionV2, ProfessionalUnit, ContactRole, Contact, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding
+
+import os, json, shutil, zipfile, io, sqlite3, subprocess
+try:
+    import pandas as pd
+    HAS_PANDAS = True
+except ImportError:
+    HAS_PANDAS = False
+    pd = None
 from datetime import datetime, timedelta
 from utils import log_action, clear_logs, init_db, render_auto_template as render_template
+from category_helpers import slugify_code
 
 admin_bp = Blueprint('admin_bp', __name__)
 
@@ -146,7 +155,7 @@ def roles():
             if action == 'add_role':
                 name = request.form['name']
                 p_list = request.form.getlist('perms')
-                p_json = json.dumps({p: 1 for p in p_list})
+                p_json = json.dumps({p: 1 for p in p_list}, ensure_ascii=False)
                 db.session.add(AppRole(name=name, perms=p_json))
                 log_action(session['uid'], session['fullname'], "Thêm vai trò", "Vai trò", name)
             elif action == 'edit_perms':
@@ -154,7 +163,7 @@ def roles():
                 p_list = request.form.getlist('perms')
                 r = db.session.get(AppRole, rid)
                 if r:
-                    r.perms = json.dumps({p: 1 for p in p_list})
+                    r.perms = json.dumps({p: 1 for p in p_list}, ensure_ascii=False)
                     log_action(session['uid'], session['fullname'], "Sửa quyền vai trò", "Vai trò", r.name)
             elif action == 'add_user':
                 username = request.form.get('username')
@@ -347,9 +356,9 @@ def system_update():
                 shutil.unpack_archive(p, current_app.root_path)
                 restart = os.path.join(current_app.root_path, 'tmp', 'restart.txt')
                 os.makedirs(os.path.dirname(restart), exist_ok=True)
-                with open(restart, 'w') as f_out: f_out.write(str(datetime.now()))
+                with open(restart, 'w', encoding='utf-8') as f_out: f_out.write(str(datetime.now()))
                 
-                log_action(session['uid'], session['fullname'], "Cập nhật hệ thống thành công (V3.5.2)", "Hệ thống")
+                log_action(session['uid'], session['fullname'], "Cập nhật hệ thống thành công (V3.5.0)", "Hệ thống")
                 flash('Cập nhật thành công! Hệ thống đang khởi động lại...', 'success')
             except Exception as e: 
                 flash(f'Lỗi cập nhật: {e}', 'danger')
@@ -507,11 +516,17 @@ def module_categories():
         
         if action == 'add_group':
             name = request.form.get('name', '').strip()
-            # Handle multiple checkboxes for linked modules
+            code = request.form.get('code', '').strip() or slugify_code(name)
             targets = request.form.getlist('targets')
             links = ", ".join(targets)
             if name:
-                db.session.add(CategoryGroup(name=name, linked_modules=links))
+                group = CategoryGroup(name=name, code=code, linked_modules=links, is_active=True)
+                db.session.add(group)
+                db.session.flush()
+                for target_name in targets:
+                    module = ModuleRegistry.query.filter_by(name=target_name).first()
+                    if module:
+                        db.session.add(CategoryGroupModule(group_id=group.id, module_id=module.id))
                 db.session.commit()
                 flash(f'Đã thêm danh mục hệ thống: {name}', 'success')
                 
@@ -600,59 +615,60 @@ def module_categories():
                 db.session.delete(item)
                 db.session.commit()
                 flash(f'Đã xóa thành phần: {name}', 'info')
-                
+
+        elif action == 'save_binding':
+            module_id = request.form.get('module_id')
+            field_code = request.form.get('field_code', '').strip()
+            field_label = request.form.get('field_label', '').strip()
+            group_id = request.form.get('group_id')
+            is_required = 1 if request.form.get('is_required') else 0
+
+            if module_id and field_code and group_id:
+                binding = ModuleFieldBinding.query.filter_by(module_id=module_id, field_code=field_code).first()
+                if not binding:
+                    binding = ModuleFieldBinding(module_id=module_id, field_code=field_code)
+                    db.session.add(binding)
+                binding.field_label = field_label or field_code
+                binding.group_id = int(group_id)
+                binding.is_required = bool(is_required)
+                binding.allow_multiple_groups = False
+                db.session.commit()
+                flash('Đã cập nhật liên kết field thành công!', 'success')
+
         return redirect(url_for('admin_bp.module_categories'))
 
-    # GET: Fetch all groups and their items
-    groups = CategoryGroup.query.all()
-    return render_template('module_categories.html', groups=groups)
+    groups = CategoryGroup.query.order_by(CategoryGroup.sort_order.asc(), CategoryGroup.name.asc()).all()
+    modules = ModuleRegistry.query.order_by(ModuleRegistry.sort_order.asc(), ModuleRegistry.name.asc()).all()
+    bindings = ModuleFieldBinding.query.all()
+    binding_map = {(binding.module_id, binding.field_code): binding for binding in bindings}
+    module_fields = {
+        'news': [
+            {'code': 'category', 'label': 'Danh mục bảng tin'}
+        ],
+        'library': [
+            {'code': 'category', 'label': 'Danh mục thư viện'},
+            {'code': 'document_type', 'label': 'Loại tài liệu'}
+        ],
+        'tasks': [
+            {'code': 'domain', 'label': 'Đội nghiệp vụ'},
+            {'code': 'task_type', 'label': 'Loại công việc'},
+            {'code': 'priority', 'label': 'Mức độ ưu tiên'},
+            {'code': 'initial_status', 'label': 'Trạng thái khởi tạo'}
+        ],
+        'contacts': [
+            {'code': 'contact_group', 'label': 'Nhóm danh bạ'},
+            {'code': 'role', 'label': 'Chức vụ'},
+            {'code': 'unit_name', 'label': 'Đơn vị'},
+            {'code': 'category', 'label': 'Lĩnh vực'}
+        ]
+    }
+    return render_template('module_categories.html', groups=groups, modules=modules, module_fields=module_fields, binding_map=binding_map)
 
 @admin_bp.route('/admin/categories/delete-old/<string:cat_type>/<int:cat_id>')
 def delete_category_old(cat_type, cat_id):
-    # Keeping old route structure for any legacy links if needed, but logic is redirected
+    """Legacy route - chuyển hướng về module_categories"""
     return redirect(url_for('admin_bp.module_categories'))
-    if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
-    force = request.args.get('force') == '1'
-    try:
-        obj = None
-        count = 0
-        if cat_type == 'news': 
-            obj = NewsCategory.query.get(cat_id)
-            if obj: count = NewsDoc.query.filter_by(category=obj.name).count()
-        elif cat_type == 'lib': 
-            obj = LibraryField.query.get(cat_id)
-            if obj: count = DocumentLib.query.filter_by(category=obj.name).count()
-        elif cat_type == 'contact': 
-            obj = ContactGroup.query.get(cat_id)
-            if obj: count = Contact.query.filter_by(contact_group=obj.name).count()
-        elif cat_type == 'role_contact':
-            obj = ContactRole.query.get(cat_id)
-            if obj: count = Contact.query.filter_by(role=obj.name).count()
-        elif cat_type == 'pro_unit': 
-            obj = ProfessionalUnit.query.get(cat_id)
-            if obj: 
-                # Check NewsDoc and Task as ProfessionalUnit is used in both now
-                count = Task.query.filter_by(domain=obj.name).count()
-                count += NewsDoc.query.filter_by(category=obj.name).count()
-        
-        if not obj:
-            flash('Không tìm thấy danh mục!', 'warning')
-            return redirect(url_for('admin_bp.module_categories'))
 
-        # Safety Check
-        if count > 0 and not force:
-            flash(f'CẢNH BÁO: Danh mục "{obj.name}" đang có {count} mục dữ liệu liên quan. <a href="{url_for("admin_bp.delete_category", cat_type=cat_type, cat_id=cat_id, force=1)}" class="fw-bold text-danger">XÁC NHẬN VẪN XÓA?</a>', 'warning')
-            return redirect(url_for('admin_bp.module_categories'))
-
-        name = obj.name
-        db.session.delete(obj)
-        db.session.commit()
-        log_action(session['uid'], session['fullname'], f"Xóa danh mục {cat_type}", "Danh mục", name)
-        flash(f'Đã xóa danh mục: {name}', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Lỗi khi xóa: {e}', 'danger')
-    return redirect(url_for('admin_bp.module_categories'))
 @admin_bp.route('/admin/fix-db')
 def fix_db_manually():
     if not session.get('is_admin'): return "Unauthorized", 403
@@ -690,5 +706,3 @@ def fix_db_manually():
     except Exception as e:
         return f"<h3>LỖI NGHIÊM TRỌNG:</h3>{str(e)}"
 
-
-# ==================== SMS BRANDNAME ROUTES ====================

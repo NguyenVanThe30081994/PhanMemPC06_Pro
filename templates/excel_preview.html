@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import báo cáo Excel - PC06</title>
+    
+    <!-- Luckysheet CSS -->
+    <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/plugins/css/pluginsCss.css' />
+    <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/plugins/plugins.css' />
+    <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/css/luckysheet.css' />
+    <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/assets/iconfont/iconfont.css' />
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .luckysheet-container {
+            margin: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .toolbar {
+            padding: 15px 20px;
+            background: white;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .toolbar h2 {
+            margin: 0;
+            color: #333;
+            font-size: 18px;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+        
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1976D2;
+        }
+        
+        .btn-success {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #388E3C;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2196F3;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            color: white;
+            margin-top: 15px;
+            font-size: 16px;
+        }
+        
+        .alert {
+            padding: 12px 20px;
+            margin: 15px 20px;
+            border-radius: 4px;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .info-bar {
+            background: #e3f2fd;
+            padding: 10px 20px;
+            border-bottom: 1px solid #bbdefb;
+            font-size: 13px;
+            color: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <h2><i class="fa-solid fa-file-excel"></i> Import Báo cáo Excel</h2>
+        
+        <div class="file-input-wrapper">
+            <button class="btn btn-primary">
+                <i class="fa-solid fa-upload"></i> Chọn File Excel
+            </button>
+            <input type="file" id="excelFile" accept=".xlsx,.xls" />
+        </div>
+        
+        <button class="btn btn-success" id="submitBtn" disabled>
+            <i class="fa-solid fa-check"></i> Xác nhận và Gửi báo cáo
+        </button>
+        
+        <button class="btn btn-secondary" onclick="window.close()">
+            <i class="fa-solid fa-times"></i> Đóng
+        </button>
+    </div>
+    
+    <div class="info-bar">
+        <i class="fa-solid fa-info-circle"></i> 
+        Hướng dẫn: Chọn file Excel → Kiểm tra dữ liệu → Nhấn "Xác nhận và Gửi báo cáo"
+    </div>
+    
+    <div id="messageArea"></div>
+    
+    <div class="luckysheet-container">
+        <div id="luckysheet"></div>
+    </div>
+    
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Đang xử lý file Excel...</div>
+    </div>
+
+    <!-- Luckysheet JS -->
+    <script src="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/plugins/js/plugin.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/luckysheet.umd.js"></script>
+    
+    <!-- Luckyexcel for importing xlsx -->
+    <script src="https://cdn.jsdelivr.net/npm/luckyexcel@latest/dist/luckyexcel.umd.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <script>
+        // Global variables
+        let luckysheetData = null;
+        
+        // Show/hide loading
+        function showLoading(message = 'Đang xử lý...') {
+            document.querySelector('.loading-text').textContent = message;
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+        
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+        
+        // Show message
+        function showMessage(message, type = 'success') {
+            const area = document.getElementById('messageArea');
+            area.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => area.innerHTML = '', 5000);
+        }
+        
+        // Initialize Luckysheet with empty sheet
+        function initLuckysheet() {
+            luckysheet.create({
+                container: 'luckysheet',
+                title: 'Báo cáo PC06',
+                lang: 'vi', // Vietnamese
+                allowUpdate: true,
+                loadUrl: '',
+                data: [{
+                    name: 'Sheet1',
+                    color: '',
+                    data: [],
+                    config: {},
+                    index: 0
+                }]
+            });
+        }
+        
+        // Handle file selection
+        document.getElementById('excelFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            // Show loading for large files
+            if (file.size > 5 * 1024 * 1024) {
+                showLoading('Đang tải file lớn...');
+            }
+            
+            // Use Luckyexcel to transform
+            LuckyExcel.transformExcelToLucky(file, function(exportJson, luckysheetfile) {
+                // Success
+                hideLoading();
+                
+                if (exportJson.sheets && exportJson.sheets.length > 0) {
+                    // Initialize with imported data
+                    luckysheet.create({
+                        container: 'luckysheet',
+                        title: exportJson.info.name || 'Báo cáo Excel',
+                        lang: 'vi',
+                        allowUpdate: true,
+                        data: exportJson.sheets,
+                        config: exportJson.config || {}
+                    });
+                    
+                    luckysheetData = exportJson;
+                    document.getElementById('submitBtn').disabled = false;
+                    showMessage('Đã tải file thành công. Kiểm tra dữ liệu và nhấn "Xác nhận" để lưu.');
+                }
+            }, function(error) {
+                // Error
+                hideLoading();
+                showMessage('Lỗi khi đọc file: ' + error.message, 'error');
+                console.error(error);
+            });
+        });
+        
+        // Handle submit
+        document.getElementById('submitBtn').addEventListener('click', function() {
+            if (!luckysheetData) {
+                showMessage('Chưa có dữ liệu để gửi', 'error');
+                return;
+            }
+            
+            showLoading('Đang gửi dữ liệu...');
+            
+            // Get all sheets data
+            const allData = luckysheet.getAllSheets();
+            
+            // Prepare payload
+            const payload = {
+                sheets: allData,
+                config_id: {{ config_id | default('null') }},
+                start_row: {{ start_row | default(1) }}
+            };
+            
+            // Send to backend
+            fetch('/api/excel/import-luckysheet', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideLoading();
+                
+                if (data.status === 'success') {
+                    showMessage(data.message);
+                    // Optionally close after success
+                    setTimeout(() => {
+                        if (window.opener) {
+                            window.opener.location.reload();
+                            window.close();
+                        }
+                    }, 2000);
+                } else {
+                    showMessage(data.error || 'Lỗi không xác định', 'error');
+                }
+            })
+            .catch(error => {
+                hideLoading();
+                showMessage('Lỗi kết nối: ' + error.message, 'error');
+                console.error(error);
+            });
+        });
+        
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', function() {
+            initLuckysheet();
+        });
+    </script>
+</body>
+</html>

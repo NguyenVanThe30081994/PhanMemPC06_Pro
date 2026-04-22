@@ -1,12 +1,25 @@
+# -*- coding: utf-8 -*-
 import os
+import sys
+
+# ── UTF-8 Environment (safe for Python 3.9 on Mắt Bão / cPanel) ──
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+os.environ.setdefault('LC_ALL', 'C.UTF-8')
+os.environ.setdefault('LANG', 'C.UTF-8')
+
+# Reconfigure stdout/stderr to UTF-8 (Python 3.7+)
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 import logging
 from logging.handlers import RotatingFileHandler
 import json
-from flask import Flask, session, request, redirect, url_for, send_from_directory, render_template, g
+from flask import Flask, session, request, redirect, url_for, send_from_directory, render_template, g, jsonify
 from datetime import datetime, timedelta
 from models import db, AppRole
 from utils import init_db, get_perms_labels, is_mobile_device
-import time
 
 # --- RELIABLE PATH RESOLUTION (Improved for Mắt Bão/Passenger) ---
 basedir = os.path.dirname(os.path.abspath(__file__))
@@ -27,6 +40,7 @@ app = Flask(__name__,
             static_folder=STATIC_DIR)
 
 app.secret_key = 'PC06_FINAL_V3_5_2026'
+app.config['JSON_AS_ASCII'] = False  # Giữ nguyên tiếng Việt trong jsonify()
 
 # ==================== FILE LOGGING ====================
 # Create logs directory
@@ -35,7 +49,7 @@ os.makedirs(LOG_DIR, exist_ok=True)
 
 # Configure logging
 log_file = os.path.join(LOG_DIR, 'app.log')
-file_handler = RotatingFileHandler(log_file, maxBytes=10*1024*1024, backupCount=5)
+file_handler = RotatingFileHandler(log_file, maxBytes=10*1024*1024, backupCount=5, encoding='utf-8')
 file_handler.setLevel(logging.INFO)
 file_handler.setFormatter(logging.Formatter(
     '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
@@ -90,7 +104,6 @@ def add_security_headers(response):
 
 # Rate Limiting Configuration (Simple in-memory implementation)
 from collections import defaultdict
-from datetime import datetime, timedelta
 
 # Rate limit storage: {ip: [(timestamp, count)]}
 rate_limit_store = defaultdict(list)
@@ -130,7 +143,6 @@ def check_rate_limit():
         
         if total_requests >= RATE_LIMIT_MAX:
             # Too many requests - return 429 with proper JSON response
-            from flask import jsonify
             return jsonify({'error': 'Quá nhiều yêu cầu. Vui lòng thử lại sau.'}), 429
         
         # Add current request
@@ -156,8 +168,14 @@ from routes.ranking import ranking_bp
 from routes.api import api_bp
 from routes.reports_v2 import reports_v2_bp
 from routes.shortlink import shortlink_bp
+from routes.excel_builder import excel_builder_bp
+from routes.zalo import zalo_bp
+from routes.excel_api import excel_api
+from routes.template_generator import template_bp
 
 app.register_blueprint(auth_bp)
+app.register_blueprint(excel_api)
+app.register_blueprint(template_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(forms_bp)
 app.register_blueprint(portal_bp)
@@ -166,6 +184,8 @@ app.register_blueprint(ranking_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(reports_v2_bp)
 app.register_blueprint(shortlink_bp)
+app.register_blueprint(excel_builder_bp)
+app.register_blueprint(zalo_bp)
 
 @app.before_request
 def check_auth():

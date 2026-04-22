@@ -1,9 +1,11 @@
+# -*- coding: utf-8 -*-
 from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, current_app
 from models import db, Task, TaskAssignment, TaskComment, User, MasterData, CategoryGroup, CategoryItem, AppRole
+from category_helpers import get_category_items, get_module_field_items
 import os
 from werkzeug.utils import secure_filename
-from datetime import datetime
-from utils import log_action, push_notif, render_auto_template as render_template
+from datetime import datetime, timedelta
+from utils import log_action, push_notif, render_auto_template as render_template, apply_migrations
 
 tasks_bp = Blueprint('tasks_bp', __name__)
 
@@ -11,19 +13,16 @@ tasks_bp = Blueprint('tasks_bp', __name__)
 def tasks():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
     
-    # === LẤY DANH MỤC THEO NHÓM LIÊN KẾT ===
-    # Tìm các nhóm danh mục được liên kết với chức năng "Công việc"
-    groups = CategoryGroup.query.filter(CategoryGroup.linked_modules.ilike('%Cong viec%') | CategoryGroup.linked_modules.ilike('%Công việc%')).all()
-    if not groups:
-        # Fallback về tên cứng nếu chưa được cấu hình liên kết
-        groups = CategoryGroup.query.filter((CategoryGroup.name == 'Dong nghiep vu') | (CategoryGroup.name == 'Đội nghiệp vụ') | (CategoryGroup.name == 'Don vi') | (CategoryGroup.name == 'Đơn vị')).all()
-        
-    all_category_items = []
-    for g in groups:
-        items = CategoryItem.query.filter_by(group_id=g.id).all()
-        all_category_items.extend(items)
-        
-    domains = list(set([d.name for d in all_category_items]))
+    try:
+        apply_migrations(current_app)
+    except Exception as migration_error:
+        current_app.logger.warning(f"TASKS migration safeguard failed: {migration_error}")
+
+    pro_units = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
+    task_types = get_module_field_items('tasks', 'task_type') or get_category_items('Loại công việc')
+    priority_items = get_module_field_items('tasks', 'priority') or get_category_items('Mức độ ưu tiên')
+    status_items = get_module_field_items('tasks', 'initial_status') or get_category_items('Trạng thái công việc')
+    domains = [d.name for d in pro_units]
     
     current_domain = request.args.get('domain', 'ALL')
     now_dt = datetime.now()
@@ -34,6 +33,7 @@ def tasks():
     role = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = json.loads(role.perms) if role and role.perms else {}
     is_lead = perms.get('p_task_lead') or session.get('is_admin')
+    is_admin = bool(session.get('is_admin'))
 
     if request.method == 'POST' and is_lead:
         # File upload - handle both 'file' and 'task_file'
@@ -103,7 +103,9 @@ def tasks():
             file_path=fn,
             author_id=session['uid'],
             author_name=session.get('fullname', 'Admin'),
-            priority=request.form.get('priority', 'Bình thường')
+            priority=request.form.get('priority', 'Trung bình'),
+            task_type=request.form.get('task_type') or 'Công việc thường xuyên',
+            initial_status=request.form.get('initial_status') or 'Chưa bắt đầu'
         )
         db.session.add(new_task)
         db.session.commit()
@@ -119,7 +121,7 @@ def tasks():
             # Giao cho tất cả user có role này và đang hoạt động
             role_users = User.query.filter_by(role_id=int(assignee_role_id), is_active=True).all()
             for u in role_users:
-                db.session.add(TaskAssignment(task_id=new_task.id, user_id=u.id))
+                db.session.add(TaskAssignment(task_id=new_task.id, user_id=u.id, status=new_task.initial_status))
                 push_notif(u.id, "Công việc mới", f"Bạn vừa được giao: {new_task.title}", f"/tasks/{new_task.id}")
         else:
             # Giao cho cá nhân (từ assignee_id hoặc target_users)
@@ -128,7 +130,7 @@ def tasks():
             
             for aid in assign_ids:
                 if aid:
-                    db.session.add(TaskAssignment(task_id=new_task.id, user_id=int(aid)))
+                    db.session.add(TaskAssignment(task_id=new_task.id, user_id=int(aid), status=new_task.initial_status))
                     push_notif(int(aid), "Công việc mới", f"Bạn vừa được giao: {new_task.title}", f"/tasks/{new_task.id}")
         
         db.session.commit()
@@ -155,12 +157,17 @@ def tasks():
     overdue_count = 0
     completed_count = 0
     for t in all_tasks:
-        if t.deadline and t.deadline < now_dt.date():
+        display_status = t.assignments[0].status if t.assignments else (t.initial_status or 'Chưa bắt đầu')
+        is_overdue = bool(t.deadline and t.deadline < now_dt.date() and display_status != 'Hoàn thành')
+        setattr(t, 'display_status', display_status)
+        setattr(t, 'is_overdue', is_overdue)
+        if is_overdue:
             overdue_count += 1
-        # Check if all assignments are completed
         if t.assignments:
             if all(a.status == 'Hoàn thành' for a in t.assignments):
                 completed_count += 1
+        elif display_status == 'Hoàn thành':
+            completed_count += 1
     
     pending_count = total_count - completed_count
 
@@ -168,10 +175,15 @@ def tasks():
                            tasks=all_tasks, 
                            users=User.query.all(),
                            roles=AppRole.query.all(),
-                           pro_units=all_category_items,
+                           pro_units=pro_units,
+                           task_types=task_types,
+                           priority_items=priority_items,
+                           status_items=status_items,
                            domains=domains, 
                            current_domain=current_domain, 
                            now_dt=now_dt,
+                           perms=perms,
+                           is_admin=is_admin,
                            stats={
                                'total': total_count,
                                'completed': completed_count,
@@ -196,4 +208,4 @@ def task_detail(tid):
             flash('Đã gửi phản hồi!', 'success')
             return redirect(url_for('tasks_bp.task_detail', tid=tid))
             
-    return render_template('task_detail.html', task=task, comments=comments, assigns=assigns)
+    return render_template('task_detail.html', task=task, comments=comments, assigns=assigns, now_dt=datetime.now())

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
@@ -66,15 +67,52 @@ class Category(db.Model):
 
 class CategoryGroup(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(100), unique=True, index=True)
     name = db.Column(db.String(100), unique=True)
-    linked_modules = db.Column(db.Text) # Comma-separated or JSON list of topbar labels
+    linked_modules = db.Column(db.Text) # Legacy compatibility field
+    description = db.Column(db.String(255))
+    is_active = db.Column(db.Boolean, default=True)
+    sort_order = db.Column(db.Integer, default=0)
 
 
 class CategoryItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     group_id = db.Column(db.Integer, db.ForeignKey('category_group.id'))
+    code = db.Column(db.String(100), index=True)
     name = db.Column(db.String(255))
+    is_active = db.Column(db.Boolean, default=True)
+    sort_order = db.Column(db.Integer, default=0)
     group = db.relationship('CategoryGroup', backref='items')
+
+
+class ModuleRegistry(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, index=True)
+    name = db.Column(db.String(100), unique=True)
+    is_active = db.Column(db.Boolean, default=True)
+    sort_order = db.Column(db.Integer, default=0)
+
+
+class CategoryGroupModule(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('category_group.id'), nullable=False, index=True)
+    module_id = db.Column(db.Integer, db.ForeignKey('module_registry.id'), nullable=False, index=True)
+
+    group = db.relationship('CategoryGroup', backref='module_links')
+    module = db.relationship('ModuleRegistry', backref='group_links')
+
+
+class ModuleFieldBinding(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    module_id = db.Column(db.Integer, db.ForeignKey('module_registry.id'), nullable=False, index=True)
+    field_code = db.Column(db.String(100), nullable=False, index=True)
+    field_label = db.Column(db.String(255))
+    group_id = db.Column(db.Integer, db.ForeignKey('category_group.id'), nullable=False, index=True)
+    is_required = db.Column(db.Boolean, default=False)
+    allow_multiple_groups = db.Column(db.Boolean, default=False)
+
+    module = db.relationship('ModuleRegistry', backref='field_bindings')
+    group = db.relationship('CategoryGroup', backref='field_bindings')
 
 
 class User(db.Model):
@@ -85,6 +123,7 @@ class User(db.Model):
     role_id = db.Column(db.Integer, db.ForeignKey('app_role.id'))
     unit_area = db.Column(db.String(100))
     is_active = db.Column(db.Boolean, default=True)
+    phone = db.Column(db.String(20))  # SĐT Zalo format E.164 (+84...)
     must_change_password = db.Column(db.Boolean, default=True)
     role = db.relationship('AppRole', backref='users')
     def set_password(self, p): self.password_hash = generate_password_hash(p)
@@ -101,6 +140,8 @@ class Task(db.Model):
     author_id = db.Column(db.Integer)
     author_name = db.Column(db.String(100))
     priority = db.Column(db.String(50))
+    task_type = db.Column(db.String(100))
+    initial_status = db.Column(db.String(50), default='Chưa bắt đầu')
     created_at = db.Column(db.DateTime, default=datetime.now)
     assignments = db.relationship('TaskAssignment', backref='task', cascade='all, delete-orphan')
 
@@ -184,17 +225,6 @@ class Notification(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
 
 
-class ChatMessage(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    sender_id = db.Column(db.Integer)
-    sender_name = db.Column(db.String(100))
-    scope = db.Column(db.String(20))
-    target_id = db.Column(db.String(50))
-    message = db.Column(db.Text)
-    file_path = db.Column(db.String(255))
-    real_filename = db.Column(db.String(255))
-    file_type = db.Column(db.String(20))
-    created_at = db.Column(db.DateTime, default=datetime.now)
 
 
 class SystemLog(db.Model):
@@ -272,7 +302,6 @@ class ReportAuditV2(db.Model):
     new_value = db.Column(db.Text)
     changed_at = db.Column(db.DateTime, default=datetime.now)
 
-# --- SHORT URL / QR GENERATOR MODELS ---
 
 class ShortLink(db.Model):
     __tablename__ = 'short_link'
@@ -317,85 +346,37 @@ class RankingEntry(db.Model):
     indicator = db.relationship('RankingIndicator', backref='entries')
 
 
-# --- BÌNH DÂN HỌC VỤ MODELS ---
+# ==================== ZALO OA INTEGRATION ====================
 
-class BDHV_HocVien(db.Model):
-    """Học viên Bình dân học vụ"""
-    __tablename__ = 'bdhv_hocvien'
+class ZaloConfig(db.Model):
+    """Cấu hình Zalo OA - tokens và template IDs"""
     id = db.Column(db.Integer, primary_key=True)
-    stt = db.Column(db.Integer)
-    ho_ten = db.Column(db.String(255))      # Cột B
-    cccd = db.Column(db.String(20))          # Cột C - CCCD/Căn cước
-    don_vi = db.Column(db.String(255))       # Cột D - Đơn vị
-    ghi_chu = db.Column(db.String(255))     # Cột E
-    diem_hoc = db.Column(db.Float, default=0)  # Cột F - Điểm học (%)
-    diem_thi = db.Column(db.Float, default=0)   # Cột G - Điểm thi (%)
-    ket_qua = db.Column(db.String(50))       # Cột H - Kết quả
-    nguon = db.Column(db.String(20))        # 'DS HV' hoặc 'DKMoi'
+    app_id = db.Column(db.String(50), nullable=False)
+    secret_key = db.Column(db.String(100), nullable=False)
+    oa_id = db.Column(db.String(50))
+    oa_secret = db.Column(db.String(100))
+    access_token = db.Column(db.Text)
+    refresh_token = db.Column(db.Text)
+    token_expires_at = db.Column(db.DateTime)
+    template_deadline_warning = db.Column(db.String(50))
+    template_overdue = db.Column(db.String(50))
+    template_report_remind = db.Column(db.String(50))
+    is_active = db.Column(db.Boolean, default=True)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
 
-class BDHV_DonVi(db.Model):
-    """Danh sách đơn vị (xã/phường)"""
-    __tablename__ = 'bdhv_donvi'
+class ZaloMessageLog(db.Model):
+    """Log tin nhắn Zalo đã gửi"""
     id = db.Column(db.Integer, primary_key=True)
-    ten_don_vi = db.Column(db.String(255), unique=True)
+    recipient_phone = db.Column(db.String(20), nullable=False)
+    recipient_name = db.Column(db.String(100))
+    template_type = db.Column(db.String(30))
+    task_id = db.Column(db.Integer, nullable=True)
+    status = db.Column(db.String(20))
+    error_code = db.Column(db.String(20))
+    error_message = db.Column(db.Text)
+    zalo_message_id = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.now)
 
-
-class BDHV_ThongKe(db.Model):
-    """Thống kê theo đơn vị"""
-    __tablename__ = 'bdhv_thongke'
-    id = db.Column(db.Integer, primary_key=True)
-    ten_don_vi = db.Column(db.String(255))
-    tong_18 = db.Column(db.Integer, default=0)       # Tổng dân số 18+
-    da_dang_ky = db.Column(db.Integer, default=0)    # Đã đăng ký
-    da_hoan_thanh = db.Column(db.Integer, default=0)  # Đã hoàn thành
-    diem_thi = db.Column(db.Integer, default=0)       # Số người thi
-    ty_le = db.Column(db.Float, default=0)            # Tỷ lệ %
-    created_at = db.Column(db.DateTime, default=datetime.now)
-
-
-class BDHV_DangKyMoi(db.Model):
-    """Đăng ký mới học viên"""
-    __tablename__ = 'bdhv_dangky'
-    id = db.Column(db.Integer, primary_key=True)
-    stt = db.Column(db.Integer)
-    ho_ten = db.Column(db.String(255))
-    cccd = db.Column(db.String(20))
-    don_vi = db.Column(db.String(255))
-    created_at = db.Column(db.DateTime, default=datetime.now)
-
-
-class BDHV_ThiLai(db.Model):
-    """Đăng ký thi lại"""
-    __tablename__ = 'bdhv_thilai'
-    id = db.Column(db.Integer, primary_key=True)
-    timestamp = db.Column(db.DateTime, default=datetime.now)
-    ho_ten = db.Column(db.String(255))
-    cccd = db.Column(db.String(20))
-    don_vi = db.Column(db.String(255))
-    ly_do = db.Column(db.Text)
-
-
-class BDHV_PhucTra(db.Model):
-    """Phúc tra kết quả"""
-    __tablename__ = 'bdhv_phuctra'
-    id = db.Column(db.Integer, primary_key=True)
-    timestamp = db.Column(db.DateTime, default=datetime.now)
-    ho_ten = db.Column(db.String(255))
-    cccd = db.Column(db.String(20))
-    don_vi = db.Column(db.String(255))
-    ly_do = db.Column(db.Text)
-    file_url = db.Column(db.Text)
-
-
-class BDHV_DauMoi(db.Model):
-    """Danh sách đầu mối liên lạc"""
-    __tablename__ = 'bdhv_daumoi'
-    id = db.Column(db.Integer, primary_key=True)
-    don_vi = db.Column(db.String(255))
-    ten = db.Column(db.String(255))
-    phone = db.Column(db.String(20))
-    chuc_vu = db.Column(db.String(100))
 

@@ -1,6 +1,8 @@
-from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash
+# -*- coding: utf-8 -*-
+from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, send_file, jsonify
+from flask import current_app
 from models import db, ReportConfig, ReportData, User, ReportTemplateV2, ReportVersionV2, ReportSubmissionV2, ReportValueV2, AppRole
-import json, io
+import json, io, re
 from datetime import datetime
 from utils import remove_accents, log_action, render_auto_template as render_template
 
@@ -26,7 +28,11 @@ def admin_forms():
             file_blob = file.read()
             try:
                 import openpyxl as _openpyxl
-                wb = _openpyxl.load_workbook(io.BytesIO(file_blob))
+                # Load with UTF-8 support
+                try:
+                    wb = _openpyxl.load_workbook(io.BytesIO(file_blob), rich_text=True)
+                except:
+                    wb = _openpyxl.load_workbook(io.BytesIO(file_blob))
                 ws = wb.active
 
                 # Build merge map: (row, col) -> value of the top-left cell of that merge
@@ -299,8 +305,8 @@ def stats():
     perms = json.loads(role.perms) if role and role.perms else {}
     is_lead = perms.get('p_stat_lead') or session.get('is_admin')
     is_exec = perms.get('p_stat_exec')
-    user_unit = session.get('unit_area')
-
+    user_unit = session.get('unit_area', session.get('unit', ''))
+    
     # --- Task: Summary Statistics ---
     all_units_query = db.session.query(User.unit_area).distinct()
     if not is_lead:
@@ -330,8 +336,9 @@ def stats():
                         for v in values_query:
                             key = str(v.cell_key or '').strip()
                             if '!' in key:
+                                all_vals[key] = v.value
                                 _, coord = key.split('!', 1)
-                                all_vals[coord] = v.value
+                                all_vals.setdefault(coord, v.value)
                             else:
                                 all_vals[key] = v.value
 
@@ -346,9 +353,94 @@ def stats():
                             'status': sub.status
                         })
                     
-                    from excel_renderer import build_v2_stats_table_html
-                    metadata = json.loads(ver.metadata_json or '{}')
-                    excel_html = build_v2_stats_table_html(ver.excel_file_blob, metadata, all_vals)
+                    # Render V2 bằng HTML server-side để tránh lỗi Unicode của canvas LuckyExcel/Luckysheet
+                    try:
+                        import openpyxl as _opx
+                        import unicodedata
+                        from io import BytesIO
+                        from routes.reports_v2 import _get_sheet_region, _normalize_v2_key, _get_cell_format, _format_cell_value
+                        from excel_renderer import _build_merge_lookup, _row_height_px, _cell_css
+
+                        def _normalize_text(value):
+                            return unicodedata.normalize('NFC', value) if isinstance(value, str) else value
+
+                        wb = _opx.load_workbook(BytesIO(ver.excel_file_blob), data_only=False)
+                        meta_data = json.loads(ver.metadata_json or '{}') if ver.metadata_json else {}
+                        rendered_sheets = []
+
+                        for ws in wb.worksheets:
+                            ws.title = _normalize_text(ws.title)
+                            min_row, min_col, max_row, max_col = _get_sheet_region(meta_data, ws, wb)
+                            spans, shadows = _build_merge_lookup(ws)
+
+                            col_widths = []
+                            for i in range(min_col, max_col + 1):
+                                letter = _opx.utils.get_column_letter(i)
+                                w = ws.column_dimensions[letter].width or 8.43
+                                col_widths.append(max(int(w * 7), 45))
+
+                            colgroup = '<colgroup>' + ''.join(
+                                f'<col style="width:{w}px">' for w in col_widths
+                            ) + '</colgroup>'
+                            rows_html = []
+
+                            for r in range(min_row, max_row + 1):
+                                if ws.row_dimensions[r].hidden:
+                                    continue
+                                rh = _row_height_px(ws, r)
+                                row_parts = [f'<tr style="height:{rh}px">']
+
+                                for c in range(min_col, max_col + 1):
+                                    if (r, c) in shadows:
+                                        continue
+
+                                    cell = ws.cell(row=r, column=c)
+                                    if isinstance(cell.value, str):
+                                        cell.value = _normalize_text(cell.value)
+                                    rowspan, colspan = spans.get((r, c), (1, 1))
+                                    css = _cell_css(cell)
+
+                                    coord = cell.coordinate
+                                    full_key = _normalize_v2_key(ws.title, coord)
+                                    raw_val = all_vals.get(full_key, all_vals.get(coord, cell.value if cell.value and not str(cell.value).startswith('=') else ''))
+                                    number_format = _get_cell_format(meta_data, ws.title, coord) or getattr(cell, 'number_format', None)
+                                    if isinstance(raw_val, (int, float)):
+                                        val = _format_cell_value(raw_val, number_format)
+                                    else:
+                                        val = _normalize_text(raw_val)
+
+                                    rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
+                                    cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
+                                    td = f'<td{rs_attr}{cs_attr} style="padding:3px 6px;border:1px solid #d1d5db;{css}">'
+                                    row_parts.append(f'{td}{val if val is not None else ""}</td>')
+
+                                row_parts.append('</tr>')
+                                rows_html.append(''.join(row_parts))
+
+                            rendered_sheets.append({
+                                'name': ws.title,
+                                'html': f'<table class="excel-render-table" style="border-collapse:collapse;font-size:12px;width:100%;table-layout:fixed;font-family:Calibri,Arial,sans-serif;min-width:1000px;">{colgroup}<tbody>{"".join(rows_html)}</tbody></table>'
+                            })
+
+                        if rendered_sheets:
+                            tabs = []
+                            panes = []
+                            for idx, sheet in enumerate(rendered_sheets):
+                                active_cls = 'active' if idx == 0 else ''
+                                tabs.append(
+                                    f'<button class="btn btn-sm {"btn-primary" if idx == 0 else "btn-light border"} rounded-pill px-3 py-2 fw-bold me-2 mb-2 stats-sheet-tab" data-target="stats-sheet-{idx}">{sheet["name"]}</button>'
+                                )
+                                panes.append(
+                                    f'<div id="stats-sheet-{idx}" class="stats-sheet-pane {active_cls}" style="display:{"block" if idx == 0 else "none"};overflow:auto;max-height:760px;">{sheet["html"]}</div>'
+                                )
+                            excel_html = (
+                                '<div class="mb-3">' + ''.join(tabs) + '</div>' +
+                                '<div class="stats-sheet-wrapper">' + ''.join(panes) + '</div>'
+                            )
+                        else:
+                            excel_html = '<div class="text-muted">Không có dữ liệu để hiển thị.</div>'
+                    except Exception as e:
+                        excel_html = f'<div class="alert alert-danger mb-0">Lỗi render thống kê V2: {e}</div>'
         else:
             active = db.session.get(ReportConfig, rid)
             if active:
@@ -388,9 +480,8 @@ def stats():
                         reported_unit_set.add(unit)
                         submissions.append(row)
 
-                # Render V1 Excel
-                from excel_renderer import build_stats_table_html
-                excel_html = build_stats_table_html(active.file_blob, active, submissions)
+                # Backend HTML rendering dropped in favor of native Excel display (Luckysheet)
+                excel_html = ""
 
     # Final stats
     sub_count = len(reported_unit_set)
@@ -677,14 +768,140 @@ def export_form_progress(ftype, fid):
     safe_name = "".join([c if c.isalnum() else "_" for c in form_name])
     return send_file(output, as_attachment=True, download_name=f"Tien_do_{safe_name}.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-    ws.column_dimensions['A'].width = 8
-    ws.column_dimensions['B'].width = 50
-    ws.column_dimensions['C'].width = 10
-    ws.column_dimensions['D'].width = 80
 
-    out = BytesIO()
-    wb.save(out)
-    out.seek(0)
-    import datetime
-    filename = f"Danh_Sach_Don_Vi_Chua_Bao_Cao_{datetime.datetime.now().strftime('%Y%m%d')}.xlsx"
-    return send_file(out, download_name=filename, as_attachment=True)
+@forms_bp.route('/stats/export', methods=['GET'])
+def stats_export():
+    """Export statistics as native Excel for Luckysheet rendering (No HTML)."""
+    current_app.logger.info("STATS_EXPORT STARTED - rid: %s, v2: %s", request.args.get('rid'), request.args.get('v2'))
+    
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    
+    rid = request.args.get('rid', type=int)
+    is_v2 = bool(request.args.get('v2'))
+    
+    if not rid:
+        return "Missing report ID", 400
+    
+    try:
+        import openpyxl as opx
+        from openpyxl.styles import Font, Alignment
+        
+        wb = opx.Workbook()
+        ws = wb.active
+        ws.title = "Thống kê"
+        
+        if is_v2:
+            # === V2: MERGE DỮ LIỆU VÀO FILE EXCEL ===
+            template = db.session.get(ReportTemplateV2, rid)
+            if not template:
+                return "Template not found", 404
+            
+            version = ReportVersionV2.query.filter_by(template_id=rid, is_published=True).order_by(ReportVersionV2.created_at.desc()).first()
+            if not version or not version.excel_file_blob:
+                return "No published version", 400
+            
+            # Load template and merge data
+            try:
+                import openpyxl as opx
+                import unicodedata
+                from io import BytesIO
+                wb = opx.load_workbook(BytesIO(version.excel_file_blob))
+                ws = wb.active
+                
+                def _normalize_nfc(value):
+                    return unicodedata.normalize('NFC', value) if isinstance(value, str) else value
+                
+                # Chuẩn hóa toàn bộ workbook trước khi merge để tránh text NFD từ file mẫu MacOS
+                for sheet in wb.worksheets:
+                    sheet.title = _normalize_nfc(sheet.title)
+                    for row in sheet.iter_rows():
+                        for cell in row:
+                            if isinstance(cell.value, str):
+                                cell.value = _normalize_nfc(cell.value)
+                
+                # Get all submissions for this version
+                subs = ReportSubmissionV2.query.filter_by(version_id=version.id, status='draft').all()
+                
+                # Merge data from each submission
+                for sub in subs:
+                    for val in sub.values:
+                        key = str(val.cell_key or '').strip()
+                        if '!' in key:
+                            sheet_name, coord = key.split('!', 1)
+                            target_ws = wb[sheet_name] if sheet_name in wb.sheetnames else ws
+                        else:
+                            coord = key
+                            target_ws = ws
+                        try:
+                            target_ws[coord].value = _normalize_nfc(val.value)
+                        except:
+                            pass
+                
+                # Save merged content
+                output = BytesIO()
+                wb.save(output)
+                output.seek(0)
+                content = output.getvalue()
+            except Exception as e:
+                return f"Error merging data: {str(e)}", 500
+            
+            filename = f"ThongKe_{template.name}_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
+            
+            from flask import Response
+            # Set proper encoding for Vietnamese characters
+            response = Response(content, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=utf-8")
+            response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            return response
+        else:
+            # === V1: LẤY FILE EXCEL TỪ ReportConfig ===
+            # V1 template stored in ReportConfig.file_blob
+            config = db.session.get(ReportConfig, rid)
+            if not config:
+                return "Config not found", 404
+            
+            if config.file_blob:
+                # Dùng file Excel gốc từ V1 template
+                content = config.file_blob
+                filename = f"ThongKe_{config.name}_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
+            else:
+                # Nếu không có file, tạo mới từ submissions
+                import openpyxl as opx
+                from openpyxl.styles import Font, Alignment
+                
+                wb = opx.Workbook()
+                ws = wb.active
+                ws.title = "Thống kê"
+                
+                ws.append(["STT", "Đơn vị", "Người nộp", "Ngày nộp", "Trạng thái"])
+                header_font = Font(bold=True, size=12)
+                header_align = Alignment(horizontal="center", vertical="center")
+                for col in range(1, 6):
+                    ws.cell(1, col).font = header_font
+                    ws.cell(1, col).alignment = header_align
+                
+                raw = db.session.query(ReportData, User).join(User, ReportData.user_id == User.id).filter(ReportData.report_id == rid).all()
+                
+                for i, (d, u) in enumerate(raw, 1):
+                    ws.append([i, u.unit_area or u.fullname, u.fullname, d.report_date.strftime('%d/%m/%Y') if d.report_date else '', 'Đã nộp'])
+                
+                output = io.BytesIO()
+                wb.save(output)
+                output.seek(0)
+                content = output.getvalue()
+                filename = f"ThongKe_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
+            
+            from flask import Response
+            # Set proper encoding for Vietnamese characters
+            response = Response(content, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=utf-8")
+            response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            return response
+    except Exception as e:
+        import traceback
+        error_msg = traceback.format_exc()
+        current_app.logger.error(f"Stats export error: {e}\n{error_msg}")
+        import sys
+        py_version = sys.version
+        return f"Error: {str(e)}\nPython: {py_version}\nTrace: {error_msg[:300]}", 500

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 excel_renderer.py
 -----------------
@@ -12,6 +13,30 @@ Used by:
 
 import io
 import openpyxl
+
+
+def _fmt_val(val):
+    """Format value for display: 5.0 → '5', 3.14 → '3.14', 74843.87999999999 → '74843.88', None → ''"""
+    if val is None:
+        return ''
+    if isinstance(val, str):
+        val = val.strip()
+        if '.' in val:
+            try:
+                fval = float(val)
+                fval = round(fval, 10)
+                if fval == int(fval): 
+                    return str(int(fval))
+                return f"{fval:.6f}".rstrip('0').rstrip('.')
+            except ValueError:
+                pass
+        return val
+    if isinstance(val, float):
+        val = round(val, 10)
+        if val == int(val):
+            return str(int(val))
+        return f"{val:.6f}".rstrip('0').rstrip('.')
+    return str(val)
 from openpyxl.utils import get_column_letter
 from openpyxl.styles.fills import PatternFill
 from markupsafe import Markup
@@ -239,7 +264,7 @@ def render_range_to_html(ws, start_row, end_row,
                 # For formula cells use openpyxl cached value (data_only mode)
                 if isinstance(raw_val, str) and raw_val.startswith('='):
                     raw_val = ''
-                display = '' if raw_val is None else str(raw_val)
+                display = _fmt_val(raw_val)
                 td_inner = display
 
             html.append(f'{td_open}{td_inner}</td>')
@@ -274,7 +299,11 @@ def build_stats_table_html(file_blob, config, submissions):
 
     try:
         # Use data_only=True to get cached formula values
-        wb = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=True)
+        # Load with UTF-8 support
+        try:
+            wb = openpyxl.load_workbook(io.BytesIO(file_blob), rich_text=True, data_only=True)
+        except:
+            wb = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=True)
         ws = wb.active
     except Exception as e:
         return Markup(f'<p class="text-danger">Lỗi đọc file Excel: {e}</p>')
@@ -353,8 +382,8 @@ def build_stats_table_html(file_blob, config, submissions):
                 if is_field:
                     val = matched_sub['values'].get(str(c), '')
 
-            display = "" if val is None else str(val)
-            if isinstance(val, str) and val.startswith('='): display = ""
+            # Display values as-is from database
+            display = _fmt_val(val)
 
             rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
             cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
@@ -395,7 +424,11 @@ def build_v2_stats_table_html(file_blob, metadata, all_values):
         return Markup('<p class="text-muted">Không có file Excel gốc.</p>')
 
     try:
-        wb = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=True)
+        # Load with UTF-8 support
+        try:
+            wb = openpyxl.load_workbook(io.BytesIO(file_blob), rich_text=True, data_only=True)
+        except:
+            wb = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=True)
     except Exception as e:
         return Markup(f'<p class="text-danger">Lỗi đọc file Excel: {e}</p>')
 
@@ -453,7 +486,7 @@ def build_v2_stats_table_html(file_blob, metadata, all_values):
                 val = all_values.get(coord,
                       cell.value if cell.value and not str(cell.value).startswith('=') else '')
 
-                display = '' if val is None else str(val)
+                display = _fmt_val(val)
                 rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
                 cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
 

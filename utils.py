@@ -1,84 +1,13 @@
+# -*- coding: utf-8 -*-
 import re, json, sqlite3, os, ast, operator as op
 from flask import request, render_template as flask_render_template, g, session, redirect, url_for
 from openpyxl.utils import range_boundaries
 from datetime import datetime, timedelta
 from models import db, User, AppRole, SystemLog, Notification, MasterData, NewsCategory, LibraryField, ContactGroup, ProfessionalUnit
 
-def render_auto_template(template_name, **context):
-    """
-    Automatic template rendering with mobile/desktop detection and security features.
-    - Detects device type from User-Agent
-    - Automatically appends '_mobile' suffix for mobile devices if template exists
-    - Includes responsive detection for different screen sizes
-    - Adds security headers and CSRF protection context
-    """
-    # Security: Check if user is logged in for protected routes
-    # (This is handled by individual route decorators, but we add context here)
-    
-    # Device Detection
-    user_agent = request.headers.get('User-Agent', '').lower() if request.headers.get('User-Agent') else ''
-    
-    # Check for explicit mobile override via query parameter (for testing)
-    if request.args.get('mobile') == '1':
-        is_mobile = True
-    elif request.args.get('mobile') == '0':
-        is_mobile = False
-    else:
-        # Automatic detection based on User-Agent
-        mobile_keywords = ['android', 'iphone', 'ipad', 'ipod', 'mobile', 'tablet', 'opera mini', 'blackberry', 'windows phone']
-        is_mobile = any(keyword in user_agent for keyword in mobile_keywords)
-    
-    # Responsive screen size detection (for extra context)
-    screen_width = request.args.get('width', '')
-    if screen_width:
-        try:
-            screen_width = int(screen_width)
-            # Add responsive context
-            context['is_xs'] = screen_width < 576   # Extra small
-            context['is_sm'] = 576 <= screen_width < 768  # Small
-            context['is_md'] = 768 <= screen_width < 992  # Medium
-            context['is_lg'] = 992 <= screen_width < 1200 # Large
-            context['is_xl'] = screen_width >= 1200       # Extra large
-        except:
-            pass
-    
-    # Add device info to context
-    context['is_mobile'] = is_mobile
-    context['is_desktop'] = not is_mobile
-    
-    # Try to load mobile template if on mobile device
-    if is_mobile:
-        # Remove .html if present and try mobile variant
-        if template_name.endswith('.html'):
-            base_name = template_name[:-5]
-        else:
-            base_name = template_name
-            
-        mobile_template = f"{base_name}_mobile.html"
-        
-        # Check if mobile template exists (we can't easily check here without jinja env, 
-        # so we'll let Flask handle the 404 if it doesn't exist and fall back to desktop)
-        try:
-            # Try to render with mobile template
-            return flask_render_template(mobile_template, **context)
-        except:
-            # Fall back to desktop template if mobile doesn't exist
-            return flask_render_template(template_name, **context)
-    
-    # Desktop: render normally
-    return flask_render_template(template_name, **context)
 
 # ==================== SECURITY FUNCTIONS ====================
 
-def sanitize_input(text):
-    """
-    Sanitize user input to prevent XSS and injection attacks.
-    """
-    if not text:
-        return ""
-    # Basic HTML entity encoding
-    import html
-    return html.escape(str(text))
 
 def check_csrf_token(session_token, form_token):
     """
@@ -153,6 +82,57 @@ def normalize_unit_name(name):
     n = re.sub(r'\s+', ' ', n).strip()
     return n
 
+def extract_unit_key(name):
+    """
+    Extracts the core unit key from a unit name by removing all common prefixes.
+    'Công an xã An Tường' -> 'an tuong'
+    'UBND xã An Tường' -> 'an tuong'
+    """
+    if not name: return ""
+    import unicodedata
+    # 1. Lowercase and remove accents
+    n = str(name).lower().strip()
+    n = unicodedata.normalize('NFKD', n).encode('ascii', 'ignore').decode('utf-8')
+    
+    # 2. Remove common prefixes and noise words
+    prefixes = [
+        "cong an phuong", "cong an xa", "cong an huyen", "cong an thanh pho", "cong an tinh", "cong an",
+        "ubnd xa", "ubnd phuong", "ubnd",
+        "phuong", "xa", "huyen", "thanh pho", "thi tran", "tinh", "don vi"
+    ]
+    # Replace whole words for prefixes
+    for p in prefixes:
+        n = re.sub(r'\b' + re.escape(p) + r'\b', '', n).strip()
+    
+    # 3. Clean up extra spaces
+    n = re.sub(r'\s+', ' ', n).strip()
+    return n
+
+def is_unit_match(name1, name2):
+    """
+    Smart matching for unit names.
+    Handles 'UBND xã A' vs 'Công an xã A' as the same unit.
+    """
+    if not name1 or not name2: return False
+    
+    # 1. Exact normalized match
+    norm1 = normalize_unit_name(name1)
+    norm2 = normalize_unit_name(name2)
+    if norm1 == norm2: return True
+    
+    # 2. Core key match
+    key1 = extract_unit_key(name1)
+    key2 = extract_unit_key(name2)
+    if key1 and key2 and key1 == key2: return True
+    
+    # 3. Partial match (one key contained in another)
+    if key1 and key2 and (key1 in key2 or key2 in key1):
+        # Additional check: ensure they are not completely different (e.g. 'A' vs 'B')
+        # This is simple; if one is 'an tuong' and other is 'cong an an tuong', it matches.
+        return True
+        
+    return False
+
 def slugify_unit(name):
     if not name: return ""
     n = normalize_unit_name(name)
@@ -161,13 +141,14 @@ def slugify_unit(name):
     return n
 
 def apply_migrations(app):
-    db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
-    if not db_uri.startswith('sqlite:///'): return
-    db_path = db_uri.replace('sqlite:///', '')
-    if not os.path.exists(db_path):
-        # Try relative to root_path as fallback
-        db_path = os.path.join(app.root_path, 'pc06_system.db')
-        if not os.path.exists(db_path): return
+    with app.app_context():
+        db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+        if not db_uri.startswith('sqlite:///'): return
+        db_path = db_uri.replace('sqlite:///', '')
+        if not os.path.exists(db_path):
+            # Try relative to root_path as fallback
+            db_path = os.path.join(app.root_path, 'pc06_system.db')
+            if not os.path.exists(db_path): return
     
     conn = sqlite3.connect(db_path, timeout=30)
     cursor = conn.cursor()
@@ -186,9 +167,18 @@ def apply_migrations(app):
         ("news_doc", "target_scope", "VARCHAR(50) DEFAULT 'Toàn tỉnh'"),
         ("document_lib", "uploaded_at", "DATETIME"),
         ("task", "priority", "VARCHAR(50)"),
+        ("task", "task_type", "VARCHAR(100)"),
+        ("task", "initial_status", "VARCHAR(50) DEFAULT 'Chưa bắt đầu'"),
         ("task", "created_at", "DATETIME"),
         ("task_comment", "assignee_id", "INTEGER DEFAULT 0"),
-        ("system_log", "module", "VARCHAR(100)")
+        ("system_log", "module", "VARCHAR(100)"),
+        ("category_group", "code", "VARCHAR(100)"),
+        ("category_group", "description", "VARCHAR(255)"),
+        ("category_group", "is_active", "BOOLEAN DEFAULT 1"),
+        ("category_group", "sort_order", "INTEGER DEFAULT 0"),
+        ("category_item", "code", "VARCHAR(100)"),
+        ("category_item", "is_active", "BOOLEAN DEFAULT 1"),
+        ("category_item", "sort_order", "INTEGER DEFAULT 0")
     ]
     for table, col, col_type in migrations:
         try:
@@ -198,6 +188,42 @@ def apply_migrations(app):
                 conn.commit()
         except Exception as e: 
             print(f"Migration Error on {table}.{col}: {e}")
+
+    create_table_statements = [
+        """
+        CREATE TABLE IF NOT EXISTS module_registry (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code VARCHAR(50) UNIQUE,
+            name VARCHAR(100) UNIQUE,
+            is_active BOOLEAN DEFAULT 1,
+            sort_order INTEGER DEFAULT 0
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS category_group_module (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_id INTEGER NOT NULL,
+            module_id INTEGER NOT NULL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS module_field_binding (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            module_id INTEGER NOT NULL,
+            field_code VARCHAR(100) NOT NULL,
+            field_label VARCHAR(255),
+            group_id INTEGER NOT NULL,
+            is_required BOOLEAN DEFAULT 0,
+            allow_multiple_groups BOOLEAN DEFAULT 0
+        )
+        """
+    ]
+    for stmt in create_table_statements:
+        try:
+            cursor.execute(stmt)
+            conn.commit()
+        except Exception as e:
+            print(f"Create Table Migration Error: {e}")
     conn.close()
 
 def init_db(app):
@@ -210,12 +236,12 @@ def init_db(app):
         if not admin_role:
             try:
                 full_perms = {k:1 for k in ["p_dash", "p_task", "p_task_assign", "p_task_do", "p_lib", "p_news", "p_contact", "p_form", "p_sys", "p_input", "p_stat", "p_user"]}
-                admin_role = AppRole(name='Quản trị hệ thống', perms=json.dumps(full_perms))
+                admin_role = AppRole(name='admin_system', perms=json.dumps(full_perms, ensure_ascii=False))
                 db.session.add(admin_role)
                 db.session.commit()
             except Exception:
                 db.session.rollback()
-                admin_role = AppRole.query.filter_by(name='Quản trị hệ thống').first()
+                admin_role = AppRole.query.filter_by(name='admin_system').first()
             
         # Admin User
         if admin_role and not User.query.filter_by(username='admin').first():
@@ -403,3 +429,127 @@ def validate_password_strength(password):
     if not re.search(r'[0-9]', password):
         return False, "Phải có ít nhất 1 số"
     return True, "Mật khẩu hợp lệ"
+
+
+# ==================== NUMBER FORMATTING (V2 Support) ====================
+
+def format_cell_value(value, number_format):
+    """
+    Apply Excel number format to a value.
+    
+    Supports common Excel formats:
+      "0"           -> Integer (no decimals)
+      "0.00"        -> 2 decimal places
+      "0.0"         -> 1 decimal place
+      "#,##0"       -> Integer with thousand separator
+      "#,##0.00"    -> 2 decimals with thousand separator
+      "0.0%"        -> Percentage (multiply by 100)
+      "0%"          -> Percentage integer
+      
+    SMART FALLBACK: If format says "0" (integer) but value has decimals,
+    intelligently detect the needed decimal places.
+      
+    Args:
+        value: The cell value (number, float, int, or string)
+        number_format: Excel format code (e.g., "0.00", "#,##0")
+        
+    Returns:
+        Formatted string representation
+    """
+    if value is None or value == '':
+        return ''
+    
+    # Handle None and empty formats - use default
+    if not number_format:
+        return _format_cell_value_default(value)
+    
+    number_format = str(number_format).strip()
+    
+    try:
+        # Try to convert to float if not already numeric
+        if isinstance(value, str):
+            if value.startswith('='):  # Formula - don't format
+                return ''
+            try:
+                numeric_val = float(value)
+            except ValueError:
+                return str(value)  # Not a number, return as-is
+        else:
+            numeric_val = float(value)
+        
+        # Handle percentage formats
+        if '%' in number_format:
+            if 'h' not in number_format.lower():  # Not time format
+                numeric_val = numeric_val * 100
+        
+        # Determine if we have thousand separators and how many decimals
+        has_thousand_sep = ',' in number_format
+        decimal_places = 0
+        
+        if '.' in number_format:
+            # Count zeros after the decimal point
+            format_after_decimal = number_format.split('.')[-1]
+            # Count only the leading zeros (until we hit a non-zero char)
+            decimal_places = 0
+            for ch in format_after_decimal:
+                if ch == '0':
+                    decimal_places += 1
+                elif ch in ['#', '%']:
+                    break
+                else:
+                    break
+        else:
+            # No decimal point in format - check if it's "0" or similar
+            # SMART FALLBACK: If value has decimals, detect how many to show
+            if number_format.replace(',', '').replace('#', '') == '0':
+                # Format is pure integer, but check if value needs decimals
+                if numeric_val != int(numeric_val):
+                    # Value has decimal part - detect needed decimal places
+                    val_str = f"{numeric_val:.10f}".rstrip('0').rstrip('.')
+                    if '.' in val_str:
+                        decimal_places = len(val_str.split('.')[-1])
+        
+        # Format based on components
+        if decimal_places > 0:
+            # Has decimal places
+            formatted = f"{numeric_val:.{decimal_places}f}"
+            if has_thousand_sep:
+                # Add thousand separators
+                parts = formatted.split('.')
+                parts[0] = f"{int(parts[0]):,}"
+                formatted = '.'.join(parts)
+            return formatted
+        else:
+            # Integer format
+            int_val = int(round(numeric_val))
+            if has_thousand_sep:
+                return f"{int_val:,}"
+            else:
+                return str(int_val)
+        
+    except (ValueError, TypeError):
+        return str(value)
+
+
+def _format_cell_value_default(val):
+    """Default formatting when no format code or fallback."""
+    if val is None or val == '':
+        return ''
+    if isinstance(val, str):
+        val = val.strip()
+        if val.startswith('='):
+            return ''
+        try:
+            fval = float(val)
+            fval = round(fval, 10)
+            if fval == int(fval):
+                return str(int(fval))
+            return f"{fval:.6f}".rstrip('0').rstrip('.')
+        except ValueError:
+            return val
+    if isinstance(val, float):
+        val = round(val, 10)
+        if val == int(val):
+            return str(int(val))
+        return f"{val:.6f}".rstrip('0').rstrip('.')
+    return str(val)

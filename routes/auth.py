@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, jsonify
 from models import db, User, AppRole, MasterData, SystemLog
 from utils import log_action, render_auto_template as render_template
@@ -28,6 +29,7 @@ def login():
             session['username'] = usr.username
             session['fullname'] = usr.fullname
             session['unit'] = usr.unit_area
+            session['unit_area'] = usr.unit_area
             session['role_id'] = usr.role_id
             session['must_change'] = usr.must_change_password
             
