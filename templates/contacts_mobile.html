@@ -30,14 +30,14 @@
     <!-- Category Scroll -->
     <div class="d-flex gap-2 overflow-auto pb-3 mb-2 no-scrollbar" id="categoryFilters">
         <div class="pill pill-primary flex-shrink-0 active" data-cat="ALL" onclick="setCategoryFilter('ALL')">Tất cả</div>
-        {% for cat in categories %}
+        {% for cat in groups %}
         <div class="pill bg-white border flex-shrink-0 text-muted" data-cat="{{ cat.name }}" onclick="setCategoryFilter('{{ cat.name }}')">{{ cat.name }}</div>
         {% endfor %}
     </div>
 
     <div id="contactGrid">
         {% for c in contacts %}
-        <div class="mobile-card contact-item mb-2" data-category="{{ c.category }}">
+        <div class="mobile-card contact-item mb-2" data-category="{{ c.contact_group }}">
             <div class="d-flex align-items-center gap-3">
                 <div class="bg-primary-gradient text-white rounded-circle shadow-sm fw-bold d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; font-size: 16px; background: linear-gradient(135deg, #2563eb, #3b82f6);">
                     {{ c.name[:1].upper() }}
@@ -45,9 +45,9 @@
                 <div class="flex-grow-1 overflow-hidden">
                     <div class="d-flex justify-content-between align-items-start">
                         <h6 class="fw-bold text-dark mb-0 text-truncate">{{ c.name }}</h6>
-                        <span class="badge bg-light text-primary border tiny fw-bold">{{ c.category }}</span>
+                        <span class="badge bg-light text-primary border tiny fw-bold">{{ c.contact_group }}</span>
                     </div>
-                    <div class="tiny text-muted mt-1">{{ c.position or 'Cán bộ' }}</div>
+                    <div class="tiny text-muted mt-1">{{ c.role or 'Cán bộ' }}</div>
                     <div class="fw-bold text-primary small mt-1"><i class="fa-solid fa-phone me-1"></i>{{ c.phone }}</div>
                 </div>
                 <div class="ms-2">
@@ -92,14 +92,14 @@
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label class="form-label small fw-bold">Chức vụ</label>
-                            <select name="position" class="form-select">
+                            <select name="role" class="form-select">
                                 {% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}
                             </select>
                         </div>
                         <div class="col-6">
                             <label class="form-label small fw-bold">Nhóm</label>
-                            <select name="category" class="form-select" required>
-                                {% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
+                            <select name="contact_group" class="form-select" required>
+                                {% for cat in groups %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}
                             </select>
                         </div>
                     </div>

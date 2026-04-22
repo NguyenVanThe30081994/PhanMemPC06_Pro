@@ -209,6 +209,43 @@ def contact_add():
     flash(f'Đã thêm liên lạc {name} thành công!', 'success')
     return redirect(url_for('portal_bp.contacts'))
 
+# Preview route - returns Excel data as JSON for preview
+@portal_bp.route('/contacts/preview-import', methods=['POST'])
+def contact_preview_import():
+    """Preview Excel file and return data as JSON"""
+    if not session.get('uid'): return {'error': 'Unauthorized'}, 401
+    
+    from models import AppRole
+    import json
+    role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
+    perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
+    is_admin = session.get('is_admin')
+    is_contact_lead = perms.get('p_contact_lead') or is_admin
+    if not is_contact_lead: 
+        return {'error': 'Permission denied'}, 403
+    
+    f = request.files.get('import_excel')
+    if not f or not f.filename.endswith(('.xlsx', '.xls')):
+        return {'error': 'Invalid file'}, 400
+    
+    try:
+        df = pd.read_excel(io.BytesIO(f.read())).fillna('')
+        # Return first 50 rows for preview
+        preview_data = []
+        for idx, row in df.head(50).iterrows():
+            preview_data.append({
+                'idx': int(idx),
+                'name': str(row.get('Họ tên', row.get('Tên', ''))),
+                'phone': str(row.get('SĐT', row.get('Số điện thoại', ''))),
+                'unit': str(row.get('Đơn vị', '')),
+                'group': str(row.get('Nhóm', row.get('Nhóm danh bạ', ''))),
+                'role': str(row.get('Chức vụ', ''))
+            })
+        return {'success': True, 'data': preview_data, 'total': len(df)}
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+
 @portal_bp.route('/contacts/import', methods=['POST'])
 def contact_import():
     from models import AppRole
@@ -221,24 +258,42 @@ def contact_import():
     if not is_contact_lead: 
         flash('Chỉ PC06 mới có quyền nhập danh bạ hàng loạt!', 'danger')
         return redirect(url_for('portal_bp.contacts'))
+    
     f = request.files.get('import_excel')
-    group_from_form = request.form.get('contact_group')
+    selected_rows_json = request.form.get('selected_rows', '[]')
+    global_group = request.form.get('global_group', '')
+    global_role = request.form.get('global_role', '')
+    
+    try:
+        selected_rows = json.loads(selected_rows_json)
+    except:
+        selected_rows = []
     
     if f and f.filename.endswith(('.xlsx', '.xls')):
         try:
             df = pd.read_excel(io.BytesIO(f.read())).fillna('')
-            for _, row in df.iterrows():
-                # Use group from form if provided, otherwise fallback to Excel column
-                contact_group = group_from_form if group_from_form else str(row.get('Nhóm', 'Kế hoạch'))
+            imported = 0
+            for idx, row in df.iterrows():
+                # If selected_rows is empty, import all; otherwise only import selected indices
+                if selected_rows and int(idx) not in selected_rows:
+                    continue
+                
+                # Priority: Global Override > Per-row Override > Excel Column > Default
+                contact_group = global_group if global_group else str(row.get('Nhóm', row.get('Nhóm danh bạ', 'Khác')))
+                contact_role = global_role if global_role else str(row.get('Chức vụ', 'Cán bộ'))
+                
                 db.session.add(Contact(
                     contact_group=contact_group,
                     unit_name=str(row.get('Đơn vị', 'N/A')),
-                    name=str(row.get('Họ tên', 'Vô danh')),
-                    phone=str(row.get('SĐT', '')),
-                    role=str(row.get('Chức vụ', 'Cán bộ'))
+                    name=str(row.get('Họ tên', str(row.get('Tên', 'Vô danh')))),
+                    phone=str(row.get('SĐT', str(row.get('Số điện thoại', '')))),
+                    role=contact_role
                 ))
+                imported += 1
             db.session.commit()
-            log_action(session['uid'], session['fullname'], "Import danh bạ hàng loạt", "Danh bạ")
-            flash('Đã nhập danh bạ thành công!', 'success')
-        except Exception as e: flash(f'Lỗi import: {e}', 'danger')
+            log_action(session['uid'], session['fullname'], "Import danh bạ hàng loạt", "Danh bạ", f"File: {f.filename}, {imported} liên hệ")
+            flash(f'Đã nhập {imported} liên lạc thành công!', 'success')
+        except Exception as e: 
+            db.session.rollback()
+            flash(f'Lỗi import: {e}', 'danger')
     return redirect(url_for('portal_bp.contacts'))

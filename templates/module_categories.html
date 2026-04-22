@@ -253,4 +253,24 @@
     .flex-nowrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
     .flex-nowrap::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 </style>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const scrollContainer = document.querySelector('.flex-nowrap');
+        if (scrollContainer) {
+            // Restore horizontal scroll position
+            const savedScroll = sessionStorage.getItem('moduleCategoriesScrollPos');
+            if (savedScroll !== null) {
+                scrollContainer.scrollLeft = parseInt(savedScroll, 10);
+            }
+
+            // Save horizontal scroll position on any form submission (like adding/deleting items)
+            document.querySelectorAll('form').forEach(form => {
+                form.addEventListener('submit', function() {
+                    sessionStorage.setItem('moduleCategoriesScrollPos', scrollContainer.scrollLeft);
+                });
+            });
+        }
+    });
+</script>
 {% endblock %}
