@@ -8,9 +8,8 @@ from datetime import datetime
 
 ai_bp = Blueprint('ai_bp', __name__, url_prefix='/ai')
 
-# OpenAI API Key - Project Key với Org ID
-OPENAI_API_KEY = 'sk-proj-Q8P7u9VwRz2jKxL1mN4bV5cA6dE7fG8hI9jK0lL1mN2oP3qR4sT5uV6wX7yZ8A9B'
-OPENAI_ORG_ID = 'org-NEWORGID1234567890ABCDEF'
+# Groq API Key
+GROQ_API_KEY = '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'
 
 # TTHC Knowledge Base - Thủ tục hành chính PC06
 TTHC_KNOWLEDGE = {
@@ -66,25 +65,22 @@ CANNED_RESPONSES = {
 }
 
 
-def call_openai_api(prompt):
-    """Gọi OpenAI API để lấy câu trả lời"""
-    if not OPENAI_API_KEY:
+def call_groq_api(prompt):
+    """Gọi Groq API để lấy câu trả lời"""
+    if not GROQ_API_KEY:
         return None
     
     try:
         headers = {
-            'Authorization': f'Bearer {OPENAI_API_KEY}',
-            'Content-Type': 'application/json',
-            'OpenAI-Organization': OPENAI_ORG_ID
+            'Authorization': f'Bearer {GROQ_API_KEY}',
+            'Content-Type': 'application/json'
         }
         
-        # System prompt hướng dẫn AI
         system_prompt = """Bạn là trợ lý AI của PC06 Tuyên Quang, chuyên hỗ trợ về các thủ tục hành chính.
-Hãy trả lời bằng tiếng Việt, ngắn gọn và dễ hiểu.
-Nếu không biết câu trả lời, hãy nói ra và gợi ý người dùng liên hệ trực tiếp cơ quan chức năng."""
+Hãy trả lời bằng tiếng Việt, ngắn gọn và dễ hiểu."""
         
         data = {
-            'model': 'gpt-3.5-turbo',
+            'model': 'llama-3.1-8b-instant',
             'messages': [
                 {'role': 'system', 'content': system_prompt},
                 {'role': 'user', 'content': prompt}
@@ -94,7 +90,7 @@ Nếu không biết câu trả lời, hãy nói ra và gợi ý người dùng l
         }
         
         response = requests.post(
-            'https://api.openai.com/v1/chat/completions',
+            'https://api.groq.com/openai/v1/chat/completions',
             headers=headers,
             json=data,
             timeout=30
@@ -105,7 +101,7 @@ Nếu không biết câu trả lời, hãy nói ra và gợi ý người dùng l
             return result['choices'][0]['message']['content']
     
     except Exception as e:
-        print(f"OpenAI API error: {e}")
+        print(f"Groq API error: {e}")
         try:
             print(f"Response: {response.text}")
         except:
@@ -228,7 +224,7 @@ def chat():
         return jsonify({'error': 'Vui lòng nhập câu hỏi'}), 400
     
     # Thử OpenAI API trước
-    ai_answer = call_openai_api(query)
+    ai_answer = call_groq_api(query)
     
     if ai_answer:
         return jsonify({
