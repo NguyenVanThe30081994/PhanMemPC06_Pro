@@ -97,8 +97,13 @@
                         </div>
                     </div>
 
-                    <!-- Native Excel Viewer - Live Luckysheet Render -->
-                    <div id="excel-render-container" class="animate__animated animate__zoomIn border-primary shadow-sm" style="display: block; height: 800px; border-radius: 12px; border: 2px solid var(--primary); position: relative; overflow: hidden;">
+                    <!-- Report Viewer -->
+                    <div id="excel-render-container" class="animate__animated animate__zoomIn border-primary shadow-sm" style="display: block; min-height: 800px; border-radius: 12px; border: 2px solid var(--primary); position: relative; overflow: hidden; background: #fff;">
+                        {% if excel_html %}
+                        <div id="excel-html-container" class="p-2 p-md-3" style="overflow:auto; max-height:800px;">
+                            {{ excel_html|safe }}
+                        </div>
+                        {% else %}
                         <div id="luckysheet-stats-container" style="margin:0px;padding:0px;position:absolute;width:100%;height:100%;left:0px;top:0px;"></div>
                         <div id="luckysheet-loading" style="position: absolute; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.95); z-index: 10;">
                             <div class="text-center">
@@ -108,7 +113,9 @@
                                 <div id="loading-status" class="mt-2 small text-info"></div>
                             </div>
                         </div>
+                        {% endif %}
                     </div>
+
 
                     <div class="glass-header warning mt-5 rounded-4">
                         <i class="fa-solid fa-triangle-exclamation me-2"></i>Danh sách đơn vị chưa báo cáo ({{ not_reported_count }})
@@ -136,9 +143,14 @@
 
 <style>
     .excel-render-table { width: 100%; border-collapse: collapse; }
-    .excel-render-table td { border: 1px solid var(--border); padding: 5px; }
+    .excel-render-table td { border: 1px solid var(--border); padding: 5px; unicode-bidi: plaintext; }
     .excel-render-table tr:nth-child(even) { background-color: rgba(0,0,0,0.01); }
+    .stats-sheet-tab.active,
+    .stats-sheet-tab.btn-primary {
+        box-shadow: 0 8px 20px rgba(59,130,246,0.18);
+    }
 </style>
+
 
 <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/css/pluginsCss.css' />
 <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/plugins.css' />
@@ -150,9 +162,33 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Auto-load when page loads with existing rid param
-        loadLuckysheet();
+        const hasServerHtml = !!document.getElementById('excel-html-container');
+        if (hasServerHtml) {
+            initStatsSheetTabs();
+        } else {
+            loadLuckysheet();
+        }
     });
+
+    function initStatsSheetTabs() {
+        document.querySelectorAll('.stats-sheet-tab').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const targetId = this.getAttribute('data-target');
+                document.querySelectorAll('.stats-sheet-tab').forEach(tab => {
+                    tab.classList.remove('btn-primary');
+                    tab.classList.remove('active');
+                    tab.classList.add('btn-light', 'border');
+                });
+                document.querySelectorAll('.stats-sheet-pane').forEach(pane => {
+                    pane.style.display = 'none';
+                });
+                this.classList.remove('btn-light', 'border');
+                this.classList.add('btn-primary', 'active');
+                const pane = document.getElementById(targetId);
+                if (pane) pane.style.display = 'block';
+            });
+        });
+    }
 
     function exportStatsToExcel() {
         const urlParams = new URLSearchParams(window.location.search);
@@ -192,11 +228,6 @@
                             throw new Error('Không có dữ liệu');
                         }
                         
-                        // ============================================
-                        // FIX LỖI FONT TIẾNG VIỆT - Safe Unicode NFC Normalization
-                        // Chỉ chuẩn hóa GIÁ TRỊ chuỗi, không đụng vào key để tránh làm hỏng
-                        // cấu trúc JSON nội bộ của LuckyExcel/Luckysheet.
-                        // ============================================
                         const normalizeNFC = (val) => (typeof val === 'string' ? val.normalize('NFC') : val);
                         const normalizeValuesDeep = (input, seen = new WeakSet()) => {
                             if (input === null || input === undefined) return input;

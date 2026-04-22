@@ -336,8 +336,9 @@ def stats():
                         for v in values_query:
                             key = str(v.cell_key or '').strip()
                             if '!' in key:
+                                all_vals[key] = v.value
                                 _, coord = key.split('!', 1)
-                                all_vals[coord] = v.value
+                                all_vals.setdefault(coord, v.value)
                             else:
                                 all_vals[key] = v.value
 
@@ -352,8 +353,90 @@ def stats():
                             'status': sub.status
                         })
                     
-                    # Backend HTML rendering dropped in favor of native Excel display (Luckysheet)
-                    excel_html = ""
+                    # Render V2 bằng HTML server-side để tránh lỗi Unicode của canvas LuckyExcel/Luckysheet
+                    try:
+                        import openpyxl as _opx
+                        import unicodedata
+                        from io import BytesIO
+                        from reports_v2 import _get_sheet_region, _normalize_v2_key
+                        from excel_renderer import _build_merge_lookup, _row_height_px, _cell_css
+
+                        def _normalize_text(value):
+                            return unicodedata.normalize('NFC', value) if isinstance(value, str) else value
+
+                        wb = _opx.load_workbook(BytesIO(ver.excel_file_blob), data_only=False)
+                        meta_data = json.loads(ver.metadata_json or '{}') if ver.metadata_json else {}
+                        rendered_sheets = []
+
+                        for ws in wb.worksheets:
+                            ws.title = _normalize_text(ws.title)
+                            min_row, min_col, max_row, max_col = _get_sheet_region(meta_data, ws, wb)
+                            spans, shadows = _build_merge_lookup(ws)
+
+                            col_widths = []
+                            for i in range(min_col, max_col + 1):
+                                letter = _opx.utils.get_column_letter(i)
+                                w = ws.column_dimensions[letter].width or 8.43
+                                col_widths.append(max(int(w * 7), 45))
+
+                            colgroup = '<colgroup>' + ''.join(
+                                f'<col style="width:{w}px">' for w in col_widths
+                            ) + '</colgroup>'
+                            rows_html = []
+
+                            for r in range(min_row, max_row + 1):
+                                if ws.row_dimensions[r].hidden:
+                                    continue
+                                rh = _row_height_px(ws, r)
+                                row_parts = [f'<tr style="height:{rh}px">']
+
+                                for c in range(min_col, max_col + 1):
+                                    if (r, c) in shadows:
+                                        continue
+
+                                    cell = ws.cell(row=r, column=c)
+                                    if isinstance(cell.value, str):
+                                        cell.value = _normalize_text(cell.value)
+                                    rowspan, colspan = spans.get((r, c), (1, 1))
+                                    css = _cell_css(cell)
+
+                                    coord = cell.coordinate
+                                    full_key = _normalize_v2_key(ws.title, coord)
+                                    val = all_vals.get(full_key, all_vals.get(coord, cell.value if cell.value and not str(cell.value).startswith('=') else ''))
+                                    val = _normalize_text(val)
+
+                                    rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
+                                    cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
+                                    td = f'<td{rs_attr}{cs_attr} style="padding:3px 6px;border:1px solid #d1d5db;{css}">'
+                                    row_parts.append(f'{td}{val if val is not None else ""}</td>')
+
+                                row_parts.append('</tr>')
+                                rows_html.append(''.join(row_parts))
+
+                            rendered_sheets.append({
+                                'name': ws.title,
+                                'html': f'<table class="excel-render-table" style="border-collapse:collapse;font-size:12px;width:100%;table-layout:fixed;font-family:Calibri,Arial,sans-serif;min-width:1000px;">{colgroup}<tbody>{"".join(rows_html)}</tbody></table>'
+                            })
+
+                        if rendered_sheets:
+                            tabs = []
+                            panes = []
+                            for idx, sheet in enumerate(rendered_sheets):
+                                active_cls = 'active' if idx == 0 else ''
+                                tabs.append(
+                                    f'<button class="btn btn-sm {"btn-primary" if idx == 0 else "btn-light border"} rounded-pill px-3 py-2 fw-bold me-2 mb-2 stats-sheet-tab" data-target="stats-sheet-{idx}">{sheet["name"]}</button>'
+                                )
+                                panes.append(
+                                    f'<div id="stats-sheet-{idx}" class="stats-sheet-pane {active_cls}" style="display:{"block" if idx == 0 else "none"};overflow:auto;max-height:760px;">{sheet["html"]}</div>'
+                                )
+                            excel_html = (
+                                '<div class="mb-3">' + ''.join(tabs) + '</div>' +
+                                '<div class="stats-sheet-wrapper">' + ''.join(panes) + '</div>'
+                            )
+                        else:
+                            excel_html = '<div class="text-muted">Không có dữ liệu để hiển thị.</div>'
+                    except Exception as e:
+                        excel_html = f'<div class="alert alert-danger mb-0">Lỗi render thống kê V2: {e}</div>'
         else:
             active = db.session.get(ReportConfig, rid)
             if active:
