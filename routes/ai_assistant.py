@@ -101,6 +101,10 @@ Nếu không biết câu trả lời, hãy nói ra và gợi ý người dùng l
     
     except Exception as e:
         print(f"OpenAI API error: {e}")
+        try:
+            print(f"Response: {response.text}")
+        except:
+            pass
     
     return None
 

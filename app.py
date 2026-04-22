@@ -29,23 +29,6 @@ UPLOAD_FOLDER = os.path.join(basedir, 'uploads')
 TASK_FOLDER = os.path.join(basedir, 'task_files')
 LIB_FOLDER = os.path.join(basedir, 'library_files')
 
-# --- CONFIG ---
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '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')
-
-# --- CONFIG ---
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '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')
-
-# --- CONFIG ---
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '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')
-
-# --- CONFIG ---
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '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')
-
-# --- CONFIG ---
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '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')
-
-# --- CONFIG ---
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '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')
 BACKUP_FOLDER = os.path.join(basedir, 'backups') # Added for safety
 
 # Ensure directories exist with absolute paths
