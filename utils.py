@@ -166,6 +166,8 @@ def apply_migrations(app):
         ("news_doc", "target_scope", "VARCHAR(50) DEFAULT 'Toàn tỉnh'"),
         ("document_lib", "uploaded_at", "DATETIME"),
         ("task", "priority", "VARCHAR(50)"),
+        ("task", "task_type", "VARCHAR(100)"),
+        ("task", "initial_status", "VARCHAR(50) DEFAULT 'Chưa bắt đầu'"),
         ("task", "created_at", "DATETIME"),
         ("task_comment", "assignee_id", "INTEGER DEFAULT 0"),
         ("system_log", "module", "VARCHAR(100)")
