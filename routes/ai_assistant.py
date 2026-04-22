@@ -3,9 +3,13 @@ from flask import Blueprint, render_template, request, session, jsonify, redirec
 import requests
 import re
 import json
+import os
 from datetime import datetime
 
 ai_bp = Blueprint('ai_bp', __name__, url_prefix='/ai')
+
+# OpenAI API Key - Lấy từ environment variable hoặc config
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 
 # TTHC Knowledge Base - Thủ tục hành chính PC06
 TTHC_KNOWLEDGE = {
@@ -61,7 +65,50 @@ CANNED_RESPONSES = {
 }
 
 
-def find_answer(query):
+def call_openai_api(prompt):
+    """Gọi OpenAI API để lấy câu trả lời"""
+    if not OPENAI_API_KEY:
+        return None
+    
+    try:
+        headers = {
+            'Authorization': f'Bearer {OPENAI_API_KEY}',
+            'Content-Type': 'application/json'
+        }
+        
+        # System prompt hướng dẫn AI
+        system_prompt = """Bạn là trợ lý AI của PC06 Tuyên Quang, chuyên hỗ trợ về các thủ tục hành chính.
+Hãy trả lời bằng tiếng Việt, ngắn gọn và dễ hiểu.
+Nếu không biết câu trả lời, hãy nói ra và gợi ý người dùng liên hệ trực tiếp cơ quan chức năng."""
+        
+        data = {
+            'model': 'gpt-3.5-turbo',
+            'messages': [
+                {'role': 'system', 'content': system_prompt},
+                {'role': 'user', 'content': prompt}
+            ],
+            'max_tokens': 500,
+            'temperature': 0.7
+        }
+        
+        response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers=headers,
+            json=data,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            return result['choices'][0]['message']['content']
+    
+    except Exception as e:
+        print(f"OpenAI API error: {e}")
+    
+    return None
+
+
+def find_answer_from_kb(query):
     """Tìm câu trả lời phù hợp từ knowledge base"""
     query_lower = query.lower()
     
@@ -84,32 +131,45 @@ def find_answer(query):
 
 
 def fetch_gov_news(limit=10):
-    """Fetch latest news from tuyenquang.gov.vn using regex only"""
+    """Fetch latest news from tuyenquang.gov.vn with proper encoding"""
     articles = []
     try:
         url = "https://tuyenquang.gov.vn"
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
         }
         
         response = requests.get(url, headers=headers, timeout=10)
         if response.status_code == 200:
-            html = response.text
+            # Try to detect encoding
+            try:
+                # Thử UTF-8 trước
+                html = response.content.decode('utf-8')
+            except:
+                try:
+                    # Thử ISO-8859-1
+                    html = response.content.decode('iso-8859-1')
+                except:
+                    # Mặc định
+                    html = response.text
             
-            # Simple regex to find links with titles
-            # Pattern: <a href="...">Title</a>
+            # Simple regex to find links with titles - cải thiện pattern
             link_pattern = re.compile(r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>([^<]+)</a>', re.IGNORECASE)
             
             for match in link_pattern.finditer(html):
                 href = match.group(1)
                 title = match.group(2).strip()
                 
-                # Filter: only valid titles
+                # Filter: only valid titles with Vietnamese characters
                 if title and len(title) > 15 and len(title) < 200:
-                    # Clean HTML tags from title
+                    # Clean HTML tags
                     title = re.sub(r'<[^>]+>', '', title).strip()
+                    # Decode HTML entities
+                    title = title.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"')
                     
-                    if title and not title.startswith('http'):
+                    if title and not href.startswith('http'):
                         full_url = href if href.startswith('http') else url + href
                         
                         articles.append({
@@ -128,9 +188,9 @@ def fetch_gov_news(limit=10):
     # Return demo data if fetch fails
     if not articles:
         articles = [
-            {'title': 'PC06 Tuyên Quang triển khai nhiệm vụ công tác năm 2026', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': '22/04/2026'},
-            {'title': 'Hướng dẫn thủ tục hành chính mới nhất', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': '21/04/2026'},
-            {'title': 'Công bố quyết định điều động cán bộ', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': '20/04/2026'},
+            {'title': 'PC06 Tuyen Quang trien khai nhiem vu cong tac nam 2026', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': '22/04/2026'},
+            {'title': 'Huong dan thu tuc hanh chinh moi nhat', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': '21/04/2026'},
+            {'title': 'Cong bo quyet dinh dieu dong can bo', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': '20/04/2026'},
         ]
     
     return articles
@@ -142,7 +202,6 @@ def index():
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
     
-    # Fetch latest news
     news = fetch_gov_news(10)
     
     return render_template('ai_assistant.html', 
@@ -152,7 +211,7 @@ def index():
 
 @ai_bp.route('/chat', methods=['POST'])
 def chat():
-    """Handle AI chat request"""
+    """Handle AI chat request - ưu tiên OpenAI API"""
     if not session.get('uid'):
         return jsonify({'error': 'Unauthorized'}), 401
     
@@ -162,17 +221,26 @@ def chat():
     if not query:
         return jsonify({'error': 'Vui lòng nhập câu hỏi'}), 400
     
-    # Find answer
-    answer = find_answer(query)
+    # Thử OpenAI API trước
+    ai_answer = call_openai_api(query)
+    
+    if ai_answer:
+        return jsonify({
+            'success': True,
+            'answer': ai_answer,
+            'type': 'ai'
+        })
+    
+    # Fallback to knowledge base
+    answer = find_answer_from_kb(query)
     
     if answer:
         return jsonify({
             'success': True,
             'answer': answer,
-            'type': 'ttc'
+            'type': 'kb'
         })
     else:
-        # No match found
         suggestions = list(TTHC_KNOWLEDGE.keys())[:5]
         return jsonify({
             'success': False,
