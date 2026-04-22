@@ -80,7 +80,7 @@ def call_groq_api(prompt):
 Hãy trả lời bằng tiếng Việt, ngắn gọn và dễ hiểu."""
         
         data = {
-            'model': 'llama-3.1-8b-instant',
+            'model': 'llama-3.3-70b-versatile',
             'messages': [
                 {'role': 'system', 'content': system_prompt},
                 {'role': 'user', 'content': prompt}
