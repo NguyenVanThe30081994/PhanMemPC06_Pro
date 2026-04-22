@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, render_template, request, session, jsonify, redirect, url_for
-from app import OPENAI_API_KEY  # Import from app.py config
+import os
 import requests
 import re
 import json
 from datetime import datetime
 
 ai_bp = Blueprint('ai_bp', __name__, url_prefix='/ai')
+
+# OpenAI API Key - Đọc trực tiếp từ env
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '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')
 
 # TTHC Knowledge Base - Thủ tục hành chính PC06
 TTHC_KNOWLEDGE = {
