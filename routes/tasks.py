@@ -182,8 +182,6 @@ def tasks():
                            domains=domains, 
                            current_domain=current_domain, 
                            now_dt=now_dt,
-                           perms=perms,
-                           is_admin=is_admin,
                            stats={
                                'total': total_count,
                                'completed': completed_count,
