@@ -389,8 +389,15 @@ def stats():
 
                 raw_query = (db.session.query(ReportData, User)
                        .join(User, ReportData.user_id == User.id)
-                       .filter(ReportData.report_id == rid, ReportData.is_latest == True)  # NEW: Only latest
+                       .filter(ReportData.report_id == rid)
                        .order_by(User.unit_area))
+                
+                # Try to filter by is_latest if column exists
+                try:
+                    raw_query = raw_query.filter(ReportData.is_latest == True)
+                except:
+                    # Fallback: if is_latest column doesn't exist, just get all records
+                    pass
 
                 if not is_lead:
                     raw_query = raw_query.filter(User.unit_area == user_unit)
