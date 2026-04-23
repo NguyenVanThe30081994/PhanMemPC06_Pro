@@ -371,7 +371,8 @@ def build_stats_table_html(file_blob, config, submissions):
             val = cell_values.value # Ưu tiên giá trị hiển thị từ wb_values
             if matched_sub and r > header_end:
                 is_field = any(f['idx'] == c for f in fields)
-                if is_field: val = matched_sub['values'].get(str(c), '')
+                if is_field and 'values' in matched_sub:  # ← Thêm check 'values' key
+                    val = matched_sub['values'].get(str(c), '')
             
             display = format_excel_number(val, cell.number_format)
             rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
