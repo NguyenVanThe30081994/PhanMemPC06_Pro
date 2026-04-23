@@ -482,9 +482,13 @@ def build_v2_stats_table_html(file_blob, metadata, all_values):
                 css = _cell_css(cell)
 
                 coord = cell.coordinate
-                # Prioritize submitted value, fallback to template value
-                val = all_values.get(coord,
-                      cell.value if cell.value and not str(cell.value).startswith('=') else '')
+                # Prioritize submitted value (check both prefixed and non-prefixed key)
+                full_key = f"{ws.title}!{coord}"
+                val = all_values.get(full_key, all_values.get(coord))
+                
+                if val is None:
+                    # Fallback to template value (skip raw formulas, but keep calculated results or labels)
+                    val = cell.value if cell.value is not None and not str(cell.value).startswith('=') else ''
 
                 display = _fmt_val(val)
                 rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
