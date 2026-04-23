@@ -4,7 +4,7 @@ Routes cho hệ thống nhập liệu báo cáo mới
 API endpoints và UI pages
 """
 from flask import Blueprint, render_template, request, session, redirect, url_for, jsonify, flash
-from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, ReportInstance
+from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ReportInstance
 from services.form_engine import FormEngine
 from utils import log_action
 
@@ -43,13 +43,17 @@ def select_period(template_id):
     """Chọn kỳ báo cáo"""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
+
+    if session.get('is_admin'):
+        flash('Tài khoản quản trị không nhập liệu trực tiếp. Vui lòng dùng tài khoản đơn vị để nhập báo cáo.', 'warning')
+        return redirect(url_for('reporting_bp.index'))
     
     template = FormTemplate.query.get_or_404(template_id)
     periods = ReportingPeriod.query.filter_by(is_locked=False).order_by(ReportingPeriod.start_date.desc()).all()
     
     return render_template('reporting/select_period.html',
-                         template=template,
-                         periods=periods)
+                          template=template,
+                          periods=periods)
 
 
 @reporting_bp.route('/form/<int:template_id>/period/<int:period_id>')
@@ -57,6 +61,10 @@ def fill_form(template_id, period_id):
     """Trang nhập liệu"""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
+
+    if session.get('is_admin'):
+        flash('Tài khoản quản trị không nhập liệu trực tiếp. Vui lòng dùng tài khoản đơn vị để nhập báo cáo.', 'warning')
+        return redirect(url_for('reporting_bp.index'))
     
     user_id = session.get('uid')
     user_unit = session.get('unit_area', session.get('unit', ''))
@@ -73,8 +81,9 @@ def fill_form(template_id, period_id):
     report_data = form_engine.get_report_data(instance.id)
     
     return render_template('reporting/fill_form.html',
-                         report_data=report_data,
-                         instance=instance)
+                          report_data=report_data,
+                          instance=instance,
+                          template_id=template_id)
 
 
 @reporting_bp.route('/report/<int:instance_id>')
@@ -142,6 +151,56 @@ def dashboard():
                          is_lead=is_lead)
 
 
+@reporting_bp.route('/template/<int:template_id>/field-settings', methods=['GET', 'POST'])
+def field_settings(template_id):
+    """Admin: Thiết lập cột được nhập liệu"""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    if not session.get('is_admin'):
+        flash('Bạn không có quyền truy cập chức năng này.', 'danger')
+        return redirect(url_for('reporting_bp.index'))
+
+    template = FormTemplate.query.get_or_404(template_id)
+    version = FormVersion.query.filter_by(
+        template_id=template_id,
+        is_published=True
+    ).order_by(FormVersion.created_at.desc()).first()
+
+    if not version:
+        flash('Mẫu biểu chưa có phiên bản published.', 'warning')
+        return redirect(url_for('reporting_bp.index'))
+
+    fields = FormField.query.filter_by(version_id=version.id).order_by(FormField.display_order).all()
+
+    if request.method == 'POST':
+        editable_codes = set(request.form.getlist('editable_fields'))
+
+        updated = 0
+        for field in fields:
+            if field.is_calculated:
+                continue
+            new_readonly = field.field_code not in editable_codes
+            if field.is_readonly != new_readonly:
+                field.is_readonly = new_readonly
+                updated += 1
+
+        db.session.commit()
+        flash(f'Đã cập nhật quyền nhập liệu cho {updated} trường.', 'success')
+        return redirect(url_for('reporting_bp.field_settings', template_id=template_id))
+
+    grouped_fields = {}
+    for field in fields:
+        section_name = field.section or 'Khác'
+        grouped_fields.setdefault(section_name, []).append(field)
+
+    return render_template(
+        'reporting/field_settings.html',
+        template=template,
+        version=version,
+        grouped_fields=grouped_fields
+    )
+
+
 # ==================== API ENDPOINTS ====================
 
 @reporting_bp.route('/api/templates', methods=['GET'])
@@ -184,6 +243,8 @@ def api_create_report():
     """API: Tạo báo cáo mới"""
     if not session.get('uid'):
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    if session.get('is_admin'):
+        return jsonify({'success': False, 'message': 'Tài khoản quản trị không nhập liệu trực tiếp'}), 403
     
     data = request.get_json()
     template_id = data.get('template_id')
@@ -223,6 +284,8 @@ def api_save_draft(instance_id):
     """API: Lưu nháp"""
     if not session.get('uid'):
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    if session.get('is_admin'):
+        return jsonify({'success': False, 'message': 'Tài khoản quản trị không nhập liệu trực tiếp'}), 403
     
     data = request.get_json()
     field_values = data.get('values', {})
@@ -246,6 +309,8 @@ def api_submit_report(instance_id):
     """API: Submit báo cáo"""
     if not session.get('uid'):
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    if session.get('is_admin'):
+        return jsonify({'success': False, 'message': 'Tài khoản quản trị không nhập liệu trực tiếp'}), 403
     
     try:
         user_id = session.get('uid')
