@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Hệ thống nhập liệu báo cáo{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h3 class="mb-4">
+                <i class="bi bi-file-earmark-text"></i> Hệ thống nhập liệu báo cáo
+            </h3>
+
+            <!-- Mẫu biểu có sẵn -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Mẫu biểu báo cáo</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for template in templates %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card h-100 shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ template.name }}</h5>
+                                    <p class="card-text text-muted">{{ template.description or 'Không có mô tả' }}</p>
+                                    <span class="badge bg-info">{{ template.category or 'Chung' }}</span>
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                    <a href="{{ url_for('reporting_bp.select_period', template_id=template.id) }}" 
+                                       class="btn btn-primary btn-sm w-100">
+                                        <i class="bi bi-pencil-square"></i> Nhập liệu
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        {% if not templates %}
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i> Chưa có mẫu biểu nào. 
+                                Vui lòng chạy <code>python seed_reporting_data.py</code> để tạo dữ liệu mẫu.
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Báo cáo của tôi -->
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Báo cáo của tôi</h5>
+                </div>
+                <div class="card-body">
+                    {% if my_reports %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Mẫu biểu</th>
+                                    <th>Kỳ báo cáo</th>
+                                    <th>Trạng thái</th>
+                                    <th>Cập nhật</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for report in my_reports %}
+                                <tr>
+                                    <td>{{ report.template.name }}</td>
+                                    <td>{{ report.period.name }}</td>
+                                    <td>
+                                        {% if report.status == 'draft' %}
+                                        <span class="badge bg-warning">Nháp</span>
+                                        {% elif report.status == 'submitted' %}
+                                        <span class="badge bg-success">Đã nộp</span>
+                                        {% elif report.status == 'locked' %}
+                                        <span class="badge bg-secondary">Đã khóa</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ report.updated_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td>
+                                        {% if report.status == 'draft' %}
+                                        <a href="{{ url_for('reporting_bp.fill_form', template_id=report.template_id, period_id=report.period_id) }}" 
+                                           class="btn btn-sm btn-primary">
+                                            <i class="bi bi-pencil"></i> Tiếp tục
+                                        </a>
+                                        {% else %}
+                                        <a href="{{ url_for('reporting_bp.view_report', instance_id=report.id) }}" 
+                                           class="btn btn-sm btn-info">
+                                            <i class="bi bi-eye"></i> Xem
+                                        </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i> Bạn chưa có báo cáo nào.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick links -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-graph-up" style="font-size: 3rem; color: #0d6efd;"></i>
+                            <h5 class="mt-3">Dashboard</h5>
+                            <p class="text-muted">Xem tổng hợp và tiến độ</p>
+                            <a href="{{ url_for('reporting_bp.dashboard') }}" class="btn btn-outline-primary">
+                                Xem dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-clock-history" style="font-size: 3rem; color: #6c757d;"></i>
+                            <h5 class="mt-3">Lịch sử</h5>
+                            <p class="text-muted">Xem nhật ký thay đổi</p>
+                            <a href="#" class="btn btn-outline-secondary">
+                                Xem lịch sử
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+</style>
+{% endblock %}
