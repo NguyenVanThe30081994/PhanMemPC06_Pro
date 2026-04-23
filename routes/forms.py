@@ -724,32 +724,32 @@ def stats_export():
             if not version or not version.excel_file_blob:
                 return "No published version", 400
             
-                # Load template and merge data
-                try:
-                    wb = opx.load_workbook(BytesIO(version.excel_file_blob))
-                    ws = wb.active
-                    
-                    # Create a map for sheet lookups without modifying the workbook
-                    sheet_map = { _normalize_nfc(s.title): s for s in wb.worksheets }
-                    
-                    # Get all submissions for this version
-                    subs = ReportSubmissionV2.query.filter_by(version_id=version.id).all()
-                    
-                    # Merge data from each submission
-                    for sub in subs:
-                        for val in sub.values:
-                            key = str(val.cell_key or '').strip()
-                            if '!' in key:
-                                sheet_name, coord = key.split('!', 1)
-                                norm_sheet_name = _normalize_nfc(sheet_name)
-                                target_ws = sheet_map.get(norm_sheet_name, ws)
-                            else:
-                                coord = key
-                                target_ws = ws
-                            try:
-                                target_ws[coord].value = _normalize_nfc(val.value)
-                            except:
-                                pass
+            # Load template and merge data
+            try:
+                wb = opx.load_workbook(BytesIO(version.excel_file_blob))
+                ws = wb.active
+                
+                # Create a map for sheet lookups without modifying the workbook
+                sheet_map = { _normalize_nfc(s.title): s for s in wb.worksheets }
+                
+                # Get all submissions for this version
+                subs = ReportSubmissionV2.query.filter_by(version_id=version.id).all()
+                
+                # Merge data from each submission
+                for sub in subs:
+                    for val in sub.values:
+                        key = str(val.cell_key or '').strip()
+                        if '!' in key:
+                            sheet_name, coord = key.split('!', 1)
+                            norm_sheet_name = _normalize_nfc(sheet_name)
+                            target_ws = sheet_map.get(norm_sheet_name, ws)
+                        else:
+                            coord = key
+                            target_ws = ws
+                        try:
+                            target_ws[coord].value = _normalize_nfc(val.value)
+                        except:
+                            pass
                 
                 output = BytesIO()
                 wb.save(output)
@@ -767,12 +767,12 @@ def stats_export():
             if not config.file_blob:
                 return "No template file", 404
             
-                try:
-                    # Load template
-                    wb = opx.load_workbook(BytesIO(config.file_blob))
-                    ws = wb.active
-                    
-                    # (Removed global normalization to preserve template fonts)
+            try:
+                # Load template
+                wb = opx.load_workbook(BytesIO(config.file_blob))
+                ws = wb.active
+                
+                # (Removed global normalization to preserve template fonts)
                 
                 # Get fields config
                 try:
