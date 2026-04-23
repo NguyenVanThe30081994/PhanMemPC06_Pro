@@ -13,6 +13,7 @@ Used by:
 
 import io
 import openpyxl
+import unicodedata
 
 
 def _fmt_val(val):
@@ -37,6 +38,13 @@ def _fmt_val(val):
             return str(int(val))
         return f"{val:.6f}".rstrip('0').rstrip('.')
     return str(val)
+
+
+def _normalize_nfc(value):
+    """Normalize string to NFC form for consistent comparison."""
+    return unicodedata.normalize('NFC', str(value)) if value is not None else ""
+
+
 from openpyxl.utils import get_column_letter
 from openpyxl.styles.fills import PatternFill
 from markupsafe import Markup
