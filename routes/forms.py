@@ -359,7 +359,7 @@ def stats():
                         import unicodedata
                         from io import BytesIO
                         from routes.reports_v2 import _get_sheet_region, _normalize_v2_key, _get_cell_format, _format_cell_value
-                        from excel_renderer import _build_merge_lookup, _row_height_px, _cell_css
+                        from excel_renderer import _build_merge_lookup, _row_height_px, _cell_css, is_input_cell
 
                         def _normalize_text(value):
                             return unicodedata.normalize('NFC', value) if isinstance(value, str) else value
@@ -402,15 +402,31 @@ def stats():
 
                                     coord = cell.coordinate
                                     full_key = _normalize_v2_key(ws.title, coord)
-                                    # ONLY use values from database (ReportValueV2), NEVER from template
-                                    raw_val = all_vals.get(full_key) or all_vals.get(coord)
-                                    number_format = _get_cell_format(meta_data, ws.title, coord) or getattr(cell, 'number_format', None)
-                                    if isinstance(raw_val, (int, float)):
-                                        val = _format_cell_value(raw_val, number_format)
-                                    elif raw_val is not None:
-                                        val = _normalize_text(raw_val)
+                                    
+                                    # Check if this is an input cell (data cell)
+                                    is_input = is_input_cell(cell)
+                                    
+                                    # For input cells, use data from database; for header/template cells, use template value
+                                    if is_input:
+                                        raw_val = all_vals.get(full_key) or all_vals.get(coord)
+                                        if raw_val is not None:
+                                            number_format = _get_cell_format(meta_data, ws.title, coord) or getattr(cell, 'number_format', None)
+                                            if isinstance(raw_val, (int, float)):
+                                                val = _format_cell_value(raw_val, number_format)
+                                            else:
+                                                val = _normalize_text(raw_val)
+                                        else:
+                                            val = ''  # Empty if no submitted data
                                     else:
-                                        val = ''  # Empty if no submitted data
+                                        # Non-input cells (headers, labels, etc.) - keep template value
+                                        raw_val = cell.value
+                                        if isinstance(raw_val, str) and raw_val.startswith('='):
+                                            val = ''  # Skip formulas
+                                        elif isinstance(raw_val, (int, float)):
+                                            number_format = _get_cell_format(meta_data, ws.title, coord) or getattr(cell, 'number_format', None)
+                                            val = _format_cell_value(raw_val, number_format)
+                                        else:
+                                            val = _normalize_text(raw_val) if raw_val else ''
 
                                     rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
                                     cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
@@ -858,45 +874,127 @@ def stats_export():
             response.headers["X-Content-Type-Options"] = "nosniff"
             return response
         else:
-            # === V1: LẤY FILE EXCEL TỪ ReportConfig ===
-            # V1 template stored in ReportConfig.file_blob
+            # === V1: MERGE DỮ LIỆU TỪ ReportData VÀO TEMPLATE ===
             config = db.session.get(ReportConfig, rid)
             if not config:
                 return "Config not found", 404
             
-            if config.file_blob:
-                # Dùng file Excel gốc từ V1 template
-                content = config.file_blob
-                filename = f"ThongKe_{config.name}_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
-            else:
-                # Nếu không có file, tạo mới từ submissions
+            if not config.file_blob:
+                return "No template file", 404
+            
+            try:
                 import openpyxl as opx
-                from openpyxl.styles import Font, Alignment
+                import unicodedata
+                from io import BytesIO
                 
-                wb = opx.Workbook()
+                # Load template
+                wb = opx.load_workbook(BytesIO(config.file_blob))
                 ws = wb.active
-                ws.title = "Thống kê"
                 
-                ws.append(["STT", "Đơn vị", "Người nộp", "Ngày nộp", "Trạng thái"])
-                header_font = Font(bold=True, size=12)
-                header_align = Alignment(horizontal="center", vertical="center")
-                for col in range(1, 6):
-                    ws.cell(1, col).font = header_font
-                    ws.cell(1, col).alignment = header_align
+                def _normalize_nfc(value):
+                    return unicodedata.normalize('NFC', value) if isinstance(value, str) else value
                 
-                raw = db.session.query(ReportData, User).join(User, ReportData.user_id == User.id).filter(ReportData.report_id == rid).all()
+                # Normalize workbook
+                for sheet in wb.worksheets:
+                    sheet.title = _normalize_nfc(sheet.title)
+                    for row in sheet.iter_rows():
+                        for cell in row:
+                            if isinstance(cell.value, str):
+                                cell.value = _normalize_nfc(cell.value)
                 
-                for i, (d, u) in enumerate(raw, 1):
-                    ws.append([i, u.unit_area or u.fullname, u.fullname, d.report_date.strftime('%d/%m/%Y') if d.report_date else '', 'Đã nộp'])
+                # Get fields config
+                fields = []
+                try:
+                    fields = json.loads(config.config_json or '[]')
+                except:
+                    pass
                 
-                output = io.BytesIO()
+                # Get all submissions
+                raw_query = db.session.query(ReportData, User).join(
+                    User, ReportData.user_id == User.id
+                ).filter(ReportData.report_id == rid)
+                
+                if config.is_daily:
+                    # For daily reports: aggregate by date
+                    from collections import defaultdict
+                    daily_data = defaultdict(list)
+                    for d, u in raw_query.all():
+                        try:
+                            data = json.loads(d.data_json or '{}')
+                        except:
+                            data = {}
+                        report_date = d.report_date.strftime('%Y-%m-%d') if d.report_date else 'unknown'
+                        daily_data[report_date].append({
+                            'unit': u.unit_area or u.fullname,
+                            'sender': u.fullname,
+                            'data': data
+                        })
+                    
+                    # Merge data into template - for demo, use most recent date
+                    if daily_data:
+                        latest_date = max(daily_data.keys())
+                        for item in daily_data[latest_date]:
+                            for f in fields:
+                                idx = str(f['idx'])
+                                field_label = f['label']
+                                # Find cell by header text (simplified - assumes header in row 1-3)
+                                for row in range(1, min(10, ws.max_row + 1)):
+                                    for col in range(1, ws.max_column + 1):
+                                        cell_val = ws.cell(row, col).value
+                                        if cell_val and field_label.lower() in str(cell_val).lower():
+                                            # Found header, now find data cell in same column
+                                            # Look for unit row
+                                            for data_row in range(row + 1, min(row + 20, ws.max_row + 1)):
+                                                unit_cell = ws.cell(data_row, 1).value if col > 1 else None
+                                                if unit_cell and item['unit'] in str(unit_cell):
+                                                    # Found matching unit row, set value
+                                                    current_val = ws.cell(data_row, col).value or 0
+                                                    try:
+                                                        new_val = float(item['data'].get(idx, 0) or 0)
+                                                        ws.cell(data_row, col).value = current_val + new_val
+                                                    except:
+                                                        pass
+                                                    break
+                                            break
+                else:
+                    # Non-daily: merge all submissions
+                    for d, u in raw_query.all():
+                        try:
+                            data = json.loads(d.data_json or '{}')
+                        except:
+                            data = {}
+                        unit_name = u.unit_area or u.fullname
+                        
+                        for f in fields:
+                            idx = str(f['idx'])
+                            field_label = f['label']
+                            # Find cell by header
+                            for row in range(1, min(10, ws.max_row + 1)):
+                                for col in range(1, ws.max_column + 1):
+                                    cell_val = ws.cell(row, col).value
+                                    if cell_val and field_label.lower() in str(cell_val).lower():
+                                        # Find unit row
+                                        for data_row in range(row + 1, min(row + 20, ws.max_row + 1)):
+                                            unit_cell = ws.cell(data_row, 1).value if col > 1 else None
+                                            if unit_cell and unit_name in str(unit_cell):
+                                                val = item['data'].get(idx, '')
+                                                if val:
+                                                    ws.cell(data_row, col).value = _normalize_nfc(val)
+                                                break
+                                        break
+                
+                # Save merged content
+                output = BytesIO()
                 wb.save(output)
                 output.seek(0)
                 content = output.getvalue()
-                filename = f"ThongKe_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
+            except Exception as e:
+                import traceback
+                return f"Error merging data: {str(e)} - {traceback.format_exc()}", 500
+            
+            filename = f"ThongKe_{config.name}_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
             
             from flask import Response
-            # Set proper encoding for Vietnamese characters
             response = Response(content, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=utf-8")
             response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
             response.headers["X-Content-Type-Options"] = "nosniff"
