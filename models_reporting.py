@@ -4,11 +4,11 @@ Hệ thống nhập liệu báo cáo mới - Models
 Theo kiến trúc: Form Engine + Metadata + Audit Trail
 Độc lập hoàn toàn với V1/V2
 """
-from flask_sqlalchemy import SQLAlchemy
+
 from datetime import datetime
 import uuid
 
-db = SQLAlchemy()
+from models import db  # reuse the DB instance defined in models.py
 
 
 # ==================== KỲ BÁO CÁO ====================
