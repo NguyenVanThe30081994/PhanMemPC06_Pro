@@ -117,6 +117,8 @@ def _cell_css(cell):
     try:
         font = cell.font
         if font:
+            if font.name:
+                parts.append(f"font-family:'{font.name}', sans-serif")
             if font.bold:
                 parts.append('font-weight:bold')
             if font.italic:
@@ -401,7 +403,7 @@ def build_stats_table_html(file_blob, config, submissions):
     html = (
         '<div class="excel-wrapper" style="overflow:auto;max-height:80vh;">'
         '<table class="excel-render-table" '
-        'style="border-collapse:collapse;font-size:12px;font-family:\'Calibri\',\'Arial\',sans-serif;">'
+        'style="border-collapse:collapse;font-size:12px;width:max-content;">'
         + ''.join(col_parts) +
         '<tbody>' + ''.join(rows_html) + '</tbody>'
         '</table></div>'

@@ -403,8 +403,12 @@ def stats():
                         reported_unit_set.add(unit)
                         submissions.append(row)
 
-                # Backend HTML rendering dropped in favor of native Excel display (Luckysheet)
-                excel_html = ""
+                # Use server-side HTML rendering (same as V2) to ensure perfect font fidelity
+                try:
+                    from excel_renderer import build_stats_table_html
+                    excel_html = build_stats_table_html(config.file_blob, active, submissions)
+                except Exception as e:
+                    excel_html = f'<div class="alert alert-danger mb-0">Lỗi render thống kê V1: {e}</div>'
 
     # Final stats
     sub_count = len(reported_unit_set)
