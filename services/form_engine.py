@@ -122,10 +122,16 @@ class FormEngine:
         values = {}
         for fv in instance.field_values:
             values[fv.field_code] = {
-                'value': fv.value,
+                'value': fv.value if fv.value is not None else '',
                 'type': fv.value_type,
                 'row_index': fv.row_index
             }
+            
+        # Ensure all fields in schema have at least an empty dict in values
+        for section in schema['sections'].values():
+            for field in section:
+                if field['code'] not in values:
+                    values[field['code']] = {'value': ''}
         
         return {
             'instance': {
