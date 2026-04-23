@@ -60,7 +60,7 @@ def normalize_unit_name(name):
     """
     Normalizes unit names for comparison. 
     Removes prefixes like 'Công an', 'Xã', 'Phường', 'Thị trấn', etc.
-    Example: 'Công an phường An Tường' -> 'an tuong', 'Phường an tường' -> 'an tuong'
+    Handles both spaced and smushed names (e.g., 'ubndphuongantuong' -> 'antuong').
     """
     if not name: return ""
     import unicodedata
@@ -68,45 +68,38 @@ def normalize_unit_name(name):
     n = str(name).lower().strip()
     n = unicodedata.normalize('NFKD', n).encode('ascii', 'ignore').decode('utf-8')
     
-    # 2. Remove common prefixes and noise words
+    # 2. Clean noise and prefixes (Aggressive - handles smushed words)
+    # We remove longer prefixes first to avoid partial matches on prefixes
     prefixes = [
-        "cong an phuong", "cong an xa", "cong an huyen", "cong an thanh pho", "cong an tinh", "cong an",
-        "ubnd xa", "ubnd phuong", "ubnd",
-        "phuong", "xa", "huyen", "thanh pho", "thi tran", "tinh"
+        "cong an phuong", "cong an xa", "cong an huyen", "cong an thanh pho", "cong an tinh", 
+        "ubnd xa", "ubnd phuong", "cong an", "ubnd",
+        "phuong", "xa", "huyen", "thanh pho", "thi tran", "tinh", "don vi", "ban"
     ]
-    # Replace whole words for prefixes
-    for p in prefixes:
-        n = re.sub(r'\b' + re.escape(p) + r'\b', '', n).strip()
     
-    # 3. Clean up extra spaces
+    # First pass: try whole words
+    for p in prefixes:
+        n = re.sub(r'\b' + re.escape(p) + r'\b', ' ', n)
+        
+    # Second pass: remove common prefixes as substrings (handles smushed names)
+    for p in ["congan", "ubnd", "phuong", "xapp", "cap", "ca"]:
+        if n.startswith(p):
+            n = n[len(p):].strip()
+
+    # 3. Clean up extra spaces and non-alphanumeric (keep spaces for now)
+    n = re.sub(r'[^a-z0-9\s]', '', n)
     n = re.sub(r'\s+', ' ', n).strip()
     return n
 
 def extract_unit_key(name):
     """
-    Extracts the core unit key from a unit name by removing all common prefixes.
-    'Công an xã An Tường' -> 'an tuong'
-    'UBND xã An Tường' -> 'an tuong'
+    Extracts the core unit key from a unit name.
+    'Công an xã An Tường' -> 'antuong'
+    'ubndphuongantuong' -> 'antuong'
     """
     if not name: return ""
-    import unicodedata
-    # 1. Lowercase and remove accents
-    n = str(name).lower().strip()
-    n = unicodedata.normalize('NFKD', n).encode('ascii', 'ignore').decode('utf-8')
-    
-    # 2. Remove common prefixes and noise words
-    prefixes = [
-        "cong an phuong", "cong an xa", "cong an huyen", "cong an thanh pho", "cong an tinh", "cong an",
-        "ubnd xa", "ubnd phuong", "ubnd",
-        "phuong", "xa", "huyen", "thanh pho", "thi tran", "tinh", "don vi"
-    ]
-    # Replace whole words for prefixes
-    for p in prefixes:
-        n = re.sub(r'\b' + re.escape(p) + r'\b', '', n).strip()
-    
-    # 3. Clean up extra spaces
-    n = re.sub(r'\s+', ' ', n).strip()
-    return n
+    n = normalize_unit_name(name)
+    # Remove all spaces to get the pure slug/key
+    return re.sub(r'\s+', '', n)
 
 def is_unit_match(name1, name2):
     """
@@ -118,18 +111,18 @@ def is_unit_match(name1, name2):
     # 1. Exact normalized match
     norm1 = normalize_unit_name(name1)
     norm2 = normalize_unit_name(name2)
-    if norm1 == norm2: return True
+    if norm1 and norm2 and norm1 == norm2: return True
     
-    # 2. Core key match
+    # 2. Core key match (slug comparison)
     key1 = extract_unit_key(name1)
     key2 = extract_unit_key(name2)
     if key1 and key2 and key1 == key2: return True
     
     # 3. Partial match (one key contained in another)
     if key1 and key2 and (key1 in key2 or key2 in key1):
-        # Additional check: ensure they are not completely different (e.g. 'A' vs 'B')
-        # This is simple; if one is 'an tuong' and other is 'cong an an tuong', it matches.
-        return True
+        # Additional safety: ensure key is not just 'a' or something too short
+        if len(key1) > 2 and len(key2) > 2:
+            return True
         
     return False
 

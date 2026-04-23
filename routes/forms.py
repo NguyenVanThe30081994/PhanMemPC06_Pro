@@ -803,22 +803,8 @@ def stats_export():
                 # Data mapping logic
                 data_start_row = getattr(config, 'header_start', 1) + getattr(config, 'header_rows', 1)
                 
-                # Import robust matching helpers from utils if available, else use localized version
-                try:
-                    from utils import is_unit_match
-                except:
-                    def is_unit_match(n1, n2):
-                        def _clean(s):
-                            if not s: return ""
-                            import unicodedata
-                            # Strip accents and common prefixes for comparison
-                            s = unicodedata.normalize('NFKD', str(s)).encode('ascii', 'ignore').decode('utf-8').lower()
-                            for p in ["xa", "phuong", "thi tran", "huyen", "thanh pho", "cong an", "ubnd"]:
-                                s = re.sub(r'\b' + p + r'\b', '', s)
-                            return re.sub(r'[^a-z0-9]', '', s)
-                        c1 = _clean(n1)
-                        c2 = _clean(n2)
-                        return c1 == c2 and c1 != ''
+                # Import robust matching helpers from utils
+                from utils import is_unit_match
 
                 for unit_name, data in unit_data.items():
                     # Find unit row - search column A (1) AND B (2) from data_start_row

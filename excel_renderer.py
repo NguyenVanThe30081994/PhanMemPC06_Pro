@@ -368,8 +368,17 @@ def build_stats_table_html(file_blob, config, submissions):
         
         row_content_lower = row_content.lower()
         matched_sub = None
+        from utils import is_unit_match
         for name in unit_names_lower:
-            if name and name in row_content_lower:
+            # Check all values in the row for a unit match
+            found_match = False
+            for c_check in range(min_col, max_col + 1):
+                cell_v = ws.cell(row=r, column=c_check).value
+                if cell_v and is_unit_match(name, str(cell_v)):
+                    found_match = True
+                    break
+            
+            if found_match:
                 matched_sub = unit_map_lower[name]
                 break
         
