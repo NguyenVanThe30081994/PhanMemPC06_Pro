@@ -15,7 +15,7 @@ from app import app
 from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField
 import openpyxl
 
-db.init_app(app)
+
 
 def seed_reporting_data():
     """Seed dữ liệu mẫu"""
