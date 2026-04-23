@@ -18,42 +18,31 @@ import unicodedata
 
 
 def _fmt_val(val, cell=None):
-    """Format value for display: 5.0 → '5', 3.14 → '3.14', 1234567 → '1.234.567', None → ''"""
-    if val is None:
+    """Format value for display: 5.0 → '5', 3.14 → '3.14', 1234.5 → '1234.5', None → ''"""
+    if val is None or val == '':
         return ''
     
-    # If we have a cell and it's numeric, we can be more sophisticated
-    is_numeric = False
-    if cell and hasattr(cell, 'data_type') and cell.data_type == 'n':
-        is_numeric = True
-    elif isinstance(val, (int, float)):
-        is_numeric = True
-    elif isinstance(val, str):
-        # Try to see if it's a number string
-        try:
-            val = float(val.replace(',', '').strip())
-            is_numeric = True
-        except:
-            pass
-
-    if is_numeric:
-        try:
+    try:
+        # Try to treat as a number
+        if isinstance(val, str):
+            # Remove commas if any (from potential previous bad formatting or input)
+            clean_val = val.replace(',', '').strip()
+            fval = float(clean_val)
+        else:
             fval = float(val)
-            # Round to avoid floating point noise
-            fval = round(fval, 10)
             
-            # Check if it's an integer
-            if fval == int(fval):
-                return "{:,}".format(int(fval)).replace(',', '.')
+        # Round to avoid floating point noise
+        fval = round(fval, 10)
+        
+        # Check if it's an integer
+        if fval == int(fval):
+            return str(int(fval))
             
-            # For decimals, limit to 4 decimal places and remove trailing zeros
-            res = "{:,.4f}".format(fval).rstrip('0').rstrip('.')
-            # Convert US comma to VN dot
-            return res.replace(',', 'X').replace('.', ',').replace('X', '.')
-        except (ValueError, TypeError):
-            return str(val)
-
-    return str(val).strip()
+        # For decimals, limit to 6 decimal places and remove trailing zeros
+        # Use '.' as decimal separator (standard digital format)
+        return "{:.6f}".format(fval).rstrip('0').rstrip('.')
+    except (ValueError, TypeError):
+        return str(val).strip()
 
 
 def _normalize_nfc(value):
