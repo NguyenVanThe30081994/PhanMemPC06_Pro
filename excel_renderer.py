@@ -13,31 +13,48 @@ Used by:
 
 import io
 import openpyxl
+from openpyxl.cell import abc
+from openpyxl.utils import get_column_letter
 import unicodedata
 
 
-def _fmt_val(val):
-    """Format value for display: 5.0 → '5', 3.14 → '3.14', 74843.87999999999 → '74843.88', None → ''"""
+def _fmt_val(val, cell=None):
+    """Format value for display: 5.0 → '5', 3.14 → '3.14', 1234567 → '1.234.567', None → ''"""
     if val is None:
         return ''
-    if isinstance(val, str):
-        val = val.strip()
-        if '.' in val:
-            try:
-                fval = float(val)
-                fval = round(fval, 10)
-                if fval == int(fval): 
-                    return str(int(fval))
-                return f"{fval:.6f}".rstrip('0').rstrip('.')
-            except ValueError:
-                pass
-        return val
-    if isinstance(val, float):
-        val = round(val, 10)
-        if val == int(val):
-            return str(int(val))
-        return f"{val:.6f}".rstrip('0').rstrip('.')
-    return str(val)
+    
+    # If we have a cell and it's numeric, we can be more sophisticated
+    is_numeric = False
+    if cell and hasattr(cell, 'data_type') and cell.data_type == 'n':
+        is_numeric = True
+    elif isinstance(val, (int, float)):
+        is_numeric = True
+    elif isinstance(val, str):
+        # Try to see if it's a number string
+        try:
+            val = float(val.replace(',', '').strip())
+            is_numeric = True
+        except:
+            pass
+
+    if is_numeric:
+        try:
+            fval = float(val)
+            # Round to avoid floating point noise
+            fval = round(fval, 10)
+            
+            # Check if it's an integer
+            if fval == int(fval):
+                return "{:,}".format(int(fval)).replace(',', '.')
+            
+            # For decimals, limit to 4 decimal places and remove trailing zeros
+            res = "{:,.4f}".format(fval).rstrip('0').rstrip('.')
+            # Convert US comma to VN dot
+            return res.replace(',', 'X').replace('.', ',').replace('X', '.')
+        except (ValueError, TypeError):
+            return str(val)
+
+    return str(val).strip()
 
 
 def _normalize_nfc(value):
@@ -402,7 +419,7 @@ def build_stats_table_html(file_blob, config, submissions):
                     val = matched_sub['values'].get(str(c), '')
 
             # Display values as-is from database
-            display = _fmt_val(val)
+            display = _fmt_val(val, cell)
 
             rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
             cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
@@ -509,7 +526,7 @@ def build_v2_stats_table_html(file_blob, metadata, all_values):
                     # Fallback to template value (skip raw formulas, but keep calculated results or labels)
                     val = cell.value if cell.value is not None and not str(cell.value).startswith('=') else ''
 
-                display = _fmt_val(val)
+                display = _fmt_val(val, cell)
                 rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
                 cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
 
