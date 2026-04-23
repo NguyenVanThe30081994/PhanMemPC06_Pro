@@ -14,6 +14,14 @@ from models_reporting import ReportInstance, FormField
 class ReportExporter:
     """Xuất báo cáo ra Excel"""
 
+    @staticmethod
+    def _resolve_target_cell(ws, cell_ref):
+        """Nếu ô nằm trong merged range (không phải top-left) thì chuyển về top-left để tránh lỗi ghi."""
+        for merged_range in ws.merged_cells.ranges:
+            if cell_ref in merged_range:
+                return merged_range.start_cell.coordinate
+        return cell_ref
+
     def export_to_excel(self, instance_id):
         instance = ReportInstance.query.get(instance_id)
         if not instance:
@@ -34,7 +42,7 @@ class ReportExporter:
 
         ws = wb.active
 
-        # Ghi metadata cơ bản
+        # Ghi metadata cơ bản vào vùng an toàn
         ws['A1'] = 'BÁO CÁO XUẤT TỪ HỆ THỐNG'
         ws['A2'] = f'Đơn vị: {instance.org_unit}'
         ws['A3'] = f'Kỳ báo cáo: {instance.period.name}'
@@ -50,16 +58,24 @@ class ReportExporter:
             if not field.excel_cell_ref:
                 continue
 
-            # Hỗ trợ cả dạng đầy đủ (VD: C12) hoặc chỉ cột (VD: C -> row mặc định 12)
             cell_ref = str(field.excel_cell_ref).strip()
             if any(char.isdigit() for char in cell_ref):
                 target_cell = cell_ref
             else:
                 target_cell = f"{cell_ref}12"
 
-            ws[target_cell] = raw_value
+            # Tránh lỗi khi target_cell nằm trong merged cell không phải ô gốc
+            target_cell = self._resolve_target_cell(ws, target_cell)
+
+            try:
+                ws[target_cell] = raw_value
+            except Exception:
+                # Nếu vẫn lỗi thì bỏ qua trường để không làm hỏng toàn bộ export
+                continue
 
         # Ghi thêm sheet dữ liệu chi tiết để dễ kiểm tra
+        if 'DuLieuHeThong' in wb.sheetnames:
+            del wb['DuLieuHeThong']
         detail_ws = wb.create_sheet('DuLieuHeThong')
         detail_ws.append(['Mã trường', 'Tên trường', 'Giá trị'])
         for field in sorted(fields, key=lambda x: x.display_order or 0):

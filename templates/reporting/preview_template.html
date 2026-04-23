@@ -1,51 +1,90 @@
 {% extends "base.html" %}
 
-{% block title %}Xem biểu mẫu - {{ template.name }}{% endblock %}
+{% block title %}Xem biểu mẫu Excel - {{ template.name }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid mt-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-      <h3 class="mb-1"><i class="bi bi-file-earmark-spreadsheet"></i> Xem biểu mẫu trực tiếp</h3>
-      <p class="text-muted mb-0">{{ template.name }} | Phiên bản {{ version.version_number }}</p>
+      <h3 class="mb-1"><i class="bi bi-file-earmark-spreadsheet"></i> Xem biểu mẫu Excel trực quan</h3>
+      <p class="text-muted mb-0">{{ template.name }} | Sheet: {{ sheet_title }}</p>
     </div>
     <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-secondary">
       <i class="bi bi-arrow-left"></i> Quay lại
     </a>
   </div>
 
-  {% for section_name, fields in schema.sections.items() %}
-  <div class="card mb-3 shadow-sm">
-    <div class="card-header bg-light d-flex justify-content-between align-items-center">
-      <strong>{{ section_name }}</strong>
-      <span class="text-muted small">{{ fields|length }} trường</span>
-    </div>
-    <div class="card-body">
-      <div class="row g-3">
-        {% for field in fields %}
-        <div class="col-md-4">
-          <div class="border rounded p-3 h-100">
-            <div class="fw-semibold">{{ field.name }}</div>
-            <div class="small text-muted mt-1">Mã: <code>{{ field.code }}</code></div>
-            {% if field.excel_cell %}<div class="small text-muted">Ô Excel: {{ field.excel_cell }}</div>{% endif %}
-            <div class="mt-2 d-flex gap-2 flex-wrap">
-              {% if field.calculated %}
-                <span class="badge bg-secondary">Tính tự động</span>
-              {% elif field.readonly %}
-                <span class="badge bg-warning text-dark">Khóa nhập</span>
-              {% else %}
-                <span class="badge bg-success">Cho nhập</span>
-              {% endif %}
-              {% if field.hidden %}
-                <span class="badge bg-dark">Ẩn khỏi đơn vị</span>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
+  <div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    Đây là bản dựng giao diện Excel trên web (giữ merged cells, tiêu đề, định dạng cơ bản).
+  </div>
+
+  <div class="excel-frame">
+    <div class="excel-scroll">
+      <table class="excel-table">
+        <colgroup>
+          {% for width in col_widths %}
+          <col style="width: {{ width }}px;">
+          {% endfor %}
+        </colgroup>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            {% for cell in row %}
+            <td
+              {% if cell.rowspan > 1 %}rowspan="{{ cell.rowspan }}"{% endif %}
+              {% if cell.colspan > 1 %}colspan="{{ cell.colspan }}"{% endif %}
+              style="
+                text-align: {{ cell.align }};
+                vertical-align: {{ cell.valign }};
+                font-size: {{ cell.font_size }}px;
+                {% if cell.bold %}font-weight: 700;{% endif %}
+                {% if cell.italic %}font-style: italic;{% endif %}
+                {% if cell.bg_color %}background-color: {{ cell.bg_color }};{% endif %}
+              "
+            >
+              {{ cell.value }}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
-  {% endfor %}
 </div>
+
+<style>
+.excel-frame {
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.excel-scroll {
+  overflow: auto;
+  max-height: 76vh;
+}
+
+.excel-table {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+.excel-table td {
+  border: 1px solid #dfe2e6;
+  padding: 6px 8px;
+  min-height: 28px;
+  white-space: pre-wrap;
+  color: #111827;
+  background-clip: padding-box;
+}
+
+.excel-table tr:hover td {
+  background-color: rgba(59, 130, 246, 0.05);
+}
+</style>
 {% endblock %}

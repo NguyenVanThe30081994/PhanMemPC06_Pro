@@ -5,6 +5,9 @@ API endpoints và UI pages
 """
 from flask import Blueprint, render_template, request, session, redirect, url_for, jsonify, flash, send_file
 import json
+from io import BytesIO
+from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
 from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ReportInstance, ReportAuditLog
 from services.form_engine import FormEngine
 from utils import log_action
@@ -175,22 +178,87 @@ def history():
 
 @reporting_bp.route('/template/<int:template_id>/preview')
 def preview_template(template_id):
-    """Xem trực tiếp biểu mẫu trên web"""
+    """Xem trực tiếp biểu mẫu Excel trên web"""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
 
     template = FormTemplate.query.get_or_404(template_id)
-    version = FormVersion.query.filter_by(
-        template_id=template_id,
-        is_published=True
-    ).order_by(FormVersion.created_at.desc()).first()
 
-    if not version:
-        flash('Mẫu biểu chưa có phiên bản published.', 'warning')
+    if not template.excel_template_blob:
+        flash('Mẫu biểu chưa có file Excel gốc để xem trực quan.', 'warning')
         return redirect(url_for('reporting_bp.index'))
 
-    schema = form_engine.get_form_schema(version.id)
-    return render_template('reporting/preview_template.html', template=template, version=version, schema=schema)
+    try:
+        wb = load_workbook(BytesIO(template.excel_template_blob), data_only=False)
+        ws = wb.active
+
+        merged_map = {}
+        covered_cells = set()
+        for merged_range in ws.merged_cells.ranges:
+            min_col, min_row, max_col, max_row = merged_range.bounds
+            top_left = (min_row, min_col)
+            merged_map[top_left] = {
+                'rowspan': max_row - min_row + 1,
+                'colspan': max_col - min_col + 1,
+            }
+            for r in range(min_row, max_row + 1):
+                for c in range(min_col, max_col + 1):
+                    if (r, c) != top_left:
+                        covered_cells.add((r, c))
+
+        max_row = min(ws.max_row or 1, 120)
+        max_col = min(ws.max_column or 1, 40)
+
+        col_widths = []
+        for col_idx in range(1, max_col + 1):
+            letter = get_column_letter(col_idx)
+            width = ws.column_dimensions[letter].width
+            px = int((width or 10) * 7)
+            col_widths.append(max(px, 60))
+
+        rows = []
+        for r in range(1, max_row + 1):
+            row_cells = []
+            for c in range(1, max_col + 1):
+                if (r, c) in covered_cells:
+                    continue
+
+                cell = ws.cell(row=r, column=c)
+                merge_info = merged_map.get((r, c), {'rowspan': 1, 'colspan': 1})
+
+                style = cell._style
+                font = style.font
+                fill = style.fill
+                alignment = style.alignment
+
+                bg_color = None
+                if fill and fill.fill_type and fill.fgColor and fill.fgColor.type == 'rgb' and fill.fgColor.rgb:
+                    rgb = fill.fgColor.rgb[-6:]
+                    bg_color = f"#{rgb}"
+
+                row_cells.append({
+                    'value': '' if cell.value is None else str(cell.value),
+                    'rowspan': merge_info['rowspan'],
+                    'colspan': merge_info['colspan'],
+                    'bold': bool(font and font.bold),
+                    'italic': bool(font and font.italic),
+                    'font_size': int(font.sz) if font and font.sz else 12,
+                    'align': alignment.horizontal if alignment and alignment.horizontal else 'left',
+                    'valign': alignment.vertical if alignment and alignment.vertical else 'middle',
+                    'bg_color': bg_color,
+                })
+            rows.append(row_cells)
+
+        return render_template(
+            'reporting/preview_template.html',
+            template=template,
+            sheet_title=ws.title,
+            rows=rows,
+            col_widths=col_widths
+        )
+    except Exception as e:
+        flash(f'Không thể hiển thị preview Excel: {e}', 'danger')
+        return redirect(url_for('reporting_bp.index'))
 
 
 @reporting_bp.route('/template/<int:template_id>/field-settings', methods=['GET', 'POST'])
