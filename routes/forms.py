@@ -726,7 +726,7 @@ def stats_export():
             
             # Load template and merge data
             try:
-                wb = opx.load_workbook(BytesIO(version.excel_file_blob))
+                wb = opx.load_workbook(BytesIO(version.excel_file_blob), rich_text=True)
                 ws = wb.active
                 
                 # Create a map for sheet lookups without modifying the workbook
@@ -769,7 +769,7 @@ def stats_export():
             
             try:
                 # Load template
-                wb = opx.load_workbook(BytesIO(config.file_blob))
+                wb = opx.load_workbook(BytesIO(config.file_blob), rich_text=True)
                 ws = wb.active
                 
                 # (Removed global normalization to preserve template fonts)
