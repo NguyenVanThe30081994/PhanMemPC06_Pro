@@ -239,13 +239,18 @@ def build_stats_table_html(file_blob, config, submissions):
         return Markup('<p class="text-muted">Không có file Excel gốc.</p>')
 
     try:
-        wb = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=True)
-        ws = wb.active
+        # Load workbook 2 lần:
+        # wb_formula: để lấy định dạng, merged cells (data_only=False)
+        # wb_values: để lấy giá trị hiển thị/kết quả công thức (data_only=True)
+        wb_formula = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=False)
+        wb_values = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=True)
+        ws = wb_formula.active
+        ws_values = wb_values.active
     except Exception as e:
         return Markup(f'<p class="text-danger">Lỗi đọc file Excel: {e}</p>')
 
-    header_start = config.header_start_row or 1
-    header_rows = config.header_row_count or 1
+    header_start = config.header_start or 1
+    header_rows = config.header_rows or 1
     header_end = header_start + header_rows - 1
 
     from pc06_excel_engine import ExcelEngineV2
@@ -296,9 +301,10 @@ def build_stats_table_html(file_blob, config, submissions):
         for c in range(min_col, max_col + 1):
             if (r, c) in shadows: continue
             cell = ws.cell(row=r, column=c)
+            cell_values = ws_values.cell(row=r, column=c)
             rowspan, colspan = spans.get((r, c), (1, 1))
             css = _cell_css(cell)
-            val = cell.value
+            val = cell_values.value # Ưu tiên giá trị hiển thị từ wb_values
             if matched_sub and r > header_end:
                 is_field = any(f['idx'] == c for f in fields)
                 if is_field: val = matched_sub['values'].get(str(c), '')
@@ -323,13 +329,17 @@ def build_v2_stats_table_html(file_blob, metadata, all_values):
     """For V2 Stats: render the full Excel template structure."""
     if not file_blob: return Markup('<p class="text-muted">Không có file Excel gốc.</p>')
     try:
-        wb = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=True)
+        wb_formula = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=False)
+        wb_values = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=True)
     except Exception as e:
         return Markup(f'<p class="text-danger">Lỗi đọc file Excel: {e}</p>')
+
+    wb = wb_formula
 
     sheets_html = []
     from pc06_excel_engine import ExcelEngineV2
     for ws in wb.worksheets:
+        ws_values = wb_values[ws.title] if ws.title in wb_values.sheetnames else ws
         sheet_meta = next((s for s in metadata.get('sheets', []) if s['name'] == ws.title), None)
         if sheet_meta:
             region = sheet_meta.get('activeRenderRegion', {})
@@ -358,13 +368,14 @@ def build_v2_stats_table_html(file_blob, metadata, all_values):
             for c in range(min_col, max_col + 1):
                 if (r, c) in shadows: continue
                 cell = ws.cell(row=r, column=c)
+                cell_values = ws_values.cell(row=r, column=c)
                 rowspan, colspan = spans.get((r, c), (1, 1))
                 css = _cell_css(cell)
                 coord = cell.coordinate
                 full_key = f"{ws.title}!{coord}"
                 val = all_values.get(full_key, all_values.get(coord))
                 if val is None:
-                    val = cell.value if cell.value is not None and not str(cell.value).startswith('=') else ''
+                    val = cell_values.value if cell_values.value is not None else ''
                 display = _fmt_val(val)
                 rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
                 cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
