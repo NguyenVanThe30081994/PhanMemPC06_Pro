@@ -17,32 +17,28 @@ from openpyxl.utils import get_column_letter
 import unicodedata
 
 
-def _fmt_val(val, cell=None):
-    """Format value for display: 5.0 → '5', 3.14 → '3.14', 1234.5 → '1234.5', None → ''"""
-    if val is None or val == '':
+def _fmt_val(val):
+    """Format value for display: 5.0 → '5', 3.14 → '3.14', 74843.87999999999 → '74843.88', None → ''"""
+    if val is None:
         return ''
-    
-    try:
-        # Try to treat as a number
-        if isinstance(val, str):
-            # Remove commas if any (from potential previous bad formatting or input)
-            clean_val = val.replace(',', '').strip()
-            fval = float(clean_val)
-        else:
-            fval = float(val)
-            
-        # Round to avoid floating point noise
-        fval = round(fval, 10)
-        
-        # Check if it's an integer
-        if fval == int(fval):
-            return str(int(fval))
-            
-        # For decimals, limit to 6 decimal places and remove trailing zeros
-        # Use '.' as decimal separator (standard digital format)
-        return "{:.6f}".format(fval).rstrip('0').rstrip('.')
-    except (ValueError, TypeError):
-        return str(val).strip()
+    if isinstance(val, str):
+        val = val.strip()
+        if '.' in val:
+            try:
+                fval = float(val)
+                fval = round(fval, 10)
+                if fval == int(fval): 
+                    return str(int(fval))
+                return f"{fval:.6f}".rstrip('0').rstrip('.')
+            except ValueError:
+                pass
+        return val
+    if isinstance(val, float):
+        val = round(val, 10)
+        if val == int(val):
+            return str(int(val))
+        return f"{val:.6f}".rstrip('0').rstrip('.')
+    return str(val)
 
 
 def _normalize_nfc(value):
@@ -407,7 +403,7 @@ def build_stats_table_html(file_blob, config, submissions):
                     val = matched_sub['values'].get(str(c), '')
 
             # Display values as-is from database
-            display = _fmt_val(val, cell)
+            display = _fmt_val(val)
 
             rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
             cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
@@ -514,7 +510,7 @@ def build_v2_stats_table_html(file_blob, metadata, all_values):
                     # Fallback to template value (skip raw formulas, but keep calculated results or labels)
                     val = cell.value if cell.value is not None and not str(cell.value).startswith('=') else ''
 
-                display = _fmt_val(val, cell)
+                display = _fmt_val(val)
                 rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
                 cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
 
