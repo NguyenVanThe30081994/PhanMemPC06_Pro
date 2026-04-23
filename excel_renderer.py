@@ -18,32 +18,32 @@ import unicodedata
 
 
 def _fmt_val(val):
-    """Format value for display: Preserve original numeric precision without forced rounding."""
-    if val is None:
+    """
+    Format value for display: 
+    - Removes floating point noise (e.g., 3441.6000000000004 -> 3441.6)
+    - Shows integers as integers (e.g., 525.0 -> 525)
+    - Preserves up to 10 decimal places for precision
+    """
+    if val is None or val == '':
         return ''
     
-    # If it's a number (int or float)
-    if isinstance(val, (int, float)):
-        # Check if it's effectively an integer (e.g. 5.0 -> 5)
-        if val == int(val):
-            return str(int(val))
-        # Otherwise return as string to preserve original decimals
-        return str(val)
+    try:
+        # Convert to float to handle numeric operations
+        fval = float(val)
         
-    # If it's a string, try to clean it but preserve precision if it represents a number
-    if isinstance(val, str):
-        val = val.strip()
-        if not val: return ''
-        try:
-            # Check if it's a valid number string
-            fval = float(val)
-            if fval == int(fval):
-                return str(int(fval))
-            return str(fval)
-        except ValueError:
-            return val
+        # 1. Round to 10 decimals to eliminate binary floating point noise
+        fval = round(fval, 10)
+        
+        # 2. Check if it's effectively an integer
+        if fval == int(fval):
+            return str(int(fval))
             
-    return str(val)
+        # 3. Format as float and strip trailing zeros
+        # Use 10 decimal places as maximum precision
+        return "{:.10f}".format(fval).rstrip('0').rstrip('.')
+    except (ValueError, TypeError):
+        # If not a number, return as-is
+        return str(val).strip()
 
 
 def _normalize_nfc(value):
