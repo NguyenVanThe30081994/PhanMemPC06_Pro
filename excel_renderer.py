@@ -19,31 +19,12 @@ import unicodedata
 
 def _fmt_val(val):
     """
-    Format value for display: 
-    - Removes floating point noise (e.g., 3441.6000000000004 -> 3441.6)
-    - Shows integers as integers (e.g., 525.0 -> 525)
-    - Preserves up to 10 decimal places for precision
+    Format value for display: Purely convert to string to preserve original Excel value.
+    This was the original 'perfect' state of V2.
     """
     if val is None or val == '':
         return ''
-    
-    try:
-        # Convert to float to handle numeric operations
-        fval = float(val)
-        
-        # 1. Round to 10 decimals to eliminate binary floating point noise
-        fval = round(fval, 10)
-        
-        # 2. Check if it's effectively an integer
-        if fval == int(fval):
-            return str(int(fval))
-            
-        # 3. Format as float and strip trailing zeros
-        # Use 10 decimal places as maximum precision
-        return "{:.10f}".format(fval).rstrip('0').rstrip('.')
-    except (ValueError, TypeError):
-        # If not a number, return as-is
-        return str(val).strip()
+    return str(val).strip()
 
 
 def _normalize_nfc(value):
