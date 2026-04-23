@@ -776,7 +776,7 @@ def stats_export():
                 wb = opx.load_workbook(BytesIO(config.file_blob))
                 ws = wb.active
                 
-                # Normalize workbook
+                # Normalize workbook content to NFC
                 for sheet in wb.worksheets:
                     sheet.title = _normalize_nfc(sheet.title)
                     for row in sheet.iter_rows():
@@ -809,14 +809,30 @@ def stats_export():
                 # Data mapping logic
                 data_start_row = getattr(config, 'header_start', 1) + getattr(config, 'header_rows', 1)
                 
+                # Import robust matching helpers from utils if available, else use localized version
+                try:
+                    from utils import is_unit_match
+                except:
+                    def is_unit_match(n1, n2):
+                        def _clean(s):
+                            if not s: return ""
+                            import unicodedata
+                            s = unicodedata.normalize('NFKD', str(s)).encode('ascii', 'ignore').decode('utf-8').lower()
+                            return re.sub(r'\s+', '', s)
+                        return _clean(n1) == _clean(n2)
+
                 for unit_name, data in unit_data.items():
                     # Find unit row - search column A (1) from data_start_row
                     target_row = None
-                    norm_unit = _normalize_nfc(unit_name).lower().strip()
                     
                     for r in range(data_start_row, ws.max_row + 1):
                         cell_val = ws.cell(r, 1).value
                         if cell_val:
+                            if is_unit_match(unit_name, cell_val):
+                                target_row = r
+                                break
+                            # Fallback to partial match if exact match fails
+                            norm_unit = _normalize_nfc(unit_name).lower().strip()
                             norm_cell = _normalize_nfc(cell_val).lower().strip()
                             if norm_unit in norm_cell or norm_cell in norm_unit:
                                 target_row = r
@@ -828,11 +844,12 @@ def stats_export():
                             if not col_idx: continue
                             
                             val = data.get(str(col_idx), '')
-                            if val:
+                            if val is not None and val != '':
                                 try:
                                     # Try to convert to number if it looks like one
-                                    if f.get('type') == 'number' or str(val).replace('.','',1).isdigit():
-                                        ws.cell(target_row, col_idx).value = float(val)
+                                    clean_val = str(val).replace(',','.').strip()
+                                    if f.get('type') == 'number' or (clean_val and clean_val.replace('.','',1).isdigit()):
+                                        ws.cell(target_row, col_idx).value = float(clean_val)
                                     else:
                                         ws.cell(target_row, col_idx).value = _normalize_nfc(val)
                                 except:
