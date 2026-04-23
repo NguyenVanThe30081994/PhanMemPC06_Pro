@@ -724,36 +724,32 @@ def stats_export():
             if not version or not version.excel_file_blob:
                 return "No published version", 400
             
-            # Load template and merge data
-            try:
-                wb = opx.load_workbook(BytesIO(version.excel_file_blob))
-                ws = wb.active
-                
-                # Normalize workbook
-                for sheet in wb.worksheets:
-                    sheet.title = _normalize_nfc(sheet.title)
-                    for row in sheet.iter_rows():
-                        for cell in row:
-                            if isinstance(cell.value, str):
-                                cell.value = _normalize_nfc(cell.value)
-                
-                # Get all submissions for this version
-                subs = ReportSubmissionV2.query.filter_by(version_id=version.id).all()
-                
-                # Merge data from each submission
-                for sub in subs:
-                    for val in sub.values:
-                        key = str(val.cell_key or '').strip()
-                        if '!' in key:
-                            sheet_name, coord = key.split('!', 1)
-                            target_ws = wb[sheet_name] if sheet_name in wb.sheetnames else ws
-                        else:
-                            coord = key
-                            target_ws = ws
-                        try:
-                            target_ws[coord].value = _normalize_nfc(val.value)
-                        except:
-                            pass
+                # Load template and merge data
+                try:
+                    wb = opx.load_workbook(BytesIO(version.excel_file_blob))
+                    ws = wb.active
+                    
+                    # Create a map for sheet lookups without modifying the workbook
+                    sheet_map = { _normalize_nfc(s.title): s for s in wb.worksheets }
+                    
+                    # Get all submissions for this version
+                    subs = ReportSubmissionV2.query.filter_by(version_id=version.id).all()
+                    
+                    # Merge data from each submission
+                    for sub in subs:
+                        for val in sub.values:
+                            key = str(val.cell_key or '').strip()
+                            if '!' in key:
+                                sheet_name, coord = key.split('!', 1)
+                                norm_sheet_name = _normalize_nfc(sheet_name)
+                                target_ws = sheet_map.get(norm_sheet_name, ws)
+                            else:
+                                coord = key
+                                target_ws = ws
+                            try:
+                                target_ws[coord].value = _normalize_nfc(val.value)
+                            except:
+                                pass
                 
                 output = BytesIO()
                 wb.save(output)
@@ -771,18 +767,12 @@ def stats_export():
             if not config.file_blob:
                 return "No template file", 404
             
-            try:
-                # Load template
-                wb = opx.load_workbook(BytesIO(config.file_blob))
-                ws = wb.active
-                
-                # Normalize workbook content to NFC
-                for sheet in wb.worksheets:
-                    sheet.title = _normalize_nfc(sheet.title)
-                    for row in sheet.iter_rows():
-                        for cell in row:
-                            if isinstance(cell.value, str):
-                                cell.value = _normalize_nfc(cell.value)
+                try:
+                    # Load template
+                    wb = opx.load_workbook(BytesIO(config.file_blob))
+                    ws = wb.active
+                    
+                    # (Removed global normalization to preserve template fonts)
                 
                 # Get fields config
                 try:
@@ -817,26 +807,38 @@ def stats_export():
                         def _clean(s):
                             if not s: return ""
                             import unicodedata
+                            # Strip accents and common prefixes for comparison
                             s = unicodedata.normalize('NFKD', str(s)).encode('ascii', 'ignore').decode('utf-8').lower()
-                            return re.sub(r'\s+', '', s)
-                        return _clean(n1) == _clean(n2)
+                            for p in ["xa", "phuong", "thi tran", "huyen", "thanh pho", "cong an", "ubnd"]:
+                                s = re.sub(r'\b' + p + r'\b', '', s)
+                            return re.sub(r'[^a-z0-9]', '', s)
+                        c1 = _clean(n1)
+                        c2 = _clean(n2)
+                        return c1 == c2 and c1 != ''
 
                 for unit_name, data in unit_data.items():
-                    # Find unit row - search column A (1) from data_start_row
+                    # Find unit row - search column A (1) AND B (2) from data_start_row
                     target_row = None
                     
                     for r in range(data_start_row, ws.max_row + 1):
-                        cell_val = ws.cell(r, 1).value
-                        if cell_val:
+                        found = False
+                        for c_idx in [1, 2]: # Check STT and Unit Name columns
+                            cell_val = ws.cell(r, c_idx).value
+                            if not cell_val: continue
+                            
                             if is_unit_match(unit_name, cell_val):
                                 target_row = r
+                                found = True
                                 break
+                            
                             # Fallback to partial match if exact match fails
                             norm_unit = _normalize_nfc(unit_name).lower().strip()
-                            norm_cell = _normalize_nfc(cell_val).lower().strip()
+                            norm_cell = _normalize_nfc(str(cell_val)).lower().strip()
                             if norm_unit in norm_cell or norm_cell in norm_unit:
                                 target_row = r
+                                found = True
                                 break
+                        if found: break
                     
                     if target_row:
                         for f in fields:
@@ -866,7 +868,7 @@ def stats_export():
                 return f"Error merging V1 data: {str(e)} - {traceback.format_exc()}", 500
             
         from flask import Response
-        response = Response(content, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=utf-8")
+        response = Response(content, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         # Ensure filename is safe for header
         safe_filename = "".join([c if c.isalnum() or c in '._-' else '_' for c in filename])
         response.headers["Content-Disposition"] = f'attachment; filename="{safe_filename}"'
