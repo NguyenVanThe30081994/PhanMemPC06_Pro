@@ -133,6 +133,45 @@ def slugify_unit(name):
     n = re.sub(r'[^a-z0-9]', '', n)
     return n
 
+def normalize_unit_key(unit_name):
+    """
+    Chuẩn hóa tên đơn vị thành key duy nhất.
+    
+    Xử lý:
+    - Loại bỏ dấu tiếng Việt (NFD decomposition)
+    - Chuyển thành chữ thường
+    - Normalize khoảng trắng
+    
+    Ví dụ:
+    - "Phòng Kế Hoạch" → "phong ke hoach"
+    - "phòng kế hoạch" → "phong ke hoach"
+    - "PK" → "pk"
+    - "Đơn Vị A" → "don vi a"
+    
+    Dùng cho: V1 data flow - unit matching
+    """
+    if not unit_name:
+        return ""
+    
+    import unicodedata
+    
+    # 0. Convert to string and lowercase
+    key = str(unit_name).lower().strip()
+    
+    # 1. Handle special Vietnamese character Đ/đ → d
+    key = key.replace('đ', 'd')
+    
+    # 2. Loại bỏ dấu tiếng Việt (NFD decomposition)
+    nfc = unicodedata.normalize('NFD', key)
+    key = ''.join(c for c in nfc if unicodedata.category(c) != 'Mn')
+    
+    # 3. Normalize khoảng trắng (multiple spaces → single space)
+    key = ' '.join(key.split())
+    
+    return key
+
+
+
 def apply_migrations(app):
     with app.app_context():
         db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')

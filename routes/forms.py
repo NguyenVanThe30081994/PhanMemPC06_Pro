@@ -254,16 +254,28 @@ def input_data():
             # Check if this user already submitted today (if it's a daily report)
             if active.is_daily:
                 today = datetime.now().date()
-                exists = ReportData.query.filter_by(report_id=rid, user_id=session['uid'], report_date=today).first()
+                exists = ReportData.query.filter_by(report_id=rid, user_id=session['uid'], report_date=today, is_latest=True).first()
                 if exists:
                     flash('Bạn đã gửi báo cáo này trong hôm nay rồi!', 'warning')
                     return redirect(url_for('forms_bp.input_data', rid=rid))
 
+            # Mark old records as not latest
+            old_records = ReportData.query.filter_by(
+                report_id=rid,
+                user_id=session['uid'],
+                is_latest=True
+            ).all()
+            
+            for old in old_records:
+                old.is_latest = False
+
+            # Insert new record with is_latest=True
             new_entry = ReportData(
                 report_id=rid, 
                 user_id=session['uid'], 
                 data_json=json.dumps(data, ensure_ascii=False), 
-                report_date=datetime.now().date()
+                report_date=datetime.now().date(),
+                is_latest=True  # NEW: Mark as latest
             )
             db.session.add(new_entry)
             db.session.commit()
@@ -273,7 +285,8 @@ def input_data():
             db.session.rollback()
             flash(f'Lỗi khi lưu dữ liệu: {e}', 'danger')
             
-        return redirect(url_for('forms_bp.input_data', rid=rid))
+        return redirect(url_for('forms_bp.stats', rid=rid, refresh=1))  # NEW: Redirect with refresh flag
+
         
     return render_template('input.html', configs=configs, v2_templates=v2_templates, active=active, fields=fields, form_type=form_type)
 
@@ -376,8 +389,8 @@ def stats():
 
                 raw_query = (db.session.query(ReportData, User)
                        .join(User, ReportData.user_id == User.id)
-                       .filter(ReportData.report_id == rid)
-                       .order_by(ReportData.report_date.desc(), User.unit_area))
+                       .filter(ReportData.report_id == rid, ReportData.is_latest == True)  # NEW: Only latest
+                       .order_by(User.unit_area))
 
                 if not is_lead:
                     raw_query = raw_query.filter(User.unit_area == user_unit)
@@ -389,8 +402,11 @@ def stats():
                     try: data = json.loads(entry.data_json or '{}')
                     except Exception: data = {}
                     unit = user.unit_area or user.fullname
+                    from utils import normalize_unit_key  # NEW: Import
+                    unit_key = normalize_unit_key(unit)  # NEW: Normalize key
                     row = {
                         'unit': unit,
+                        'unit_key': unit_key,  # NEW: Add normalized key
                         'sender': user.fullname,
                         'date': entry.report_date.strftime('%d/%m/%Y') if entry.report_date else '—',
                         'values': {str(f['idx']): data.get(str(f['idx']), '') for f in fields}

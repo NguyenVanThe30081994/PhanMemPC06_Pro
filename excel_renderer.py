@@ -327,8 +327,14 @@ def build_stats_table_html(file_blob, config, submissions):
     try: fields = json.loads(config.config_json or '[]')
     except: fields = []
 
-    unit_map = {sub.get('unit'): sub for sub in submissions}
-    unit_map_lower = {str(k).strip().lower(): v for k, v in unit_map.items() if k}
+    # Build unit map with normalized keys
+    from utils import normalize_unit_key  # NEW: Import
+    unit_map = {}
+    for sub in submissions:
+        unit_key = sub.get('unit_key') or normalize_unit_key(sub.get('unit', ''))
+        unit_map[unit_key] = sub
+    
+    unit_map_lower = {k.lower(): v for k, v in unit_map.items()}
     unit_names_lower = sorted(list(unit_map_lower.keys()), key=len, reverse=True)
 
     spans, shadows = _build_merge_lookup(ws)
@@ -343,18 +349,21 @@ def build_stats_table_html(file_blob, config, submissions):
     col_parts.append('</colgroup>')
 
     rows_html = []
-    from utils import is_unit_match
     for r in range(render_start_row, max_row + 1):
         if ws.row_dimensions[r].hidden: continue
         
         matched_sub = None
+        # Try to match unit in this row using normalized keys
         for name in unit_names_lower:
             found_match = False
             for c_check in range(min_col, max_col + 1):
                 cell_v = ws.cell(row=r, column=c_check).value
-                if cell_v and is_unit_match(name, str(cell_v)):
-                    found_match = True
-                    break
+                if cell_v:
+                    cell_key = normalize_unit_key(str(cell_v))  # NEW: Normalize cell value
+                    if cell_key == name:  # NEW: Exact match with normalized key
+                        found_match = True
+                        break
+            
             if found_match:
                 matched_sub = unit_map_lower[name]
                 break
