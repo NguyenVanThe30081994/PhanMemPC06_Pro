@@ -140,37 +140,37 @@ def seed_reporting_data():
             # Danh sách fields theo cấu trúc Excel
             fields_config = [
                 # Lưới địa chính
-                {'code': 'luoi_chi_tieu', 'name': 'Lưới địa chính - Chỉ tiêu', 'type': 'number', 'section': 'Lưới địa chính', 'cell': 'C', 'order': 1},
+                {'code': 'luoi_chi_tieu', 'name': 'Lưới địa chính - Chỉ tiêu', 'type': 'number', 'section': 'Lưới địa chính', 'cell': 'C', 'order': 1, 'readonly': True},
                 {'code': 'luoi_ket_qua', 'name': 'Lưới địa chính - Kết quả ngày', 'type': 'number', 'section': 'Lưới địa chính', 'cell': 'D', 'order': 2},
                 {'code': 'luoi_ti_le', 'name': 'Lưới địa chính - Tỉ lệ hoàn thành', 'type': 'number', 'section': 'Lưới địa chính', 'cell': 'E', 'order': 3, 'calculated': True, 'formula': '(luoi_ket_qua / luoi_chi_tieu) * 100'},
                 
                 # Đo đạc lập mới
-                {'code': 'do_dac_moi_chi_tieu', 'name': 'Đo đạc lập mới - Chỉ tiêu (ha)', 'type': 'number', 'section': 'Đo đạc lập mới', 'cell': 'F', 'order': 4},
+                {'code': 'do_dac_moi_chi_tieu', 'name': 'Đo đạc lập mới - Chỉ tiêu (ha)', 'type': 'number', 'section': 'Đo đạc lập mới', 'cell': 'F', 'order': 4, 'readonly': True},
                 {'code': 'do_dac_moi_ket_qua', 'name': 'Đo đạc lập mới - Kết quả ngày (ha)', 'type': 'number', 'section': 'Đo đạc lập mới', 'cell': 'G', 'order': 5},
                 {'code': 'do_dac_moi_ti_le', 'name': 'Đo đạc lập mới - Tỉ lệ hoàn thành', 'type': 'number', 'section': 'Đo đạc lập mới', 'cell': 'H', 'order': 6, 'calculated': True, 'formula': '(do_dac_moi_ket_qua / do_dac_moi_chi_tieu) * 100'},
                 
                 # Đo đạc chỉnh lý
-                {'code': 'chinh_ly_chi_tieu', 'name': 'Đo đạc chỉnh lý - Chỉ tiêu (ha/thửa)', 'type': 'number', 'section': 'Đo đạc chỉnh lý', 'cell': 'I', 'order': 7},
+                {'code': 'chinh_ly_chi_tieu', 'name': 'Đo đạc chỉnh lý - Chỉ tiêu (ha/thửa)', 'type': 'number', 'section': 'Đo đạc chỉnh lý', 'cell': 'I', 'order': 7, 'readonly': True},
                 {'code': 'chinh_ly_ket_qua', 'name': 'Đo đạc chỉnh lý - Kết quả ngày (ha/thửa)', 'type': 'number', 'section': 'Đo đạc chỉnh lý', 'cell': 'J', 'order': 8},
                 {'code': 'chinh_ly_ti_le', 'name': 'Đo đạc chỉnh lý - Tỉ lệ hoàn thành', 'type': 'number', 'section': 'Đo đạc chỉnh lý', 'cell': 'K', 'order': 9, 'calculated': True, 'formula': '(chinh_ly_ket_qua / chinh_ly_chi_tieu) * 100'},
                 
                 # Cấp mới GCN
-                {'code': 'cap_moi_chi_tieu', 'name': 'Cấp mới GCN - Chỉ tiêu (số thửa)', 'type': 'number', 'section': 'Cấp mới GCN', 'cell': 'L', 'order': 10},
+                {'code': 'cap_moi_chi_tieu', 'name': 'Cấp mới GCN - Chỉ tiêu (số thửa)', 'type': 'number', 'section': 'Cấp mới GCN', 'cell': 'L', 'order': 10, 'readonly': True},
                 {'code': 'cap_moi_ket_qua', 'name': 'Cấp mới GCN - Kết quả ngày (số thửa)', 'type': 'number', 'section': 'Cấp mới GCN', 'cell': 'M', 'order': 11},
                 {'code': 'cap_moi_ti_le', 'name': 'Cấp mới GCN - Tỉ lệ hoàn thành', 'type': 'number', 'section': 'Cấp mới GCN', 'cell': 'N', 'order': 12, 'calculated': True, 'formula': '(cap_moi_ket_qua / cap_moi_chi_tieu) * 100'},
                 
                 # Cấp đổi GCN
-                {'code': 'cap_doi_chi_tieu', 'name': 'Cấp đổi GCN - Chỉ tiêu (số thửa)', 'type': 'number', 'section': 'Cấp đổi GCN', 'cell': 'O', 'order': 13},
+                {'code': 'cap_doi_chi_tieu', 'name': 'Cấp đổi GCN - Chỉ tiêu (số thửa)', 'type': 'number', 'section': 'Cấp đổi GCN', 'cell': 'O', 'order': 13, 'readonly': True},
                 {'code': 'cap_doi_ket_qua', 'name': 'Cấp đổi GCN - Kết quả ngày (số thửa)', 'type': 'number', 'section': 'Cấp đổi GCN', 'cell': 'P', 'order': 14},
                 {'code': 'cap_doi_ti_le', 'name': 'Cấp đổi GCN - Tỉ lệ hoàn thành', 'type': 'number', 'section': 'Cấp đổi GCN', 'cell': 'Q', 'order': 15, 'calculated': True, 'formula': '(cap_doi_ket_qua / cap_doi_chi_tieu) * 100'},
                 
                 # Xây dựng mới CSDL
-                {'code': 'xd_moi_chi_tieu', 'name': 'Xây dựng mới CSDL - Chỉ tiêu', 'type': 'number', 'section': 'Xây dựng mới CSDL', 'cell': 'R', 'order': 16},
+                {'code': 'xd_moi_chi_tieu', 'name': 'Xây dựng mới CSDL - Chỉ tiêu', 'type': 'number', 'section': 'Xây dựng mới CSDL', 'cell': 'R', 'order': 16, 'readonly': True},
                 {'code': 'xd_moi_ket_qua', 'name': 'Xây dựng mới CSDL - Kết quả ngày', 'type': 'number', 'section': 'Xây dựng mới CSDL', 'cell': 'S', 'order': 17},
                 {'code': 'xd_moi_ti_le', 'name': 'Xây dựng mới CSDL - Tỉ lệ hoàn thành', 'type': 'number', 'section': 'Xây dựng mới CSDL', 'cell': 'T', 'order': 18, 'calculated': True, 'formula': '(xd_moi_ket_qua / xd_moi_chi_tieu) * 100'},
                 
                 # Hoàn thiện CSDL
-                {'code': 'hoan_thien_chi_tieu', 'name': 'Hoàn thiện CSDL - Chỉ tiêu', 'type': 'number', 'section': 'Hoàn thiện CSDL', 'cell': 'U', 'order': 19},
+                {'code': 'hoan_thien_chi_tieu', 'name': 'Hoàn thiện CSDL - Chỉ tiêu', 'type': 'number', 'section': 'Hoàn thiện CSDL', 'cell': 'U', 'order': 19, 'readonly': True},
                 {'code': 'hoan_thien_ket_qua', 'name': 'Hoàn thiện CSDL - Kết quả ngày', 'type': 'number', 'section': 'Hoàn thiện CSDL', 'cell': 'V', 'order': 20},
                 {'code': 'hoan_thien_ti_le', 'name': 'Hoàn thiện CSDL - Tỉ lệ hoàn thành', 'type': 'number', 'section': 'Hoàn thiện CSDL', 'cell': 'W', 'order': 21, 'calculated': True, 'formula': '(hoan_thien_ket_qua / hoan_thien_chi_tieu) * 100'},
             ]
@@ -189,7 +189,7 @@ def seed_reporting_data():
                         field_type=field_cfg['type'],
                         data_type='decimal',
                         is_required=False,
-                        is_readonly=field_cfg.get('calculated', False),
+                        is_readonly=field_cfg.get('readonly', field_cfg.get('calculated', False)),
                         is_calculated=field_cfg.get('calculated', False),
                         calculation_formula=field_cfg.get('formula'),
                         display_order=field_cfg['order'],
@@ -197,6 +197,13 @@ def seed_reporting_data():
                         excel_cell_ref=field_cfg['cell']
                     )
                     db.session.add(field)
+                else:
+                    # Update existing field
+                    field.field_name = field_cfg['name']
+                    field.is_readonly = field_cfg.get('readonly', field_cfg.get('calculated', False))
+                    field.is_calculated = field_cfg.get('calculated', False)
+                    field.calculation_formula = field_cfg.get('formula')
+                    field.excel_cell_ref = field_cfg['cell']
             
             db.session.commit()
             print(f"   ✓ Đã tạo {len(fields_config)} trường dữ liệu")
