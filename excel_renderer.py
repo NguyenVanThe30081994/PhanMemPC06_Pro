@@ -28,17 +28,24 @@ def _fmt_val(val):
     Format value for display: 
     - Removes floating point noise (e.g., 3441.6000000000004 -> 3441.6)
     - Shows integers as integers (e.g., 525.0 -> 525)
+    - Uses comma (,) as decimal separator for Vietnamese standards
     """
     if val is None or val == '':
         return ''
     if isinstance(val, (int, float)):
         try:
+            # 1. Round to eliminate binary floating point noise
             fval = round(float(val), 10)
-            if fval == int(fval):
+            
+            # 2. If it's effectively an integer, show without decimals
+            if fval.is_integer():
                 return str(int(fval))
-            return "{:.10f}".format(fval).rstrip('0').rstrip('.')
+                
+            # 3. Format decimal and swap . with ,
+            formatted = "{:.10f}".format(fval).rstrip('0').rstrip('.')
+            return formatted.replace('.', ',')
         except:
-            return str(val)
+            return str(val).replace('.', ',')
     return str(val).strip()
 
 
@@ -254,7 +261,7 @@ def build_stats_table_html(file_blob, config, submissions):
     header_end = header_start + header_rows - 1
 
     from pc06_excel_engine import ExcelEngineV2
-    regions = ExcelEngineV2._detect_active_regions(wb, ws)
+    regions = ExcelEngineV2._detect_active_regions(wb_formula, ws)
     r_box = regions["report"]
     min_col, min_row, max_col, max_row = r_box[0], r_box[1], r_box[2], r_box[3]
     render_start_row = min(header_start, min_row)

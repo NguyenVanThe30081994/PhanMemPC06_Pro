@@ -54,15 +54,16 @@ def _format_cell_value(val, number_format=None):
             if '0.0' in fmt:
                 return f"{val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
             if '#' in fmt or '0' in fmt:
+                # Nếu định dạng Excel là số nguyên, làm tròn và bỏ phần thập phân
                 return f"{int(round(val)):,}".replace(',', '.')
                 
-        if val == int(val):
-            return str(int(val))
+        # Khử nhiễu số nhị phân
+        fval = round(float(val), 10)
+        if fval.is_integer():
+            return str(int(fval))
         
-        rounded = round(val, 4)
-        if rounded == int(rounded):
-            return str(int(rounded))
-        return str(rounded).rstrip('0').rstrip('.').replace('.', ',')
+        # Hiển thị số thập phân dùng dấu phẩy
+        return "{:.10f}".format(fval).rstrip('0').rstrip('.').replace('.', ',')
         
     return str(val)
 
