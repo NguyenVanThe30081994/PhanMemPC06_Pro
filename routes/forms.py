@@ -5,7 +5,7 @@ from models import db, ReportConfig, ReportData, User, ReportTemplateV2, ReportV
 import json, io, re
 from datetime import datetime
 from utils import remove_accents, log_action, render_auto_template as render_template
-
+from sqlalchemy.orm import load_only
 forms_bp = Blueprint('forms_bp', __name__)
 
 @forms_bp.route('/admin-forms', methods=['GET', 'POST'])
@@ -387,7 +387,7 @@ def stats():
                 except Exception:
                     fields = []
 
-from sqlalchemy.orm import load_only
+
 
                 def _build_v1_raw_query(use_is_latest=True):
                     q = (db.session.query(ReportData, User)
