@@ -387,22 +387,37 @@ def stats():
                 except Exception:
                     fields = []
 
-                raw_query = (db.session.query(ReportData, User)
-                       .join(User, ReportData.user_id == User.id)
-                       .filter(ReportData.report_id == rid)
-                       .order_by(User.unit_area))
-                
-                # Try to filter by is_latest if column exists
+                def _build_v1_raw_query(use_is_latest=True):
+                    q = (db.session.query(ReportData, User)
+                           .join(User, ReportData.user_id == User.id)
+                           .filter(ReportData.report_id == rid)
+                           .order_by(User.unit_area))
+                    if use_is_latest:
+                        q = q.filter(ReportData.is_latest == True)
+                    if not is_lead:
+                        q = q.filter(User.unit_area == user_unit)
+                    return q
+
+                # Try querying with is_latest filter. If the column doesn't
+                # exist in the DB yet (legacy schema / unmigrated production),
+                # fall back to a query without the filter so the page still works.
                 try:
-                    raw_query = raw_query.filter(ReportData.is_latest == True)
-                except:
-                    # Fallback: if is_latest column doesn't exist, just get all records
-                    pass
-
-                if not is_lead:
-                    raw_query = raw_query.filter(User.unit_area == user_unit)
-
-                raw = raw_query.all()
+                    raw = _build_v1_raw_query(use_is_latest=True).all()
+                except Exception as _exc:
+                    _msg = str(_exc).lower()
+                    if 'is_latest' in _msg or 'no such column' in _msg:
+                        try:
+                            db.session.rollback()
+                        except Exception:
+                            pass
+                        import logging
+                        logging.getLogger(__name__).warning(
+                            "ReportData.is_latest column missing — falling back. "
+                            "Run update_db.py on the server to apply the migration."
+                        )
+                        raw = _build_v1_raw_query(use_is_latest=False).all()
+                    else:
+                        raise
 
                 seen_units = {}
                 for entry, user in raw:

@@ -1,116 +1,187 @@
-# SUMMARY: Fix Lỗi Định Dạng Số - Numeric Formatting Fix
+# Fix Summary: is_latest Column Missing Error
 
-## ✓ Hoàn thành
+**Date**: 2026-04-23
+**Error**: `sqlite3.OperationalError: no such column: report_data.is_latest`
+**Status**: ✅ Code Fixed + Migration Script Ready
 
-Đã triển khai fix lỗi định dạng số theo hướng dẫn chi tiết từ file `đưa ra hướng dẫn xử lý chi tiết.md`.
+---
 
-## 📋 Thay đổi chính
+## 🔴 Root Cause
 
-### 1. Hàm mới: `format_excel_number(value, number_format)`
-**File:** `excel_renderer.py` (dòng 26-95)
+1. **Code was updated** in previous session to add `is_latest` column logic
+2. **Production database NOT migrated** - still has old schema without `is_latest` column
+3. **Previous fallback FAILED** - try/except was at wrong location (filter build vs query execution)
 
-Hàm này:
-- Đọc `number_format` từ ô Excel thay vì format chung
-- Xử lý 8 format phổ biến nhất:
-  - `0` → số nguyên (làm tròn)
-  - `0.0`, `0.00` → số thập phân
-  - `#,##0`, `#,##0.00` → phân tách hàng nghìn
-  - `0%`, `0.0%`, `0.00%` → phần trăm
-- Fallback an toàn cho format không nhận dạng
+---
 
-### 2. Cập nhật 3 vị trí gọi hàm
+## ✅ What Was Fixed
 
-| Hàm | Dòng | Thay đổi |
-|-----|------|---------|
-| `render_range_to_html` | 287 | `_fmt_val(raw_val)` → `format_excel_number(raw_val, cell.number_format)` |
-| `build_stats_table_html` | 378 | `_fmt_val(val)` → `format_excel_number(val, cell.number_format)` |
-| `build_v2_stats_table_html` | 445 | `_fmt_val(val)` → `format_excel_number(val, cell.number_format)` |
+### 1. Improved Fallback Logic in `routes/forms.py`
 
-### 3. Backward compatibility
-- `_fmt_val(val)` vẫn tồn tại, gọi `format_excel_number(val, None)`
-- Không break code cũ
+**Location**: Line 390-419 in `stats()` function
 
-## ✅ Test Results
+**Changes**:
+- Moved try/except from filter-building to query execution (`.all()`)
+- Created helper function `_build_v1_raw_query(use_is_latest=True)`
+- Catches `OperationalError` when column doesn't exist
+- Automatically falls back to query without `is_latest` filter
+- Logs warning message for debugging
 
-### Unit Tests (16/16 pass)
-```
-✓ Integer format: 491 → 491
-✓ Float to integer: 491.14 → 491
-✓ Two decimal places: 491.14 → 491.14
-✓ One decimal place: 491.1 → 491.1
-✓ Percentage: 0.5 → 50%
-✓ Percentage with 1 decimal: 0.125 → 12.5%
-✓ Percentage with 2 decimals: 0.1234 → 12.34%
-✓ Thousand separator: 1234.56 → 1,235
-✓ Thousand separator with decimals: 1234.56 → 1,234.56
-✓ Another integer: 543 → 543
-✓ Another float: 543.11 → 543.11
-✓ Large integer: 3441 → 3441
-✓ Large float: 3441.6 → 3441.6
-✓ None value: None → (empty)
-✓ Empty string: "" → (empty)
-✓ Text value: "text" → "text"
-```
+**Result**: 
+- ✅ Page will work even if database not migrated yet
+- ⚠️ May show duplicate/old data until migration is run
 
-### Integration Tests (8/8 pass)
-```
-✓ Cell A2: 491 (format: 0) → 491
-✓ Cell B2: 491.14 (format: 0.00) → 491.14
-✓ Cell C2: 0.5 (format: 0%) → 50%
-✓ Cell D2: 1234.56 (format: #,##0.00) → 1,234.56
-✓ Cell A3: 543 (format: 0) → 543
-✓ Cell B3: 543.11 (format: 0.00) → 543.11
-✓ Cell C3: 0.125 (format: 0.0%) → 12.5%
-✓ Cell D3: 3441.6 (format: 0.0) → 3441.6
-```
+### 2. Created Migration Script
 
-## 🎯 Kết quả
+**File**: `migrate_add_is_latest.py`
 
-### Trước fix
-- ❌ 491 hiển thị thành 491,14 (sai)
-- ❌ 543 hiển thị thành 543,11 (sai)
-- ❌ 3441 hiển thị thành 3441,6 (sai)
-- ❌ Mất định dạng gốc của ô Excel
+**Features**:
+- ✅ Checks if column already exists (idempotent)
+- ✅ Adds `is_latest BOOLEAN DEFAULT 1` column
+- ✅ Sets all existing records to `is_latest=1`
+- ✅ Verifies migration success
+- ✅ Detailed error messages
+- ✅ Safe to run multiple times
 
-### Sau fix
-- ✅ 491 hiển thị thành 491 (đúng)
-- ✅ 543 hiển thị thành 543 (đúng)
-- ✅ 3441 hiển thị thành 3441 (đúng)
-- ✅ Giữ đúng định dạng gốc của ô Excel
-- ✅ Hỗ trợ phần trăm, hàng nghìn, số thập phân
+### 3. Created Migration Instructions
 
-## 📁 Files liên quan
+**File**: `MIGRATION_INSTRUCTIONS.md`
 
-- `excel_renderer.py` - File chính (đã cập nhật)
-- `test_format_fix.py` - Unit test (16 test case)
-- `test_integration.py` - Integration test (8 test case)
-- `NUMERIC_FORMAT_FIX.md` - Tài liệu chi tiết
+Complete step-by-step guide in Vietnamese for running migration on production server.
 
-## 🚀 Cách kiểm thử
+---
 
-```bash
-# Unit test
-python3 test_format_fix.py
+## 📋 Action Items for Production
 
-# Integration test
-python3 test_integration.py
+### CRITICAL - Must Do:
 
-# Syntax check
-python3 -m py_compile excel_renderer.py
+1. **Upload migration script to server**
+   ```bash
+   scp migrate_add_is_latest.py dea35688@pc06tuyenquang.net:/home/dea35688/domains/pc06tuyenquang.net/public_html/PhanMemPC06_Pro/
+   ```
+
+2. **SSH into server**
+   ```bash
+   ssh dea35688@pc06tuyenquang.net
+   cd /home/dea35688/domains/pc06tuyenquang.net/public_html/PhanMemPC06_Pro/
+   ```
+
+3. **Run migration**
+   ```bash
+   python3 migrate_add_is_latest.py
+   ```
+
+4. **Restart application**
+   ```bash
+   touch tmp/restart.txt  # if using Passenger
+   # OR
+   sudo systemctl restart pc06_app  # if using systemd
+   ```
+
+5. **Verify fix**
+   - Visit `/stats?rid=1`
+   - Check logs for errors
+   - Confirm no more `is_latest` errors
+
+---
+
+## 🔍 Technical Details
+
+### Why Previous Fallback Failed
+
+**Old Code** (lines 395-400):
+```python
+try:
+    raw_query = raw_query.filter(ReportData.is_latest == True)
+except:
+    pass
 ```
 
-## 📝 Ghi chú
+**Problem**: SQLAlchemy builds the filter expression without checking if column exists. The error only happens when `.all()` executes the SQL.
 
-1. **Format được hỗ trợ:** 8 format phổ biến nhất
-2. **Mở rộng:** Dễ thêm format mới vào hàm `format_excel_number`
-3. **Locale:** Hiện tại sử dụng dấu `.` cho thập phân (có thể mở rộng cho `,` nếu cần)
-4. **Fallback:** Nếu gặp format không nhận dạng, sẽ hiển thị giá trị thô an toàn
+**New Code** (lines 390-419):
+```python
+def _build_v1_raw_query(use_is_latest=True):
+    q = (db.session.query(ReportData, User)
+           .join(User, ReportData.user_id == User.id)
+           .filter(ReportData.report_id == rid)
+           .order_by(User.unit_area))
+    if use_is_latest:
+        q = q.filter(ReportData.is_latest == True)
+    if not is_lead:
+        q = q.filter(User.unit_area == user_unit)
+    return q
 
-## ✨ Ưu điểm
+try:
+    raw = _build_v1_raw_query(use_is_latest=True).all()
+except Exception as _exc:
+    if 'is_latest' in str(_exc).lower() or 'no such column' in str(_exc).lower():
+        db.session.rollback()
+        logging.warning("ReportData.is_latest column missing — falling back")
+        raw = _build_v1_raw_query(use_is_latest=False).all()
+    else:
+        raise
+```
 
-✓ Hiển thị khớp với file Excel gốc  
-✓ Xử lý đúng các format phổ biến  
-✓ Fallback an toàn  
-✓ Backward compatible  
-✓ Dễ mở rộng  
-✓ Đầy đủ test coverage
+**Solution**: Wrap the `.all()` execution and catch the actual SQLite error.
+
+---
+
+## 📊 Migration SQL
+
+```sql
+-- Check if column exists
+PRAGMA table_info(report_data);
+
+-- Add column
+ALTER TABLE report_data ADD COLUMN is_latest BOOLEAN DEFAULT 1;
+
+-- Set existing records
+UPDATE report_data SET is_latest = 1 WHERE is_latest IS NULL;
+```
+
+---
+
+## ✅ Verification Checklist
+
+After running migration:
+
+- [ ] No more `sqlite3.OperationalError: no such column: report_data.is_latest` in logs
+- [ ] Stats page loads without errors
+- [ ] Only latest submissions shown in stats (no duplicates)
+- [ ] New submissions properly mark old ones as `is_latest=False`
+- [ ] Export functionality works correctly
+
+---
+
+## 🆘 If Migration Fails
+
+1. **Check database file location**
+   ```bash
+   find /home/dea35688/domains/pc06tuyenquang.net/public_html/PhanMemPC06_Pro/ -name "*.db"
+   ```
+
+2. **Check permissions**
+   ```bash
+   ls -la *.db
+   chmod 664 pc06_system.db  # if needed
+   ```
+
+3. **Manual migration** (if script fails)
+   ```bash
+   sqlite3 pc06_system.db
+   > ALTER TABLE report_data ADD COLUMN is_latest BOOLEAN DEFAULT 1;
+   > UPDATE report_data SET is_latest = 1;
+   > .quit
+   ```
+
+4. **Fallback**: Code will still work (with degraded functionality) thanks to the improved fallback logic
+
+---
+
+## 📝 Notes
+
+- Migration is **backward compatible** - old code will still work after migration
+- Fallback code ensures **zero downtime** during migration
+- Script is **idempotent** - safe to run multiple times
+- All existing records will be marked as `is_latest=1` by default
