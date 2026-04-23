@@ -34,6 +34,7 @@ class FormEngine:
             if section_name not in sections:
                 sections[section_name] = []
             
+            field_validation = json.loads(field.validation_rules_json) if field.validation_rules_json else {}
             sections[section_name].append({
                 'code': field.field_code,
                 'name': field.field_name,
@@ -42,11 +43,12 @@ class FormEngine:
                 'required': field.is_required,
                 'readonly': field.is_readonly,
                 'calculated': field.is_calculated,
+                'hidden': bool(field_validation.get('hidden', False)),
                 'formula': field.calculation_formula,
                 'default_value': field.default_value,
                 'excel_cell': field.excel_cell_ref,
                 'help_text': field.help_text,
-                'validation': json.loads(field.validation_rules_json) if field.validation_rules_json else {}
+                'validation': field_validation
             })
         
         return {

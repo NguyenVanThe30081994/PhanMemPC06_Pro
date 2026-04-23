@@ -3,8 +3,9 @@
 Routes cho hệ thống nhập liệu báo cáo mới
 API endpoints và UI pages
 """
-from flask import Blueprint, render_template, request, session, redirect, url_for, jsonify, flash
-from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ReportInstance
+from flask import Blueprint, render_template, request, session, redirect, url_for, jsonify, flash, send_file
+import json
+from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ReportInstance, ReportAuditLog
 from services.form_engine import FormEngine
 from utils import log_action
 
@@ -94,10 +95,16 @@ def view_report(instance_id):
     
     report_data = form_engine.get_report_data(instance_id)
     instance = ReportInstance.query.get_or_404(instance_id)
+
+    if not session.get('is_admin'):
+        user_unit = session.get('unit_area', session.get('unit', ''))
+        if instance.org_unit != user_unit:
+            flash('Bạn không có quyền xem báo cáo của đơn vị khác.', 'danger')
+            return redirect(url_for('reporting_bp.index'))
     
     return render_template('reporting/view_report.html',
-                         report_data=report_data,
-                         instance=instance)
+                          report_data=report_data,
+                          instance=instance)
 
 
 @reporting_bp.route('/dashboard')
@@ -146,9 +153,44 @@ def dashboard():
             }
     
     return render_template('reporting/dashboard.html',
-                         stats=stats,
-                         current_period=current_period,
-                         is_lead=is_lead)
+                          stats=stats,
+                          current_period=current_period,
+                          is_lead=is_lead)
+
+
+@reporting_bp.route('/history')
+def history():
+    """Lịch sử thao tác báo cáo"""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    query = ReportAuditLog.query.order_by(ReportAuditLog.timestamp.desc())
+    if not session.get('is_admin'):
+        user_unit = session.get('unit_area', session.get('unit', ''))
+        query = query.filter(ReportAuditLog.org_unit == user_unit)
+
+    logs = query.limit(200).all()
+    return render_template('reporting/history.html', logs=logs)
+
+
+@reporting_bp.route('/template/<int:template_id>/preview')
+def preview_template(template_id):
+    """Xem trực tiếp biểu mẫu trên web"""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    template = FormTemplate.query.get_or_404(template_id)
+    version = FormVersion.query.filter_by(
+        template_id=template_id,
+        is_published=True
+    ).order_by(FormVersion.created_at.desc()).first()
+
+    if not version:
+        flash('Mẫu biểu chưa có phiên bản published.', 'warning')
+        return redirect(url_for('reporting_bp.index'))
+
+    schema = form_engine.get_form_schema(version.id)
+    return render_template('reporting/preview_template.html', template=template, version=version, schema=schema)
 
 
 @reporting_bp.route('/template/<int:template_id>/field-settings', methods=['GET', 'POST'])
@@ -174,30 +216,46 @@ def field_settings(template_id):
 
     if request.method == 'POST':
         editable_codes = set(request.form.getlist('editable_fields'))
+        hidden_codes = set(request.form.getlist('hidden_fields'))
 
         updated = 0
         for field in fields:
             if field.is_calculated:
-                continue
-            new_readonly = field.field_code not in editable_codes
-            if field.is_readonly != new_readonly:
-                field.is_readonly = new_readonly
+                # calculated fields remain readonly
+                field.is_readonly = True
+            else:
+                new_readonly = field.field_code not in editable_codes
+                if field.is_readonly != new_readonly:
+                    field.is_readonly = new_readonly
+                    updated += 1
+
+            validation_data = json.loads(field.validation_rules_json) if field.validation_rules_json else {}
+            new_hidden = field.field_code in hidden_codes
+            if bool(validation_data.get('hidden', False)) != new_hidden:
+                validation_data['hidden'] = new_hidden
+                field.validation_rules_json = json.dumps(validation_data, ensure_ascii=False)
                 updated += 1
 
         db.session.commit()
-        flash(f'Đã cập nhật quyền nhập liệu cho {updated} trường.', 'success')
+        flash(f'Đã cập nhật thiết lập cho {updated} trường.', 'success')
         return redirect(url_for('reporting_bp.field_settings', template_id=template_id))
 
     grouped_fields = {}
+    hidden_field_codes = set()
     for field in fields:
         section_name = field.section or 'Khác'
         grouped_fields.setdefault(section_name, []).append(field)
+
+        rules = json.loads(field.validation_rules_json) if field.validation_rules_json else {}
+        if rules.get('hidden'):
+            hidden_field_codes.add(field.field_code)
 
     return render_template(
         'reporting/field_settings.html',
         template=template,
         version=version,
-        grouped_fields=grouped_fields
+        grouped_fields=grouped_fields,
+        hidden_field_codes=hidden_field_codes
     )
 
 
@@ -340,10 +398,14 @@ def api_export_report(instance_id):
     try:
         from services.report_exporter import ReportExporter
         exporter = ReportExporter()
-        
+
+        instance = ReportInstance.query.get_or_404(instance_id)
+        if not session.get('is_admin'):
+            user_unit = session.get('unit_area', session.get('unit', ''))
+            if instance.org_unit != user_unit:
+                return jsonify({'success': False, 'message': 'Forbidden'}), 403
+
         file_path = exporter.export_to_excel(instance_id)
-        
-        from flask import send_file
-        return send_file(file_path, as_attachment=True)
+        return send_file(file_path, as_attachment=True, download_name=f'report_{instance_id}.xlsx')
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500

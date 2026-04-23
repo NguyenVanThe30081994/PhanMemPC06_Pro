@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Xem biểu mẫu - {{ template.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="mb-1"><i class="bi bi-file-earmark-spreadsheet"></i> Xem biểu mẫu trực tiếp</h3>
+      <p class="text-muted mb-0">{{ template.name }} | Phiên bản {{ version.version_number }}</p>
+    </div>
+    <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+  </div>
+
+  {% for section_name, fields in schema.sections.items() %}
+  <div class="card mb-3 shadow-sm">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+      <strong>{{ section_name }}</strong>
+      <span class="text-muted small">{{ fields|length }} trường</span>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        {% for field in fields %}
+        <div class="col-md-4">
+          <div class="border rounded p-3 h-100">
+            <div class="fw-semibold">{{ field.name }}</div>
+            <div class="small text-muted mt-1">Mã: <code>{{ field.code }}</code></div>
+            {% if field.excel_cell %}<div class="small text-muted">Ô Excel: {{ field.excel_cell }}</div>{% endif %}
+            <div class="mt-2 d-flex gap-2 flex-wrap">
+              {% if field.calculated %}
+                <span class="badge bg-secondary">Tính tự động</span>
+              {% elif field.readonly %}
+                <span class="badge bg-warning text-dark">Khóa nhập</span>
+              {% else %}
+                <span class="badge bg-success">Cho nhập</span>
+              {% endif %}
+              {% if field.hidden %}
+                <span class="badge bg-dark">Ẩn khỏi đơn vị</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
