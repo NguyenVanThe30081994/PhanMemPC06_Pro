@@ -25,11 +25,20 @@ import unicodedata
 
 def _fmt_val(val):
     """
-    Format value for display: Purely convert to string to preserve original Excel value.
-    This is the simplest approach to avoid floating point noise or forced formatting.
+    Format value for display: 
+    - Removes floating point noise (e.g., 3441.6000000000004 -> 3441.6)
+    - Shows integers as integers (e.g., 525.0 -> 525)
     """
     if val is None or val == '':
         return ''
+    if isinstance(val, (int, float)):
+        try:
+            fval = round(float(val), 10)
+            if fval == int(fval):
+                return str(int(fval))
+            return "{:.10f}".format(fval).rstrip('0').rstrip('.')
+        except:
+            return str(val)
     return str(val).strip()
 
 
@@ -46,9 +55,14 @@ def _safe_color(color_obj):
         # RGB type
         if color_obj.type == 'rgb' and color_obj.rgb:
             rgb = str(color_obj.rgb).upper()
-            if len(rgb) == 8: return rgb[2:]
+            # Handle 8-char ARGB (common in Excel)
+            if len(rgb) == 8:
+                # If it's 00000000 or FFFFFFFF, it's usually default/no-fill
+                if rgb in ('00000000', 'FFFFFFFF'):
+                    return None
+                return rgb[2:]
             return rgb
-        # Theme type (we return a marker or None as we don't resolve full themes here)
+        # Theme type
         if color_obj.type == 'theme' and color_obj.theme is not None:
             return f"THEME_{color_obj.theme}"
     except Exception:
@@ -68,18 +82,15 @@ def is_input_cell(cell):
         if not c: return False
         
         # 1. Match by Theme (Aggressive)
-        # Any themed color (other than pure black/white theme) is likely a marker
         if c.type == 'theme' and c.theme is not None:
             if c.theme > 0: return True
-            # Theme 0 with a tint (often light gray/blue)
             if c.theme == 0 and (c.tint and abs(c.tint) > 0.01): return True
 
         # 2. Match by RGB
         if hasattr(c, 'rgb') and c.rgb:
             rgb = str(c.rgb).upper()
-            # If it's 8 chars ARGB, ignore Alpha for white check
             rgb_6 = rgb[-6:] if len(rgb) >= 6 else rgb
-            if rgb_6 not in ['FFFFFF', '000000']:
+            if rgb_6 not in ['FFFFFF', '000000', '00000000']:
                 return True
     except:
         pass
@@ -90,10 +101,13 @@ def _cell_css(cell):
     """Generate inline CSS for a cell based on its openpyxl style."""
     css = []
     
-    # 1. Background color
-    color = _safe_color(cell.fill.start_color)
-    if color and not color.startswith("THEME_"):
-        css.append(f"background-color:#{color};")
+    # 1. Background color - Only apply if patternType is present and not default
+    if cell.fill and cell.fill.patternType and cell.fill.patternType != 'none':
+        color = _safe_color(cell.fill.start_color)
+        if color and not color.startswith("THEME_"):
+            # Skip common default backgrounds that cause "black/white" issues
+            if color not in ('FFFFFF', '000000'):
+                css.append(f"background-color:#{color};")
 
     # 2. Font styles
     f = cell.font
