@@ -387,8 +387,18 @@ def stats():
                 except Exception:
                     fields = []
 
+from sqlalchemy.orm import load_only
+
                 def _build_v1_raw_query(use_is_latest=True):
                     q = (db.session.query(ReportData, User)
+                           .options(load_only(
+                               ReportData.id,
+                               ReportData.report_id,
+                               ReportData.user_id,
+                               ReportData.data_json,
+                               ReportData.report_date,
+                               ReportData.created_at,
+                               ReportData.updated_at))
                            .join(User, ReportData.user_id == User.id)
                            .filter(ReportData.report_id == rid)
                            .order_by(User.unit_area))
