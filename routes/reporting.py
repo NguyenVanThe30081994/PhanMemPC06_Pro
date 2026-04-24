@@ -67,7 +67,10 @@ def select_period(template_id):
         return redirect(url_for('reporting_bp.index'))
     
     template = FormTemplate.query.get_or_404(template_id)
-    periods = ReportingPeriod.query.filter_by(is_locked=False).order_by(ReportingPeriod.start_date.desc()).all()
+    periods = ReportingPeriod.query.filter(
+        db.or_(ReportingPeriod.template_id == template_id, ReportingPeriod.template_id == None),
+        ReportingPeriod.is_locked == False
+    ).order_by(ReportingPeriod.start_date.desc()).all()
     
     return render_template('reporting/select_period.html',
                           template=template,
@@ -168,10 +171,16 @@ def template_statistics(template_id):
 
     template = FormTemplate.query.get_or_404(template_id)
     
-    # Lấy kỳ báo cáo gần nhất
-    period = ReportingPeriod.query.filter_by(is_locked=False).order_by(ReportingPeriod.start_date.desc()).first()
+    # Lấy kỳ báo cáo gần nhất của biểu mẫu
+    period = ReportingPeriod.query.filter(
+        db.or_(ReportingPeriod.template_id == template_id, ReportingPeriod.template_id == None),
+        ReportingPeriod.is_locked == False
+    ).order_by(ReportingPeriod.start_date.desc()).first()
+    
     if not period:
-        period = ReportingPeriod.query.order_by(ReportingPeriod.start_date.desc()).first()
+        period = ReportingPeriod.query.filter(
+            db.or_(ReportingPeriod.template_id == template_id, ReportingPeriod.template_id == None)
+        ).order_by(ReportingPeriod.start_date.desc()).first()
         
     if not period:
         flash('Chưa có kỳ báo cáo nào được tạo.', 'warning')
@@ -196,15 +205,18 @@ def template_statistics(template_id):
     submitted_units_map = {r.org_unit: r for r in submitted_reports}
     
     stats_list = []
-    import datetime
     now = datetime.datetime.now()
-    deadline = period.end_date
+    deadline_dt = period.deadline  # datetime
+    deadline_date = period.end_date # date fallback
     
     for unit in all_units:
         report = submitted_units_map.get(unit)
         if report:
             is_late = False
-            if deadline and report.updated_at.date() > deadline:
+            if deadline_dt:
+                if report.updated_at > deadline_dt:
+                    is_late = True
+            elif deadline_date and report.updated_at.date() > deadline_date:
                 is_late = True
             
             stats_list.append({
@@ -216,7 +228,10 @@ def template_statistics(template_id):
             })
         else:
             is_late_now = False
-            if deadline and now.date() > deadline:
+            if deadline_dt:
+                if now > deadline_dt:
+                    is_late_now = True
+            elif deadline_date and now.date() > deadline_date:
                 is_late_now = True
                 
             stats_list.append({
@@ -454,6 +469,110 @@ def field_settings(template_id):
         hidden_field_codes=hidden_field_codes
     )
 
+
+@reporting_bp.route('/template/<int:template_id>/config', methods=['GET', 'POST'])
+def template_config(template_id):
+    """Cấu hình loại báo cáo và quy tắc hạn nộp"""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    if not session.get('is_admin'):
+        flash('Bạn không có quyền.', 'danger')
+        return redirect(url_for('reporting_bp.template_workspace', template_id=template_id))
+        
+    template = FormTemplate.query.get_or_404(template_id)
+    
+    if request.method == 'POST':
+        template.report_type = request.form.get('report_type', 'adhoc')
+        
+        if template.report_type == 'adhoc':
+            template.frequency = None
+            template.deadline_rule = None
+        elif template.report_type == 'daily':
+            template.frequency = None
+            template.deadline_rule = request.form.get('deadline_rule')
+        elif template.report_type == 'periodic':
+            template.frequency = request.form.get('frequency')
+            template.deadline_rule = request.form.get('deadline_rule')
+            
+        db.session.commit()
+        flash('Đã lưu cấu hình báo cáo.', 'success')
+        return redirect(url_for('reporting_bp.template_workspace', template_id=template.id))
+        
+    return render_template('reporting/template_config.html', template=template)
+
+@reporting_bp.route('/template/<int:template_id>/periods', methods=['GET', 'POST'])
+def template_periods(template_id):
+    """Quản lý các kỳ báo cáo của biểu mẫu"""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    if not session.get('is_admin'):
+        flash('Bạn không có quyền.', 'danger')
+        return redirect(url_for('reporting_bp.template_workspace', template_id=template_id))
+        
+    template = FormTemplate.query.get_or_404(template_id)
+    
+    if request.method == 'POST':
+        code = request.form.get('code')
+        name = request.form.get('name')
+        start_date_str = request.form.get('start_date')
+        end_date_str = request.form.get('end_date')
+        
+        import datetime
+        start_date = datetime.datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date = datetime.datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        
+        deadline = None
+        is_adhoc = (template.report_type == 'adhoc')
+        
+        if is_adhoc:
+            deadline_str = request.form.get('deadline')
+            if deadline_str:
+                deadline = datetime.datetime.strptime(deadline_str, '%Y-%m-%dT%H:%M')
+        elif template.report_type == 'daily':
+            # rule là HH:MM
+            rule = template.deadline_rule or "23:59"
+            try:
+                h, m = map(int, rule.split(':'))
+                deadline = datetime.datetime(end_date.year, end_date.month, end_date.day, h, m)
+            except:
+                deadline = datetime.datetime(end_date.year, end_date.month, end_date.day, 23, 59)
+        elif template.report_type == 'periodic':
+            # rule là số ngày sau khi kết thúc kỳ
+            rule = template.deadline_rule or "0"
+            try:
+                days_after = int(rule)
+                deadline_date = end_date + datetime.timedelta(days=days_after)
+                deadline = datetime.datetime(deadline_date.year, deadline_date.month, deadline_date.day, 23, 59)
+            except:
+                deadline = datetime.datetime(end_date.year, end_date.month, end_date.day, 23, 59)
+                
+        period = ReportingPeriod(
+            template_id=template.id,
+            code=code,
+            name=name,
+            period_type=template.frequency or 'daily',
+            is_adhoc=is_adhoc,
+            start_date=start_date,
+            end_date=end_date,
+            deadline=deadline,
+            created_by=session.get('uid')
+        )
+        db.session.add(period)
+        
+        try:
+            db.session.commit()
+            flash('Tạo kỳ báo cáo thành công.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Lỗi tạo kỳ báo cáo (Mã kỳ có thể đã tồn tại): {e}', 'danger')
+            
+        return redirect(url_for('reporting_bp.template_periods', template_id=template.id))
+        
+    periods = ReportingPeriod.query.filter_by(template_id=template.id).order_by(ReportingPeriod.start_date.desc()).all()
+    if not periods:
+        periods = ReportingPeriod.query.filter_by(template_id=None).order_by(ReportingPeriod.start_date.desc()).all()
+        
+    return render_template('reporting/template_periods.html', template=template, periods=periods)
 
 # ==================== API ENDPOINTS ====================
 

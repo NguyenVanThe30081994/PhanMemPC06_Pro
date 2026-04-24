@@ -18,9 +18,11 @@ class ReportingPeriod(db.Model):
     __tablename__ = 'reporting_period'
     
     id = db.Column(db.Integer, primary_key=True)
+    template_id = db.Column(db.Integer, db.ForeignKey('form_template.id'), nullable=True) # Liên kết tới biểu mẫu cụ thể
     code = db.Column(db.String(50), unique=True, nullable=False, index=True)  # VD: "2024-Q1", "2024-03", "2024-W14"
     name = db.Column(db.String(100), nullable=False)  # VD: "Quý 1 năm 2024"
     period_type = db.Column(db.String(20), nullable=False)  # daily, weekly, monthly, quarterly, yearly
+    is_adhoc = db.Column(db.Boolean, default=False) # Đánh dấu báo cáo đột xuất
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
     deadline = db.Column(db.DateTime)  # Hạn nộp báo cáo
@@ -43,6 +45,13 @@ class FormTemplate(db.Model):
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     category = db.Column(db.String(100))  # Phân loại: thống kê, tài chính, nhân sự, đất đai...
+    
+    # --- Cấu hình kỳ nộp báo cáo ---
+    report_type = db.Column(db.String(20), default='adhoc')  # daily, periodic, adhoc
+    frequency = db.Column(db.String(20))  # weekly, monthly, quarterly, yearly (dùng cho loại periodic)
+    deadline_rule = db.Column(db.String(50))  # VD: "16:30" cho daily, "5" cho monthly (ngày mùng 5)
+    # --------------------------------
+    
     excel_template_blob = db.Column(db.LargeBinary)  # File Excel mẫu gốc
     is_active = db.Column(db.Boolean, default=True)
     created_by = db.Column(db.Integer)
