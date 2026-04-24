@@ -10,6 +10,7 @@ from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 from excel_renderer import format_excel_number
 from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ReportInstance, ReportAuditLog
+from sqlalchemy import or_
 from services.form_engine import FormEngine
 from utils import log_action
 
@@ -68,7 +69,7 @@ def select_period(template_id):
     
     template = FormTemplate.query.get_or_404(template_id)
     periods = ReportingPeriod.query.filter(
-        db.or_(ReportingPeriod.template_id == template_id, ReportingPeriod.template_id == None),
+        or_(ReportingPeriod.template_id == template_id, ReportingPeriod.template_id == None),
         ReportingPeriod.is_locked == False
     ).order_by(ReportingPeriod.start_date.desc()).all()
     
@@ -173,13 +174,13 @@ def template_statistics(template_id):
     
     # Lấy kỳ báo cáo gần nhất của biểu mẫu
     period = ReportingPeriod.query.filter(
-        db.or_(ReportingPeriod.template_id == template_id, ReportingPeriod.template_id == None),
+        or_(ReportingPeriod.template_id == template_id, ReportingPeriod.template_id == None),
         ReportingPeriod.is_locked == False
     ).order_by(ReportingPeriod.start_date.desc()).first()
     
     if not period:
         period = ReportingPeriod.query.filter(
-            db.or_(ReportingPeriod.template_id == template_id, ReportingPeriod.template_id == None)
+            or_(ReportingPeriod.template_id == template_id, ReportingPeriod.template_id == None)
         ).order_by(ReportingPeriod.start_date.desc()).first()
         
     if not period:
