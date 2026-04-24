@@ -71,6 +71,10 @@ def admin_forms():
 
                 # Last header row = the actual field labels
                 last_row_idx = header_start + header_rows - 1  # 1-indexed
+                # Skip columns: STT, Đơn vị, Tên đơn vị
+                skip_labels = ['stt', 'số thứ tự', 'đơn vị', 'tên đơn vị', 
+                           'donvi', 'tendonvi', 'stt.', 'stt-', 'tt']
+                
                 fields = []
                 for col_0 in range(num_cols):
                     col_1 = col_0 + 1
@@ -84,6 +88,11 @@ def admin_forms():
                             cell_val = group_label_map[col_0]
                         else:
                             continue
+
+                    # Auto-skip STT and Đơn vị columns
+                    normalized_label = cell_val.lower().replace(' ', '').replace('_', '').replace('-', '')
+                    if any(skip in normalized_label for skip in skip_labels):
+                        continue
 
                     group_label = group_label_map.get(col_0, '')
                     combined = (cell_val + ' ' + group_label).lower()
@@ -251,6 +260,14 @@ def input_data():
     if request.method == 'POST':
         data = request.form.to_dict()
         try:
+            # Validate user session
+            if not session.get('uid'):
+                flash('Phiên làm việc đã hết, vui lòng đăng nhập lại!', 'danger')
+                return redirect(url_for('auth_bp.login'))
+            
+            # Filter out form metadata, keep only field data (numeric idx keys)
+            clean_data = {k: v for k, v in data.items() if k and str(k).isdigit()}
+            
             # Check if this user already submitted today (if it's a daily report)
             if active.is_daily:
                 today = datetime.now().date()
@@ -262,15 +279,17 @@ def input_data():
             new_entry = ReportData(
                 report_id=rid, 
                 user_id=session['uid'], 
-                data_json=json.dumps(data, ensure_ascii=False), 
+                data_json=json.dumps(clean_data, ensure_ascii=False), 
                 report_date=datetime.now().date()
             )
             db.session.add(new_entry)
             db.session.commit()
+            current_app.logger.info(f"V1 Report saved: {rid} by user {session['uid']} with {len(clean_data)} fields")
             flash('Gửi dữ liệu báo cáo thành công!', 'success')
             log_action(session['uid'], session['fullname'], "Gửi báo cáo", "Biểu mẫu", active.name)
         except Exception as e:
             db.session.rollback()
+            current_app.logger.error(f"Error saving V1 report: {str(e)}", exc_info=True)
             flash(f'Lỗi khi lưu dữ liệu: {e}', 'danger')
             
         return redirect(url_for('forms_bp.input_data', rid=rid))
@@ -421,7 +440,8 @@ def stats():
                                         # Non-input cells (headers, labels, etc.) - keep template value
                                         raw_val = cell.value
                                         if isinstance(raw_val, str) and raw_val.startswith('='):
-                                            val = ''  # Skip formulas
+                                            # For formula cells, try to evaluate from Excel or show empty
+                                            val = cell.value if cell.data_type != 'f' else ''
                                         elif isinstance(raw_val, (int, float)):
                                             number_format = _get_cell_format(meta_data, ws.title, coord) or getattr(cell, 'number_format', None)
                                             val = _format_cell_value(raw_val, number_format)
@@ -430,7 +450,9 @@ def stats():
 
                                     rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
                                     cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
-                                    td = f'<td{rs_attr}{cs_attr} style="padding:3px 6px;border:1px solid #d1d5db;{css}">'
+                                    # Use light gray background for header/non-input cells to distinguish
+                                    bg_style = 'background-color:#f3f4f6;' if not is_input else ''
+                                    td = f'<td{rs_attr}{cs_attr} style="padding:3px 6px;border:1px solid #d1d5db;{bg_style}{css}">'
                                     row_parts.append(f'{td}{val if val is not None else ""}</td>')
 
                                 row_parts.append('</tr>')
@@ -481,19 +503,23 @@ def stats():
                 raw = raw_query.all()
 
                 seen_units = {}
+                daily_dates = set()  # Track dates for daily reports - show each date
                 for entry, user in raw:
                     try: data = json.loads(entry.data_json or '{}')
                     except Exception: data = {}
                     unit = user.unit_area or user.fullname
+                    report_date_str = entry.report_date.strftime('%d/%m/%Y') if entry.report_date else '—'
                     row = {
                         'unit': unit,
                         'sender': user.fullname,
-                        'date': entry.report_date.strftime('%d/%m/%Y') if entry.report_date else '—',
+                        'date': report_date_str,
                         'values': {str(f['idx']): data.get(str(f['idx']), '') for f in fields}
                     }
                     if active.is_daily:
-                        if unit not in reported_unit_set:
-                            reported_unit_set.add(unit)
+                        # Show each date for daily report (not just one per unit)
+                        date_key = (unit, entry.report_date)
+                        if date_key not in daily_dates:
+                            daily_dates.add(date_key)
                             submissions.append(row)
                     else:
                         reported_unit_set.add(unit)
@@ -563,6 +589,19 @@ def stats():
             except Exception:
                 pass
 
+    # Get actual report dates for V1 daily reports display
+    report_dates = []
+    if active and active.is_daily and rid:
+        try:
+            dates_query = db.session.query(ReportData.report_date).filter(
+                ReportData.report_id == rid
+            ).distinct().order_by(ReportData.report_date.desc()).all()
+            report_dates = [d[0] for d in dates_query if d[0]]
+        except:
+            pass
+    
+    latest_report_date = report_dates[0] if report_dates else None
+    
     return render_template('stats_report.html',
                            configs=configs, v2_templates=v2_templates,
                            active=active, active_v2=active_v2,
@@ -572,7 +611,9 @@ def stats():
                            not_reported_count=not_reported_count,
                            not_reported_units=not_reported_units,
                            all_units=all_units,
-                           form_type=form_type)
+                           form_type=form_type,
+                           report_dates=report_dates,
+                           latest_report_date=latest_report_date)
 
 
 @forms_bp.route('/progress')
