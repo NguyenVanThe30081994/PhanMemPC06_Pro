@@ -204,7 +204,7 @@ def template_statistics(template_id):
         report = submitted_units_map.get(unit)
         if report:
             is_late = False
-            if deadline and report.updated_at > deadline:
+            if deadline and report.updated_at.date() > deadline:
                 is_late = True
             
             stats_list.append({
@@ -216,7 +216,7 @@ def template_statistics(template_id):
             })
         else:
             is_late_now = False
-            if deadline and now > deadline:
+            if deadline and now.date() > deadline:
                 is_late_now = True
                 
             stats_list.append({
