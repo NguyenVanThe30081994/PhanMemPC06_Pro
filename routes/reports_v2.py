@@ -54,15 +54,16 @@ def _format_cell_value(val, number_format=None):
             if '0.0' in fmt:
                 return f"{val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
             if '#' in fmt or '0' in fmt:
+                # Nếu định dạng Excel là số nguyên, làm tròn và bỏ phần thập phân
                 return f"{int(round(val)):,}".replace(',', '.')
                 
-        if val == int(val):
-            return str(int(val))
+        # Khử nhiễu số nhị phân
+        fval = round(float(val), 10)
+        if fval.is_integer():
+            return str(int(fval))
         
-        rounded = round(val, 4)
-        if rounded == int(rounded):
-            return str(int(rounded))
-        return str(rounded).rstrip('0').rstrip('.').replace('.', ',')
+        # Hiển thị số thập phân dùng dấu phẩy
+        return "{:.10f}".format(fval).rstrip('0').rstrip('.').replace('.', ',')
         
     return str(val)
 
@@ -91,6 +92,126 @@ def _split_v2_key(raw_key):
         sheet, coord = key.split('!', 1)
         return sheet.strip(), coord.strip().upper()
     return None, key.upper()
+
+
+def _get_column_config(meta_data, coord):
+    """
+    Get per-column config from metadata['column_configs'] using Excel column letter.
+    """
+    try:
+        from openpyxl.utils.cell import coordinate_from_string
+        col_letter, _ = coordinate_from_string(coord)
+    except Exception:
+        col_letter = ''.join(ch for ch in str(coord or '') if ch.isalpha()).upper()
+    return (meta_data or {}).get('column_configs', {}).get(col_letter, {}) or {}
+
+
+def _get_effective_number_format(cell, meta_data, sheet_name, coord):
+    """
+    Priority:
+    1. Real Excel cell.number_format
+    2. Parsed metadata numberFormat
+    3. Derived fallback from column_configs
+    """
+    fmt = None
+    try:
+        fmt = getattr(cell, 'number_format', None)
+    except Exception:
+        fmt = None
+
+    if fmt and str(fmt).strip() and str(fmt).strip().lower() != 'general':
+        return fmt
+
+    fmt = _get_cell_format(meta_data, sheet_name, coord)
+    if fmt:
+        return fmt
+
+    col_cfg = _get_column_config(meta_data, coord)
+    if col_cfg.get('is_percent'):
+        return '0.00%'
+    if col_cfg.get('is_numeric'):
+        return '#,##0.##'
+
+    return None
+
+
+def _coerce_numeric_for_display(val):
+    if val is None or val == '':
+        return None
+    if isinstance(val, (int, float)):
+        return val
+    try:
+        raw = str(val).strip()
+        if raw == '':
+            return None
+        raw = raw.replace(',', '')
+        return float(raw)
+    except Exception:
+        return None
+
+
+def _format_by_column_config(val, col_cfg):
+    """
+    Fallback formatter when Excel number format is missing.
+    """
+    if val is None or val == '':
+        return ''
+
+    num = _coerce_numeric_for_display(val)
+    if num is None:
+        return str(val)
+
+    if col_cfg.get('is_percent'):
+        pct = num * 100
+        txt = f"{pct:.2f}".rstrip('0').rstrip('.')
+        return f"{txt}%"
+
+    if col_cfg.get('is_numeric'):
+        try:
+            if float(num).is_integer():
+                return str(int(num))
+            return f"{float(num):.2f}".rstrip('0').rstrip('.')
+        except:
+            return str(val)
+
+    return str(val)
+
+
+def _get_display_value(formula_cell, value_cell):
+    """
+    Return the value users should see on screen.
+    - For formula cells, prefer cached value from data_only workbook.
+    """
+    formula_value = getattr(formula_cell, 'value', None) if formula_cell is not None else None
+    value = getattr(value_cell, 'value', None) if value_cell is not None else None
+
+    if isinstance(formula_value, str) and formula_value.startswith('='):
+        return value
+
+    if formula_value is not None:
+        return formula_value
+
+    return value
+
+
+def _get_rendered_cell_text(formula_cell, value_cell, meta_data, sheet_name, coord, explicit_value=None):
+    """
+    Convert a cell value to final HTML display text.
+    """
+    raw = explicit_value if explicit_value is not None else _get_display_value(formula_cell, value_cell)
+    if raw is None or raw == '':
+        return ''
+
+    fmt = _get_effective_number_format(formula_cell, meta_data, sheet_name, coord)
+    col_cfg = _get_column_config(meta_data, coord)
+
+    if fmt:
+        try:
+            return _format_cell_value(raw, fmt)
+        except Exception:
+            pass
+
+    return _format_by_column_config(raw, col_cfg)
 
 
 def _get_core_unit_id(name):
@@ -573,12 +694,19 @@ def render_report(tid):
     import openpyxl as _opx
 
     try:
+        # Load workbook 2 lần: 
+        # wb_formula: để lấy công thức, style, layout (data_only=False)
+        # wb_values: để lấy giá trị cached thực tế của công thức (data_only=True)
         try:
-            wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=True)
+            wb_formula = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=False)
+            wb_values = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=True)
         except:
-            wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob))
+            wb_formula = _opx.load_workbook(io.BytesIO(version.excel_file_blob))
+            wb_values = wb_formula
     except Exception as e:
         return f"Error loading Excel: {e}", 500
+
+    wb = wb_formula # Dùng wb_formula làm workbook chính cho style/layout
 
     meta_data = {}
     try:
@@ -588,6 +716,7 @@ def render_report(tid):
 
     sheets_html = []
     for ws in wb.worksheets:
+        ws_values = wb_values[ws.title] if ws.title in wb_values.sheetnames else ws
         spans, shadows = _build_merge_lookup(ws)
         col_widths = _col_widths_px(ws)
         colgroup = '<colgroup>' + ''.join(f'<col style="width:{w}px">' for w in col_widths) + '</colgroup>'
@@ -670,8 +799,22 @@ def render_report(tid):
 
                 if is_input:
                     raw_val = existing_values.get(key, existing_values.get(coord, ''))
-                    cell_format = _get_cell_format(meta_data, ws.title, coord)
-                    val = _format_cell_value(raw_val, cell_format)
+                    value_cell = ws_values.cell(row=r, column=c)
+                    if raw_val in (None, ''):
+                        # Nếu chưa có dữ liệu nhập, hiển thị giá trị mặc định từ template
+                        val = _get_rendered_cell_text(cell, value_cell, meta_data, ws.title, coord)
+                    else:
+                        # Nếu đã có dữ liệu nhập, format theo cấu hình
+                        fmt = _get_effective_number_format(cell, meta_data, ws.title, coord)
+                        col_cfg = _get_column_config(meta_data, coord)
+                        if fmt:
+                            try:
+                                val = _format_cell_value(raw_val, fmt)
+                            except Exception:
+                                val = _format_by_column_config(raw_val, col_cfg)
+                        else:
+                            val = _format_by_column_config(raw_val, col_cfg)
+
                     safe_val = str(val).replace('"', '&quot;')
                     inner = (
                         f'<input type="text" class="grid-input" '
@@ -680,11 +823,8 @@ def render_report(tid):
                         f'style="width:100%;height:100%;border:none;background:transparent;padding:2px;font-size:inherit;">'
                     )
                 else:
-                    raw = cell.value
-                    if isinstance(raw, (float, int)):
-                        cell_format = cell.number_format or _get_cell_format(meta_data, ws.title, coord)
-                        raw = _format_cell_value(raw, cell_format)
-                    inner = '' if raw is None else str(raw)
+                    value_cell = ws_values.cell(row=r, column=c)
+                    inner = _get_rendered_cell_text(cell, value_cell, meta_data, ws.title, coord)
 
                 row_parts.append(f'{td}{inner}</td>')
             row_parts.append('</tr>')
@@ -916,11 +1056,15 @@ def review_submission(sub_id):
 
     try:
         try:
-            wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=False)
+            wb_formula = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=False)
+            wb_values = _opx.load_workbook(io.BytesIO(version.excel_file_blob), data_only=True)
         except:
-            wb = _opx.load_workbook(io.BytesIO(version.excel_file_blob))
+            wb_formula = _opx.load_workbook(io.BytesIO(version.excel_file_blob))
+            wb_values = wb_formula
     except Exception as e:
         return f"Error loading Excel: {e}", 500
+
+    wb = wb_formula
 
     sheets_html = []
     meta_data = {}
@@ -958,7 +1102,21 @@ def review_submission(sub_id):
 
                 coord = cell.coordinate
                 key = _normalize_v2_key(ws.title, coord)
-                val = existing_values.get(key, existing_values.get(coord, cell.value if cell.value and not str(cell.value).startswith('=') else ''))
+                saved_val = existing_values.get(key, existing_values.get(coord, None))
+                value_cell = ws_values.cell(row=r, column=c)
+
+                if saved_val not in (None, ''):
+                    fmt = _get_effective_number_format(cell, meta_data, ws.title, coord)
+                    col_cfg = _get_column_config(meta_data, coord)
+                    if fmt:
+                        try:
+                            val = _format_cell_value(saved_val, fmt)
+                        except Exception:
+                            val = _format_by_column_config(saved_val, col_cfg)
+                    else:
+                        val = _format_by_column_config(saved_val, col_cfg)
+                else:
+                    val = _get_rendered_cell_text(cell, value_cell, meta_data, ws.title, coord)
 
                 rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
                 cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''

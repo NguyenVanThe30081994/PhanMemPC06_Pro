@@ -195,6 +195,10 @@ class ReportData(db.Model):
     user_id = db.Column(db.Integer)
     data_json = db.Column(db.Text)
     report_date = db.Column(db.Date)
+    is_latest = db.Column(db.Boolean, default=True, index=True)  # NEW: Latest flag
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # NEW: Created timestamp
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # NEW: Updated timestamp
+
 
 
 class NewsDoc(db.Model):

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Lịch sử báo cáo{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">
+      <i class="bi bi-clock-history"></i>
+      {% if template %}
+        Lịch sử nhập - {{ template.name }}
+      {% else %}
+        Lịch sử báo cáo
+      {% endif %}
+    </h3>
+    <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) if template else url_for('reporting_bp.index') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      {% if logs %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th>Thời gian</th>
+              <th>Đơn vị</th>
+              <th>Người dùng</th>
+              <th>Hành động</th>
+              <th>Thực thể</th>
+              <th>Chi tiết</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in logs %}
+            <tr>
+              <td>{{ log.timestamp.strftime('%d/%m/%Y %H:%M:%S') if log.timestamp else '' }}</td>
+              <td>{{ log.org_unit or '-' }}</td>
+              <td>{{ log.user_name or ('UID ' ~ log.user_id) }}</td>
+              <td><span class="badge bg-secondary">{{ log.action }}</span></td>
+              <td>{{ log.entity_type }}#{{ log.entity_id }}</td>
+              <td>
+                {% if log.field_code %}<div><strong>Field:</strong> {{ log.field_code }}</div>{% endif %}
+                {% if log.reason %}<div><strong>Lý do:</strong> {{ log.reason }}</div>{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="alert alert-info mb-0">Chưa có lịch sử thao tác nào.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

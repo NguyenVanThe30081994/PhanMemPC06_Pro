@@ -1,0 +1,140 @@
+diff --git a/excel_renderer.py b/excel_renderer.py
+index 5d12a7f..fbd7a4a 100644
+--- a/excel_renderer.py
++++ b/excel_renderer.py
+@@ -23,30 +23,87 @@ import unicodedata
+ # Internal helpers
+ # ---------------------------------------------------------------------------
+ 
+-def _fmt_val(val):
++def format_excel_number(value, number_format):
+     """
+-    Format value for display: 
+-    - Removes floating point noise (e.g., 3441.6000000000004 -> 3441.6)
+-    - Shows integers as integers (e.g., 525.0 -> 525)
+-    - Uses comma (,) as decimal separator for Vietnamese standards
++    Format number theo number_format của ô Excel.
++    Ưu tiên: hiển thị phải theo format gốc, không format mặc định.
++    
++    Xử lý các format phổ biến:
++    - 0, 0.0, 0.00 (số nguyên, 1 chữ số, 2 chữ số thập phân)
++    - #,##0, #,##0.00 (có phân tách hàng nghìn)
++    - 0%, 0.0%, 0.00% (phần trăm)
+     """
+-    if val is None or val == '':
++    if value is None or value == '':
+         return ''
+-    if isinstance(val, (int, float)):
+-        try:
+-            # 1. Round to eliminate binary floating point noise
+-            fval = round(float(val), 10)
+-            
+-            # 2. If it's effectively an integer, show without decimals
+-            if fval.is_integer():
+-                return str(int(fval))
+-                
+-            # 3. Format decimal and swap . with ,
+-            formatted = "{:.10f}".format(fval).rstrip('0').rstrip('.')
+-            return formatted.replace('.', ',')
+-        except:
+-            return str(val).replace('.', ',')
+-    return str(val).strip()
++    
++    if not isinstance(value, (int, float)):
++        return str(value).strip()
++    
++    if number_format is None:
++        # Fallback: format mặc định
++        fval = round(float(value), 10)
++        if fval.is_integer():
++            return str(int(fval))
++        return f"{fval:.2f}".rstrip('0').rstrip('.')
++    
++    fmt = str(number_format).lower().strip()
++    
++    try:
++        # 1. Xử lý phần trăm
++        if '%' in fmt:
++            decimals = 0
++            if '.' in fmt:
++                parts = fmt.split('.')
++                if len(parts) > 1:
++                    decimal_part = parts[1].split('%')[0]
++                    decimals = len(decimal_part)
++            result = f"{value * 100:.{decimals}f}%"
++            return result
++        
++        # 2. Xử lý số có phân tách hàng nghìn (#,##0)
++        if '#,##0' in fmt or ',' in fmt:
++            decimals = 0
++            if '.' in fmt:
++                parts = fmt.split('.')
++                if len(parts) > 1:
++                    decimal_part = parts[1]
++                    decimals = len(decimal_part)
++            # Format với dấu phân tách hàng nghìn
++            result = f"{value:,.{decimals}f}"
++            # Nếu không có chữ số thập phân, cắt bỏ .00
++            if decimals == 0:
++                result = result.rstrip('0').rstrip('.')
++            return result
++        
++        # 3. Xử lý số thập phân (0.00, 0.0, 0)
++        if '0' in fmt:
++            if '.' in fmt:
++                parts = fmt.split('.')
++                if len(parts) > 1:
++                    decimal_part = parts[1]
++                    decimals = len(decimal_part)
++                    return f"{value:.{decimals}f}"
++            # Số nguyên - làm tròn đến số nguyên gần nhất
++            return str(int(round(value)))
++        
++        # 4. Fallback: hiển thị giá trị thô
++        if float(value).is_integer():
++            return str(int(value))
++        return str(value)
++    
++    except Exception:
++        # Nếu lỗi, fallback an toàn
++        if float(value).is_integer():
++            return str(int(value))
++        return str(value)
++
++
++def _fmt_val(val):
++    """
++    DEPRECATED: Dùng format_excel_number(value, number_format) thay thế.
++    Giữ lại cho backward compatibility.
++    """
++    return format_excel_number(val, None)
+ 
+ 
+ def _normalize_nfc(value):
+@@ -225,7 +282,7 @@ def render_range_to_html(ws, start_row, end_row,
+                 raw_val = cell.value
+                 if isinstance(raw_val, str) and raw_val.startswith('='):
+                     raw_val = ''
+-                display = _fmt_val(raw_val)
++                display = format_excel_number(raw_val, cell.number_format)
+                 td_inner = display
+ 
+             html.append(f'{td_open}{td_inner}</td>')
+@@ -316,7 +373,7 @@ def build_stats_table_html(file_blob, config, submissions):
+                 is_field = any(f['idx'] == c for f in fields)
+                 if is_field: val = matched_sub['values'].get(str(c), '')
+             
+-            display = _fmt_val(val)
++            display = format_excel_number(val, cell.number_format)
+             rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
+             cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
+             base_td = 'padding:3px 6px;border:1px solid #d1d5db;overflow:hidden;'
+@@ -383,7 +440,7 @@ def build_v2_stats_table_html(file_blob, metadata, all_values):
+                 val = all_values.get(full_key, all_values.get(coord))
+                 if val is None:
+                     val = cell_values.value if cell_values.value is not None else ''
+-                display = _fmt_val(val)
++                display = format_excel_number(val, cell.number_format)
+                 rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
+                 cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
+                 base_td = 'padding:3px 6px;border:1px solid #d1d5db;overflow:hidden;'

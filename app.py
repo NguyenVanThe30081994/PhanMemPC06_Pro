@@ -174,10 +174,12 @@ from routes.zalo import zalo_bp
 from routes.ai_assistant import ai_bp
 from routes.excel_api import excel_api
 from routes.template_generator import template_bp
+from routes.reporting import reporting_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(excel_api)
 app.register_blueprint(template_bp)
+app.register_blueprint(reporting_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(forms_bp)
 app.register_blueprint(portal_bp)

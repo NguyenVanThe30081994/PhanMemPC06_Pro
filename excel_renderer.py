@@ -13,38 +13,103 @@ Used by:
 
 import io
 import openpyxl
-
-
-def _fmt_val(val):
-    """Format value for display: 5.0 → '5', 3.14 → '3.14', 74843.87999999999 → '74843.88', None → ''"""
-    if val is None:
-        return ''
-    if isinstance(val, str):
-        val = val.strip()
-        if '.' in val:
-            try:
-                fval = float(val)
-                fval = round(fval, 10)
-                if fval == int(fval): 
-                    return str(int(fval))
-                return f"{fval:.6f}".rstrip('0').rstrip('.')
-            except ValueError:
-                pass
-        return val
-    if isinstance(val, float):
-        val = round(val, 10)
-        if val == int(val):
-            return str(int(val))
-        return f"{val:.6f}".rstrip('0').rstrip('.')
-    return str(val)
 from openpyxl.utils import get_column_letter
 from openpyxl.styles.fills import PatternFill
 from markupsafe import Markup
+import unicodedata
 
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+def format_excel_number(value, number_format):
+    """
+    Format number theo number_format của ô Excel.
+    Ưu tiên: hiển thị phải theo format gốc, không format mặc định.
+    
+    Xử lý các format phổ biến:
+    - 0, 0.0, 0.00 (số nguyên, 1 chữ số, 2 chữ số thập phân)
+    - #,##0, #,##0.00 (có phân tách hàng nghìn)
+    - 0%, 0.0%, 0.00% (phần trăm)
+    """
+    if value is None or value == '':
+        return ''
+    
+    if not isinstance(value, (int, float)):
+        return str(value).strip()
+    
+    if number_format is None:
+        # Fallback: format mặc định
+        fval = round(float(value), 10)
+        if fval.is_integer():
+            return str(int(fval))
+        return f"{fval:.2f}".rstrip('0').rstrip('.')
+    
+    fmt = str(number_format).lower().strip()
+    
+    try:
+        # 1. Xử lý phần trăm
+        if '%' in fmt:
+            decimals = 0
+            if '.' in fmt:
+                parts = fmt.split('.')
+                if len(parts) > 1:
+                    decimal_part = parts[1].split('%')[0]
+                    decimals = len(decimal_part)
+            result = f"{value * 100:.{decimals}f}%"
+            return result
+        
+        # 2. Xử lý số có phân tách hàng nghìn (#,##0)
+        if '#,##0' in fmt or ',' in fmt:
+            decimals = 0
+            if '.' in fmt:
+                parts = fmt.split('.')
+                if len(parts) > 1:
+                    decimal_part = parts[1]
+                    decimals = len(decimal_part)
+            # Format với dấu phân tách hàng nghìn
+            result = f"{value:,.{decimals}f}"
+            # Nếu không có chữ số thập phân, cắt bỏ .00
+            if decimals == 0:
+                result = result.rstrip('0').rstrip('.')
+            return result
+        
+        # 3. Xử lý số thập phân (0.00, 0.0, 0)
+        if '0' in fmt:
+            if '.' in fmt:
+                parts = fmt.split('.')
+                if len(parts) > 1:
+                    decimal_part = parts[1]
+                    decimals = len(decimal_part)
+                    return f"{value:.{decimals}f}"
+            # Số nguyên - làm tròn đến số nguyên gần nhất
+            return str(int(round(value)))
+        
+        # 4. Fallback: hiển thị giá trị thô
+        if float(value).is_integer():
+            return str(int(value))
+        return str(value)
+    
+    except Exception:
+        # Nếu lỗi, fallback an toàn
+        if float(value).is_integer():
+            return str(int(value))
+        return str(value)
+
+
+def _fmt_val(val):
+    """
+    DEPRECATED: Dùng format_excel_number(value, number_format) thay thế.
+    Giữ lại cho backward compatibility.
+    """
+    return format_excel_number(val, None)
+
+
+def _normalize_nfc(value):
+    """Normalize string to NFC form for consistent comparison."""
+    return unicodedata.normalize('NFC', str(value)) if value is not None else ""
+
 
 def _safe_color(color_obj):
     """Return a 6-char hex string or None from an openpyxl Color object."""
@@ -54,9 +119,14 @@ def _safe_color(color_obj):
         # RGB type
         if color_obj.type == 'rgb' and color_obj.rgb:
             rgb = str(color_obj.rgb).upper()
-            if len(rgb) == 8: return rgb[2:]
+            # Handle 8-char ARGB (common in Excel)
+            if len(rgb) == 8:
+                # If it's 00000000 or FFFFFFFF, it's usually default/no-fill
+                if rgb in ('00000000', 'FFFFFFFF'):
+                    return None
+                return rgb[2:]
             return rgb
-        # Theme type (we return a marker or None as we don't resolve full themes here)
+        # Theme type
         if color_obj.type == 'theme' and color_obj.theme is not None:
             return f"THEME_{color_obj.theme}"
     except Exception:
@@ -76,96 +146,70 @@ def is_input_cell(cell):
         if not c: return False
         
         # 1. Match by Theme (Aggressive)
-        # Any themed color (other than pure black/white theme) is likely a marker
         if c.type == 'theme' and c.theme is not None:
             if c.theme > 0: return True
-            # Theme 0 with a tint (often light gray/blue)
             if c.theme == 0 and (c.tint and abs(c.tint) > 0.01): return True
 
         # 2. Match by RGB
         if hasattr(c, 'rgb') and c.rgb:
             rgb = str(c.rgb).upper()
-            # If it's 8 chars ARGB, ignore Alpha for white check
             rgb_6 = rgb[-6:] if len(rgb) >= 6 else rgb
-            if rgb_6 not in ['FFFFFF', '000000']:
+            if rgb_6 not in ['FFFFFF', '000000', '00000000']:
                 return True
-        
-        # 3. Handle specific patterns (sometimes used for shading)
-        if fill.patternType in ['lightGray', 'gray125', 'gray0625']:
-            return True
-            
-    except Exception:
+    except:
         pass
     return False
 
 
 def _cell_css(cell):
-    """Build inline CSS string from openpyxl cell formatting."""
-    parts = []
+    """Generate inline CSS for a cell based on its openpyxl style."""
+    css = []
+    
+    # 1. Background color - Only apply if patternType is present and not default
+    if cell.fill and cell.fill.patternType and cell.fill.patternType != 'none':
+        color = _safe_color(cell.fill.start_color)
+        if color and not color.startswith("THEME_"):
+            # Skip common default backgrounds that cause "black/white" issues
+            if color not in ('FFFFFF', '000000'):
+                css.append(f"background-color:#{color};")
 
-    # Background
-    try:
-        fill = cell.fill
-        if fill and isinstance(fill, PatternFill) and fill.patternType == 'solid':
-            hex_c = _safe_color(fill.fgColor)
-            if hex_c:
-                parts.append(f'background-color:#{hex_c}')
-    except Exception:
-        pass
+    # 2. Font styles
+    f = cell.font
+    if f:
+        if f.bold: css.append("font-weight:bold;")
+        if f.italic: css.append("font-style:italic;")
+        if f.color and f.color.rgb and isinstance(f.color.rgb, str):
+            c = str(f.color.rgb)
+            if len(c) == 8: css.append(f"color:#{c[2:]};")
+        if f.sz: css.append(f"font-size:{f.sz}pt;")
 
-    # Font
-    try:
-        font = cell.font
-        if font:
-            if font.bold:
-                parts.append('font-weight:bold')
-            if font.italic:
-                parts.append('font-style:italic')
-            if font.size:
-                parts.append(f'font-size:{font.size}pt')
-            hex_c = _safe_color(font.color) if font.color else None
-            if hex_c:
-                parts.append(f'color:#{hex_c}')
-    except Exception:
-        pass
+    # 3. Alignment
+    a = cell.alignment
+    if a:
+        if a.horizontal: css.append(f"text-align:{a.horizontal};")
+        if a.vertical: css.append(f"vertical-align:{a.vertical};")
+        if a.wrapText: css.append("white-space:normal;")
+        else: css.append("white-space:nowrap;")
 
-    # Alignment
-    try:
-        al = cell.alignment
-        if al:
-            if al.horizontal:
-                parts.append(f'text-align:{al.horizontal}')
-            if al.vertical:
-                parts.append(f'vertical-align:{al.vertical}')
-            if al.wrap_text:
-                parts.append('white-space:pre-wrap')
-    except Exception:
-        pass
-
-    return ';'.join(parts)
+    return "".join(css)
 
 
 def _build_merge_lookup(ws):
-    """
-    Returns:
-      spans   : dict (row, col) -> (rowspan, colspan)  for merge top-left cells
-      shadows : set of (row, col) that are covered by a merge (must be skipped)
-    """
-    spans = {}
-    shadows = set()
+    """Return (spans, shadows) dicts to handle merged cells in HTML."""
+    spans = {}  # (r, c) -> (rowspan, colspan)
+    shadows = set() # (r, c) that are covered by a merge
     for mr in ws.merged_cells.ranges:
-        rs = mr.max_row - mr.min_row + 1
-        cs = mr.max_col - mr.min_col + 1
-        spans[(mr.min_row, mr.min_col)] = (rs, cs)
-        for r in range(mr.min_row, mr.max_row + 1):
-            for c in range(mr.min_col, mr.max_col + 1):
-                if (r, c) != (mr.min_row, mr.min_col):
-                    shadows.add((r, c))
+        s_row, s_col, e_row, e_col = mr.min_row, mr.min_col, mr.max_row, mr.max_col
+        spans[(s_row, s_col)] = (e_row - s_row + 1, e_col - s_col + 1)
+        for r in range(s_row, e_row + 1):
+            for c in range(s_col, e_col + 1):
+                if r == s_row and c == s_col: continue
+                shadows.add((r, c))
     return spans, shadows
 
 
 def _col_widths_px(ws):
-    """Return list of pixel widths (1-indexed → 0-indexed list)."""
+    """Estimate column widths in pixels."""
     widths = []
     for i in range(1, ws.max_column + 1):
         letter = get_column_letter(i)
@@ -175,13 +219,10 @@ def _col_widths_px(ws):
 
 
 def _row_height_px(ws, r):
+    """Estimate row height in pixels."""
     h = ws.row_dimensions[r].height or 15
-    return max(int(h * 1.33), 20)
+    return int(h * 1.33)
 
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
 
 def render_range_to_html(ws, start_row, end_row,
                          input_marker_hex='FFE0F2FE',
@@ -191,23 +232,6 @@ def render_range_to_html(ws, start_row, end_row,
     """
     Render rows [start_row .. end_row] (1-indexed, inclusive) of `ws`
     as an HTML <tbody> fragment.
-
-    Parameters
-    ----------
-    ws               : openpyxl Worksheet
-    start_row        : int
-    end_row          : int
-    input_marker_hex : str  – background fill hex (8-char ARGB) that marks input cells
-    existing_values  : dict – cell_coord -> value  e.g. {'B5': '42'}
-    editable         : bool – if False, all cells render as text (for stats display)
-    min_col          : int  – first column to render (1-indexed)
-    max_col          : int  – last column to render (1-indexed), defaults to ws.max_column
-
-    Returns
-    -------
-    dict with:
-      'tbody_html'  : str  – the <tbody>…</tbody> HTML
-      'input_keys'  : list of cell coordinates that are input cells
     """
     if existing_values is None:
         existing_values = {}
@@ -232,16 +256,11 @@ def render_range_to_html(ws, start_row, end_row,
             rowspan, colspan = spans.get((r, c), (1, 1))
             css = _cell_css(cell)
 
-            # Detect input cell
             is_input = is_input_cell(cell)
-
             coord = cell.coordinate
             rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
             cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
-            base_style = (
-                'padding:3px 6px;border:1px solid #d1d5db;'
-                'overflow:hidden;box-sizing:border-box;'
-            )
+            base_style = 'padding:3px 6px;border:1px solid #d1d5db;overflow:hidden;box-sizing:border-box;'
             if is_input:
                 base_style += 'background-color:#e0f2fe;'
 
@@ -261,14 +280,12 @@ def render_range_to_html(ws, start_row, end_row,
                 )
             else:
                 raw_val = cell.value
-                # For formula cells use openpyxl cached value (data_only mode)
                 if isinstance(raw_val, str) and raw_val.startswith('='):
                     raw_val = ''
-                display = _fmt_val(raw_val)
+                display = format_excel_number(raw_val, cell.number_format)
                 td_inner = display
 
             html.append(f'{td_open}{td_inner}</td>')
-
         html.append('</tr>')
 
     return {
@@ -277,58 +294,47 @@ def render_range_to_html(ws, start_row, end_row,
     }
 
 
-
 def build_stats_table_html(file_blob, config, submissions):
     """
     For V1 Stats: render the Excel file's header section faithfully,
     then append one data row per unit below the headers.
-
-    Parameters
-    ----------
-    file_blob   : bytes  – raw Excel file from ReportConfig.file_blob
-    config      : ReportConfig instance
-    submissions : list of dicts:
-                  [{'unit': str, 'date': str, 'sender': str, 'values': {idx_str: val}}, ...]
-
-    Returns
-    -------
-    Markup – complete <table>...</table> HTML safe string
     """
     if not file_blob:
-        return Markup('<p class="text-muted">Không có file Excel gốc trong hệ thống.</p>')
+        return Markup('<p class="text-muted">Không có file Excel gốc.</p>')
 
     try:
-        # Use data_only=True to get cached formula values
-        # Load with UTF-8 support
-        try:
-            wb = openpyxl.load_workbook(io.BytesIO(file_blob), rich_text=True, data_only=True)
-        except:
-            wb = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=True)
-        ws = wb.active
+        # Load workbook 2 lần:
+        # wb_formula: để lấy định dạng, merged cells (data_only=False)
+        # wb_values: để lấy giá trị hiển thị/kết quả công thức (data_only=True)
+        wb_formula = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=False)
+        wb_values = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=True)
+        ws = wb_formula.active
+        ws_values = wb_values.active
     except Exception as e:
         return Markup(f'<p class="text-danger">Lỗi đọc file Excel: {e}</p>')
 
     header_start = config.header_start or 1
     header_rows = config.header_rows or 1
     header_end = header_start + header_rows - 1
-    # ---------- Determine used range ----------
+
     from pc06_excel_engine import ExcelEngineV2
-    regions = ExcelEngineV2._detect_active_regions(wb, ws)
+    regions = ExcelEngineV2._detect_active_regions(wb_formula, ws)
     r_box = regions["report"]
     min_col, min_row, max_col, max_row = r_box[0], r_box[1], r_box[2], r_box[3]
-    
-    # Ensure header_start is not excluded if it's before min_row
     render_start_row = min(header_start, min_row)
 
     import json
-    try:
-        fields = json.loads(config.config_json or '[]')
-    except Exception:
-        fields = []
+    try: fields = json.loads(config.config_json or '[]')
+    except: fields = []
 
-    # Map Unit Name -> Submission (Case-insensitive for matching)
-    unit_map = {sub.get('unit'): sub for sub in submissions}
-    unit_map_lower = {str(k).strip().lower(): v for k, v in unit_map.items() if k}
+    # Build unit map with normalized keys
+    from utils import normalize_unit_key  # NEW: Import
+    unit_map = {}
+    for sub in submissions:
+        unit_key = sub.get('unit_key') or normalize_unit_key(sub.get('unit', ''))
+        unit_map[unit_key] = sub
+    
+    unit_map_lower = {k.lower(): v for k, v in unit_map.items()}
     unit_names_lower = sorted(list(unit_map_lower.keys()), key=len, reverse=True)
 
     spans, shadows = _build_merge_lookup(ws)
@@ -338,28 +344,27 @@ def build_stats_table_html(file_blob, config, submissions):
         w = ws.column_dimensions[letter].width or 8.43
         col_widths.append(max(int(w * 7), 45))
 
-    # ---------- colgroup ----------
     col_parts = ['<colgroup>']
-    for w in col_widths:
-        col_parts.append(f'<col style="width:{w}px">')
+    for w in col_widths: col_parts.append(f'<col style="width:{w}px">')
     col_parts.append('</colgroup>')
 
-    # ---------- Render ALL rows from render_start_row to max_row ----------
     rows_html = []
     for r in range(render_start_row, max_row + 1):
-        if ws.row_dimensions[r].hidden:
-            continue
+        if ws.row_dimensions[r].hidden: continue
         
-        # 1. Identify if this row belongs to a unit (only search within min_col to max_col)
-        row_content = ""
-        for c in range(min_col, max_col + 1):
-            val = ws.cell(row=r, column=c).value
-            if val: row_content += str(val)
-        
-        row_content_lower = row_content.lower()
         matched_sub = None
+        # Try to match unit in this row using normalized keys
         for name in unit_names_lower:
-            if name and name in row_content_lower:
+            found_match = False
+            for c_check in range(min_col, max_col + 1):
+                cell_v = ws.cell(row=r, column=c_check).value
+                if cell_v:
+                    cell_key = normalize_unit_key(str(cell_v))  # NEW: Normalize cell value
+                    if cell_key == name:  # NEW: Exact match with normalized key
+                        found_match = True
+                        break
+            
+            if found_match:
                 matched_sub = unit_map_lower[name]
                 break
         
@@ -367,95 +372,59 @@ def build_stats_table_html(file_blob, config, submissions):
         rows_html.append(f'<tr style="height:{rh}px">')
 
         for c in range(min_col, max_col + 1):
-            if (r, c) in shadows:
-                continue
-
+            if (r, c) in shadows: continue
             cell = ws.cell(row=r, column=c)
+            cell_values = ws_values.cell(row=r, column=c)
             rowspan, colspan = spans.get((r, c), (1, 1))
             css = _cell_css(cell)
-            
-            # If it's a unit row and this column is an input field, use submitted data
-            val = cell.value
+            val = cell_values.value # Ưu tiên giá trị hiển thị từ wb_values
             if matched_sub and r > header_end:
-                # Check if this column 'c' is in the config's fields
                 is_field = any(f['idx'] == c for f in fields)
-                if is_field:
+                if is_field and 'values' in matched_sub:  # ← Thêm check 'values' key
                     val = matched_sub['values'].get(str(c), '')
-
-            # Display values as-is from database
-            display = _fmt_val(val)
-
+            
+            display = format_excel_number(val, cell.number_format)
             rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
             cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
-            
-            # Formatting for data rows vs headers
             base_td = 'padding:3px 6px;border:1px solid #d1d5db;overflow:hidden;'
-            if r > header_end:
-                # Data rows: center by default, add subtle hover
-                base_td += 'text-align:center;'
-            
+            if r > header_end: base_td += 'text-align:center;'
             rows_html.append(f'<td{rs_attr}{cs_attr} style="{base_td}{css}">{display}</td>')
-
         rows_html.append('</tr>')
 
     html = (
         '<div class="excel-wrapper" style="overflow:auto;max-height:80vh;">'
-        '<table class="excel-render-table" '
-        'style="border-collapse:collapse;font-size:12px;font-family:\'Calibri\',\'Arial\',sans-serif;">'
-        + ''.join(col_parts) +
-        '<tbody>' + ''.join(rows_html) + '</tbody>'
-        '</table></div>'
+        '<table class="excel-render-table" style="border-collapse:collapse;font-size:12px;">'
+        + ''.join(col_parts) + '<tbody>' + ''.join(rows_html) + '</tbody></table></div>'
     )
     return Markup(html)
 
 
 def build_v2_stats_table_html(file_blob, metadata, all_values):
-    """
-    For V2 Stats: render the full Excel template structure and overlay
-    data from ALL submissions for that version.
-
-    Parameters
-    ----------
-    file_blob  : bytes – raw Excel template
-    metadata   : dict – parsed metadata for the template version
-    all_values : dict – { cell_coord: value } consolidated from all submissions
-    """
-    if not file_blob:
-        return Markup('<p class="text-muted">Không có file Excel gốc.</p>')
-
+    """For V2 Stats: render the full Excel template structure."""
+    if not file_blob: return Markup('<p class="text-muted">Không có file Excel gốc.</p>')
     try:
-        # Load with UTF-8 support
-        try:
-            wb = openpyxl.load_workbook(io.BytesIO(file_blob), rich_text=True, data_only=True)
-        except:
-            wb = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=True)
+        wb_formula = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=False)
+        wb_values = openpyxl.load_workbook(io.BytesIO(file_blob), data_only=True)
     except Exception as e:
         return Markup(f'<p class="text-danger">Lỗi đọc file Excel: {e}</p>')
 
+    wb = wb_formula
+
     sheets_html = []
     from pc06_excel_engine import ExcelEngineV2
-
     for ws in wb.worksheets:
-        # Get region from metadata
+        ws_values = wb_values[ws.title] if ws.title in wb_values.sheetnames else ws
         sheet_meta = next((s for s in metadata.get('sheets', []) if s['name'] == ws.title), None)
         if sheet_meta:
             region = sheet_meta.get('activeRenderRegion', {})
-            min_row = region.get('r1', 1)
-            min_col = region.get('c1', 1)
-            max_row = region.get('r2', ws.max_row)
-            # Use max of region c2 and ws.max_column to avoid missing rightmost columns
-            max_col = max(region.get('c2', ws.max_column), ws.max_column
-                          if ws.max_column <= region.get('c2', 0) + 5 else region.get('c2', ws.max_column))
+            min_row, min_col, max_row = region.get('r1', 1), region.get('c1', 1), region.get('r2', ws.max_row)
+            max_col = max(region.get('c2', ws.max_column), ws.max_column)
         else:
             max_row, max_col = ExcelEngineV2._get_true_max_row_col(wb, ws)
             min_row, min_col = 1, 1
 
-        # Build merge lookup but only track shadows within our render region
         spans_all, shadows_all = _build_merge_lookup(ws)
-        # Filter spans to only those starting within render region
-        spans = {k: v for k, v in spans_all.items()
-                 if min_row <= k[0] <= max_row and min_col <= k[1] <= max_col}
-        # Keep full shadows so we skip covered cells correctly
+        spans = {k: v for k, v in spans_all.items() if min_row <= k[0] <= max_row and min_col <= k[1] <= max_col}
         shadows = shadows_all
 
         col_widths = []
@@ -466,46 +435,33 @@ def build_v2_stats_table_html(file_blob, metadata, all_values):
 
         colgroup = '<colgroup>' + ''.join(f'<col style="width:{w}px">' for w in col_widths) + '</colgroup>'
         rows_html = []
-
         for r in range(min_row, max_row + 1):
-            if ws.row_dimensions[r].hidden:
-                continue
+            if ws.row_dimensions[r].hidden: continue
             rh = _row_height_px(ws, r)
             rows_html.append(f'<tr style="height:{rh}px">')
-
             for c in range(min_col, max_col + 1):
-                if (r, c) in shadows:
-                    continue
-
+                if (r, c) in shadows: continue
                 cell = ws.cell(row=r, column=c)
+                cell_values = ws_values.cell(row=r, column=c)
                 rowspan, colspan = spans.get((r, c), (1, 1))
                 css = _cell_css(cell)
-
                 coord = cell.coordinate
-                # Prioritize submitted value, fallback to template value
-                val = all_values.get(coord,
-                      cell.value if cell.value and not str(cell.value).startswith('=') else '')
-
-                display = _fmt_val(val)
+                full_key = f"{ws.title}!{coord}"
+                val = all_values.get(full_key, all_values.get(coord))
+                if val is None:
+                    val = cell_values.value if cell_values.value is not None else ''
+                display = format_excel_number(val, cell.number_format)
                 rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ''
                 cs_attr = f' colspan="{colspan}"' if colspan > 1 else ''
-
                 base_td = 'padding:3px 6px;border:1px solid #d1d5db;overflow:hidden;'
                 rows_html.append(f'<td{rs_attr}{cs_attr} style="{base_td}{css}">{display}</td>')
             rows_html.append('</tr>')
 
-        sheet_title_html = (
-            f'<h6 class="fw-bold mt-4 mb-2">'
-            f'<i class="fa-solid fa-layer-group me-2"></i>Sheet: {ws.title}</h6>'
-        )
+        sheet_title_html = f'<h6 class="fw-bold mt-4 mb-2"><i class="fa-solid fa-layer-group me-2"></i>Sheet: {ws.title}</h6>'
         sheet_table = (
-            f'<div class="excel-wrapper mb-4" '
-            f'style="overflow:auto;max-height:80vh;border:1px solid #eee;border-radius:8px;">'
-            f'<table class="excel-render-table" '
-            f'style="border-collapse:collapse;font-size:12px;width:max-content;">'
+            f'<div class="excel-wrapper mb-4" style="overflow:auto;max-height:80vh;border:1px solid #eee;border-radius:8px;">'
+            f'<table class="excel-render-table" style="border-collapse:collapse;font-size:12px;width:max-content;">'
             f'{colgroup}<tbody>{"".join(rows_html)}</tbody></table></div>'
         )
         sheets_html.append(sheet_title_html + sheet_table)
-
     return Markup(''.join(sheets_html))
-

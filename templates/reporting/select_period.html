@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Chọn kỳ báo cáo - {{ template.name }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h4 class="mb-3">{{ template.name }}</h4>
+  {% if template.description %}<p>{{ template.description }}</p>{% endif %}
+  <form method="GET" action="" id="selectForm" onsubmit="return selectPeriod()">
+    <div class="mb-3">
+      <label for="periodSelect" class="form-label"><strong>Chọn kỳ báo cáo</strong></label>
+      <select class="form-select" id="periodSelect" name="period_id" required>
+        <option value="">-- Chọn kỳ --</option>
+        {% for period in periods %}
+        <option value="{{ period.id }}">
+          {{ period.name }}{% if period.deadline %} (Hạn: {{ period.deadline.strftime('%d/%m/%Y') }}){% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Tiếp tục</button>
+    <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-secondary ms-2">Quay lại</a>
+  </form>
+</div>
+
+<script>
+function selectPeriod() {
+    const periodId = document.getElementById('periodSelect').value;
+    if (!periodId) return false;
+    
+    // Redirect direct to the target URL
+    window.location.href = `/reporting/form/{{ template.id }}/period/${periodId}`;
+    return false; // Prevent form submit
+}
+</script>
+{% endblock %}
