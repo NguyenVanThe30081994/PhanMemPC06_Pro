@@ -16,75 +16,77 @@
 
   <div class="alert alert-info">
     <i class="bi bi-info-circle"></i>
-    Đây là bản dựng giao diện Excel trên web (giữ merged cells, tiêu đề, định dạng cơ bản).
+    Bảng đã tự scale theo trang, hiển thị giá trị kết quả (không hiện công thức) và áp dụng định dạng số theo Excel.
   </div>
 
   <div class="excel-frame">
-    <div class="excel-scroll">
-      <table class="excel-table">
-        <colgroup>
-          {% for width in col_widths %}
-          <col style="width: {{ width }}px;">
-          {% endfor %}
-        </colgroup>
-        <tbody>
-          {% for row in rows %}
-          <tr>
-            {% for cell in row %}
-            <td
-              {% if cell.rowspan > 1 %}rowspan="{{ cell.rowspan }}"{% endif %}
-              {% if cell.colspan > 1 %}colspan="{{ cell.colspan }}"{% endif %}
-              style="
-                text-align: {{ cell.align }};
-                vertical-align: {{ cell.valign }};
-                font-size: {{ cell.font_size }}px;
-                {% if cell.bold %}font-weight: 700;{% endif %}
-                {% if cell.italic %}font-style: italic;{% endif %}
-                {% if cell.bg_color %}background-color: {{ cell.bg_color }};{% endif %}
-              "
-            >
-              {{ cell.value }}
-            </td>
+    <div class="excel-scroll" id="excelScrollWrap">
+      <div class="excel-scale" id="excelScaleRoot">
+        <table class="excel-table" id="excelPreviewTable">
+          <colgroup>
+            {% for width in col_widths %}
+            <col style="width: {{ width }}px;">
             {% endfor %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </colgroup>
+          <tbody>
+            {% for row in rows %}
+            <tr style="height: {{ row.height_px }}px;">
+              {% for cell in row.cells %}
+              <td
+                {% if cell.rowspan > 1 %}rowspan="{{ cell.rowspan }}"{% endif %}
+                {% if cell.colspan > 1 %}colspan="{{ cell.colspan }}"{% endif %}
+                style="
+                  text-align: {{ cell.align }};
+                  vertical-align: {{ cell.valign }};
+                  font-size: {{ cell.font_size }}px;
+                  {% if cell.bold %}font-weight: 700;{% endif %}
+                  {% if cell.italic %}font-style: italic;{% endif %}
+                  {% if cell.bg_color %}background-color: {{ cell.bg_color }};{% endif %}
+                "
+              >
+                {{ cell.value }}
+              </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
 
 <style>
-.excel-frame {
-  border: 1px solid #d0d7de;
-  border-radius: 10px;
-  background: #ffffff;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-}
-
-.excel-scroll {
-  overflow: auto;
-  max-height: 76vh;
-}
-
-.excel-table {
-  border-collapse: collapse;
-  width: max-content;
-  min-width: 100%;
-  font-family: "Segoe UI", Arial, sans-serif;
-}
-
-.excel-table td {
-  border: 1px solid #dfe2e6;
-  padding: 6px 8px;
-  min-height: 28px;
-  white-space: pre-wrap;
-  color: #111827;
-  background-clip: padding-box;
-}
-
-.excel-table tr:hover td {
-  background-color: rgba(59, 130, 246, 0.05);
-}
+.excel-frame { border: 1px solid #d0d7de; border-radius: 10px; background: #fff; box-shadow: 0 8px 24px rgba(15,23,42,.08); }
+.excel-scroll { overflow: auto; max-height: 76vh; padding: 12px; background: #f8fafc; }
+.excel-scale { transform-origin: top left; width: max-content; }
+.excel-table { border-collapse: collapse; width: max-content; font-family: "Segoe UI", Arial, sans-serif; background: #fff; }
+.excel-table td { border: 1px solid #dfe2e6; padding: 6px 8px; white-space: pre-wrap; color: #111827; background-clip: padding-box; }
+.excel-table tr:hover td { background-color: rgba(59,130,246,.05); }
 </style>
+
+<script>
+(function () {
+  const wrap = document.getElementById('excelScrollWrap');
+  const scaleRoot = document.getElementById('excelScaleRoot');
+  const table = document.getElementById('excelPreviewTable');
+  if (!wrap || !scaleRoot || !table) return;
+
+  function fitToViewport() {
+    scaleRoot.style.transform = 'scale(1)';
+    const wrapWidth = wrap.clientWidth - 8;
+    const tableWidth = table.offsetWidth;
+    if (!tableWidth || !wrapWidth) return;
+
+    const ratio = wrapWidth / tableWidth;
+    const scale = Math.min(1, Math.max(0.45, ratio));
+    scaleRoot.style.transform = `scale(${scale})`;
+    scaleRoot.style.height = `${table.offsetHeight * scale}px`;
+  }
+
+  window.addEventListener('resize', fitToViewport);
+  window.addEventListener('load', fitToViewport);
+  fitToViewport();
+})();
+</script>
 {% endblock %}

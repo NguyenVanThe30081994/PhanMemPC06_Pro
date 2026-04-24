@@ -8,6 +8,7 @@ import json
 from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
+from excel_renderer import format_excel_number
 from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ReportInstance, ReportAuditLog
 from services.form_engine import FormEngine
 from utils import log_action
@@ -189,8 +190,12 @@ def preview_template(template_id):
         return redirect(url_for('reporting_bp.index'))
 
     try:
-        wb = load_workbook(BytesIO(template.excel_template_blob), data_only=False)
-        ws = wb.active
+        # wb_formula: giữ style/merge/format
+        # wb_values: lấy giá trị hiển thị (kết quả công thức nếu file đã có cached result)
+        wb_formula = load_workbook(BytesIO(template.excel_template_blob), data_only=False)
+        wb_values = load_workbook(BytesIO(template.excel_template_blob), data_only=True)
+        ws = wb_formula.active
+        ws_values = wb_values[ws.title] if ws.title in wb_values.sheetnames else wb_values.active
 
         merged_map = {}
         covered_cells = set()
@@ -224,6 +229,7 @@ def preview_template(template_id):
                     continue
 
                 cell = ws.cell(row=r, column=c)
+                cell_value_obj = ws_values.cell(row=r, column=c)
                 merge_info = merged_map.get((r, c), {'rowspan': 1, 'colspan': 1})
 
                 font = cell.font
@@ -235,8 +241,15 @@ def preview_template(template_id):
                     rgb = fill.fgColor.rgb[-6:]
                     bg_color = f"#{rgb}"
 
+                raw_value = cell_value_obj.value
+                if raw_value is None and isinstance(cell.value, str) and cell.value.startswith('='):
+                    # Không hiển thị công thức khi không có cached result
+                    display_value = ''
+                else:
+                    display_value = format_excel_number(raw_value, cell.number_format)
+
                 row_cells.append({
-                    'value': '' if cell.value is None else str(cell.value),
+                    'value': display_value,
                     'rowspan': merge_info['rowspan'],
                     'colspan': merge_info['colspan'],
                     'bold': bool(font and font.bold),
@@ -246,7 +259,8 @@ def preview_template(template_id):
                     'valign': alignment.vertical if alignment and alignment.vertical else 'middle',
                     'bg_color': bg_color,
                 })
-            rows.append(row_cells)
+            row_height = ws.row_dimensions[r].height or 20
+            rows.append({'height_px': int(row_height * 1.33), 'cells': row_cells})
 
         return render_template(
             'reporting/preview_template.html',
