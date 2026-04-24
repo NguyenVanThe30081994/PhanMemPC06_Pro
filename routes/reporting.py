@@ -142,12 +142,21 @@ def export_report(instance_id):
                 return redirect(url_for('reporting_bp.index'))
 
         output, filename = exporter.export_to_excel_bytes(instance_id)
-        return send_file(
-            output,
-            as_attachment=True,
-            download_name=filename,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        )
+        try:
+            return send_file(
+                output,
+                as_attachment=True,
+                download_name=filename,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+        except TypeError:
+            output.seek(0)
+            return send_file(
+                output,
+                as_attachment=True,
+                attachment_filename=filename,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
     except Exception as e:
         flash(f'Lỗi xuất Excel: {e}', 'danger')
         return redirect(url_for('reporting_bp.view_report', instance_id=instance_id))
@@ -556,11 +565,20 @@ def api_export_report(instance_id):
                 return jsonify({'success': False, 'message': 'Forbidden'}), 403
 
         output, filename = exporter.export_to_excel_bytes(instance_id)
-        return send_file(
-            output,
-            as_attachment=True,
-            download_name=filename,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        )
+        try:
+            return send_file(
+                output,
+                as_attachment=True,
+                download_name=filename,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+        except TypeError:
+            output.seek(0)
+            return send_file(
+                output,
+                as_attachment=True,
+                attachment_filename=filename,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
