@@ -3,7 +3,7 @@
 Routes cho hệ thống nhập liệu báo cáo mới
 API endpoints và UI pages
 """
-from flask import Blueprint, render_template, request, session, redirect, url_for, jsonify, flash, send_file
+from flask import Blueprint, render_template, request, session, redirect, url_for, jsonify, flash, send_file, make_response
 import json
 from io import BytesIO
 from openpyxl import load_workbook
@@ -142,21 +142,13 @@ def export_report(instance_id):
                 return redirect(url_for('reporting_bp.index'))
 
         output, filename = exporter.export_to_excel_bytes(instance_id)
-        try:
-            return send_file(
-                output,
-                as_attachment=True,
-                download_name=filename,
-                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            )
-        except TypeError:
-            output.seek(0)
-            return send_file(
-                output,
-                as_attachment=True,
-                attachment_filename=filename,
-                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            )
+        file_bytes = output.getvalue()
+
+        response = make_response(file_bytes)
+        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response.headers['Content-Length'] = str(len(file_bytes))
+        return response
     except Exception as e:
         flash(f'Lỗi xuất Excel: {e}', 'danger')
         return redirect(url_for('reporting_bp.view_report', instance_id=instance_id))
@@ -565,20 +557,12 @@ def api_export_report(instance_id):
                 return jsonify({'success': False, 'message': 'Forbidden'}), 403
 
         output, filename = exporter.export_to_excel_bytes(instance_id)
-        try:
-            return send_file(
-                output,
-                as_attachment=True,
-                download_name=filename,
-                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            )
-        except TypeError:
-            output.seek(0)
-            return send_file(
-                output,
-                as_attachment=True,
-                attachment_filename=filename,
-                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            )
+        file_bytes = output.getvalue()
+
+        response = make_response(file_bytes)
+        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response.headers['Content-Length'] = str(len(file_bytes))
+        return response
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500

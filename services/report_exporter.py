@@ -43,8 +43,7 @@ class ReportExporter:
                 continue
 
             cell_ref = str(field.excel_cell_ref).strip()
-            target_cell = cell_ref if any(char.isdigit() for char in cell_ref) else f"{cell_ref}12"
-            target_cell = self._resolve_target_cell(ws, target_cell)
+            target_cell = self._resolve_target_cell(ws, cell_ref)
 
             try:
                 ws[target_cell] = raw_value
@@ -55,6 +54,8 @@ class ReportExporter:
         wb.save(output)
         output.seek(0)
 
-        safe_unit = (instance.org_unit or 'unit').replace(' ', '_')
+        import re
+        safe_unit = (instance.org_unit or 'unit')
+        safe_unit = re.sub(r'[^A-Za-z0-9._-]+', '_', safe_unit).strip('_') or 'unit'
         filename = f"report_{instance.id}_{safe_unit}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         return output, filename
