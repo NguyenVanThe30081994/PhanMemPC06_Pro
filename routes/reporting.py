@@ -226,10 +226,9 @@ def preview_template(template_id):
                 cell = ws.cell(row=r, column=c)
                 merge_info = merged_map.get((r, c), {'rowspan': 1, 'colspan': 1})
 
-                style = cell._style
-                font = style.font
-                fill = style.fill
-                alignment = style.alignment
+                font = cell.font
+                fill = cell.fill
+                alignment = cell.alignment
 
                 bg_color = None
                 if fill and fill.fill_type and fill.fgColor and fill.fgColor.type == 'rgb' and fill.fgColor.rgb:
@@ -473,7 +472,12 @@ def api_export_report(instance_id):
             if instance.org_unit != user_unit:
                 return jsonify({'success': False, 'message': 'Forbidden'}), 403
 
-        file_path = exporter.export_to_excel(instance_id)
-        return send_file(file_path, as_attachment=True, download_name=f'report_{instance_id}.xlsx')
+        output, filename = exporter.export_to_excel_bytes(instance_id)
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
