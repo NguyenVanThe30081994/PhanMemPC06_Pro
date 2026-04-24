@@ -74,14 +74,25 @@
 
   function fitToViewport() {
     scaleRoot.style.transform = 'scale(1)';
+    scaleRoot.style.height = 'auto';
+
     const wrapWidth = wrap.clientWidth - 8;
     const tableWidth = table.offsetWidth;
     if (!tableWidth || !wrapWidth) return;
 
     const ratio = wrapWidth / tableWidth;
-    const scale = Math.min(1, Math.max(0.45, ratio));
+    // Không thu quá nhỏ để tránh chữ li ti; cho phép phóng nhẹ nếu bảng hẹp
+    const scale = Math.min(1.15, Math.max(0.72, ratio));
     scaleRoot.style.transform = `scale(${scale})`;
     scaleRoot.style.height = `${table.offsetHeight * scale}px`;
+
+    // Giữ cỡ chữ dễ đọc khi bắt buộc phải thu
+    if (scale < 1) {
+      const boost = (1 / scale);
+      table.style.fontSize = `${Math.min(16, Math.max(12, 12 * boost))}px`;
+    } else {
+      table.style.fontSize = '12px';
+    }
   }
 
   window.addEventListener('resize', fitToViewport);

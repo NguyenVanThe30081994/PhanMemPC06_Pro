@@ -21,26 +21,39 @@ form_engine = FormEngine()
 
 @reporting_bp.route('/')
 def index():
-    """Trang chủ hệ thống báo cáo"""
+    """Trang chủ hệ thống báo cáo - chỉ hiển thị danh sách mẫu biểu"""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
-    
-    # Lấy danh sách templates
-    templates = FormTemplate.query.filter_by(is_active=True).all()
-    
-    # Lấy kỳ báo cáo hiện tại
-    periods = ReportingPeriod.query.filter_by(is_locked=False).order_by(ReportingPeriod.start_date.desc()).limit(5).all()
-    
-    # Lấy báo cáo của user
+
+    templates = FormTemplate.query.filter_by(is_active=True).order_by(FormTemplate.name.asc()).all()
+
+    return render_template('reporting/index.html', templates=templates)
+
+
+@reporting_bp.route('/template/<int:template_id>/workspace')
+def template_workspace(template_id):
+    """Không gian làm việc theo từng biểu mẫu"""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    template = FormTemplate.query.get_or_404(template_id)
+    periods = ReportingPeriod.query.filter_by(is_locked=False).order_by(ReportingPeriod.start_date.desc()).all()
+
     user_unit = session.get('unit_area', session.get('unit', ''))
-    my_reports = ReportInstance.query.filter_by(
-        org_unit=user_unit
-    ).order_by(ReportInstance.updated_at.desc()).limit(10).all()
-    
-    return render_template('reporting/index.html',
-                         templates=templates,
-                         periods=periods,
-                         my_reports=my_reports)
+    report_query = ReportInstance.query.filter_by(template_id=template_id)
+    if not session.get('is_admin'):
+        report_query = report_query.filter(ReportInstance.org_unit == user_unit)
+
+    reports = report_query.order_by(ReportInstance.updated_at.desc()).limit(20).all()
+    latest_report = reports[0] if reports else None
+
+    return render_template(
+        'reporting/template_workspace.html',
+        template=template,
+        periods=periods,
+        reports=reports,
+        latest_report=latest_report
+    )
 
 
 @reporting_bp.route('/form/<int:template_id>')
@@ -111,6 +124,35 @@ def view_report(instance_id):
                           instance=instance)
 
 
+@reporting_bp.route('/report/<int:instance_id>/export')
+def export_report(instance_id):
+    """Xuất báo cáo Excel cho người dùng giao diện web"""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    try:
+        from services.report_exporter import ReportExporter
+        exporter = ReportExporter()
+
+        instance = ReportInstance.query.get_or_404(instance_id)
+        if not session.get('is_admin'):
+            user_unit = session.get('unit_area', session.get('unit', ''))
+            if instance.org_unit != user_unit:
+                flash('Bạn không có quyền xuất báo cáo của đơn vị khác.', 'danger')
+                return redirect(url_for('reporting_bp.index'))
+
+        output, filename = exporter.export_to_excel_bytes(instance_id)
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    except Exception as e:
+        flash(f'Lỗi xuất Excel: {e}', 'danger')
+        return redirect(url_for('reporting_bp.view_report', instance_id=instance_id))
+
+
 @reporting_bp.route('/dashboard')
 def dashboard():
     """Dashboard tổng hợp"""
@@ -174,7 +216,32 @@ def history():
         query = query.filter(ReportAuditLog.org_unit == user_unit)
 
     logs = query.limit(200).all()
-    return render_template('reporting/history.html', logs=logs)
+    return render_template('reporting/history.html', logs=logs, template=None)
+
+
+@reporting_bp.route('/template/<int:template_id>/history')
+def template_history(template_id):
+    """Lịch sử thao tác theo từng biểu mẫu"""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    template = FormTemplate.query.get_or_404(template_id)
+
+    instance_query = ReportInstance.query.filter_by(template_id=template_id)
+    if not session.get('is_admin'):
+        user_unit = session.get('unit_area', session.get('unit', ''))
+        instance_query = instance_query.filter(ReportInstance.org_unit == user_unit)
+
+    instance_ids = [row.id for row in instance_query.with_entities(ReportInstance.id).all()]
+    if not instance_ids:
+        return render_template('reporting/history.html', logs=[], template=template)
+
+    logs = ReportAuditLog.query.filter(
+        ReportAuditLog.entity_type == 'report_instance',
+        ReportAuditLog.entity_id.in_(instance_ids)
+    ).order_by(ReportAuditLog.timestamp.desc()).limit(300).all()
+
+    return render_template('reporting/history.html', logs=logs, template=template)
 
 
 @reporting_bp.route('/template/<int:template_id>/preview')
@@ -475,7 +542,9 @@ def api_validate_report(instance_id):
 
 @reporting_bp.route('/api/reports/<int:instance_id>/export', methods=['GET'])
 def api_export_report(instance_id):
-    """API: Xuất báo cáo ra Excel"""
+    """API: Xuất báo cáo ra Excel (dành cho tích hợp)"""
+    if not session.get('uid'):
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
     try:
         from services.report_exporter import ReportExporter
         exporter = ReportExporter()

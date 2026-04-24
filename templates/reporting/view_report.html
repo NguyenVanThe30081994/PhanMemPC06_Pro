@@ -24,7 +24,7 @@
                             <button class="btn btn-outline-secondary" onclick="window.history.back()">
                                 <i class="bi bi-arrow-left"></i> Quay lại
                             </button>
-                            <a href="{{ url_for('reporting_bp.api_export_report', instance_id=instance.id) }}" class="btn btn-success">
+                            <a href="{{ url_for('reporting_bp.export_report', instance_id=instance.id) }}" class="btn btn-success">
                                 <i class="bi bi-download"></i> Xuất Excel
                             </a>
                         </div>
