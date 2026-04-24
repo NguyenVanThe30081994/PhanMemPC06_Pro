@@ -16,14 +16,79 @@
     <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) if template else url_for('reporting_bp.index') }}" class="btn btn-outline-secondary">
       <i class="bi bi-arrow-left"></i> Quay lại
     </a>
-    <button onclick="exportTableToExcel('historyTable', 'LichSuBaoCao.xls')" class="btn btn-success ms-2">
-      <i class="bi bi-download"></i> Tải xuống Excel
-    </button>
+    <div>
+      <button onclick="exportTableToExcel('historyReportsTable', 'DanhSachBaoCao.xls')" class="btn btn-success ms-2">
+        <i class="bi bi-download"></i> Tải DS Báo cáo
+      </button>
+      <button onclick="exportTableToExcel('historyTable', 'NhatKyThaoTac.xls')" class="btn btn-outline-success ms-2">
+        <i class="bi bi-download"></i> Tải Nhật ký
+      </button>
+    </div>
   </div>
 
-  <div class="card shadow-sm">
-    <div class="card-body">
-      {% if logs %}
+  <ul class="nav nav-tabs mb-3" id="historyTab" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports-pane" type="button" role="tab" aria-controls="reports-pane" aria-selected="true">Danh sách báo cáo</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs-pane" type="button" role="tab" aria-controls="logs-pane" aria-selected="false">Nhật ký thao tác</button>
+    </li>
+  </ul>
+
+  <div class="tab-content" id="historyTabContent">
+    <div class="tab-pane fade show active" id="reports-pane" role="tabpanel" aria-labelledby="reports-tab">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          {% if reports %}
+          <div class="table-responsive">
+            <table class="table align-middle" id="historyReportsTable">
+              <thead>
+                <tr>
+                  <th>Kỳ báo cáo</th>
+                  <th>Đơn vị</th>
+                  <th>Trạng thái</th>
+                  <th>Cập nhật</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for report in reports %}
+                <tr>
+                  <td>{{ report.period.name }}</td>
+                  <td>{{ report.org_unit }}</td>
+                  <td>
+                    {% if report.status == 'draft' %}
+                    <span class="badge text-bg-warning">Nháp</span>
+                    {% elif report.status == 'submitted' %}
+                    <span class="badge text-bg-success">Đã nộp</span>
+                    {% else %}
+                    <span class="badge text-bg-secondary">{{ report.status }}</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ report.updated_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                  <td class="d-flex gap-2 flex-wrap">
+                    {% if not session.get('is_admin') and report.status == 'draft' %}
+                    <a href="{{ url_for('reporting_bp.fill_form', template_id=template.id, period_id=report.period_id) }}" class="btn btn-sm btn-primary">Tiếp tục nhập</a>
+                    {% endif %}
+                    <a href="{{ url_for('reporting_bp.view_report', instance_id=report.id) }}" class="btn btn-sm btn-outline-info">Xem</a>
+                    <a href="{{ url_for('reporting_bp.export_report', instance_id=report.id) }}" class="btn btn-sm btn-outline-success">Xuất</a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="alert alert-info mb-0">Biểu mẫu này chưa có báo cáo nào.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="logs-pane" role="tabpanel" aria-labelledby="logs-tab">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          {% if logs %}
       <div class="table-responsive">
         <table class="table table-hover align-middle" id="historyTable">
           <thead>
@@ -56,6 +121,9 @@
       {% else %}
       <div class="alert alert-info mb-0">Chưa có lịch sử thao tác nào.</div>
       {% endif %}
+    </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

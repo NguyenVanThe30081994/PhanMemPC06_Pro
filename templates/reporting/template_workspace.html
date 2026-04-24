@@ -16,172 +16,72 @@
   </div>
 
   <div class="row g-3 mb-4">
-    {% if not session.get('is_admin') %}
-    <div class="col-md-6 col-xl-3">
-      <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.select_period', template_id=template.id) }}" id="action_input_data">
-        <i class="bi bi-pencil-square fs-3"></i>
-        <h6 class="mt-2 mb-1">Nhập liệu</h6>
-        <small>Chọn kỳ và nhập báo cáo</small>
-      </a>
-    </div>
+    {% if session.get('is_admin') or session.get('is_lead') %}
+      <!-- Quyền Quản trị / Lãnh đạo -->
+      <div class="col-md-6 col-xl-3">
+        <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.field_settings', template_id=template.id) }}" id="action_field_settings">
+          <i class="bi bi-sliders fs-3"></i>
+          <h6 class="mt-2 mb-1">Thiết lập cột nhập</h6>
+          <small>Khóa/mở/ẩn trường nhập</small>
+        </a>
+      </div>
+      <div class="col-md-6 col-xl-3">
+        <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.preview_template', template_id=template.id) }}" id="action_preview_template">
+          <i class="bi bi-eye fs-3"></i>
+          <h6 class="mt-2 mb-1">Xem báo cáo</h6>
+          <small>Hiển thị dạng Excel trực quan</small>
+        </a>
+      </div>
+      <div class="col-md-6 col-xl-3">
+        <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.template_history', template_id=template.id) }}" id="action_template_history">
+          <i class="bi bi-clock-history fs-3"></i>
+          <h6 class="mt-2 mb-1">Lịch sử nhập</h6>
+          <small>Danh sách nộp và nhật ký</small>
+        </a>
+      </div>
+      <div class="col-md-6 col-xl-3">
+        <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.template_statistics', template_id=template.id) }}" id="action_template_statistics">
+          <i class="bi bi-bar-chart-line fs-3"></i>
+          <h6 class="mt-2 mb-1">Thống kê chung</h6>
+          <small>Tiến độ nộp của các đơn vị</small>
+        </a>
+      </div>
     {% else %}
-    <div class="col-md-6 col-xl-3">
-      <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.field_settings', template_id=template.id) }}" id="action_field_settings">
-        <i class="bi bi-sliders fs-3"></i>
-        <h6 class="mt-2 mb-1">Thiết lập cột nhập</h6>
-        <small>Khóa/mở/ẩn trường nhập</small>
-      </a>
-    </div>
-    {% endif %}
-
-    <div class="col-md-6 col-xl-3">
-      <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.preview_template', template_id=template.id) }}" id="action_preview_template">
-        <i class="bi bi-eye fs-3"></i>
-        <h6 class="mt-2 mb-1">Xem biểu mẫu</h6>
-        <small>Hiển thị dạng Excel trực quan</small>
-      </a>
-    </div>
-
-    <div class="col-md-6 col-xl-3">
-      {% if session.get('is_admin') or session.get('is_lead') %}
-      <a class="action-card text-decoration-none" href="#" data-bs-toggle="modal" data-bs-target="#selectUnitModal">
-        <i class="bi bi-journal-text fs-3"></i>
-        <h6 class="mt-2 mb-1">Xem/Xuất báo cáo</h6>
-        <small>Chọn đơn vị để xem</small>
-      </a>
-      {% elif latest_report %}
-      <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.view_report', instance_id=latest_report.id) }}" id="action_view_report">
-        <i class="bi bi-journal-text fs-3"></i>
-        <h6 class="mt-2 mb-1">Xem báo cáo</h6>
-        <small>Mở báo cáo gần nhất của đơn vị</small>
-      </a>
-      {% else %}
-      <div class="action-card disabled-card">
-        <i class="bi bi-journal-x fs-3"></i>
-        <h6 class="mt-2 mb-1">Xem báo cáo</h6>
-        <small>Chưa có báo cáo để xem</small>
+      <!-- Quyền Đơn vị -->
+      <div class="col-md-4">
+        <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.select_period', template_id=template.id) }}" id="action_input_data">
+          <i class="bi bi-pencil-square fs-3"></i>
+          <h6 class="mt-2 mb-1">Nhập liệu</h6>
+          <small>Chọn kỳ và nhập báo cáo</small>
+        </a>
       </div>
-      {% endif %}
-    </div>
-
-    <div class="col-md-6 col-xl-3">
-      {% if session.get('is_admin') or session.get('is_lead') %}
-      <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.dashboard') }}">
-        <i class="bi bi-bar-chart-line fs-3"></i>
-        <h6 class="mt-2 mb-1">Dashboard</h6>
-        <small>Xem tổng quan tiến độ</small>
-      </a>
-      {% elif latest_report %}
-      <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.export_report', instance_id=latest_report.id) }}" id="action_export_report">
-        <i class="bi bi-download fs-3"></i>
-        <h6 class="mt-2 mb-1">Xuất báo cáo</h6>
-        <small>Tải file Excel báo cáo gần nhất</small>
-      </a>
-      {% else %}
-      <div class="action-card disabled-card">
-        <i class="bi bi-download fs-3"></i>
-        <h6 class="mt-2 mb-1">Xuất báo cáo</h6>
-        <small>Chưa có báo cáo để xuất</small>
+      <div class="col-md-4">
+        <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.preview_template', template_id=template.id) }}" id="action_preview_template">
+          <i class="bi bi-eye fs-3"></i>
+          <h6 class="mt-2 mb-1">Xem báo cáo</h6>
+          <small>Hiển thị dạng Excel trực quan</small>
+        </a>
       </div>
-      {% endif %}
-    </div>
-  </div>
-
-  <div class="card border-0 shadow-sm">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-      <h5 class="mb-0"><i class="bi bi-clock-history"></i> Lịch sử nhập của biểu mẫu</h5>
-      <a href="{{ url_for('reporting_bp.template_history', template_id=template.id) }}" class="btn btn-outline-secondary btn-sm" id="action_template_history">Xem toàn bộ lịch sử</a>
-    </div>
-    <div class="card-body">
-      {% if reports %}
-      <div class="table-responsive">
-        <table class="table align-middle">
-          <thead>
-            <tr>
-              <th>Kỳ báo cáo</th>
-              <th>Đơn vị</th>
-              <th>Trạng thái</th>
-              <th>Cập nhật</th>
-              <th>Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for report in reports %}
-            <tr>
-              <td>{{ report.period.name }}</td>
-              <td>{{ report.org_unit }}</td>
-              <td>
-                {% if report.status == 'draft' %}
-                <span class="badge text-bg-warning">Nháp</span>
-                {% elif report.status == 'submitted' %}
-                <span class="badge text-bg-success">Đã nộp</span>
-                {% else %}
-                <span class="badge text-bg-secondary">{{ report.status }}</span>
-                {% endif %}
-              </td>
-              <td>{{ report.updated_at.strftime('%d/%m/%Y %H:%M') }}</td>
-              <td class="d-flex gap-2 flex-wrap">
-                {% if not session.get('is_admin') and report.status == 'draft' %}
-                <a href="{{ url_for('reporting_bp.fill_form', template_id=template.id, period_id=report.period_id) }}" class="btn btn-sm btn-primary">Tiếp tục nhập</a>
-                {% endif %}
-                <a href="{{ url_for('reporting_bp.view_report', instance_id=report.id) }}" class="btn btn-sm btn-outline-info">Xem</a>
-                <a href="{{ url_for('reporting_bp.export_report', instance_id=report.id) }}" class="btn btn-sm btn-outline-success">Xuất</a>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <div class="alert alert-info mb-0">Biểu mẫu này chưa có dữ liệu báo cáo.</div>
-      {% endif %}
-    </div>
-  </div>
-</div>
-
-<!-- Modal chọn đơn vị để xem/xuất báo cáo dành cho Quản trị/Lãnh đạo -->
-{% if session.get('is_admin') or session.get('is_lead') %}
-<div class="modal fade" id="selectUnitModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Chọn báo cáo để xem/xuất</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Chọn báo cáo đã nộp</label>
-          <select class="form-select" id="reportSelect">
-            <option value="">-- Chọn đơn vị (Kỳ báo cáo) --</option>
-            {% for report in reports %}
-            <option value="{{ report.id }}">{{ report.org_unit }} (Kỳ: {{ report.period.name }}) - {{ 'Đã nộp' if report.status == 'submitted' else report.status }}</option>
-            {% endfor %}
-          </select>
+      <div class="col-md-4">
+        {% if latest_report %}
+        <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.view_report', instance_id=latest_report.id) }}" id="action_view_report">
+          <i class="bi bi-journal-text fs-3"></i>
+          <h6 class="mt-2 mb-1">Lịch sử nhập</h6>
+          <small>Mở báo cáo gần nhất</small>
+        </a>
+        {% else %}
+        <div class="action-card disabled-card">
+          <i class="bi bi-journal-x fs-3"></i>
+          <h6 class="mt-2 mb-1">Lịch sử nhập</h6>
+          <small>Chưa có báo cáo để xem</small>
         </div>
+        {% endif %}
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
-        <button type="button" class="btn btn-outline-success" onclick="goReportAction('export')"><i class="bi bi-download"></i> Xuất Excel</button>
-        <button type="button" class="btn btn-primary" onclick="goReportAction('view')"><i class="bi bi-eye"></i> Xem báo cáo</button>
-      </div>
-    </div>
+    {% endif %}
   </div>
 </div>
-<script>
-function goReportAction(action) {
-  var reportId = document.getElementById('reportSelect').value;
-  if (!reportId) {
-    alert('Vui lòng chọn báo cáo!');
-    return;
-  }
-  if (action === 'view') {
-    window.location.href = '/reporting/report/' + reportId;
-  } else if (action === 'export') {
-    window.location.href = '/reporting/report/' + reportId + '/export';
-  }
-}
-</script>
-{% endif %}
+
+
 
 <style>
 .action-card {

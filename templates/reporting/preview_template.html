@@ -24,10 +24,10 @@
           <colgroup>
             {% for width in col_widths %}
             {% set final_width = width %}
-            {% if loop.index == 2 and width < 120 %}
-              {% set final_width = 150 %}
+            {% if loop.index == 2 %}
+              {% set final_width = [width, 220]|max %}
             {% endif %}
-            <col style="width: {{ final_width }}px; min-width: {{ final_width }}px;">
+            <col style="width: {{ final_width }}px; min-width: {{ final_width }}px; max-width: {{ final_width }}px;">
             {% endfor %}
           </colgroup>
           <tbody>
@@ -39,8 +39,9 @@
                 {% if cell.colspan > 1 %}colspan="{{ cell.colspan }}"{% endif %}
                 class="{% if cell.col_idx == 1 %}sticky-col-1{% elif cell.col_idx == 2 %}sticky-col-2{% endif %} {% if cell.col_idx <= 2 and cell.colspan > 1 %}sticky-col-1{% endif %}"
                 style="
-                  text-align: {{ cell.align }};
+                  text-align: {% if cell.col_idx == 1 %}center{% elif cell.col_idx == 2 %}left{% else %}{{ cell.align if cell.align != 'general' else 'left' }}{% endif %};
                   vertical-align: {{ cell.valign }};
+                  white-space: {% if cell.col_idx <= 2 %}normal{% else %}pre-wrap{% endif %};
                   font-size: {{ cell.font_size }}pt;
                   {% if cell.bold %}font-weight: 700;{% endif %}
                   {% if cell.italic %}font-style: italic;{% endif %}
@@ -70,7 +71,7 @@
 
 /* Đóng băng cột 1 và 2 */
 .sticky-col-1 { position: sticky; left: 0; z-index: 2; box-shadow: inset -1px 0 0 #dfe2e6; }
-.sticky-col-2 { position: sticky; left: {{ col_widths[0] }}px; z-index: 2; box-shadow: inset -1px 0 0 #dfe2e6; }
+.sticky-col-2 { position: sticky; z-index: 2; box-shadow: inset -1px 0 0 #dfe2e6; }
 .excel-table th.sticky-col-1, .excel-table th.sticky-col-2 { z-index: 3; }
 </style>
 
@@ -80,6 +81,18 @@
   const scaleRoot = document.getElementById('excelScaleRoot');
   const table = document.getElementById('excelPreviewTable');
   if (!wrap || !scaleRoot || !table) return;
+
+  function updateStickyColumns() {
+    // Đảm bảo cột 2 không bị đè lên cột 1 do sai số width
+    const firstCol = table.querySelector('col:nth-child(1)');
+    if (firstCol) {
+      const firstColWidth = firstCol.getBoundingClientRect().width;
+      const stickyCol2Elements = table.querySelectorAll('.sticky-col-2');
+      stickyCol2Elements.forEach(el => {
+        el.style.left = firstColWidth + 'px';
+      });
+    }
+  }
 
   function fitToViewport() {
     scaleRoot.style.transform = 'scale(1)';
@@ -99,12 +112,17 @@
     if (scale < 0.8) {
       table.style.fontSize = '12pt';
     } else {
-      table.style.fontSize = '11pt';
+      table.style.fontSize = '';
     }
+    
+    // Cập nhật lại vị trí sticky sau khi table đã render xong layout
+    updateStickyColumns();
   }
 
-  window.addEventListener('resize', fitToViewport);
+  // Chạy ngay và chạy lại khi resize
   window.addEventListener('load', fitToViewport);
+  window.addEventListener('resize', fitToViewport);
+  // Gọi tạm 1 lần lúc render để tránh bị chớp
   fitToViewport();
 })();
 </script>

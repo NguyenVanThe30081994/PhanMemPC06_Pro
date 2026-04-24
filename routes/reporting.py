@@ -154,56 +154,100 @@ def export_report(instance_id):
         return redirect(url_for('reporting_bp.view_report', instance_id=instance_id))
 
 
-@reporting_bp.route('/dashboard')
-def dashboard():
-    """Dashboard tổng hợp"""
+
+
+
+@reporting_bp.route('/template/<int:template_id>/statistics')
+def template_statistics(template_id):
+    """Thống kê tiến độ nộp báo cáo của các đơn vị"""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
+    if not (session.get('is_admin') or session.get('is_lead')):
+        flash('Bạn không có quyền truy cập chức năng này.', 'danger')
+        return redirect(url_for('reporting_bp.template_workspace', template_id=template_id))
+
+    template = FormTemplate.query.get_or_404(template_id)
     
-    # Lấy thống kê
-    from models import User, AppRole
-    import json
-    
-    role = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
-    perms = json.loads(role.perms) if role and role.perms else {}
-    is_lead = perms.get('p_stat_lead') or session.get('is_admin')
-    user_unit = session.get('unit_area', session.get('unit', ''))
-    
+    # Lấy kỳ báo cáo gần nhất
+    period = ReportingPeriod.query.filter_by(is_locked=False).order_by(ReportingPeriod.start_date.desc()).first()
+    if not period:
+        period = ReportingPeriod.query.order_by(ReportingPeriod.start_date.desc()).first()
+        
+    if not period:
+        flash('Chưa có kỳ báo cáo nào được tạo.', 'warning')
+        return redirect(url_for('reporting_bp.template_workspace', template_id=template_id))
+
     # Lấy tất cả đơn vị
+    from models import User
+    user_unit = session.get('unit_area', session.get('unit', ''))
     all_units_query = db.session.query(User.unit_area).distinct()
-    if not is_lead:
+    if not session.get('is_admin'):
         all_units_query = all_units_query.filter(User.unit_area == user_unit)
     
     all_units = [u[0] for u in all_units_query.all() if u[0] and u[0] != 'Hệ thống']
-    
-    # Lấy kỳ hiện tại
-    current_period = ReportingPeriod.query.filter_by(is_locked=False).order_by(ReportingPeriod.start_date.desc()).first()
-    
-    # Thống kê tiến độ
-    stats = {}
-    if current_period:
-        templates = FormTemplate.query.filter_by(is_active=True).all()
-        
-        for template in templates:
-            total_units = len(all_units)
-            submitted = ReportInstance.query.filter_by(
-                template_id=template.id,
-                period_id=current_period.id,
-                status='submitted'
-            ).count()
-            
-            stats[template.code] = {
-                'name': template.name,
-                'total': total_units,
-                'submitted': submitted,
-                'percent': round((submitted / total_units * 100) if total_units > 0 else 0, 1)
-            }
-    
-    return render_template('reporting/dashboard.html',
-                          stats=stats,
-                          current_period=current_period,
-                          is_lead=is_lead)
 
+    # Lấy các báo cáo đã nộp
+    submitted_reports = ReportInstance.query.filter_by(
+        template_id=template_id,
+        period_id=period.id,
+        status='submitted'
+    ).all()
+    
+    submitted_units_map = {r.org_unit: r for r in submitted_reports}
+    
+    stats_list = []
+    import datetime
+    now = datetime.datetime.now()
+    deadline = period.end_date
+    
+    for unit in all_units:
+        report = submitted_units_map.get(unit)
+        if report:
+            is_late = False
+            if deadline and report.updated_at > deadline:
+                is_late = True
+            
+            stats_list.append({
+                'unit': unit,
+                'status_group': 'Đã nộp',
+                'status_detail': 'Đã nộp (Quá hạn)' if is_late else 'Đã nộp (Đúng hạn)',
+                'report_id': report.id,
+                'updated_at': report.updated_at
+            })
+        else:
+            is_late_now = False
+            if deadline and now > deadline:
+                is_late_now = True
+                
+            stats_list.append({
+                'unit': unit,
+                'status_group': 'Chưa nộp',
+                'status_detail': 'Chưa nộp (Quá hạn)' if is_late_now else 'Chưa nộp',
+                'report_id': None,
+                'updated_at': None
+            })
+            
+    # Tính toán tổng quan
+    total = len(stats_list)
+    submitted = sum(1 for s in stats_list if s['status_group'] == 'Đã nộp')
+    not_submitted = total - submitted
+    on_time = sum(1 for s in stats_list if s['status_detail'] == 'Đã nộp (Đúng hạn)')
+    late = sum(1 for s in stats_list if 'Quá hạn' in s['status_detail'])
+
+    summary = {
+        'total': total,
+        'submitted': submitted,
+        'not_submitted': not_submitted,
+        'on_time': on_time,
+        'late': late,
+        'percent': round((submitted/total*100) if total > 0 else 0, 1)
+    }
+
+    return render_template('reporting/template_statistics.html', 
+                           template=template, 
+                           period=period, 
+                           stats_list=stats_list,
+                           summary=summary)
 
 @reporting_bp.route('/history')
 def history():
@@ -217,7 +261,7 @@ def history():
         query = query.filter(ReportAuditLog.org_unit == user_unit)
 
     logs = query.limit(200).all()
-    return render_template('reporting/history.html', logs=logs, template=None)
+    return render_template('reporting/history.html', logs=logs, reports=[], template=None)
 
 
 @reporting_bp.route('/template/<int:template_id>/history')
@@ -233,16 +277,18 @@ def template_history(template_id):
         user_unit = session.get('unit_area', session.get('unit', ''))
         instance_query = instance_query.filter(ReportInstance.org_unit == user_unit)
 
-    instance_ids = [row.id for row in instance_query.with_entities(ReportInstance.id).all()]
+    reports = instance_query.order_by(ReportInstance.updated_at.desc()).all()
+    instance_ids = [row.id for row in reports]
+    
     if not instance_ids:
-        return render_template('reporting/history.html', logs=[], template=template)
+        return render_template('reporting/history.html', logs=[], reports=[], template=template)
 
     logs = ReportAuditLog.query.filter(
         ReportAuditLog.entity_type == 'report_instance',
         ReportAuditLog.entity_id.in_(instance_ids)
     ).order_by(ReportAuditLog.timestamp.desc()).limit(300).all()
 
-    return render_template('reporting/history.html', logs=logs, template=template)
+    return render_template('reporting/history.html', logs=logs, reports=reports, template=template)
 
 
 @reporting_bp.route('/template/<int:template_id>/preview')
