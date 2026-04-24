@@ -9,15 +9,13 @@
       <h3 class="mb-1"><i class="bi bi-file-earmark-spreadsheet"></i> Xem biểu mẫu Excel trực quan</h3>
       <p class="text-muted mb-0">{{ template.name }} | Sheet: {{ sheet_title }}</p>
     </div>
-    <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-secondary">
+    <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="btn btn-outline-secondary">
       <i class="bi bi-arrow-left"></i> Quay lại
     </a>
   </div>
 
-  <div class="alert alert-info">
-    <i class="bi bi-info-circle"></i>
-    Bảng đã tự scale theo trang, hiển thị giá trị kết quả (không hiện công thức) và áp dụng định dạng số theo Excel.
   </div>
+
 
   <div class="excel-frame">
     <div class="excel-scroll" id="excelScrollWrap">
@@ -25,7 +23,11 @@
         <table class="excel-table" id="excelPreviewTable">
           <colgroup>
             {% for width in col_widths %}
-            <col style="width: {{ width }}px;">
+            {% set final_width = width %}
+            {% if loop.index == 2 and width < 120 %}
+              {% set final_width = 150 %}
+            {% endif %}
+            <col style="width: {{ final_width }}px; min-width: {{ final_width }}px;">
             {% endfor %}
           </colgroup>
           <tbody>
@@ -35,13 +37,15 @@
               <td
                 {% if cell.rowspan > 1 %}rowspan="{{ cell.rowspan }}"{% endif %}
                 {% if cell.colspan > 1 %}colspan="{{ cell.colspan }}"{% endif %}
+                class="{% if cell.col_idx == 1 %}sticky-col-1{% elif cell.col_idx == 2 %}sticky-col-2{% endif %} {% if cell.col_idx <= 2 and cell.colspan > 1 %}sticky-col-1{% endif %}"
                 style="
                   text-align: {{ cell.align }};
                   vertical-align: {{ cell.valign }};
                   font-size: {{ cell.font_size }}pt;
                   {% if cell.bold %}font-weight: 700;{% endif %}
                   {% if cell.italic %}font-style: italic;{% endif %}
-                  {% if cell.bg_color %}background-color: {{ cell.bg_color }};{% endif %}
+                  {% if cell.bg_color %}background-color: {{ cell.bg_color }};
+                  {% elif cell.col_idx <= 2 %}background-color: #fff;{% endif %}
                 "
               >
                 {{ cell.value }}
@@ -63,6 +67,11 @@
 .excel-table { border-collapse: collapse; width: max-content; font-family: "Segoe UI", Arial, sans-serif; background: #fff; }
 .excel-table td { border: 1px solid #dfe2e6; padding: 6px 8px; white-space: pre-wrap; color: #111827; background-clip: padding-box; }
 .excel-table tr:hover td { background-color: rgba(59,130,246,.05); }
+
+/* Đóng băng cột 1 và 2 */
+.sticky-col-1 { position: sticky; left: 0; z-index: 2; box-shadow: inset -1px 0 0 #dfe2e6; }
+.sticky-col-2 { position: sticky; left: {{ col_widths[0] }}px; z-index: 2; box-shadow: inset -1px 0 0 #dfe2e6; }
+.excel-table th.sticky-col-1, .excel-table th.sticky-col-2 { z-index: 3; }
 </style>
 
 <script>
@@ -81,13 +90,13 @@
     if (!tableWidth || !wrapWidth) return;
 
     const ratio = wrapWidth / tableWidth;
-    // Không thu quá nhỏ để tránh chữ li ti; cho phép phóng nhẹ nếu bảng hẹp
-    const scale = Math.min(1.15, Math.max(0.9, ratio));
+    // Cho phép scale nhỏ lại đến 0.7 để hạn chế cuộn ngang, nhưng không quá nhỏ để đọc được chữ
+    const scale = Math.min(1.15, Math.max(0.7, ratio));
     scaleRoot.style.transform = `scale(${scale})`;
     scaleRoot.style.height = `${table.offsetHeight * scale}px`;
 
     // Giữ cỡ chữ dễ đọc
-    if (scale < 1) {
+    if (scale < 0.8) {
       table.style.fontSize = '12pt';
     } else {
       table.style.fontSize = '11pt';

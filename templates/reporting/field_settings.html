@@ -11,15 +11,9 @@
         Mẫu: <strong>{{ template.name }}</strong> | Phiên bản: <strong>{{ version.version_number }}</strong>
       </p>
     </div>
-    <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-secondary">
+    <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="btn btn-outline-secondary">
       <i class="bi bi-arrow-left"></i> Quay lại
     </a>
-  </div>
-
-  <div class="alert alert-info">
-    <i class="bi bi-info-circle"></i>
-    Tích chọn trường được phép nhập liệu. Bỏ chọn = khóa (readonly).
-    Tích thêm "Ẩn khỏi đơn vị" để không hiển thị trên màn hình nhập liệu. Trường công thức luôn bị khóa.
   </div>
 
   <form method="POST">
@@ -89,7 +83,7 @@
     {% endfor %}
 
     <div class="sticky-bottom bg-white border rounded p-3 d-flex justify-content-end gap-2 mb-3">
-      <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-secondary">Hủy</a>
+      <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="btn btn-outline-secondary">Hủy</a>
       <button type="submit" class="btn btn-primary">
         <i class="bi bi-save"></i> Lưu thiết lập
       </button>

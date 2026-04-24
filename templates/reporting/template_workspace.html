@@ -43,11 +43,17 @@
     </div>
 
     <div class="col-md-6 col-xl-3">
-      {% if latest_report %}
+      {% if session.get('is_admin') or session.get('is_lead') %}
+      <a class="action-card text-decoration-none" href="#" data-bs-toggle="modal" data-bs-target="#selectUnitModal">
+        <i class="bi bi-journal-text fs-3"></i>
+        <h6 class="mt-2 mb-1">Xem/Xuất báo cáo</h6>
+        <small>Chọn đơn vị để xem</small>
+      </a>
+      {% elif latest_report %}
       <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.view_report', instance_id=latest_report.id) }}" id="action_view_report">
         <i class="bi bi-journal-text fs-3"></i>
         <h6 class="mt-2 mb-1">Xem báo cáo</h6>
-        <small>Mở báo cáo gần nhất</small>
+        <small>Mở báo cáo gần nhất của đơn vị</small>
       </a>
       {% else %}
       <div class="action-card disabled-card">
@@ -59,7 +65,13 @@
     </div>
 
     <div class="col-md-6 col-xl-3">
-      {% if latest_report %}
+      {% if session.get('is_admin') or session.get('is_lead') %}
+      <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.dashboard') }}">
+        <i class="bi bi-bar-chart-line fs-3"></i>
+        <h6 class="mt-2 mb-1">Dashboard</h6>
+        <small>Xem tổng quan tiến độ</small>
+      </a>
+      {% elif latest_report %}
       <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.export_report', instance_id=latest_report.id) }}" id="action_export_report">
         <i class="bi bi-download fs-3"></i>
         <h6 class="mt-2 mb-1">Xuất báo cáo</h6>
@@ -126,6 +138,50 @@
     </div>
   </div>
 </div>
+
+<!-- Modal chọn đơn vị để xem/xuất báo cáo dành cho Quản trị/Lãnh đạo -->
+{% if session.get('is_admin') or session.get('is_lead') %}
+<div class="modal fade" id="selectUnitModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Chọn báo cáo để xem/xuất</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Chọn báo cáo đã nộp</label>
+          <select class="form-select" id="reportSelect">
+            <option value="">-- Chọn đơn vị (Kỳ báo cáo) --</option>
+            {% for report in reports %}
+            <option value="{{ report.id }}">{{ report.org_unit }} (Kỳ: {{ report.period.name }}) - {{ 'Đã nộp' if report.status == 'submitted' else report.status }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+        <button type="button" class="btn btn-outline-success" onclick="goReportAction('export')"><i class="bi bi-download"></i> Xuất Excel</button>
+        <button type="button" class="btn btn-primary" onclick="goReportAction('view')"><i class="bi bi-eye"></i> Xem báo cáo</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function goReportAction(action) {
+  var reportId = document.getElementById('reportSelect').value;
+  if (!reportId) {
+    alert('Vui lòng chọn báo cáo!');
+    return;
+  }
+  if (action === 'view') {
+    window.location.href = '/reporting/report/' + reportId;
+  } else if (action === 'export') {
+    window.location.href = '/reporting/report/' + reportId + '/export';
+  }
+}
+</script>
+{% endif %}
 
 <style>
 .action-card {

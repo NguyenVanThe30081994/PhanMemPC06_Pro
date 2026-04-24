@@ -16,13 +16,16 @@
     <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) if template else url_for('reporting_bp.index') }}" class="btn btn-outline-secondary">
       <i class="bi bi-arrow-left"></i> Quay lại
     </a>
+    <button onclick="exportTableToExcel('historyTable', 'LichSuBaoCao.xls')" class="btn btn-success ms-2">
+      <i class="bi bi-download"></i> Tải xuống Excel
+    </button>
   </div>
 
   <div class="card shadow-sm">
     <div class="card-body">
       {% if logs %}
       <div class="table-responsive">
-        <table class="table table-hover align-middle">
+        <table class="table table-hover align-middle" id="historyTable">
           <thead>
             <tr>
               <th>Thời gian</th>
@@ -56,4 +59,37 @@
     </div>
   </div>
 </div>
+
+<script>
+function exportTableToExcel(tableID, filename = ''){
+    var downloadLink;
+    var dataType = 'application/vnd.ms-excel';
+    var tableSelect = document.getElementById(tableID);
+    
+    // Add meta tag to support UTF-8 in Excel
+    var tableHTML = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>{worksheet}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body>' + tableSelect.outerHTML + '</body></html>';
+    
+    // Encode for URI
+    var encodedHTML = encodeURIComponent(tableHTML);
+    
+    // Specify file name
+    filename = filename?filename+'.xls':'excel_data.xls';
+    
+    // Create download link element
+    downloadLink = document.createElement("a");
+    document.body.appendChild(downloadLink);
+    
+    if(navigator.msSaveOrOpenBlob){
+        var blob = new Blob(['\ufeff', tableHTML], {
+            type: dataType
+        });
+        navigator.msSaveOrOpenBlob( blob, filename);
+    }else{
+        // Create a link to the file
+        downloadLink.href = 'data:' + dataType + ', ' + encodedHTML;
+        downloadLink.download = filename;
+        downloadLink.click();
+    }
+}
+</script>
 {% endblock %}

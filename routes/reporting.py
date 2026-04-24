@@ -326,6 +326,7 @@ def preview_template(template_id):
                     'align': alignment.horizontal if alignment and alignment.horizontal else 'left',
                     'valign': alignment.vertical if alignment and alignment.vertical else 'middle',
                     'bg_color': bg_color,
+                    'col_idx': c,
                 })
             row_height = ws.row_dimensions[r].height or 20
             rows.append({'height_px': int(row_height * 1.33), 'cells': row_cells})
