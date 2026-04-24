@@ -38,7 +38,7 @@
                 style="
                   text-align: {{ cell.align }};
                   vertical-align: {{ cell.valign }};
-                  font-size: {{ cell.font_size }}px;
+                  font-size: {{ cell.font_size }}pt;
                   {% if cell.bold %}font-weight: 700;{% endif %}
                   {% if cell.italic %}font-style: italic;{% endif %}
                   {% if cell.bg_color %}background-color: {{ cell.bg_color }};{% endif %}
@@ -82,16 +82,15 @@
 
     const ratio = wrapWidth / tableWidth;
     // Không thu quá nhỏ để tránh chữ li ti; cho phép phóng nhẹ nếu bảng hẹp
-    const scale = Math.min(1.15, Math.max(0.72, ratio));
+    const scale = Math.min(1.15, Math.max(0.9, ratio));
     scaleRoot.style.transform = `scale(${scale})`;
     scaleRoot.style.height = `${table.offsetHeight * scale}px`;
 
-    // Giữ cỡ chữ dễ đọc khi bắt buộc phải thu
+    // Giữ cỡ chữ dễ đọc
     if (scale < 1) {
-      const boost = (1 / scale);
-      table.style.fontSize = `${Math.min(16, Math.max(12, 12 * boost))}px`;
+      table.style.fontSize = '12pt';
     } else {
-      table.style.fontSize = '12px';
+      table.style.fontSize = '11pt';
     }
   }
 

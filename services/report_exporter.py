@@ -16,8 +16,15 @@ class ReportExporter:
     @staticmethod
     def _resolve_target_cell(ws, cell_ref):
         """Nếu ô nằm trong merged range (không phải top-left) thì chuyển về top-left để tránh lỗi ghi."""
+        from openpyxl.utils.cell import coordinate_to_tuple
+        try:
+            r_idx, c_idx = coordinate_to_tuple(cell_ref)
+        except Exception:
+            return cell_ref
+
         for merged_range in ws.merged_cells.ranges:
-            if cell_ref in merged_range:
+            if merged_range.min_row <= r_idx <= merged_range.max_row and \
+               merged_range.min_col <= c_idx <= merged_range.max_col:
                 return merged_range.start_cell.coordinate
         return cell_ref
 
