@@ -3,54 +3,73 @@
 {% block title %}Xem biểu mẫu Excel - {{ template.name }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-3">
+<div class="container-fluid px-3 mt-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
     <div>
-      <h3 class="mb-1"><i class="bi bi-file-earmark-spreadsheet"></i> Xem biểu mẫu Excel trực quan</h3>
-      <p class="text-muted mb-0">{{ template.name }} | Sheet: {{ sheet_title }}</p>
+      <h5 class="mb-0"><i class="bi bi-file-earmark-spreadsheet text-success"></i> {{ template.name }}</h5>
+      <small class="text-muted">Sheet: {{ sheet_title }}</small>
     </div>
-    <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="btn btn-outline-secondary">
-      <i class="bi bi-arrow-left"></i> Quay lại
-    </a>
+    <div class="d-flex align-items-center gap-2">
+      <div class="btn-group btn-group-sm" role="group">
+        <button class="btn btn-outline-secondary" onclick="zoomTable(-0.05)" title="Thu nhỏ"><i class="bi bi-zoom-out"></i></button>
+        <button class="btn btn-outline-secondary" id="zoomLabel" style="min-width:52px;pointer-events:none;">100%</button>
+        <button class="btn btn-outline-secondary" onclick="zoomTable(0.05)" title="Phóng to"><i class="bi bi-zoom-in"></i></button>
+        <button class="btn btn-outline-secondary" onclick="zoomTable(0)" title="Vừa màn hình"><i class="bi bi-fullscreen"></i></button>
+      </div>
+      <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+      </a>
+    </div>
   </div>
 
+  {# Sheet tab bar #}
+  <div class="xl-sheet-tabs">
+    <span class="xl-sheet-tab active"><i class="bi bi-file-earmark"></i> {{ sheet_title }}</span>
   </div>
 
-
-  <div class="excel-frame">
-    <div class="excel-scroll" id="excelScrollWrap">
-      <div class="excel-scale" id="excelScaleRoot">
-        <table class="excel-table" id="excelPreviewTable">
+  {# Excel grid #}
+  <div class="xl-frame">
+    <div class="xl-scroll" id="xlScroll">
+      <div class="xl-scale" id="xlScale">
+        <table class="xl-tbl" id="xlTable">
           <colgroup>
+            <col class="xl-row-hdr-col">
             {% for width in col_widths %}
-            {% set final_width = width %}
-            {% if loop.index == 2 %}
-              {% set final_width = [width, 220]|max %}
-            {% endif %}
-            <col style="width: {{ final_width }}px; min-width: {{ final_width }}px; max-width: {{ final_width }}px;">
+            {% set fw = width %}
+            {% if loop.index == 2 %}{% set fw = [width, 200]|max %}{% endif %}
+            <col style="width:{{ fw }}px;min-width:{{ fw }}px;">
             {% endfor %}
           </colgroup>
+          <thead>
+            <tr class="xl-col-hdr-row">
+              <th class="xl-corner"></th>
+              {% for width in col_widths %}
+              <th class="xl-col-hdr">{{ col_letters[loop.index0] }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
           <tbody>
             {% for row in rows %}
-            <tr style="height: {{ row.height_px }}px;">
+            <tr style="height:{{ row.height_px }}px;">
+              <td class="xl-row-hdr">{{ loop.index }}</td>
               {% for cell in row.cells %}
               <td
                 {% if cell.rowspan > 1 %}rowspan="{{ cell.rowspan }}"{% endif %}
                 {% if cell.colspan > 1 %}colspan="{{ cell.colspan }}"{% endif %}
-                class="{% if cell.col_idx == 1 %}sticky-col-1{% elif cell.col_idx == 2 %}sticky-col-2{% endif %} {% if cell.col_idx <= 2 and cell.colspan > 1 %}sticky-col-1{% endif %}"
+                class="xl-cell{% if cell.col_idx <= 2 %} xl-sticky-{{ cell.col_idx }}{% endif %}{% if cell.has_border_b %} xl-bb{% endif %}"
                 style="
-                  text-align: {% if cell.col_idx == 1 %}center{% elif cell.col_idx == 2 %}left{% else %}{{ cell.align if cell.align != 'general' else 'left' }}{% endif %};
-                  vertical-align: {{ cell.valign }};
-                  white-space: {% if cell.col_idx <= 2 %}normal{% else %}pre-wrap{% endif %};
-                  font-size: {{ cell.font_size }}pt;
-                  {% if cell.bold %}font-weight: 700;{% endif %}
-                  {% if cell.italic %}font-style: italic;{% endif %}
-                  {% if cell.bg_color %}background-color: {{ cell.bg_color }};
-                  {% elif cell.col_idx <= 2 %}background-color: #fff;{% endif %}
+                  text-align:{{ cell.align if cell.align and cell.align != 'general' else 'left' }};
+                  vertical-align:{{ cell.valign or 'center' }};
+                  font-size:{{ cell.font_size }}pt;
+                  {% if cell.bold %}font-weight:700;{% endif %}
+                  {% if cell.italic %}font-style:italic;{% endif %}
+                  {% if cell.underline %}text-decoration:underline;{% endif %}
+                  {% if cell.font_color %}color:{{ cell.font_color }};{% endif %}
+                  {% if cell.bg_color and cell.bg_color != '#000000' %}background:{{ cell.bg_color }};{% endif %}
+                  {% if cell.wrap_text %}white-space:normal;word-break:break-word;{% endif %}
+                  {% if cell.border_style %}{{ cell.border_style }}{% endif %}
                 "
-              >
-                {{ cell.value }}
-              </td>
+              >{{ cell.value }}</td>
               {% endfor %}
             </tr>
             {% endfor %}
@@ -62,67 +81,174 @@
 </div>
 
 <style>
-.excel-frame { border: 1px solid #d0d7de; border-radius: 10px; background: #fff; box-shadow: 0 8px 24px rgba(15,23,42,.08); }
-.excel-scroll { overflow: auto; max-height: 76vh; padding: 12px; background: #f8fafc; }
-.excel-scale { transform-origin: top left; width: max-content; }
-.excel-table { border-collapse: collapse; width: max-content; font-family: "Segoe UI", Arial, sans-serif; background: #fff; }
-.excel-table td { border: 1px solid #dfe2e6; padding: 2px 4px; white-space: pre-wrap; color: #111827; background-clip: padding-box; line-height: 1.2; }
-.excel-table tr:hover td { background-color: rgba(59,130,246,.05); }
+/* ===== EXCEL-LIKE GRID ===== */
+.xl-sheet-tabs {
+  display:flex; gap:0; background:#e0e0e0; border-radius:0 0 0 0;
+  border:1px solid #b0b0b0; border-bottom:none; padding:0 6px;
+  overflow-x:auto;
+}
+.xl-sheet-tab {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:4px 14px; font-size:11px; cursor:pointer;
+  background:#f0f0f0; border:1px solid #b0b0b0; border-bottom:none;
+  margin-top:4px; border-radius:4px 4px 0 0; color:#333;
+  white-space:nowrap;
+}
+.xl-sheet-tab.active {
+  background:#fff; border-bottom:1px solid #fff; font-weight:600; color:#1a7340;
+  margin-bottom:-1px; z-index:1;
+}
 
-/* Đóng băng cột 1 và 2 */
-.sticky-col-1 { position: sticky; left: 0; z-index: 2; box-shadow: inset -1px 0 0 #dfe2e6; }
-.sticky-col-2 { position: sticky; z-index: 2; box-shadow: inset -1px 0 0 #dfe2e6; }
-.excel-table th.sticky-col-1, .excel-table th.sticky-col-2 { z-index: 3; }
+.xl-frame {
+  border:1px solid #b0b0b0;
+  background:#fff;
+}
+.xl-scroll {
+  overflow:auto;
+  max-height:78vh;
+  background:#e8e8e8; /* vùng ngoài bảng giống Excel */
+}
+.xl-scale {
+  transform-origin:top left;
+  width:max-content;
+}
+
+/* === TABLE === */
+.xl-tbl {
+  border-collapse:collapse;
+  font-family:Calibri, "Segoe UI", Arial, sans-serif;
+  font-size:11pt;
+  background:#fff;
+  width:max-content;
+  table-layout:fixed;
+}
+
+/* === COLUMN HEADERS (A, B, C...) === */
+.xl-col-hdr-row {
+  position:sticky; top:0; z-index:10;
+}
+.xl-corner {
+  position:sticky; left:0; top:0; z-index:12;
+  background:linear-gradient(180deg, #f8f8f8 0%, #e2e2e2 100%);
+  border-right:1px solid #b0b0b0;
+  border-bottom:1px solid #b0b0b0;
+  min-width:36px; width:36px; max-width:36px;
+}
+.xl-col-hdr {
+  background:linear-gradient(180deg, #f8f8f8 0%, #e2e2e2 100%);
+  border-right:1px solid #c8c8c8;
+  border-bottom:1px solid #b0b0b0;
+  text-align:center;
+  font-size:10px; font-weight:500;
+  color:#555;
+  padding:2px 0;
+  height:20px;
+  line-height:16px;
+}
+
+/* === ROW HEADER (1, 2, 3...) === */
+.xl-row-hdr-col {
+  width:36px; min-width:36px; max-width:36px;
+}
+.xl-row-hdr {
+  position:sticky; left:0; z-index:5;
+  background:linear-gradient(90deg, #f8f8f8 0%, #e8e8e8 100%);
+  border-right:1px solid #b0b0b0;
+  border-bottom:1px solid #d0d0d0;
+  text-align:center;
+  font-size:10px; font-weight:500;
+  color:#555;
+  padding:0 2px;
+  min-width:36px; max-width:36px;
+  user-select:none;
+}
+
+/* === DATA CELLS === */
+.xl-cell {
+  border-right:1px solid #d4d4d4;
+  border-bottom:1px solid #d4d4d4;
+  padding:1px 3px;
+  line-height:1.15;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#000;
+  background:#fff;
+  box-sizing:border-box;
+}
+
+/* Hover giống Excel highlight */
+.xl-tbl tbody tr:hover > .xl-cell { background:rgba(198,225,255,.25); }
+.xl-tbl tbody tr:hover > .xl-row-hdr { background:linear-gradient(90deg,#d4e6ff 0%,#c0d8f8 100%); color:#1a5596; }
+
+/* Sticky cột 1, 2 */
+.xl-sticky-1 { position:sticky; z-index:3; background:#fff; }
+.xl-sticky-2 { position:sticky; z-index:3; background:#fff; }
+
+/* Ensure sticky cells keep bg on hover */
+.xl-tbl tbody tr:hover > .xl-sticky-1,
+.xl-tbl tbody tr:hover > .xl-sticky-2 { background:rgba(198,225,255,.35); }
+
+/* Scrollbar giống Excel */
+.xl-scroll::-webkit-scrollbar { width:13px; height:13px; }
+.xl-scroll::-webkit-scrollbar-track { background:#f0f0f0; }
+.xl-scroll::-webkit-scrollbar-thumb { background:#c0c0c0; border-radius:0; border:2px solid #f0f0f0; }
+.xl-scroll::-webkit-scrollbar-thumb:hover { background:#a0a0a0; }
+.xl-scroll::-webkit-scrollbar-corner { background:#f0f0f0; }
+
+/* Selection styling */
+::selection { background:rgba(49,106,197,.25); }
 </style>
 
 <script>
 (function () {
-  const wrap = document.getElementById('excelScrollWrap');
-  const scaleRoot = document.getElementById('excelScaleRoot');
-  const table = document.getElementById('excelPreviewTable');
-  if (!wrap || !scaleRoot || !table) return;
+  const scroll = document.getElementById('xlScroll');
+  const scale  = document.getElementById('xlScale');
+  const table  = document.getElementById('xlTable');
+  if (!scroll || !scale || !table) return;
 
-  function updateStickyColumns() {
-    // Đảm bảo cột 2 không bị đè lên cột 1 do sai số width
-    const firstCol = table.querySelector('col:nth-child(1)');
-    if (firstCol) {
-      const firstColWidth = firstCol.getBoundingClientRect().width;
-      const stickyCol2Elements = table.querySelectorAll('.sticky-col-2');
-      stickyCol2Elements.forEach(el => {
-        el.style.left = firstColWidth + 'px';
-      });
-    }
+  let currentZoom = 1;
+
+  /* --- Tính sticky left cho cột 1, 2 --- */
+  function updateSticky() {
+    const col1 = table.querySelector('colgroup col:nth-child(2)'); // data col 1 (skip row-hdr col)
+    if (!col1) return;
+    const hdrW = 36; // row header width
+    const c1w = col1.getBoundingClientRect().width / currentZoom;
+    table.querySelectorAll('.xl-sticky-1').forEach(el => { el.style.left = hdrW + 'px'; });
+    table.querySelectorAll('.xl-sticky-2').forEach(el => { el.style.left = (hdrW + c1w) + 'px'; });
   }
 
+  /* --- Fit to viewport on load --- */
   function fitToViewport() {
-    scaleRoot.style.transform = 'scale(1)';
-    scaleRoot.style.height = 'auto';
+    scale.style.transform = 'scale(1)';
+    scale.style.height = 'auto';
 
-    const wrapWidth = wrap.clientWidth - 8;
-    const tableWidth = table.offsetWidth;
-    if (!tableWidth || !wrapWidth) return;
+    const wrapW = scroll.clientWidth;
+    const tblW = table.offsetWidth;
+    if (!tblW || !wrapW) return;
 
-    const ratio = wrapWidth / tableWidth;
-    // Cho phép scale nhỏ lại đến 0.7 để hạn chế cuộn ngang, nhưng không quá nhỏ để đọc được chữ
-    const scale = Math.min(1.15, Math.max(0.7, ratio));
-    scaleRoot.style.transform = `scale(${scale})`;
-    scaleRoot.style.height = `${table.offsetHeight * scale}px`;
-
-    // Giữ cỡ chữ dễ đọc
-    if (scale < 0.8) {
-      table.style.fontSize = '12pt';
-    } else {
-      table.style.fontSize = '';
-    }
-    
-    // Cập nhật lại vị trí sticky sau khi table đã render xong layout
-    updateStickyColumns();
+    const ratio = wrapW / tblW;
+    currentZoom = Math.min(1.1, Math.max(0.55, ratio));
+    applyZoom();
   }
 
-  // Chạy ngay và chạy lại khi resize
+  function applyZoom() {
+    scale.style.transform = `scale(${currentZoom})`;
+    scale.style.height = `${table.offsetHeight * currentZoom}px`;
+    document.getElementById('zoomLabel').textContent = Math.round(currentZoom * 100) + '%';
+    updateSticky();
+  }
+
+  /* --- Zoom controls --- */
+  window.zoomTable = function(delta) {
+    if (delta === 0) { fitToViewport(); return; }
+    currentZoom = Math.min(2, Math.max(0.4, currentZoom + delta));
+    applyZoom();
+  };
+
   window.addEventListener('load', fitToViewport);
   window.addEventListener('resize', fitToViewport);
-  // Gọi tạm 1 lần lúc render để tránh bị chớp
   fitToViewport();
 })();
 </script>

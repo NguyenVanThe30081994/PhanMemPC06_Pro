@@ -362,8 +362,6 @@ def preview_template(template_id):
         return redirect(url_for('reporting_bp.index'))
 
     try:
-        # wb_formula: giữ style/merge/format
-        # wb_values: lấy giá trị hiển thị (kết quả công thức nếu file đã có cached result)
         wb_formula = load_workbook(BytesIO(template.excel_template_blob), data_only=False)
         wb_values = load_workbook(BytesIO(template.excel_template_blob), data_only=True)
         ws = wb_formula.active
@@ -386,12 +384,44 @@ def preview_template(template_id):
         max_row = min(ws.max_row or 1, 120)
         max_col = min(ws.max_column or 1, 40)
 
+        # Tính chiều rộng cột
         col_widths = []
+        col_letters = []
         for col_idx in range(1, max_col + 1):
             letter = get_column_letter(col_idx)
+            col_letters.append(letter)
             width = ws.column_dimensions[letter].width
-            px = int((width or 10) * 7)
-            col_widths.append(max(px, 60))
+            px = int((width or 8.43) * 7.5)  # Excel chuẩn: 1 char ≈ 7.5px
+            col_widths.append(max(px, 28))
+
+        # Helper: trích xuất màu từ openpyxl Color object
+        def _extract_color(color_obj):
+            if color_obj and color_obj.type == 'rgb' and color_obj.rgb:
+                rgb = str(color_obj.rgb)[-6:]
+                if rgb != '000000':
+                    return f"#{rgb}"
+            return None
+
+        # Helper: build CSS border cho 1 cell
+        def _border_css(border):
+            if not border:
+                return ''
+            parts = []
+            for side, css_side in [('left', 'border-left'), ('right', 'border-right'),
+                                    ('top', 'border-top'), ('bottom', 'border-bottom')]:
+                edge = getattr(border, side, None)
+                if edge and edge.style and edge.style != 'none':
+                    weight = {'thin': '1px', 'medium': '2px', 'thick': '3px',
+                              'hair': '1px', 'dotted': '1px', 'dashed': '1px',
+                              'double': '3px'}.get(edge.style, '1px')
+                    style = 'double' if edge.style == 'double' else (
+                        'dotted' if edge.style in ('dotted', 'hair') else (
+                        'dashed' if edge.style == 'dashed' else 'solid'))
+                    color = '#000'
+                    if edge.color and edge.color.type == 'rgb' and edge.color.rgb:
+                        color = f"#{str(edge.color.rgb)[-6:]}"
+                    parts.append(f"{css_side}:{weight} {style} {color};")
+            return ''.join(parts)
 
         rows = []
         for r in range(1, max_row + 1):
@@ -407,18 +437,35 @@ def preview_template(template_id):
                 font = cell.font
                 fill = cell.fill
                 alignment = cell.alignment
+                border = cell.border
 
+                # Background color
                 bg_color = None
-                if fill and fill.fill_type and fill.fgColor and fill.fgColor.type == 'rgb' and fill.fgColor.rgb:
-                    rgb = fill.fgColor.rgb[-6:]
-                    bg_color = f"#{rgb}"
+                if fill and fill.fill_type and fill.fgColor:
+                    bg_color = _extract_color(fill.fgColor)
 
+                # Font color
+                font_color = None
+                if font and font.color:
+                    font_color = _extract_color(font.color)
+
+                # Display value
                 raw_value = cell_value_obj.value
                 if raw_value is None and isinstance(cell.value, str) and cell.value.startswith('='):
-                    # Không hiển thị công thức khi không có cached result
                     display_value = ''
                 else:
                     display_value = format_excel_number(raw_value, cell.number_format)
+
+                # Font size: Excel default = 11pt
+                font_size = int(font.sz) if font and font.sz else 11
+
+                # Alignment
+                h_align = (alignment.horizontal if alignment and alignment.horizontal else None)
+                v_align = (alignment.vertical if alignment and alignment.vertical else 'center')
+                wrap = bool(alignment and alignment.wrap_text)
+
+                # Border CSS
+                border_style = _border_css(border)
 
                 row_cells.append({
                     'value': display_value,
@@ -426,21 +473,32 @@ def preview_template(template_id):
                     'colspan': merge_info['colspan'],
                     'bold': bool(font and font.bold),
                     'italic': bool(font and font.italic),
-                    'font_size': int(font.sz) if font and font.sz else 12,
-                    'align': alignment.horizontal if alignment and alignment.horizontal else 'left',
-                    'valign': alignment.vertical if alignment and alignment.vertical else 'middle',
+                    'underline': bool(font and font.underline),
+                    'font_size': font_size,
+                    'font_color': font_color,
+                    'align': h_align or 'left',
+                    'valign': v_align,
                     'bg_color': bg_color,
+                    'wrap_text': wrap,
+                    'border_style': border_style,
                     'col_idx': c,
                 })
-            row_height = ws.row_dimensions[r].height or 20
-            rows.append({'height_px': int(row_height * 1.33), 'cells': row_cells})
+
+            # Chiều cao dòng: Excel default = 15pt ≈ 20px, dùng tỉ lệ 1:1 cho compact
+            raw_height = ws.row_dimensions[r].height
+            if raw_height:
+                height_px = max(int(raw_height * 1.0), 16)  # tối thiểu 16px
+            else:
+                height_px = 20  # default Excel ≈ 20px
+            rows.append({'height_px': height_px, 'cells': row_cells})
 
         return render_template(
             'reporting/preview_template.html',
             template=template,
             sheet_title=ws.title,
             rows=rows,
-            col_widths=col_widths
+            col_widths=col_widths,
+            col_letters=col_letters
         )
     except Exception as e:
         flash(f'Không thể hiển thị preview Excel: {e}', 'danger')
