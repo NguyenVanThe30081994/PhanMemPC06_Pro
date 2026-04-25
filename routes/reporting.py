@@ -345,7 +345,7 @@ def template_upload():
                     return str(val).strip() if val else ""
                 return ""
 
-            # Tạo field với cấu trúc phân cấp
+            # Tạo field với cấu trúc phân cấp - CHỈ quét cột trong vùng merge
             fields = []
             order = 1
             all_columns = detected.get('columns', [])
@@ -362,8 +362,20 @@ def template_upload():
                 if not is_title:
                     real_header_rows.append(r)
             
-            # Xây dựng cấu trúc phân cấp: tất cả dòng header trừ dòng cuối
+            # Tìm các cột nằm trong vùng merge multi-column (bỏ qua cột đơn như STT, Tên đơn vị)
+            cols_in_data_groups = set()
+            for m in detected.get('merged_cells', []):
+                if m['row'] in real_header_rows and m.get('colspan', 1) > 1:
+                    start_idx = column_index_from_string(m['col_start'])
+                    end_idx = column_index_from_string(m['col_end'])
+                    for i in range(start_idx, end_idx + 1):
+                        cols_in_data_groups.add(get_column_letter(i))
+            
+            # Chỉ quét các cột trong nhóm dữ liệu
             for col_letter in all_columns:
+                if col_letter not in cols_in_data_groups:
+                    continue  # Bỏ qua cột không thuộc nhóm merge
+                
                 parts = []
                 for r in real_header_rows:
                     text = get_header_text_for_cell(r, col_letter)
@@ -378,8 +390,7 @@ def template_upload():
                     section = 'Thông tin chung'
                     field_name = parts[0]
                 else:
-                    field_name = f"Cột {col_letter}"
-                    section = 'Thông tin chung'
+                    continue  # Bỏ qua cột không có header
                     
                 field_code = slugify(field_name) or f"col_{col_letter}"
 
