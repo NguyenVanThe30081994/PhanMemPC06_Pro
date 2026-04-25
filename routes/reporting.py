@@ -362,16 +362,21 @@ def template_upload():
                 if not is_title:
                     real_header_rows.append(r)
             
-            # Tìm các cột cần BỎ QUA (STT, số thứ tự)
+            # Tìm các cột cần BỎ QUA (STT, đơn vị, tên đơn vị...)
             skip_columns = set()
+            skip_keywords = ['STT', 'TT', 'SỐ TT', 'SỐ THỨ TỰ', 'ĐƠN VỊ', 'TÊN ĐƠN VỊ', 
+                           'TÊN ĐƠN VỊ HÀNH CHÍNH', 'ĐƠN VỊ HÀNH CHÍNH']
+            
             for col_letter in all_columns:
-                # Lấy text từ dòng header cuối
-                if real_header_rows:
-                    last_header_row = real_header_rows[-1]
-                    text = get_header_text_for_cell(last_header_row, col_letter)
-                    # Bỏ qua cột có header là STT, TT, số thứ tự
-                    if text and text.upper().strip() in ['STT', 'TT', 'SỐ TT', 'SỐ THỨ TỰ']:
-                        skip_columns.add(col_letter)
+                # Kiểm tra TẤT CẢ các dòng header
+                should_skip = False
+                for r in real_header_rows:
+                    text = get_header_text_for_cell(r, col_letter)
+                    if text and text.upper().strip() in skip_keywords:
+                        should_skip = True
+                        break
+                if should_skip:
+                    skip_columns.add(col_letter)
             
             # Quét tất cả các cột (trừ cột skip)
             for col_letter in all_columns:
@@ -381,20 +386,28 @@ def template_upload():
                 parts = []
                 for r in real_header_rows:
                     text = get_header_text_for_cell(r, col_letter)
-                    if text and text not in parts:
-                        parts.append(text)
+                    # Bỏ qua công thức và giá trị số
+                    if text:
+                        text_str = str(text).strip()
+                        # Bỏ qua nếu là công thức hoặc số
+                        if text_str.startswith('=') or (isinstance(text, (int, float))):
+                            continue
+                        if text_str and text_str not in parts:
+                            parts.append(text_str)
                 
-                # Nếu không có header thì bỏ qua
+                # Nếu không có header hợp lệ thì bỏ qua
                 if not parts:
                     continue
                 
-                # Cấu trúc PHẲNG: dòng gần cuối = section, dòng cuối = field name
-                if len(parts) >= 2:
-                    section = parts[-2]  # Dòng header gần cuối
-                    field_name = parts[-1]  # Dòng header cuối cùng
-                elif len(parts) == 1:
+                # Logic linh hoạt:
+                # - Nếu chỉ có 1 header: section = "Thông tin chung", field = header đó
+                # - Nếu có >= 2 headers: section = header gần cuối, field = header cuối
+                if len(parts) == 1:
                     section = 'Thông tin chung'
                     field_name = parts[0]
+                elif len(parts) >= 2:
+                    section = parts[-2]  # Dòng header gần cuối
+                    field_name = parts[-1]  # Dòng header cuối cùng
                 else:
                     continue
                     
