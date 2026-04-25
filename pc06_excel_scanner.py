@@ -97,9 +97,9 @@ def scan_excel_structure(excel_blob):
     
     # Detect header rows - find first row with text
     header_candidates = []
-    for row in range(1, min(10, ws.max_row + 1)):
+    for row in range(1, min(20, ws.max_row + 1)):
         has_text = False
-        for col in range(1, min(5, ws.max_column + 1)):
+        for col in range(1, min(10, ws.max_column + 1)):
             cell_val = ws.cell(row, col).value
             if cell_val and isinstance(cell_val, str) and len(str(cell_val).strip()) > 0:
                 has_text = True

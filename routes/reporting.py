@@ -349,10 +349,34 @@ def template_upload():
             fields = []
             order = 1
             all_columns = detected.get('columns', [])
+            total_cols = detected.get('total_cols', len(all_columns))
+            
+            # Lọc bỏ các dòng title (chứa ô gộp chiếm phần lớn chiều rộng bảng)
+            real_header_rows = []
+            for r in sorted(header_rows_list):
+                is_title = False
+                for m in detected.get('merged_cells', []):
+                    if m['row'] == r and m.get('colspan', 1) >= total_cols * 0.5:
+                        is_title = True
+                        break
+                if not is_title:
+                    real_header_rows.append(r)
+            
+            # Chỉ lấy block header cuối cùng sát với data (bỏ qua các dòng trống ở giữa nếu có)
+            if real_header_rows:
+                contiguous = [real_header_rows[-1]]
+                for i in range(len(real_header_rows)-2, -1, -1):
+                    if real_header_rows[i+1] - real_header_rows[i] <= 2:
+                        contiguous.insert(0, real_header_rows[i])
+                    else:
+                        break
+                real_header_rows = contiguous
+            else:
+                real_header_rows = header_rows_list[-2:] if len(header_rows_list) >= 2 else header_rows_list
             
             for col_letter in all_columns:
                 parts = []
-                for r in sorted(header_rows_list):
+                for r in real_header_rows:
                     text = get_header_text_for_cell(r, col_letter)
                     if text and text not in parts:
                         parts.append(text)
