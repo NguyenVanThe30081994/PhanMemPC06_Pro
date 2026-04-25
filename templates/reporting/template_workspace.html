@@ -1,117 +1,153 @@
 {% extends "base.html" %}
 
-{% block title %}Biểu mẫu: {{ template.name }}{% endblock %}
+{% block title %}{{ template.name }} - Reporting{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reporting-modern.css') }}?v=20260426">
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-      <a href="{{ url_for('reporting_bp.index') }}" class="text-decoration-none small text-muted">
-        <i class="bi bi-arrow-left"></i> Quay về danh sách biểu mẫu
-      </a>
-      <h3 class="mb-1 mt-1"><i class="bi bi-file-earmark-text"></i> {{ template.name }}</h3>
-      <p class="text-muted mb-0">{{ template.description or 'Không gian thao tác cho biểu mẫu này' }}</p>
+<div class="reporting-page">
+  <div class="reporting-shell">
+    <div class="reporting-hero">
+      <div>
+        <a href="{{ url_for('reporting_bp.index') }}" class="reporting-chip text-decoration-none mb-3">
+          <i class="fa-solid fa-arrow-left"></i>
+          <span>Quay về danh sách biểu mẫu</span>
+        </a>
+        <h3>{{ template.name }}</h3>
+        <p class="reporting-subtitle">{{ template.description or 'Không gian thao tác cho biểu mẫu này.' }}</p>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          <span class="reporting-pill"><i class="fa-solid fa-tag"></i>{{ template.category or 'Chung' }}</span>
+          <span class="reporting-pill"><i class="fa-solid fa-clock"></i>{{ schedule_summary }}</span>
+          <span class="reporting-pill"><i class="fa-solid fa-calendar-days"></i>{{ active_period_count }} kỳ đang hiển thị</span>
+        </div>
+      </div>
+      <div class="reporting-stat-grid" style="min-width:min(100%, 420px);">
+        <div class="reporting-stat-card">
+          <div class="reporting-stat-label">Kỳ báo cáo</div>
+          <div class="reporting-stat-value">{{ periods|length }}</div>
+          <div class="reporting-stat-note">Đã tạo cho biểu mẫu này</div>
+        </div>
+        <div class="reporting-stat-card">
+          <div class="reporting-stat-label">Lần cập nhật gần nhất</div>
+          <div class="reporting-stat-value" style="font-size:1.2rem;">
+            {{ latest_report.updated_at.strftime('%d/%m/%Y %H:%M') if latest_report else 'Chưa có' }}
+          </div>
+          <div class="reporting-stat-note">Theo dữ liệu hiện có</div>
+        </div>
+      </div>
     </div>
-    <span class="badge text-bg-info">{{ template.category or 'Chung' }}</span>
-  </div>
 
-  <div class="row g-3 mb-4">
-    {% if session.get('is_admin') or session.get('is_lead') %}
-      <!-- Quyền Quản trị / Lãnh đạo -->
-      <div class="col-md-4 col-xl-4">
-        <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.field_settings', template_id=template.id) }}" id="action_field_settings">
-          <i class="bi bi-sliders fs-3"></i>
-          <h6 class="mt-2 mb-1">Thiết lập cột nhập</h6>
-          <small>Khóa/mở/ẩn trường nhập</small>
-        </a>
-      </div>
-      {# Tạm thời ẩn: Cấu hình báo cáo & Quản lý kỳ báo cáo (sẽ bật lại sau migration)
-      <div class="col-md-4 col-xl-4">
-        <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.template_config', template_id=template.id) }}" id="action_template_config">
-          <i class="bi bi-gear fs-3"></i>
-          <h6 class="mt-2 mb-1">Cấu hình báo cáo</h6>
-          <small>Loại báo cáo & Hạn nộp</small>
-        </a>
-      </div>
-      <div class="col-md-4 col-xl-4">
-        <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.template_periods', template_id=template.id) }}" id="action_template_periods">
-          <i class="bi bi-calendar-check fs-3"></i>
-          <h6 class="mt-2 mb-1">Quản lý kỳ báo cáo</h6>
-          <small>Tạo & Quản lý các đợt nộp</small>
-        </a>
-      </div>
-      #}
-      <div class="col-md-4 col-xl-4">
-        <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.preview_template', template_id=template.id) }}" id="action_preview_template">
-          <i class="bi bi-eye fs-3"></i>
-          <h6 class="mt-2 mb-1">Xem báo cáo</h6>
-          <small>Hiển thị dạng Excel trực quan</small>
-        </a>
-      </div>
-      <div class="col-md-4 col-xl-4">
-        <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.template_history', template_id=template.id) }}" id="action_template_history">
-          <i class="bi bi-clock-history fs-3"></i>
-          <h6 class="mt-2 mb-1">Lịch sử nhập</h6>
-          <small>Danh sách nộp và nhật ký</small>
-        </a>
-      </div>
-      <div class="col-md-4 col-xl-4">
-        <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.template_statistics', template_id=template.id) }}" id="action_template_statistics">
-          <i class="bi bi-bar-chart-line fs-3"></i>
-          <h6 class="mt-2 mb-1">Thống kê chung</h6>
-          <small>Tiến độ nộp của các đơn vị</small>
-        </a>
-      </div>
-    {% else %}
-      <!-- Quyền Đơn vị -->
-      <div class="col-md-4">
-        <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.select_period', template_id=template.id) }}" id="action_input_data">
-          <i class="bi bi-pencil-square fs-3"></i>
-          <h6 class="mt-2 mb-1">Nhập liệu</h6>
-          <small>Chọn kỳ và nhập báo cáo</small>
-        </a>
-      </div>
-      <div class="col-md-4">
-        <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.preview_template', template_id=template.id) }}" id="action_preview_template">
-          <i class="bi bi-eye fs-3"></i>
-          <h6 class="mt-2 mb-1">Xem báo cáo</h6>
-          <small>Hiển thị dạng Excel trực quan</small>
-        </a>
-      </div>
-      <div class="col-md-4">
+    <div class="reporting-action-grid mb-4">
+      {% if is_reporting_admin or is_reporting_lead %}
+      <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.field_settings', template_id=template.id) }}" id="action_field_settings">
+        <div class="action-icon"><i class="fa-solid fa-sliders"></i></div>
+        <h6>Thiết lập cột nhập</h6>
+        <small>Khóa, mở hoặc ẩn trường nhập cho từng biểu mẫu.</small>
+      </a>
+      {% endif %}
+
+      {% if is_reporting_admin %}
+      <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.template_config', template_id=template.id) }}" id="action_template_config">
+        <div class="action-icon"><i class="fa-solid fa-calendar-day"></i></div>
+        <h6>Cấu hình loại báo cáo</h6>
+        <small>Thiết lập `daily`, `periodic`, `adhoc` và quy tắc hạn nộp.</small>
+      </a>
+      <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.template_periods', template_id=template.id) }}" id="action_template_periods">
+        <div class="action-icon"><i class="fa-solid fa-calendar-check"></i></div>
+        <h6>Quản lý kỳ báo cáo</h6>
+        <small>Tạo và kiểm soát từng đợt nộp báo cáo chính thức.</small>
+      </a>
+      {% endif %}
+
+      <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.preview_template', template_id=template.id) }}" id="action_preview_template">
+        <div class="action-icon"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
+        <h6>Xem báo cáo dạng Excel</h6>
+        <small>Preview chuẩn bố cục, có công cụ zoom mới và cuộn mượt hơn.</small>
+      </a>
+
+      <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.template_history', template_id=template.id) }}" id="action_template_history">
+        <div class="action-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+        <h6>Lịch sử nhập</h6>
+        <small>Xem báo cáo đã nộp, chỉnh sửa và audit trail theo biểu mẫu.</small>
+      </a>
+
+      {% if is_reporting_admin or is_reporting_lead %}
+      <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.template_statistics', template_id=template.id) }}" id="action_template_statistics">
+        <div class="action-icon"><i class="fa-solid fa-chart-column"></i></div>
+        <h6>Thống kê chung</h6>
+        <small>Tiến độ nộp, đúng hạn, quá hạn và trạng thái từng đơn vị.</small>
+      </a>
+      {% else %}
+      <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.select_period', template_id=template.id) }}" id="action_input_data">
+        <div class="action-icon"><i class="fa-solid fa-pen-to-square"></i></div>
+        <h6>Nhập liệu</h6>
+        <small>Chọn kỳ báo cáo và bắt đầu nhập theo biểu mẫu này.</small>
+      </a>
+      {% endif %}
+
+      {% if not is_reporting_admin and not is_reporting_lead %}
         {% if latest_report %}
         <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.view_report', instance_id=latest_report.id) }}" id="action_view_report">
-          <i class="bi bi-journal-text fs-3"></i>
-          <h6 class="mt-2 mb-1">Lịch sử nhập</h6>
-          <small>Mở báo cáo gần nhất</small>
+          <div class="action-icon"><i class="fa-solid fa-file-circle-check"></i></div>
+          <h6>Mở báo cáo gần nhất</h6>
+          <small>Xem nhanh bản nộp mới nhất của đơn vị bạn.</small>
         </a>
         {% else %}
         <div class="action-card disabled-card">
-          <i class="bi bi-journal-x fs-3"></i>
-          <h6 class="mt-2 mb-1">Lịch sử nhập</h6>
-          <small>Chưa có báo cáo để xem</small>
+          <div class="action-icon"><i class="fa-solid fa-file-circle-xmark"></i></div>
+          <h6>Chưa có báo cáo đã lưu</h6>
+          <small>Bản ghi sẽ xuất hiện tại đây sau lần nhập đầu tiên.</small>
         </div>
         {% endif %}
+      {% endif %}
+    </div>
+
+    {% if periods %}
+    <div class="reporting-table-shell">
+      <div class="reporting-panel-header">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <h5 class="mb-1">Các kỳ báo cáo gần đây</h5>
+            <p class="reporting-muted mb-0">Danh sách kỳ đang gắn với biểu mẫu này.</p>
+          </div>
+        </div>
       </div>
+      <div class="reporting-panel-body">
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Kỳ báo cáo</th>
+                <th>Khoảng dữ liệu</th>
+                <th>Hạn nộp</th>
+                <th>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for period in periods[:8] %}
+              <tr>
+                <td>
+                  <div class="fw-bold">{{ period.name }}</div>
+                  <div class="reporting-muted small">{{ period.code }}</div>
+                </td>
+                <td>{{ period.start_date.strftime('%d/%m/%Y') }} - {{ period.end_date.strftime('%d/%m/%Y') }}</td>
+                <td>{{ period.deadline.strftime('%d/%m/%Y %H:%M') if period.deadline else 'Khong gioi han' }}</td>
+                <td>
+                  <span class="reporting-chip">
+                    <i class="fa-solid {{ 'fa-lock' if period.is_locked else 'fa-lock-open' }}"></i>
+                    {{ 'Đã khóa' if period.is_locked else 'Đang mở' }}
+                  </span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
     {% endif %}
   </div>
 </div>
-
-
-
-<style>
-.action-card {
-  display: block;
-  padding: 18px;
-  border-radius: 14px;
-  border: 1px solid #dbe7ff;
-  background: linear-gradient(165deg, #ffffff, #f4f8ff);
-  color: #0f172a;
-  box-shadow: 0 8px 18px rgba(37, 99, 235, .08);
-  transition: all .2s ease;
-}
-.action-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(37, 99, 235, .15); }
-.action-card small { color: #64748b; }
-.disabled-card { opacity: .6; pointer-events: none; }
-</style>
 {% endblock %}

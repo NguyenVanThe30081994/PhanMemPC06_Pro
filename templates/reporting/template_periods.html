@@ -2,129 +2,143 @@
 
 {% block title %}Quản lý kỳ báo cáo - {{ template.name }}{% endblock %}
 
-{% block content %}
-<div class="container-fluid mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-      <h3 class="mb-1"><i class="bi bi-calendar-check"></i> Quản lý Kỳ Báo Cáo</h3>
-      <p class="text-muted mb-0">{{ template.name }} - Loại: 
-        <span class="badge bg-info">
-          {% set rt = template.report_type|default('adhoc', true) %}
-          {% if rt == 'daily' %}Hàng ngày
-          {% elif rt == 'periodic' %}Định kỳ ({{ template.frequency|default('tháng', true) }})
-          {% else %}Đột xuất{% endif %}
-        </span>
-      </p>
-    </div>
-    <div>
-      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPeriodModal">
-        <i class="bi bi-plus-lg"></i> Tạo kỳ mới
-      </button>
-      <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="btn btn-outline-secondary ms-2">
-        <i class="bi bi-arrow-left"></i> Quay lại
-      </a>
-    </div>
-  </div>
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reporting-modern.css') }}?v=20260426">
+{% endblock %}
 
-  <div class="card shadow-sm border-0">
-    <div class="card-body">
-      {% if periods %}
-      <div class="table-responsive">
-        <table class="table table-hover align-middle">
-          <thead>
-            <tr>
-              <th>Mã kỳ</th>
-              <th>Tên kỳ báo cáo</th>
-              <th>Thời gian báo cáo</th>
-              <th>Hạn nộp (Deadline)</th>
-              <th>Trạng thái</th>
-              <th>Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for period in periods %}
-            <tr>
-              <td><strong>{{ period.code }}</strong></td>
-              <td>{{ period.name }}
-                {% if period.is_adhoc %}<span class="badge bg-warning text-dark ms-2">Đột xuất</span>{% endif %}
-              </td>
-              <td>{{ period.start_date.strftime('%d/%m/%Y') }} - {{ period.end_date.strftime('%d/%m/%Y') }}</td>
-              <td>
-                {% if period.deadline %}
-                  <span class="text-danger fw-bold"><i class="bi bi-clock"></i> {{ period.deadline.strftime('%d/%m/%Y %H:%M') }}</span>
-                {% else %}
-                  <span class="text-muted">Không giới hạn</span>
-                {% endif %}
-              </td>
-              <td>
-                {% if period.is_locked %}
-                <span class="badge bg-secondary">Đã khóa</span>
-                {% else %}
-                <span class="badge bg-success">Đang mở</span>
-                {% endif %}
-              </td>
-              <td>
-                <!-- Nút thao tác tương lai: Sửa/Khóa kỳ -->
-                <button class="btn btn-sm btn-outline-secondary" disabled>Khóa</button>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+{% block content %}
+<div class="reporting-page">
+  <div class="reporting-shell">
+    <div class="reporting-hero">
+      <div>
+        <div class="reporting-chip mb-3">
+          <i class="fa-solid fa-calendar-days"></i>
+          <span>Quản lý kỳ báo cáo</span>
+        </div>
+        <h3>{{ template.name }}</h3>
+        <p class="reporting-subtitle">
+          Tạo kỳ báo cáo cho từng đợt thu thập dữ liệu. Deadline sẽ được tính tự động theo cấu hình nếu biểu mẫu là `daily` hoặc `periodic`.
+        </p>
       </div>
-      {% else %}
-      <div class="alert alert-info mb-0">Chưa có kỳ báo cáo nào. Hãy tạo kỳ báo cáo mới để các đơn vị bắt đầu nộp bài.</div>
-      {% endif %}
+      <div class="reporting-hero-actions">
+        <span class="reporting-pill">
+          <i class="fa-solid fa-clock"></i>{{ schedule_summary }}
+        </span>
+        <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createPeriodModal">
+          <i class="fa-solid fa-plus me-2"></i>Tạo kỳ mới
+        </button>
+        <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="btn btn-outline-secondary rounded-pill px-4">
+          <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
+        </a>
+      </div>
+    </div>
+
+    <div class="reporting-table-shell">
+      <div class="reporting-panel-header">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <h5 class="mb-1">Danh sách kỳ báo cáo</h5>
+            <p class="reporting-muted mb-0">{{ periods|length }} kỳ đã được tạo cho biểu mẫu này.</p>
+          </div>
+        </div>
+      </div>
+      <div class="reporting-panel-body">
+        {% if periods %}
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Mã kỳ</th>
+                <th>Tên kỳ báo cáo</th>
+                <th>Thời gian dữ liệu</th>
+                <th>Hạn nộp</th>
+                <th>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for period in periods %}
+              <tr>
+                <td><strong>{{ period.code }}</strong></td>
+                <td>
+                  <div class="fw-bold">{{ period.name }}</div>
+                  {% if period.is_adhoc %}
+                  <div class="reporting-muted small">Báo cáo đột xuất</div>
+                  {% endif %}
+                </td>
+                <td>{{ period.start_date.strftime('%d/%m/%Y') }} - {{ period.end_date.strftime('%d/%m/%Y') }}</td>
+                <td>{{ period.deadline.strftime('%d/%m/%Y %H:%M') if period.deadline else 'Khong gioi han' }}</td>
+                <td>
+                  <span class="reporting-chip">
+                    <i class="fa-solid {{ 'fa-lock' if period.is_locked else 'fa-lock-open' }}"></i>
+                    {{ 'Đã khóa' if period.is_locked else 'Đang mở' }}
+                  </span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="reporting-empty">
+          <i class="fa-solid fa-circle-info me-2"></i>
+          Chưa có kỳ báo cáo nào. Hãy tạo kỳ đầu tiên để các đơn vị có thể bắt đầu nộp dữ liệu.
+        </div>
+        {% endif %}
+      </div>
     </div>
   </div>
 </div>
 
-<!-- Modal Tạo Kỳ -->
 <div class="modal fade" id="createPeriodModal" tabindex="-1">
-  <div class="modal-dialog">
-    <form class="modal-content" method="POST">
-      <div class="modal-header">
-        <h5 class="modal-title">Tạo kỳ báo cáo mới</h5>
+  <div class="modal-dialog modal-lg">
+    <form class="modal-content border-0 rounded-4" method="POST">
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <h5 class="modal-title">Tạo kỳ báo cáo mới</h5>
+          <div class="text-muted small">{{ template.name }}</div>
+        </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label fw-bold">Mã kỳ (Duy nhất)</label>
-          <input type="text" name="code" class="form-control" placeholder="Ví dụ: {{ template.code }}_2024_04" required>
-        </div>
-        <div class="mb-3">
-          <label class="form-label fw-bold">Tên kỳ báo cáo</label>
-          <input type="text" name="name" class="form-control" placeholder="Ví dụ: Báo cáo ngày 25/04/2024" required>
-        </div>
-        
-        <div class="row mb-3">
-          <div class="col">
-            <label class="form-label fw-bold">Từ ngày (Dữ liệu)</label>
-            <input type="date" name="start_date" class="form-control" required>
+      <div class="modal-body pt-3">
+        <div class="reporting-form-grid">
+          <div class="reporting-field">
+            <label for="periodCode">Mã kỳ báo cáo</label>
+            <input type="text" id="periodCode" name="code" class="form-control" placeholder="VD: {{ template.code }}_2026_04" required>
           </div>
-          <div class="col">
-            <label class="form-label fw-bold">Đến ngày (Dữ liệu)</label>
-            <input type="date" name="end_date" class="form-control" required>
+          <div class="reporting-field">
+            <label for="periodName">Tên kỳ báo cáo</label>
+            <input type="text" id="periodName" name="name" class="form-control" placeholder="VD: Báo cáo tháng 04/2026" required>
+          </div>
+          <div class="reporting-field">
+            <label for="startDate">Từ ngày</label>
+            <input type="date" id="startDate" name="start_date" class="form-control" required>
+          </div>
+          <div class="reporting-field">
+            <label for="endDate">Đến ngày</label>
+            <input type="date" id="endDate" name="end_date" class="form-control" required>
           </div>
         </div>
 
         {% set rt = template.report_type|default('adhoc', true) %}
         {% if rt == 'adhoc' %}
-        <div class="mb-3">
-          <label class="form-label fw-bold text-danger">Hạn nộp cụ thể (Deadline)</label>
-          <input type="datetime-local" name="deadline" class="form-control" required>
-          <div class="form-text">Báo cáo đột xuất yêu cầu nhập hạn nộp chính xác.</div>
+        <div class="reporting-form-grid mt-4">
+          <div class="reporting-field">
+            <label for="deadline">Hạn nộp cụ thể</label>
+            <input type="datetime-local" id="deadline" name="deadline" class="form-control" required>
+          </div>
         </div>
         {% else %}
-        <div class="alert alert-warning mb-0">
-          <strong>Hạn nộp tự động:</strong> Sẽ được hệ thống tính toán dựa trên cấu hình Biểu mẫu (<code>{{ template.deadline_rule|default('Chưa cấu hình', true) }}</code>).
+        <div class="reporting-note mt-4">
+          <i class="fa-solid fa-wand-magic-sparkles me-2"></i>
+          Deadline sẽ được hệ thống tự tính theo cấu hình hiện tại: <strong>{{ schedule_summary }}</strong>.
         </div>
         {% endif %}
-        
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-        <button type="submit" class="btn btn-primary">Tạo kỳ báo cáo</button>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Hủy</button>
+        <button type="submit" class="btn btn-primary rounded-pill px-4">
+          <i class="fa-solid fa-plus me-2"></i>Tạo kỳ báo cáo
+        </button>
       </div>
     </form>
   </div>

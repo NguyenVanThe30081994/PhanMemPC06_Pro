@@ -2,162 +2,122 @@
 
 {% block title %}Lịch sử báo cáo{% endblock %}
 
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reporting-modern.css') }}?v=20260426">
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3 class="mb-0">
-      <i class="bi bi-clock-history"></i>
-      {% if template %}
-        Lịch sử nhập - {{ template.name }}
-      {% else %}
-        Lịch sử báo cáo
-      {% endif %}
-    </h3>
-    <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) if template else url_for('reporting_bp.index') }}" class="btn btn-outline-secondary">
-      <i class="bi bi-arrow-left"></i> Quay lại
-    </a>
-    <div>
-      <button onclick="exportTableToExcel('historyReportsTable', 'DanhSachBaoCao.xls')" class="btn btn-success ms-2">
-        <i class="bi bi-download"></i> Tải DS Báo cáo
-      </button>
-      <button onclick="exportTableToExcel('historyTable', 'NhatKyThaoTac.xls')" class="btn btn-outline-success ms-2">
-        <i class="bi bi-download"></i> Tải Nhật ký
-      </button>
+<div class="reporting-page">
+  <div class="reporting-shell">
+    <div class="reporting-hero">
+      <div>
+        <div class="reporting-chip mb-3">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+          <span>Lịch sử & Audit trail</span>
+        </div>
+        <h3>{% if template %}{{ template.name }}{% else %}Lịch sử reporting{% endif %}</h3>
+        <p class="reporting-subtitle">
+          Theo dõi báo cáo đã tạo và nhật ký thao tác để kiểm tra quá trình nhập liệu, lưu nháp và nộp báo cáo.
+        </p>
+      </div>
+      <div class="reporting-hero-actions">
+        <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) if template else url_for('reporting_bp.index') }}" class="btn btn-outline-secondary rounded-pill px-4">
+          <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
+        </a>
+      </div>
     </div>
-  </div>
 
-  <ul class="nav nav-tabs mb-3" id="historyTab" role="tablist">
-    <li class="nav-item" role="presentation">
-      <button class="nav-link active" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports-pane" type="button" role="tab" aria-controls="reports-pane" aria-selected="true">Danh sách báo cáo</button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs-pane" type="button" role="tab" aria-controls="logs-pane" aria-selected="false">Nhật ký thao tác</button>
-    </li>
-  </ul>
+    <ul class="nav reporting-tabs mb-4" id="historyTab" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports-pane" type="button" role="tab">Danh sách báo cáo</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs-pane" type="button" role="tab">Nhật ký thao tác</button>
+      </li>
+    </ul>
 
-  <div class="tab-content" id="historyTabContent">
-    <div class="tab-pane fade show active" id="reports-pane" role="tabpanel" aria-labelledby="reports-tab">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          {% if reports %}
-          <div class="table-responsive">
-            <table class="table align-middle" id="historyReportsTable">
-              <thead>
-                <tr>
-                  <th>Kỳ báo cáo</th>
-                  <th>Đơn vị</th>
-                  <th>Trạng thái</th>
-                  <th>Cập nhật</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for report in reports %}
-                <tr>
-                  <td>{{ report.period.name }}</td>
-                  <td>{{ report.org_unit }}</td>
-                  <td>
-                    {% if report.status == 'draft' %}
-                    <span class="badge text-bg-warning">Nháp</span>
-                    {% elif report.status == 'submitted' %}
-                    <span class="badge text-bg-success">Đã nộp</span>
-                    {% else %}
-                    <span class="badge text-bg-secondary">{{ report.status }}</span>
-                    {% endif %}
-                  </td>
-                  <td>{{ report.updated_at.strftime('%d/%m/%Y %H:%M') }}</td>
-                  <td class="d-flex gap-2 flex-wrap">
-                    {% if not session.get('is_admin') and report.status == 'draft' %}
-                    <a href="{{ url_for('reporting_bp.fill_form', template_id=template.id, period_id=report.period_id) }}" class="btn btn-sm btn-primary">Tiếp tục nhập</a>
-                    {% endif %}
-                    <a href="{{ url_for('reporting_bp.view_report', instance_id=report.id) }}" class="btn btn-sm btn-outline-info">Xem</a>
-                    <a href="{{ url_for('reporting_bp.export_report', instance_id=report.id) }}" class="btn btn-sm btn-outline-success">Xuất</a>
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+    <div class="tab-content" id="historyTabContent">
+      <div class="tab-pane fade show active" id="reports-pane" role="tabpanel">
+        <div class="reporting-table-shell">
+          <div class="reporting-panel-body">
+            {% if reports %}
+            <div class="table-responsive">
+              <table class="table align-middle" id="historyReportsTable">
+                <thead>
+                  <tr>
+                    <th>Kỳ báo cáo</th>
+                    <th>Đơn vị</th>
+                    <th>Trạng thái</th>
+                    <th>Cập nhật</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for report in reports %}
+                  <tr>
+                    <td>{{ report.period.name }}</td>
+                    <td>{{ report.org_unit }}</td>
+                    <td>{{ report.status }}</td>
+                    <td>{{ report.updated_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td class="d-flex flex-wrap gap-2">
+                      {% if not session.get('is_admin') and report.status == 'draft' %}
+                      <a href="{{ url_for('reporting_bp.fill_form', template_id=template.id, period_id=report.period_id) }}" class="btn btn-sm btn-primary rounded-pill">Tiếp tục nhập</a>
+                      {% endif %}
+                      <a href="{{ url_for('reporting_bp.view_report', instance_id=report.id) }}" class="btn btn-sm btn-outline-info rounded-pill">Xem</a>
+                      <a href="{{ url_for('reporting_bp.export_report', instance_id=report.id) }}" class="btn btn-sm btn-outline-success rounded-pill">Xuất</a>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="reporting-empty">Chưa có báo cáo nào trong phạm vi hiện tại.</div>
+            {% endif %}
           </div>
-          {% else %}
-          <div class="alert alert-info mb-0">Biểu mẫu này chưa có báo cáo nào.</div>
-          {% endif %}
         </div>
       </div>
-    </div>
 
-    <div class="tab-pane fade" id="logs-pane" role="tabpanel" aria-labelledby="logs-tab">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          {% if logs %}
-      <div class="table-responsive">
-        <table class="table table-hover align-middle" id="historyTable">
-          <thead>
-            <tr>
-              <th>Thời gian</th>
-              <th>Đơn vị</th>
-              <th>Người dùng</th>
-              <th>Hành động</th>
-              <th>Thực thể</th>
-              <th>Chi tiết</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for log in logs %}
-            <tr>
-              <td>{{ log.timestamp.strftime('%d/%m/%Y %H:%M:%S') if log.timestamp else '' }}</td>
-              <td>{{ log.org_unit or '-' }}</td>
-              <td>{{ log.user_name or ('UID ' ~ log.user_id) }}</td>
-              <td><span class="badge bg-secondary">{{ log.action }}</span></td>
-              <td>{{ log.entity_type }}#{{ log.entity_id }}</td>
-              <td>
-                {% if log.field_code %}<div><strong>Field:</strong> {{ log.field_code }}</div>{% endif %}
-                {% if log.reason %}<div><strong>Lý do:</strong> {{ log.reason }}</div>{% endif %}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <div class="alert alert-info mb-0">Chưa có lịch sử thao tác nào.</div>
-      {% endif %}
-    </div>
+      <div class="tab-pane fade" id="logs-pane" role="tabpanel">
+        <div class="reporting-table-shell">
+          <div class="reporting-panel-body">
+            {% if logs %}
+            <div class="table-responsive">
+              <table class="table align-middle" id="historyTable">
+                <thead>
+                  <tr>
+                    <th>Thời gian</th>
+                    <th>Đơn vị</th>
+                    <th>Người dùng</th>
+                    <th>Hành động</th>
+                    <th>Thực thể</th>
+                    <th>Chi tiết</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for log in logs %}
+                  <tr>
+                    <td>{{ log.timestamp.strftime('%d/%m/%Y %H:%M:%S') if log.timestamp else '' }}</td>
+                    <td>{{ log.org_unit or '-' }}</td>
+                    <td>{{ log.user_name or ('UID ' ~ log.user_id) }}</td>
+                    <td>{{ log.action }}</td>
+                    <td>{{ log.entity_type }}#{{ log.entity_id }}</td>
+                    <td>
+                      {% if log.field_code %}<div><strong>Field:</strong> {{ log.field_code }}</div>{% endif %}
+                      {% if log.reason %}<div><strong>Lý do:</strong> {{ log.reason }}</div>{% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="reporting-empty">Chưa có lịch sử thao tác nào.</div>
+            {% endif %}
+          </div>
         </div>
       </div>
     </div>
   </div>
 </div>
-
-<script>
-function exportTableToExcel(tableID, filename = ''){
-    var downloadLink;
-    var dataType = 'application/vnd.ms-excel';
-    var tableSelect = document.getElementById(tableID);
-    
-    // Add meta tag to support UTF-8 in Excel
-    var tableHTML = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>{worksheet}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body>' + tableSelect.outerHTML + '</body></html>';
-    
-    // Encode for URI
-    var encodedHTML = encodeURIComponent(tableHTML);
-    
-    // Specify file name
-    filename = filename?filename+'.xls':'excel_data.xls';
-    
-    // Create download link element
-    downloadLink = document.createElement("a");
-    document.body.appendChild(downloadLink);
-    
-    if(navigator.msSaveOrOpenBlob){
-        var blob = new Blob(['\ufeff', tableHTML], {
-            type: dataType
-        });
-        navigator.msSaveOrOpenBlob( blob, filename);
-    }else{
-        // Create a link to the file
-        downloadLink.href = 'data:' + dataType + ', ' + encodedHTML;
-        downloadLink.download = filename;
-        downloadLink.click();
-    }
-}
-</script>
 {% endblock %}

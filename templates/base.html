@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{{ title|default("Hệ thống Quản trị PC06 Tuyên Quang") }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link
         href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Inter:wght@300;400;500;600;700&display=swap"
@@ -661,6 +662,12 @@
                             <hr class="dropdown-divider opacity-10 mx-2">
                         </li>{% endif %}
                         {% if perms.get('p_stat_lead') or perms.get('p_stat_exec') %}
+                        <li><a class="dropdown-item py-2 rounded-3 {% if request.path.startswith('/reporting') %}active{% endif %}"
+                                href="{{ url_for('reporting_bp.index') }}"><i
+                                    class="fa-solid fa-layer-group me-2 opacity-50"></i>Reporting Chính thức</a></li>
+                        <li>
+                            <hr class="dropdown-divider opacity-10 mx-2">
+                        </li>
                         <li><a class="dropdown-item py-2 rounded-3" href="{{ url_for('forms_bp.stats') }}">Thống kê Báo
                                 cáo</a></li>
                         <li>
@@ -689,6 +696,10 @@
                             <hr class="dropdown-divider opacity-10 mx-2">
                         </li>
                         <li><a class="dropdown-item py-2 rounded-3" href="/reports-v2"> Thiết lập mẫu V2</a></li>
+                        <li>
+                            <hr class="dropdown-divider opacity-10 mx-2">
+                        </li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="{{ url_for('reporting_bp.index') }}"> Reporting chính thức</a></li>
                         <li>
                             <hr class="dropdown-divider opacity-10 mx-2">
                         </li>
@@ -902,6 +913,9 @@
                     </a>
                     {% endif %}
                     {% if perms.get('p_stat_lead') or perms.get('p_stat_exec') %}
+                    <a href="{{ url_for('reporting_bp.index') }}" class="list-group-item py-2 ps-5">
+                        <i class="fa-solid fa-caret-right me-2 small opacity-50"></i>Reporting Chính thức
+                    </a>
                     <a href="{{ url_for('forms_bp.stats') }}" class="list-group-item py-2 ps-5">
                         <i class="fa-solid fa-caret-right me-2 small opacity-50"></i>Thống kê Báo cáo
                     </a>
@@ -928,6 +942,7 @@
                     {% if perms.get('p_form_lead') %}
                     <a href="/admin-forms" class="list-group-item py-2 ps-5 italic">Thiết lập mẫu V1</a>
                     <a href="/reports-v2" class="list-group-item py-2 ps-5 italic">Thiết lập mẫu V2</a>
+                    <a href="{{ url_for('reporting_bp.index') }}" class="list-group-item py-2 ps-5 italic">Reporting chính thức</a>
                     {% endif %}
                     {% if perms.get('p_user_lead') %}
                     <a href="/roles" class="list-group-item py-2 ps-5 italic">Tài khoản & Vai trò</a>

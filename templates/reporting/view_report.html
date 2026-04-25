@@ -2,81 +2,69 @@
 
 {% block title %}Xem báo cáo - {{ report_data.schema.template_name }}{% endblock %}
 
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reporting-modern.css') }}?v=20260426">
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid mt-4">
-    <div class="row">
-        <div class="col-12">
-            <!-- Header -->
-            <div class="card mb-3">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h4 class="mb-1">{{ report_data.schema.template_name }}</h4>
-                            <p class="text-muted mb-0">
-                                <span class="badge bg-{{ 'success' if instance.status == 'submitted' else ('secondary' if instance.status == 'locked' else 'warning') }}">
-                                    {{ 'Đã nộp' if instance.status == 'submitted' else ('Đã khóa' if instance.status == 'locked' else 'Nháp') }}
-                                </span>
-                                | Đơn vị: <strong>{{ instance.org_unit }}</strong>
-                                | Cập nhật: {{ instance.updated_at.strftime('%d/%m/%Y %H:%M') }}
-                            </p>
-                        </div>
-                        <div>
-                            <button class="btn btn-outline-secondary" onclick="window.history.back()">
-                                <i class="bi bi-arrow-left"></i> Quay lại
-                            </button>
-                            <a href="{{ url_for('reporting_bp.export_report', instance_id=instance.id) }}" class="btn btn-success">
-                                <i class="bi bi-download"></i> Xuất Excel
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Form xem dữ liệu -->
-            <div class="card">
-                <div class="card-body">
-                    <form>
-                        {% for section_name, fields in report_data.schema.sections.items() %}
-                        <div class="section mb-4">
-                            <h5 class="border-bottom pb-2 mb-3">{{ section_name }}</h5>
-                            <div class="row">
-                                {% for field in fields %}
-                                {% if not field.hidden %}
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">
-                                        {{ field.name }}
-                                    </label>
-                                    
-                                    <input type="text" 
-                                           class="form-control bg-light" 
-                                           value="{{ report_data['values'].get(field.code, {}).get('value', '') }}"
-                                           readonly>
-                                    
-                                    {% if field.excel_cell %}
-                                    <small class="text-muted">Excel: {{ field.excel_cell }}</small>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-                                {% endfor %}
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </form>
-                </div>
-            </div>
+<div class="reporting-page">
+  <div class="reporting-shell">
+    <div class="reporting-hero">
+      <div>
+        <div class="reporting-chip mb-3">
+          <i class="fa-solid fa-file-circle-check"></i>
+          <span>Xem báo cáo</span>
         </div>
+        <h3>{{ report_data.schema.template_name }}</h3>
+        <p class="reporting-subtitle">
+          Đơn vị <strong>{{ instance.org_unit }}</strong>, cập nhật lúc
+          <strong>{{ instance.updated_at.strftime('%d/%m/%Y %H:%M') }}</strong>.
+        </p>
+      </div>
+      <div class="reporting-hero-actions">
+        <span class="reporting-pill">
+          <i class="fa-solid fa-circle-info"></i>
+          {{ 'Đã nộp' if instance.status == 'submitted' else ('Đã khóa' if instance.status == 'locked' else 'Nháp') }}
+        </span>
+        <button type="button" class="btn btn-outline-secondary rounded-pill px-4" onclick="window.history.back()">
+          <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
+        </button>
+        <a href="{{ url_for('reporting_bp.export_report', instance_id=instance.id) }}" class="btn btn-success rounded-pill px-4">
+          <i class="fa-solid fa-download me-2"></i>Xuất Excel
+        </a>
+      </div>
     </div>
+
+    <div class="reporting-panel">
+      <div class="reporting-panel-body">
+        {% for section_name, fields in report_data.schema.sections.items() %}
+        <section class="reporting-section mb-4">
+          <div class="reporting-section-title">
+            <div>
+              <h5 class="mb-1">{{ section_name }}</h5>
+              <div class="reporting-muted">Dữ liệu đã ghi nhận của nhóm trường này.</div>
+            </div>
+          </div>
+          <div class="reporting-form-grid">
+            {% for field in fields %}
+            {% if not field.hidden %}
+            <div class="reporting-field">
+              <label>{{ field.name }}</label>
+              <input type="text"
+                     class="form-control reporting-field-readonly"
+                     value="{{ report_data['values'].get(field.code, {}).get('value', '') }}"
+                     readonly>
+              {% if field.excel_cell %}
+              <div class="reporting-muted small">Ô Excel: {{ field.excel_cell }}</div>
+              {% endif %}
+            </div>
+            {% endif %}
+            {% endfor %}
+          </div>
+        </section>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
 </div>
-
-<style>
-.section {
-    background: #f8f9fa;
-    padding: 20px;
-    border-radius: 8px;
-}
-
-.bg-light {
-    background-color: #e9ecef !important;
-}
-</style>
 {% endblock %}

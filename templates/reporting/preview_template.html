@@ -2,250 +2,314 @@
 
 {% block title %}Xem biểu mẫu Excel - {{ template.name }}{% endblock %}
 
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reporting-modern.css') }}?v=20260426">
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid px-3 mt-3">
-  <div class="d-flex justify-content-between align-items-center mb-2">
-    <div>
-      <h5 class="mb-0"><i class="bi bi-file-earmark-spreadsheet text-success"></i> {{ template.name }}</h5>
-      <small class="text-muted">Sheet: {{ sheet_title }}</small>
-    </div>
-    <div class="d-flex align-items-center gap-2">
-      <div class="btn-group btn-group-sm" role="group">
-        <button class="btn btn-outline-secondary" onclick="zoomTable(-0.05)" title="Thu nhỏ"><i class="bi bi-zoom-out"></i></button>
-        <button class="btn btn-outline-secondary" id="zoomLabel" style="min-width:52px;pointer-events:none;">100%</button>
-        <button class="btn btn-outline-secondary" onclick="zoomTable(0.05)" title="Phóng to"><i class="bi bi-zoom-in"></i></button>
-        <button class="btn btn-outline-secondary" onclick="zoomTable(0)" title="Vừa màn hình"><i class="bi bi-fullscreen"></i></button>
+<div class="reporting-page">
+  <div class="reporting-shell">
+    <div class="reporting-hero">
+      <div>
+        <div class="reporting-chip mb-3">
+          <i class="fa-solid fa-table-cells-large"></i>
+          <span>Xem báo cáo dạng Excel</span>
+        </div>
+        <h3>{{ template.name }}</h3>
+        <p class="reporting-subtitle">Sheet: {{ sheet_title }}. Preview này giữ nguyên cảm giác bảng tính nhưng có điều khiển zoom hiện đại hơn để dễ xem trên màn hình lớn.</p>
       </div>
-      <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="btn btn-sm btn-outline-secondary">
-        <i class="bi bi-arrow-left"></i> Quay lại
-      </a>
+      <div class="preview-toolbar">
+        <button class="preview-icon-btn btn" type="button" onclick="zoomTable(-0.05)" title="Thu nhỏ">
+          <i class="fa-solid fa-minus"></i>
+        </button>
+        <div class="preview-zoom">
+          <span class="preview-zoom-readout" id="zoomLabel">100%</span>
+          <input id="zoomRange" class="preview-zoom-range" type="range" min="0.40" max="1.80" step="0.01" value="1">
+        </div>
+        <button class="preview-icon-btn btn" type="button" onclick="zoomTable(0.05)" title="Phóng to">
+          <i class="fa-solid fa-plus"></i>
+        </button>
+        <button class="preview-btn btn px-3" type="button" onclick="zoomTable(0)">
+          <i class="fa-solid fa-expand me-2"></i>Vừa màn hình
+        </button>
+        <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="preview-btn btn px-3 text-decoration-none">
+          <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
+        </a>
+      </div>
     </div>
-  </div>
 
-  {# Sheet tab bar #}
-  <div class="xl-sheet-tabs">
-    <span class="xl-sheet-tab active"><i class="bi bi-file-earmark"></i> {{ sheet_title }}</span>
-  </div>
+    <div class="xl-sheet-tabs">
+      <span class="xl-sheet-tab active"><i class="fa-regular fa-file-lines"></i> {{ sheet_title }}</span>
+    </div>
 
-  {# Excel grid #}
-  <div class="xl-frame">
-    <div class="xl-scroll" id="xlScroll">
-      <div class="xl-scale" id="xlScale">
-        <table class="xl-tbl" id="xlTable">
-          <colgroup>
-            <col class="xl-row-hdr-col">
-            {% for width in col_widths %}
-            {% set fw = width %}
-            {% if loop.index == 2 %}{% set fw = [width, 200]|max %}{% endif %}
-            <col style="width:{{ fw }}px;min-width:{{ fw }}px;">
-            {% endfor %}
-          </colgroup>
-          <thead>
-            <tr class="xl-col-hdr-row">
-              <th class="xl-corner"></th>
+    <div class="xl-frame">
+      <div class="xl-scroll" id="xlScroll">
+        <div class="xl-scale" id="xlScale">
+          <table class="xl-tbl" id="xlTable">
+            <colgroup>
+              <col class="xl-row-hdr-col">
               {% for width in col_widths %}
-              <th class="xl-col-hdr">{{ col_letters[loop.index0] }}</th>
+              {% set fw = width %}
+              {% if loop.index == 2 %}{% set fw = [width, 200]|max %}{% endif %}
+              <col style="width:{{ fw }}px;min-width:{{ fw }}px;">
               {% endfor %}
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in rows %}
-            <tr style="height:{{ row.height_px }}px;">
-              <td class="xl-row-hdr">{{ loop.index }}</td>
-              {% for cell in row.cells %}
-              <td
-                {% if cell.rowspan > 1 %}rowspan="{{ cell.rowspan }}"{% endif %}
-                {% if cell.colspan > 1 %}colspan="{{ cell.colspan }}"{% endif %}
-                class="xl-cell{% if cell.col_idx <= 2 %} xl-sticky-{{ cell.col_idx }}{% endif %}{% if cell.has_border_b %} xl-bb{% endif %}"
-                style="
-                  text-align:{{ cell.align if cell.align and cell.align != 'general' else 'left' }};
-                  vertical-align:{{ cell.valign or 'center' }};
-                  font-size:{{ cell.font_size }}pt;
-                  {% if cell.bold %}font-weight:700;{% endif %}
-                  {% if cell.italic %}font-style:italic;{% endif %}
-                  {% if cell.underline %}text-decoration:underline;{% endif %}
-                  {% if cell.font_color %}color:{{ cell.font_color }};{% endif %}
-                  {% if cell.bg_color and cell.bg_color != '#000000' %}background:{{ cell.bg_color }};{% endif %}
-                  {% if cell.wrap_text %}white-space:normal;word-break:break-word;{% endif %}
-                  {% if cell.border_style %}{{ cell.border_style }}{% endif %}
-                "
-              >{{ cell.value }}</td>
+            </colgroup>
+            <thead>
+              <tr class="xl-col-hdr-row">
+                <th class="xl-corner"></th>
+                {% for width in col_widths %}
+                <th class="xl-col-hdr">{{ col_letters[loop.index0] }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+              <tr style="height:{{ row.height_px }}px;">
+                <td class="xl-row-hdr">{{ loop.index }}</td>
+                {% for cell in row.cells %}
+                <td
+                  {% if cell.rowspan > 1 %}rowspan="{{ cell.rowspan }}"{% endif %}
+                  {% if cell.colspan > 1 %}colspan="{{ cell.colspan }}"{% endif %}
+                  class="xl-cell{% if cell.col_idx <= 2 %} xl-sticky-{{ cell.col_idx }}{% endif %}"
+                  style="
+                    text-align:{{ cell.align if cell.align and cell.align != 'general' else 'left' }};
+                    vertical-align:{{ cell.valign or 'center' }};
+                    font-size:{{ cell.font_size }}pt;
+                    {% if cell.bold %}font-weight:700;{% endif %}
+                    {% if cell.italic %}font-style:italic;{% endif %}
+                    {% if cell.underline %}text-decoration:underline;{% endif %}
+                    {% if cell.font_color %}color:{{ cell.font_color }};{% endif %}
+                    {% if cell.bg_color and cell.bg_color != '#000000' %}background:{{ cell.bg_color }};{% endif %}
+                    {% if cell.wrap_text %}white-space:normal;word-break:break-word;{% endif %}
+                    {% if cell.border_style %}{{ cell.border_style }}{% endif %}
+                  "
+                >{{ cell.value }}</td>
+                {% endfor %}
+              </tr>
               {% endfor %}
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 <style>
-/* ===== EXCEL-LIKE GRID ===== */
 .xl-sheet-tabs {
-  display:flex; gap:0; background:#e0e0e0; border-radius:0 0 0 0;
-  border:1px solid #b0b0b0; border-bottom:none; padding:0 6px;
-  overflow-x:auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 14px 0;
 }
+
 .xl-sheet-tab {
-  display:inline-flex; align-items:center; gap:4px;
-  padding:4px 14px; font-size:11px; cursor:pointer;
-  background:#f0f0f0; border:1px solid #b0b0b0; border-bottom:none;
-  margin-top:4px; border-radius:4px 4px 0 0; color:#333;
-  white-space:nowrap;
-}
-.xl-sheet-tab.active {
-  background:#fff; border-bottom:1px solid #fff; font-weight:600; color:#1a7340;
-  margin-bottom:-1px; z-index:1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 16px 16px 0 0;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-bottom: none;
+  color: #305267;
+  font-weight: 700;
 }
 
 .xl-frame {
-  border:1px solid #b0b0b0;
-  background:#fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.96);
+  overflow: hidden;
 }
+
 .xl-scroll {
-  overflow:auto;
-  max-height:78vh;
-  background:#e8e8e8; /* vùng ngoài bảng giống Excel */
+  overflow: auto;
+  max-height: 76vh;
+  background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%);
 }
+
 .xl-scale {
-  transform-origin:top left;
-  width:max-content;
+  transform-origin: top left;
+  width: max-content;
 }
 
-/* === TABLE === */
 .xl-tbl {
-  border-collapse:collapse;
-  font-family:Calibri, "Segoe UI", Arial, sans-serif;
-  font-size:11pt;
-  background:#fff;
-  width:max-content;
-  table-layout:fixed;
+  border-collapse: collapse;
+  font-family: Calibri, "Segoe UI", Arial, sans-serif;
+  font-size: 11pt;
+  background: #fff;
+  width: max-content;
+  table-layout: fixed;
 }
 
-/* === COLUMN HEADERS (A, B, C...) === */
 .xl-col-hdr-row {
-  position:sticky; top:0; z-index:10;
-}
-.xl-corner {
-  position:sticky; left:0; top:0; z-index:12;
-  background:linear-gradient(180deg, #f8f8f8 0%, #e2e2e2 100%);
-  border-right:1px solid #b0b0b0;
-  border-bottom:1px solid #b0b0b0;
-  min-width:36px; width:36px; max-width:36px;
-}
-.xl-col-hdr {
-  background:linear-gradient(180deg, #f8f8f8 0%, #e2e2e2 100%);
-  border-right:1px solid #c8c8c8;
-  border-bottom:1px solid #b0b0b0;
-  text-align:center;
-  font-size:10px; font-weight:500;
-  color:#555;
-  padding:2px 0;
-  height:20px;
-  line-height:16px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
-/* === ROW HEADER (1, 2, 3...) === */
-.xl-row-hdr-col {
-  width:36px; min-width:36px; max-width:36px;
-}
+.xl-corner,
+.xl-col-hdr,
 .xl-row-hdr {
-  position:sticky; left:0; z-index:5;
-  background:linear-gradient(90deg, #f8f8f8 0%, #e8e8e8 100%);
-  border-right:1px solid #b0b0b0;
-  border-bottom:1px solid #d0d0d0;
-  text-align:center;
-  font-size:10px; font-weight:500;
-  color:#555;
-  padding:0 2px;
-  min-width:36px; max-width:36px;
-  user-select:none;
+  background: linear-gradient(180deg, #f9fbfd 0%, #e4ebf2 100%);
+  color: #526476;
 }
 
-/* === DATA CELLS === */
+.xl-corner {
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 12;
+  border-right: 1px solid #bfd0de;
+  border-bottom: 1px solid #bfd0de;
+  min-width: 40px;
+  width: 40px;
+  max-width: 40px;
+}
+
+.xl-col-hdr {
+  border-right: 1px solid #d3dce4;
+  border-bottom: 1px solid #bfd0de;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 0;
+  height: 24px;
+}
+
+.xl-row-hdr-col {
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+}
+
+.xl-row-hdr {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  border-right: 1px solid #bfd0de;
+  border-bottom: 1px solid #d3dce4;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0 2px;
+  min-width: 40px;
+  max-width: 40px;
+  user-select: none;
+}
+
 .xl-cell {
-  border-right:1px solid #d4d4d4;
-  border-bottom:1px solid #d4d4d4;
-  padding:1px 3px;
-  line-height:1.15;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  color:#000;
-  background:#fff;
-  box-sizing:border-box;
+  border-right: 1px solid #d7dee5;
+  border-bottom: 1px solid #d7dee5;
+  padding: 1px 4px;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #111827;
+  background: #fff;
+  box-sizing: border-box;
 }
 
-/* Hover giống Excel highlight */
-.xl-tbl tbody tr:hover > .xl-cell { background:rgba(198,225,255,.25); }
-.xl-tbl tbody tr:hover > .xl-row-hdr { background:linear-gradient(90deg,#d4e6ff 0%,#c0d8f8 100%); color:#1a5596; }
+.xl-tbl tbody tr:hover > .xl-cell {
+  background: rgba(15, 118, 110, 0.05);
+}
 
-/* Sticky cột 1, 2 */
-.xl-sticky-1 { position:sticky; z-index:3; background:#fff; }
-.xl-sticky-2 { position:sticky; z-index:3; background:#fff; }
+.xl-tbl tbody tr:hover > .xl-row-hdr {
+  background: linear-gradient(180deg, #dff4f1 0%, #d2ebe7 100%);
+  color: #0f766e;
+}
 
-/* Ensure sticky cells keep bg on hover */
-.xl-tbl tbody tr:hover > .xl-sticky-1,
-.xl-tbl tbody tr:hover > .xl-sticky-2 { background:rgba(198,225,255,.35); }
+.xl-sticky-1,
+.xl-sticky-2 {
+  position: sticky;
+  z-index: 3;
+  background: #fff;
+}
 
-/* Scrollbar giống Excel */
-.xl-scroll::-webkit-scrollbar { width:13px; height:13px; }
-.xl-scroll::-webkit-scrollbar-track { background:#f0f0f0; }
-.xl-scroll::-webkit-scrollbar-thumb { background:#c0c0c0; border-radius:0; border:2px solid #f0f0f0; }
-.xl-scroll::-webkit-scrollbar-thumb:hover { background:#a0a0a0; }
-.xl-scroll::-webkit-scrollbar-corner { background:#f0f0f0; }
+.xl-scroll::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
 
-/* Selection styling */
-::selection { background:rgba(49,106,197,.25); }
+.xl-scroll::-webkit-scrollbar-track {
+  background: #edf2f7;
+}
+
+.xl-scroll::-webkit-scrollbar-thumb {
+  background: #c3d0dc;
+  border-radius: 999px;
+  border: 2px solid #edf2f7;
+}
 </style>
+{% endblock %}
 
+{% block scripts %}
 <script>
 (function () {
   const scroll = document.getElementById('xlScroll');
-  const scale  = document.getElementById('xlScale');
-  const table  = document.getElementById('xlTable');
-  if (!scroll || !scale || !table) return;
+  const scale = document.getElementById('xlScale');
+  const table = document.getElementById('xlTable');
+  const zoomRange = document.getElementById('zoomRange');
+  const zoomLabel = document.getElementById('zoomLabel');
+  if (!scroll || !scale || !table || !zoomRange || !zoomLabel) return;
 
   let currentZoom = 1;
 
-  /* --- Tính sticky left cho cột 1, 2 --- */
   function updateSticky() {
-    const col1 = table.querySelector('colgroup col:nth-child(2)'); // data col 1 (skip row-hdr col)
+    const col1 = table.querySelector('colgroup col:nth-child(2)');
     if (!col1) return;
-    const hdrW = 36; // row header width
-    const c1w = col1.getBoundingClientRect().width / currentZoom;
-    table.querySelectorAll('.xl-sticky-1').forEach(el => { el.style.left = hdrW + 'px'; });
-    table.querySelectorAll('.xl-sticky-2').forEach(el => { el.style.left = (hdrW + c1w) + 'px'; });
+    const headerWidth = 40;
+    const colWidth = col1.getBoundingClientRect().width / currentZoom;
+    table.querySelectorAll('.xl-sticky-1').forEach(el => { el.style.left = headerWidth + 'px'; });
+    table.querySelectorAll('.xl-sticky-2').forEach(el => { el.style.left = (headerWidth + colWidth) + 'px'; });
   }
 
-  /* --- Fit to viewport on load --- */
-  function fitToViewport() {
-    scale.style.transform = 'scale(1)';
-    scale.style.height = 'auto';
-
-    const wrapW = scroll.clientWidth;
-    const tblW = table.offsetWidth;
-    if (!tblW || !wrapW) return;
-
-    const ratio = wrapW / tblW;
-    currentZoom = Math.min(1.1, Math.max(0.55, ratio));
-    applyZoom();
+  function syncZoomUi() {
+    zoomRange.value = currentZoom.toFixed(2);
+    zoomLabel.textContent = Math.round(currentZoom * 100) + '%';
   }
 
   function applyZoom() {
     scale.style.transform = `scale(${currentZoom})`;
     scale.style.height = `${table.offsetHeight * currentZoom}px`;
-    document.getElementById('zoomLabel').textContent = Math.round(currentZoom * 100) + '%';
+    syncZoomUi();
     updateSticky();
   }
 
-  /* --- Zoom controls --- */
-  window.zoomTable = function(delta) {
-    if (delta === 0) { fitToViewport(); return; }
-    currentZoom = Math.min(2, Math.max(0.4, currentZoom + delta));
+  function fitToViewport() {
+    scale.style.transform = 'scale(1)';
+    scale.style.height = 'auto';
+
+    const wrapWidth = scroll.clientWidth;
+    const tableWidth = table.offsetWidth;
+    if (!tableWidth || !wrapWidth) return;
+
+    currentZoom = Math.min(1.15, Math.max(0.5, wrapWidth / tableWidth));
+    applyZoom();
+  }
+
+  window.zoomTable = function (delta) {
+    if (delta === 0) {
+      fitToViewport();
+      return;
+    }
+    currentZoom = Math.min(1.8, Math.max(0.4, currentZoom + delta));
     applyZoom();
   };
+
+  zoomRange.addEventListener('input', function (event) {
+    currentZoom = Number(event.target.value);
+    applyZoom();
+  });
+
+  scroll.addEventListener('wheel', function (event) {
+    if (!event.ctrlKey) return;
+    event.preventDefault();
+    currentZoom = Math.min(1.8, Math.max(0.4, currentZoom + (event.deltaY < 0 ? 0.04 : -0.04)));
+    applyZoom();
+  }, { passive: false });
 
   window.addEventListener('load', fitToViewport);
   window.addEventListener('resize', fitToViewport);

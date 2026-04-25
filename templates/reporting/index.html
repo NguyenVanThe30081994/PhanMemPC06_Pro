@@ -1,62 +1,63 @@
 {% extends "base.html" %}
 
-{% block title %}Hệ thống nhập liệu báo cáo{% endblock %}
+{% block title %}Reporting Chính thức{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reporting-modern.css') }}?v=20260426">
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-      <h3 class="mb-1"><i class="bi bi-collection"></i> Danh sách biểu mẫu báo cáo</h3>
-      <p class="text-muted mb-0">Chọn một biểu mẫu để vào không gian chức năng chi tiết</p>
-    </div>
-    <a href="{{ url_for('reporting_bp.dashboard') }}" class="btn btn-outline-primary">
-      <i class="bi bi-graph-up"></i> Dashboard
-    </a>
-  </div>
-
-  <div class="row g-4">
-    {% for template in templates %}
-    <div class="col-md-6 col-xl-4">
-      <div class="card h-100 template-card border-0">
-        <div class="card-body p-4">
-          <div class="d-flex justify-content-between align-items-start mb-3">
-            <span class="badge text-bg-primary-subtle text-primary-emphasis rounded-pill px-3 py-2">
-              {{ template.category or 'Chung' }}
-            </span>
-            <i class="bi bi-file-earmark-spreadsheet text-primary fs-4"></i>
-          </div>
-
-          <h5 class="fw-bold mb-2">{{ template.name }}</h5>
-          <p class="text-muted small mb-4">{{ template.description or 'Biểu mẫu đang hoạt động trong hệ thống báo cáo.' }}</p>
-
-          <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="btn btn-primary w-100" id="open_template_{{ template.id }}">
-            <i class="bi bi-arrow-right-circle"></i> Mở biểu mẫu
-          </a>
+<div class="reporting-page">
+  <div class="reporting-shell">
+    <div class="reporting-hero">
+      <div>
+        <div class="reporting-chip mb-3">
+          <i class="fa-solid fa-layer-group"></i>
+          <span>Reporting Chính thức</span>
         </div>
+        <h3>Danh sách biểu mẫu báo cáo</h3>
+        <p class="reporting-subtitle">
+          Không gian quản lý báo cáo theo biểu mẫu, kỳ nộp, lịch sử thao tác và tiến độ nộp của từng đơn vị.
+        </p>
+      </div>
+      <div class="reporting-hero-actions">
+        <span class="reporting-pill">
+          <i class="fa-solid fa-file-circle-check"></i>
+          <strong>{{ templates|length }}</strong> biểu mẫu hoạt động
+        </span>
+        {% if session.get('is_admin') %}
+        <a href="{{ url_for('reporting_bp.dashboard') }}" class="btn btn-primary rounded-pill px-4">
+          <i class="fa-solid fa-chart-line me-2"></i>Tổng quan
+        </a>
+        {% endif %}
       </div>
     </div>
-    {% endfor %}
 
-    {% if not templates %}
-    <div class="col-12">
-      <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i> Chưa có mẫu biểu nào. Vui lòng chạy <code>python seed_reporting_data.py</code>.
-      </div>
+    {% if templates %}
+    <div class="reporting-action-grid">
+      {% for template in templates %}
+      <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="action-card text-decoration-none" id="open_template_{{ template.id }}">
+        <div class="action-icon">
+          <i class="fa-solid fa-file-excel"></i>
+        </div>
+        <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+          <h6>{{ template.name }}</h6>
+          <span class="reporting-chip">{{ template.category or 'Chung' }}</span>
+        </div>
+        <p class="reporting-muted mb-3">{{ template.description or 'Biểu mẫu đang hoạt động trong hệ thống reporting.' }}</p>
+        <div class="d-flex justify-content-between align-items-center">
+          <span class="reporting-muted">Mở workspace</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="reporting-empty">
+      <i class="fa-solid fa-circle-info me-2"></i>
+      Chưa có mẫu biểu nào. Có thể khởi tạo dữ liệu mẫu bằng `python seed_reporting_data.py`.
     </div>
     {% endif %}
   </div>
 </div>
-
-<style>
-.template-card {
-  background: linear-gradient(145deg, #ffffff, #f8fbff);
-  box-shadow: 0 12px 30px rgba(13, 110, 253, 0.08);
-  transition: all .25s ease;
-  border-radius: 18px;
-}
-.template-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 16px 34px rgba(13, 110, 253, 0.16);
-}
-</style>
 {% endblock %}

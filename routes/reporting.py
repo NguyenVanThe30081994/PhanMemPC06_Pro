@@ -4,6 +4,7 @@ Routes cho hệ thống nhập liệu báo cáo mới
 API endpoints và UI pages
 """
 from flask import Blueprint, render_template, request, session, redirect, url_for, jsonify, flash, send_file, make_response
+import calendar
 import json
 import datetime
 from io import BytesIO
@@ -17,6 +18,158 @@ from utils import log_action
 
 reporting_bp = Blueprint('reporting_bp', __name__, url_prefix='/reporting')
 form_engine = FormEngine()
+
+
+def _get_reporting_permissions():
+    """Resolve reporting-related permissions from the current session role."""
+    perms = {}
+    role_id = session.get('role_id')
+    if role_id:
+        from models import AppRole
+        role = db.session.get(AppRole, role_id)
+        if role and role.perms:
+            try:
+                perms = json.loads(role.perms)
+            except Exception:
+                perms = {}
+
+    is_admin = bool(session.get('is_admin'))
+    is_lead = is_admin or bool(
+        perms.get('p_stat_lead') or
+        perms.get('p_input_lead') or
+        perms.get('p_form_lead')
+    )
+    return perms, is_admin, is_lead
+
+
+def _parse_deadline_time(raw_value, fallback='17:00'):
+    raw = (raw_value or fallback or '17:00').strip()
+    try:
+        hour, minute = [int(part) for part in raw.split(':', 1)]
+        return datetime.time(max(0, min(23, hour)), max(0, min(59, minute)))
+    except Exception:
+        return datetime.time(17, 0)
+
+
+def _safe_date_in_month(year, month, day):
+    last_day = calendar.monthrange(year, month)[1]
+    return datetime.date(year, month, max(1, min(int(day), last_day)))
+
+
+def _parse_deadline_rule(template):
+    rule_text = (template.deadline_rule or '').strip()
+    if not rule_text:
+        return {}
+
+    if rule_text.startswith('{'):
+        try:
+            return json.loads(rule_text)
+        except Exception:
+            return {}
+
+    report_type = (template.report_type or 'adhoc').strip().lower()
+    if report_type == 'daily' and ':' in rule_text:
+        return {'time': rule_text}
+
+    if report_type == 'periodic' and rule_text.isdigit():
+        return {'offset_days': int(rule_text), 'time': '17:00'}
+
+    return {}
+
+
+def _format_schedule_summary(template):
+    report_type = (template.report_type or 'adhoc').strip().lower()
+    frequency = (template.frequency or '').strip().lower()
+    rule = _parse_deadline_rule(template)
+
+    if report_type == 'daily':
+        return f"Hàng ngày, hạn nộp {rule.get('time', '17:00')}"
+
+    if report_type == 'periodic':
+        if frequency == 'weekly':
+            weekday_map = {
+                0: 'Thứ hai', 1: 'Thứ ba', 2: 'Thứ tư', 3: 'Thứ năm',
+                4: 'Thứ sáu', 5: 'Thứ bảy', 6: 'Chủ nhật'
+            }
+            weekday = int(rule.get('weekday', 0))
+            return f"Hàng tuần, hạn nộp {weekday_map.get(weekday, 'Thứ hai')} {rule.get('time', '17:00')}"
+        if frequency == 'monthly':
+            return f"Hàng tháng, hạn nộp ngày {rule.get('day', 5)} lúc {rule.get('time', '17:00')}"
+        if frequency == 'quarterly':
+            return (
+                f"Hàng quý, hạn nộp tháng {rule.get('month', 1)} trong quý "
+                f"ngày {rule.get('day', 5)} lúc {rule.get('time', '17:00')}"
+            )
+        if frequency == 'yearly':
+            return (
+                f"Hàng năm, hạn nộp ngày {rule.get('day', 15)}/{rule.get('month', 1)} "
+                f"lúc {rule.get('time', '17:00')}"
+            )
+        if 'offset_days' in rule:
+            return f"Định kỳ, hạn nộp sau {rule['offset_days']} ngày"
+        return "Định kỳ, chưa cấu hình hạn nộp"
+
+    return "Đột xuất, hạn nộp khai báo theo từng kỳ"
+
+
+def _compute_period_deadline(template, start_date, end_date, explicit_deadline=None):
+    report_type = (template.report_type or 'adhoc').strip().lower()
+    frequency = (template.frequency or '').strip().lower()
+    rule = _parse_deadline_rule(template)
+
+    if report_type == 'adhoc':
+        if explicit_deadline is None:
+            raise ValueError('Báo cáo đột xuất phải có hạn nộp cụ thể.')
+        return explicit_deadline
+
+    if report_type == 'daily':
+        return datetime.datetime.combine(end_date, _parse_deadline_time(rule.get('time')))
+
+    if report_type != 'periodic':
+        return None
+
+    time_value = _parse_deadline_time(rule.get('time'))
+
+    if 'offset_days' in rule:
+        target_date = end_date + datetime.timedelta(days=int(rule['offset_days']))
+        return datetime.datetime.combine(target_date, time_value)
+
+    if frequency == 'weekly':
+        weekday = max(0, min(6, int(rule.get('weekday', 0))))
+        days_ahead = (weekday - end_date.weekday()) % 7
+        if days_ahead == 0:
+            days_ahead = 7
+        target_date = end_date + datetime.timedelta(days=days_ahead)
+        return datetime.datetime.combine(target_date, time_value)
+
+    if frequency == 'monthly':
+        next_month = end_date.month + 1
+        target_year = end_date.year
+        if next_month > 12:
+            next_month = 1
+            target_year += 1
+        target_date = _safe_date_in_month(target_year, next_month, int(rule.get('day', 5)))
+        return datetime.datetime.combine(target_date, time_value)
+
+    if frequency == 'quarterly':
+        current_quarter = ((end_date.month - 1) // 3) + 1
+        next_quarter_start_month = current_quarter * 3 + 1
+        target_year = end_date.year
+        if next_quarter_start_month > 12:
+            next_quarter_start_month = 1
+            target_year += 1
+        month_in_quarter = max(1, min(3, int(rule.get('month', 1))))
+        target_month = next_quarter_start_month + month_in_quarter - 1
+        target_date = _safe_date_in_month(target_year, target_month, int(rule.get('day', 5)))
+        return datetime.datetime.combine(target_date, time_value)
+
+    if frequency == 'yearly':
+        target_year = end_date.year + 1
+        target_month = max(1, min(12, int(rule.get('month', 1))))
+        target_date = _safe_date_in_month(target_year, target_month, int(rule.get('day', 15)))
+        return datetime.datetime.combine(target_date, time_value)
+
+    return None
 
 
 # ==================== UI PAGES ====================
@@ -79,12 +232,15 @@ def template_workspace(template_id):
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
 
+    _, is_admin, is_lead = _get_reporting_permissions()
     template = FormTemplate.query.get_or_404(template_id)
-    periods = ReportingPeriod.query.filter_by(is_locked=False).order_by(ReportingPeriod.start_date.desc()).all()
+    periods = ReportingPeriod.query.filter(
+        or_(ReportingPeriod.template_id == template_id, ReportingPeriod.template_id == None)
+    ).order_by(ReportingPeriod.start_date.desc()).all()
 
     user_unit = session.get('unit_area', session.get('unit', ''))
     report_query = ReportInstance.query.filter_by(template_id=template_id)
-    if not session.get('is_admin'):
+    if not is_admin:
         report_query = report_query.filter(ReportInstance.org_unit == user_unit)
 
     reports = report_query.order_by(ReportInstance.updated_at.desc()).limit(20).all()
@@ -95,7 +251,11 @@ def template_workspace(template_id):
         template=template,
         periods=periods,
         reports=reports,
-        latest_report=latest_report
+        latest_report=latest_report,
+        active_period_count=sum(1 for period in periods if not period.is_locked),
+        schedule_summary=_format_schedule_summary(template),
+        is_reporting_admin=is_admin,
+        is_reporting_lead=is_lead
     )
 
 
@@ -208,7 +368,8 @@ def template_statistics(template_id):
     """Thống kê tiến độ nộp báo cáo của các đơn vị"""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
-    if not (session.get('is_admin') or session.get('is_lead')):
+    _, is_admin, is_lead = _get_reporting_permissions()
+    if not (is_admin or is_lead):
         flash('Bạn không có quyền truy cập chức năng này.', 'danger')
         return redirect(url_for('reporting_bp.template_workspace', template_id=template_id))
 
@@ -233,7 +394,7 @@ def template_statistics(template_id):
     from models import User
     user_unit = session.get('unit_area', session.get('unit', ''))
     all_units_query = db.session.query(User.unit_area).distinct()
-    if not session.get('is_admin'):
+    if not is_admin:
         all_units_query = all_units_query.filter(User.unit_area == user_unit)
     
     all_units = [u[0] for u in all_units_query.all() if u[0] and u[0] != 'Hệ thống']
@@ -305,7 +466,8 @@ def template_statistics(template_id):
                            template=template, 
                            period=period, 
                            stats_list=stats_list,
-                           summary=summary)
+                           summary=summary,
+                           schedule_summary=_format_schedule_summary(template))
 
 @reporting_bp.route('/history')
 def history():
@@ -567,12 +729,155 @@ def field_settings(template_id):
         template=template,
         version=version,
         grouped_fields=grouped_fields,
-        hidden_field_codes=hidden_field_codes
+        hidden_field_codes=hidden_field_codes,
+        schedule_summary=_format_schedule_summary(template)
     )
 
 
-# Tạm thời disable route template_config và template_periods
-# Sẽ bật lại sau khi migration hoàn tất (cột report_type, frequency, deadline_rule được thêm)
+@reporting_bp.route('/template/<int:template_id>/config', methods=['GET', 'POST'])
+def template_config(template_id):
+    """Admin: cấu hình loại báo cáo và quy tắc hạn nộp."""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    if not session.get('is_admin'):
+        flash('Bạn không có quyền cấu hình biểu mẫu.', 'danger')
+        return redirect(url_for('reporting_bp.template_workspace', template_id=template_id))
+
+    template = FormTemplate.query.get_or_404(template_id)
+
+    if request.method == 'POST':
+        report_type = (request.form.get('report_type') or 'adhoc').strip().lower()
+        frequency = None
+        deadline_rule = None
+
+        try:
+            if report_type == 'daily':
+                deadline_rule = json.dumps(
+                    {'time': request.form.get('daily_time', '17:00')},
+                    ensure_ascii=False,
+                    separators=(',', ':')
+                )
+            elif report_type == 'periodic':
+                frequency = (request.form.get('frequency') or 'monthly').strip().lower()
+                time_value = request.form.get('periodic_time', '17:00')
+
+                if frequency == 'weekly':
+                    deadline_rule = json.dumps(
+                        {'weekday': int(request.form.get('weekly_weekday', 0)), 'time': time_value},
+                        ensure_ascii=False,
+                        separators=(',', ':')
+                    )
+                elif frequency == 'monthly':
+                    deadline_rule = json.dumps(
+                        {'day': int(request.form.get('monthly_day', 5)), 'time': time_value},
+                        ensure_ascii=False,
+                        separators=(',', ':')
+                    )
+                elif frequency == 'quarterly':
+                    deadline_rule = json.dumps(
+                        {
+                            'month': int(request.form.get('quarterly_month', 1)),
+                            'day': int(request.form.get('quarterly_day', 5)),
+                            'time': time_value
+                        },
+                        ensure_ascii=False,
+                        separators=(',', ':')
+                    )
+                elif frequency == 'yearly':
+                    deadline_rule = json.dumps(
+                        {
+                            'month': int(request.form.get('yearly_month', 1)),
+                            'day': int(request.form.get('yearly_day', 15)),
+                            'time': time_value
+                        },
+                        ensure_ascii=False,
+                        separators=(',', ':')
+                    )
+                else:
+                    raise ValueError('Tần suất báo cáo không hợp lệ.')
+
+            template.report_type = report_type
+            template.frequency = frequency
+            template.deadline_rule = deadline_rule
+            db.session.commit()
+            flash('Đã cập nhật cấu hình reporting.', 'success')
+            return redirect(url_for('reporting_bp.template_workspace', template_id=template_id))
+        except Exception as exc:
+            db.session.rollback()
+            flash(f'Lỗi lưu cấu hình: {exc}', 'danger')
+
+    return render_template(
+        'reporting/template_config.html',
+        template=template,
+        schedule_summary=_format_schedule_summary(template),
+        deadline_config=_parse_deadline_rule(template)
+    )
+
+
+@reporting_bp.route('/template/<int:template_id>/periods', methods=['GET', 'POST'])
+def template_periods(template_id):
+    """Admin: tạo và quản lý các kỳ báo cáo của biểu mẫu."""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    if not session.get('is_admin'):
+        flash('Bạn không có quyền quản lý kỳ báo cáo.', 'danger')
+        return redirect(url_for('reporting_bp.template_workspace', template_id=template_id))
+
+    template = FormTemplate.query.get_or_404(template_id)
+    report_type = (template.report_type or 'adhoc').strip().lower()
+
+    if request.method == 'POST':
+        code = (request.form.get('code') or '').strip()
+        name = (request.form.get('name') or '').strip()
+
+        if ReportingPeriod.query.filter_by(code=code).first():
+            flash('Mã kỳ báo cáo đã tồn tại.', 'warning')
+            return redirect(url_for('reporting_bp.template_periods', template_id=template_id))
+
+        try:
+            start_date = datetime.datetime.strptime(request.form.get('start_date', ''), '%Y-%m-%d').date()
+            end_date = datetime.datetime.strptime(request.form.get('end_date', ''), '%Y-%m-%d').date()
+            if end_date < start_date:
+                raise ValueError('Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.')
+
+            explicit_deadline = None
+            if report_type == 'adhoc':
+                deadline_raw = request.form.get('deadline', '')
+                explicit_deadline = datetime.datetime.strptime(deadline_raw, '%Y-%m-%dT%H:%M')
+
+            deadline = _compute_period_deadline(template, start_date, end_date, explicit_deadline)
+            period_type = 'adhoc' if report_type == 'adhoc' else (template.frequency or report_type or 'custom')
+
+            period = ReportingPeriod(
+                template_id=template.id,
+                code=code,
+                name=name,
+                period_type=period_type,
+                is_adhoc=(report_type == 'adhoc'),
+                start_date=start_date,
+                end_date=end_date,
+                deadline=deadline,
+                is_locked=False,
+                created_by=session.get('uid')
+            )
+            db.session.add(period)
+            db.session.commit()
+            flash('Đã tạo kỳ báo cáo mới.', 'success')
+            return redirect(url_for('reporting_bp.template_periods', template_id=template_id))
+        except Exception as exc:
+            db.session.rollback()
+            flash(f'Không thể tạo kỳ báo cáo: {exc}', 'danger')
+
+    periods = ReportingPeriod.query.filter(
+        or_(ReportingPeriod.template_id == template.id, ReportingPeriod.template_id == None)
+    ).order_by(ReportingPeriod.start_date.desc()).all()
+    return render_template(
+        'reporting/template_periods.html',
+        template=template,
+        periods=periods,
+        schedule_summary=_format_schedule_summary(template),
+        deadline_config=_parse_deadline_rule(template)
+    )
 
 # ==================== API ENDPOINTS ====================
 
@@ -670,7 +975,7 @@ def api_save_draft(instance_id):
         # Calculate fields
         form_engine.calculate_fields(instance_id)
         
-        log_action('Báo cáo', 'Lưu nháp', f'Report ID: {instance_id}')
+        log_action(user_id, session.get('fullname', 'Unknown'), 'Lưu nháp báo cáo', 'Reporting', f'Report ID: {instance_id}')
         
         return jsonify(result)
     except Exception as e:
@@ -690,7 +995,7 @@ def api_submit_report(instance_id):
         result = form_engine.submit_report(instance_id, user_id)
         
         if result['success']:
-            log_action('Báo cáo', 'Nộp báo cáo', f'Report ID: {instance_id}')
+            log_action(user_id, session.get('fullname', 'Unknown'), 'Nộp báo cáo', 'Reporting', f'Report ID: {instance_id}')
         
         return jsonify(result)
     except Exception as e:

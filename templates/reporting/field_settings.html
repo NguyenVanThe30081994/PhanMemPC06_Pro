@@ -2,92 +2,108 @@
 
 {% block title %}Thiết lập cột nhập liệu - {{ template.name }}{% endblock %}
 
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reporting-modern.css') }}?v=20260426">
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-      <h3 class="mb-1">Thiết lập cột nhập liệu</h3>
-      <p class="text-muted mb-0">
-        Mẫu: <strong>{{ template.name }}</strong> | Phiên bản: <strong>{{ version.version_number }}</strong>
-      </p>
-    </div>
-    <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="btn btn-outline-secondary">
-      <i class="bi bi-arrow-left"></i> Quay lại
-    </a>
-  </div>
-
-  <form method="POST">
-    {% for section_name, fields in grouped_fields.items() %}
-    <div class="card mb-3 shadow-sm">
-      <div class="card-header bg-light">
-        <strong>{{ section_name }}</strong>
+<div class="reporting-page">
+  <div class="reporting-shell">
+    <div class="reporting-hero">
+      <div>
+        <div class="reporting-chip mb-3">
+          <i class="fa-solid fa-sliders"></i>
+          <span>Thiết lập cột nhập liệu</span>
+        </div>
+        <h3>{{ template.name }}</h3>
+        <p class="reporting-subtitle">
+          Kiểm soát trường nào cho phép đơn vị nhập, trường nào chỉ đọc và trường nào cần ẩn khỏi giao diện nhập liệu.
+        </p>
       </div>
-      <div class="card-body">
-        <div class="row g-3">
+      <div class="reporting-hero-actions">
+        <span class="reporting-pill"><i class="fa-solid fa-code-branch"></i>{{ version.version_number }}</span>
+        <span class="reporting-pill"><i class="fa-solid fa-clock"></i>{{ schedule_summary }}</span>
+        <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="btn btn-outline-secondary rounded-pill px-4">
+          <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
+        </a>
+      </div>
+    </div>
+
+    <form method="POST">
+      {% for section_name, fields in grouped_fields.items() %}
+      <section class="reporting-section mb-4">
+        <div class="reporting-section-title">
+          <div>
+            <h5 class="mb-1">{{ section_name }}</h5>
+            <div class="reporting-muted">{{ fields|length }} trường dữ liệu trong nhóm này.</div>
+          </div>
+        </div>
+
+        <div class="reporting-action-grid">
           {% for field in fields %}
-          <div class="col-md-6 col-lg-4">
-            <div class="border rounded p-3 h-100">
-              <div class="form-check mb-2">
-                <input class="form-check-input" 
-                       type="checkbox" 
-                       id="field_{{ field.id }}"
-                       name="editable_fields"
-                       value="{{ field.field_code }}"
-                       {% if not field.is_readonly and not field.is_calculated %}checked{% endif %}
-                       {% if field.is_calculated %}disabled{% endif %}>
-                <label class="form-check-label" for="field_{{ field.id }}">
-                  <strong>{{ field.field_name }}</strong>
-                </label>
+          <div class="action-card">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+              <div>
+                <h6>{{ field.field_name }}</h6>
+                <div class="reporting-muted small">Mã: {{ field.field_code }}</div>
               </div>
+              <span class="reporting-chip">{{ field.excel_cell_ref or 'Khong gan o Excel' }}</span>
+            </div>
 
-              <div class="form-check">
-                <input class="form-check-input" 
-                       type="checkbox" 
-                       id="hidden_{{ field.id }}"
-                       name="hidden_fields"
-                       value="{{ field.field_code }}"
-                       {% if field.field_code in hidden_field_codes %}checked{% endif %}
-                       {% if field.is_calculated %}disabled{% endif %}>
-                <label class="form-check-label" for="hidden_{{ field.id }}">
-                  Ẩn khỏi đơn vị nhập liệu
-                </label>
-              </div>
+            <div class="form-check mb-2">
+              <input class="form-check-input"
+                     type="checkbox"
+                     id="field_{{ field.id }}"
+                     name="editable_fields"
+                     value="{{ field.field_code }}"
+                     {% if not field.is_readonly and not field.is_calculated %}checked{% endif %}
+                     {% if field.is_calculated %}disabled{% endif %}>
+              <label class="form-check-label" for="field_{{ field.id }}">
+                Cho phép đơn vị nhập
+              </label>
+            </div>
 
-              <div class="small text-muted mt-2">
-                <div>Mã: <code>{{ field.field_code }}</code></div>
-                <div>Kiểu: {{ field.field_type }}</div>
-                {% if field.excel_cell_ref %}<div>Ô Excel: {{ field.excel_cell_ref }}</div>{% endif %}
-              </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input"
+                     type="checkbox"
+                     id="hidden_{{ field.id }}"
+                     name="hidden_fields"
+                     value="{{ field.field_code }}"
+                     {% if field.field_code in hidden_field_codes %}checked{% endif %}
+                     {% if field.is_calculated %}disabled{% endif %}>
+              <label class="form-check-label" for="hidden_{{ field.id }}">
+                Ẩn khỏi giao diện nhập liệu
+              </label>
+            </div>
 
-              <div class="mt-2 d-flex gap-2 flex-wrap">
-                {% if field.is_calculated %}
-                  <span class="badge bg-secondary">Công thức (khóa)</span>
-                {% elif field.is_readonly %}
-                  <span class="badge bg-warning text-dark">Đang khóa</span>
-                {% else %}
-                  <span class="badge bg-success">Được nhập</span>
-                {% endif %}
+            <div class="d-flex flex-wrap gap-2">
+              {% if field.is_calculated %}
+              <span class="reporting-chip"><i class="fa-solid fa-calculator"></i>Công thức</span>
+              {% elif field.is_readonly %}
+              <span class="reporting-chip"><i class="fa-solid fa-lock"></i>Chỉ đọc</span>
+              {% else %}
+              <span class="reporting-chip"><i class="fa-solid fa-pen"></i>Cho phép nhập</span>
+              {% endif %}
 
-                {% if field.field_code in hidden_field_codes %}
-                  <span class="badge bg-dark">Đang ẩn</span>
-                {% else %}
-                  <span class="badge bg-info text-dark">Đang hiển thị</span>
-                {% endif %}
-              </div>
+              {% if field.field_code in hidden_field_codes %}
+              <span class="reporting-chip"><i class="fa-solid fa-eye-slash"></i>Đang ẩn</span>
+              {% else %}
+              <span class="reporting-chip"><i class="fa-solid fa-eye"></i>Đang hiển thị</span>
+              {% endif %}
             </div>
           </div>
           {% endfor %}
         </div>
-      </div>
-    </div>
-    {% endfor %}
+      </section>
+      {% endfor %}
 
-    <div class="sticky-bottom bg-white border rounded p-3 d-flex justify-content-end gap-2 mb-3">
-      <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="btn btn-outline-secondary">Hủy</a>
-      <button type="submit" class="btn btn-primary">
-        <i class="bi bi-save"></i> Lưu thiết lập
-      </button>
-    </div>
-  </form>
+      <div class="reporting-sticky-actions">
+        <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="btn btn-outline-secondary rounded-pill px-4">Hủy</a>
+        <button type="submit" class="btn btn-primary rounded-pill px-4">
+          <i class="fa-solid fa-floppy-disk me-2"></i>Lưu thiết lập
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
 {% endblock %}

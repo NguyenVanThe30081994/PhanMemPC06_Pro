@@ -126,7 +126,7 @@ class User(db.Model):
     phone = db.Column(db.String(20))  # SĐT Zalo format E.164 (+84...)
     must_change_password = db.Column(db.Boolean, default=True)
     role = db.relationship('AppRole', backref='users')
-    def set_password(self, p): self.password_hash = generate_password_hash(p)
+    def set_password(self, p): self.password_hash = generate_password_hash(p, method='pbkdf2:sha256')
     def check_password(self, p): return check_password_hash(self.password_hash, p)
 
 
@@ -382,5 +382,4 @@ class ZaloMessageLog(db.Model):
     error_message = db.Column(db.Text)
     zalo_message_id = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.now)
-
 

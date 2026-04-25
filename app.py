@@ -155,6 +155,10 @@ def check_rate_limit():
 
 db.init_app(app)
 
+# Import reporting models before db.create_all() so the reporting schema is
+# included during normal startup, not only when a separate migration script runs.
+import models_reporting  # noqa: F401
+
 def auto_migrate_reporting_columns(database_path):
     """Tự động bổ sung các cột mới cho hệ thống Reporting nếu chưa tồn tại."""
     import sqlite3
