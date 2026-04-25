@@ -138,12 +138,23 @@
           </div>
           <div class="mb-3">
             <label class="form-label">Đội nghiệp vụ phụ trách</label>
-            <select class="form-select" name="department" required>
-              <option value="">-- Chọn đội nghiệp vụ --</option>
-              {% for dept in departments %}
-              <option value="{{ dept.name }}">{{ dept.name }}</option>
-              {% endfor %}
-            </select>
+            <div class="d-flex gap-2 mb-2" id="sourceCategoryWrapper" style="display: none !important;">
+              <select class="form-select form-select-sm" id="sourceCategorySelect">
+                <option value="">-- Chọn danh mục nguồn --</option>
+                {% for group in category_groups %}
+                <option value="{{ group.id }}">{{ group.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="input-group">
+              <select class="form-select" name="department" id="departmentSelect" required>
+                <option value="">-- Chọn đội nghiệp vụ --</option>
+                <!-- Dữ liệu được fetch từ API -->
+              </select>
+              <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('sourceCategoryWrapper').style.setProperty('display', 'flex', 'important');" title="Chọn danh mục nguồn khác">
+                <i class="fa-solid fa-list"></i>
+              </button>
+            </div>
           </div>
           <div class="mb-3">
             <label class="form-label">File Excel (.xls, .xlsx)</label>
@@ -159,4 +170,45 @@
   </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const sourceCategorySelect = document.getElementById('sourceCategorySelect');
+    const departmentSelect = document.getElementById('departmentSelect');
+    
+    if (sourceCategorySelect && departmentSelect) {
+      sourceCategorySelect.addEventListener('change', function() {
+        const groupId = this.value;
+        departmentSelect.innerHTML = '<option value="">-- Đang tải... --</option>';
+        
+        if (!groupId) {
+          departmentSelect.innerHTML = '<option value="">-- Chọn đội nghiệp vụ --</option>';
+          return;
+        }
+        
+        const fetchUrl = `{{ url_for('reporting_bp.api_get_category_items', group_id=0) }}`.replace('0', groupId);
+        fetch(fetchUrl)
+          .then(response => response.json())
+          .then(data => {
+            let html = '<option value="">-- Chọn đội nghiệp vụ --</option>';
+            data.forEach(item => {
+              html += `<option value="${item.name}">${item.name}</option>`;
+            });
+            departmentSelect.innerHTML = html;
+          })
+          .catch(error => {
+            console.error('Lỗi khi tải danh mục:', error);
+            departmentSelect.innerHTML = '<option value="">-- Lỗi tải danh mục --</option>';
+          });
+      });
+      
+      // Kích hoạt load lần đầu nếu có giá trị mặc định
+      if(sourceCategorySelect.value) {
+        sourceCategorySelect.dispatchEvent(new Event('change'));
+      }
+    }
+  });
+</script>
 {% endblock %}

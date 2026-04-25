@@ -230,10 +230,16 @@ def index():
 
     templates = FormTemplate.query.filter_by(is_active=True).order_by(FormTemplate.name.asc()).all()
     
-    from models import Category
-    departments = Category.query.filter_by(type='unit', is_active=True).order_by(Category.order).all()
+    from models import CategoryGroup
+    category_groups = CategoryGroup.query.filter_by(is_active=True).all()
 
-    return render_template('reporting/index.html', templates=templates, departments=departments)
+    return render_template('reporting/index.html', templates=templates, category_groups=category_groups)
+
+@reporting_bp.route('/api/category/<int:group_id>/items')
+def api_get_category_items(group_id):
+    from models import CategoryItem
+    items = CategoryItem.query.filter_by(group_id=group_id, is_active=True).order_by(CategoryItem.sort_order).all()
+    return jsonify([{'id': item.id, 'name': item.name} for item in items])
 
 
 @reporting_bp.route('/template/upload', methods=['POST'])
