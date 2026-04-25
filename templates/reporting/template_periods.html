@@ -9,8 +9,9 @@
       <h3 class="mb-1"><i class="bi bi-calendar-check"></i> Quản lý Kỳ Báo Cáo</h3>
       <p class="text-muted mb-0">{{ template.name }} - Loại: 
         <span class="badge bg-info">
-          {% if template.report_type == 'daily' %}Hàng ngày
-          {% elif template.report_type == 'periodic' %}Định kỳ ({{ template.frequency }})
+          {% set rt = template.report_type|default('adhoc', true) %}
+          {% if rt == 'daily' %}Hàng ngày
+          {% elif rt == 'periodic' %}Định kỳ ({{ template.frequency|default('tháng', true) }})
           {% else %}Đột xuất{% endif %}
         </span>
       </p>
@@ -107,7 +108,8 @@
           </div>
         </div>
 
-        {% if template.report_type == 'adhoc' %}
+        {% set rt = template.report_type|default('adhoc', true) %}
+        {% if rt == 'adhoc' %}
         <div class="mb-3">
           <label class="form-label fw-bold text-danger">Hạn nộp cụ thể (Deadline)</label>
           <input type="datetime-local" name="deadline" class="form-control" required>
@@ -115,7 +117,7 @@
         </div>
         {% else %}
         <div class="alert alert-warning mb-0">
-          <strong>Hạn nộp tự động:</strong> Sẽ được hệ thống tính toán dựa trên cấu hình Biểu mẫu (<code>{{ template.deadline_rule }}</code>).
+          <strong>Hạn nộp tự động:</strong> Sẽ được hệ thống tính toán dựa trên cấu hình Biểu mẫu (<code>{{ template.deadline_rule|default('Chưa cấu hình', true) }}</code>).
         </div>
         {% endif %}
         

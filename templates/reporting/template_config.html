@@ -20,25 +20,27 @@
         <div class="mb-4">
           <label class="form-label fw-bold">Loại báo cáo</label>
           <select name="report_type" id="reportTypeSelect" class="form-select" onchange="toggleConfigFields()">
-            <option value="adhoc" {% if template.report_type == 'adhoc' %}selected{% endif %}>Đột xuất (Tùy chỉnh hạn nộp khi tạo kỳ)</option>
-            <option value="daily" {% if template.report_type == 'daily' %}selected{% endif %}>Hàng ngày</option>
-            <option value="periodic" {% if template.report_type == 'periodic' %}selected{% endif %}>Định kỳ (Tuần/Tháng/Quý/Năm)</option>
+            {% set rt = template.report_type|default('adhoc', true) %}
+            <option value="adhoc" {% if rt == 'adhoc' %}selected{% endif %}>Đột xuất (Tùy chỉnh hạn nộp khi tạo kỳ)</option>
+            <option value="daily" {% if rt == 'daily' %}selected{% endif %}>Hàng ngày</option>
+            <option value="periodic" {% if rt == 'periodic' %}selected{% endif %}>Định kỳ (Tuần/Tháng/Quý/Năm)</option>
           </select>
         </div>
 
         <div id="frequencyConfig" class="mb-4" style="display: none;">
           <label class="form-label fw-bold">Tần suất báo cáo</label>
           <select name="frequency" class="form-select">
-            <option value="weekly" {% if template.frequency == 'weekly' %}selected{% endif %}>Hàng tuần</option>
-            <option value="monthly" {% if template.frequency == 'monthly' %}selected{% endif %}>Hàng tháng</option>
-            <option value="quarterly" {% if template.frequency == 'quarterly' %}selected{% endif %}>Hàng quý</option>
-            <option value="yearly" {% if template.frequency == 'yearly' %}selected{% endif %}>Hàng năm</option>
+            {% set freq = template.frequency|default('', true) %}
+            <option value="weekly" {% if freq == 'weekly' %}selected{% endif %}>Hàng tuần</option>
+            <option value="monthly" {% if freq == 'monthly' %}selected{% endif %}>Hàng tháng</option>
+            <option value="quarterly" {% if freq == 'quarterly' %}selected{% endif %}>Hàng quý</option>
+            <option value="yearly" {% if freq == 'yearly' %}selected{% endif %}>Hàng năm</option>
           </select>
         </div>
 
         <div id="deadlineRuleConfig" class="mb-4" style="display: none;">
           <label class="form-label fw-bold" id="deadlineLabel">Quy tắc hạn nộp</label>
-          <input type="text" name="deadline_rule" class="form-control" value="{{ template.deadline_rule or '' }}" placeholder="Ví dụ: 16:30">
+          <input type="text" name="deadline_rule" class="form-control" value="{{ template.deadline_rule|default('', true) }}" placeholder="Ví dụ: 16:30">
           <div class="form-text" id="deadlineHelp"></div>
         </div>
 
