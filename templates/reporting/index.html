@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Reporting Chính thức{% endblock %}
+{% block title %}Báo cáo{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/reporting-modern.css') }}?v=20260426">
@@ -65,7 +65,7 @@
       <div>
         <div class="reporting-chip mb-3">
           <i class="fa-solid fa-layer-group"></i>
-          <span>Reporting Chính thức</span>
+          <span>Báo cáo</span>
         </div>
         <h3>Danh sách biểu mẫu báo cáo</h3>
         <p class="reporting-subtitle">
@@ -97,9 +97,6 @@
         </div>
         <div class="reporting-thin-content">
           <div class="reporting-thin-title">{{ template.name }}</div>
-          <div class="reporting-thin-meta">
-            Phân loại: {{ template.category or 'Chung' }}
-          </div>
         </div>
         {% if template.department %}
         <div class="reporting-thin-department">
@@ -188,6 +185,9 @@
           return;
         }
         
+        // Lưu danh mục đã chọn làm mặc định
+        localStorage.setItem('reporting_default_category', groupId);
+        
         const fetchUrl = `{{ url_for('reporting_bp.api_get_category_items', group_id=0) }}`.replace('0', groupId);
         fetch(fetchUrl)
           .then(response => response.json())
@@ -204,8 +204,10 @@
           });
       });
       
-      // Kích hoạt load lần đầu nếu có giá trị mặc định
-      if(sourceCategorySelect.value) {
+      // Khôi phục danh mục mặc định từ localStorage
+      const defaultCategory = localStorage.getItem('reporting_default_category');
+      if (defaultCategory) {
+        sourceCategorySelect.value = defaultCategory;
         sourceCategorySelect.dispatchEvent(new Event('change'));
       }
     }
