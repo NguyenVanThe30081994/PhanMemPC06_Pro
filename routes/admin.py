@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, jsonify, current_app, Response, send_from_directory
-from models import db, User, AppRole, MasterData, SystemLog, NewsCategory, LibraryField, ContactGroup, ReportData, Task, NewsDoc, DocumentLib, ReportConfig, ReportTemplateV2, ReportSubmissionV2, ProfessionalUnit, ContactRole, Contact, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding
+from models import db, User, AppRole, MasterData, SystemLog, NewsCategory, LibraryField, ContactGroup, Task, NewsDoc, DocumentLib, ProfessionalUnit, ContactRole, Contact, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding
 
 import os, json, shutil, zipfile, io, sqlite3, subprocess
 try:
@@ -29,13 +29,15 @@ def index():
             'news': 0,
             'tasks': 0
         }
+
+        from models_reporting import FormTemplate, ReportingPeriod, ReportInstance
         
         try:
             stats['users'] = User.query.count()
         except: pass
         
         try:
-            stats['reports'] = ReportData.query.count()
+            stats['reports'] = ReportInstance.query.count()
         except: pass
         
         try:
@@ -58,24 +60,31 @@ def index():
             all_units = [u[0] for u in db.session.query(User.unit_area).distinct().all() if u[0]]
             today = datetime.now().date()
             
-            # V1 Reports
-            for r in ReportConfig.query.all():
-                q = db.session.query(User.unit_area).join(ReportData, User.id == ReportData.user_id)\
-                    .filter(ReportData.report_id == r.id)
-                if r.is_daily: q = q.filter(ReportData.report_date == today)
-                submitted = [u[0] for u in q.distinct().all()]
+            total_templates = FormTemplate.query.filter_by(is_active=True).count()
+            active_periods = ReportingPeriod.query.filter_by(is_locked=False).all()
+            for period in active_periods:
+                submitted = [
+                    u[0] for u in db.session.query(ReportInstance.org_unit)
+                    .filter(
+                        ReportInstance.period_id == period.id,
+                        ReportInstance.status == 'submitted',
+                        ReportInstance.org_unit.in_(all_units)
+                    )
+                    .distinct()
+                    .all()
+                ]
                 missing = [u for u in all_units if u not in submitted]
-                if missing: overdue_stats.append({'id': r.id, 'name': r.name, 'count': len(missing)})
-
-            # V2 Reports
-            total_templates = ReportConfig.query.count()
-            v2_templates = ReportTemplateV2.query.filter_by(is_active=True).all()
-            total_templates += len(v2_templates)
-            for t in v2_templates:
-                q = db.session.query(ReportSubmissionV2.org_unit).filter(ReportSubmissionV2.status != 'draft')
-                submitted = [u[0] for u in q.filter(ReportSubmissionV2.org_unit.in_(all_units)).distinct().all()]
-                missing = [u for u in all_units if u not in submitted]
-                if missing: overdue_stats.append({'id': t.id, 'name': t.name, 'count': len(missing)})
+                if missing:
+                    label = period.name
+                    if period.template_id:
+                        template = db.session.get(FormTemplate, period.template_id)
+                        if template:
+                            label = f"{template.name} - {period.name}"
+                    overdue_stats.append({
+                        'id': period.id,
+                        'name': label,
+                        'count': len(missing)
+                    })
         except Exception as e:
             print(f"Error in admin dashboard queries: {e}")
             overdue_stats = []
@@ -85,7 +94,10 @@ def index():
         new_tasks = []
         new_news = []
         new_docs = []
-        new_reports = []
+        try:
+            new_reports = FormTemplate.query.filter_by(is_active=True).order_by(FormTemplate.created_at.desc()).limit(3).all()
+        except Exception:
+            new_reports = []
         
         logs = SystemLog.query.order_by(SystemLog.created_at.desc()).limit(5).all()
         now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
@@ -702,7 +714,6 @@ def fix_db_manually():
         
         conn.close()
         msg = "<br>".join(results)
-        return f"<h3>KẾT QUẢ SỬA LỖI DATABASE:</h3>{msg}<br><br><a href='/admin-forms'>Quay lại Thiết lập mẫu</a>"
+        return f"<h3>KẾT QUẢ SỬA LỖI DATABASE:</h3>{msg}<br><br><a href='/reporting'>Quay lại Reporting</a>"
     except Exception as e:
         return f"<h3>LỖI NGHIÊM TRỌNG:</h3>{str(e)}"
-

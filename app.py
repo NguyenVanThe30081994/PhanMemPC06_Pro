@@ -207,31 +207,23 @@ with app.app_context():
 
 from routes.auth import auth_bp
 from routes.admin import admin_bp
-from routes.forms import forms_bp
 from routes.portal import portal_bp
 from routes.tasks import tasks_bp
 from routes.ranking import ranking_bp
 from routes.api import api_bp
-from routes.reports_v2 import reports_v2_bp
 from routes.shortlink import shortlink_bp
 from routes.excel_builder import excel_builder_bp
 from routes.zalo import zalo_bp
 from routes.ai_assistant import ai_bp
-from routes.excel_api import excel_api
-from routes.template_generator import template_bp
 from routes.reporting import reporting_bp
 
 app.register_blueprint(auth_bp)
-app.register_blueprint(excel_api)
-app.register_blueprint(template_bp)
 app.register_blueprint(reporting_bp)
 app.register_blueprint(admin_bp)
-app.register_blueprint(forms_bp)
 app.register_blueprint(portal_bp)
 app.register_blueprint(tasks_bp)
 app.register_blueprint(ranking_bp)
 app.register_blueprint(api_bp)
-app.register_blueprint(reports_v2_bp)
 app.register_blueprint(shortlink_bp)
 app.register_blueprint(excel_builder_bp)
 app.register_blueprint(zalo_bp)

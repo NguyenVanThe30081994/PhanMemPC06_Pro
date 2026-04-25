@@ -244,8 +244,64 @@ def index():
         return redirect(url_for('auth_bp.login'))
 
     templates = FormTemplate.query.filter_by(is_active=True).order_by(FormTemplate.name.asc()).all()
+    open_periods = ReportingPeriod.query.filter(
+        ReportingPeriod.template_id.isnot(None),
+        ReportingPeriod.is_locked.is_(False)
+    ).all()
 
-    return render_template('reporting/index.html', templates=templates)
+    period_map = {}
+    for period in open_periods:
+        if not period.template_id:
+            continue
+        current = period_map.get(period.template_id)
+        period_deadline = period.deadline or datetime.datetime.max
+        current_deadline = (current.deadline if current and current.deadline else datetime.datetime.max)
+        if current is None or period_deadline < current_deadline:
+            period_map[period.template_id] = period
+
+    template_entries = []
+    department_map = {}
+    for template in templates:
+        current_period = period_map.get(template.id)
+        deadline_dt = current_period.deadline if current_period else None
+        deadline_label = deadline_dt.strftime('%d/%m/%Y %H:%M') if deadline_dt else _format_schedule_summary(template)
+        period_label = current_period.name if current_period else None
+        department_name = template.department or 'Chưa phân đội'
+
+        entry = {
+            'template': template,
+            'deadline_dt': deadline_dt,
+            'deadline_label': deadline_label,
+            'period_label': period_label,
+            'department_name': department_name
+        }
+        template_entries.append(entry)
+
+        bucket = department_map.setdefault(department_name, [])
+        bucket.append(entry)
+
+    department_dashboard = []
+    for department_name, entries in sorted(department_map.items(), key=lambda item: item[0].lower()):
+        sorted_entries = sorted(
+            entries,
+            key=lambda entry: (
+                entry['deadline_dt'] is None,
+                entry['deadline_dt'] or datetime.datetime.max,
+                entry['template'].name.lower()
+            )
+        )
+        department_dashboard.append({
+            'department_name': department_name,
+            'template_count': len(entries),
+            'entries': sorted_entries
+        })
+
+    return render_template(
+        'reporting/index.html',
+        templates=templates,
+        template_entries=template_entries,
+        department_dashboard=department_dashboard
+    )
 
 @reporting_bp.route('/api/category/<int:group_id>/items')
 def api_get_category_items(group_id):
@@ -388,13 +444,14 @@ def template_upload():
                 'STT', 'TT', 'SO TT', 'SO THU TU',
                 'DON VI', 'TEN DON VI', 'TEN DON VI HANH CHINH', 'DON VI HANH CHINH'
             }
+            skip_fragments = ['DON VI', 'HANH CHINH', 'DIA PHUONG', 'DIA BAN']
             
             for col_letter in all_columns:
                 # Kiểm tra TẤT CẢ các dòng header
                 should_skip = False
                 for r in real_header_rows:
                     normalized_text = _normalize_header_text(get_header_text_for_cell(r, col_letter))
-                    if normalized_text in skip_keywords:
+                    if normalized_text in skip_keywords or any(fragment in normalized_text for fragment in skip_fragments):
                         should_skip = True
                         break
                 if should_skip:

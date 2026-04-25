@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, jsonify, session, request
-from models import db, Notification, ReportData, User
+from models import db, Notification, User
 import json, random
 from datetime import datetime
 
@@ -32,11 +32,17 @@ def mark_all_read():
 @api_bp.route('/api/performance-stats')
 def get_perf_stats():
     # Dynamic ranking logic based on report count per unit
-    raw = db.session.query(ReportData, User).join(User, ReportData.user_id == User.id).all()
+    from models_reporting import ReportInstance
+
+    raw = db.session.query(
+        ReportInstance.org_unit,
+        db.func.count(ReportInstance.id)
+    ).filter_by(status='submitted').group_by(ReportInstance.org_unit).all()
+
     units = {}
-    for r, u in raw:
-        ua = u.unit_area or "Khác"
-        units[ua] = units.get(ua, 0) + 1
+    for org_unit, count in raw:
+        ua = org_unit or "Khác"
+        units[ua] = count
     
     # Normalize scores for the UI progress bar (max 100)
     max_val = max(units.values()) if units else 1

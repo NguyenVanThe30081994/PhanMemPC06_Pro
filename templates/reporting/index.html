@@ -5,21 +5,59 @@
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/reporting-modern.css') }}?v=20260426">
 <style>
+  .reporting-index-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+  .reporting-list-panel,
+  .reporting-side-panel {
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 22px;
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+    padding: 22px;
+  }
+  .reporting-list-head,
+  .reporting-side-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .reporting-list-head h5,
+  .reporting-side-head h5 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+  .reporting-template-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: stretch;
+  }
+  .reporting-template-row.is-single {
+    grid-template-columns: 1fr;
+  }
   .reporting-thin-card {
     display: flex;
     align-items: center;
-    padding: 12px 20px;
+    gap: 14px;
+    padding: 14px 16px;
     background: #fff;
-    border: 1px solid #eaeaea;
-    border-radius: 8px;
-    margin-bottom: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 18px;
     transition: all 0.2s ease;
     text-decoration: none;
     color: inherit;
   }
   .reporting-thin-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    border-color: #d0d0d0;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    border-color: rgba(59, 130, 246, 0.28);
     transform: translateY(-2px);
   }
   .reporting-thin-icon {
@@ -36,24 +74,127 @@
   }
   .reporting-thin-content {
     flex: 1;
+    min-width: 0;
   }
   .reporting-thin-title {
     font-weight: 600;
-    margin-bottom: 2px;
-    font-size: 1rem;
+    margin-bottom: 4px;
+    font-size: 0.96rem;
     color: #2b2b2b;
   }
   .reporting-thin-meta {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: #6c757d;
   }
-  .reporting-thin-department {
+  .reporting-thin-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .reporting-thin-badge {
+    font-size: 0.76rem;
+    padding: 5px 10px;
+    background: #eef4ff;
+    border-radius: 999px;
+    color: #2855aa;
+    white-space: nowrap;
+  }
+  .reporting-delete-btn {
+    width: 48px;
+    min-width: 48px;
+    border: 1px solid rgba(239, 68, 68, 0.18);
+    background: #fff5f5;
+    color: #dc2626;
+    border-radius: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+  .reporting-delete-btn:hover {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+  .reporting-side-group {
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 18px;
+    padding: 16px;
+    margin-bottom: 14px;
+    background: #fff;
+  }
+  .reporting-side-group-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    align-items: center;
+  }
+  .reporting-side-group-header h6 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+  }
+  .reporting-side-count {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+  }
+  .reporting-side-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-top: 1px solid rgba(148, 163, 184, 0.14);
+  }
+  .reporting-side-item:first-of-type {
+    border-top: 0;
+    padding-top: 0;
+  }
+  .reporting-side-item-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #1f2937;
+  }
+  .reporting-side-item-meta {
+    font-size: 0.78rem;
+    color: #64748b;
+  }
+  .reporting-side-item-deadline {
     font-size: 0.8rem;
-    padding: 4px 10px;
-    background: #e9ecef;
-    border-radius: 20px;
-    color: #495057;
-    margin-left: 10px;
+    text-align: right;
+    color: #334155;
+    white-space: nowrap;
+  }
+  @media (max-width: 1199px) {
+    .reporting-index-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 767px) {
+    .reporting-template-row {
+      grid-template-columns: 1fr;
+    }
+    .reporting-delete-btn {
+      width: 100%;
+      min-width: 0;
+      padding: 12px 16px;
+      justify-content: center;
+    }
+    .reporting-thin-card {
+      align-items: flex-start;
+    }
+    .reporting-thin-stack {
+      align-items: flex-start;
+    }
   }
 </style>
 {% endblock %}
@@ -85,33 +226,77 @@
       </div>
     </div>
 
-    {% if templates %}
-    <div class="reporting-list-view">
-      {% for template in templates %}
-      <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="reporting-thin-card" id="open_template_{{ template.id }}">
-        <div class="reporting-thin-icon">
-          <i class="fa-solid fa-file-excel"></i>
+    <div class="reporting-index-grid">
+      <div class="reporting-list-panel">
+        <div class="reporting-list-head">
+          <h5>Biểu mẫu đang hoạt động</h5>
+          <span class="reporting-pill"><strong>{{ templates|length }}</strong>&nbsp;mẫu</span>
         </div>
-        <div class="reporting-thin-content">
-          <div class="reporting-thin-title">{{ template.name }}</div>
+        {% if template_entries %}
+        <div class="reporting-list-view">
+          {% for entry in template_entries %}
+          <div class="reporting-template-row {% if not session.get('is_admin') %}is-single{% endif %}">
+            <a href="{{ url_for('reporting_bp.template_workspace', template_id=entry.template.id) }}" class="reporting-thin-card" id="open_template_{{ entry.template.id }}">
+              <div class="reporting-thin-icon">
+                <i class="fa-solid fa-file-excel"></i>
+              </div>
+              <div class="reporting-thin-content">
+                <div class="reporting-thin-title">{{ entry.template.name }}</div>
+                <div class="reporting-thin-meta">
+                  {{ entry.period_label or entry.department_name }}
+                </div>
+              </div>
+              <div class="reporting-thin-stack">
+                <span class="reporting-thin-badge">{{ entry.department_name }}</span>
+                <div class="reporting-thin-meta">{{ entry.deadline_label }}</div>
+              </div>
+            </a>
+            {% if session.get('is_admin') %}
+            <form action="{{ url_for('reporting_bp.template_delete', template_id=entry.template.id) }}" method="POST" onsubmit="return confirm('Xóa biểu mẫu này và toàn bộ dữ liệu liên quan?');">
+              <button type="submit" class="reporting-delete-btn" title="Xóa biểu mẫu">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </form>
+            {% endif %}
+          </div>
+          {% endfor %}
         </div>
-        {% if template.department %}
-        <div class="reporting-thin-department">
-          <i class="fa-solid fa-users me-1"></i>{{ template.department }}
+        {% else %}
+        <div class="reporting-empty">
+          <i class="fa-solid fa-circle-info me-2"></i>
+          Chưa có mẫu biểu nào trong hệ thống.
         </div>
         {% endif %}
-        <div class="ms-3 text-muted">
-          <i class="fa-solid fa-chevron-right"></i>
+      </div>
+
+      <div class="reporting-side-panel">
+        <div class="reporting-side-head">
+          <h5>Dashboard đội nghiệp vụ</h5>
+          <span class="reporting-pill"><i class="fa-solid fa-users"></i>{{ department_dashboard|length }} đội</span>
         </div>
-      </a>
-      {% endfor %}
+        {% if department_dashboard %}
+          {% for group in department_dashboard %}
+          <div class="reporting-side-group">
+            <div class="reporting-side-group-header">
+              <h6>{{ group.department_name }}</h6>
+              <span class="reporting-side-count">{{ group.template_count }}</span>
+            </div>
+            {% for entry in group.entries %}
+            <div class="reporting-side-item">
+              <div>
+                <div class="reporting-side-item-title">{{ entry.template.name }}</div>
+                <div class="reporting-side-item-meta">{{ entry.period_label or 'Theo cấu hình biểu mẫu' }}</div>
+              </div>
+              <div class="reporting-side-item-deadline">{{ entry.deadline_label }}</div>
+            </div>
+            {% endfor %}
+          </div>
+          {% endfor %}
+        {% else %}
+        <div class="reporting-empty">Chưa có dữ liệu đội nghiệp vụ.</div>
+        {% endif %}
+      </div>
     </div>
-    {% else %}
-    <div class="reporting-empty">
-      <i class="fa-solid fa-circle-info me-2"></i>
-      Chưa có mẫu biểu nào trong hệ thống.
-    </div>
-    {% endif %}
   </div>
 </div>
 

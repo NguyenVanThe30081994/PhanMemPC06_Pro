@@ -22,6 +22,13 @@
           <span class="reporting-pill"><i class="fa-solid fa-clock"></i>{{ schedule_summary }}</span>
           <span class="reporting-pill"><i class="fa-solid fa-calendar-days"></i>{{ active_period_count }} kỳ đang hiển thị</span>
         </div>
+        {% if is_reporting_admin or is_reporting_lead %}
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          <a class="btn btn-outline-primary rounded-pill px-4" href="{{ url_for('reporting_bp.field_settings', template_id=template.id) }}" id="action_edit_template">
+            <i class="fa-solid fa-pen me-2"></i>Chỉnh sửa biểu mẫu
+          </a>
+        </div>
+        {% endif %}
       </div>
       <div class="reporting-stat-grid" style="min-width:min(100%, 420px);">
         <div class="reporting-stat-card">
@@ -42,9 +49,9 @@
     <div class="reporting-action-grid mb-4">
       {% if is_reporting_admin or is_reporting_lead %}
       <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.field_settings', template_id=template.id) }}" id="action_field_settings">
-        <div class="action-icon"><i class="fa-solid fa-sliders"></i></div>
-        <h6>Thiết lập cột nhập</h6>
-        <small>Khóa, mở hoặc ẩn trường nhập cho từng biểu mẫu.</small>
+        <div class="action-icon"><i class="fa-solid fa-pen"></i></div>
+        <h6>Chỉnh sửa biểu mẫu</h6>
+        <small>Khóa, mở hoặc ẩn các trường nhập theo mẫu này.</small>
       </a>
       {% endif %}
 
@@ -59,14 +66,6 @@
         <h6>Quản lý kỳ báo cáo</h6>
         <small>Tạo và kiểm soát từng đợt nộp báo cáo chính thức.</small>
       </a>
-      
-      <form action="{{ url_for('reporting_bp.template_delete', template_id=template.id) }}" method="POST" class="d-inline m-0 p-0" onsubmit="return confirm('Bạn có chắc chắn muốn XÓA TOÀN BỘ biểu mẫu này và tất cả dữ liệu báo cáo đi kèm không? Hành động này không thể hoàn tác!');">
-        <button type="submit" class="action-card text-decoration-none w-100 text-start" style="border:1px solid #fee2e2; background:#fef2f2; cursor:pointer;" id="action_delete_template">
-          <div class="action-icon" style="color:#ef4444; background:#fee2e2;"><i class="fa-solid fa-trash"></i></div>
-          <h6 style="color:#b91c1c;">Xóa biểu mẫu này</h6>
-          <small style="color:#ef4444;">Xóa vĩnh viễn template, các kỳ báo cáo và toàn bộ dữ liệu đã nộp.</small>
-        </button>
-      </form>
       {% endif %}
 
       <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.preview_template', template_id=template.id) }}" id="action_preview_template">

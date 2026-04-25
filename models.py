@@ -175,32 +175,6 @@ class Contact(db.Model):
     role = db.Column(db.String(100))
 
 
-class ReportConfig(db.Model):
-    id = db.Column(db.String(50), primary_key=True)
-    name = db.Column(db.String(255))
-    description = db.Column(db.Text)
-    domain = db.Column(db.String(100)) 
-    file_blob = db.Column(db.LargeBinary)
-    config_json = db.Column(db.Text)
-    header_start = db.Column(db.Integer, default=1)
-    header_rows = db.Column(db.Integer, default=1)
-    is_daily = db.Column(db.Boolean, default=False)
-    author_name = db.Column(db.String(100))
-    created_at = db.Column(db.DateTime, default=datetime.now)
-
-
-class ReportData(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    report_id = db.Column(db.String(50))
-    user_id = db.Column(db.Integer)
-    data_json = db.Column(db.Text)
-    report_date = db.Column(db.Date)
-    is_latest = db.Column(db.Boolean, default=True, index=True)  # NEW: Latest flag
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # NEW: Created timestamp
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # NEW: Updated timestamp
-
-
-
 class NewsDoc(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255))
@@ -239,72 +213,6 @@ class SystemLog(db.Model):
     action = db.Column(db.String(255))
     details = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.now)
-
-
-# --- REPORT V2 MODELS ---
-
-class ReportTemplateV2(db.Model):
-    __tablename__ = 'report_template_v2'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.Text)
-    created_by = db.Column(db.String(100))
-    created_at = db.Column(db.DateTime, default=datetime.now)
-    is_active = db.Column(db.Boolean, default=True)
-    is_daily = db.Column(db.Boolean, default=False)
-
-
-class ReportVersionV2(db.Model):
-    __tablename__ = 'report_version_v2'
-
-    id = db.Column(db.Integer, primary_key=True)
-    template_id = db.Column(db.Integer, db.ForeignKey('report_template_v2.id'))
-    version_tag = db.Column(db.String(20))  # e.g. "v1.0", "2024-Q1"
-    metadata_json = db.Column(db.Text)  # Storing the parsed Excel structure
-    excel_file_blob = db.Column(db.LargeBinary)  # Original template
-    created_at = db.Column(db.DateTime, default=datetime.now)
-    is_published = db.Column(db.Boolean, default=False)
-
-    template = db.relationship('ReportTemplateV2', backref='versions')
-
-
-class ReportSubmissionV2(db.Model):
-    __tablename__ = 'report_submission_v2'
-
-    id = db.Column(db.Integer, primary_key=True)
-    version_id = db.Column(db.Integer, db.ForeignKey('report_version_v2.id'))
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    org_unit = db.Column(db.String(100))
-    period_name = db.Column(db.String(100))  # e.g. "Tuần 14-2024"
-    status = db.Column(db.String(20), default='draft')  # draft, submitted, rejected, approved
-    created_at = db.Column(db.DateTime, default=datetime.now)
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
-
-    version = db.relationship('ReportVersionV2', backref='submissions')
-    user = db.relationship('User', backref='submissions_v2')
-    values = db.relationship('ReportValueV2', backref='submission', cascade='all, delete-orphan')
-
-
-class ReportValueV2(db.Model):
-    __tablename__ = 'report_value_v2'
-
-    id = db.Column(db.Integer, primary_key=True)
-    submission_id = db.Column(db.Integer, db.ForeignKey('report_submission_v2.id'))
-    cell_key = db.Column(db.String(50))  # e.g. "B5" or Named Range
-    value = db.Column(db.Text)
-
-
-class ReportAuditV2(db.Model):
-    __tablename__ = 'report_audit_v2'
-
-    id = db.Column(db.Integer, primary_key=True)
-    submission_id = db.Column(db.Integer, db.ForeignKey('report_submission_v2.id'))
-    user_id = db.Column(db.Integer)
-    cell_key = db.Column(db.String(50))
-    old_value = db.Column(db.Text)
-    new_value = db.Column(db.Text)
-    changed_at = db.Column(db.DateTime, default=datetime.now)
 
 
 class ShortLink(db.Model):
@@ -382,4 +290,3 @@ class ZaloMessageLog(db.Model):
     error_message = db.Column(db.Text)
     zalo_message_id = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.now)
-
