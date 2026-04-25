@@ -43,7 +43,7 @@ def login():
             # Init activity timestamp for security monitor
             import time
             session['last_active'] = time.time()
-            session.permanent = False # Shared across browser session only
+            session.permanent = True  # Keep session persistent with PERMANENT_SESSION_LIFETIME (30 mins)
 
             
             if usr.must_change_password:

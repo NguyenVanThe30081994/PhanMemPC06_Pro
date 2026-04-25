@@ -237,11 +237,12 @@ def check_auth():
     # 0. Device Detection
     g.is_mobile = is_mobile_device()
 
-    # 1. Inactivity Check
+    # 1. Inactivity Check (30 mins = 1800 seconds)
     if session.get('uid'):
+        import time
         last_active = session.get('last_active')
-        now = datetime.now().timestamp()
-        if last_active and (now - last_active) > 1800: # 30 mins
+        now = time.time()
+        if last_active and (now - last_active) > 1800:  # 30 mins
             session.clear()
             return redirect(url_for('auth_bp.login'))
         session['last_active'] = now
