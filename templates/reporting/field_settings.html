@@ -30,18 +30,17 @@
     </div>
 
     <form method="POST">
-      {% macro render_section(name, data, level=0) %}
-      <section class="reporting-section mb-4" style="{% if level > 0 %}margin-left: 2rem; border-left: 3px solid #e0e0e0; padding-left: 1.5rem;{% endif %}">
+      {% for section_name, fields in grouped_fields.items() %}
+      <section class="reporting-section mb-4">
         <div class="reporting-section-title">
           <div>
-            <h5 class="mb-1" style="{% if level > 0 %}color: #0066cc;{% endif %}">{{ name }}</h5>
-            <div class="reporting-muted">{{ data._fields|length }} trường dữ liệu{% if data._children %}, {{ data._children|length }} nhóm con{% endif %}.</div>
+            <h5 class="mb-1">{{ section_name }}</h5>
+            <div class="reporting-muted">{{ fields|length }} trường dữ liệu trong nhóm này.</div>
           </div>
         </div>
 
-        {% if data._fields %}
         <div class="reporting-action-grid">
-          {% for field in data._fields %}
+          {% for field in fields %}
           <div class="action-card">
             <h6 class="mb-3">{{ field.field_name }}</h6>
 
@@ -89,16 +88,7 @@
           </div>
           {% endfor %}
         </div>
-        {% endif %}
-
-        {% for child_name, child_data in data._children.items() %}
-          {{ render_section(child_name, child_data, level + 1) }}
-        {% endfor %}
       </section>
-      {% endmacro %}
-
-      {% for section_name, section_data in grouped_fields.items() %}
-        {{ render_section(section_name, section_data, 0) }}
       {% endfor %}
 
       <div class="reporting-sticky-actions">

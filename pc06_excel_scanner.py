@@ -95,13 +95,28 @@ def scan_excel_structure(excel_blob):
             'value': ws.cell(min_row, min_col).value
         })
     
-    # Detect header rows - find first row with text
+    # Detect header rows - find first row with text, stop at data
     header_candidates = []
     for row in range(1, min(20, ws.max_row + 1)):
+        # Check if this looks like a data row (has numbers in first few columns)
+        is_data_row = False
+        for col in range(1, min(5, ws.max_column + 1)):
+            cell_val = ws.cell(row, col).value
+            if isinstance(cell_val, (int, float)) and cell_val > 0:
+                # If we see a positive number in early columns, likely data row
+                is_data_row = True
+                break
+        
+        if is_data_row:
+            break  # Stop scanning, we've hit data
+        
         has_text = False
         for col in range(1, min(10, ws.max_column + 1)):
             cell_val = ws.cell(row, col).value
             if cell_val and isinstance(cell_val, str) and len(str(cell_val).strip()) > 0:
+                # Skip formula rows
+                if str(cell_val).startswith('='):
+                    continue
                 has_text = True
                 break
         if has_text:
