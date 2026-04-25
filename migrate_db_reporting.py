@@ -32,7 +32,8 @@ def migrate():
             "ALTER TABLE form_template ADD COLUMN frequency VARCHAR(20);",
             "ALTER TABLE form_template ADD COLUMN deadline_rule VARCHAR(50);",
             "ALTER TABLE reporting_period ADD COLUMN template_id INTEGER;",
-            "ALTER TABLE reporting_period ADD COLUMN is_adhoc BOOLEAN DEFAULT 0;"
+            "ALTER TABLE reporting_period ADD COLUMN is_adhoc BOOLEAN DEFAULT 0;",
+            "ALTER TABLE form_template ADD COLUMN department VARCHAR(100);"
         ]
 
         for query in queries:

@@ -54,6 +54,7 @@ class FormTemplate(db.Model):
     
     excel_template_blob = db.Column(db.LargeBinary)  # File Excel mẫu gốc
     is_active = db.Column(db.Boolean, default=True)
+    department = db.Column(db.String(100)) # Đội nghiệp vụ phụ trách báo cáo này
     created_by = db.Column(db.Integer)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)

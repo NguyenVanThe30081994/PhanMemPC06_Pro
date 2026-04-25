@@ -196,12 +196,18 @@ def dashboard():
     submitted_reports = ReportInstance.query.filter_by(status='submitted').count()
     draft_reports = ReportInstance.query.filter_by(status='draft').count()
 
-    # Thống kê theo đơn vị
+    # Thống kê theo đơn vị (đã nộp)
     from sqlalchemy import func
     unit_stats = db.session.query(
         ReportInstance.org_unit,
         func.count(ReportInstance.id).label('count')
     ).filter_by(status='submitted').group_by(ReportInstance.org_unit).all()
+
+    # Thống kê số lượng báo cáo (biểu mẫu) cần làm theo đội nghiệp vụ
+    department_stats = db.session.query(
+        FormTemplate.department,
+        func.count(FormTemplate.id).label('count')
+    ).filter_by(is_active=True).group_by(FormTemplate.department).all()
 
     return render_template(
         'reporting/dashboard.html',
@@ -212,7 +218,8 @@ def dashboard():
         total_reports=total_reports,
         submitted_reports=submitted_reports,
         draft_reports=draft_reports,
-        unit_stats=unit_stats
+        unit_stats=unit_stats,
+        department_stats=department_stats
     )
 
 @reporting_bp.route('/')
@@ -224,6 +231,76 @@ def index():
     templates = FormTemplate.query.filter_by(is_active=True).order_by(FormTemplate.name.asc()).all()
 
     return render_template('reporting/index.html', templates=templates)
+
+
+@reporting_bp.route('/template/upload', methods=['POST'])
+def template_upload():
+    """Tải file Excel lên để tạo biểu mẫu mới"""
+    if not session.get('uid'):
+        return jsonify({'success': False, 'message': 'Vui lòng đăng nhập'}), 401
+    
+    _, is_admin, is_lead = _get_reporting_permissions()
+    if not (is_admin or is_lead):
+        return jsonify({'success': False, 'message': 'Bạn không có quyền thực hiện chức năng này'}), 403
+
+    if 'excel_file' not in request.files:
+        return jsonify({'success': False, 'message': 'Không tìm thấy file tải lên'}), 400
+
+    file = request.files['excel_file']
+    if file.filename == '':
+        return jsonify({'success': False, 'message': 'File trống'}), 400
+
+    if not file.filename.endswith(('.xls', '.xlsx')):
+        return jsonify({'success': False, 'message': 'Chỉ hỗ trợ file Excel (.xls, .xlsx)'}), 400
+
+    department = request.form.get('department', '').strip()
+    template_name = request.form.get('name', '').strip()
+    
+    if not template_name:
+        template_name = file.filename.rsplit('.', 1)[0]
+
+    try:
+        import uuid
+        excel_blob = file.read()
+        
+        # 1. Tạo Template mới
+        code = f"TMP_{uuid.uuid4().hex[:8].upper()}"
+        template = FormTemplate(
+            code=code,
+            name=template_name,
+            department=department,
+            excel_template_blob=excel_blob,
+            is_active=True,
+            created_by=session.get('uid')
+        )
+        db.session.add(template)
+        db.session.flush()
+
+        # 2. Tạo FormVersion rỗng
+        metadata = {
+            'title': template_name,
+            'header_rows': 1,
+            'data_start_row': 2,
+            'sections': []
+        }
+        
+        version = FormVersion(
+            template_id=template.id,
+            version_number='v1.0',
+            metadata_json=json.dumps(metadata, ensure_ascii=False),
+            is_published=True,
+            effective_from=datetime.date.today(),
+            created_by=session.get('uid')
+        )
+        db.session.add(version)
+        db.session.commit()
+
+        flash(f'Tạo thành công biểu mẫu: {template_name}', 'success')
+        return jsonify({'success': True, 'redirect_url': url_for('reporting_bp.index')})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Lỗi xử lý file: {str(e)}'}), 500
 
 
 @reporting_bp.route('/template/<int:template_id>/workspace')

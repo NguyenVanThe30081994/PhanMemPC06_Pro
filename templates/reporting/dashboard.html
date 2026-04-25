@@ -82,6 +82,37 @@
       </div>
 
       <div class="col-lg-5">
+        <div class="reporting-table-shell mb-4">
+          <div class="reporting-panel-header">
+            <h5 class="mb-1">Báo cáo theo đội nghiệp vụ</h5>
+            <p class="reporting-muted mb-0">Số lượng biểu mẫu được giao cho mỗi đội.</p>
+          </div>
+          <div class="reporting-panel-body">
+            {% if department_stats %}
+            <div class="table-responsive">
+              <table class="table align-middle">
+                <thead>
+                  <tr>
+                    <th>Đội nghiệp vụ</th>
+                    <th class="text-end">Số biểu mẫu</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for dept, count in department_stats %}
+                  <tr>
+                    <td>{{ dept or 'Chưa phân công' }}</td>
+                    <td class="text-end"><span class="badge bg-primary rounded-pill">{{ count }}</span></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="reporting-empty">Chưa phân công báo cáo nào.</div>
+            {% endif %}
+          </div>
+        </div>
+
         <div class="reporting-action-grid">
           <div class="action-card">
             <div class="action-icon"><i class="fa-solid fa-file-pen"></i></div>
