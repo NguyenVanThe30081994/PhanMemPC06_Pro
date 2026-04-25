@@ -140,14 +140,9 @@
             <label class="form-label">Đội nghiệp vụ phụ trách</label>
             <select class="form-select" name="department" required>
               <option value="">-- Chọn đội nghiệp vụ --</option>
-              <option value="Đội Tổng hợp">Đội Tổng hợp</option>
-              <option value="Đội Cảnh sát hình sự">Đội Cảnh sát hình sự</option>
-              <option value="Đội Cảnh sát kinh tế">Đội Cảnh sát kinh tế</option>
-              <option value="Đội Cảnh sát ma tuý">Đội Cảnh sát ma tuý</option>
-              <option value="Đội Cảnh sát giao thông">Đội Cảnh sát giao thông</option>
-              <option value="Đội Cảnh sát QLHC về TTXH">Đội Cảnh sát QLHC về TTXH</option>
-              <option value="Đội An ninh">Đội An ninh</option>
-              <option value="Đội Điều tra tổng hợp">Đội Điều tra tổng hợp</option>
+              {% for dept in departments %}
+              <option value="{{ dept.name }}">{{ dept.name }}</option>
+              {% endfor %}
             </select>
           </div>
           <div class="mb-3">

@@ -59,6 +59,14 @@
         <h6>Quản lý kỳ báo cáo</h6>
         <small>Tạo và kiểm soát từng đợt nộp báo cáo chính thức.</small>
       </a>
+      
+      <form action="{{ url_for('reporting_bp.template_delete', template_id=template.id) }}" method="POST" class="d-inline m-0 p-0" onsubmit="return confirm('Bạn có chắc chắn muốn XÓA TOÀN BỘ biểu mẫu này và tất cả dữ liệu báo cáo đi kèm không? Hành động này không thể hoàn tác!');">
+        <button type="submit" class="action-card text-decoration-none w-100 text-start" style="border:1px solid #fee2e2; background:#fef2f2; cursor:pointer;" id="action_delete_template">
+          <div class="action-icon" style="color:#ef4444; background:#fee2e2;"><i class="fa-solid fa-trash"></i></div>
+          <h6 style="color:#b91c1c;">Xóa biểu mẫu này</h6>
+          <small style="color:#ef4444;">Xóa vĩnh viễn template, các kỳ báo cáo và toàn bộ dữ liệu đã nộp.</small>
+        </button>
+      </form>
       {% endif %}
 
       <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.preview_template', template_id=template.id) }}" id="action_preview_template">

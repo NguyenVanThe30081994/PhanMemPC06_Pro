@@ -229,29 +229,37 @@ def index():
         return redirect(url_for('auth_bp.login'))
 
     templates = FormTemplate.query.filter_by(is_active=True).order_by(FormTemplate.name.asc()).all()
+    
+    from models import Category
+    departments = Category.query.filter_by(type='unit', is_active=True).order_by(Category.order).all()
 
-    return render_template('reporting/index.html', templates=templates)
+    return render_template('reporting/index.html', templates=templates, departments=departments)
 
 
 @reporting_bp.route('/template/upload', methods=['POST'])
 def template_upload():
     """Tải file Excel lên để tạo biểu mẫu mới"""
     if not session.get('uid'):
-        return jsonify({'success': False, 'message': 'Vui lòng đăng nhập'}), 401
+        flash('Vui lòng đăng nhập', 'danger')
+        return redirect(url_for('auth_bp.login'))
     
     _, is_admin, is_lead = _get_reporting_permissions()
     if not (is_admin or is_lead):
-        return jsonify({'success': False, 'message': 'Bạn không có quyền thực hiện chức năng này'}), 403
+        flash('Bạn không có quyền thực hiện chức năng này', 'danger')
+        return redirect(url_for('reporting_bp.index'))
 
     if 'excel_file' not in request.files:
-        return jsonify({'success': False, 'message': 'Không tìm thấy file tải lên'}), 400
+        flash('Không tìm thấy file tải lên', 'danger')
+        return redirect(url_for('reporting_bp.index'))
 
     file = request.files['excel_file']
     if file.filename == '':
-        return jsonify({'success': False, 'message': 'File trống'}), 400
+        flash('File trống', 'danger')
+        return redirect(url_for('reporting_bp.index'))
 
     if not file.filename.endswith(('.xls', '.xlsx')):
-        return jsonify({'success': False, 'message': 'Chỉ hỗ trợ file Excel (.xls, .xlsx)'}), 400
+        flash('Chỉ hỗ trợ file Excel (.xls, .xlsx)', 'danger')
+        return redirect(url_for('reporting_bp.index'))
 
     department = request.form.get('department', '').strip()
     template_name = request.form.get('name', '').strip()
@@ -293,14 +301,85 @@ def template_upload():
             created_by=session.get('uid')
         )
         db.session.add(version)
+        db.session.flush()
+
+        # 3. Tự động parse các trường (FormField) từ Excel sử dụng thuật toán MVP
+        try:
+            from pc06_excel_scanner import scan_excel_structure
+            import re
+            import unicodedata
+            
+            def slugify(text):
+                text = unicodedata.normalize('NFKD', str(text)).encode('ascii', 'ignore').decode('utf-8')
+                return re.sub(r'[-\s]+', '_', text).strip('_').lower()
+
+            detected = scan_excel_structure(excel_blob)
+            
+            # Cập nhật metadata
+            metadata['header_rows'] = max(detected.get('header_rows', [1]))
+            metadata['data_start_row'] = detected.get('data_start_row', 2)
+            version.metadata_json = json.dumps(metadata, ensure_ascii=False)
+            
+            # Tạo field dựa trên kết quả scan
+            fields = []
+            order = 1
+            
+            headers_dict = detected.get('headers', {})
+            header_row = metadata['header_rows']
+            
+            if header_row in headers_dict:
+                for col_letter, header_val in headers_dict[header_row].items():
+                    field_name = str(header_val).strip()
+                    field_code = slugify(field_name) or f"col_{col_letter}"
+
+                    # Tránh trùng lặp code
+                    original_code = field_code
+                    counter = 1
+                    while any(f.field_code == field_code for f in fields):
+                        field_code = f"{original_code}_{counter}"
+                        counter += 1
+                        
+                    # Phân tích kiểu dữ liệu từ MVP scanner
+                    data_type = 'number' if col_letter in detected.get('numeric_columns', []) else 'string'
+                    is_formula = col_letter in detected.get('formulas', {})
+
+                    field = FormField(
+                        version_id=version.id,
+                        field_code=field_code,
+                        field_name=field_name,
+                        field_type='text',
+                        data_type=data_type,
+                        is_required=False,
+                        display_order=order,
+                        section='Thông tin chung',
+                        excel_cell_ref=col_letter
+                    )
+                    
+                    # Nếu là cột công thức, thì mặc định có thể là field tính toán (không nhập tay)
+                    if is_formula:
+                        field.is_required = False
+                        
+                    fields.append(field)
+                    order += 1
+
+            if fields:
+                db.session.add_all(fields)
+            
+        except Exception as parse_e:
+            import traceback
+            traceback.print_exc()
+            print(f"Lỗi parse excel fields: {parse_e}")
+            pass
+
         db.session.commit()
 
         flash(f'Tạo thành công biểu mẫu: {template_name}', 'success')
-        return jsonify({'success': True, 'redirect_url': url_for('reporting_bp.index')})
+        return redirect(url_for('reporting_bp.index'))
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'message': f'Lỗi xử lý file: {str(e)}'}), 500
+        flash(f'Lỗi xử lý file: {str(e)}', 'danger')
+        return redirect(url_for('reporting_bp.index'))
 
 
 @reporting_bp.route('/template/<int:template_id>/workspace')
@@ -1114,3 +1193,42 @@ def api_export_report(instance_id):
         return response
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@reporting_bp.route('/template/<int:template_id>/delete', methods=['POST'])
+def template_delete(template_id):
+    """Xóa biểu mẫu"""
+    if not session.get('uid'):
+        return jsonify({'success': False, 'message': 'Vui lòng đăng nhập'}), 401
+    
+    _, is_admin, is_lead = _get_reporting_permissions()
+    if not is_admin:
+        return jsonify({'success': False, 'message': 'Chỉ quản trị viên mới được xóa biểu mẫu'}), 403
+
+    template = db.session.get(FormTemplate, template_id)
+    if not template:
+        return jsonify({'success': False, 'message': 'Không tìm thấy biểu mẫu'}), 404
+
+    try:
+        versions = FormVersion.query.filter_by(template_id=template.id).all()
+        for v in versions:
+            FormField.query.filter_by(version_id=v.id).delete()
+            db.session.delete(v)
+            
+        periods = ReportingPeriod.query.filter_by(template_id=template.id).all()
+        for p in periods:
+            instances = ReportInstance.query.filter_by(period_id=p.id).all()
+            for instance in instances:
+                ReportAuditLog.query.filter_by(instance_id=instance.id).delete()
+                db.session.delete(instance)
+            db.session.delete(p)
+            
+        db.session.delete(template)
+        db.session.commit()
+        
+        flash(f'Đã xóa biểu mẫu {template.name} thành công', 'success')
+        return redirect(url_for('reporting_bp.index'))
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Lỗi khi xóa: {str(e)}', 'danger')
+        return redirect(url_for('reporting_bp.index'))
