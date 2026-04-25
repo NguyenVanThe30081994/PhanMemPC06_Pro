@@ -3,7 +3,7 @@
 Routes cho hệ thống nhập liệu báo cáo mới
 API endpoints và UI pages
 """
-from flask import Blueprint, render_template, request, session, redirect, url_for, jsonify, flash, send_file, make_response
+from flask import Blueprint, render_template, request, session, redirect, url_for, jsonify, flash, make_response
 import calendar
 import json
 import datetime
@@ -302,13 +302,6 @@ def index():
         template_entries=template_entries,
         department_dashboard=department_dashboard
     )
-
-@reporting_bp.route('/api/category/<int:group_id>/items')
-def api_get_category_items(group_id):
-    from models import CategoryItem
-    items = CategoryItem.query.filter_by(group_id=group_id, is_active=True).order_by(CategoryItem.sort_order).all()
-    return jsonify([{'id': item.id, 'name': item.name} for item in items])
-
 
 @reporting_bp.route('/template/upload', methods=['POST'])
 def template_upload():

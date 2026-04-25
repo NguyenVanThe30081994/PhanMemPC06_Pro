@@ -2,7 +2,7 @@
 """
 Hệ thống nhập liệu báo cáo mới - Models
 Theo kiến trúc: Form Engine + Metadata + Audit Trail
-Độc lập hoàn toàn với V1/V2
+Hệ reporting chính thức của hệ thống
 """
 
 from datetime import datetime

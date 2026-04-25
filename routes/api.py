@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, jsonify, session, request
 from models import db, Notification, User
-import json, random
-from datetime import datetime
 
 api_bp = Blueprint('api_bp', __name__)
 

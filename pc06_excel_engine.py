@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 import openpyxl
 from openpyxl.styles import PatternFill
-import json
-import os
 from excel_renderer import is_input_cell
 
 class ExcelEngineV2:
@@ -115,26 +113,6 @@ class ExcelEngineV2:
             metadata["sheets"].append(sheet_meta)
 
         return metadata
-
-    @staticmethod
-    def save_logic_to_source(template_name, metadata, base_dir="."):
-        """
-        Saves the parsed metadata to the project's source directory for transparency and versioning.
-        """
-        logic_dir = os.path.join(base_dir, "v2_logic_configs")
-        if not os.path.exists(logic_dir):
-            os.makedirs(logic_dir)
-
-        # Clean name for filename
-        from utils import remove_accents
-        safe_name = remove_accents(template_name).replace(" ", "_").lower()
-        if not safe_name: safe_name = "template_logic"
-        file_path = os.path.join(logic_dir, f"{safe_name}.json")
-
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(metadata, f, ensure_ascii=False, indent=2)
-
-        return file_path
 
     @staticmethod
     def _extract_styles(cell):

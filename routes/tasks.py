@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, current_app
-from models import db, Task, TaskAssignment, TaskComment, User, MasterData, CategoryGroup, CategoryItem, AppRole
+from flask import Blueprint, request, session, redirect, url_for, flash, current_app
+from models import db, Task, TaskAssignment, TaskComment, User, AppRole
 from category_helpers import get_category_items, get_module_field_items
 import os
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
+import json
 from utils import log_action, push_notif, render_auto_template as render_template, apply_migrations
 
 tasks_bp = Blueprint('tasks_bp', __name__)
@@ -28,8 +29,6 @@ def tasks():
     now_dt = datetime.now()
 
     # Permissions
-    from models import AppRole
-    import json
     role = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = json.loads(role.perms) if role and role.perms else {}
     is_lead = perms.get('p_task_lead') or session.get('is_admin')

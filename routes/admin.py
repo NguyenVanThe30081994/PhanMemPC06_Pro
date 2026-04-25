@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, jsonify, current_app, Response, send_from_directory
-from models import db, User, AppRole, MasterData, SystemLog, NewsCategory, LibraryField, ContactGroup, Task, NewsDoc, DocumentLib, ProfessionalUnit, ContactRole, Contact, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding
+from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, current_app, Response, send_from_directory
+from models import db, User, AppRole, MasterData, SystemLog, Task, NewsDoc, DocumentLib, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding
 
 import os, json, shutil, zipfile, io, sqlite3, subprocess
 try:
@@ -58,8 +58,6 @@ def index():
         # Calculate Overdue Reports - wrapped in try/except
         try:
             all_units = [u[0] for u in db.session.query(User.unit_area).distinct().all() if u[0]]
-            today = datetime.now().date()
-            
             total_templates = FormTemplate.query.filter_by(is_active=True).count()
             active_periods = ReportingPeriod.query.filter_by(is_locked=False).all()
             for period in active_periods:

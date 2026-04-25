@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
-from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, jsonify
-from models import db, User, AppRole, MasterData, SystemLog
+from flask import Blueprint, request, session, redirect, url_for, flash
+from models import db, User, AppRole
 from utils import log_action, render_auto_template as render_template
-from werkzeug.security import check_password_hash
-import json, re
-from datetime import datetime
+import re
 
 auth_bp = Blueprint('auth_bp', __name__)
 

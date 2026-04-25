@@ -148,7 +148,7 @@ def normalize_unit_key(unit_name):
     - "PK" → "pk"
     - "Đơn Vị A" → "don vi a"
     
-    Dùng cho: V1 data flow - unit matching
+    Dùng cho: chuẩn hóa tên đơn vị để dò khớp dữ liệu
     """
     if not unit_name:
         return ""

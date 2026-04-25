@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-from flask import Blueprint, render_template as flask_render_template, request, session, redirect, url_for, flash, current_app, send_from_directory
+from flask import Blueprint, request, session, redirect, url_for, flash, current_app
 import os, pandas as pd, io, json
 from werkzeug.utils import secure_filename
 from datetime import datetime
-from models import db, NewsDoc, DocumentLib, Contact, MasterData, CategoryGroup, CategoryItem, AppRole
+from models import db, NewsDoc, DocumentLib, Contact, CategoryItem, AppRole
 from category_helpers import get_category_items, get_module_field_items
 from utils import log_action, push_global_notif, render_auto_template as render_template
 
@@ -87,8 +87,6 @@ def library():
 def contacts():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
     # Permissions
-    from models import AppRole
-    import json
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
     is_admin = session.get('is_admin')
@@ -215,8 +213,6 @@ def contact_preview_import():
     """Preview Excel file and return data as JSON"""
     if not session.get('uid'): return {'error': 'Unauthorized'}, 401
     
-    from models import AppRole
-    import json
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
     is_admin = session.get('is_admin')
@@ -248,8 +244,6 @@ def contact_preview_import():
 
 @portal_bp.route('/contacts/import', methods=['POST'])
 def contact_import():
-    from models import AppRole
-    import json
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
     is_admin = session.get('is_admin')

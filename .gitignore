@@ -22,6 +22,7 @@ startup_debug.log
 tmp_metadata_debug.json
 .tmp.drivedownload/
 .tmp.driveupload/
+tmp/
 
 # Static uploads (Ignore users' uploaded files, keep folder structure via .gitkeep)
 uploads/*
