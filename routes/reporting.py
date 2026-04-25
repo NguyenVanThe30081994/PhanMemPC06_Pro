@@ -351,9 +351,20 @@ def template_upload():
             all_columns = detected.get('columns', [])
             total_cols = detected.get('total_cols', len(all_columns))
             
+            # Detect real header rows smartly: stop when hitting data row
+            header_candidates = []
+            for row in range(1, min(20, detected.get('original_max_row', 50) + 1)):
+                # Check if this row looks like data
+                numeric_count = 0
+                for col_letter in all_columns:
+                    headers = detected.get('headers', {})
+                    cell_val = headers.get(row, {}).get(col_letter)
+                    # Note: we need raw cell values. If not in headers, maybe it's purely numeric.
+                    # Actually, a better way is to just use detected.get('header_rows') but filter out titles!
+            
             # Lọc bỏ các dòng title (chứa ô gộp chiếm phần lớn chiều rộng bảng)
             real_header_rows = []
-            for r in sorted(header_rows_list):
+            for r in sorted(detected.get('header_rows', [])):
                 is_title = False
                 for m in detected.get('merged_cells', []):
                     if m['row'] == r and m.get('colspan', 1) >= total_cols * 0.5:
@@ -371,8 +382,6 @@ def template_upload():
                     else:
                         break
                 real_header_rows = contiguous
-            else:
-                real_header_rows = header_rows_list[-2:] if len(header_rows_list) >= 2 else header_rows_list
             
             for col_letter in all_columns:
                 parts = []
@@ -381,9 +390,21 @@ def template_upload():
                     if text and text not in parts:
                         parts.append(text)
                 
-                if parts:
-                    field_name = " - ".join(parts)
-                    section = parts[0] if len(parts) > 1 else 'Thông tin chung'
+                # Loại bỏ các đoạn trùng lặp hoặc chứa nhau (vd: "Đo đạc lập bản đồ địa chính" và "Đo đạc lập bản đồ địa chính (ha)")
+                clean_parts = []
+                for p in parts:
+                    if p and not any(p in cp or cp in p for cp in clean_parts):
+                        clean_parts.append(p)
+                if not clean_parts:
+                    clean_parts = parts
+                
+                if clean_parts:
+                    if len(clean_parts) > 1:
+                        section = " || ".join(clean_parts[:-1])
+                        field_name = clean_parts[-1]
+                    else:
+                        section = 'Thông tin chung'
+                        field_name = clean_parts[0]
                 else:
                     field_name = f"Cột {col_letter}"
                     section = 'Thông tin chung'
@@ -931,8 +952,24 @@ def field_settings(template_id):
     grouped_fields = {}
     hidden_field_codes = set()
     for field in fields:
-        section_name = field.section or 'Khác'
-        grouped_fields.setdefault(section_name, []).append(field)
+        section_path = field.section or 'Thông tin chung'
+        parts = section_path.split(' || ')
+        
+        current_level = grouped_fields
+        for part in parts:
+            if part not in current_level:
+                current_level[part] = {'_fields': [], '_subgroups': {}}
+            current_level = current_level[part]
+            current_level = current_level['_subgroups']
+            
+        # Put the field in the last part's _fields list
+        # We need to navigate to the exact part again to append to _fields
+        curr = grouped_fields
+        for i, part in enumerate(parts):
+            if i == len(parts) - 1:
+                curr[part]['_fields'].append(field)
+            else:
+                curr = curr[part]['_subgroups']
 
         rules = json.loads(field.validation_rules_json) if field.validation_rules_json else {}
         if rules.get('hidden'):
