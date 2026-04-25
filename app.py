@@ -173,6 +173,7 @@ def auto_migrate_reporting_columns(database_path):
             ('form_template', 'deadline_rule', "VARCHAR(50)"),
             ('reporting_period', 'template_id', "INTEGER"),
             ('reporting_period', 'is_adhoc', "BOOLEAN DEFAULT 0"),
+            ('form_template', 'department', "VARCHAR(100)"),
         ]
         
         for table, col, definition in migrations:
