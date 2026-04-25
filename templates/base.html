@@ -12,6 +12,7 @@
         href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Inter:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.5.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/category-picker.css') }}">
     <link rel="icon" type="image/x-icon" href="https://cdn-icons-png.flaticon.com/512/3593/3593503.png">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -987,6 +988,7 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/category-picker.js') }}"></script>
     {% block scripts %}{% endblock %}
 
     <script>

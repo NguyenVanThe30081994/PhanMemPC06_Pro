@@ -6,6 +6,26 @@ import openpyxl
 from openpyxl.utils import get_column_letter, column_index_from_string, range_boundaries
 
 
+def _is_blank(value):
+    return value is None or str(value).strip() == ''
+
+
+def _is_formula_text(value):
+    return isinstance(value, str) and value.strip().startswith('=')
+
+
+def _is_text_like(value):
+    if _is_blank(value) or _is_formula_text(value):
+        return False
+    return isinstance(value, str)
+
+
+def _is_numeric_like(value):
+    if _is_blank(value):
+        return False
+    return isinstance(value, (int, float))
+
+
 def _load_workbook_utf8(buffer, **kwargs):
     """Load workbook with UTF-8 encoding support"""
     kwargs.setdefault('read_only', False)
@@ -64,6 +84,7 @@ def scan_excel_structure(excel_blob):
             else:
                 used_max_col = col - 1
     
+    used_width = max(1, used_max_col - used_min_col + 1)
     result = {
         'total_rows': used_max_row,
         'total_cols': used_max_col,
@@ -95,53 +116,85 @@ def scan_excel_structure(excel_blob):
             'value': ws.cell(min_row, min_col).value
         })
     
-    # Detect header rows - find first row with text, stop at data
+    merged_by_row = {}
+    for merged in result['merged_cells']:
+        merged_by_row.setdefault(merged['row'], []).append(merged)
+
+    # Detect header rows with relaxed heuristics:
+    # - keep rows containing labels/merged section headers
+    # - stop at the first row that clearly looks like data
     header_candidates = []
-    for row in range(1, min(20, ws.max_row + 1)):
-        # Check if this looks like a data row (has numbers in first few columns)
-        is_data_row = False
-        for col in range(1, min(5, ws.max_column + 1)):
-            cell_val = ws.cell(row, col).value
-            if isinstance(cell_val, (int, float)) and cell_val > 0:
-                # If we see a positive number in early columns, likely data row
-                is_data_row = True
-                break
-        
-        if is_data_row:
-            break  # Stop scanning, we've hit data
-        
-        has_text = False
-        for col in range(1, min(10, ws.max_column + 1)):
-            cell_val = ws.cell(row, col).value
-            if cell_val and isinstance(cell_val, str) and len(str(cell_val).strip()) > 0:
-                # Skip formula rows
-                if str(cell_val).startswith('='):
-                    continue
-                has_text = True
-                break
-        if has_text:
+    detected_data_row = None
+    scan_limit = min(used_max_row, used_min_row + 39)
+    for row in range(used_min_row, scan_limit + 1):
+        row_values = [ws.cell(row, col).value for col in range(used_min_col, used_max_col + 1)]
+        non_empty = [value for value in row_values if not _is_blank(value)]
+        if not non_empty:
+            continue
+
+        text_like_count = sum(1 for value in non_empty if _is_text_like(value))
+        numeric_like_count = sum(1 for value in non_empty if _is_numeric_like(value))
+        formula_like_count = sum(1 for value in non_empty if _is_formula_text(value))
+        merged_headers = merged_by_row.get(row, [])
+        dominant_merge = any(m.get('colspan', 1) >= max(3, int(used_width * 0.45)) for m in merged_headers)
+        first_cell = ws.cell(row, used_min_col).value
+        numeric_ratio = numeric_like_count / max(1, len(non_empty))
+
+        looks_like_data = (
+            numeric_like_count >= 2
+            and numeric_ratio >= 0.35
+            and text_like_count <= max(2, len(non_empty) // 3)
+        ) or (
+            header_candidates
+            and _is_numeric_like(first_cell)
+            and numeric_like_count >= 2
+            and text_like_count <= 2
+            and formula_like_count <= 2
+        )
+
+        if header_candidates and looks_like_data:
+            detected_data_row = row
+            break
+
+        if text_like_count > 0 or dominant_merge:
             header_candidates.append(row)
-    
+            continue
+
+        if header_candidates and numeric_like_count > 0:
+            detected_data_row = row
+            break
+
     result['header_rows'] = header_candidates
-    if header_candidates:
-        result['data_start_row'] = max(header_candidates) + 1
-    
+    if detected_data_row:
+        result['data_start_row'] = detected_data_row
+    elif header_candidates:
+        cursor = max(header_candidates) + 1
+        while cursor <= used_max_row:
+            row_values = [ws.cell(cursor, col).value for col in range(used_min_col, used_max_col + 1)]
+            if any(not _is_blank(value) for value in row_values):
+                result['data_start_row'] = cursor
+                break
+            cursor += 1
+
     # Scan headers - use raw value directly, don't convert
     for row in header_candidates:
         result['headers'][row] = {}
-        for col in range(1, ws.max_column + 1):
+        for col in range(used_min_col, used_max_col + 1):
             cell_val = ws.cell(row, col).value
             if cell_val:
                 # Use raw value - don't convert to avoid float precision issues
                 result['headers'][row][get_column_letter(col)] = cell_val
-    
+
     # Detect numeric columns
     data_row = result['data_start_row']
     if data_row <= ws.max_row:
         numeric_cols = set()
-        sample_rows = range(data_row, min(data_row + 5, ws.max_row + 1))
+        sample_rows = [
+            row for row in range(data_row, min(data_row + 8, used_max_row + 1))
+            if any(not _is_blank(ws.cell(row, col).value) for col in range(used_min_col, used_max_col + 1))
+        ]
         
-        for col in range(1, ws.max_column + 1):
+        for col in range(used_min_col, used_max_col + 1):
             all_numeric = True
             for row in sample_rows:
                 cell_val = ws.cell(row, col).value
@@ -159,7 +212,7 @@ def scan_excel_structure(excel_blob):
     # Detect formulas
     formula_cols = {}
     if data_row <= ws.max_row:
-        for col in range(1, ws.max_column + 1):
+        for col in range(used_min_col, used_max_col + 1):
             cell = ws.cell(data_row, col)
             if cell.data_type == 'f':
                 formula = str(cell.value)

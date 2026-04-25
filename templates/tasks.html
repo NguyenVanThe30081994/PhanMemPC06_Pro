@@ -129,17 +129,21 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold small">ĐỘI NGHIỆP VỤ</label>
-                            <select name="unit_name" class="form-select" required>
-                                <option value="" disabled selected>Chọn đội nghiệp vụ...</option>
-                                {% for u in pro_units %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
-                            </select>
+                            <div data-category-picker data-module="tasks" data-field="domain" data-placeholder="Chọn đội nghiệp vụ" data-storage-key="modal.tasks.domain">
+                                <select name="unit_name" class="form-select" required data-category-target>
+                                    <option value="" disabled selected>Chọn đội nghiệp vụ</option>
+                                    {% for u in pro_units %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
+                                </select>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold small">MỨC ĐỘ ƯU TIÊN</label>
-                            <select name="priority" class="form-select">
-                                <option value="">Chọn mức độ ưu tiên...</option>
-                                {% for item in priority_items %}<option value="{{ item.name }}">{{ item.name }}</option>{% endfor %}
-                            </select>
+                            <div data-category-picker data-module="tasks" data-field="priority" data-placeholder="Chọn mức độ ưu tiên" data-storage-key="modal.tasks.priority">
+                                <select name="priority" class="form-select" data-category-target>
+                                    <option value="">Chọn mức độ ưu tiên</option>
+                                    {% for item in priority_items %}<option value="{{ item.name }}">{{ item.name }}</option>{% endfor %}
+                                </select>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold small">THỜI HẠN</label>

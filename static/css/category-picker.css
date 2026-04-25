@@ -1,0 +1,29 @@
+.category-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.category-picker-source {
+    display: none;
+}
+
+.category-picker.category-picker-open .category-picker-source {
+    display: block;
+}
+
+.category-picker-input .category-picker-toggle {
+    min-width: 44px;
+    border-left: 0;
+}
+
+.category-picker-input .form-select,
+.category-picker-input .form-control {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.category-picker-input .category-picker-toggle {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}

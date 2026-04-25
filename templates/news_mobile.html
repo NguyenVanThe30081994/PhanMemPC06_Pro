@@ -99,10 +99,12 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold small">LĨNH VỰC / ĐỘI NGHIỆP VỤ</label>
-                        <select name="category" class="form-select" required>
-                            <option value="" disabled selected>Chọn danh mục...</option>
-                            {% for u in pro_units %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
-                        </select>
+                        <div data-category-picker data-module="news" data-field="category" data-placeholder="Chọn danh mục" data-storage-key="mobile.news.category">
+                            <select name="category" class="form-select" required data-category-target>
+                                <option value="" disabled selected>Chọn danh mục</option>
+                                {% for u in pro_units %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
+                            </select>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold small">NỘI DUNG</label>

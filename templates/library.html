@@ -101,10 +101,12 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold text-dark small">LĨNH VỰC</label>
-                        <select name="category" class="form-select shadow-none" required>
-                            <option value="" disabled selected>Chọn lĩnh vực...</option>
-                            {% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
-                        </select>
+                        <div data-category-picker data-module="library" data-field="category" data-placeholder="Chọn lĩnh vực" data-storage-key="modal.library.category">
+                            <select name="category" class="form-select shadow-none" required data-category-target>
+                                <option value="" disabled selected>Chọn lĩnh vực</option>
+                                {% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
+                            </select>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold text-dark small">MÔ TẢ NGẮN (TÙY CHỌN)</label>

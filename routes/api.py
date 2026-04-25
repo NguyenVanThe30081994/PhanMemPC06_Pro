@@ -150,3 +150,59 @@ def delete_category(cid):
     db.session.delete(cat)
     db.session.commit()
     return jsonify({'status': 'deleted'})
+
+
+@api_bp.route('/api/category-picker')
+def get_category_picker_bundle():
+    if not session.get('uid'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    from models import CategoryGroup, CategoryItem
+    from category_helpers import get_bound_group, get_category_group
+
+    module_code = (request.args.get('module') or '').strip()
+    field_code = (request.args.get('field') or '').strip()
+    group_code = (request.args.get('group_code') or '').strip()
+    group_name = (request.args.get('group_name') or '').strip()
+    requested_group_id = request.args.get('group_id', type=int)
+
+    selected_group = None
+    if requested_group_id:
+        selected_group = CategoryGroup.query.filter_by(id=requested_group_id, is_active=True).first()
+
+    if not selected_group and module_code and field_code:
+        selected_group = get_bound_group(module_code, field_code)
+
+    if not selected_group and group_code:
+        selected_group = CategoryGroup.query.filter_by(code=group_code, is_active=True).first()
+
+    if not selected_group and group_name:
+        selected_group = get_category_group(group_name)
+
+    groups = CategoryGroup.query.filter_by(is_active=True).order_by(
+        CategoryGroup.sort_order.asc(),
+        CategoryGroup.name.asc()
+    ).all()
+
+    items = []
+    if selected_group:
+        items = CategoryItem.query.filter_by(
+            group_id=selected_group.id,
+            is_active=True
+        ).order_by(
+            CategoryItem.sort_order.asc(),
+            CategoryItem.name.asc()
+        ).all()
+
+    return jsonify({
+        'groups': [
+            {'id': group.id, 'code': group.code, 'name': group.name}
+            for group in groups
+        ],
+        'selected_group_id': selected_group.id if selected_group else None,
+        'selected_group_name': selected_group.name if selected_group else None,
+        'items': [
+            {'id': item.id, 'code': item.code, 'name': item.name}
+            for item in items
+        ]
+    })

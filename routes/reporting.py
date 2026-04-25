@@ -7,6 +7,8 @@ from flask import Blueprint, render_template, request, session, redirect, url_fo
 import calendar
 import json
 import datetime
+import re
+import unicodedata
 from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
@@ -172,6 +174,19 @@ def _compute_period_deadline(template, start_date, end_date, explicit_deadline=N
     return None
 
 
+def _slugify_field_code(text):
+    normalized = unicodedata.normalize('NFKD', str(text or ''))
+    ascii_text = normalized.encode('ascii', 'ignore').decode('utf-8')
+    return re.sub(r'[-\s]+', '_', ascii_text).strip('_').lower()
+
+
+def _normalize_header_text(text):
+    normalized = unicodedata.normalize('NFKD', str(text or ''))
+    ascii_text = normalized.encode('ascii', 'ignore').decode('utf-8').upper()
+    ascii_text = re.sub(r'[^A-Z0-9]+', ' ', ascii_text)
+    return ' '.join(ascii_text.split())
+
+
 # ==================== UI PAGES ====================
 
 @reporting_bp.route('/dashboard')
@@ -229,11 +244,8 @@ def index():
         return redirect(url_for('auth_bp.login'))
 
     templates = FormTemplate.query.filter_by(is_active=True).order_by(FormTemplate.name.asc()).all()
-    
-    from models import CategoryGroup
-    category_groups = CategoryGroup.query.filter_by(is_active=True).all()
 
-    return render_template('reporting/index.html', templates=templates, category_groups=category_groups)
+    return render_template('reporting/index.html', templates=templates)
 
 @reporting_bp.route('/api/category/<int:group_id>/items')
 def api_get_category_items(group_id):
@@ -313,12 +325,6 @@ def template_upload():
         try:
             from pc06_excel_scanner import scan_excel_structure
             from openpyxl.utils import column_index_from_string
-            import re
-            import unicodedata
-            
-            def slugify(text):
-                text = unicodedata.normalize('NFKD', str(text)).encode('ascii', 'ignore').decode('utf-8')
-                return re.sub(r'[-\s]+', '_', text).strip('_').lower()
 
             detected = scan_excel_structure(excel_blob)
             
@@ -351,28 +357,44 @@ def template_upload():
             all_columns = detected.get('columns', [])
             total_cols = detected.get('total_cols', len(all_columns))
             
-            # Lọc bỏ các dòng title (chứa ô gộp chiếm phần lớn chiều rộng bảng)
+            def is_title_row(row_number):
+                row_parts = []
+                dominant_merge = None
+                for m in detected.get('merged_cells', []):
+                    if m['row'] == row_number and m.get('colspan', 1) >= max(4, int(total_cols * 0.8)):
+                        dominant_merge = m
+                        break
+
+                for col_letter in all_columns:
+                    text = get_header_text_for_cell(row_number, col_letter)
+                    text_str = str(text).strip() if text else ""
+                    if text_str and text_str not in row_parts:
+                        row_parts.append(text_str)
+
+                return bool(dominant_merge and len(row_parts) <= 1)
+
+            # Lọc bỏ các dòng title tổng quát, giữ lại các hàng header nhóm/cột thực tế
             real_header_rows = []
             for r in sorted(detected.get('header_rows', [])):
-                is_title = False
-                for m in detected.get('merged_cells', []):
-                    if m['row'] == r and m.get('colspan', 1) >= total_cols * 0.5:
-                        is_title = True
-                        break
-                if not is_title:
+                if not is_title_row(r):
                     real_header_rows.append(r)
-            
+
+            if not real_header_rows:
+                real_header_rows = sorted(detected.get('header_rows', []))
+
             # Tìm các cột cần BỎ QUA (STT, đơn vị, tên đơn vị...)
             skip_columns = set()
-            skip_keywords = ['STT', 'TT', 'SỐ TT', 'SỐ THỨ TỰ', 'ĐƠN VỊ', 'TÊN ĐƠN VỊ', 
-                           'TÊN ĐƠN VỊ HÀNH CHÍNH', 'ĐƠN VỊ HÀNH CHÍNH']
+            skip_keywords = {
+                'STT', 'TT', 'SO TT', 'SO THU TU',
+                'DON VI', 'TEN DON VI', 'TEN DON VI HANH CHINH', 'DON VI HANH CHINH'
+            }
             
             for col_letter in all_columns:
                 # Kiểm tra TẤT CẢ các dòng header
                 should_skip = False
                 for r in real_header_rows:
-                    text = get_header_text_for_cell(r, col_letter)
-                    if text and text.upper().strip() in skip_keywords:
+                    normalized_text = _normalize_header_text(get_header_text_for_cell(r, col_letter))
+                    if normalized_text in skip_keywords:
                         should_skip = True
                         break
                 if should_skip:
@@ -398,6 +420,10 @@ def template_upload():
                 # Nếu không có header hợp lệ thì bỏ qua
                 if not parts:
                     continue
+
+                is_formula = col_letter in detected.get('formulas', {})
+                if is_formula:
+                    continue
                 
                 # Logic linh hoạt:
                 # - Nếu chỉ có 1 header: section = "Thông tin chung", field = header đó
@@ -406,12 +432,12 @@ def template_upload():
                     section = 'Thông tin chung'
                     field_name = parts[0]
                 elif len(parts) >= 2:
-                    section = parts[-2]  # Dòng header gần cuối
+                    section = ' / '.join(parts[:-1])
                     field_name = parts[-1]  # Dòng header cuối cùng
                 else:
                     continue
                     
-                field_code = slugify(field_name) or f"col_{col_letter}"
+                field_code = _slugify_field_code(field_name) or f"col_{col_letter.lower()}"
 
                 # Tránh trùng lặp code
                 original_code = field_code
@@ -421,24 +447,20 @@ def template_upload():
                     counter += 1
                     
                 # Phân tích kiểu dữ liệu từ MVP scanner
-                data_type = 'number' if col_letter in detected.get('numeric_columns', []) else 'string'
-                is_formula = col_letter in detected.get('formulas', {})
+                is_numeric = col_letter in detected.get('numeric_columns', [])
+                data_type = 'number' if is_numeric else 'string'
 
                 field = FormField(
                     version_id=version.id,
                     field_code=field_code,
                     field_name=field_name,
-                    field_type='text',
+                    field_type='number' if is_numeric else 'text',
                     data_type=data_type,
                     is_required=False,
                     display_order=order,
                     section=section,
                     excel_cell_ref=col_letter
                 )
-                
-                # Nếu là cột công thức, thì mặc định không bắt buộc
-                if is_formula:
-                    field.is_required = False
                     
                 fields.append(field)
                 order += 1

@@ -310,12 +310,14 @@
                     <div class="row g-3">
                         <div class="col-6">
                             <label class="form-label fw-bold text-dark small">ĐƠN VỊ</label>
-                            <select name="unit" class="form-select border-0 bg-light py-2 rounded-3 shadow-sm" required>
-                                <option value="" disabled selected>Chọn đơn vị...</option>
-                                {% for u in unit_cats %}
-                                <option value="{{ u.name }}">{{ u.name }}</option>
-                                {% endfor %}
-                            </select>
+                            <div data-category-picker data-group-name="Đơn vị" data-placeholder="Chọn đơn vị" data-storage-key="modal.roles.unit_add">
+                                <select name="unit" class="form-select border-0 bg-light py-2 rounded-3 shadow-sm" required data-category-target>
+                                    <option value="" disabled selected>Chọn đơn vị</option>
+                                    {% for u in unit_cats %}
+                                    <option value="{{ u.name }}">{{ u.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                             {% if not unit_cats %}
                             <div class="tiny text-danger mt-1 fw-bold italic">* Hãy vào mục Thiết lập danh mục để tạo Đơn vị!</div>
                             {% endif %}
@@ -366,11 +368,13 @@
                     <div class="row g-3">
                         <div class="col-6">
                             <label class="form-label fw-bold text-dark small">ĐƠN VỊ</label>
-                            <select name="unit" id="edit_unit" class="form-select border-0 bg-light py-2 rounded-3 shadow-sm" required>
-                                {% for u in unit_cats %}
-                                <option value="{{ u.name }}">{{ u.name }}</option>
-                                {% endfor %}
-                            </select>
+                            <div data-category-picker data-group-name="Đơn vị" data-placeholder="Chọn đơn vị" data-storage-key="modal.roles.unit_edit">
+                                <select name="unit" id="edit_unit" class="form-select border-0 bg-light py-2 rounded-3 shadow-sm" required data-category-target>
+                                    {% for u in unit_cats %}
+                                    <option value="{{ u.name }}">{{ u.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                         </div>
                         <div class="col-6">
                             <label class="form-label fw-bold text-dark small">VAI TRÒ</label>

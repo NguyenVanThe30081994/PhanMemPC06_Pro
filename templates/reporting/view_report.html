@@ -42,7 +42,6 @@
           <div class="reporting-section-title">
             <div>
               <h5 class="mb-1">{{ section_name }}</h5>
-              <div class="reporting-muted">Dữ liệu đã ghi nhận của nhóm trường này.</div>
             </div>
           </div>
           <div class="reporting-form-grid">
@@ -54,9 +53,6 @@
                      class="form-control reporting-field-readonly"
                      value="{{ report_data['values'].get(field.code, {}).get('value', '') }}"
                      readonly>
-              {% if field.excel_cell %}
-              <div class="reporting-muted small">Ô Excel: {{ field.excel_cell }}</div>
-              {% endif %}
             </div>
             {% endif %}
             {% endfor %}

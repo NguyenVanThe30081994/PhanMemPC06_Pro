@@ -84,9 +84,11 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Lĩnh vực</label>
-                        <select name="category" class="form-select" required>
-                            {% for c in cats %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
-                        </select>
+                        <div data-category-picker data-module="library" data-field="category" data-placeholder="Chọn lĩnh vực" data-storage-key="mobile.library.category">
+                            <select name="category" class="form-select" required data-category-target>
+                                {% for c in cats %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
+                            </select>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold">File đính kèm</label>

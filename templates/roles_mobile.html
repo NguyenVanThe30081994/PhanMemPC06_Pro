@@ -124,9 +124,11 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Đơn vị</label>
-                        <select name="unit" class="form-select" required>
-                            {% for u in unit_cats %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
-                        </select>
+                        <div data-category-picker data-group-name="Đơn vị" data-placeholder="Chọn đơn vị" data-storage-key="mobile.roles.unit">
+                            <select name="unit" class="form-select" required data-category-target>
+                                {% for u in unit_cats %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
+                            </select>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Vai trò</label>

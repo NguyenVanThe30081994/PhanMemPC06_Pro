@@ -92,15 +92,19 @@
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label class="form-label small fw-bold">Chức vụ</label>
-                            <select name="role" class="form-select">
-                                {% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}
-                            </select>
+                            <div data-category-picker data-module="contacts" data-field="role" data-placeholder="Chọn chức vụ" data-storage-key="mobile.contacts.role">
+                                <select name="role" class="form-select" data-category-target>
+                                    {% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}
+                                </select>
+                            </div>
                         </div>
                         <div class="col-6">
                             <label class="form-label small fw-bold">Nhóm</label>
-                            <select name="contact_group" class="form-select" required>
-                                {% for cat in groups %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}
-                            </select>
+                            <div data-category-picker data-module="contacts" data-field="contact_group" data-placeholder="Chọn nhóm danh bạ" data-storage-key="mobile.contacts.group">
+                                <select name="contact_group" class="form-select" required data-category-target>
+                                    {% for cat in groups %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}
+                                </select>
+                            </div>
                         </div>
                     </div>
                     <div class="mb-3">

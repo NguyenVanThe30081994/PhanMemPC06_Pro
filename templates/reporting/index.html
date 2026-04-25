@@ -68,9 +68,6 @@
           <span>Báo cáo</span>
         </div>
         <h3>Danh sách biểu mẫu báo cáo</h3>
-        <p class="reporting-subtitle">
-          Không gian quản lý báo cáo theo biểu mẫu, kỳ nộp, lịch sử thao tác và tiến độ nộp của từng đơn vị.
-        </p>
       </div>
       <div class="reporting-hero-actions">
         <span class="reporting-pill">
@@ -135,22 +132,14 @@
           </div>
           <div class="mb-3">
             <label class="form-label">Đội nghiệp vụ phụ trách</label>
-            <div class="d-flex gap-2 mb-2" id="sourceCategoryWrapper" style="display: none !important;">
-              <select class="form-select form-select-sm" id="sourceCategorySelect">
-                <option value="">-- Chọn danh mục nguồn --</option>
-                {% for group in category_groups %}
-                <option value="{{ group.id }}">{{ group.name }}</option>
-                {% endfor %}
+            <div
+              data-category-picker
+              data-group-name="Đội nghiệp vụ"
+              data-placeholder="Chọn đội nghiệp vụ"
+              data-storage-key="reporting_default_category">
+              <select class="form-select" name="department" id="departmentSelect" required data-category-target>
+                <option value="">Chọn đội nghiệp vụ</option>
               </select>
-            </div>
-            <div class="input-group">
-              <select class="form-select" name="department" id="departmentSelect" required>
-                <option value="">-- Chọn đội nghiệp vụ --</option>
-                <!-- Dữ liệu được fetch từ API -->
-              </select>
-              <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('sourceCategoryWrapper').style.setProperty('display', 'flex', 'important');" title="Chọn danh mục nguồn khác">
-                <i class="fa-solid fa-list"></i>
-              </button>
             </div>
           </div>
           <div class="mb-3">
@@ -167,50 +156,4 @@
   </div>
 </div>
 {% endif %}
-{% endblock %}
-
-{% block scripts %}
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    const sourceCategorySelect = document.getElementById('sourceCategorySelect');
-    const departmentSelect = document.getElementById('departmentSelect');
-    
-    if (sourceCategorySelect && departmentSelect) {
-      sourceCategorySelect.addEventListener('change', function() {
-        const groupId = this.value;
-        departmentSelect.innerHTML = '<option value="">-- Đang tải... --</option>';
-        
-        if (!groupId) {
-          departmentSelect.innerHTML = '<option value="">-- Chọn đội nghiệp vụ --</option>';
-          return;
-        }
-        
-        // Lưu danh mục đã chọn làm mặc định
-        localStorage.setItem('reporting_default_category', groupId);
-        
-        const fetchUrl = `{{ url_for('reporting_bp.api_get_category_items', group_id=0) }}`.replace('0', groupId);
-        fetch(fetchUrl)
-          .then(response => response.json())
-          .then(data => {
-            let html = '<option value="">-- Chọn đội nghiệp vụ --</option>';
-            data.forEach(item => {
-              html += `<option value="${item.name}">${item.name}</option>`;
-            });
-            departmentSelect.innerHTML = html;
-          })
-          .catch(error => {
-            console.error('Lỗi khi tải danh mục:', error);
-            departmentSelect.innerHTML = '<option value="">-- Lỗi tải danh mục --</option>';
-          });
-      });
-      
-      // Khôi phục danh mục mặc định từ localStorage
-      const defaultCategory = localStorage.getItem('reporting_default_category');
-      if (defaultCategory) {
-        sourceCategorySelect.value = defaultCategory;
-        sourceCategorySelect.dispatchEvent(new Event('change'));
-      }
-    }
-  });
-</script>
 {% endblock %}

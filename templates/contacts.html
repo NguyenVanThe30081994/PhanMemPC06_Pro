@@ -112,17 +112,21 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold text-dark small">CHỨC VỤ</label>
-                            <select name="role" class="form-select">
-                                <option value="" disabled selected>Chọn chức vụ...</option>
-                                {% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}
-                            </select>
+                            <div data-category-picker data-module="contacts" data-field="role" data-placeholder="Chọn chức vụ" data-storage-key="modal.contacts.role">
+                                <select name="role" class="form-select" data-category-target>
+                                    <option value="" disabled selected>Chọn chức vụ</option>
+                                    {% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}
+                                </select>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold text-dark small">NHÓM</label>
-                            <select name="contact_group" class="form-select" required>
-                                <option value="" disabled selected>Chọn nhóm danh bạ...</option>
-                                {% for cat in groups %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}
-                            </select>
+                            <div data-category-picker data-module="contacts" data-field="contact_group" data-placeholder="Chọn nhóm danh bạ" data-storage-key="modal.contacts.group">
+                                <select name="contact_group" class="form-select" required data-category-target>
+                                    <option value="" disabled selected>Chọn nhóm danh bạ</option>
+                                    {% for cat in groups %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}
+                                </select>
+                            </div>
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-bold text-dark small">SỐ ĐIỆN THOẠI</label>
@@ -222,17 +226,21 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-dark small">NHÓM DANH BẠ</label>
-                                <select name="global_group" class="form-select" id="globalGroupSelect">
-                                    <option value="">-- Giữ nguyên từ Excel --</option>
-                                    {% for cat in groups %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}
-                                </select>
+                                <div data-category-picker data-module="contacts" data-field="contact_group" data-placeholder="Giữ nguyên từ Excel" data-storage-key="modal.contacts.import_group">
+                                    <select name="global_group" class="form-select" id="globalGroupSelect" data-category-target>
+                                        <option value="">Giữ nguyên từ Excel</option>
+                                        {% for cat in groups %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}
+                                    </select>
+                                </div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-dark small">CHỨC VỤ</label>
-                                <select name="global_role" class="form-select" id="globalRoleSelect">
-                                    <option value="">-- Giữ nguyên từ Excel --</option>
-                                    {% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}
-                                </select>
+                                <div data-category-picker data-module="contacts" data-field="role" data-placeholder="Giữ nguyên từ Excel" data-storage-key="modal.contacts.import_role">
+                                    <select name="global_role" class="form-select" id="globalRoleSelect" data-category-target>
+                                        <option value="">Giữ nguyên từ Excel</option>
+                                        {% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}
+                                    </select>
+                                </div>
                             </div>
                         </div>
                         
