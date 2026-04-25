@@ -345,7 +345,7 @@ def template_upload():
                     return str(val).strip() if val else ""
                 return ""
 
-            # Tạo field đơn giản như MVP
+            # Tạo field với cấu trúc phân cấp
             fields = []
             order = 1
             all_columns = detected.get('columns', [])
@@ -362,12 +362,7 @@ def template_upload():
                 if not is_title:
                     real_header_rows.append(r)
             
-            # Chỉ lấy 2 dòng cuối cùng: dòng trước là section, dòng cuối là field name
-            if len(real_header_rows) >= 2:
-                real_header_rows = real_header_rows[-2:]
-            elif len(real_header_rows) == 1:
-                real_header_rows = real_header_rows[-1:]
-            
+            # Xây dựng cấu trúc phân cấp: tất cả dòng header trừ dòng cuối
             for col_letter in all_columns:
                 parts = []
                 for r in real_header_rows:
@@ -375,10 +370,10 @@ def template_upload():
                     if text and text not in parts:
                         parts.append(text)
                 
-                # Đơn giản: nếu có 2 parts thì part đầu là section, part cuối là field name
+                # Cấu trúc: tất cả parts trừ cái cuối = section path, cái cuối = field name
                 if len(parts) >= 2:
-                    section = parts[0]
-                    field_name = parts[-1]
+                    section = " || ".join(parts[:-1])  # Tất cả dòng header trừ dòng cuối
+                    field_name = parts[-1]  # Dòng header cuối cùng
                 elif len(parts) == 1:
                     section = 'Thông tin chung'
                     field_name = parts[0]
@@ -926,11 +921,26 @@ def field_settings(template_id):
         flash(f'Đã cập nhật thiết lập cho {updated} trường.', 'success')
         return redirect(url_for('reporting_bp.field_settings', template_id=template_id))
 
+    # Build nested structure for hierarchical rendering
     grouped_fields = {}
     hidden_field_codes = set()
+    
     for field in fields:
-        section_name = field.section or 'Thông tin chung'
-        grouped_fields.setdefault(section_name, []).append(field)
+        section_path = field.section or 'Thông tin chung'
+        parts = section_path.split(' || ')
+        
+        # Navigate/create nested structure
+        current = grouped_fields
+        for i, part in enumerate(parts):
+            if part not in current:
+                current[part] = {'_fields': [], '_children': {}}
+            
+            # If this is the last part, add field here
+            if i == len(parts) - 1:
+                current[part]['_fields'].append(field)
+            else:
+                # Navigate deeper
+                current = current[part]['_children']
 
         rules = json.loads(field.validation_rules_json) if field.validation_rules_json else {}
         if rules.get('hidden'):
