@@ -309,9 +309,10 @@ def template_upload():
         db.session.add(version)
         db.session.flush()
 
-        # 3. Tự động parse các trường (FormField) từ Excel sử dụng thuật toán MVP
+            # 3. Tự động parse các trường (FormField) từ Excel sử dụng thuật toán MVP
         try:
             from pc06_excel_scanner import scan_excel_structure
+            from openpyxl.utils import column_index_from_string
             import re
             import unicodedata
             
@@ -322,31 +323,47 @@ def template_upload():
             detected = scan_excel_structure(excel_blob)
             
             # Cập nhật metadata
-            metadata['header_rows'] = max(detected.get('header_rows', [1]))
+            header_rows_list = detected.get('header_rows', [1])
+            metadata['header_rows'] = max(header_rows_list) if header_rows_list else 1
             metadata['data_start_row'] = detected.get('data_start_row', 2)
             version.metadata_json = json.dumps(metadata, ensure_ascii=False)
             
-            # Tạo field dựa trên kết quả scan - Lặp qua toàn bộ các cột giống MVP
+            # Helper function để lấy nội dung text cho 1 ô (xử lý gộp ô)
+            def get_header_text_for_cell(r, c_letter):
+                c_idx = column_index_from_string(c_letter)
+                for m in detected.get('merged_cells', []):
+                    m_r = m['row']
+                    m_rs = m.get('rowspan', 1)
+                    m_cs = column_index_from_string(m['col_start'])
+                    m_ce = column_index_from_string(m['col_end'])
+                    if m_r <= r < m_r + m_rs and m_cs <= c_idx <= m_ce:
+                        return str(m['value']).strip() if m['value'] else ""
+                
+                headers = detected.get('headers', {})
+                if r in headers and c_letter in headers[r]:
+                    val = headers[r][c_letter]
+                    return str(val).strip() if val else ""
+                return ""
+
+            # Tạo field dựa trên kết quả scan - Xử lý gom nhóm Section như MVP
             fields = []
             order = 1
-            
-            headers_dict = detected.get('headers', {})
-            header_row = metadata['header_rows']
             all_columns = detected.get('columns', [])
             
             for col_letter in all_columns:
-                # Lấy header value, hỗ trợ lấy từ nhiều dòng header nếu dòng cuối trống
-                header_val = ""
-                if header_row in headers_dict and col_letter in headers_dict[header_row]:
-                    header_val = headers_dict[header_row][col_letter]
+                parts = []
+                for r in sorted(header_rows_list):
+                    text = get_header_text_for_cell(r, col_letter)
+                    if text and text not in parts:
+                        parts.append(text)
+                
+                if parts:
+                    field_name = " - ".join(parts)
+                    section = parts[0] if len(parts) > 1 else 'Thông tin chung'
                 else:
-                    # Nếu dòng header chính không có giá trị (thường do gộp ô), thử tìm ở các dòng header trên
-                    for r in sorted(detected.get('header_rows', []), reverse=True):
-                        if r in headers_dict and col_letter in headers_dict[r]:
-                            header_val = headers_dict[r][col_letter]
-                            break
-                            
-                field_name = str(header_val).strip() if header_val else f"Cột {col_letter}"
+                    field_name = f"Cột {col_letter}"
+                    section = 'Thông tin chung'
+                    
                 field_code = slugify(field_name) or f"col_{col_letter}"
 
                 # Tránh trùng lặp code
@@ -368,7 +385,7 @@ def template_upload():
                     data_type=data_type,
                     is_required=False,
                     display_order=order,
-                    section='Thông tin chung',
+                    section=section,
                     excel_cell_ref=col_letter
                 )
                 
