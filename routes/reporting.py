@@ -5,6 +5,7 @@ API endpoints và UI pages
 """
 from flask import Blueprint, render_template, request, session, redirect, url_for, jsonify, flash, send_file, make_response
 import json
+import datetime
 from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
@@ -19,6 +20,47 @@ form_engine = FormEngine()
 
 
 # ==================== UI PAGES ====================
+
+@reporting_bp.route('/dashboard')
+def dashboard():
+    """Dashboard thống kê tổng quan"""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    if not session.get('is_admin'):
+        flash('Bạn không có quyền truy cập trang này.', 'danger')
+        return redirect(url_for('reporting_bp.index'))
+
+    # Thống kê biểu mẫu
+    total_templates = FormTemplate.query.count()
+    active_templates = FormTemplate.query.filter_by(is_active=True).count()
+
+    # Thống kê kỳ báo cáo
+    total_periods = ReportingPeriod.query.count()
+    active_periods = ReportingPeriod.query.filter_by(is_locked=False).count()
+
+    # Thống kê báo cáo đã nộp
+    total_reports = ReportInstance.query.count()
+    submitted_reports = ReportInstance.query.filter_by(status='submitted').count()
+    draft_reports = ReportInstance.query.filter_by(status='draft').count()
+
+    # Thống kê theo đơn vị
+    from sqlalchemy import func
+    unit_stats = db.session.query(
+        ReportInstance.org_unit,
+        func.count(ReportInstance.id).label('count')
+    ).filter_by(status='submitted').group_by(ReportInstance.org_unit).all()
+
+    return render_template(
+        'reporting/dashboard.html',
+        total_templates=total_templates,
+        active_templates=active_templates,
+        total_periods=total_periods,
+        active_periods=active_periods,
+        total_reports=total_reports,
+        submitted_reports=submitted_reports,
+        draft_reports=draft_reports,
+        unit_stats=unit_stats
+    )
 
 @reporting_bp.route('/')
 def index():

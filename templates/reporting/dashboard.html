@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Hệ thống báo cáo{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h3 class="mb-1"><i class="bi bi-graph-up"></i> Dashboard - Thống kê hệ thống</h3>
+      <p class="text-muted mb-0">Tổng quan về biểu mẫu, kỳ báo cáo và báo cáo đã nộp</p>
+    </div>
+    <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-6 col-lg-3">
+      <div class="card border-0 h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="mb-1 opacity-75">Tổng biểu mẫu</h6>
+              <h2 class="mb-0">{{ total_templates }}</h2>
+            </div>
+            <i class="bi bi-file-earmark-text fs-1 opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <div class="card border-0 h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="mb-1 opacity-75">Biểu mẫu đang hoạt động</h6>
+              <h2 class="mb-0">{{ active_templates }}</h2>
+            </div>
+            <i class="bi bi-check-circle fs-1 opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <div class="card border-0 h-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="mb-1 opacity-75">Kỳ báo cáo đang mở</h6>
+              <h2 class="mb-0">{{ active_periods }}</h2>
+            </div>
+            <i class="bi bi-calendar-check fs-1 opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <div class="card border-0 h-100" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="mb-1 opacity-75">Báo cáo đã nộp</h6>
+              <h2 class="mb-0">{{ submitted_reports }}</h2>
+            </div>
+            <i class="bi bi-upload fs-1 opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Báo cáo đang nháp -->
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0"><i class="bi bi-pencil-square text-warning"></i> Báo cáo đang nháp</h5>
+        </div>
+        <div class="card-body">
+          {% if draft_reports > 0 %}
+          <div class="alert alert-warning mb-0">
+            <strong>{{ draft_reports }}</strong> báo cáo đang trong trạng thái nháp, chưa được nộp.
+          </div>
+          {% else %}
+          <div class="alert alert-success mb-0">
+            <i class="bi bi-check-circle"></i> Không có báo cáo nào đang nháp.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Thống kê theo đơn vị -->
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0"><i class="bi bi-people text-primary"></i> Thống kê theo đơn vị</h5>
+        </div>
+        <div class="card-body">
+          {% if unit_stats %}
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Đơn vị</th>
+                  <th class="text-center">Số báo cáo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for unit, count in unit_stats %}
+                <tr>
+                  <td>{{ unit or 'Không xác định' }}</td>
+                  <td class="text-center"><span class="badge bg-primary rounded-pill">{{ count }}</span></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="alert alert-info mb-0">
+            <i class="bi bi-info-circle"></i> Chưa có báo cáo nào được nộp.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Links -->
+  <div class="row g-4 mt-2">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0"><i class="bi bi-lightning text-danger"></i> Thao tác nhanh</h5>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-primary w-100 py-3">
+                <i class="bi bi-collection fs-4 d-block mb-2"></i>
+                Quản lý biểu mẫu
+              </a>
+            </div>
+            <div class="col-md-4">
+              <a href="{{ url_for('reporting_bp.template_statistics') }}" class="btn btn-outline-success w-100 py-3">
+                <i class="bi bi-bar-chart fs-4 d-block mb-2"></i>
+                Thống kê chi tiết
+              </a>
+            </div>
+            <div class="col-md-4">
+              <a href="{{ url_for('reporting_bp.template_history') }}" class="btn btn-outline-info w-100 py-3">
+                <i class="bi bi-clock-history fs-4 d-block mb-2"></i>
+                Lịch sử nhập liệu
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
