@@ -326,47 +326,58 @@ def template_upload():
             metadata['data_start_row'] = detected.get('data_start_row', 2)
             version.metadata_json = json.dumps(metadata, ensure_ascii=False)
             
-            # Tạo field dựa trên kết quả scan
+            # Tạo field dựa trên kết quả scan - Lặp qua toàn bộ các cột giống MVP
             fields = []
             order = 1
             
             headers_dict = detected.get('headers', {})
             header_row = metadata['header_rows']
+            all_columns = detected.get('columns', [])
             
-            if header_row in headers_dict:
-                for col_letter, header_val in headers_dict[header_row].items():
-                    field_name = str(header_val).strip()
-                    field_code = slugify(field_name) or f"col_{col_letter}"
+            for col_letter in all_columns:
+                # Lấy header value, hỗ trợ lấy từ nhiều dòng header nếu dòng cuối trống
+                header_val = ""
+                if header_row in headers_dict and col_letter in headers_dict[header_row]:
+                    header_val = headers_dict[header_row][col_letter]
+                else:
+                    # Nếu dòng header chính không có giá trị (thường do gộp ô), thử tìm ở các dòng header trên
+                    for r in sorted(detected.get('header_rows', []), reverse=True):
+                        if r in headers_dict and col_letter in headers_dict[r]:
+                            header_val = headers_dict[r][col_letter]
+                            break
+                            
+                field_name = str(header_val).strip() if header_val else f"Cột {col_letter}"
+                field_code = slugify(field_name) or f"col_{col_letter}"
 
-                    # Tránh trùng lặp code
-                    original_code = field_code
-                    counter = 1
-                    while any(f.field_code == field_code for f in fields):
-                        field_code = f"{original_code}_{counter}"
-                        counter += 1
-                        
-                    # Phân tích kiểu dữ liệu từ MVP scanner
-                    data_type = 'number' if col_letter in detected.get('numeric_columns', []) else 'string'
-                    is_formula = col_letter in detected.get('formulas', {})
-
-                    field = FormField(
-                        version_id=version.id,
-                        field_code=field_code,
-                        field_name=field_name,
-                        field_type='text',
-                        data_type=data_type,
-                        is_required=False,
-                        display_order=order,
-                        section='Thông tin chung',
-                        excel_cell_ref=col_letter
-                    )
+                # Tránh trùng lặp code
+                original_code = field_code
+                counter = 1
+                while any(f.field_code == field_code for f in fields):
+                    field_code = f"{original_code}_{counter}"
+                    counter += 1
                     
-                    # Nếu là cột công thức, thì mặc định có thể là field tính toán (không nhập tay)
-                    if is_formula:
-                        field.is_required = False
-                        
-                    fields.append(field)
-                    order += 1
+                # Phân tích kiểu dữ liệu từ MVP scanner
+                data_type = 'number' if col_letter in detected.get('numeric_columns', []) else 'string'
+                is_formula = col_letter in detected.get('formulas', {})
+
+                field = FormField(
+                    version_id=version.id,
+                    field_code=field_code,
+                    field_name=field_name,
+                    field_type='text',
+                    data_type=data_type,
+                    is_required=False,
+                    display_order=order,
+                    section='Thông tin chung',
+                    excel_cell_ref=col_letter
+                )
+                
+                # Nếu là cột công thức, thì mặc định không bắt buộc
+                if is_formula:
+                    field.is_required = False
+                    
+                fields.append(field)
+                order += 1
 
             if fields:
                 db.session.add_all(fields)
