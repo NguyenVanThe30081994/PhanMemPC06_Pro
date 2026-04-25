@@ -345,7 +345,7 @@ def template_upload():
                     return str(val).strip() if val else ""
                 return ""
 
-            # Tạo field với cấu trúc PHẲNG như MVP
+            # Tạo field với logic linh hoạt cho mọi biểu mẫu
             fields = []
             order = 1
             all_columns = detected.get('columns', [])
@@ -362,25 +362,31 @@ def template_upload():
                 if not is_title:
                     real_header_rows.append(r)
             
-            # Tìm các cột nằm trong vùng merge multi-column (bỏ qua cột đơn như STT, Tên đơn vị)
-            cols_in_data_groups = set()
-            for m in detected.get('merged_cells', []):
-                if m['row'] in real_header_rows and m.get('colspan', 1) > 1:
-                    start_idx = column_index_from_string(m['col_start'])
-                    end_idx = column_index_from_string(m['col_end'])
-                    for i in range(start_idx, end_idx + 1):
-                        cols_in_data_groups.add(get_column_letter(i))
-            
-            # Chỉ quét các cột trong nhóm dữ liệu
+            # Tìm các cột cần BỎ QUA (STT, số thứ tự)
+            skip_columns = set()
             for col_letter in all_columns:
-                if col_letter not in cols_in_data_groups:
-                    continue  # Bỏ qua cột không thuộc nhóm merge
+                # Lấy text từ dòng header cuối
+                if real_header_rows:
+                    last_header_row = real_header_rows[-1]
+                    text = get_header_text_for_cell(last_header_row, col_letter)
+                    # Bỏ qua cột có header là STT, TT, số thứ tự
+                    if text and text.upper().strip() in ['STT', 'TT', 'SỐ TT', 'SỐ THỨ TỰ']:
+                        skip_columns.add(col_letter)
+            
+            # Quét tất cả các cột (trừ cột skip)
+            for col_letter in all_columns:
+                if col_letter in skip_columns:
+                    continue
                 
                 parts = []
                 for r in real_header_rows:
                     text = get_header_text_for_cell(r, col_letter)
                     if text and text not in parts:
                         parts.append(text)
+                
+                # Nếu không có header thì bỏ qua
+                if not parts:
+                    continue
                 
                 # Cấu trúc PHẲNG: dòng gần cuối = section, dòng cuối = field name
                 if len(parts) >= 2:
@@ -390,7 +396,7 @@ def template_upload():
                     section = 'Thông tin chung'
                     field_name = parts[0]
                 else:
-                    continue  # Bỏ qua cột không có header
+                    continue
                     
                 field_code = slugify(field_name) or f"col_{col_letter}"
 
