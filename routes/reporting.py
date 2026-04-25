@@ -345,22 +345,11 @@ def template_upload():
                     return str(val).strip() if val else ""
                 return ""
 
-            # Tạo field dựa trên kết quả scan - Xử lý gom nhóm Section như MVP
+            # Tạo field đơn giản như MVP
             fields = []
             order = 1
             all_columns = detected.get('columns', [])
             total_cols = detected.get('total_cols', len(all_columns))
-            
-            # Detect real header rows smartly: stop when hitting data row
-            header_candidates = []
-            for row in range(1, min(20, detected.get('original_max_row', 50) + 1)):
-                # Check if this row looks like data
-                numeric_count = 0
-                for col_letter in all_columns:
-                    headers = detected.get('headers', {})
-                    cell_val = headers.get(row, {}).get(col_letter)
-                    # Note: we need raw cell values. If not in headers, maybe it's purely numeric.
-                    # Actually, a better way is to just use detected.get('header_rows') but filter out titles!
             
             # Lọc bỏ các dòng title (chứa ô gộp chiếm phần lớn chiều rộng bảng)
             real_header_rows = []
@@ -373,15 +362,11 @@ def template_upload():
                 if not is_title:
                     real_header_rows.append(r)
             
-            # Chỉ lấy block header cuối cùng sát với data (bỏ qua các dòng trống ở giữa nếu có)
-            if real_header_rows:
-                contiguous = [real_header_rows[-1]]
-                for i in range(len(real_header_rows)-2, -1, -1):
-                    if real_header_rows[i+1] - real_header_rows[i] <= 2:
-                        contiguous.insert(0, real_header_rows[i])
-                    else:
-                        break
-                real_header_rows = contiguous
+            # Chỉ lấy 2 dòng cuối cùng: dòng trước là section, dòng cuối là field name
+            if len(real_header_rows) >= 2:
+                real_header_rows = real_header_rows[-2:]
+            elif len(real_header_rows) == 1:
+                real_header_rows = real_header_rows[-1:]
             
             for col_letter in all_columns:
                 parts = []
@@ -390,21 +375,13 @@ def template_upload():
                     if text and text not in parts:
                         parts.append(text)
                 
-                # Loại bỏ các đoạn trùng lặp hoặc chứa nhau (vd: "Đo đạc lập bản đồ địa chính" và "Đo đạc lập bản đồ địa chính (ha)")
-                clean_parts = []
-                for p in parts:
-                    if p and not any(p in cp or cp in p for cp in clean_parts):
-                        clean_parts.append(p)
-                if not clean_parts:
-                    clean_parts = parts
-                
-                if clean_parts:
-                    if len(clean_parts) > 1:
-                        section = " || ".join(clean_parts[:-1])
-                        field_name = clean_parts[-1]
-                    else:
-                        section = 'Thông tin chung'
-                        field_name = clean_parts[0]
+                # Đơn giản: nếu có 2 parts thì part đầu là section, part cuối là field name
+                if len(parts) >= 2:
+                    section = parts[0]
+                    field_name = parts[-1]
+                elif len(parts) == 1:
+                    section = 'Thông tin chung'
+                    field_name = parts[0]
                 else:
                     field_name = f"Cột {col_letter}"
                     section = 'Thông tin chung'
@@ -952,24 +929,8 @@ def field_settings(template_id):
     grouped_fields = {}
     hidden_field_codes = set()
     for field in fields:
-        section_path = field.section or 'Thông tin chung'
-        parts = section_path.split(' || ')
-        
-        current_level = grouped_fields
-        for part in parts:
-            if part not in current_level:
-                current_level[part] = {'_fields': [], '_subgroups': {}}
-            current_level = current_level[part]
-            current_level = current_level['_subgroups']
-            
-        # Put the field in the last part's _fields list
-        # We need to navigate to the exact part again to append to _fields
-        curr = grouped_fields
-        for i, part in enumerate(parts):
-            if i == len(parts) - 1:
-                curr[part]['_fields'].append(field)
-            else:
-                curr = curr[part]['_subgroups']
+        section_name = field.section or 'Thông tin chung'
+        grouped_fields.setdefault(section_name, []).append(field)
 
         rules = json.loads(field.validation_rules_json) if field.validation_rules_json else {}
         if rules.get('hidden'):
