@@ -11,11 +11,7 @@
   <div class="reporting-shell">
     <div class="reporting-hero">
       <div>
-        <div class="reporting-chip mb-3">
-          <i class="fa-solid fa-chart-line"></i>
-          <span>Tổng quan báo cáo</span>
-        </div>
-        <h3>Tổng quan báo cáo</h3>
+        <h1>Tổng quan báo cáo</h1>
       </div>
       <div class="reporting-hero-actions">
         <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-secondary rounded-pill px-4">
@@ -48,8 +44,7 @@
       <div class="col-lg-7">
         <div class="reporting-table-shell h-100">
           <div class="reporting-panel-header">
-            <h5 class="mb-1">Thống kê theo đơn vị</h5>
-            <p class="reporting-muted mb-0">Số báo cáo đã nộp theo từng đơn vị.</p>
+            <h5 class="mb-0">Thống kê theo đơn vị</h5>
           </div>
           <div class="reporting-panel-body">
             {% if unit_stats %}
@@ -81,8 +76,7 @@
       <div class="col-lg-5">
         <div class="reporting-table-shell mb-4">
           <div class="reporting-panel-header">
-            <h5 class="mb-1">Báo cáo theo đội nghiệp vụ</h5>
-            <p class="reporting-muted mb-0">Số lượng biểu mẫu được giao cho mỗi đội.</p>
+            <h5 class="mb-0">Báo cáo theo đội nghiệp vụ</h5>
           </div>
           <div class="reporting-panel-body">
             {% if department_stats %}

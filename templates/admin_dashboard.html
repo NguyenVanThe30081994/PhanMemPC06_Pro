@@ -74,6 +74,7 @@
         flex-direction: column;
         gap: 20px;
         border: 1px solid rgba(148, 163, 184, 0.16);
+        background: var(--bg-surface);
         box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
     }
 
@@ -96,7 +97,7 @@
         margin: 0;
         font-size: 1.1rem;
         font-weight: 800;
-        color: #0f172a;
+        color: var(--text-main);
     }
 
     .overview-card-icon {
@@ -120,9 +121,9 @@
         justify-content: center;
         font-weight: 800;
         font-size: 1rem;
-        background: rgba(255, 255, 255, 0.72);
+        background: rgba(248, 250, 252, 0.84);
         border: 1px solid rgba(148, 163, 184, 0.16);
-        color: #0f172a;
+        color: var(--text-main);
     }
 
     .overview-card-body {
@@ -150,7 +151,7 @@
 
     .overview-row-name {
         font-weight: 700;
-        color: #1e293b;
+        color: var(--text-main);
     }
 
     .overview-row-count {
@@ -161,12 +162,12 @@
         font-weight: 800;
         background: rgba(255, 255, 255, 0.9);
         border: 1px solid rgba(148, 163, 184, 0.16);
-        color: #0f172a;
+        color: var(--text-main);
     }
 
     .overview-row-text {
         font-weight: 700;
-        color: #475569;
+        color: var(--text-muted);
         text-align: right;
     }
 
@@ -177,11 +178,43 @@
         align-items: center;
         justify-content: center;
         text-align: center;
-        color: #94a3b8;
+        color: var(--text-muted);
         font-weight: 700;
         border: 1px dashed rgba(148, 163, 184, 0.28);
         border-radius: 20px;
         background: rgba(248, 250, 252, 0.78);
+    }
+
+    [data-theme="dark"] .overview-card {
+        border-color: rgba(148, 163, 184, 0.18);
+        background: rgba(15, 23, 42, 0.84);
+        box-shadow: 0 18px 45px rgba(2, 6, 23, 0.36);
+    }
+
+    [data-theme="dark"] .overview-card-badge {
+        background: rgba(30, 41, 59, 0.92);
+        border-color: rgba(148, 163, 184, 0.18);
+    }
+
+    [data-theme="dark"] .overview-row {
+        background: rgba(15, 23, 42, 0.72);
+        border-color: rgba(148, 163, 184, 0.14);
+    }
+
+    [data-theme="dark"] .overview-row-count {
+        background: rgba(30, 41, 59, 0.92);
+        border-color: rgba(148, 163, 184, 0.18);
+    }
+
+    [data-theme="dark"] .overview-empty {
+        background: rgba(15, 23, 42, 0.68);
+        border-color: rgba(148, 163, 184, 0.2);
+    }
+
+    [data-theme="dark"] .overview-card-footer .btn.btn-light {
+        background: rgba(30, 41, 59, 0.92) !important;
+        border-color: rgba(148, 163, 184, 0.18) !important;
+        color: var(--text-main) !important;
     }
 
     .overview-card-primary .overview-card-icon {

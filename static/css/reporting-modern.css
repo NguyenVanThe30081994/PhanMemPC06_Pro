@@ -15,6 +15,19 @@
     --reporting-radius-sm: 18px;
 }
 
+[data-theme="dark"] {
+    --reporting-bg: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+    --reporting-surface: rgba(15, 23, 42, 0.88);
+    --reporting-surface-strong: #172033;
+    --reporting-border: rgba(148, 163, 184, 0.18);
+    --reporting-border-strong: rgba(148, 163, 184, 0.28);
+    --reporting-text: #e5eefb;
+    --reporting-muted: #9fb0c7;
+    --reporting-accent-soft: rgba(45, 212, 191, 0.16);
+    --reporting-highlight-soft: rgba(59, 130, 246, 0.18);
+    --reporting-shadow: 0 24px 60px rgba(2, 6, 23, 0.45);
+}
+
 .reporting-page {
     color: var(--reporting-text);
 }
@@ -88,6 +101,11 @@
     color: var(--reporting-text);
     font-size: 0.92rem;
     font-weight: 600;
+}
+
+[data-theme="dark"] .reporting-chip,
+[data-theme="dark"] .reporting-pill {
+    background: rgba(15, 23, 42, 0.7);
 }
 
 .reporting-pill strong {
@@ -222,6 +240,22 @@
     border-bottom-width: 1px;
 }
 
+[data-theme="dark"] .reporting-table-shell .table {
+    color: var(--reporting-text);
+}
+
+[data-theme="dark"] .reporting-table-shell .table thead th {
+    background: rgba(30, 41, 59, 0.92);
+    color: #c9d7ea;
+    border-color: rgba(148, 163, 184, 0.18);
+}
+
+[data-theme="dark"] .reporting-table-shell .table tbody td {
+    background: transparent;
+    color: var(--reporting-text);
+    border-color: rgba(148, 163, 184, 0.12);
+}
+
 .reporting-table-shell .table > :not(caption) > * > * {
     padding: 14px 16px;
 }
@@ -230,12 +264,20 @@
     background: rgba(15, 118, 110, 0.04);
 }
 
+[data-theme="dark"] .reporting-table-shell .table tbody tr:hover {
+    background: rgba(45, 212, 191, 0.08);
+}
+
 .reporting-section {
     background: rgba(255, 255, 255, 0.8);
     border: 1px solid var(--reporting-border);
     border-radius: 22px;
     padding: 22px;
     box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
+}
+
+[data-theme="dark"] .reporting-section {
+    background: rgba(15, 23, 42, 0.76);
 }
 
 .reporting-section-title {
@@ -266,12 +308,27 @@
     color: #243548;
 }
 
+[data-theme="dark"] .reporting-field label {
+    color: #d9e6f7;
+}
+
 .reporting-field .form-control,
 .reporting-field .form-select {
     min-height: 48px;
     border-radius: 16px;
     border-color: rgba(15, 23, 42, 0.12);
     background: rgba(255, 255, 255, 0.96);
+}
+
+[data-theme="dark"] .reporting-field .form-control,
+[data-theme="dark"] .reporting-field .form-select {
+    color: var(--reporting-text);
+    background: rgba(15, 23, 42, 0.92);
+    border-color: rgba(148, 163, 184, 0.2);
+}
+
+[data-theme="dark"] .reporting-field .form-control::placeholder {
+    color: #7f93ae;
 }
 
 .reporting-field .form-control:focus,
@@ -284,6 +341,10 @@
     background: #eef4f8 !important;
 }
 
+[data-theme="dark"] .reporting-field-readonly {
+    background: rgba(30, 41, 59, 0.9) !important;
+}
+
 .reporting-note,
 .reporting-empty {
     border-radius: 18px;
@@ -291,6 +352,11 @@
     border: 1px solid var(--reporting-border);
     background: rgba(255, 255, 255, 0.76);
     color: var(--reporting-muted);
+}
+
+[data-theme="dark"] .reporting-note,
+[data-theme="dark"] .reporting-empty {
+    background: rgba(15, 23, 42, 0.7);
 }
 
 .reporting-tabs {
@@ -305,6 +371,10 @@
     font-weight: 700;
     padding: 10px 16px;
     background: rgba(255, 255, 255, 0.72);
+}
+
+[data-theme="dark"] .reporting-tabs .nav-link {
+    background: rgba(15, 23, 42, 0.7);
 }
 
 .reporting-tabs .nav-link.active {
@@ -329,6 +399,10 @@
     backdrop-filter: blur(14px);
 }
 
+[data-theme="dark"] .reporting-sticky-actions {
+    background: rgba(15, 23, 42, 0.88);
+}
+
 .preview-toolbar {
     display: flex;
     gap: 12px;
@@ -347,6 +421,11 @@
     box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
 
+[data-theme="dark"] .preview-btn,
+[data-theme="dark"] .preview-icon-btn {
+    background: rgba(15, 23, 42, 0.88);
+}
+
 .preview-icon-btn {
     width: 48px;
     display: inline-flex;
@@ -363,6 +442,10 @@
     background: rgba(255, 255, 255, 0.82);
     border: 1px solid var(--reporting-border);
     box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+[data-theme="dark"] .preview-zoom {
+    background: rgba(15, 23, 42, 0.88);
 }
 
 .preview-zoom-readout {
