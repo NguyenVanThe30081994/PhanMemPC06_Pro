@@ -38,6 +38,7 @@
                 </div>
 
                 <form method="POST" id="aiSettingsForm">
+                    <input type="hidden" name="action" id="aiSettingsAction" value="save">
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label tiny text-muted fw-bold">NHÀ CUNG CẤP</label>
@@ -93,6 +94,9 @@
                     <div class="d-flex flex-wrap gap-2 mt-4">
                         <button type="submit" class="btn btn-primary rounded-pill px-4">
                             <i class="fa-solid fa-save me-1"></i> Lưu cấu hình
+                        </button>
+                        <button type="submit" class="btn btn-outline-primary rounded-pill px-4" onclick="document.getElementById('aiSettingsAction').value='test_connection'">
+                            <i class="fa-solid fa-plug-circle-check me-1"></i> Lưu và kiểm tra kết nối
                         </button>
                         <a href="/ai" class="btn btn-light rounded-pill px-4 border">
                             <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Mở Trợ lý AI

@@ -165,12 +165,69 @@ def _extract_gemini_text(payload):
     return answer or None
 
 
+def _extract_error_detail(response):
+    try:
+        payload = response.json()
+    except Exception:
+        payload = None
+
+    if isinstance(payload, dict):
+        error = payload.get('error')
+        if isinstance(error, dict):
+            return (
+                error.get('message')
+                or error.get('code')
+                or str(error)
+            )
+        if isinstance(error, str):
+            return error
+        message = payload.get('message')
+        if isinstance(message, str) and message.strip():
+            return message.strip()
+
+    body = (response.text or '').strip()
+    if body:
+        return body[:240]
+    return 'Không có mô tả lỗi chi tiết'
+
+
+def _provider_success(answer, provider, model_name):
+    return {
+        'ok': True,
+        'answer': answer,
+        'provider': provider,
+        'model': model_name,
+    }
+
+
+def _provider_error(provider, model_name, message, status_code=None):
+    return {
+        'ok': False,
+        'provider': provider,
+        'model': model_name,
+        'status_code': status_code,
+        'error': message,
+    }
+
+
+def _build_provider_failure_message(provider_error):
+    provider = (provider_error or {}).get('provider', 'provider')
+    model_name = (provider_error or {}).get('model', '')
+    error_text = (provider_error or {}).get('error', 'Không rõ nguyên nhân')
+    pieces = [
+        f"Đã cấu hình {provider} nhưng hiện chưa gọi được model {model_name}.",
+        f"Chi tiết: {error_text}.",
+        "Bạn kiểm tra lại API key, số dư/quota và khả năng kết nối outbound từ host tới API."
+    ]
+    return ' '.join(pieces)
+
+
 def call_deepseek_api(prompt, model=None):
     api_key = _get_provider_api_key('deepseek')
-    if not api_key:
-        return None
-
     model_name = model or AI_PROVIDER_DEFAULTS['deepseek']
+    if not api_key:
+        return _provider_error('deepseek', model_name, 'Chưa tìm thấy API key DeepSeek')
+
     system_prompt = _get_system_prompt()
     headers = {
         'Authorization': f'Bearer {api_key}',
@@ -196,19 +253,22 @@ def call_deepseek_api(prompt, model=None):
         if response.status_code == 200:
             answer = _extract_openai_text(response.json())
             if answer:
-                return {'answer': answer, 'provider': 'deepseek', 'model': model_name}
+                return _provider_success(answer, 'deepseek', model_name)
+            return _provider_error('deepseek', model_name, 'API trả về 200 nhưng không có nội dung trả lời', 200)
+        return _provider_error('deepseek', model_name, _extract_error_detail(response), response.status_code)
     except Exception as exc:
         print(f"DeepSeek API error: {exc}")
+        return _provider_error('deepseek', model_name, str(exc))
 
-    return None
+    return _provider_error('deepseek', model_name, 'Không xác định được lỗi')
 
 
 def call_gemini_api(prompt, model=None):
     api_key = _get_provider_api_key('gemini')
-    if not api_key:
-        return None
-
     model_name = model or AI_PROVIDER_DEFAULTS['gemini']
+    if not api_key:
+        return _provider_error('gemini', model_name, 'Chưa tìm thấy API key Gemini')
+
     system_prompt = _get_system_prompt()
     url = f'https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}'
     payload = {
@@ -232,19 +292,22 @@ def call_gemini_api(prompt, model=None):
         if response.status_code == 200:
             answer = _extract_gemini_text(response.json())
             if answer:
-                return {'answer': answer, 'provider': 'gemini', 'model': model_name}
+                return _provider_success(answer, 'gemini', model_name)
+            return _provider_error('gemini', model_name, 'API trả về 200 nhưng không có nội dung trả lời', 200)
+        return _provider_error('gemini', model_name, _extract_error_detail(response), response.status_code)
     except Exception as exc:
         print(f"Gemini API error: {exc}")
+        return _provider_error('gemini', model_name, str(exc))
 
-    return None
+    return _provider_error('gemini', model_name, 'Không xác định được lỗi')
 
 
 def call_openai_api(prompt, model=None):
     api_key = _get_provider_api_key('openai')
-    if not api_key:
-        return None
-
     model_name = model or AI_PROVIDER_DEFAULTS['openai']
+    if not api_key:
+        return _provider_error('openai', model_name, 'Chưa tìm thấy API key OpenAI')
+
     system_prompt = _get_system_prompt()
     headers = {
         'Authorization': f'Bearer {api_key}',
@@ -270,19 +333,22 @@ def call_openai_api(prompt, model=None):
         if response.status_code == 200:
             answer = _extract_openai_text(response.json())
             if answer:
-                return {'answer': answer, 'provider': 'openai', 'model': model_name}
+                return _provider_success(answer, 'openai', model_name)
+            return _provider_error('openai', model_name, 'API trả về 200 nhưng không có nội dung trả lời', 200)
+        return _provider_error('openai', model_name, _extract_error_detail(response), response.status_code)
     except Exception as exc:
         print(f"OpenAI API error: {exc}")
+        return _provider_error('openai', model_name, str(exc))
 
-    return None
+    return _provider_error('openai', model_name, 'Không xác định được lỗi')
 
 
 def call_groq_api(prompt, model=None):
     api_key = _get_provider_api_key('groq')
-    if not api_key:
-        return None
-
     model_name = model or AI_PROVIDER_DEFAULTS['groq']
+    if not api_key:
+        return _provider_error('groq', model_name, 'Chưa tìm thấy API key Groq')
+
     system_prompt = _get_system_prompt()
     headers = {
         'Authorization': f'Bearer {api_key}',
@@ -308,11 +374,14 @@ def call_groq_api(prompt, model=None):
         if response.status_code == 200:
             answer = _extract_openai_text(response.json())
             if answer:
-                return {'answer': answer, 'provider': 'groq', 'model': model_name}
+                return _provider_success(answer, 'groq', model_name)
+            return _provider_error('groq', model_name, 'API trả về 200 nhưng không có nội dung trả lời', 200)
+        return _provider_error('groq', model_name, _extract_error_detail(response), response.status_code)
     except Exception as exc:
         print(f"Groq API error: {exc}")
+        return _provider_error('groq', model_name, str(exc))
 
-    return None
+    return _provider_error('groq', model_name, 'Không xác định được lỗi')
 
 
 def call_ai_provider(prompt):
@@ -324,14 +393,17 @@ def call_ai_provider(prompt):
         'openai': call_openai_api,
         'groq': call_groq_api,
     }
+    errors = []
 
     for provider in provider_sequence:
         model_name = runtime['model'] if provider == runtime['provider'] else AI_PROVIDER_DEFAULTS[provider]
         result = provider_callers[provider](prompt, model=model_name)
+        if result and result.get('ok'):
+            return result, errors
         if result:
-            return result
+            errors.append(result)
 
-    return None
+    return None, errors
 
 
 def find_answer_from_kb(query):
@@ -437,7 +509,8 @@ def chat():
     if not query:
         return jsonify({'error': 'Vui lòng nhập câu hỏi'}), 400
 
-    ai_result = call_ai_provider(query)
+    runtime = _get_provider_runtime()
+    ai_result, provider_errors = call_ai_provider(query)
     if ai_result:
         return jsonify({
             'success': True,
@@ -449,10 +522,23 @@ def chat():
 
     answer = find_answer_from_kb(query)
     if answer:
+        if runtime['configured'] and provider_errors:
+            answer = (
+                f"{answer}\n\n"
+                f"Lưu ý: hiện engine AI ngoài đang lỗi, nên đây là câu trả lời mẫu nội bộ. "
+                f"{_build_provider_failure_message(provider_errors[0])}"
+            )
         return jsonify({
             'success': True,
             'answer': answer,
             'type': 'kb'
+        })
+
+    if runtime['configured'] and provider_errors:
+        return jsonify({
+            'success': False,
+            'answer': _build_provider_failure_message(provider_errors[0]),
+            'type': 'provider_error'
         })
 
     suggestions = [topic['title'] for topic in SUGGESTED_TOPICS[:5]]

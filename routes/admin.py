@@ -38,6 +38,14 @@ def _mask_secret(value):
         return '*' * len(value)
     return f"{value[:4]}{'*' * (len(value) - 8)}{value[-4:]}"
 
+
+def _test_ai_runtime_connection():
+    from routes.ai_assistant import call_ai_provider
+
+    test_prompt = "Hãy trả lời ngắn gọn bằng đúng cụm từ: Kết nối AI thành công."
+    result, errors = call_ai_provider(test_prompt)
+    return result, errors
+
 @admin_bp.route('/admin')
 def index():
     try:
@@ -428,6 +436,7 @@ def ai_settings():
     config = AIAssistantConfig.query.first()
 
     if request.method == 'POST':
+        action = (request.form.get('action') or 'save').strip()
         provider = (request.form.get('provider') or 'deepseek').strip().lower()
         if provider not in AI_PROVIDER_CHOICES:
             provider = 'deepseek'
@@ -454,17 +463,36 @@ def ai_settings():
                 config.api_key = new_api_key
 
             db.session.commit()
-            log_action(
-                session['uid'],
-                session['fullname'],
-                "Cập nhật cấu hình trợ lý AI",
-                "Hệ thống",
-                f"{AI_PROVIDER_CHOICES.get(provider, provider)} / {config.model_name}"
-            )
-            flash('Đã lưu cấu hình AI thành công!', 'success')
+
+            if action == 'test_connection':
+                result, errors = _test_ai_runtime_connection()
+                if result and result.get('ok'):
+                    flash(
+                        f"Kết nối AI thành công qua {AI_PROVIDER_CHOICES.get(result['provider'], result['provider'])} / {result['model']}.",
+                        'success'
+                    )
+                else:
+                    error_message = (errors[0].get('error') if errors else 'Không lấy được phản hồi từ provider')
+                    flash(f"Không kết nối được AI: {error_message}", 'danger')
+                log_action(
+                    session['uid'],
+                    session['fullname'],
+                    "Kiểm tra kết nối trợ lý AI",
+                    "Hệ thống",
+                    f"{AI_PROVIDER_CHOICES.get(provider, provider)} / {config.model_name}"
+                )
+            else:
+                log_action(
+                    session['uid'],
+                    session['fullname'],
+                    "Cập nhật cấu hình trợ lý AI",
+                    "Hệ thống",
+                    f"{AI_PROVIDER_CHOICES.get(provider, provider)} / {config.model_name}"
+                )
+                flash('Đã lưu cấu hình AI thành công!', 'success')
         except Exception as e:
             db.session.rollback()
-            flash(f'Lỗi lưu cấu hình AI: {e}', 'danger')
+            flash(f'Lỗi cấu hình AI: {e}', 'danger')
 
         return redirect(url_for('admin_bp.ai_settings'))
 
