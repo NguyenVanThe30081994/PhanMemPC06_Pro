@@ -20,14 +20,6 @@
 </div>
 
 <div class="main-content-area animate__animated animate__fadeInUp">
-    <div class="overview-meta mb-4">
-        <div class="overview-meta-text">
-            <h2 class="mb-1">Bảng điều phối nhanh</h2>
-            <p class="mb-0">Tập trung theo đúng 4 mảng đang vận hành hàng ngày của hệ thống.</p>
-        </div>
-        <div class="overview-meta-time">{{ now_str }}</div>
-    </div>
-
     <div class="row g-4">
         {% for card in dashboard_cards %}
         <div class="col-xl-6">
@@ -51,7 +43,11 @@
                         {% for row in card.rows %}
                         <div class="overview-row">
                             <span class="overview-row-name">{{ row.name }}</span>
+                            {% if card.title == 'Báo cáo' %}
+                            <span class="overview-row-text">Đang có {{ row.count }} báo cáo</span>
+                            {% else %}
                             <span class="overview-row-count">{{ row.count }}</span>
+                            {% endif %}
                         </div>
                         {% endfor %}
                     </div>
@@ -72,34 +68,6 @@
 </div>
 
 <style>
-    .overview-meta {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 16px;
-        padding: 20px 24px;
-        border-radius: 24px;
-        background: rgba(255, 255, 255, 0.66);
-        border: 1px solid rgba(255, 255, 255, 0.72);
-        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.05);
-    }
-
-    .overview-meta-text h2 {
-        font-size: 1.1rem;
-        font-weight: 800;
-        color: #0f172a;
-    }
-
-    .overview-meta-text p,
-    .overview-meta-time {
-        color: #64748b;
-    }
-
-    .overview-meta-time {
-        font-weight: 700;
-        white-space: nowrap;
-    }
-
     .overview-card {
         padding: 24px;
         border-radius: 24px;
@@ -203,6 +171,12 @@
         color: #0f172a;
     }
 
+    .overview-row-text {
+        font-weight: 700;
+        color: #475569;
+        text-align: right;
+    }
+
     .overview-empty {
         height: 100%;
         min-height: 220px;
@@ -238,11 +212,6 @@
     }
 
     @media (max-width: 991.98px) {
-        .overview-meta {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
         .overview-card-body {
             min-height: 0;
         }

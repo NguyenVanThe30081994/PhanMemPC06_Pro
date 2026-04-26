@@ -4,27 +4,6 @@
 
 {% block head %}
 <style>
-    .overview-mobile-hero {
-        margin-bottom: 18px;
-        padding: 18px;
-        border-radius: 20px;
-        background: linear-gradient(135deg, rgba(255,255,255,0.94), rgba(239,246,255,0.92));
-        border: 1px solid rgba(148, 163, 184, 0.14);
-    }
-
-    .overview-mobile-hero h2 {
-        font-size: 20px;
-        font-weight: 800;
-        color: var(--text-main);
-        margin-bottom: 4px;
-    }
-
-    .overview-mobile-hero p,
-    .overview-mobile-date {
-        color: var(--text-muted);
-        margin: 0;
-    }
-
     .overview-mobile-grid {
         display: grid;
         gap: 14px;
@@ -120,6 +99,13 @@
         color: var(--text-main);
     }
 
+    .overview-mobile-text {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-align: right;
+    }
+
     .overview-mobile-empty {
         margin: 14px 0 16px;
         padding: 24px 16px;
@@ -147,12 +133,6 @@
 
 {% block content %}
 <div class="animate__animated animate__fadeIn">
-    <div class="overview-mobile-hero">
-        <h2>Tổng quan hệ thống</h2>
-        <p>Bốn mảng dữ liệu đang vận hành trực tiếp trong phần mềm.</p>
-        <div class="overview-mobile-date mt-2">{{ now_str }}</div>
-    </div>
-
     <div class="overview-mobile-grid">
         {% for card in dashboard_cards %}
         <div class="overview-mobile-card">
@@ -174,7 +154,11 @@
                 {% for row in card.rows %}
                 <div class="overview-mobile-row">
                     <span class="overview-mobile-name">{{ row.name }}</span>
+                    {% if card.title == 'Báo cáo' %}
+                    <span class="overview-mobile-text">Đang có {{ row.count }} báo cáo</span>
+                    {% else %}
                     <span class="overview-mobile-count">{{ row.count }}</span>
+                    {% endif %}
                 </div>
                 {% endfor %}
             </div>
