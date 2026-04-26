@@ -16,9 +16,6 @@
           <span>Lịch sử & Audit trail</span>
         </div>
         <h3>{% if template %}{{ template.name }}{% else %}Lịch sử reporting{% endif %}</h3>
-        <p class="reporting-subtitle">
-          Theo dõi báo cáo đã tạo và nhật ký thao tác để kiểm tra quá trình nhập liệu, lưu nháp và nộp báo cáo.
-        </p>
       </div>
       <div class="reporting-hero-actions">
         <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) if template else url_for('reporting_bp.index') }}" class="btn btn-outline-secondary rounded-pill px-4">

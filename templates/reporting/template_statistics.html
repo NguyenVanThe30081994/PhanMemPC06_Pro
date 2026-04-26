@@ -16,10 +16,6 @@
           <span>Thống kê tiến độ nộp</span>
         </div>
         <h3>{{ template.name }}</h3>
-        <p class="reporting-subtitle">
-          Kỳ đang xét: <strong>{{ period.name }}</strong>. Hệ thống đang theo dõi theo cấu hình
-          <strong>{{ schedule_summary }}</strong>.
-        </p>
       </div>
       <div class="reporting-hero-actions">
         <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="btn btn-outline-secondary rounded-pill px-4">
@@ -36,7 +32,6 @@
       <div class="reporting-stat-card">
         <div class="reporting-stat-label">Đã nộp</div>
         <div class="reporting-stat-value">{{ summary.submitted }}</div>
-        <div class="reporting-stat-note">{{ summary.percent }}% hoàn thành</div>
       </div>
       <div class="reporting-stat-card">
         <div class="reporting-stat-label">Chưa nộp</div>

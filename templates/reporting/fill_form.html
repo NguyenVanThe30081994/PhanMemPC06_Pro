@@ -16,11 +16,6 @@
           <span>Nhập liệu báo cáo</span>
         </div>
         <h3>{{ report_data.schema.template_name }}</h3>
-        <p class="reporting-subtitle">
-          Đơn vị <strong>{{ instance.org_unit }}</strong> đang làm việc trên báo cáo ở trạng thái
-          <strong>{{ 'Đã nộp' if instance.status == 'submitted' else 'Nháp' }}</strong>.
-          Bản nháp được tự động lưu sau khi bạn chỉnh sửa dữ liệu.
-        </p>
       </div>
       <div class="reporting-hero-actions">
         <span class="reporting-pill">
