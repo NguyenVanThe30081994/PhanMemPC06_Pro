@@ -250,6 +250,7 @@
         .collapse { padding-left: 8px; border-left: 2px solid var(--border); margin: 8px 0; }
     </style>
     {% block head %}{% endblock %}
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
     {% if request.endpoint != 'auth_bp.login' %}

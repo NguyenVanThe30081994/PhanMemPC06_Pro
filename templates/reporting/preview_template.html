@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_mobile.html" if g.is_mobile else "base.html" %}
 
 {% block title %}Xem biểu mẫu Excel - {{ template.name }}{% endblock %}
 

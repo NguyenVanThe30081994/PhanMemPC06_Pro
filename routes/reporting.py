@@ -3,7 +3,7 @@
 Routes cho hệ thống nhập liệu báo cáo mới
 API endpoints và UI pages
 """
-from flask import Blueprint, render_template, request, session, redirect, url_for, jsonify, flash, make_response
+from flask import Blueprint, request, session, redirect, url_for, jsonify, flash, make_response
 import calendar
 import json
 import datetime
@@ -16,7 +16,7 @@ from excel_renderer import format_excel_number
 from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ReportInstance, ReportAuditLog
 from sqlalchemy import or_
 from services.form_engine import FormEngine
-from utils import log_action
+from utils import log_action, render_auto_template as render_template
 from models import User
 
 reporting_bp = Blueprint('reporting_bp', __name__, url_prefix='/reporting')
