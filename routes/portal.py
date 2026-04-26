@@ -4,7 +4,7 @@ import os, pandas as pd, io, json
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from models import db, NewsDoc, DocumentLib, Contact, CategoryItem, AppRole
-from category_helpers import get_category_items, get_module_field_items
+from category_helpers import get_category_items, get_module_field_items, get_bound_group, get_category_group, slugify_code
 from utils import log_action, push_global_notif, render_auto_template as render_template
 
 portal_bp = Blueprint('portal_bp', __name__)
@@ -142,7 +142,7 @@ def contact_edit(cid):
         flash(f'Lỗi cập nhật: {e}', 'danger')
     return redirect(url_for('portal_bp.contacts'))
 
-@portal_bp.route('/contacts/delete/<int:cid>')
+@portal_bp.route('/contacts/delete/<int:cid>', methods=['POST'])
 def contact_delete(cid):
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
     
@@ -183,15 +183,29 @@ def contact_add():
     group = request.form.get('contact_group')
     new_group_name = request.form.get('new_group_name')
 
-    if group == 'NEW' and new_group_name:
-        # Check if group exists
-        existing = CategoryItem.query.filter_by(name=new_group_name).first()
+    if group == 'NEW':
+        new_group_name = (new_group_name or '').strip()
+        if not new_group_name:
+            flash('Bạn cần nhập tên nhóm danh bạ mới.', 'danger')
+            return redirect(url_for('portal_bp.contacts'))
+
+        group_bucket = get_bound_group('contacts', 'contact_group') or get_category_group('Nhóm danh bạ')
+        existing = None
+        if group_bucket:
+            existing = CategoryItem.query.filter_by(group_id=group_bucket.id, name=new_group_name).first()
+        else:
+            existing = CategoryItem.query.filter_by(name=new_group_name).first()
+
         if not existing:
-            # Assuming CategoryItem is used for dynamic groups
-            new_g = CategoryItem(name=new_group_name)
+            new_g = CategoryItem(
+                group_id=group_bucket.id if group_bucket else None,
+                code=slugify_code(new_group_name),
+                name=new_group_name,
+                is_active=True
+            )
             db.session.add(new_g)
-            db.session.commit()
-            group = new_group_name
+            db.session.flush()
+            group = new_g.name
         else:
             group = existing.name
 

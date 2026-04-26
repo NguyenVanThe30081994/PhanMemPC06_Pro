@@ -91,7 +91,7 @@ def add_link():
     flash('Đã tạo link rút gọn thành công!', 'success')
     return redirect(url_for('shortlink_bp.manage_links'))
 
-@shortlink_bp.route('/links/delete/<int:link_id>')
+@shortlink_bp.route('/links/delete/<int:link_id>', methods=['POST'])
 def delete_link(link_id):
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))

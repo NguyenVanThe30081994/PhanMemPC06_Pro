@@ -69,9 +69,11 @@
                             </td>
                             <td class="px-4 py-2 text-center">
                                 {% if is_admin or link.created_by == session.uid %}
-                                <button class="btn btn-link p-0 text-danger transition-all" title="Xoá" onclick="ModernConfirm('Xác nhận xóa?', 'Bạn có chắc chắn muốn xoá link rút gọn này không?', 'warning', 'Xóa ngay', () => { window.location.href='{{ url_for('shortlink_bp.delete_link', link_id=link.id) }}'; })">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
+                                <form method="POST" action="{{ url_for('shortlink_bp.delete_link', link_id=link.id) }}" class="d-inline m-0" onsubmit="return confirm('Bạn có chắc chắn muốn xoá link rút gọn này không?')">
+                                    <button type="submit" class="btn btn-link p-0 text-danger transition-all" title="Xoá">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </form>
                                 {% endif %}
                             </td>
                         </tr>

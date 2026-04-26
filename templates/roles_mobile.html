@@ -70,9 +70,11 @@
                          <a href="/admin/user/toggle-status/{{ u.id }}" class="btn btn-link p-0 {{ 'text-warning' if u.is_active else 'text-success' }}">
                             <i class="fa-solid {{ 'fa-lock' if u.is_active else 'fa-lock-open' }}"></i> {{ 'Khóa' if u.is_active else 'Mở' }}
                          </a>
-                         <a href="#" class="btn btn-link p-0 text-danger" onclick="if(confirm('Xóa account này?')) window.location.href='/admin/user/delete/{{ u.id }}'">
-                            <i class="fa-solid fa-trash-can"></i> Xóa
-                         </a>
+                         <form method="POST" action="{{ url_for('admin_bp.delete_user', uid=u.id) }}" class="d-inline m-0" onsubmit="return confirm('Xóa account này?')">
+                            <button type="submit" class="btn btn-link p-0 text-danger">
+                                <i class="fa-solid fa-trash-can"></i> Xóa
+                            </button>
+                         </form>
                     </div>
                 </div>
                 {% endfor %}

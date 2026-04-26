@@ -125,9 +125,11 @@
                                             <a href="/admin/user/toggle-status/{{ u.id }}" class="btn btn-link p-0 border-0 fs-5 {% if u.is_active %}text-warning{% else %}text-success{% endif %}" title="{{ 'Khóa tài khoản' if u.is_active else 'Mở khóa' }}">
                                                 <i class="fa-solid {{ 'fa-lock' if u.is_active else 'fa-lock-open' }}"></i>
                                             </a>
-                                            <button type="button" class="btn btn-link text-danger p-0 border-0 fs-5" title="Xóa tài khoản" onclick="ModernConfirm('Xác nhận xóa?', 'Bạn có chắc chắn muốn xóa tài khoản này?', 'warning', 'Xác nhận xóa', () => { window.location.href='/admin/user/delete/{{ u.id }}'; })">
-                                                <i class="fa-solid fa-trash-can"></i>
-                                            </button>
+                                            <form method="POST" action="{{ url_for('admin_bp.delete_user', uid=u.id) }}" class="d-inline m-0" onsubmit="return confirm('Bạn có chắc chắn muốn xóa tài khoản này?')">
+                                                <button type="submit" class="btn btn-link text-danger p-0 border-0 fs-5" title="Xóa tài khoản">
+                                                    <i class="fa-solid fa-trash-can"></i>
+                                                </button>
+                                            </form>
                                         </div>
                                     </td>
                                 </tr>
@@ -154,9 +156,11 @@
                                     <a href="/admin/user/toggle-status/{{ u.id }}" class="btn btn-link p-0 {% if u.is_active %}text-warning{% else %}text-success{% endif %} transition-all" title="Khóa/Mở">
                                         <i class="fa-solid {{ 'fa-lock' if u.is_active else 'fa-lock-open' }}"></i>
                                     </a>
-                                    <button class="btn btn-link p-0 text-danger transition-all" title="Xóa" onclick="ModernConfirm('Xác nhận xóa?', 'Xóa tài khoản này?', 'warning', 'Xóa', () => { window.location.href='/admin/user/delete/{{ u.id }}'; })">
-                                        <i class="fa-solid fa-trash-can"></i>
-                                    </button>
+                                    <form method="POST" action="{{ url_for('admin_bp.delete_user', uid=u.id) }}" class="d-inline m-0" onsubmit="return confirm('Xóa tài khoản này?')">
+                                        <button type="submit" class="btn btn-link p-0 text-danger transition-all" title="Xóa">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
                                 </div>
                                 {% if u.is_active %}
                                 <span class="badge bg-success-subtle text-success border px-2 tiny">Hoạt động</span>

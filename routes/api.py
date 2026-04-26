@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, jsonify, session, request
-from models import db, Notification, User
+from models import db, Notification, User, Category
 
 api_bp = Blueprint('api_bp', __name__)
 

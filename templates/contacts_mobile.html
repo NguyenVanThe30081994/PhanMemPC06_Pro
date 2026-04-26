@@ -58,9 +58,11 @@
             </div>
             {% if perms.get('p_contact_lead') or is_admin %}
             <div class="text-end mt-2 pt-2 border-top">
-                 <a href="/contacts/delete/{{ c.id }}" class="text-danger small text-decoration-none fw-bold" onclick="return confirm('Xóa liên hệ này?')">
-                    <i class="fa-solid fa-trash-can me-1"></i> XÓA
-                </a>
+                <form method="POST" action="{{ url_for('portal_bp.contact_delete', cid=c.id) }}" class="d-inline m-0" onsubmit="return confirm('Xóa liên hệ này?')">
+                    <button type="submit" class="btn btn-link p-0 text-danger small text-decoration-none fw-bold">
+                        <i class="fa-solid fa-trash-can me-1"></i> XÓA
+                    </button>
+                </form>
             </div>
             {% endif %}
         </div>

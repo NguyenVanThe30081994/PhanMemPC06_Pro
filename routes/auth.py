@@ -49,7 +49,9 @@ def login():
                 return redirect(url_for('auth_bp.change_password'))
                 
             flash(f'Chào mừng trở lại, {usr.fullname}!', 'success')
-            return redirect('/admin')
+            if session.get('is_admin'):
+                return redirect(url_for('admin_bp.index'))
+            return redirect(url_for('tasks_bp.tasks'))
         
     return render_template('login.html')
 

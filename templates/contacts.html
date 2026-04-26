@@ -80,9 +80,11 @@
                                     <i class="fa-solid fa-phone text-success tiny"></i>
                                 </a>
                                 {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
-                                <a href="/contacts/delete/{{ c.id }}" class="btn btn-light btn-circle btn-circle-sm border shadow-sm text-danger" onclick="return confirm('Xóa liên hệ này?')">
-                                    <i class="fa-solid fa-trash tiny"></i>
-                                </a>
+                                <form method="POST" action="{{ url_for('portal_bp.contact_delete', cid=c.id) }}" class="d-inline m-0" onsubmit="return confirm('Xóa liên hệ này?')">
+                                    <button type="submit" class="btn btn-light btn-circle btn-circle-sm border shadow-sm text-danger">
+                                        <i class="fa-solid fa-trash tiny"></i>
+                                    </button>
+                                </form>
                                 {% endif %}
                             </div>
                         </td>

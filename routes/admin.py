@@ -88,6 +88,9 @@ def index():
     try:
         if not session.get('uid'): 
             return redirect(url_for('auth_bp.login'))
+        if not session.get('is_admin'):
+            flash('Bạn không có quyền truy cập trang tổng quan quản trị.', 'warning')
+            return redirect(url_for('tasks_bp.tasks'))
 
         from sqlalchemy import func
         from models_reporting import FormTemplate
@@ -275,7 +278,7 @@ def roles():
     unit_cats = CategoryItem.query.filter_by(group_id=unit_group.id).all() if unit_group else []
     return render_template('roles.html', roles=AppRole.query.all(), users=User.query.all(), units=[u[0] for u in db.session.query(MasterData.name).distinct().all() if u[0]], unit_cats=unit_cats)
 
-@admin_bp.route('/admin/user/delete/<int:uid>')
+@admin_bp.route('/admin/user/delete/<int:uid>', methods=['POST'])
 def delete_user(uid):
     if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
     u = db.session.get(User, uid)
