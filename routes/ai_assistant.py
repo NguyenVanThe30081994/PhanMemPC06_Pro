@@ -4,6 +4,7 @@ import os
 import requests
 import re
 from utils import render_auto_template as render_template
+from models import AIAssistantConfig
 
 ai_bp = Blueprint('ai_bp', __name__, url_prefix='/ai')
 
@@ -91,30 +92,57 @@ CANNED_RESPONSES = {
 }
 
 
+def _get_ai_config():
+    try:
+        return AIAssistantConfig.query.first()
+    except Exception:
+        return None
+
+
+def _get_system_prompt(config=None):
+    cfg = config or _get_ai_config()
+    if cfg and cfg.is_active and (cfg.system_prompt or '').strip():
+        return cfg.system_prompt.strip()
+    return AI_SYSTEM_PROMPT
+
+
 def _get_provider_sequence():
-    preferred = (os.getenv('AI_ASSISTANT_PROVIDER') or 'deepseek').strip().lower()
+    preferred = _get_provider_runtime()['provider']
     ordered = [preferred] + [name for name in AI_PROVIDER_DEFAULTS if name != preferred]
     return [name for name in ordered if name in AI_PROVIDER_DEFAULTS]
 
 
 def _get_provider_runtime():
-    preferred = (os.getenv('AI_ASSISTANT_PROVIDER') or 'deepseek').strip().lower()
+    config = _get_ai_config()
+
+    preferred = ((config.provider if config and config.is_active else None) or os.getenv('AI_ASSISTANT_PROVIDER') or 'deepseek').strip().lower()
     if preferred not in AI_PROVIDER_DEFAULTS:
         preferred = 'deepseek'
 
-    model = (os.getenv('AI_ASSISTANT_MODEL') or AI_PROVIDER_DEFAULTS[preferred]).strip()
-    configured = bool(
-        (preferred == 'deepseek' and (os.getenv('DEEPSEEK_API_KEY') or '').strip()) or
-        (preferred == 'gemini' and (os.getenv('GEMINI_API_KEY') or '').strip()) or
-        (preferred == 'openai' and (os.getenv('OPENAI_API_KEY') or '').strip()) or
-        (preferred == 'groq' and (os.getenv('GROQ_API_KEY') or '').strip())
-    )
+    model = ((config.model_name if config and config.is_active else None) or os.getenv('AI_ASSISTANT_MODEL') or AI_PROVIDER_DEFAULTS[preferred]).strip()
+    api_key = _get_provider_api_key(preferred, config=config)
+    configured = bool(api_key)
     return {
         'provider': preferred,
         'model': model,
         'label': AI_PROVIDER_LABELS.get(preferred, model),
         'configured': configured,
     }
+
+
+def _get_provider_api_key(provider, config=None):
+    cfg = config or _get_ai_config()
+
+    if cfg and cfg.is_active and (cfg.provider or '').strip().lower() == provider and (cfg.api_key or '').strip():
+        return cfg.api_key.strip()
+
+    env_keys = {
+        'deepseek': 'DEEPSEEK_API_KEY',
+        'gemini': 'GEMINI_API_KEY',
+        'openai': 'OPENAI_API_KEY',
+        'groq': 'GROQ_API_KEY',
+    }
+    return (os.getenv(env_keys.get(provider, ''), '') or '').strip()
 
 
 def _extract_openai_text(payload):
@@ -138,11 +166,12 @@ def _extract_gemini_text(payload):
 
 
 def call_deepseek_api(prompt, model=None):
-    api_key = (os.getenv('DEEPSEEK_API_KEY') or '').strip()
+    api_key = _get_provider_api_key('deepseek')
     if not api_key:
         return None
 
     model_name = model or AI_PROVIDER_DEFAULTS['deepseek']
+    system_prompt = _get_system_prompt()
     headers = {
         'Authorization': f'Bearer {api_key}',
         'Content-Type': 'application/json',
@@ -150,7 +179,7 @@ def call_deepseek_api(prompt, model=None):
     payload = {
         'model': model_name,
         'messages': [
-            {'role': 'system', 'content': AI_SYSTEM_PROMPT},
+            {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': prompt},
         ],
         'temperature': 0.35,
@@ -175,15 +204,16 @@ def call_deepseek_api(prompt, model=None):
 
 
 def call_gemini_api(prompt, model=None):
-    api_key = (os.getenv('GEMINI_API_KEY') or '').strip()
+    api_key = _get_provider_api_key('gemini')
     if not api_key:
         return None
 
     model_name = model or AI_PROVIDER_DEFAULTS['gemini']
+    system_prompt = _get_system_prompt()
     url = f'https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}'
     payload = {
         'system_instruction': {
-            'parts': [{'text': AI_SYSTEM_PROMPT}]
+            'parts': [{'text': system_prompt}]
         },
         'contents': [
             {
@@ -210,11 +240,12 @@ def call_gemini_api(prompt, model=None):
 
 
 def call_openai_api(prompt, model=None):
-    api_key = (os.getenv('OPENAI_API_KEY') or '').strip()
+    api_key = _get_provider_api_key('openai')
     if not api_key:
         return None
 
     model_name = model or AI_PROVIDER_DEFAULTS['openai']
+    system_prompt = _get_system_prompt()
     headers = {
         'Authorization': f'Bearer {api_key}',
         'Content-Type': 'application/json',
@@ -222,7 +253,7 @@ def call_openai_api(prompt, model=None):
     payload = {
         'model': model_name,
         'messages': [
-            {'role': 'system', 'content': AI_SYSTEM_PROMPT},
+            {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': prompt},
         ],
         'temperature': 0.35,
@@ -247,11 +278,12 @@ def call_openai_api(prompt, model=None):
 
 
 def call_groq_api(prompt, model=None):
-    api_key = (os.getenv('GROQ_API_KEY') or '').strip()
+    api_key = _get_provider_api_key('groq')
     if not api_key:
         return None
 
     model_name = model or AI_PROVIDER_DEFAULTS['groq']
+    system_prompt = _get_system_prompt()
     headers = {
         'Authorization': f'Bearer {api_key}',
         'Content-Type': 'application/json'
@@ -259,7 +291,7 @@ def call_groq_api(prompt, model=None):
     payload = {
         'model': model_name,
         'messages': [
-            {'role': 'system', 'content': AI_SYSTEM_PROMPT},
+            {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': prompt}
         ],
         'max_tokens': 700,

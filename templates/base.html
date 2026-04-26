@@ -671,6 +671,10 @@
                         <li>
                             <hr class="dropdown-divider opacity-10 mx-2">
                         </li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="/admin/ai-settings"> Cấu hình AI</a></li>
+                        <li>
+                            <hr class="dropdown-divider opacity-10 mx-2">
+                        </li>
                         <li><a class="dropdown-item py-2 rounded-3" href="/logs"> Nhật ký hoạt động</a></li>
                         <li>
                             <hr class="dropdown-divider opacity-10 mx-2">
@@ -888,6 +892,7 @@
                     {% endif %}
                     {% if perms.get('p_sys_lead') %}
                     <a href="/admin/module-categories" class="list-group-item py-2 ps-5">Thiết lập danh mục</a>
+                    <a href="/admin/ai-settings" class="list-group-item py-2 ps-5">Cấu hình AI</a>
                     <a href="/logs" class="list-group-item py-2 ps-5">Nhật ký hoạt động</a>
                     <a href="/admin/system/update" class="list-group-item py-2 ps-5 text-primary">Cập nhật bản vá</a>
                     <a href="/admin/db-tool" class="list-group-item py-2 ps-5 text-danger">Công cụ Database</a>

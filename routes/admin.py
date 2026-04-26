@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, current_app, Response, send_from_directory
-from models import db, User, AppRole, MasterData, SystemLog, Task, NewsDoc, DocumentLib, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding
+from models import db, User, AppRole, MasterData, SystemLog, Task, NewsDoc, DocumentLib, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding, AIAssistantConfig
 
 import os, json, shutil, zipfile, io, sqlite3, subprocess
 try:
@@ -14,6 +14,29 @@ from utils import log_action, clear_logs, init_db, render_auto_template as rende
 from category_helpers import slugify_code
 
 admin_bp = Blueprint('admin_bp', __name__)
+
+AI_PROVIDER_CHOICES = {
+    'deepseek': 'DeepSeek',
+    'gemini': 'Gemini',
+    'openai': 'OpenAI',
+    'groq': 'Groq',
+}
+
+AI_PROVIDER_DEFAULTS = {
+    'deepseek': 'deepseek-v4-flash',
+    'gemini': 'gemini-2.5-flash',
+    'openai': 'gpt-4.1-mini',
+    'groq': 'llama-3.3-70b-versatile',
+}
+
+
+def _mask_secret(value):
+    value = (value or '').strip()
+    if not value:
+        return ''
+    if len(value) <= 8:
+        return '*' * len(value)
+    return f"{value[:4]}{'*' * (len(value) - 8)}{value[-4:]}"
 
 @admin_bp.route('/admin')
 def index():
@@ -395,6 +418,89 @@ def system_update():
     except: pass
     
     return render_template('system_update.html', git_info=git_info)
+
+
+@admin_bp.route('/admin/ai-settings', methods=['GET', 'POST'])
+def ai_settings():
+    if not session.get('is_admin'):
+        return redirect(url_for('auth_bp.login'))
+
+    config = AIAssistantConfig.query.first()
+
+    if request.method == 'POST':
+        provider = (request.form.get('provider') or 'deepseek').strip().lower()
+        if provider not in AI_PROVIDER_CHOICES:
+            provider = 'deepseek'
+
+        model_name = (request.form.get('model_name') or AI_PROVIDER_DEFAULTS[provider]).strip()
+        system_prompt = (request.form.get('system_prompt') or '').strip()
+        new_api_key = (request.form.get('api_key') or '').strip()
+        clear_api_key = bool(request.form.get('clear_api_key'))
+        is_active = bool(request.form.get('is_active'))
+
+        try:
+            if not config:
+                config = AIAssistantConfig()
+                db.session.add(config)
+
+            config.provider = provider
+            config.model_name = model_name or AI_PROVIDER_DEFAULTS[provider]
+            config.system_prompt = system_prompt or None
+            config.is_active = is_active
+
+            if clear_api_key:
+                config.api_key = None
+            elif new_api_key:
+                config.api_key = new_api_key
+
+            db.session.commit()
+            log_action(
+                session['uid'],
+                session['fullname'],
+                "Cập nhật cấu hình trợ lý AI",
+                "Hệ thống",
+                f"{AI_PROVIDER_CHOICES.get(provider, provider)} / {config.model_name}"
+            )
+            flash('Đã lưu cấu hình AI thành công!', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Lỗi lưu cấu hình AI: {e}', 'danger')
+
+        return redirect(url_for('admin_bp.ai_settings'))
+
+    provider = ((config.provider if config else None) or 'deepseek').strip().lower()
+    if provider not in AI_PROVIDER_CHOICES:
+        provider = 'deepseek'
+
+    current_key = (config.api_key or '').strip() if config else ''
+    env_key_names = {
+        'deepseek': 'DEEPSEEK_API_KEY',
+        'gemini': 'GEMINI_API_KEY',
+        'openai': 'OPENAI_API_KEY',
+        'groq': 'GROQ_API_KEY',
+    }
+    env_key_name = env_key_names.get(provider, '')
+    env_has_key = bool((os.getenv(env_key_name, '') or '').strip())
+
+    status = {
+        'provider': provider,
+        'provider_label': AI_PROVIDER_CHOICES.get(provider, provider),
+        'model_name': (config.model_name if config and config.model_name else AI_PROVIDER_DEFAULTS[provider]),
+        'has_db_key': bool(current_key),
+        'masked_db_key': _mask_secret(current_key),
+        'env_key_name': env_key_name,
+        'env_has_key': env_has_key,
+        'is_active': bool(config.is_active) if config else False,
+        'effective_source': 'database' if current_key and (config and config.is_active) else ('environment' if env_has_key else 'none'),
+    }
+
+    return render_template(
+        'admin_ai_settings.html',
+        config=config,
+        provider_choices=AI_PROVIDER_CHOICES,
+        provider_defaults=AI_PROVIDER_DEFAULTS,
+        status=status
+    )
 
 @admin_bp.route('/admin/system/git-pull', methods=['POST'])
 def git_pull():

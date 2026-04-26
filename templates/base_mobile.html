@@ -367,6 +367,7 @@
                         {% if session.get('is_admin') %}
                         <a href="/admin/module-categories" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">Thiết lập Danh mục</a>
                         <a href="/roles" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">Tài khoản & Vai trò</a>
+                        <a href="/admin/ai-settings" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.ai_settings' %}active{% endif %}">Cấu hình AI</a>
                         <a href="/logs" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">Nhật ký Hệ thống</a>
                         <a href="/admin/system/update" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">Cập nhật Hệ thống</a>
                         <a href="/admin/db-tool" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.db_tool' %}active{% endif %}">Công cụ Database</a>

@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-4 animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 w-100">
+        <div class="header-main-group">
+            <div class="header-title-pill shadow-sm">
+                <i class="fa-solid fa-robot"></i>
+                <h1 class="mb-0">Cấu hình AI</h1>
+            </div>
+        </div>
+
+        <div class="header-side-group">
+            <div class="header-status-pill">
+                <div class="{% if status.is_active %}bg-success{% else %}bg-secondary{% endif %} px-3 py-2 rounded-pill text-white tiny fw-bold">
+                    {% if status.is_active %}
+                    <i class="fa-solid fa-circle-check me-1"></i> Đang kích hoạt
+                    {% else %}
+                    <i class="fa-solid fa-circle-pause me-1"></i> Đang tắt
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="main-content-area animate__animated animate__fadeInUp">
+    <div class="row g-4">
+        <div class="col-xl-7">
+            <div class="bento-card p-4 h-100">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+                    <h6 class="fw-bold text-primary d-flex align-items-center gap-2 mb-0">
+                        <i class="fa-solid fa-sliders"></i> THIẾT LẬP TRỢ LÝ AI
+                    </h6>
+                    <span class="badge rounded-pill bg-light text-dark border px-3 py-2">
+                        {{ status.provider_label }} / {{ status.model_name }}
+                    </span>
+                </div>
+
+                <form method="POST" id="aiSettingsForm">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label tiny text-muted fw-bold">NHÀ CUNG CẤP</label>
+                            <select name="provider" id="providerSelect" class="form-select">
+                                {% for key, label in provider_choices.items() %}
+                                <option value="{{ key }}" {% if status.provider == key %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label tiny text-muted fw-bold">MODEL</label>
+                            <input type="text" name="model_name" id="modelNameInput" class="form-control" value="{{ config.model_name if config else provider_defaults[status.provider] }}" placeholder="Ví dụ: deepseek-v4-flash">
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label tiny text-muted fw-bold">API KEY</label>
+                            <input type="password" name="api_key" class="form-control" placeholder="Để trống nếu muốn giữ nguyên key hiện tại">
+                            <div class="d-flex flex-wrap gap-3 mt-2">
+                                <span class="tiny text-muted">
+                                    {% if status.has_db_key %}
+                                    Key trong database: <span class="fw-bold">{{ status.masked_db_key }}</span>
+                                    {% else %}
+                                    Chưa lưu key trong database
+                                    {% endif %}
+                                </span>
+                                <span class="tiny text-muted">Biến môi trường {{ status.env_key_name }}: {% if status.env_has_key %}đã có{% else %}chưa có{% endif %}</span>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="clear_api_key" id="clearApiKey">
+                                <label class="form-check-label tiny" for="clearApiKey">
+                                    Xóa key đang lưu trong database
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label tiny text-muted fw-bold">SYSTEM PROMPT</label>
+                            <textarea name="system_prompt" class="form-control" rows="11" placeholder="Nếu để trống, hệ thống dùng prompt mặc định.">{{ config.system_prompt if config and config.system_prompt else '' }}</textarea>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="isActive" {% if status.is_active %}checked{% endif %}>
+                                <label class="form-check-label tiny fw-bold" for="isActive">Kích hoạt cấu hình AI từ quản trị</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary rounded-pill px-4">
+                            <i class="fa-solid fa-save me-1"></i> Lưu cấu hình
+                        </button>
+                        <a href="/ai" class="btn btn-light rounded-pill px-4 border">
+                            <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Mở Trợ lý AI
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-xl-5">
+            <div class="bento-card p-4 mb-4">
+                <h6 class="fw-bold text-primary d-flex align-items-center gap-2 mb-4">
+                    <i class="fa-solid fa-circle-info"></i> TRẠNG THÁI HIỆN TẠI
+                </h6>
+
+                <div class="status-stack">
+                    <div class="status-row">
+                        <span class="status-label">Nguồn cấu hình hiệu lực</span>
+                        <span class="status-value text-capitalize">{{ status.effective_source }}</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Nhà cung cấp</span>
+                        <span class="status-value">{{ status.provider_label }}</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Model</span>
+                        <span class="status-value">{{ status.model_name }}</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Key database</span>
+                        <span class="status-value">{% if status.has_db_key %}Đã lưu{% else %}Chưa lưu{% endif %}</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Key môi trường</span>
+                        <span class="status-value">{% if status.env_has_key %}Đã có{% else %}Chưa có{% endif %}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bento-card p-4">
+                <h6 class="fw-bold text-primary d-flex align-items-center gap-2 mb-4">
+                    <i class="fa-solid fa-lightbulb"></i> GỢI Ý TRIỂN KHAI
+                </h6>
+
+                <div class="tip-card mb-3">
+                    <div class="tip-title">Khuyến nghị hiện tại</div>
+                    <div class="tip-body">DeepSeek + <code>deepseek-v4-flash</code> phù hợp cho hỏi đáp tiếng Việt, chi phí thấp và đủ nhẹ cho tần suất sử dụng vừa phải.</div>
+                </div>
+
+                <div class="tip-card mb-3">
+                    <div class="tip-title">Khi đổi API key</div>
+                    <div class="tip-body">Dán key mới vào ô API key rồi lưu. Nếu bỏ trống, hệ thống sẽ giữ nguyên key đang lưu trong database.</div>
+                </div>
+
+                <div class="tip-card">
+                    <div class="tip-title">Khi cần quay về file host</div>
+                    <div class="tip-body">Nếu database chưa lưu key hoặc cấu hình quản trị bị tắt, Trợ lý AI sẽ tự dùng biến môi trường trên host như một lớp dự phòng.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .status-stack {
+        display: grid;
+        gap: 12px;
+    }
+
+    .status-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 16px;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.72);
+    }
+
+    .status-label {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+
+    .status-value {
+        font-weight: 700;
+        color: #0f172a;
+        text-align: right;
+    }
+
+    .tip-card {
+        padding: 16px 18px;
+        border: 1px solid rgba(59, 130, 246, 0.12);
+        border-radius: 18px;
+        background: rgba(248, 250, 252, 0.88);
+    }
+
+    .tip-title {
+        font-weight: 800;
+        color: #1e3a8a;
+        margin-bottom: 6px;
+    }
+
+    .tip-body {
+        color: #475569;
+        line-height: 1.6;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const providerDefaults = {{ provider_defaults | tojson }};
+        const providerSelect = document.getElementById('providerSelect');
+        const modelNameInput = document.getElementById('modelNameInput');
+
+        if (!providerSelect || !modelNameInput) {
+            return;
+        }
+
+        providerSelect.addEventListener('change', function () {
+            const selectedProvider = providerSelect.value;
+            const suggestedModel = providerDefaults[selectedProvider] || '';
+            const currentValue = (modelNameInput.value || '').trim();
+            const knownDefaults = Object.values(providerDefaults);
+
+            if (!currentValue || knownDefaults.includes(currentValue)) {
+                modelNameInput.value = suggestedModel;
+            }
+        });
+    });
+</script>
+{% endblock %}

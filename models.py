@@ -290,3 +290,15 @@ class ZaloMessageLog(db.Model):
     error_message = db.Column(db.Text)
     zalo_message_id = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.now)
+
+
+class AIAssistantConfig(db.Model):
+    """Cấu hình provider/model/key cho trợ lý AI."""
+    id = db.Column(db.Integer, primary_key=True)
+    provider = db.Column(db.String(30), default='deepseek', nullable=False)
+    model_name = db.Column(db.String(100), default='deepseek-v4-flash', nullable=False)
+    api_key = db.Column(db.Text)
+    system_prompt = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, default=True)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    created_at = db.Column(db.DateTime, default=datetime.now)
