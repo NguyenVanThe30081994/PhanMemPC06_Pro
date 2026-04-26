@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, current_app, Response, send_from_directory
-from models import db, User, AppRole, MasterData, SystemLog, Task, NewsDoc, DocumentLib, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding, AIAssistantConfig
+from models import db, User, AppRole, MasterData, SystemLog, Task, NewsDoc, DocumentLib, Contact, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding, AIAssistantConfig
 
 import os, json, shutil, zipfile, io, sqlite3, subprocess
 try:
@@ -12,6 +12,7 @@ except ImportError:
 from datetime import datetime, timedelta
 from utils import log_action, clear_logs, init_db, render_auto_template as render_template
 from category_helpers import slugify_code
+from category_helpers import get_module_field_items, get_category_items
 
 admin_bp = Blueprint('admin_bp', __name__)
 
@@ -46,101 +47,132 @@ def _test_ai_runtime_connection():
     result, errors = call_ai_provider(test_prompt)
     return result, errors
 
+
+def _normalize_group_label(value, fallback='Chưa phân loại'):
+    value = (value or '').strip()
+    return value or fallback
+
+
+def _build_grouped_rows(raw_counts, ordered_items=None, fallback_label='Chưa phân loại'):
+    count_map = {}
+    for name, count in raw_counts:
+        label = _normalize_group_label(name, fallback_label)
+        count_map[label] = count_map.get(label, 0) + int(count or 0)
+
+    rows = []
+    seen = set()
+
+    for item in ordered_items or []:
+        label = _normalize_group_label(getattr(item, 'name', ''), fallback_label)
+        rows.append({
+            'name': label,
+            'count': count_map.get(label, 0)
+        })
+        seen.add(label)
+
+    extras = sorted(
+        (
+            {'name': name, 'count': count}
+            for name, count in count_map.items()
+            if name not in seen
+        ),
+        key=lambda row: (-row['count'], row['name'].lower())
+    )
+    rows.extend(extras)
+
+    rows = [row for row in rows if row['count'] > 0]
+    return rows
+
 @admin_bp.route('/admin')
 def index():
     try:
         if not session.get('uid'): 
             return redirect(url_for('auth_bp.login'))
-        
-        # Basic Stats - simplified
-        stats = {
-            'users': 0,
-            'reports': 0,
-            'roles': 0,
-            'news': 0,
-            'tasks': 0
-        }
 
-        from models_reporting import FormTemplate, ReportingPeriod, ReportInstance
-        
-        try:
-            stats['users'] = User.query.count()
-        except: pass
-        
-        try:
-            stats['reports'] = ReportInstance.query.count()
-        except: pass
-        
-        try:
-            stats['roles'] = AppRole.query.count()
-        except: pass
-        
-        try:
-            stats['news'] = NewsDoc.query.count()
-        except: pass
-        
-        try:
-            stats['tasks'] = Task.query.count()
-        except: pass
-        
-        overdue_stats = []
-        total_templates = 0
-        
-        # Calculate Overdue Reports - wrapped in try/except
-        try:
-            all_units = [u[0] for u in db.session.query(User.unit_area).distinct().all() if u[0]]
-            total_templates = FormTemplate.query.filter_by(is_active=True).count()
-            active_periods = ReportingPeriod.query.filter_by(is_locked=False).all()
-            for period in active_periods:
-                submitted = [
-                    u[0] for u in db.session.query(ReportInstance.org_unit)
-                    .filter(
-                        ReportInstance.period_id == period.id,
-                        ReportInstance.status == 'submitted',
-                        ReportInstance.org_unit.in_(all_units)
-                    )
-                    .distinct()
-                    .all()
-                ]
-                missing = [u for u in all_units if u not in submitted]
-                if missing:
-                    label = period.name
-                    if period.template_id:
-                        template = db.session.get(FormTemplate, period.template_id)
-                        if template:
-                            label = f"{template.name} - {period.name}"
-                    overdue_stats.append({
-                        'id': period.id,
-                        'name': label,
-                        'count': len(missing)
-                    })
-        except Exception as e:
-            print(f"Error in admin dashboard queries: {e}")
-            overdue_stats = []
-            total_templates = 0
+        from sqlalchemy import func
+        from models_reporting import FormTemplate
 
-        # Query dữ liệu mới cho mobile dashboard - tạm bỏ
-        new_tasks = []
-        new_news = []
-        new_docs = []
-        try:
-            new_reports = FormTemplate.query.filter_by(is_active=True).order_by(FormTemplate.created_at.desc()).limit(3).all()
-        except Exception:
-            new_reports = []
-        
-        logs = SystemLog.query.order_by(SystemLog.created_at.desc()).limit(5).all()
+        task_domain_items = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
+        contact_group_items = get_module_field_items('contacts', 'contact_group') or get_category_items('Nhóm danh bạ')
+        document_field_items = (
+            get_module_field_items('library', 'category')
+            or get_category_items('Lĩnh vực')
+            or get_category_items('Loại tài liệu')
+        )
+
+        task_raw_counts = db.session.query(
+            Task.domain,
+            func.count(Task.id)
+        ).group_by(Task.domain).all()
+
+        report_raw_counts = db.session.query(
+            FormTemplate.department,
+            func.count(FormTemplate.id)
+        ).filter_by(is_active=True).group_by(FormTemplate.department).all()
+
+        document_raw_counts = db.session.query(
+            DocumentLib.category,
+            func.count(DocumentLib.id)
+        ).group_by(DocumentLib.category).all()
+
+        contact_raw_counts = db.session.query(
+            Contact.contact_group,
+            func.count(Contact.id)
+        ).group_by(Contact.contact_group).all()
+
+        task_dashboard = _build_grouped_rows(task_raw_counts, task_domain_items, fallback_label='Chưa phân đội')
+        report_dashboard = _build_grouped_rows(report_raw_counts, task_domain_items, fallback_label='Chưa phân đội')
+        document_dashboard = _build_grouped_rows(document_raw_counts, document_field_items, fallback_label='Chưa phân lĩnh vực')
+        contact_dashboard = _build_grouped_rows(contact_raw_counts, contact_group_items, fallback_label='Chưa phân nhóm')
+
+        dashboard_cards = [
+            {
+                'title': 'Công việc được giao',
+                'subtitle': 'Đội nghiệp vụ - số việc',
+                'icon': 'fa-solid fa-list-check',
+                'accent_class': 'primary',
+                'link': '/tasks',
+                'rows': task_dashboard,
+                'total': sum(row['count'] for row in task_dashboard),
+                'empty_text': 'Chưa có công việc nào.'
+            },
+            {
+                'title': 'Báo cáo',
+                'subtitle': 'Đội nghiệp vụ - số biểu mẫu',
+                'icon': 'fa-solid fa-file-excel',
+                'accent_class': 'success',
+                'link': '/reporting',
+                'rows': report_dashboard,
+                'total': sum(row['count'] for row in report_dashboard),
+                'empty_text': 'Chưa có biểu mẫu báo cáo.'
+            },
+            {
+                'title': 'Thông tin tài liệu',
+                'subtitle': 'Lĩnh vực - số tài liệu',
+                'icon': 'fa-solid fa-folder-open',
+                'accent_class': 'warning',
+                'link': '/library',
+                'rows': document_dashboard,
+                'total': sum(row['count'] for row in document_dashboard),
+                'empty_text': 'Chưa có tài liệu nào.'
+            },
+            {
+                'title': 'Danh bạ',
+                'subtitle': 'Nhóm danh bạ - số liên hệ',
+                'icon': 'fa-solid fa-address-book',
+                'accent_class': 'indigo',
+                'link': '/contacts',
+                'rows': contact_dashboard,
+                'total': sum(row['count'] for row in contact_dashboard),
+                'empty_text': 'Chưa có liên hệ nào.'
+            },
+        ]
+
         now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
         
         return render_template('admin_dashboard.html', 
-            stats=stats, 
-            overdue_stats=overdue_stats, 
-            total_templates=total_templates, 
             now_str=now_str, 
-            logs=logs,
-            new_tasks=new_tasks,
-            new_news=new_news,
-            new_docs=new_docs,
-            new_reports=new_reports)
+            dashboard_cards=dashboard_cards)
     except Exception as e:
         import traceback
         traceback.print_exc()
