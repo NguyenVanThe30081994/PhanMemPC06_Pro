@@ -645,7 +645,7 @@
 
                 {% if perms.get('p_input_lead') or perms.get('p_input_exec') or perms.get('p_stat_lead') or perms.get('p_stat_exec') or perms.get('p_form_lead') or session.get('is_admin') %}
                 <a href="{{ url_for('reporting_bp.index') }}"
-                    class="nav-link-top {% if request.path.startswith('/reporting') %}active{% endif %}">Reporting</a>
+                    class="nav-link-top {% if request.path.startswith('/reporting') %}active{% endif %}">Báo cáo</a>
                 {% endif %}
 
                 <a href="{{ url_for('shortlink_bp.manage_links') }}" class="nav-link-top {% if request.path.startswith('/links') %}active{% endif %}">QR & Link</a>
@@ -864,7 +864,7 @@
                 <div class="collapse" id="mobileDataReportCollapse">
                     {% if perms.get('p_input_lead') or perms.get('p_input_exec') or perms.get('p_stat_lead') or perms.get('p_stat_exec') or perms.get('p_form_lead') or session.get('is_admin') %}
                     <a href="{{ url_for('reporting_bp.index') }}" class="list-group-item py-2 ps-5">
-                        <i class="fa-solid fa-caret-right me-2 small opacity-50"></i>Reporting
+                        <i class="fa-solid fa-caret-right me-2 small opacity-50"></i>Báo cáo
                     </a>
                     {% endif %}
                 </div>
