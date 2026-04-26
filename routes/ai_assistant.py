@@ -1,140 +1,284 @@
 # -*- coding: utf-8 -*-
-from flask import Blueprint, render_template, request, session, jsonify, redirect, url_for
+from flask import Blueprint, request, session, jsonify, redirect, url_for
 import os
 import requests
 import re
-import json
-from datetime import datetime
 from utils import render_auto_template as render_template
 
 ai_bp = Blueprint('ai_bp', __name__, url_prefix='/ai')
 
-# Groq API Key
-GROQ_API_KEY = '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'
 
-# TTHC Knowledge Base - Thủ tục hành chính PC06
+AI_PROVIDER_DEFAULTS = {
+    'gemini': 'gemini-2.5-flash',
+    'openai': 'gpt-4.1-mini',
+    'groq': 'llama-3.3-70b-versatile',
+}
+
+AI_PROVIDER_LABELS = {
+    'gemini': 'Gemini 2.5 Flash',
+    'openai': 'GPT-4.1 mini',
+    'groq': 'Llama 3.3 70B trên Groq',
+}
+
+SUGGESTED_TOPICS = [
+    {'icon': 'fa-solid fa-id-card', 'title': 'Căn cước công dân', 'prompt': 'Làm căn cước công dân cần chuẩn bị gì?'},
+    {'icon': 'fa-solid fa-house-user', 'title': 'Đăng ký thường trú', 'prompt': 'Hồ sơ đăng ký thường trú thường gồm những gì?'},
+    {'icon': 'fa-solid fa-house-chimney', 'title': 'Đăng ký tạm trú', 'prompt': 'Đăng ký tạm trú cần giấy tờ gì?'},
+    {'icon': 'fa-solid fa-passport', 'title': 'Hộ chiếu', 'prompt': 'Xin cấp hộ chiếu phổ thông nộp ở đâu?'},
+    {'icon': 'fa-solid fa-shield-heart', 'title': 'BHYT hộ gia đình', 'prompt': 'Mua BHYT hộ gia đình cần chuẩn bị gì?'},
+    {'icon': 'fa-solid fa-life-ring', 'title': 'Thông tin đời sống', 'prompt': 'Tôi muốn hỏi thông tin đời sống dân sinh và nơi liên hệ phù hợp.'},
+]
+
+WELCOME_MESSAGE = (
+    "Xin chào! Tôi là trợ lý AI của PC06 Tuyên Quang.\n\n"
+    "- Tôi hỗ trợ hỏi đáp về thủ tục hành chính, giấy tờ thường gặp và thông tin đời sống cơ bản.\n"
+    "- Nếu thủ tục có thể thay đổi theo thời điểm, tôi sẽ nhắc bạn kiểm tra lại với cơ quan tiếp nhận hoặc cổng dịch vụ công.\n"
+    "- Bạn có thể hỏi ngắn gọn như đang nhắn tin bình thường."
+)
+
+AI_SYSTEM_PROMPT = """Bạn là trợ lý AI của PC06 Tuyên Quang.
+
+Mục tiêu:
+- Trả lời bằng tiếng Việt tự nhiên, dễ hiểu, thân thiện với người Việt.
+- Hỗ trợ hỏi đáp về thủ tục hành chính, dịch vụ công, thông tin đời sống, nơi liên hệ, giấy tờ thường gặp.
+- Ưu tiên câu trả lời ngắn gọn, đúng trọng tâm, có cấu trúc rõ ràng.
+
+Nguyên tắc trả lời:
+- Nếu biết tương đối chắc, hãy trả lời theo cấu trúc: Việc cần biết / Hồ sơ thường gặp / Nơi liên hệ hoặc lưu ý.
+- Nếu thủ tục có thể thay đổi theo thời điểm hoặc địa phương, phải nói rõ đây là thông tin tham khảo và khuyên người dùng kiểm tra thêm tại cổng dịch vụ công hoặc cơ quan tiếp nhận.
+- Không tự bịa đặt mức phí, thời hạn, căn cứ pháp lý hoặc địa chỉ cụ thể nếu không chắc chắn.
+- Khi câu hỏi mơ hồ, hãy trả lời theo hướng thực tế nhất cho người dân.
+- Không dùng giọng quá máy móc. Tránh dài dòng.
+"""
+
 TTHC_KNOWLEDGE = {
-    "cấp giấy giới thiệu": {
-        "answer": "Để cấp giấy giới thiệu, công dân cần chuẩn bị: 1) Đơn xin cấp giấy giới thiệu; 2) CMND/CCCD; 3) Các giấy tờ liên quan đến mục đích giới thiệu. Thời gian giải quyết: trong ngày hoặc tối đa 3 ngày làm việc.",
-        "keywords": ["giấy giới thiệu", "cấp giấy", "xác nhận"]
+    "căn cước công dân": {
+        "answer": "Với căn cước công dân, bạn thường cần giấy tờ tùy thân đang có và thông tin cư trú để đối chiếu. Hồ sơ thực tế có thể thay đổi theo từng trường hợp như cấp mới, cấp đổi hoặc cấp lại. Bạn nên mang theo giấy tờ cá nhân hiện có và kiểm tra trước tại cơ quan công an hoặc cổng dịch vụ công.",
+        "keywords": ["cccd", "căn cước", "thẻ căn cước", "làm căn cước"]
     },
     "đăng ký thường trú": {
-        "answer": "Hồ sơ đăng ký thường trú gồm: 1) Tờ khai đăng ký thường trú; 2) CMND/CCCD của người đăng ký; 3) Sổ hộ khẩu hoặc giấy tờ chứng minh chỗ ở hợp pháp. Thời gian: 15 ngày kể từ ngày nhận đủ hồ sơ.",
-        "keywords": ["thường trú", "đăng ký", "hộ khẩu", "cư trú"]
+        "answer": "Hồ sơ đăng ký thường trú thường gồm tờ khai cư trú và giấy tờ chứng minh chỗ ở hợp pháp. Tùy trường hợp, cơ quan tiếp nhận có thể yêu cầu thêm giấy tờ nhân thân hoặc giấy tờ liên quan đến chủ hộ/chủ sở hữu chỗ ở. Bạn nên kiểm tra trước tại công an địa phương hoặc cổng dịch vụ công để tránh thiếu hồ sơ.",
+        "keywords": ["thường trú", "đăng ký thường trú", "hộ khẩu", "cư trú"]
     },
     "đăng ký tạm trú": {
-        "answer": "Hồ sơ đăng ký tạm trú: 1) Tờ khai đăng ký tạm trú; 2) CMND/CCCD; 3) Giấy tờ chứng minh chỗ ở hợp pháp (hợp đồng thuê nhà, xác nhận của chủ nhà...). Thời gian: 3 ngày làm việc.",
-        "keywords": ["tạm trú", "đăng ký", "tạm vắng"]
+        "answer": "Đăng ký tạm trú thường cần thông tin cá nhân, giấy tờ tùy thân và giấy tờ chứng minh nơi ở hợp pháp như hợp đồng thuê, xác nhận của chủ nhà hoặc giấy tờ tương đương. Bạn nên chuẩn bị bản gốc hoặc bản chụp rõ ràng để đối chiếu khi cần.",
+        "keywords": ["tạm trú", "đăng ký tạm trú", "khai báo tạm trú", "tạm vắng"]
     },
     "lý lịch tư pháp": {
-        "answer": "Giấy lý lịch tư pháp được cấp tại Công an cấp huyện hoặc cấp tỉnh. Hồ sơ: 1) Đơn xin cấp; 2) CMND/CCCD; 3) Sổ hộ khẩu. Thời gian: 10 ngày làm việc.",
-        "keywords": ["lý lịch", "tư pháp", "phi pháp"]
+        "answer": "Với phiếu lý lịch tư pháp, bạn thường cần tờ khai theo mẫu và giấy tờ tùy thân hợp lệ. Tùy nơi nộp hồ sơ, bạn có thể được hướng dẫn nộp trực tiếp hoặc trực tuyến. Nếu cần gấp, nên hỏi trước cơ quan tiếp nhận về thời gian xử lý thực tế.",
+        "keywords": ["lý lịch tư pháp", "phiếu lý lịch", "lý lịch"]
     },
     "hộ chiếu": {
-        "answer": "Hồ sơ xin cấp hộ chiếu: 1) Tờ khai theo mẫu; 2) 02 ảnh 4x6; 3) CMND/CCCD; 4) Sổ hộ khẩu. Nộp tại Công an tỉnh hoặc Phòng quản lý xuất nhập cảnh. Thời gian: 15 ngày làm việc.",
-        "keywords": ["hộ chiếu", "passport", "xuất cảnh", "nhập cảnh"]
+        "answer": "Hồ sơ cấp hộ chiếu phổ thông thường xoay quanh giấy tờ tùy thân và tờ khai theo mẫu. Với một số trường hợp đặc biệt như trẻ em hoặc cấp lại, cơ quan tiếp nhận có thể yêu cầu thêm giấy tờ liên quan. Bạn nên kiểm tra nơi nộp gần nhất và lịch tiếp nhận trước khi đi.",
+        "keywords": ["hộ chiếu", "passport", "xuất nhập cảnh"]
     },
-    "đăng ký kinh doanh": {
-        "answer": "Đăng ký kinh doanh tại Phòng Đăng ký kinh doanh thuộc Sở Kế hoạch và Đầu tư. Hồ sơ: 1) Giấy đề nghị đăng ký; 2) Điều lệ công ty; 3) Danh sách thành viên/cổ đông. Thời gian: 3 ngày làm việc.",
-        "keywords": ["kinh doanh", "đăng ký", "thành lập", "doanh nghiệp"]
+    "bhyt hộ gia đình": {
+        "answer": "Khi tham gia BHYT hộ gia đình, bạn thường cần thông tin nhân khẩu trong hộ và giấy tờ nhân thân của người tham gia. Mức đóng và cách kê khai có thể thay đổi theo quy định hiện hành, nên nên xác nhận lại với cơ quan BHXH hoặc đại lý thu gần nhất.",
+        "keywords": ["bhyt", "bảo hiểm y tế", "bảo hiểm hộ gia đình", "bhxh"]
     },
-    "thuế": {
-        "answer": "Các thủ tục thuế thường gặp: 1) Đăng ký thuế; 2) Khai thuế; 3) Hoàn thuế; 4) Gia hạn nộp thuế. Nộp hồ sơ tại Chi cục Thuế hoặc qua cổng thuế điện tử.",
-        "keywords": ["thuế", "khai thuế", "hoàn thuế", "mã số thuế"]
+    "giờ làm việc": {
+        "answer": "Giờ làm việc của cơ quan nhà nước thường theo giờ hành chính từ thứ hai đến thứ sáu, nhưng lịch tiếp nhận hồ sơ thực tế có thể khác theo từng đơn vị. Bạn nên gọi điện hoặc xem thông báo chính thức của cơ quan trước khi đến.",
+        "keywords": ["giờ làm việc", "mấy giờ làm việc", "thời gian làm việc"]
     },
-    "bhxh": {
-        "answer": "Thủ tục BHXH gồm: 1) Đăng ký tham gia BHXH, BHYT; 2) Cấp thẻ BHYT; 3) Hưởng chế độ thai sản, ốm đau, hưu trí. Nộp tại Bảo hiểm xã hội quận/huyện.",
-        "keywords": ["bảo hiểm", "bhxh", "bhyt", "thẻ bhyt", "hưu trí"]
-    },
-    "giấy phép lái xe": {
-        "answer": "Hồ sơ thi GPLX: 1) Đơn đề nghị; 2) CMND/CCCD; 3) Giấy khám sức khỏe; 4) Ảnh 3x4. Thi tại Sở Giao thông Vận tải. GPLX hạng A1, A2: 550.000đ; B1, B2: 135.000đ.",
-        "keywords": ["lái xe", "gplx", "bằng lái", "thi bằng"]
-    },
-    "xây dựng": {
-        "answer": "Giấy phép xây dựng: Hồ sơ gồm đơn xin cấp phép, bản vẽ mặt bằng, thiết kế, cam kết đảm bảo an toàn. Thời gian: 15-30 ngày tùy loại công trình.",
-        "keywords": ["xây dựng", "gpxd", "cấp phép", "xây nhà"]
-    }
 }
 
-# Canned responses for common questions
 CANNED_RESPONSES = {
-    "xin chào": "Xin chào! Tôi là trợ lý AI của PC06 Tuyên Quang. Tôi có thể hỗ trợ bạn về các thủ tục hành chính. Bạn cần tìm hiểu về thủ tục gì?",
-    "cảm ơn": "Cảm ơn bạn đã sử dụng dịch vụ! Nếu cần hỗ trợ thêm, hãy liên hệ PC06 Tuyên Quang.",
-    "help": "Tôi có thể giúp bạn về các thủ tục hành chính như: cấp giấy giới thiệu, đăng ký thường trú/tạm trú, lý lịch tư pháp, hộ chiếu, đăng ký kinh doanh, thuế, BHXH, GPLX, xây dựng...",
-    "liên hệ": "Bạn có thể liên hệ PC06 Tuyên Quang qua: Địa chỉ: ..., Điện thoại: ..., Email: ...",
-    "giờ làm việc": "PC06 Tuyên Quang làm việc từ thứ 2 đến thứ 6, sáng từ 7h30 - 11h30, chiều từ 13h00 - 17h00."
+    "xin chào": "Xin chào! Tôi có thể hỗ trợ bạn về thủ tục hành chính, giấy tờ thường gặp và một số câu hỏi đời sống cơ bản. Bạn đang cần hỏi vấn đề gì?",
+    "cảm ơn": "Rất vui được hỗ trợ bạn. Nếu cần, bạn cứ hỏi tiếp theo cách tự nhiên nhất nhé.",
+    "help": "Bạn có thể hỏi về căn cước công dân, cư trú, hộ chiếu, lý lịch tư pháp, BHYT, giờ làm việc, nơi liên hệ hoặc các câu hỏi đời sống dân sinh thường gặp.",
 }
 
 
-def call_groq_api(prompt):
-    """Gọi Groq API để lấy câu trả lời"""
-    if not GROQ_API_KEY:
+def _get_provider_sequence():
+    preferred = (os.getenv('AI_ASSISTANT_PROVIDER') or 'gemini').strip().lower()
+    ordered = [preferred] + [name for name in AI_PROVIDER_DEFAULTS if name != preferred]
+    return [name for name in ordered if name in AI_PROVIDER_DEFAULTS]
+
+
+def _get_provider_runtime():
+    preferred = (os.getenv('AI_ASSISTANT_PROVIDER') or 'gemini').strip().lower()
+    if preferred not in AI_PROVIDER_DEFAULTS:
+        preferred = 'gemini'
+
+    model = (os.getenv('AI_ASSISTANT_MODEL') or AI_PROVIDER_DEFAULTS[preferred]).strip()
+    configured = bool(
+        (preferred == 'gemini' and (os.getenv('GEMINI_API_KEY') or '').strip()) or
+        (preferred == 'openai' and (os.getenv('OPENAI_API_KEY') or '').strip()) or
+        (preferred == 'groq' and (os.getenv('GROQ_API_KEY') or '').strip())
+    )
+    return {
+        'provider': preferred,
+        'model': model,
+        'label': AI_PROVIDER_LABELS.get(preferred, model),
+        'configured': configured,
+    }
+
+
+def _extract_openai_text(payload):
+    choices = payload.get('choices') or []
+    if not choices:
         return None
-    
+    message = choices[0].get('message') or {}
+    return (message.get('content') or '').strip() or None
+
+
+def _extract_gemini_text(payload):
+    candidates = payload.get('candidates') or []
+    if not candidates:
+        return None
+
+    content = candidates[0].get('content') or {}
+    parts = content.get('parts') or []
+    text_parts = [part.get('text', '') for part in parts if part.get('text')]
+    answer = '\n'.join(text_parts).strip()
+    return answer or None
+
+
+def call_gemini_api(prompt, model=None):
+    api_key = (os.getenv('GEMINI_API_KEY') or '').strip()
+    if not api_key:
+        return None
+
+    model_name = model or AI_PROVIDER_DEFAULTS['gemini']
+    url = f'https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}'
+    payload = {
+        'system_instruction': {
+            'parts': [{'text': AI_SYSTEM_PROMPT}]
+        },
+        'contents': [
+            {
+                'role': 'user',
+                'parts': [{'text': prompt}]
+            }
+        ],
+        'generationConfig': {
+            'temperature': 0.35,
+            'maxOutputTokens': 700,
+        }
+    }
+
     try:
-        headers = {
-            'Authorization': f'Bearer {GROQ_API_KEY}',
-            'Content-Type': 'application/json'
-        }
-        
-        system_prompt = """Bạn là trợ lý AI của PC06 Tuyên Quang, chuyên hỗ trợ về các thủ tục hành chính.
-Hãy trả lời bằng tiếng Việt, ngắn gọn và dễ hiểu."""
-        
-        data = {
-            'model': 'llama-3.3-70b-versatile',
-            'messages': [
-                {'role': 'system', 'content': system_prompt},
-                {'role': 'user', 'content': prompt}
-            ],
-            'max_tokens': 500,
-            'temperature': 0.7
-        }
-        
+        response = requests.post(url, json=payload, timeout=30)
+        if response.status_code == 200:
+            answer = _extract_gemini_text(response.json())
+            if answer:
+                return {'answer': answer, 'provider': 'gemini', 'model': model_name}
+    except Exception as exc:
+        print(f"Gemini API error: {exc}")
+
+    return None
+
+
+def call_openai_api(prompt, model=None):
+    api_key = (os.getenv('OPENAI_API_KEY') or '').strip()
+    if not api_key:
+        return None
+
+    model_name = model or AI_PROVIDER_DEFAULTS['openai']
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json',
+    }
+    payload = {
+        'model': model_name,
+        'messages': [
+            {'role': 'system', 'content': AI_SYSTEM_PROMPT},
+            {'role': 'user', 'content': prompt},
+        ],
+        'temperature': 0.35,
+        'max_tokens': 700,
+    }
+
+    try:
+        response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        if response.status_code == 200:
+            answer = _extract_openai_text(response.json())
+            if answer:
+                return {'answer': answer, 'provider': 'openai', 'model': model_name}
+    except Exception as exc:
+        print(f"OpenAI API error: {exc}")
+
+    return None
+
+
+def call_groq_api(prompt, model=None):
+    api_key = (os.getenv('GROQ_API_KEY') or '').strip()
+    if not api_key:
+        return None
+
+    model_name = model or AI_PROVIDER_DEFAULTS['groq']
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json'
+    }
+    payload = {
+        'model': model_name,
+        'messages': [
+            {'role': 'system', 'content': AI_SYSTEM_PROMPT},
+            {'role': 'user', 'content': prompt}
+        ],
+        'max_tokens': 700,
+        'temperature': 0.35
+    }
+
+    try:
         response = requests.post(
             'https://api.groq.com/openai/v1/chat/completions',
             headers=headers,
-            json=data,
+            json=payload,
             timeout=30
         )
-        
         if response.status_code == 200:
-            result = response.json()
-            return result['choices'][0]['message']['content']
-    
-    except Exception as e:
-        print(f"Groq API error: {e}")
-        try:
-            print(f"Response: {response.text}")
-        except:
-            pass
-    
+            answer = _extract_openai_text(response.json())
+            if answer:
+                return {'answer': answer, 'provider': 'groq', 'model': model_name}
+    except Exception as exc:
+        print(f"Groq API error: {exc}")
+
+    return None
+
+
+def call_ai_provider(prompt):
+    runtime = _get_provider_runtime()
+    provider_sequence = _get_provider_sequence()
+    provider_callers = {
+        'gemini': call_gemini_api,
+        'openai': call_openai_api,
+        'groq': call_groq_api,
+    }
+
+    for provider in provider_sequence:
+        model_name = runtime['model'] if provider == runtime['provider'] else AI_PROVIDER_DEFAULTS[provider]
+        result = provider_callers[provider](prompt, model=model_name)
+        if result:
+            return result
+
     return None
 
 
 def find_answer_from_kb(query):
-    """Tìm câu trả lời phù hợp từ knowledge base"""
     query_lower = query.lower()
-    
-    # Check canned responses first
+
     for key, response in CANNED_RESPONSES.items():
         if key in query_lower:
             return response
-    
-    # Check TTHC knowledge base
+
     for topic, data in TTHC_KNOWLEDGE.items():
         if topic in query_lower:
-            return data["answer"]
-        
-        # Check keywords
-        for keyword in data["keywords"]:
+            return data['answer']
+        for keyword in data['keywords']:
             if keyword in query_lower:
-                return data["answer"]
-    
+                return data['answer']
+
     return None
 
 
 def fetch_gov_news(limit=10):
-    """Fetch latest news from tuyenquang.gov.vn with proper encoding"""
     articles = []
     try:
         url = "https://tuyenquang.gov.vn"
@@ -143,125 +287,120 @@ def fetch_gov_news(limit=10):
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
         }
-        
+
         response = requests.get(url, headers=headers, timeout=10)
         if response.status_code == 200:
-            # Try to detect encoding
             try:
-                # Thử UTF-8 trước
                 html = response.content.decode('utf-8')
-            except:
+            except Exception:
                 try:
-                    # Thử ISO-8859-1
                     html = response.content.decode('iso-8859-1')
-                except:
-                    # Mặc định
+                except Exception:
                     html = response.text
-            
-            # Simple regex to find links with titles - cải thiện pattern
+
             link_pattern = re.compile(r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>([^<]+)</a>', re.IGNORECASE)
-            
+
             for match in link_pattern.finditer(html):
                 href = match.group(1)
-                title = match.group(2).strip()
-                
-                # Filter: only valid titles with Vietnamese characters
-                if title and len(title) > 15 and len(title) < 200:
-                    # Clean HTML tags
-                    title = re.sub(r'<[^>]+>', '', title).strip()
-                    # Decode HTML entities
-                    title = title.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"')
-                    
-                    if title and not href.startswith('http'):
-                        full_url = href if href.startswith('http') else url + href
-                        
-                        articles.append({
-                            'title': title,
-                            'link': full_url,
-                            'source': 'tuyenquang.gov.vn',
-                            'date': ''
-                        })
-                        
-                        if len(articles) >= limit:
-                            break
-                    
-    except Exception as e:
-        print(f"Error fetching news: {e}")
-    
-    # Return demo data if fetch fails
+                title = re.sub(r'<[^>]+>', '', match.group(2)).strip()
+                title = (
+                    title.replace('&nbsp;', ' ')
+                    .replace('&amp;', '&')
+                    .replace('&lt;', '<')
+                    .replace('&gt;', '>')
+                    .replace('&quot;', '"')
+                )
+
+                if not title or len(title) < 15 or len(title) > 200:
+                    continue
+
+                full_url = href if href.startswith('http') else url + href
+                articles.append({
+                    'title': title,
+                    'link': full_url,
+                    'source': 'tuyenquang.gov.vn',
+                    'date': ''
+                })
+                if len(articles) >= limit:
+                    break
+    except Exception as exc:
+        print(f"Error fetching news: {exc}")
+
     if not articles:
         articles = [
-            {'title': 'PC06 Tuyen Quang trien khai nhiem vu cong tac nam 2026', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': '22/04/2026'},
-            {'title': 'Huong dan thu tuc hanh chinh moi nhat', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': '21/04/2026'},
-            {'title': 'Cong bo quyet dinh dieu dong can bo', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': '20/04/2026'},
+            {'title': 'Cập nhật thông tin điều hành và tin tức mới trên Cổng thông tin điện tử tỉnh Tuyên Quang', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': ''},
+            {'title': 'Hướng dẫn tra cứu thủ tục hành chính và thông tin công dân trên các cổng chính thức', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': ''},
+            {'title': 'Thông báo, lịch tiếp công dân và các bản tin phục vụ người dân địa phương', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': ''},
         ]
-    
+
     return articles
 
 
 @ai_bp.route('/')
 def index():
-    """AI Assistant main page"""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
-    
+
     news = fetch_gov_news(10)
-    
-    return render_template('ai_assistant.html', 
-                         title='Trợ lý AI - TTHC',
-                         news=news)
+    runtime = _get_provider_runtime()
+
+    return render_template(
+        'ai_assistant.html',
+        title='Trợ lý AI',
+        news=news,
+        suggested_topics=SUGGESTED_TOPICS,
+        assistant_runtime=runtime,
+        assistant_welcome=WELCOME_MESSAGE,
+    )
 
 
 @ai_bp.route('/chat', methods=['POST'])
 def chat():
-    """Handle AI chat request - ưu tiên OpenAI API"""
     if not session.get('uid'):
         return jsonify({'error': 'Unauthorized'}), 401
-    
-    data = request.get_json()
-    query = data.get('message', '').strip()
-    
+
+    data = request.get_json() or {}
+    query = (data.get('message') or '').strip()
     if not query:
         return jsonify({'error': 'Vui lòng nhập câu hỏi'}), 400
-    
-    # Thử OpenAI API trước
-    ai_answer = call_groq_api(query)
-    
-    if ai_answer:
+
+    ai_result = call_ai_provider(query)
+    if ai_result:
         return jsonify({
             'success': True,
-            'answer': ai_answer,
-            'type': 'ai'
+            'answer': ai_result['answer'],
+            'type': 'ai',
+            'provider': ai_result['provider'],
+            'model': ai_result['model'],
         })
-    
-    # Fallback to knowledge base
+
     answer = find_answer_from_kb(query)
-    
     if answer:
         return jsonify({
             'success': True,
             'answer': answer,
             'type': 'kb'
         })
-    else:
-        suggestions = list(TTHC_KNOWLEDGE.keys())[:5]
-        return jsonify({
-            'success': False,
-            'answer': "Xin lỗi, tôi chưa có thông tin về vấn đề này. Bạn có thể hỏi về: " + ", ".join(suggestions),
-            'type': 'no_match',
-            'suggestions': suggestions
-        })
+
+    suggestions = [topic['title'] for topic in SUGGESTED_TOPICS[:5]]
+    return jsonify({
+        'success': False,
+        'answer': (
+            "Tôi chưa có câu trả lời đủ chắc cho nội dung này. "
+            "Bạn có thể hỏi lại cụ thể hơn về thủ tục, giấy tờ, nơi nộp hồ sơ hoặc tình huống thực tế của bạn."
+        ),
+        'type': 'no_match',
+        'suggestions': suggestions
+    })
 
 
 @ai_bp.route('/news')
 def news():
-    """Get latest news from government website"""
     if not session.get('uid'):
         return jsonify({'error': 'Unauthorized'}), 401
-    
+
     limit = request.args.get('limit', 10, type=int)
     articles = fetch_gov_news(limit)
-    
     return jsonify({
         'success': True,
         'articles': articles
