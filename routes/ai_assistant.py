@@ -9,12 +9,14 @@ ai_bp = Blueprint('ai_bp', __name__, url_prefix='/ai')
 
 
 AI_PROVIDER_DEFAULTS = {
+    'deepseek': 'deepseek-v4-flash',
     'gemini': 'gemini-2.5-flash',
     'openai': 'gpt-4.1-mini',
     'groq': 'llama-3.3-70b-versatile',
 }
 
 AI_PROVIDER_LABELS = {
+    'deepseek': 'DeepSeek V4 Flash',
     'gemini': 'Gemini 2.5 Flash',
     'openai': 'GPT-4.1 mini',
     'groq': 'Llama 3.3 70B trên Groq',
@@ -90,18 +92,19 @@ CANNED_RESPONSES = {
 
 
 def _get_provider_sequence():
-    preferred = (os.getenv('AI_ASSISTANT_PROVIDER') or 'gemini').strip().lower()
+    preferred = (os.getenv('AI_ASSISTANT_PROVIDER') or 'deepseek').strip().lower()
     ordered = [preferred] + [name for name in AI_PROVIDER_DEFAULTS if name != preferred]
     return [name for name in ordered if name in AI_PROVIDER_DEFAULTS]
 
 
 def _get_provider_runtime():
-    preferred = (os.getenv('AI_ASSISTANT_PROVIDER') or 'gemini').strip().lower()
+    preferred = (os.getenv('AI_ASSISTANT_PROVIDER') or 'deepseek').strip().lower()
     if preferred not in AI_PROVIDER_DEFAULTS:
-        preferred = 'gemini'
+        preferred = 'deepseek'
 
     model = (os.getenv('AI_ASSISTANT_MODEL') or AI_PROVIDER_DEFAULTS[preferred]).strip()
     configured = bool(
+        (preferred == 'deepseek' and (os.getenv('DEEPSEEK_API_KEY') or '').strip()) or
         (preferred == 'gemini' and (os.getenv('GEMINI_API_KEY') or '').strip()) or
         (preferred == 'openai' and (os.getenv('OPENAI_API_KEY') or '').strip()) or
         (preferred == 'groq' and (os.getenv('GROQ_API_KEY') or '').strip())
@@ -132,6 +135,43 @@ def _extract_gemini_text(payload):
     text_parts = [part.get('text', '') for part in parts if part.get('text')]
     answer = '\n'.join(text_parts).strip()
     return answer or None
+
+
+def call_deepseek_api(prompt, model=None):
+    api_key = (os.getenv('DEEPSEEK_API_KEY') or '').strip()
+    if not api_key:
+        return None
+
+    model_name = model or AI_PROVIDER_DEFAULTS['deepseek']
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json',
+    }
+    payload = {
+        'model': model_name,
+        'messages': [
+            {'role': 'system', 'content': AI_SYSTEM_PROMPT},
+            {'role': 'user', 'content': prompt},
+        ],
+        'temperature': 0.35,
+        'max_tokens': 700,
+    }
+
+    try:
+        response = requests.post(
+            'https://api.deepseek.com/chat/completions',
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        if response.status_code == 200:
+            answer = _extract_openai_text(response.json())
+            if answer:
+                return {'answer': answer, 'provider': 'deepseek', 'model': model_name}
+    except Exception as exc:
+        print(f"DeepSeek API error: {exc}")
+
+    return None
 
 
 def call_gemini_api(prompt, model=None):
@@ -247,6 +287,7 @@ def call_ai_provider(prompt):
     runtime = _get_provider_runtime()
     provider_sequence = _get_provider_sequence()
     provider_callers = {
+        'deepseek': call_deepseek_api,
         'gemini': call_gemini_api,
         'openai': call_openai_api,
         'groq': call_groq_api,
