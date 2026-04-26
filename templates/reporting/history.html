@@ -56,7 +56,7 @@
                   {% for report in reports %}
                   <tr>
                     <td>{{ report.period.name }}</td>
-                    <td>{{ report.org_unit }}</td>
+                    <td>{{ report.display_owner_name or report.org_unit or '-' }}</td>
                     <td>{{ report.status }}</td>
                     <td>{{ report.updated_at.strftime('%d/%m/%Y %H:%M') }}</td>
                     <td class="d-flex flex-wrap gap-2">
@@ -98,7 +98,7 @@
                   {% for log in logs %}
                   <tr>
                     <td>{{ log.timestamp.strftime('%d/%m/%Y %H:%M:%S') if log.timestamp else '' }}</td>
-                    <td>{{ log.org_unit or '-' }}</td>
+                    <td>{{ log.display_org_name or log.org_unit or '-' }}</td>
                     <td>{{ log.user_name or ('UID ' ~ log.user_id) }}</td>
                     <td>{{ log.action }}</td>
                     <td>{{ log.entity_type }}#{{ log.entity_id }}</td>

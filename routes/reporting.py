@@ -17,6 +17,7 @@ from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, For
 from sqlalchemy import or_
 from services.form_engine import FormEngine
 from utils import log_action
+from models import User
 
 reporting_bp = Blueprint('reporting_bp', __name__, url_prefix='/reporting')
 form_engine = FormEngine()
@@ -187,6 +188,38 @@ def _normalize_header_text(text):
     return ' '.join(ascii_text.split())
 
 
+def _user_display_label(user, fallback=''):
+    if user:
+        return (user.fullname or user.username or fallback or '').strip()
+    return (fallback or '').strip()
+
+
+def _attach_report_display_names(reports):
+    user_ids = sorted({report.user_id for report in reports if getattr(report, 'user_id', None)})
+    user_map = {}
+    if user_ids:
+        user_map = {user.id: user for user in User.query.filter(User.id.in_(user_ids)).all()}
+
+    for report in reports:
+        report.display_owner_name = _user_display_label(
+            user_map.get(report.user_id),
+            fallback=report.org_unit or 'Không xác định'
+        )
+    return reports
+
+
+def _attach_log_display_names(logs):
+    user_ids = sorted({log.user_id for log in logs if getattr(log, 'user_id', None)})
+    user_map = {}
+    if user_ids:
+        user_map = {user.id: user for user in User.query.filter(User.id.in_(user_ids)).all()}
+
+    for log in logs:
+        fallback = log.org_unit or '-'
+        log.display_org_name = _user_display_label(user_map.get(log.user_id), fallback=fallback) or fallback
+    return logs
+
+
 # ==================== UI PAGES ====================
 
 @reporting_bp.route('/dashboard')
@@ -213,10 +246,13 @@ def dashboard():
 
     # Thống kê theo đơn vị (đã nộp)
     from sqlalchemy import func
+    unit_label = func.coalesce(User.fullname, User.username, ReportInstance.org_unit, 'Không xác định')
     unit_stats = db.session.query(
-        ReportInstance.org_unit,
+        unit_label.label('unit_name'),
         func.count(ReportInstance.id).label('count')
-    ).filter_by(status='submitted').group_by(ReportInstance.org_unit).all()
+    ).outerjoin(User, User.id == ReportInstance.user_id).filter(
+        ReportInstance.status == 'submitted'
+    ).group_by(unit_label).order_by(func.count(ReportInstance.id).desc(), unit_label.asc()).all()
 
     # Thống kê số lượng báo cáo (biểu mẫu) cần làm theo đội nghiệp vụ
     department_stats = db.session.query(
@@ -553,6 +589,7 @@ def template_workspace(template_id):
         report_query = report_query.filter(ReportInstance.org_unit == user_unit)
 
     reports = report_query.order_by(ReportInstance.updated_at.desc()).limit(20).all()
+    _attach_report_display_names(reports)
     latest_report = reports[0] if reports else None
 
     return render_template(
@@ -790,6 +827,7 @@ def history():
         query = query.filter(ReportAuditLog.org_unit == user_unit)
 
     logs = query.limit(200).all()
+    _attach_log_display_names(logs)
     return render_template('reporting/history.html', logs=logs, reports=[], template=None)
 
 
@@ -807,6 +845,7 @@ def template_history(template_id):
         instance_query = instance_query.filter(ReportInstance.org_unit == user_unit)
 
     reports = instance_query.order_by(ReportInstance.updated_at.desc()).all()
+    _attach_report_display_names(reports)
     instance_ids = [row.id for row in reports]
     
     if not instance_ids:
@@ -816,6 +855,7 @@ def template_history(template_id):
         ReportAuditLog.entity_type == 'report_instance',
         ReportAuditLog.entity_id.in_(instance_ids)
     ).order_by(ReportAuditLog.timestamp.desc()).limit(300).all()
+    _attach_log_display_names(logs)
 
     return render_template('reporting/history.html', logs=logs, reports=reports, template=template)
 

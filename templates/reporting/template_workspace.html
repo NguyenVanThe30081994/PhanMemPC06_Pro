@@ -22,13 +22,6 @@
           <span class="reporting-pill"><i class="fa-solid fa-clock"></i>{{ schedule_summary }}</span>
           <span class="reporting-pill"><i class="fa-solid fa-calendar-days"></i>{{ active_period_count }} kỳ đang hiển thị</span>
         </div>
-        {% if is_reporting_admin or is_reporting_lead %}
-        <div class="d-flex flex-wrap gap-2 mt-3">
-          <a class="btn btn-outline-primary rounded-pill px-4" href="{{ url_for('reporting_bp.field_settings', template_id=template.id) }}" id="action_edit_template">
-            <i class="fa-solid fa-pen me-2"></i>Chỉnh sửa biểu mẫu
-          </a>
-        </div>
-        {% endif %}
       </div>
       <div class="reporting-stat-grid" style="min-width:min(100%, 420px);">
         <div class="reporting-stat-card">
