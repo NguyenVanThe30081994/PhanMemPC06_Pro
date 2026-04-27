@@ -252,7 +252,7 @@ def contact_delete(cid):
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
     is_contact_lead = perms.get('p_contact_lead') or perms.get('p_contact_exec') or session.get('is_admin')
-    user_unit = session.get('unit')
+    user_unit = _get_current_user_unit()
 
     c = Contact.query.get_or_404(cid)
     if not is_contact_lead and c.unit_name != user_unit:
@@ -265,6 +265,55 @@ def contact_delete(cid):
     except Exception as e:
         db.session.rollback()
         flash(f'Lỗi khi xóa: {e}', 'danger')
+    return redirect(url_for('portal_bp.contacts'))
+
+
+@portal_bp.route('/contacts/delete-bulk', methods=['POST'])
+def contact_delete_bulk():
+    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
+
+    role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
+    perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
+    is_contact_lead = perms.get('p_contact_lead') or perms.get('p_contact_exec') or session.get('is_admin')
+
+    if not is_contact_lead:
+        flash('Bạn không có quyền xóa danh bạ hàng loạt!', 'danger')
+        return redirect(url_for('portal_bp.contacts'))
+
+    selected_ids_raw = request.form.get('selected_ids', '[]')
+    try:
+        selected_ids = json.loads(selected_ids_raw)
+    except Exception:
+        selected_ids = []
+
+    selected_ids = [int(cid) for cid in selected_ids if str(cid).isdigit()]
+    if not selected_ids:
+        flash('Bạn chưa chọn liên hệ nào để xóa.', 'warning')
+        return redirect(url_for('portal_bp.contacts'))
+
+    contacts = Contact.query.filter(Contact.id.in_(selected_ids)).all()
+    if not contacts:
+        flash('Không tìm thấy liên hệ hợp lệ để xóa.', 'warning')
+        return redirect(url_for('portal_bp.contacts'))
+
+    deleted_count = 0
+    try:
+        deleted_names = [c.name for c in contacts[:10]]
+        for contact in contacts:
+            db.session.delete(contact)
+            deleted_count += 1
+        db.session.commit()
+        log_action(
+            session['uid'],
+            session['fullname'],
+            "Xóa danh bạ hàng loạt",
+            "Danh bạ",
+            f"So luong: {deleted_count}; Mẫu: {', '.join(deleted_names)}"
+        )
+        flash(f'Đã xóa {deleted_count} liên hệ đã chọn.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Lỗi khi xóa hàng loạt: {e}', 'danger')
     return redirect(url_for('portal_bp.contacts'))
 
 @portal_bp.route('/contacts/add', methods=['POST'])

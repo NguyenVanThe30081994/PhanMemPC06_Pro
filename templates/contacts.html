@@ -43,10 +43,26 @@
         <div class="glass-header">
             <i class="fa-solid fa-address-book me-2"></i>Danh sách liên hệ đơn vị
         </div>
+        {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
+        <div class="px-4 pt-3 pb-2 d-flex flex-wrap gap-2 align-items-center border-bottom bg-white bg-opacity-50">
+            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill fw-bold" onclick="toggleAllContacts()">
+                <i class="fa-solid fa-check-double me-1"></i>Chọn tất cả
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill fw-bold" id="bulkDeleteBtn" onclick="submitBulkDelete()" disabled>
+                <i class="fa-solid fa-trash-can me-1"></i>Xóa đã chọn
+            </button>
+            <span class="small text-muted" id="bulkSelectionText">Chưa chọn liên hệ nào</span>
+        </div>
+        {% endif %}
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="pill-thead">
                     <tr>
+                        {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
+                        <th class="ps-4" style="width: 54px;">
+                            <input type="checkbox" class="form-check-input" id="contactCheckAll" onchange="handleCheckAllChange()">
+                        </th>
+                        {% endif %}
                         <th class="ps-4">Tên đơn vị / Cá nhân</th>
                         <th>Chức vụ / Nhóm</th>
                         <th>Số điện thoại</th>
@@ -57,6 +73,11 @@
                 <tbody id="contactTable">
                     {% for c in contacts %}
                     <tr class="contact-row" data-category="{{ c.contact_group }}">
+                        {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
+                        <td class="ps-4">
+                            <input type="checkbox" class="form-check-input contact-row-check" value="{{ c.id }}" onchange="updateBulkSelectionState()">
+                        </td>
+                        {% endif %}
                         <td class="ps-4 py-3">
                             <div class="d-flex align-items-center gap-3">
                                 <div class="bg-primary-gradient text-white rounded-circle shadow-sm fw-bold d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; font-size: 14px;">
@@ -95,6 +116,12 @@
         </div>
     </div>
 </div>
+
+{% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
+<form method="POST" action="{{ url_for('portal_bp.contact_delete_bulk') }}" id="bulkDeleteForm" class="d-none">
+    <input type="hidden" name="selected_ids" id="bulkDeleteSelectedIds">
+</form>
+{% endif %}
 
 <!-- Modal stays same but cleaned up classes -->
 <div class="modal fade" id="addContactModal" tabindex="-1">
@@ -280,6 +307,81 @@
                 row.style.display = 'none';
             }
         });
+        updateBulkSelectionState();
+    }
+
+    function getVisibleContactChecks() {
+        return Array.from(document.querySelectorAll('.contact-row-check')).filter(check => {
+            const row = check.closest('.contact-row');
+            return row && row.style.display !== 'none';
+        });
+    }
+
+    function getSelectedContactChecks() {
+        return Array.from(document.querySelectorAll('.contact-row-check:checked'));
+    }
+
+    function updateBulkSelectionState() {
+        const allChecks = Array.from(document.querySelectorAll('.contact-row-check'));
+        const visibleChecks = getVisibleContactChecks();
+        const selectedChecks = getSelectedContactChecks();
+        const visibleSelectedCount = visibleChecks.filter(check => check.checked).length;
+        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+        const bulkSelectionText = document.getElementById('bulkSelectionText');
+        const contactCheckAll = document.getElementById('contactCheckAll');
+
+        if (!bulkDeleteBtn || !bulkSelectionText || !contactCheckAll) {
+            return;
+        }
+
+        bulkDeleteBtn.disabled = selectedChecks.length === 0;
+        if (selectedChecks.length === 0) {
+            bulkSelectionText.textContent = 'Chưa chọn liên hệ nào';
+        } else {
+            bulkSelectionText.textContent = `Đã chọn ${selectedChecks.length} liên hệ`;
+        }
+
+        if (visibleChecks.length === 0) {
+            contactCheckAll.checked = false;
+            contactCheckAll.indeterminate = false;
+            return;
+        }
+
+        contactCheckAll.checked = visibleSelectedCount === visibleChecks.length;
+        contactCheckAll.indeterminate = visibleSelectedCount > 0 && visibleSelectedCount < visibleChecks.length;
+    }
+
+    function handleCheckAllChange() {
+        const targetState = document.getElementById('contactCheckAll').checked;
+        getVisibleContactChecks().forEach(check => {
+            check.checked = targetState;
+        });
+        updateBulkSelectionState();
+    }
+
+    function toggleAllContacts() {
+        const visibleChecks = getVisibleContactChecks();
+        if (!visibleChecks.length) {
+            return;
+        }
+        const shouldSelectAll = visibleChecks.some(check => !check.checked);
+        visibleChecks.forEach(check => {
+            check.checked = shouldSelectAll;
+        });
+        updateBulkSelectionState();
+    }
+
+    function submitBulkDelete() {
+        const selectedIds = getSelectedContactChecks().map(check => Number(check.value));
+        if (!selectedIds.length) {
+            alert('Vui lòng chọn ít nhất 1 liên hệ để xóa.');
+            return;
+        }
+        if (!confirm(`Xóa ${selectedIds.length} liên hệ đã chọn?`)) {
+            return;
+        }
+        document.getElementById('bulkDeleteSelectedIds').value = JSON.stringify(selectedIds);
+        document.getElementById('bulkDeleteForm').submit();
     }
 
     function syncHeaderMode() {
@@ -373,5 +475,6 @@
     });
 
     syncHeaderMode();
+    updateBulkSelectionState();
 </script>
 {% endblock %}
