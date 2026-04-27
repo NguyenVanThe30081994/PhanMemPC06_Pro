@@ -167,13 +167,13 @@
                         <div class="col-md-3" id="weekdaySelect" style="display:none;">
                             <label class="form-label fw-bold small">THỨ</label>
                             <select name="weekday" class="form-select">
-                                <option value="0">Chủ Nhật</option>
-                                <option value="1">Thứ Hai</option>
-                                <option value="2">Thứ Ba</option>
-                                <option value="3">Thứ Tư</option>
-                                <option value="4">Thứ Năm</option>
-                                <option value="5">Thứ Sáu</option>
-                                <option value="6">Thứ Bảy</option>
+                                <option value="0">Thứ Hai</option>
+                                <option value="1">Thứ Ba</option>
+                                <option value="2">Thứ Tư</option>
+                                <option value="3">Thứ Năm</option>
+                                <option value="4">Thứ Sáu</option>
+                                <option value="5">Thứ Bảy</option>
+                                <option value="6">Chủ Nhật</option>
                             </select>
                         </div>
                         
@@ -276,30 +276,51 @@
         const weekdayDiv = document.getElementById('weekdaySelect');
         const dayDiv = document.getElementById('daySelect');
         const monthDiv = document.getElementById('monthSelect');
+        const customInput = customDiv.querySelector('input[name="deadline"]');
+        const weekdayInput = weekdayDiv.querySelector('select[name="weekday"]');
+        const dayInput = dayDiv.querySelector('select[name="day_of_month"]');
+        const monthInput = monthDiv.querySelector('select[name="month_of_period"]');
         
-        // Hide all first
+        // Reset all states first so hidden fields do not block submit.
         customDiv.style.display = 'none';
         weekdayDiv.style.display = 'none';
         dayDiv.style.display = 'none';
         monthDiv.style.display = 'none';
+
+        [customInput, weekdayInput, dayInput, monthInput].forEach(input => {
+            input.removeAttribute('required');
+            input.disabled = true;
+        });
         
         if (type === 'custom') {
             customDiv.style.display = 'block';
             customDiv.className = 'col-md-6';
-            customDiv.querySelector('input').setAttribute('required', 'required');
+            customInput.disabled = false;
+            customInput.setAttribute('required', 'required');
         } else if (type === 'week') {
             weekdayDiv.style.display = 'block';
             weekdayDiv.className = 'col-md-3';
+            weekdayInput.disabled = false;
+            weekdayInput.setAttribute('required', 'required');
         } else if (type === 'month') {
-            // Chỉ cần chọn ngày
             dayDiv.style.display = 'block';
             dayDiv.className = 'col-md-3';
+            dayInput.disabled = false;
+            dayInput.setAttribute('required', 'required');
+        } else if (type === 'quarter') {
+            dayDiv.style.display = 'block';
+            dayDiv.className = 'col-md-3';
+            dayInput.disabled = false;
+            dayInput.setAttribute('required', 'required');
         } else {
-            // quarter, 6months, year - chọn cả ngày và tháng
             dayDiv.style.display = 'block';
             dayDiv.className = 'col-md-3';
+            dayInput.disabled = false;
+            dayInput.setAttribute('required', 'required');
             monthDiv.style.display = 'block';
             monthDiv.className = 'col-md-3';
+            monthInput.disabled = false;
+            monthInput.setAttribute('required', 'required');
         }
     }
     
