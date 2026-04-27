@@ -155,7 +155,7 @@
 <div class="modal fade" id="importContactModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0">
-            <form action="/contacts/import" method="POST" enctype="multipart/form-data" id="importForm">
+            <form action="{{ url_for('portal_bp.contact_import') }}" method="POST" enctype="multipart/form-data" id="importForm">
                 <input type="hidden" name="has_header" id="hasHeaderValue" value="1">
                 <div class="modal-header bg-success text-white">
                     <h5 class="modal-title fw-bold"><i class="fa-solid fa-file-excel me-2"></i>NHẬP DANH BẠ HÀNG LOẠT</h5>
@@ -296,6 +296,7 @@
         if (!fileInput.files || !fileInput.files[0]) {
             previewError.textContent = 'Vui lòng chọn file Excel!';
             previewError.classList.remove('d-none');
+            previewArea.classList.add('d-none');
             return;
         }
 
@@ -305,7 +306,7 @@
         formData.append('import_excel', fileInput.files[0]);
         formData.append('has_header', document.getElementById('hasHeaderValue').value);
         
-        fetch('/contacts/preview-import', {
+        fetch('{{ url_for("portal_bp.contact_preview_import") }}', {
             method: 'POST',
             body: formData
         })
@@ -331,11 +332,14 @@
                 previewError.textContent = data.error || 'Lỗi đọc file!';
                 previewError.classList.remove('d-none');
                 previewArea.classList.add('d-none');
+                previewMeta.textContent = '';
             }
         })
         .catch(err => {
             previewError.textContent = 'Lỗi kết nối: ' + err.message;
             previewError.classList.remove('d-none');
+            previewArea.classList.add('d-none');
+            previewMeta.textContent = '';
         });
     }
 
