@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, request, session, redirect, url_for, flash, current_app
-import os, pandas as pd, io, json
+import os, pandas as pd, io, json, re, unicodedata
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from models import db, NewsDoc, DocumentLib, Contact, CategoryItem, AppRole
@@ -8,6 +8,109 @@ from category_helpers import get_category_items, get_module_field_items, get_bou
 from utils import log_action, push_global_notif, render_auto_template as render_template
 
 portal_bp = Blueprint('portal_bp', __name__)
+
+CONTACT_IMPORT_HEADER_ALIASES = {
+    'name': {'ho ten', 'ten', 'ten lien he', 'ho va ten'},
+    'phone': {'so dien thoai', 'sdt', 'so dt', 'dien thoai'}
+}
+
+
+def _normalize_import_label(value):
+    text = unicodedata.normalize('NFKD', str(value or ''))
+    text = ''.join(ch for ch in text if not unicodedata.combining(ch))
+    text = text.replace('đ', 'd').replace('Đ', 'D')
+    text = re.sub(r'[^0-9a-zA-Z]+', ' ', text).strip().lower()
+    return re.sub(r'\s+', ' ', text)
+
+
+def _clean_import_text(value):
+    if value is None:
+        return ''
+    text = str(value).strip()
+    if text.lower() == 'nan':
+        return ''
+    return text
+
+
+def _normalize_import_phone(value):
+    raw = _clean_import_text(value)
+    if not raw:
+        return ''
+
+    digits = re.sub(r'\D+', '', raw)
+    if not digits:
+        return ''
+    if digits.startswith('84') and len(digits) == 11:
+        return f"0{digits[2:]}"
+    if len(digits) == 9:
+        return f"0{digits}"
+    return digits
+
+
+def _find_import_column(columns, field_name):
+    aliases = CONTACT_IMPORT_HEADER_ALIASES[field_name]
+    for col in columns:
+        if _normalize_import_label(col) in aliases:
+            return col
+    return None
+
+
+def _get_current_user_unit():
+    return session.get('unit_area') or session.get('unit') or 'N/A'
+
+
+def _load_contacts_from_excel(file_storage, has_header=True):
+    read_kwargs = {'dtype': str, 'sheet_name': 0}
+    read_kwargs['header'] = 0 if has_header else None
+    df = pd.read_excel(io.BytesIO(file_storage.read()), **read_kwargs).fillna('')
+
+    if df.empty:
+        raise ValueError('File Excel không có dữ liệu.')
+
+    if has_header:
+        name_col = _find_import_column(df.columns, 'name')
+        phone_col = _find_import_column(df.columns, 'phone')
+        if not name_col or not phone_col:
+            raise ValueError('Khi có tiêu đề, file phải có đúng 2 cột nhận diện được: "Họ tên" và "Số điện thoại".')
+    else:
+        if len(df.columns) < 2:
+            raise ValueError('Khi không có tiêu đề, file phải có ít nhất 2 cột: cột A là Họ tên, cột B là Số điện thoại.')
+        name_col, phone_col = df.columns[0], df.columns[1]
+
+    contacts = []
+    skipped_empty = 0
+    invalid_rows = []
+
+    for idx, row in df.iterrows():
+        name = _clean_import_text(row.get(name_col, ''))
+        phone = _normalize_import_phone(row.get(phone_col, ''))
+        excel_row = idx + (2 if has_header else 1)
+
+        if not name and not phone:
+            skipped_empty += 1
+            continue
+
+        if not name or not phone:
+            invalid_rows.append(excel_row)
+            continue
+
+        contacts.append({
+            'idx': len(contacts),
+            'excel_row': int(excel_row),
+            'name': name,
+            'phone': phone
+        })
+
+    if not contacts:
+        raise ValueError('Không tìm thấy dòng hợp lệ nào. Mỗi dòng phải có đủ Họ tên và Số điện thoại.')
+
+    return {
+        'rows': contacts,
+        'total_rows': int(len(df.index)),
+        'valid_rows': len(contacts),
+        'skipped_empty': skipped_empty,
+        'invalid_rows': invalid_rows
+    }
 
 @portal_bp.route('/news', methods=['GET', 'POST'])
 def news():
@@ -230,78 +333,86 @@ def contact_preview_import():
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
     is_admin = session.get('is_admin')
-    is_contact_lead = perms.get('p_contact_lead') or is_admin
-    if not is_contact_lead: 
+    can_import_contacts = perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin
+    if not can_import_contacts:
         return {'error': 'Permission denied'}, 403
     
     f = request.files.get('import_excel')
-    if not f or not f.filename.endswith(('.xlsx', '.xls')):
+    has_header = request.form.get('has_header', '1') == '1'
+    if not f or not f.filename.lower().endswith(('.xlsx', '.xls')):
         return {'error': 'Invalid file'}, 400
     
     try:
-        df = pd.read_excel(io.BytesIO(f.read())).fillna('')
-        # Return first 50 rows for preview
-        preview_data = []
-        for idx, row in df.head(50).iterrows():
-            preview_data.append({
-                'idx': int(idx),
-                'name': str(row.get('Họ tên', row.get('Tên', ''))),
-                'phone': str(row.get('SĐT', row.get('Số điện thoại', ''))),
-                'unit': str(row.get('Đơn vị', '')),
-                'group': str(row.get('Nhóm', row.get('Nhóm danh bạ', ''))),
-                'role': str(row.get('Chức vụ', ''))
-            })
-        return {'success': True, 'data': preview_data, 'total': len(df)}
+        parsed = _load_contacts_from_excel(f, has_header=has_header)
+        return {
+            'success': True,
+            'data': parsed['rows'][:50],
+            'total': parsed['total_rows'],
+            'valid_rows': parsed['valid_rows'],
+            'skipped_empty': parsed['skipped_empty'],
+            'invalid_rows': parsed['invalid_rows'][:20]
+        }
     except Exception as e:
         return {'error': str(e)}, 500
 
 
 @portal_bp.route('/contacts/import', methods=['POST'])
 def contact_import():
+    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
+
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
     is_admin = session.get('is_admin')
-    is_contact_lead = perms.get('p_contact_lead') or is_admin
+    can_import_contacts = perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin
 
-    if not is_contact_lead: 
+    if not can_import_contacts:
         flash('Chỉ PC06 mới có quyền nhập danh bạ hàng loạt!', 'danger')
         return redirect(url_for('portal_bp.contacts'))
     
     f = request.files.get('import_excel')
-    selected_rows_json = request.form.get('selected_rows', '[]')
-    global_group = request.form.get('global_group', '')
-    global_role = request.form.get('global_role', '')
-    
-    try:
-        selected_rows = json.loads(selected_rows_json)
-    except:
-        selected_rows = []
-    
-    if f and f.filename.endswith(('.xlsx', '.xls')):
+    global_group = (request.form.get('global_group') or '').strip()
+    global_role = (request.form.get('global_role') or '').strip()
+    has_header = request.form.get('has_header', '1') == '1'
+
+    if not global_group:
+        flash('Bạn cần chọn nhóm danh bạ trước khi nhập.', 'danger')
+        return redirect(url_for('portal_bp.contacts'))
+
+    if not global_role:
+        flash('Bạn cần chọn chức vụ trước khi nhập.', 'danger')
+        return redirect(url_for('portal_bp.contacts'))
+
+    if f and f.filename.lower().endswith(('.xlsx', '.xls')):
         try:
-            df = pd.read_excel(io.BytesIO(f.read())).fillna('')
+            parsed = _load_contacts_from_excel(f, has_header=has_header)
             imported = 0
-            for idx, row in df.iterrows():
-                # If selected_rows is empty, import all; otherwise only import selected indices
-                if selected_rows and int(idx) not in selected_rows:
-                    continue
-                
-                # Priority: Global Override > Per-row Override > Excel Column > Default
-                contact_group = global_group if global_group else str(row.get('Nhóm', row.get('Nhóm danh bạ', 'Khác')))
-                contact_role = global_role if global_role else str(row.get('Chức vụ', 'Cán bộ'))
-                
+            user_unit = _get_current_user_unit()
+
+            for row in parsed['rows']:
                 db.session.add(Contact(
-                    contact_group=contact_group,
-                    unit_name=str(row.get('Đơn vị', 'N/A')),
-                    name=str(row.get('Họ tên', str(row.get('Tên', 'Vô danh')))),
-                    phone=str(row.get('SĐT', str(row.get('Số điện thoại', '')))),
-                    role=contact_role
+                    contact_group=global_group,
+                    unit_name=user_unit,
+                    name=row['name'],
+                    phone=row['phone'],
+                    role=global_role
                 ))
                 imported += 1
             db.session.commit()
             log_action(session['uid'], session['fullname'], "Import danh bạ hàng loạt", "Danh bạ", f"File: {f.filename}, {imported} liên hệ")
-            flash(f'Đã nhập {imported} liên lạc thành công!', 'success')
+
+            warning_parts = []
+            if parsed['skipped_empty']:
+                warning_parts.append(f"bỏ qua {parsed['skipped_empty']} dòng trống")
+            if parsed['invalid_rows']:
+                warning_parts.append(f"bỏ qua các dòng thiếu dữ liệu: {', '.join(map(str, parsed['invalid_rows'][:10]))}")
+
+            flash_message = f'Đã nhập {imported} liên lạc thành công!'
+            if warning_parts:
+                flash_message = f"{flash_message} Đồng thời {'. '.join(warning_parts)}."
+            flash(flash_message, 'success')
         except Exception as e: 
             db.session.rollback()
             flash(f'Lỗi import: {e}', 'danger')
+    else:
+        flash('Vui lòng chọn file Excel hợp lệ (.xlsx hoặc .xls).', 'danger')
     return redirect(url_for('portal_bp.contacts'))

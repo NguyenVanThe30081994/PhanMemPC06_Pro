@@ -151,131 +151,109 @@
     </div>
 </div>
 
-<!-- Bulk Import Modal - Enhanced 2-Step -->
+<!-- Bulk Import Modal -->
 <div class="modal fade" id="importContactModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0">
-            <!-- Step 1: Upload & Preview -->
-            <div id="importStep1">
+            <form action="/contacts/import" method="POST" enctype="multipart/form-data" id="importForm">
+                <input type="hidden" name="has_header" id="hasHeaderValue" value="1">
                 <div class="modal-header bg-success text-white">
                     <h5 class="modal-title fw-bold"><i class="fa-solid fa-file-excel me-2"></i>NHẬP DANH BẠ HÀNG LOẠT</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <div class="alert alert-info small mb-3">
+                    <div class="alert alert-info small mb-4">
                         <i class="fa-solid fa-circle-info me-2"></i>
-                        File Excel cần có các cột: <b>Họ tên, SĐT, Đơn vị, Nhóm, Chức vụ</b>.
+                        File Excel chỉ cần 2 cột dữ liệu:
+                        <b>Họ tên</b> và <b>Số điện thoại</b>.
+                        Nhóm danh bạ và chức vụ sẽ lấy theo lựa chọn bên dưới.
                     </div>
-                    
-                    <!-- File Upload -->
-                    <div class="mb-4">
-                        <label class="form-label fw-bold text-dark small">CHỌN FILE EXCEL (.xlsx, .xls)</label>
-                        <input type="file" id="importExcelFile" class="form-control" accept=".xlsx, .xls">
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-bold text-dark small">CHỌN FILE EXCEL (.xlsx, .xls)</label>
+                            <input type="file" id="importExcelFile" name="import_excel" class="form-control" accept=".xlsx, .xls" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-dark small">NHÓM DANH BẠ</label>
+                            <div data-category-picker data-module="contacts" data-field="contact_group" data-placeholder="Chọn nhóm danh bạ" data-storage-key="modal.contacts.import_group_simple">
+                                <select name="global_group" class="form-select" id="globalGroupSelect" required data-category-target>
+                                    <option value="" disabled selected>Chọn nhóm danh bạ</option>
+                                    {% for cat in groups %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-dark small">CHỨC VỤ</label>
+                            <div data-category-picker data-module="contacts" data-field="role" data-placeholder="Chọn chức vụ" data-storage-key="modal.contacts.import_role_simple">
+                                <select name="global_role" class="form-select" id="globalRoleSelect" required data-category-target>
+                                    <option value="" disabled selected>Chọn chức vụ</option>
+                                    {% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="hasHeaderCheck" checked onchange="syncHeaderMode()">
+                                <label class="form-check-label fw-bold small" for="hasHeaderCheck">Dòng đầu tiên là tiêu đề</label>
+                            </div>
+                            <div class="small text-muted mt-2">
+                                Nếu bật tùy chọn này, file phải có tiêu đề cột là <b>Họ tên</b> và <b>Số điện thoại</b> ở dòng đầu.
+                                Nếu tắt, hệ thống sẽ đọc ngay từ dòng 1 với quy ước:
+                                <b>cột A = Họ tên</b>, <b>cột B = Số điện thoại</b>.
+                            </div>
+                        </div>
                     </div>
-                    
-                    <!-- Preview Area -->
-                    <div id="previewArea" class="d-none">
+
+                    <div class="mt-4 p-3 bg-light rounded border small">
+                        <div class="fw-bold text-dark mb-2">Mẫu dữ liệu hợp lệ</div>
+                        <div class="text-muted">Có tiêu đề:</div>
+                        <div class="font-monospace small">Họ tên | Số điện thoại</div>
+                        <div class="font-monospace small">Nguyễn Văn A | 0912345678</div>
+                        <div class="font-monospace small">Trần Thị B | 0987654321</div>
+                    </div>
+
+                    <div id="previewArea" class="d-none mt-4">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="badge bg-success" id="previewCount">0 dòng</span>
-                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleSelectAll()">
-                                <i class="fa-solid fa-check-double me-1"></i>CHỌN TẤT CẢ
-                            </button>
+                            <span class="badge bg-success" id="previewCount">0 dòng hợp lệ</span>
+                            <span class="small text-muted" id="previewMeta"></span>
                         </div>
                         <div class="table-responsive border rounded" style="max-height: 300px; overflow-y: auto;">
                             <table class="table table-sm table-hover mb-0">
                                 <thead class="table-light position-sticky top-0">
                                     <tr>
-                                        <th width="40" class="text-center">
-                                            <input type="checkbox" id="selectAllCheck" onchange="toggleSelectAll()">
-                                        </th>
-                                        <th>Tên</th>
+                                        <th width="90">Dòng Excel</th>
+                                        <th>Họ tên</th>
                                         <th>SĐT</th>
-                                        <th>Đơn vị</th>
                                     </tr>
                                 </thead>
                                 <tbody id="previewTableBody"></tbody>
                             </table>
                         </div>
                     </div>
-                    
-                    <!-- Error Area -->
+
                     <div id="previewError" class="alert alert-danger small mt-3 d-none"></div>
                 </div>
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-light px-4 rounded-pill fw-bold border" data-bs-dismiss="modal">ĐÓNG</button>
-                    <button type="button" class="btn btn-success px-4 rounded-pill fw-bold shadow" onclick="previewExcel()">
+                    <button type="button" class="btn btn-outline-success px-4 rounded-pill fw-bold" onclick="previewExcel()">
                         <i class="fa-solid fa-eye me-2"></i>XEM TRƯỚC
                     </button>
+                    <button type="submit" class="btn btn-success px-5 rounded-pill fw-bold shadow">
+                        <i class="fa-solid fa-upload me-2"></i>NHẬP DANH BẠ
+                    </button>
                 </div>
-            </div>
-            
-            <!-- Step 2: Confirm Import -->
-            <div id="importStep2" class="d-none">
-                <form action="/contacts/import" method="POST" enctype="multipart/form-data" id="importForm">
-                    <input type="hidden" name="selected_rows" id="selectedRowsInput">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title fw-bold"><i class="fa-solid fa-check-circle me-2"></i>XÁC NHẬN NHẬP DANH BẠ</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body p-4">
-                        <div class="alert alert-warning small mb-3">
-                            <i class="fa-solid fa-triangle-exclamation me-2"></i>
-                            <span id="selectedCountText">Đã chọn 0 liên hệ để nhập</span>
-                        </div>
-                        
-                        <!-- Global Override Options -->
-                        <p class="text-muted small mb-2 fw-bold">GHI ĐÈ NHÓM/VỊ TRÍ CHO TẤT CẢ LIÊN HỆ ĐƯỢC CHỌN:</p>
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-dark small">NHÓM DANH BẠ</label>
-                                <div data-category-picker data-module="contacts" data-field="contact_group" data-placeholder="Giữ nguyên từ Excel" data-storage-key="modal.contacts.import_group">
-                                    <select name="global_group" class="form-select" id="globalGroupSelect" data-category-target>
-                                        <option value="">Giữ nguyên từ Excel</option>
-                                        {% for cat in groups %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-dark small">CHỨC VỤ</label>
-                                <div data-category-picker data-module="contacts" data-field="role" data-placeholder="Giữ nguyên từ Excel" data-storage-key="modal.contacts.import_role">
-                                    <select name="global_role" class="form-select" id="globalRoleSelect" data-category-target>
-                                        <option value="">Giữ nguyên từ Excel</option>
-                                        {% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="mt-4 p-3 bg-light rounded">
-                            <div class="small text-muted">
-                                <i class="fa-solid fa-info-circle me-1"></i>
-                                Nếu chọn Nhóm/Chức vụ, giá trị sẽ ghi đè lên giá trị trong Excel cho tất cả liên hệ được chọn.
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer border-0">
-                        <button type="button" class="btn btn-light px-4 rounded-pill fw-bold border" onclick="backToStep1()">
-                            <i class="fa-solid fa-arrow-left me-2"></i>QUAY LẠI
-                        </button>
-                        <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">
-                            <i class="fa-solid fa-upload me-2"></i>XÁC NHẬN NHẬP
-                        </button>
-                    </div>
-                </form>
-            </div>
+            </form>
         </div>
     </div>
 </div>
 
-<!-- Hidden form for file upload -->
-<form id="previewUploadForm" enctype="multipart/form-data" style="display: none;">
-    <input type="file" name="import_excel" id="hiddenExcelFile">
-</form>
-
 <script>
     let currentCat = 'ALL';
     let previewData = [];
-    let selectedIndices = new Set();
 
     function setCategoryFilter(cat) {
         currentCat = cat;
@@ -304,25 +282,28 @@
         });
     }
 
-    // Import Modal Functions
+    function syncHeaderMode() {
+        document.getElementById('hasHeaderValue').value = document.getElementById('hasHeaderCheck').checked ? '1' : '0';
+    }
+
     function previewExcel() {
         const fileInput = document.getElementById('importExcelFile');
-        const hiddenFileInput = document.getElementById('hiddenExcelFile');
         const previewArea = document.getElementById('previewArea');
         const previewError = document.getElementById('previewError');
         const previewCount = document.getElementById('previewCount');
+        const previewMeta = document.getElementById('previewMeta');
         
         if (!fileInput.files || !fileInput.files[0]) {
             previewError.textContent = 'Vui lòng chọn file Excel!';
             previewError.classList.remove('d-none');
             return;
         }
-        
-        // Copy file to hidden input
-        hiddenFileInput.files = fileInput.files;
-        
+
+        syncHeaderMode();
+
         const formData = new FormData();
         formData.append('import_excel', fileInput.files[0]);
+        formData.append('has_header', document.getElementById('hasHeaderValue').value);
         
         fetch('/contacts/preview-import', {
             method: 'POST',
@@ -332,15 +313,20 @@
         .then(data => {
             if (data.success) {
                 previewData = data.data;
-                selectedIndices = new Set();
-                
-                // Select all by default
-                previewData.forEach(item => selectedIndices.add(item.idx));
-                
                 renderPreviewTable();
                 previewArea.classList.remove('d-none');
                 previewError.classList.add('d-none');
-                previewCount.textContent = `${data.total} dòng (hiển thị ${previewData.length})`;
+                previewCount.textContent = `${data.valid_rows} dòng hợp lệ`;
+
+                const previewNotes = [];
+                previewNotes.push(`Tổng số dòng đọc được: ${data.total}`);
+                if (data.skipped_empty) {
+                    previewNotes.push(`Dòng trống đã bỏ qua: ${data.skipped_empty}`);
+                }
+                if (data.invalid_rows && data.invalid_rows.length) {
+                    previewNotes.push(`Dòng thiếu Họ tên/SĐT: ${data.invalid_rows.join(', ')}`);
+                }
+                previewMeta.textContent = previewNotes.join(' | ');
             } else {
                 previewError.textContent = data.error || 'Lỗi đọc file!';
                 previewError.classList.remove('d-none');
@@ -358,115 +344,30 @@
         tbody.innerHTML = '';
         
         previewData.forEach(item => {
-            const isChecked = selectedIndices.has(item.idx);
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td class="text-center">
-                    <input type="checkbox" class="row-check" data-idx="${item.idx}" ${isChecked ? 'checked' : ''} onchange="toggleRow(${item.idx})">
-                </td>
+                <td class="small text-muted">${item.excel_row}</td>
                 <td class="fw-medium">${item.name || '<em class="text-muted">-</em>'}</td>
                 <td>${item.phone || '<em class="text-muted">-</em>'}</td>
-                <td class="small text-muted">${item.unit || '-'}</td>
             `;
             tbody.appendChild(tr);
         });
-        
-        document.getElementById('selectAllCheck').checked = selectedIndices.size === previewData.length;
-        updateSelectedCount();
     }
 
-    function toggleRow(idx) {
-        if (selectedIndices.has(idx)) {
-            selectedIndices.delete(idx);
-        } else {
-            selectedIndices.add(idx);
-        }
-        renderPreviewTable();
-    }
-
-    function toggleSelectAll() {
-        if (selectedIndices.size === previewData.length) {
-            selectedIndices.clear();
-        } else {
-            selectedIndices = new Set();
-            previewData.forEach(item => selectedIndices.add(item.idx));
-        }
-        renderPreviewTable();
-    }
-
-    function updateSelectedCount() {
-        const count = selectedIndices.size;
-        document.getElementById('selectAllCheck').checked = count === previewData.length;
-    }
-
-    function goToStep2() {
-        if (selectedIndices.size === 0) {
-            alert('Vui lòng chọn ít nhất 1 liên hệ để nhập!');
-            return;
-        }
-        
-        // Update selected count text
-        document.getElementById('selectedCountText').textContent = `Đã chọn ${selectedIndices.size} liên hệ để nhập`;
-        
-        // Hide step 1, show step 2
-        document.getElementById('importStep1').classList.add('d-none');
-        document.getElementById('importStep2').classList.remove('d-none');
-    }
-
-    function backToStep1() {
-        document.getElementById('importStep2').classList.add('d-none');
-        document.getElementById('importStep1').classList.remove('d-none');
-    }
-
-    // Handle form submission - inject selected rows and hidden file
-    document.getElementById('importForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        // Set selected rows
-        document.getElementById('selectedRowsInput').value = JSON.stringify([...selectedIndices]);
-        
-        // Create FormData with file and all form fields
-        const formData = new FormData();
-        formData.append('import_excel', document.getElementById('importExcelFile').files[0]);
-        formData.append('selected_rows', document.getElementById('selectedRowsInput').value);
-        formData.append('global_group', document.getElementById('globalGroupSelect').value);
-        formData.append('global_role', document.getElementById('globalRoleSelect').value);
-        
-        fetch('/contacts/import', {
-            method: 'POST',
-            body: formData
-        })
-        .then(r => {
-            // Close modal and reload
-            bootstrap.Modal.getInstance(document.getElementById('importContactModal')).hide();
-            window.location.reload();
-        })
-        .catch(err => {
-            alert('Lỗi: ' + err.message);
-        });
+    document.getElementById('importForm').addEventListener('submit', function() {
+        syncHeaderMode();
     });
 
     // Reset modal when closed
     document.getElementById('importContactModal').addEventListener('hidden.bs.modal', function() {
-        document.getElementById('importStep2').classList.add('d-none');
-        document.getElementById('importStep1').classList.remove('d-none');
+        document.getElementById('importForm').reset();
         document.getElementById('previewArea').classList.add('d-none');
         document.getElementById('previewError').classList.add('d-none');
-        document.getElementById('importExcelFile').value = '';
         previewData = [];
-        selectedIndices.clear();
+        document.getElementById('previewMeta').textContent = '';
+        syncHeaderMode();
     });
 
-    // Add next step button click handler
-    document.querySelector('#importStep1 .btn-success').addEventListener('click', function() {
-        previewExcel();
-        // After preview, change button to go to step 2
-        setTimeout(() => {
-            if (previewData.length > 0) {
-                this.innerHTML = '<i class="fa-solid fa-arrow-right me-2"></i>TIẾP TỤC';
-                this.onclick = goToStep2;
-            }
-        }, 500);
-    });
+    syncHeaderMode();
 </script>
 {% endblock %}
