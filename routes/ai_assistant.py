@@ -106,6 +106,21 @@ LEGAL_REFERENCE_KEYWORDS = [
     'thong bao',
 ]
 
+LEGAL_DOC_TYPE_MAP = {
+    'nghi dinh': 'Nghị định',
+    'nghi quyet': 'Nghị quyết',
+    'thong tu': 'Thông tư',
+    'quyet dinh': 'Quyết định',
+    'chi thi': 'Chỉ thị',
+    'luat': 'Luật',
+    'bo luat': 'Bộ luật',
+    'phap lenh': 'Pháp lệnh',
+    'cong van': 'Công văn',
+    'thong bao': 'Thông báo',
+}
+
+OFFICIAL_LEGAL_SEARCH_API = 'https://genai.aiservice.vn/congbaosearch/search'
+
 
 def _get_ai_config():
     try:
@@ -193,6 +208,180 @@ def _is_specific_legal_reference_query(query):
     has_year_phrase = bool(re.search(r'\bnam\s*(19|20)\d{2}\b', normalized))
     has_bare_number = bool(re.search(r'\b\d{1,4}\b', normalized))
     return has_number_year or has_reference_number or (has_year_phrase and has_bare_number) or has_named_number_year
+
+
+def _extract_legal_doc_type(query):
+    normalized = _normalize_query_text(query)
+    for keyword, label in sorted(LEGAL_DOC_TYPE_MAP.items(), key=lambda item: len(item[0]), reverse=True):
+        if keyword in normalized:
+            return label
+    return ''
+
+
+def _extract_legal_reference_number_year(query):
+    normalized = _normalize_query_text(query)
+    match = re.search(r'\b(\d{1,4})\s*(?:/|-|\s+nam\s+)(19|20)\d{2}\b', normalized)
+    if match:
+        number = match.group(1)
+        year_match = re.search(r'(19|20)\d{2}', match.group(0))
+        if year_match:
+            return number, year_match.group(0)
+
+    year_match = re.search(r'\b(19|20)\d{2}\b', normalized)
+    number_match = re.search(r'\b(\d{1,4})\b', normalized)
+    if number_match and year_match:
+        return number_match.group(1), year_match.group(0)
+    return '', ''
+
+
+def _build_legal_search_payload(query):
+    doc_type = _extract_legal_doc_type(query)
+    payload = {
+        'filters': {
+            'filters_mode': 'or',
+        },
+        'page': 1,
+        'page_size': 5,
+        'query': query.strip(),
+    }
+    if doc_type:
+        payload['filters']['ten_loai_van_ban'] = [doc_type]
+    return payload
+
+
+def _fetch_official_legal_documents(query):
+    payload = _build_legal_search_payload(query)
+    response = requests.post(
+        f'{OFFICIAL_LEGAL_SEARCH_API}/van-ban',
+        json=payload,
+        headers={
+            'accept': 'application/json',
+            'Content-Type': 'application/json',
+        },
+        timeout=15,
+    )
+    response.raise_for_status()
+    body = response.json()
+    return body.get('data') or []
+
+
+def _slugify_vietnamese(value):
+    text = _normalize_query_text(value)
+    text = re.sub(r'[^0-9a-z]+', '-', text)
+    return text.strip('-')
+
+
+def _score_legal_document_match(doc, query):
+    if not isinstance(doc, dict):
+        return -1
+
+    normalized_query = _normalize_query_text(query)
+    normalized_symbol = _normalize_query_text(doc.get('so_ky_hieu', ''))
+    normalized_title = _normalize_query_text(doc.get('tieu_de', ''))
+    normalized_summary = _normalize_query_text(doc.get('trich_yeu', ''))
+    doc_type = _extract_legal_doc_type(query)
+    query_number, query_year = _extract_legal_reference_number_year(query)
+
+    score = 0
+    if doc_type and _normalize_query_text(doc.get('loai_van_ban', '')) == _normalize_query_text(doc_type):
+        score += 5
+
+    if query_number and query_number in normalized_symbol:
+        score += 5
+    elif query_number and re.search(rf'\b{re.escape(query_number)}\b', normalized_title):
+        score += 2
+
+    if query_year and query_year in normalized_symbol:
+        score += 5
+    elif query_year and query_year in normalized_title:
+        score += 2
+
+    combined_text = f"{normalized_symbol} {normalized_title} {normalized_summary}"
+    if normalized_query and normalized_query in combined_text:
+        score += 3
+
+    api_score = float(doc.get('score') or 0)
+    score += min(api_score, 3)
+    return score
+
+
+def _select_best_legal_document(docs, query):
+    if not docs:
+        return None
+
+    ranked = sorted(docs, key=lambda doc: _score_legal_document_match(doc, query), reverse=True)
+    best = ranked[0]
+    if _score_legal_document_match(best, query) < 8:
+        return None
+    return best
+
+
+def _build_official_legal_url(doc):
+    title = doc.get('tieu_de') or doc.get('so_ky_hieu') or 'van-ban'
+    slug = _slugify_vietnamese(title)
+    doc_id = doc.get('id_van_ban')
+    if doc_id:
+        return f"https://congbao.chinhphu.vn/van-ban/{slug}-{doc_id}.htm"
+    attachments = doc.get('danh_sach_tep_van_ban') or []
+    if attachments:
+        return attachments[0].get('duong_dan', '')
+    return ''
+
+
+def _format_legal_date(date_str):
+    if not date_str:
+        return ''
+    try:
+        dt = datetime.fromisoformat(str(date_str).replace('Z', '+00:00'))
+        return dt.strftime('%d/%m/%Y')
+    except Exception:
+        return str(date_str)
+
+
+def _humanize_vietnamese_label(value):
+    text = str(value or '').strip()
+    if not text:
+        return ''
+    if text.isupper():
+        return text.lower().capitalize()
+    return text
+
+
+def _build_official_legal_answer(query, doc):
+    symbol = doc.get('so_ky_hieu') or 'Không rõ số ký hiệu'
+    title = doc.get('tieu_de') or doc.get('trich_yeu') or 'Chưa có tiêu đề'
+    summary = doc.get('trich_yeu') or title
+    doc_type = doc.get('loai_van_ban') or 'Văn bản'
+    issued_at = _format_legal_date(doc.get('ngay_ban_hanh'))
+    effective_at = _format_legal_date(doc.get('ngay_co_hieu_luc'))
+    signer = (doc.get('nguoi_ky') or '').title()
+    agencies = ', '.join(_humanize_vietnamese_label(item) for item in (doc.get('ten_co_quan') or []) if item)
+    source_url = _build_official_legal_url(doc)
+
+    lines = [
+        f"Có. Theo kết quả tra cứu từ nguồn chính thức, có văn bản phù hợp với câu hỏi của bạn.",
+        f"- {doc_type}: {symbol}",
+        f"- Trích yếu: {summary}",
+    ]
+    if issued_at:
+        lines.append(f"- Ngày ban hành: {issued_at}")
+    if effective_at:
+        lines.append(f"- Ngày có hiệu lực: {effective_at}")
+    if agencies:
+        lines.append(f"- Cơ quan ban hành: {agencies}")
+    if signer:
+        lines.append(f"- Người ký: {signer}")
+
+    normalized_query = _normalize_query_text(query)
+    if 'thay doi gi' in normalized_query or 'sua doi gi' in normalized_query or 'noi dung gi' in normalized_query:
+        lines.append(
+            f"- Nội dung cho thấy đây là văn bản {title[0].lower() + title[1:] if len(title) > 1 else title.lower()}."
+        )
+
+    lines.append("Đây là thông tin xác minh ban đầu từ nguồn công báo/chính phủ; nếu cần phân tích chi tiết từng điểm sửa đổi, cần đọc toàn văn bản gốc.")
+    if source_url:
+        lines.append(f"Nguồn tra cứu: {source_url}")
+    return '\n'.join(lines)
 
 
 def _build_legal_reference_safety_answer(query):
@@ -641,6 +830,19 @@ def chat():
         })
 
     if _is_specific_legal_reference_query(query):
+        try:
+            legal_docs = _fetch_official_legal_documents(query)
+            best_doc = _select_best_legal_document(legal_docs, query)
+            if best_doc:
+                return jsonify({
+                    'success': True,
+                    'answer': _build_official_legal_answer(query, best_doc),
+                    'type': 'legal_verified',
+                    'source': 'official_legal_search'
+                })
+        except Exception as exc:
+            print(f"Official legal lookup error: {exc}")
+
         return jsonify({
             'success': True,
             'answer': _build_legal_reference_safety_answer(query),
