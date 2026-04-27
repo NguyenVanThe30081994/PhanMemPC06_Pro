@@ -3,6 +3,8 @@ from flask import Blueprint, request, session, jsonify, redirect, url_for
 import os
 import requests
 import re
+import unicodedata
+from datetime import datetime, timedelta
 from utils import render_auto_template as render_template
 from models import AIAssistantConfig
 
@@ -91,6 +93,19 @@ CANNED_RESPONSES = {
     "help": "Bạn có thể hỏi về căn cước công dân, cư trú, hộ chiếu, lý lịch tư pháp, BHYT, giờ làm việc, nơi liên hệ hoặc các câu hỏi đời sống dân sinh thường gặp.",
 }
 
+LEGAL_REFERENCE_KEYWORDS = [
+    'luat',
+    'bo luat',
+    'nghi dinh',
+    'nghi quyet',
+    'thong tu',
+    'quyet dinh',
+    'chi thi',
+    'phap lenh',
+    'cong van',
+    'thong bao',
+]
+
 
 def _get_ai_config():
     try:
@@ -99,11 +114,120 @@ def _get_ai_config():
         return None
 
 
-def _get_system_prompt(config=None):
+def _normalize_query_text(value):
+    text = unicodedata.normalize('NFKD', str(value or ''))
+    text = ''.join(ch for ch in text if not unicodedata.combining(ch))
+    text = text.replace('đ', 'd').replace('Đ', 'D')
+    text = re.sub(r'\s+', ' ', text).strip().lower()
+    return text
+
+
+def _format_vi_datetime(dt):
+    weekdays = [
+        'Thứ hai',
+        'Thứ ba',
+        'Thứ tư',
+        'Thứ năm',
+        'Thứ sáu',
+        'Thứ bảy',
+        'Chủ nhật',
+    ]
+    weekday_label = weekdays[dt.weekday()]
+    return {
+        'weekday': weekday_label,
+        'date_text': f"{dt.day:02d}/{dt.month:02d}/{dt.year}",
+        'full_date_text': f"{weekday_label}, ngày {dt.day:02d} tháng {dt.month:02d} năm {dt.year}",
+        'time_text': f"{dt.hour:02d}:{dt.minute:02d}",
+    }
+
+
+def _is_time_query(query):
+    normalized = _normalize_query_text(query)
+    date_markers = [
+        'hom nay',
+        'hom qua',
+        'ngay mai',
+        'bay gio',
+        'may gio',
+        'gio hien tai',
+        'ngay bao nhieu',
+        'thu may',
+        'thu may hom nay',
+    ]
+    return any(marker in normalized for marker in date_markers)
+
+
+def _build_time_answer(query):
+    normalized = _normalize_query_text(query)
+    now = datetime.now()
+
+    if 'hom qua' in normalized:
+        target = now - timedelta(days=1)
+        info = _format_vi_datetime(target)
+        return f"Theo giờ hệ thống, hôm qua là {info['full_date_text']}."
+
+    if 'ngay mai' in normalized:
+        target = now + timedelta(days=1)
+        info = _format_vi_datetime(target)
+        return f"Theo giờ hệ thống, ngày mai là {info['full_date_text']}."
+
+    info = _format_vi_datetime(now)
+    if 'bay gio' in normalized or 'may gio' in normalized or 'gio hien tai' in normalized:
+        return (
+            f"Theo giờ hệ thống, bây giờ là {info['time_text']} ngày {info['date_text']} "
+            f"({info['weekday']})."
+        )
+
+    return f"Theo giờ hệ thống, hôm nay là {info['full_date_text']}."
+
+
+def _is_specific_legal_reference_query(query):
+    normalized = _normalize_query_text(query)
+    has_keyword = any(keyword in normalized for keyword in LEGAL_REFERENCE_KEYWORDS)
+    if not has_keyword:
+        return False
+
+    has_reference_number = bool(re.search(r'\bso\s*\d{1,4}\b', normalized))
+    has_number_year = bool(re.search(r'\b\d{1,4}\s*(/|-)\s*(19|20)\d{2}\b', normalized))
+    has_named_number_year = bool(re.search(r'\b\d{1,4}\b.*\b(19|20)\d{2}\b', normalized))
+    has_year_phrase = bool(re.search(r'\bnam\s*(19|20)\d{2}\b', normalized))
+    has_bare_number = bool(re.search(r'\b\d{1,4}\b', normalized))
+    return has_number_year or has_reference_number or (has_year_phrase and has_bare_number) or has_named_number_year
+
+
+def _build_legal_reference_safety_answer(query):
+    return (
+        f"Tôi chưa được nối với nguồn tra cứu văn bản pháp luật chính thức, nên hiện không thể xác minh chính xác câu hỏi "
+        f"\"{query.strip()}\" có văn bản tương ứng hay không.\n\n"
+        f"Để tránh trả lời sai, tôi không nên khẳng định văn bản đó tồn tại, không tồn tại hoặc đã có hiệu lực khi chưa tra cứu nguồn chính thức.\n\n"
+        f"Bạn nên kiểm tra tại các nguồn chính thức như Cơ sở dữ liệu quốc gia về văn bản pháp luật, Cổng Thông tin điện tử Chính phủ hoặc Bộ Tư pháp. "
+        f"Nếu bạn muốn, ở bước tiếp theo tôi sẽ bổ sung chức năng tra cứu nguồn chính thức trước khi AI trả lời các câu hỏi kiểu này."
+    )
+
+
+def _get_system_prompt(query=None, config=None):
     cfg = config or _get_ai_config()
+    now_info = _format_vi_datetime(datetime.now())
     if cfg and cfg.is_active and (cfg.system_prompt or '').strip():
-        return cfg.system_prompt.strip()
-    return AI_SYSTEM_PROMPT
+        base_prompt = cfg.system_prompt.strip()
+    else:
+        base_prompt = AI_SYSTEM_PROMPT
+
+    additions = [
+        (
+            f"Thời gian hệ thống hiện tại: {now_info['full_date_text']}, {now_info['time_text']}. "
+            f"Nếu người dùng hỏi về hôm nay, hôm qua, ngày mai hoặc giờ hiện tại, phải bám đúng mốc này."
+        )
+    ]
+
+    if query and _is_specific_legal_reference_query(query):
+        additions.append(
+            "Đây là câu hỏi về văn bản pháp luật cụ thể. Nếu chưa có kết quả tra cứu từ nguồn chính thức được cung cấp trong ngữ cảnh, "
+            "tuyệt đối không được kết luận văn bản có tồn tại hay không tồn tại, không được suy đoán năm ban hành hay hiệu lực. "
+            "Phải nói rõ là chưa xác minh được từ nguồn chính thức."
+        )
+
+    return f"{base_prompt.strip()}\n\nQuy tắc thời gian và an toàn bổ sung:\n- " + "\n- ".join(additions)
 
 
 def _get_provider_sequence():
@@ -228,7 +352,7 @@ def call_deepseek_api(prompt, model=None):
     if not api_key:
         return _provider_error('deepseek', model_name, 'Chưa tìm thấy API key DeepSeek')
 
-    system_prompt = _get_system_prompt()
+    system_prompt = _get_system_prompt(query=prompt)
     headers = {
         'Authorization': f'Bearer {api_key}',
         'Content-Type': 'application/json',
@@ -269,7 +393,7 @@ def call_gemini_api(prompt, model=None):
     if not api_key:
         return _provider_error('gemini', model_name, 'Chưa tìm thấy API key Gemini')
 
-    system_prompt = _get_system_prompt()
+    system_prompt = _get_system_prompt(query=prompt)
     url = f'https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}'
     payload = {
         'system_instruction': {
@@ -308,7 +432,7 @@ def call_openai_api(prompt, model=None):
     if not api_key:
         return _provider_error('openai', model_name, 'Chưa tìm thấy API key OpenAI')
 
-    system_prompt = _get_system_prompt()
+    system_prompt = _get_system_prompt(query=prompt)
     headers = {
         'Authorization': f'Bearer {api_key}',
         'Content-Type': 'application/json',
@@ -349,7 +473,7 @@ def call_groq_api(prompt, model=None):
     if not api_key:
         return _provider_error('groq', model_name, 'Chưa tìm thấy API key Groq')
 
-    system_prompt = _get_system_prompt()
+    system_prompt = _get_system_prompt(query=prompt)
     headers = {
         'Authorization': f'Bearer {api_key}',
         'Content-Type': 'application/json'
@@ -508,6 +632,20 @@ def chat():
     query = (data.get('message') or '').strip()
     if not query:
         return jsonify({'error': 'Vui lòng nhập câu hỏi'}), 400
+
+    if _is_time_query(query):
+        return jsonify({
+            'success': True,
+            'answer': _build_time_answer(query),
+            'type': 'system_time'
+        })
+
+    if _is_specific_legal_reference_query(query):
+        return jsonify({
+            'success': True,
+            'answer': _build_legal_reference_safety_answer(query),
+            'type': 'legal_safe_guard'
+        })
 
     runtime = _get_provider_runtime()
     ai_result, provider_errors = call_ai_provider(query)
