@@ -61,17 +61,37 @@
                     </button>
                 </div>
                 <div class="list-group list-group-flush border-top">
-                    {% for r in roles %}
-                    <div class="list-group-item border-0 px-4 py-3 hover-bg-light d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center gap-3">
+                    <a href="{{ url_for('admin_bp.roles') }}"
+                       class="list-group-item border-0 px-4 py-3 hover-bg-light role-filter-item {% if not selected_role_id %}active{% endif %}">
+                        <div class="d-flex justify-content-between align-items-start gap-3">
                             <div>
+                                <div class="fw-bold text-dark">Tất cả vai trò</div>
+                                <div class="tiny text-muted">Hiển thị toàn bộ tài khoản trong hệ thống.</div>
+                            </div>
+                            <span class="badge bg-light text-primary border rounded-pill px-2 tiny fw-bold">{{ total_user_count }}</span>
+                        </div>
+                    </a>
+                    {% for r in roles %}
+                    <div class="list-group-item border-0 px-4 py-3 hover-bg-light role-filter-item {% if selected_role_id == r.id %}active{% endif %}">
+                        <div class="d-flex justify-content-between align-items-center gap-3">
+                            <a href="{{ url_for('admin_bp.roles', role_id=r.id) }}" class="text-decoration-none flex-grow-1 role-filter-link">
                                 <div class="fw-bold text-dark">{{ r.name }}</div>
                                 <div class="tiny text-muted">{{ get_labels(r.perms) or 'Chưa phân quyền' }}</div>
+                                <div class="mt-2">
+                                    <span class="badge bg-light text-primary border rounded-pill px-2 tiny fw-bold">
+                                        {{ role_user_counts.get(r.id, 0) }} tài khoản
+                                    </span>
+                                </div>
+                            </a>
+                            <div class="d-flex align-items-center gap-2">
+                                <a href="{{ url_for('admin_bp.roles', role_id=r.id) }}" class="btn btn-sm btn-outline-primary border btn-circle shadow-sm d-flex align-items-center justify-content-center" style="--circle-size: 32px;" title="Xem tài khoản">
+                                    <i class="fa-solid fa-users"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-primary border btn-circle shadow-sm d-flex align-items-center justify-content-center" style="--circle-size: 32px;" title="Phân quyền" onclick='openEditPerms({{ r.id }}, "{{ r.name }}", {{ r.perms|safe if r.perms else "{}" }})'>
+                                    <i class="fa-solid fa-user-gear"></i>
+                                </button>
                             </div>
                         </div>
-                        <button class="btn btn-sm btn-outline-primary border btn-circle shadow-sm d-flex align-items-center justify-content-center" style="--circle-size: 32px;" title="Phân quyền" onclick='openEditPerms({{ r.id }}, "{{ r.name }}", {{ r.perms|safe if r.perms else "{}" }})'>
-                            <i class="fa-solid fa-user-gear"></i>
-                        </button>
                     </div>
                     {% endfor %}
                 </div>
@@ -82,7 +102,10 @@
         <div class="col-xl-8 col-lg-7">
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden glass-card">
                 <div class="glass-header justify-content-between">
-                    <span><i class="fa-solid fa-users-gear me-2"></i>Quản trị người dùng</span>
+                    <span>
+                        <i class="fa-solid fa-users-gear me-2"></i>
+                        {{ selected_role.name if selected_role else 'Quản trị người dùng' }}
+                    </span>
                     <span class="badge glass-card border text-primary px-2 tiny fw-bold" style="background: rgba(255,255,255,0.4) !important;">{{ users|length }} tài khoản</span>
                 </div>
                 <div class="p-0">
@@ -98,6 +121,7 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                {% if users %}
                                 {% for u in users %}
                                 <tr class="text-center">
                                     <td>
@@ -134,12 +158,20 @@
                                     </td>
                                 </tr>
                                 {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="py-5 text-center text-muted">
+                                        Không có tài khoản nào thuộc vai trò này.
+                                    </td>
+                                </tr>
+                                {% endif %}
                             </tbody>
                         </table>
                     </div>
 
                     <!-- Mobile User List (Cards) -->
                     <div class="d-md-none border-top">
+                        {% if users %}
                         {% for u in users %}
                         <div class="p-3 border-bottom">
                             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -174,6 +206,11 @@
                             </div>
                         </div>
                         {% endfor %}
+                        {% else %}
+                        <div class="p-4 text-center text-muted small">
+                            Không có tài khoản nào thuộc vai trò này.
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -474,5 +511,12 @@ document.querySelectorAll('.toggle-password').forEach(btn => {
     .tiny { font-size: 10px; }
     .transition-all { transition: all 0.2s; }
     .hover-primary:hover { border-color: var(--primary) !important; color: var(--primary) !important; }
+    .role-filter-item.active {
+        background: rgba(37, 99, 235, 0.08);
+        box-shadow: inset 3px 0 0 var(--primary);
+    }
+    .role-filter-link {
+        color: inherit;
+    }
 </style>
 {% endblock %}

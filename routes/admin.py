@@ -273,10 +273,37 @@ def roles():
             db.session.rollback()
             flash(f'Lỗi: {e}', 'danger')
         return redirect(url_for('admin_bp.roles'))
-    
+
+    selected_role_id = request.args.get('role_id', type=int)
+    selected_role = db.session.get(AppRole, selected_role_id) if selected_role_id else None
+
+    roles = AppRole.query.order_by(AppRole.name.asc()).all()
+    users_query = User.query
+    if selected_role:
+        users_query = users_query.filter(User.role_id == selected_role.id)
+
+    users = users_query.order_by(User.fullname.asc(), User.username.asc()).all()
+
+    from sqlalchemy import func
+    raw_role_counts = db.session.query(
+        User.role_id,
+        func.count(User.id)
+    ).group_by(User.role_id).all()
+    role_user_counts = {int(role_id): int(count) for role_id, count in raw_role_counts if role_id}
+
     unit_group = CategoryGroup.query.filter((CategoryGroup.name == 'Don vi') | (CategoryGroup.name == 'Đơn vị')).first()
     unit_cats = CategoryItem.query.filter_by(group_id=unit_group.id).all() if unit_group else []
-    return render_template('roles.html', roles=AppRole.query.all(), users=User.query.all(), units=[u[0] for u in db.session.query(MasterData.name).distinct().all() if u[0]], unit_cats=unit_cats)
+    return render_template(
+        'roles.html',
+        roles=roles,
+        users=users,
+        selected_role=selected_role,
+        selected_role_id=selected_role.id if selected_role else None,
+        role_user_counts=role_user_counts,
+        total_user_count=sum(role_user_counts.values()),
+        units=[u[0] for u in db.session.query(MasterData.name).distinct().all() if u[0]],
+        unit_cats=unit_cats
+    )
 
 @admin_bp.route('/admin/user/delete/<int:uid>', methods=['POST'])
 def delete_user(uid):

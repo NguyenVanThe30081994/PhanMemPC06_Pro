@@ -197,25 +197,39 @@ def contacts():
     user_unit = session.get('unit_area')
 
     group_filter = request.args.get('group')
-    query = Contact.query
-    if group_filter:
-        query = query.filter_by(contact_group=group_filter)
+    scoped_query = Contact.query
     
     if not is_contact_lead:
-        query = query.filter_by(unit_name=user_unit)
+        scoped_query = scoped_query.filter_by(unit_name=user_unit)
+
+    query = scoped_query
+    if group_filter:
+        query = query.filter_by(contact_group=group_filter)
     
     contact_groups_items = get_module_field_items('contacts', 'contact_group') or get_category_items('Nhóm danh bạ')
     contact_roles_items = get_module_field_items('contacts', 'role') or get_category_items('Chức vụ')
     linhvuc_items = get_module_field_items('contacts', 'category') or get_category_items('Lĩnh vực')
     unit_items = get_module_field_items('contacts', 'unit_name') or get_category_items('Đơn vị')
 
+    from sqlalchemy import func
+    raw_group_counts = scoped_query.with_entities(
+        Contact.contact_group,
+        func.count(Contact.id)
+    ).group_by(Contact.contact_group).all()
+    group_contact_counts = {
+        (name or 'Chưa phân nhóm'): int(count or 0)
+        for name, count in raw_group_counts
+    }
+
     return render_template('contacts.html', 
-                          contacts=query.all(), 
+                          contacts=query.order_by(Contact.contact_group.asc(), Contact.name.asc()).all(), 
                           groups=contact_groups_items,
                           categories=contact_groups_items,
                           roles=contact_roles_items, 
                           linhvuc_items=linhvuc_items,
                           unit_items=unit_items,
+                          group_contact_counts=group_contact_counts,
+                          total_contact_count=sum(group_contact_counts.values()),
                           current_group=group_filter)
 
 @portal_bp.route('/contacts/edit/<int:cid>', methods=['POST'])
