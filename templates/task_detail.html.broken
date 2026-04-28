@@ -186,12 +186,10 @@
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- 4. COMMENTS SECTION -->
-        <div class="card border-0 shadow-sm rounded-4" style="background-color: var(--bg-surface);">
-            <div class="card-header border-bottom p-4" style="background-color: var(--bg-surface); border-color: var(--border) !important;">
-                <h5 class="fw-bold text-main mb-0"><i class="fa-solid fa-comments me-2 text-primary"></i>Phản hồi & Thảo luận</h5>
+            <div class="card-body p-4">
+                <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST" class="mb-4">
+                    <div class="mb-3">
+                        <textarea name="content" class="form-control rounded-3 border-2" placeholder="Nhập ý kiến phản hồi, thảo luận về công việc..." style="height: 100px; background-color: white; padding: 1rem; font-size: 14px;" required></textarea>
             </div>
             <div class="card-body p-4">
                 <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST" class="mb-4">
