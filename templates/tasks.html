@@ -49,10 +49,8 @@
                         <i class="fa-solid fa-magnifying-glass"></i>
                         <input type="text" id="taskSearch" placeholder="Tìm theo tên công việc, nội dung hoặc đơn vị">
                     </label>
-                    <span class="pc06-toolbar-count" id="taskResultCount">{{ tasks|length }} việc</span>
-                </div>
-                <div class="pc06-filter-grid">
-                    <label class="pc06-select-control">
+                    <div class="pc06-filter-grid inline-compact">
+                    <label class="pc06-select-control compact">
                         <span>Đơn vị</span>
                         <select id="taskUnitFilter" class="form-select">
                             <option value="ALL">Tất cả đơn vị</option>
@@ -61,7 +59,7 @@
                             {% endfor %}
                         </select>
                     </label>
-                    <label class="pc06-select-control">
+                    <label class="pc06-select-control compact">
                         <span>Trạng thái</span>
                         <select id="taskStatusFilter" class="form-select">
                             <option value="ALL">Tất cả trạng thái</option>
@@ -70,6 +68,8 @@
                             <option value="hoàn thành">Hoàn thành</option>
                         </select>
                     </label>
+                    </div>
+                    <span class="pc06-toolbar-count" id="taskResultCount">{{ tasks|length }} việc</span>
                 </div>
             </div>
         </div>
