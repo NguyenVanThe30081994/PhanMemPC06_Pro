@@ -1,6 +1,13 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, current_app, Response, send_from_directory
 from models import db, User, AppRole, MasterData, SystemLog, Task, NewsDoc, DocumentLib, Contact, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding, AIAssistantConfig
+try:
+    from utils.password_validator import validate_password, get_password_requirements
+except ImportError:
+    def validate_password(pwd):
+        return len(pwd) >= 8, "Mật khẩu phải có ít nhất 8 ký tự"
+    def get_password_requirements():
+        return "Ít nhất 8 ký tự, có chữ hoa, chữ thường, chữ số"
 
 import os, json, shutil, zipfile, io, sqlite3, subprocess
 try:
@@ -246,7 +253,7 @@ def roles():
                 fullname = request.form.get('fullname')
                 unit = request.form.get('unit', 'Chưa xác định')
                 role_id = request.form.get('role_id')
-                password = request.form.get('password', '123456')
+                password = request.form.get('password', '')
                 
                 if not username or not role_id:
                     flash('Thiếu thông tin bắt buộc!', 'danger')
@@ -893,8 +900,33 @@ def fix_db_manually():
             ("report_config", "author_name", "VARCHAR(100)")
         ]
         
+        # Import security validators
+        try:
+            from utils.security_helpers import validate_table_name, validate_column_name, validate_column_type
+        except ImportError:
+            # Fallback validation
+            import re
+            def validate_table_name(t):
+                return bool(re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', t))
+            def validate_column_name(c):
+                return bool(re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', c))
+            def validate_column_type(ct):
+                allowed = {'INTEGER', 'TEXT', 'REAL', 'BLOB', 'BOOLEAN', 'VARCHAR(50)', 'VARCHAR(100)', 'VARCHAR(255)', 'DATE', 'DATETIME', 'FLOAT'}
+                return ct.upper() in allowed or 'VARCHAR' in ct.upper() or 'DEFAULT' in ct.upper()
+        
         for table, col, col_type in migrations:
             try:
+                # Validate inputs to prevent SQL injection
+                if not validate_table_name(table):
+                    results.append(f"❌ Invalid table name: {table}")
+                    continue
+                if not validate_column_name(col):
+                    results.append(f"❌ Invalid column name: {col}")
+                    continue
+                if not validate_column_type(col_type.split()[0]):
+                    results.append(f"❌ Invalid column type: {col_type}")
+                    continue
+                
                 cursor.execute(f"PRAGMA table_info({table})")
                 cols = [c[1] for c in cursor.fetchall()]
                 if col not in cols:

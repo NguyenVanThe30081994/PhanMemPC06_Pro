@@ -6,6 +6,11 @@ from datetime import datetime
 from models import db, NewsDoc, DocumentLib, Contact, CategoryItem, AppRole
 from category_helpers import get_category_items, get_module_field_items, get_bound_group, get_category_group, slugify_code
 from utils import log_action, push_global_notif, render_auto_template as render_template
+try:
+    from utils.file_validator import validate_file_upload
+except ImportError:
+    def validate_file_upload(f):
+        return True, "OK", f.filename
 
 portal_bp = Blueprint('portal_bp', __name__)
 
@@ -124,7 +129,12 @@ def news():
         f = request.files.get('file')
         fn = ""
         if f and f.filename:
-            fn = secure_filename(f.filename)
+            # Validate file
+            is_valid, message, safe_fn = validate_file_upload(f)
+            if not is_valid:
+                flash(f'Lỗi upload file: {message}', 'danger')
+                return redirect(url_for('portal_bp.news'))
+            fn = safe_fn
             f.save(os.path.join(current_app.root_path, 'uploads', fn))
         db.session.add(NewsDoc(
             title=request.form['title'],
@@ -171,7 +181,12 @@ def library():
     if request.method == 'POST' and is_lib_lead:
         f = request.files.get('file')
         if f and f.filename:
-            fn = secure_filename(f.filename)
+            # Validate file
+            is_valid, message, safe_fn = validate_file_upload(f)
+            if not is_valid:
+                flash(f'Lỗi upload file: {message}', 'danger')
+                return redirect(url_for('portal_bp.library'))
+            fn = safe_fn
             f.save(os.path.join(current_app.root_path, 'library_files', fn))
             db.session.add(DocumentLib(title=request.form['title'], category=request.form['category'], filename=fn))
             db.session.commit()
