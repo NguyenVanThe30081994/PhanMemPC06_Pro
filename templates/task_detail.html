@@ -92,19 +92,19 @@
                     </div>
                     <div>
                         <h5 class="fw-bold mb-0" style="color: #1e293b;">Nội dung Công việc</h5>
-                        <p class="text-mut" style="background: linear-gradient(135deg, #f1f5f9, #e2e8f0); color: #475569; border: none; padding: 6px 14px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                            <i class="fa-solid fa-tag me-1"></i>{{ task.task_type }}
-                        </span>
-                        {% endif %}
-                        <span class="badge" style="background: linear-gradient(135deg, #DBEAFE, #BFDBFE); color: #1D4ED8; border: none; padding: 6px 14px; border-radius: 12px; font-size: 12px; font-weight: 600;
+                        <p class="text-muted mb-0 small">Chi tiết công việc được giao</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-4">
                 <div class="mb-3">
                     <div class="d-flex flex-wrap gap-2 mb-3">
                         {% if task.task_type %}
-                        <span class="badge bg-light text-dark border px-3 py-2 rounded-pill">
+                        <span class="badge" style="background: linear-gradient(135deg, #f1f5f9, #e2e8f0); color: #475569; border: none; padding: 6px 14px; border-radius: 12px; font-size: 12px; font-weight: 600;">
                             <i class="fa-solid fa-tag me-1"></i>{{ task.task_type }}
                         </span>
                         {% endif %}
-                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2 rounded-pill">
+                        <span class="badge" style="background: linear-gradient(135deg, #DBEAFE, #BFDBFE); color: #1D4ED8; border: none; padding: 6px 14px; border-radius: 12px; font-size: 12px; font-weight: 600;">
                             {{ task.initial_status or 'Chưa tiếp nhận' }}
                         </span>
                     </div>
