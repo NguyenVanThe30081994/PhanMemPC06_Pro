@@ -45,34 +45,40 @@
                 </div>
             </div>
         </div>
-        <div class="pc06-hero-toolbar">
-            <div class="pc06-toolbar-row">
-                <label class="pc06-search-control">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="taskSearch" placeholder="Tìm theo tên công việc, nội dung hoặc đơn vị">
-                </label>
-                <div class="pc06-toolbar-note">
+        <div class="pc06-hero-toolbar-grid">
+            <div class="pc06-hero-toolbar">
+                <div class="pc06-toolbar-row">
+                    <label class="pc06-search-control">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="taskSearch" placeholder="Tìm theo tên công việc, nội dung hoặc đơn vị">
+                    </label>
+                </div>
+
+                <div class="pc06-filter-stack">
+                    <div class="pc06-chip-group">
+                        <button type="button" class="pc06-chip active" data-filter-type="unit" data-filter-value="ALL">Tất cả đơn vị</button>
+                        {% for unit in pro_units %}
+                        <button type="button" class="pc06-chip" data-filter-type="unit" data-filter-value="{{ unit.name|lower }}">{{ unit.name }}</button>
+                        {% endfor %}
+                    </div>
+                    <div class="pc06-chip-group">
+                        <button type="button" class="pc06-chip active" data-filter-type="status" data-filter-value="ALL">Mọi trạng thái</button>
+                        <button type="button" class="pc06-chip" data-filter-type="status" data-filter-value="chưa tiếp nhận">Chưa tiếp nhận</button>
+                        <button type="button" class="pc06-chip" data-filter-type="status" data-filter-value="đang thực hiện">Đang thực hiện</button>
+                        <button type="button" class="pc06-chip" data-filter-type="status" data-filter-value="hoàn thành">Hoàn thành</button>
+                    </div>
+                </div>
+            </div>
+            <div class="pc06-hero-toolbar pc06-hero-toolbar-side">
+                <span class="pc06-toolbar-side-label">Phạm vi hiển thị</span>
+                <span class="pc06-toolbar-side-value">{% if is_lead %}Toàn bộ người được giao{% else %}Theo tài khoản hiện tại{% endif %}</span>
+                <p class="pc06-toolbar-note">
                     {% if is_lead %}
                     Hiển thị trạng thái tổng hợp theo toàn bộ người được giao.
                     {% else %}
                     Hiển thị trạng thái công việc theo tài khoản hiện tại.
                     {% endif %}
-                </div>
-            </div>
-
-            <div class="pc06-filter-stack">
-                <div class="pc06-chip-group">
-                    <button type="button" class="pc06-chip active" data-filter-type="unit" data-filter-value="ALL">Tất cả đơn vị</button>
-                    {% for unit in pro_units %}
-                    <button type="button" class="pc06-chip" data-filter-type="unit" data-filter-value="{{ unit.name|lower }}">{{ unit.name }}</button>
-                    {% endfor %}
-                </div>
-                <div class="pc06-chip-group">
-                    <button type="button" class="pc06-chip active" data-filter-type="status" data-filter-value="ALL">Mọi trạng thái</button>
-                    <button type="button" class="pc06-chip" data-filter-type="status" data-filter-value="chưa tiếp nhận">Chưa tiếp nhận</button>
-                    <button type="button" class="pc06-chip" data-filter-type="status" data-filter-value="đang thực hiện">Đang thực hiện</button>
-                    <button type="button" class="pc06-chip" data-filter-type="status" data-filter-value="hoàn thành">Hoàn thành</button>
-                </div>
+                </p>
             </div>
         </div>
     </section>

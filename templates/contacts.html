@@ -41,27 +41,31 @@
                 </div>
             </div>
         </div>
-        <div class="pc06-hero-toolbar">
-            <div class="pc06-toolbar-row">
-                <label class="pc06-search-control">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="contactSearch" placeholder="Tìm tên, số điện thoại hoặc đơn vị..." onkeyup="filterContactsInTable()">
-                </label>
-                <div class="pc06-toolbar-note">
-                    {{ contacts|length }} liên hệ trong phạm vi {{ current_group or 'toàn bộ nhóm danh bạ' }}.
+        <div class="pc06-hero-toolbar-grid">
+            <div class="pc06-hero-toolbar">
+                <div class="pc06-toolbar-row">
+                    <label class="pc06-search-control">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="contactSearch" placeholder="Tìm tên, số điện thoại hoặc đơn vị..." onkeyup="filterContactsInTable()">
+                    </label>
+                </div>
+                <div class="pc06-chip-group">
+                    <a href="{{ url_for('portal_bp.contacts') }}" class="pc06-chip {% if not current_group %}active{% endif %}">
+                        <span>Tất cả nhóm</span>
+                        <span class="pc06-chip-count">{{ total_contact_count }}</span>
+                    </a>
+                    {% for cat in groups %}
+                    <a href="{{ url_for('portal_bp.contacts', group=cat.name) }}" class="pc06-chip {% if current_group == cat.name %}active{% endif %}">
+                        <span>{{ cat.name }}</span>
+                        <span class="pc06-chip-count">{{ group_contact_counts.get(cat.name, 0) }}</span>
+                    </a>
+                    {% endfor %}
                 </div>
             </div>
-            <div class="pc06-chip-group">
-                <a href="{{ url_for('portal_bp.contacts') }}" class="pc06-chip {% if not current_group %}active{% endif %}">
-                    <span>Tất cả nhóm</span>
-                    <span class="pc06-chip-count">{{ total_contact_count }}</span>
-                </a>
-                {% for cat in groups %}
-                <a href="{{ url_for('portal_bp.contacts', group=cat.name) }}" class="pc06-chip {% if current_group == cat.name %}active{% endif %}">
-                    <span>{{ cat.name }}</span>
-                    <span class="pc06-chip-count">{{ group_contact_counts.get(cat.name, 0) }}</span>
-                </a>
-                {% endfor %}
+            <div class="pc06-hero-toolbar pc06-hero-toolbar-side">
+                <span class="pc06-toolbar-side-label">Nhóm đang xem</span>
+                <span class="pc06-toolbar-side-value">{{ current_group or 'Toàn bộ danh bạ' }}</span>
+                <p class="pc06-toolbar-note">{{ contacts|length }} liên hệ trong phạm vi hiện tại.</p>
             </div>
         </div>
     </section>

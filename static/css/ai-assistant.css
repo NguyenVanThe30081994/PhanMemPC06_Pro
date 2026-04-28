@@ -96,6 +96,7 @@
     gap: 12px;
     align-items: center;
     justify-content: flex-end;
+    max-width: 420px;
 }
 
 .assistant-chip,
@@ -115,6 +116,33 @@
 [data-theme="dark"] .assistant-chip,
 [data-theme="dark"] .assistant-pill {
     background: rgba(15, 23, 42, 0.72);
+}
+
+.assistant-hero-scope {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    display: grid;
+    gap: 4px;
+}
+
+.assistant-hero-scope-label {
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(226, 232, 240, 0.72);
+}
+
+.assistant-hero-scope strong {
+    font-size: 1.05rem;
+    color: #fff;
+}
+
+.assistant-hero-scope small {
+    color: rgba(226, 232, 240, 0.8);
+    line-height: 1.5;
 }
 
 .assistant-grid {

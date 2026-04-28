@@ -450,6 +450,39 @@
     backdrop-filter: blur(16px);
 }
 
+.pc06-hero-toolbar-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 820px) minmax(260px, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+
+.pc06-hero-toolbar-side {
+    align-content: start;
+}
+
+.pc06-toolbar-side-label {
+    display: block;
+    color: rgba(226, 232, 240, 0.72);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.pc06-toolbar-side-value {
+    display: block;
+    color: #fff;
+    font-size: 1.24rem;
+    font-weight: 800;
+    line-height: 1.35;
+}
+
+.pc06-toolbar-side-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 .pc06-page-kicker {
     display: inline-flex;
     align-items: center;
@@ -601,6 +634,11 @@
 [data-theme="dark"] .pc06-hero-toolbar .input-group-text {
     background: rgba(15, 23, 42, 0.62) !important;
     border-color: rgba(148, 163, 184, 0.16) !important;
+}
+
+.pc06-hero-toolbar-side .pc06-toolbar-note {
+    text-align: left;
+    color: rgba(226, 232, 240, 0.82);
 }
 
 .pc06-search-control input {
@@ -1299,7 +1337,8 @@ a.pc06-chip {
 
 @media (max-width: 1080px) {
     .pc06-hero-grid,
-    .pc06-detail-grid {
+    .pc06-detail-grid,
+    .pc06-hero-toolbar-grid {
         grid-template-columns: 1fr;
     }
 

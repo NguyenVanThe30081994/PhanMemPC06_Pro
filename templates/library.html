@@ -27,16 +27,23 @@
                 <div class="pc06-metric-card"><span>Lĩnh vực</span><strong>{{ categories|length }}</strong></div>
             </div>
         </div>
-        <div class="pc06-hero-toolbar">
-            <label class="pc06-search-control">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" id="librarySearch" placeholder="Tìm tên tài liệu hoặc mô tả">
-            </label>
-            <div class="pc06-chip-group">
-                <button type="button" class="pc06-chip active" data-filter-type="category" data-filter-value="ALL">Tất cả lĩnh vực</button>
-                {% for cat in categories %}
-                <button type="button" class="pc06-chip" data-filter-type="category" data-filter-value="{{ cat.name|lower }}">{{ cat.name }}</button>
-                {% endfor %}
+        <div class="pc06-hero-toolbar-grid">
+            <div class="pc06-hero-toolbar">
+                <label class="pc06-search-control">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="librarySearch" placeholder="Tìm tên tài liệu hoặc mô tả">
+                </label>
+                <div class="pc06-chip-group">
+                    <button type="button" class="pc06-chip active" data-filter-type="category" data-filter-value="ALL">Tất cả lĩnh vực</button>
+                    {% for cat in categories %}
+                    <button type="button" class="pc06-chip" data-filter-type="category" data-filter-value="{{ cat.name|lower }}">{{ cat.name }}</button>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="pc06-hero-toolbar pc06-hero-toolbar-side">
+                <span class="pc06-toolbar-side-label">Bộ lọc thư viện</span>
+                <span class="pc06-toolbar-side-value">{{ categories|length }} lĩnh vực đang khả dụng</span>
+                <p class="pc06-toolbar-note">Khối lọc được thu gọn về bên trái để nhường không gian đọc nội dung cho phần bên dưới.</p>
             </div>
         </div>
     </section>

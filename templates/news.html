@@ -37,18 +37,25 @@
                 </div>
             </div>
         </div>
-        <div class="pc06-hero-toolbar">
-            <div class="pc06-toolbar-row">
-                <label class="pc06-search-control">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="newsSearch" placeholder="Tìm tiêu đề hoặc nội dung bản tin">
-                </label>
+        <div class="pc06-hero-toolbar-grid">
+            <div class="pc06-hero-toolbar">
+                <div class="pc06-toolbar-row">
+                    <label class="pc06-search-control">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="newsSearch" placeholder="Tìm tiêu đề hoặc nội dung bản tin">
+                    </label>
+                </div>
+                <div class="pc06-chip-group">
+                    <button type="button" class="pc06-chip active" data-filter-type="category" data-filter-value="ALL">Tất cả lĩnh vực</button>
+                    {% for unit in pro_units %}
+                    <button type="button" class="pc06-chip" data-filter-type="category" data-filter-value="{{ unit.name|lower }}">{{ unit.name }}</button>
+                    {% endfor %}
+                </div>
             </div>
-            <div class="pc06-chip-group">
-                <button type="button" class="pc06-chip active" data-filter-type="category" data-filter-value="ALL">Tất cả lĩnh vực</button>
-                {% for unit in pro_units %}
-                <button type="button" class="pc06-chip" data-filter-type="category" data-filter-value="{{ unit.name|lower }}">{{ unit.name }}</button>
-                {% endfor %}
+            <div class="pc06-hero-toolbar pc06-hero-toolbar-side">
+                <span class="pc06-toolbar-side-label">Phạm vi bản tin</span>
+                <span class="pc06-toolbar-side-value">{{ pro_units|length }} lĩnh vực nghiệp vụ</span>
+                <p class="pc06-toolbar-note">Lọc theo đội nghiệp vụ hoặc tìm thẳng theo tiêu đề, không kéo dài cả bề ngang của hero.</p>
             </div>
         </div>
     </section>

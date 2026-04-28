@@ -115,6 +115,15 @@ def _format_schedule_summary(template):
     return "Đột xuất, hạn nộp khai báo theo từng kỳ"
 
 
+def _format_report_type_label(template):
+    report_type = (template.report_type or 'adhoc').strip().lower()
+    if report_type == 'daily':
+        return 'Hàng ngày'
+    if report_type == 'periodic':
+        return 'Định kỳ'
+    return 'Đột xuất'
+
+
 def _compute_period_deadline(template, start_date, end_date, explicit_deadline=None):
     report_type = (template.report_type or 'adhoc').strip().lower()
     frequency = (template.frequency or '').strip().lower()
@@ -279,11 +288,16 @@ def index():
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
 
+    from category_helpers import get_module_field_items, get_category_items
+
     templates = FormTemplate.query.filter_by(is_active=True).order_by(FormTemplate.name.asc()).all()
     open_periods = ReportingPeriod.query.filter(
         ReportingPeriod.template_id.isnot(None),
         ReportingPeriod.is_locked.is_(False)
     ).all()
+
+    department_items = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
+    fixed_department_names = [item.name for item in department_items if getattr(item, 'name', None)]
 
     period_map = {}
     for period in open_periods:
@@ -303,13 +317,17 @@ def index():
         deadline_label = deadline_dt.strftime('%d/%m/%Y %H:%M') if deadline_dt else _format_schedule_summary(template)
         period_label = current_period.name if current_period else None
         department_name = template.department or 'Chưa phân đội'
+        report_type_label = _format_report_type_label(template)
+        schedule_label = f"Hạn nộp {deadline_label}" if deadline_dt else deadline_label
 
         entry = {
             'template': template,
             'deadline_dt': deadline_dt,
             'deadline_label': deadline_label,
+            'schedule_label': schedule_label,
             'period_label': period_label,
-            'department_name': department_name
+            'department_name': department_name,
+            'report_type_label': report_type_label
         }
         template_entries.append(entry)
 
@@ -317,7 +335,15 @@ def index():
         bucket.append(entry)
 
     department_dashboard = []
-    for department_name, entries in sorted(department_map.items(), key=lambda item: item[0].lower()):
+    ordered_department_names = list(fixed_department_names)
+    for department_name in department_map.keys():
+        if department_name not in ordered_department_names and department_name != 'Chưa phân đội':
+            ordered_department_names.append(department_name)
+    if 'Chưa phân đội' in department_map:
+        ordered_department_names.append('Chưa phân đội')
+
+    for department_name in ordered_department_names:
+        entries = department_map.get(department_name, [])
         sorted_entries = sorted(
             entries,
             key=lambda entry: (
@@ -332,11 +358,28 @@ def index():
             'entries': sorted_entries
         })
 
+    department_hero_cards = [
+        {
+            'department_name': group['department_name'],
+            'template_count': group['template_count']
+        }
+        for group in department_dashboard
+        if group['department_name'] != 'Chưa phân đội'
+    ][:5]
+    if department_map.get('Chưa phân đội'):
+        department_hero_cards.append({
+            'department_name': 'Chưa phân đội',
+            'template_count': len(department_map['Chưa phân đội'])
+        })
+    active_department_count = sum(1 for card in department_hero_cards if card['template_count'] > 0)
+
     return render_template(
         'reporting/index.html',
         templates=templates,
         template_entries=template_entries,
-        department_dashboard=department_dashboard
+        department_dashboard=department_dashboard,
+        department_hero_cards=department_hero_cards,
+        active_department_count=active_department_count
     )
 
 @reporting_bp.route('/template/upload', methods=['POST'])

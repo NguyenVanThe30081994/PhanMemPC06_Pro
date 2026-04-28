@@ -36,21 +36,25 @@
                 <div class="pc06-metric-card"><span>Bộ lọc</span><strong style="font-size:1rem;">{{ selected_role.name if selected_role else 'Tất cả vai trò' }}</strong></div>
             </div>
         </div>
-        <div class="pc06-hero-toolbar">
-            <div class="pc06-toolbar-row">
-                <div class="pc06-toolbar-note">Chọn vai trò để lọc tài khoản theo phạm vi phân quyền. Các thẻ sẽ tự co theo độ dài tên vai trò.</div>
+        <div class="pc06-hero-toolbar-grid">
+            <div class="pc06-hero-toolbar">
+                <div class="pc06-chip-group">
+                    <a href="{{ url_for('admin_bp.roles') }}" class="pc06-chip {% if not selected_role_id %}active{% endif %}">
+                        <span>Tất cả vai trò</span>
+                        <span class="pc06-chip-count">{{ total_user_count }}</span>
+                    </a>
+                    {% for r in roles %}
+                    <a href="{{ url_for('admin_bp.roles', role_id=r.id) }}" class="pc06-chip {% if selected_role_id == r.id %}active{% endif %}">
+                        <span>{{ r.name }}</span>
+                        <span class="pc06-chip-count">{{ role_user_counts.get(r.id, 0) }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
             </div>
-            <div class="pc06-chip-group">
-                <a href="{{ url_for('admin_bp.roles') }}" class="pc06-chip {% if not selected_role_id %}active{% endif %}">
-                    <span>Tất cả vai trò</span>
-                    <span class="pc06-chip-count">{{ total_user_count }}</span>
-                </a>
-                {% for r in roles %}
-                <a href="{{ url_for('admin_bp.roles', role_id=r.id) }}" class="pc06-chip {% if selected_role_id == r.id %}active{% endif %}">
-                    <span>{{ r.name }}</span>
-                    <span class="pc06-chip-count">{{ role_user_counts.get(r.id, 0) }}</span>
-                </a>
-                {% endfor %}
+            <div class="pc06-hero-toolbar pc06-hero-toolbar-side">
+                <span class="pc06-toolbar-side-label">Vai trò đang lọc</span>
+                <span class="pc06-toolbar-side-value">{{ selected_role.name if selected_role else 'Tất cả vai trò' }}</span>
+                <p class="pc06-toolbar-note">Chọn vai trò để lọc tài khoản theo phạm vi phân quyền. Các thẻ tự co theo độ dài tên vai trò.</p>
             </div>
         </div>
     </section>
