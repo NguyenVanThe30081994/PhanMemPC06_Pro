@@ -201,14 +201,13 @@ def task_detail(tid):
     comments = TaskComment.query.filter_by(task_id=tid).order_by(TaskComment.created_at.desc()).all()
     assigns = db.session.query(TaskAssignment, User).join(User, TaskAssignment.user_id == User.id).filter(TaskAssignment.task_id == tid).all()
     
-    # Calculate progress percent based on logic
-    display_status = task.initial_status
+    # Calculate progress percent: only 0% or 100% (after report submitted and marked completed)
+    progress_percent = 0
     if assigns:
-        all_completed = all(a.status == 'Hoàn thành' for a, u in assigns)
-        if all_completed:
-            display_status = 'Hoàn thành'
-    
-    progress_percent = 100 if display_status == 'Hoàn thành' else 0
+        # Check if current user has completed the task
+        user_assign = next((a for a, u in assigns if a.user_id == session['uid']), None)
+        if user_assign and user_assign.status == 'Hoàn thành':
+            progress_percent = 100
     
     if request.method == 'POST':
         content = request.form.get('content')
