@@ -10,40 +10,40 @@
                     Danh bạ
                 </div>
                 <h1 class="pc06-page-title">Danh bạ</h1>
-                {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin or session.get('uid') %}
-                <div class="pc06-action-cluster">
-                    <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importContactModal">
-                        <i class="fa-solid fa-file-excel"></i>
-                        Nhập Excel
-                    </button>
-                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addContactModal">
-                        <i class="fa-solid fa-plus"></i>
-                        Thêm liên hệ
-                    </button>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-        <div class="pc06-hero-toolbar-grid compact">
-            <div class="pc06-hero-toolbar">
-                <div class="pc06-toolbar-row compact-filters">
-                    <div class="pc06-select-control search-grow">
-                        <span>Tìm kiếm</span>
-                        <label class="pc06-search-control">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="contactSearch" placeholder="Tìm tên, số điện thoại hoặc đơn vị..." onkeyup="filterContactsInTable()">
-                        </label>
+                <div class="pc06-hero-inline-band">
+                    {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin or session.get('uid') %}
+                    <div class="pc06-action-cluster">
+                        <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importContactModal">
+                            <i class="fa-solid fa-file-excel"></i>
+                            Nhập Excel
+                        </button>
+                        <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addContactModal">
+                            <i class="fa-solid fa-plus"></i>
+                            Thêm liên hệ
+                        </button>
                     </div>
-                    <label class="pc06-select-control compact wide">
-                        <span>Nhóm</span>
-                        <select id="contactGroupFilter" class="form-select" onchange="window.location.href=this.value">
-                            <option value="{{ url_for('portal_bp.contacts') }}" {% if not current_group %}selected{% endif %}>Tất cả nhóm ({{ total_contact_count }})</option>
-                            {% for cat in groups %}
-                            <option value="{{ url_for('portal_bp.contacts', group=cat.name) }}" {% if current_group == cat.name %}selected{% endif %}>{{ cat.name }} ({{ group_contact_counts.get(cat.name, 0) }})</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-                    <span class="pc06-toolbar-count" id="contactVisibleCount">{{ contacts|length }} liên hệ</span>
+                    {% endif %}
+                    <div class="pc06-hero-toolbar pc06-hero-toolbar-inline">
+                        <div class="pc06-toolbar-row compact-filters">
+                            <div class="pc06-select-control search-grow">
+                                <span>Tìm kiếm</span>
+                                <label class="pc06-search-control">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                    <input type="text" id="contactSearch" placeholder="Tìm tên, số điện thoại hoặc đơn vị..." onkeyup="filterContactsInTable()">
+                                </label>
+                            </div>
+                            <label class="pc06-select-control compact wide">
+                                <span>Nhóm</span>
+                                <select id="contactGroupFilter" class="form-select" onchange="window.location.href=this.value">
+                                    <option value="{{ url_for('portal_bp.contacts') }}" {% if not current_group %}selected{% endif %}>Tất cả nhóm ({{ total_contact_count }})</option>
+                                    {% for cat in groups %}
+                                    <option value="{{ url_for('portal_bp.contacts', group=cat.name) }}" {% if current_group == cat.name %}selected{% endif %}>{{ cat.name }} ({{ group_contact_counts.get(cat.name, 0) }})</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            <span class="pc06-toolbar-count" id="contactVisibleCount">{{ contacts|length }} liên hệ</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

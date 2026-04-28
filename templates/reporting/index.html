@@ -102,6 +102,70 @@
     flex-direction: column;
     gap: 16px;
   }
+  .reporting-department-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .reporting-department-card {
+    border-radius: 24px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%);
+    box-shadow: 0 18px 34px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+  }
+  .reporting-department-card[open] {
+    box-shadow: 0 22px 40px rgba(15, 23, 42, 0.12);
+  }
+  .reporting-department-summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 20px;
+  }
+  .reporting-department-summary::-webkit-details-marker {
+    display: none;
+  }
+  .reporting-department-title {
+    display: grid;
+    gap: 4px;
+  }
+  .reporting-department-title strong {
+    color: #0f172a;
+    font-size: 1rem;
+  }
+  .reporting-department-title span {
+    color: #64748b;
+    font-size: 0.82rem;
+  }
+  .reporting-department-toggle {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+  }
+  .reporting-department-card[open] .reporting-department-toggle {
+    transform: rotate(180deg);
+  }
+  .reporting-department-body {
+    padding: 0 18px 18px;
+    display: grid;
+    gap: 12px;
+  }
+  .reporting-department-empty {
+    padding: 14px 0 4px;
+    color: #94a3b8;
+    font-size: 0.84rem;
+  }
   .reporting-template-card {
     padding: 18px 20px;
     border-radius: 24px;
@@ -188,6 +252,21 @@
     border-color: rgba(148, 163, 184, 0.18);
     box-shadow: 0 18px 34px rgba(2, 6, 23, 0.34);
   }
+  [data-theme="dark"] .reporting-department-card {
+    background: rgba(15, 23, 42, 0.84);
+    border-color: rgba(148, 163, 184, 0.18);
+    box-shadow: 0 18px 34px rgba(2, 6, 23, 0.34);
+  }
+  [data-theme="dark"] .reporting-department-title strong {
+    color: #e2e8f0;
+  }
+  [data-theme="dark"] .reporting-department-title span {
+    color: #94a3b8;
+  }
+  [data-theme="dark"] .reporting-department-toggle {
+    background: rgba(30, 64, 175, 0.22);
+    color: #bfdbfe;
+  }
   [data-theme="dark"] .reporting-outline-btn {
     background: rgba(30, 64, 175, 0.22);
     border-color: rgba(96, 165, 250, 0.24);
@@ -211,11 +290,17 @@
     .reporting-layout-grid {
       grid-template-columns: 1fr;
     }
+    .reporting-department-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
   @media (max-width: 767px) {
     .reporting-section-head {
       flex-direction: column;
       align-items: flex-start;
+    }
+    .reporting-department-grid {
+      grid-template-columns: 1fr;
     }
     .reporting-template-topline {
       flex-direction: column;
@@ -265,10 +350,12 @@
           <div class="reporting-summary-value">{{ active_department_count }}<small>nhóm phụ trách</small></div>
           <div class="reporting-team-grid">
             {% for group in department_hero_cards %}
+            {% if group.department_name != 'Chưa phân đội' %}
             <div class="reporting-team-tile">
               <strong>{{ group.department_name }}</strong>
               <span>{{ group.template_count }} biểu mẫu</span>
             </div>
+            {% endif %}
             {% endfor %}
           </div>
         </div>
@@ -280,8 +367,7 @@
     <section class="pc06-panel">
       <div class="reporting-section-head">
         <div>
-          <h4>Danh sách biểu mẫu báo cáo</h4>
-          <p>Mở biểu mẫu, kiểm tra hạn nộp và truy cập workspace xử lý.</p>
+          <h4>Biểu mẫu theo đội</h4>
         </div>
         <span class="pc06-soft-tag">
           <i class="fa-solid fa-file-circle-check"></i>{{ template_entries|length }} biểu mẫu
@@ -289,51 +375,71 @@
       </div>
 
       {% if template_entries %}
-      <div class="reporting-template-stack">
-        {% for entry in template_entries %}
-        <article class="reporting-template-card">
-          <div class="reporting-template-top">
-            <div class="reporting-template-topline">
-              <div class="reporting-template-meta">
-                <span class="pc06-soft-tag">
-                  <i class="fa-solid fa-shield-halved"></i>{{ entry.department_name }}
-                </span>
-                <span class="pc06-soft-tag">
-                  <i class="fa-solid fa-hourglass-half"></i>{{ entry.schedule_label }}
-                </span>
-                <span class="pc06-soft-tag">
-                  <i class="fa-solid fa-layer-group"></i>{{ entry.report_type_label }}
-                </span>
-                {% if entry.period_label %}
-                <span class="pc06-soft-tag">
-                  <i class="fa-solid fa-calendar-days"></i>{{ entry.period_label }}
-                </span>
-                {% endif %}
+      <div class="reporting-department-grid">
+        {% set department_limit = namespace(count=0) %}
+        {% for group in department_dashboard %}
+          {% if group.department_name != 'Chưa phân đội' and department_limit.count < 5 %}
+          {% set department_limit.count = department_limit.count + 1 %}
+          <details class="reporting-department-card" {% if group.template_count > 0 %}open{% endif %}>
+            <summary class="reporting-department-summary">
+              <div class="reporting-department-title">
+                <strong>{{ group.department_name }}</strong>
+                <span>{{ group.template_count }} biểu mẫu</span>
               </div>
-              <div class="reporting-template-actions">
-                <a
-                  href="{{ url_for('reporting_bp.template_workspace', template_id=entry.template.id) }}"
-                  class="reporting-outline-btn"
-                  title="Mở biểu mẫu">
-                  <i class="fa-solid fa-pen"></i>
-                </a>
-                {% if session.get('is_admin') %}
-                <form action="{{ url_for('reporting_bp.template_delete', template_id=entry.template.id) }}" method="POST" onsubmit="return confirm('Xóa biểu mẫu này và toàn bộ dữ liệu liên quan?');" class="m-0">
-                  <button type="submit" class="reporting-outline-btn reporting-delete-btn" title="Xóa biểu mẫu">
-                    <i class="fa-solid fa-trash"></i>
-                  </button>
-                </form>
-                {% endif %}
-              </div>
+              <span class="reporting-department-toggle">
+                <i class="fa-solid fa-chevron-down"></i>
+              </span>
+            </summary>
+            <div class="reporting-department-body">
+              {% if group.entries %}
+                {% for entry in group.entries %}
+                <article class="reporting-template-card">
+                  <div class="reporting-template-top">
+                    <div class="reporting-template-topline">
+                      <div class="reporting-template-meta">
+                        <span class="pc06-soft-tag">
+                          <i class="fa-solid fa-hourglass-half"></i>{{ entry.schedule_label }}
+                        </span>
+                        <span class="pc06-soft-tag">
+                          <i class="fa-solid fa-layer-group"></i>{{ entry.report_type_label }}
+                        </span>
+                        {% if entry.period_label %}
+                        <span class="pc06-soft-tag">
+                          <i class="fa-solid fa-calendar-days"></i>{{ entry.period_label }}
+                        </span>
+                        {% endif %}
+                      </div>
+                      <div class="reporting-template-actions">
+                        <a
+                          href="{{ url_for('reporting_bp.template_workspace', template_id=entry.template.id) }}"
+                          class="reporting-outline-btn"
+                          title="Mở biểu mẫu">
+                          <i class="fa-solid fa-pen"></i>
+                        </a>
+                        {% if session.get('is_admin') %}
+                        <form action="{{ url_for('reporting_bp.template_delete', template_id=entry.template.id) }}" method="POST" onsubmit="return confirm('Xóa biểu mẫu này và toàn bộ dữ liệu liên quan?');" class="m-0">
+                          <button type="submit" class="reporting-outline-btn reporting-delete-btn" title="Xóa biểu mẫu">
+                            <i class="fa-solid fa-trash"></i>
+                          </button>
+                        </form>
+                        {% endif %}
+                      </div>
+                    </div>
+                    <a
+                      href="{{ url_for('reporting_bp.template_workspace', template_id=entry.template.id) }}"
+                      class="reporting-template-name"
+                      id="open_template_{{ entry.template.id }}">
+                      {{ entry.template.name }}
+                    </a>
+                  </div>
+                </article>
+                {% endfor %}
+              {% else %}
+              <div class="reporting-department-empty">Chưa có biểu mẫu.</div>
+              {% endif %}
             </div>
-            <a
-              href="{{ url_for('reporting_bp.template_workspace', template_id=entry.template.id) }}"
-              class="reporting-template-name"
-              id="open_template_{{ entry.template.id }}">
-              {{ entry.template.name }}
-            </a>
-          </div>
-        </article>
+          </details>
+          {% endif %}
         {% endfor %}
       </div>
       {% else %}

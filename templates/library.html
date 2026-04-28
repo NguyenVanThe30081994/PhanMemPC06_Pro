@@ -10,36 +10,36 @@
                     Thư viện
                 </div>
                 <h1 class="pc06-page-title">Thư viện</h1>
-                {% if perms.get('p_lib_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
-                <div class="pc06-action-cluster">
-                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLibraryModal">
-                        <i class="fa-solid fa-upload"></i>
-                        Tải tài liệu lên
-                    </button>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-        <div class="pc06-hero-toolbar-grid compact">
-            <div class="pc06-hero-toolbar">
-                <div class="pc06-toolbar-row compact-filters">
-                    <div class="pc06-select-control search-grow">
-                        <span>Tìm kiếm</span>
-                        <label class="pc06-search-control">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="librarySearch" placeholder="Tìm tên tài liệu hoặc mô tả">
-                        </label>
+                <div class="pc06-hero-inline-band">
+                    {% if perms.get('p_lib_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
+                    <div class="pc06-action-cluster">
+                        <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLibraryModal">
+                            <i class="fa-solid fa-upload"></i>
+                            Tải tài liệu lên
+                        </button>
                     </div>
-                    <label class="pc06-select-control compact">
-                        <span>Lĩnh vực</span>
-                        <select id="libraryCategoryFilter" class="form-select">
-                            <option value="ALL">Tất cả lĩnh vực</option>
-                            {% for cat in categories %}
-                            <option value="{{ cat.name|lower }}">{{ cat.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-                    <span class="pc06-toolbar-count" id="libraryResultCount">{{ items|length }} tài liệu</span>
+                    {% endif %}
+                    <div class="pc06-hero-toolbar pc06-hero-toolbar-inline">
+                        <div class="pc06-toolbar-row compact-filters">
+                            <div class="pc06-select-control search-grow">
+                                <span>Tìm kiếm</span>
+                                <label class="pc06-search-control">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                    <input type="text" id="librarySearch" placeholder="Tìm tên tài liệu hoặc mô tả">
+                                </label>
+                            </div>
+                            <label class="pc06-select-control compact">
+                                <span>Lĩnh vực</span>
+                                <select id="libraryCategoryFilter" class="form-select">
+                                    <option value="ALL">Tất cả lĩnh vực</option>
+                                    {% for cat in categories %}
+                                    <option value="{{ cat.name|lower }}">{{ cat.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            <span class="pc06-toolbar-count" id="libraryResultCount">{{ items|length }} tài liệu</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

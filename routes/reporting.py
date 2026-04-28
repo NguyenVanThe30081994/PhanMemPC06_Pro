@@ -311,12 +311,16 @@ def index():
 
     template_entries = []
     department_map = {}
+    visible_templates = []
     for template in templates:
+        department_name = (template.department or '').strip()
+        if not department_name or department_name.lower() == 'chưa phân đội':
+            continue
+
         current_period = period_map.get(template.id)
         deadline_dt = current_period.deadline if current_period else None
         deadline_label = deadline_dt.strftime('%d/%m/%Y %H:%M') if deadline_dt else _format_schedule_summary(template)
         period_label = current_period.name if current_period else None
-        department_name = template.department or 'Chưa phân đội'
         report_type_label = _format_report_type_label(template)
         schedule_label = f"Hạn nộp {deadline_label}" if deadline_dt else deadline_label
 
@@ -330,6 +334,7 @@ def index():
             'report_type_label': report_type_label
         }
         template_entries.append(entry)
+        visible_templates.append(template)
 
         bucket = department_map.setdefault(department_name, [])
         bucket.append(entry)
@@ -339,9 +344,6 @@ def index():
     for department_name in department_map.keys():
         if department_name not in ordered_department_names and department_name != 'Chưa phân đội':
             ordered_department_names.append(department_name)
-    if 'Chưa phân đội' in department_map:
-        ordered_department_names.append('Chưa phân đội')
-
     for department_name in ordered_department_names:
         entries = department_map.get(department_name, [])
         sorted_entries = sorted(
@@ -364,18 +366,12 @@ def index():
             'template_count': group['template_count']
         }
         for group in department_dashboard
-        if group['department_name'] != 'Chưa phân đội'
     ][:5]
-    if department_map.get('Chưa phân đội'):
-        department_hero_cards.append({
-            'department_name': 'Chưa phân đội',
-            'template_count': len(department_map['Chưa phân đội'])
-        })
     active_department_count = sum(1 for card in department_hero_cards if card['template_count'] > 0)
 
     return render_template(
         'reporting/index.html',
-        templates=templates,
+        templates=visible_templates,
         template_entries=template_entries,
         department_dashboard=department_dashboard,
         department_hero_cards=department_hero_cards,

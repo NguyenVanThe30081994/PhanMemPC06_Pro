@@ -10,36 +10,36 @@
                     Bảng tin
                 </div>
                 <h1 class="pc06-page-title">Bảng tin</h1>
-                {% if perms.get('p_news_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
-                <div class="pc06-action-cluster">
-                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addNewsModal">
-                        <i class="fa-solid fa-plus"></i>
-                        Đăng tin mới
-                    </button>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-        <div class="pc06-hero-toolbar-grid compact">
-            <div class="pc06-hero-toolbar">
-                <div class="pc06-toolbar-row compact-filters">
-                    <div class="pc06-select-control search-grow">
-                        <span>Tìm kiếm</span>
-                        <label class="pc06-search-control">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="newsSearch" placeholder="Tìm tiêu đề hoặc nội dung bản tin">
-                        </label>
+                <div class="pc06-hero-inline-band">
+                    {% if perms.get('p_news_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
+                    <div class="pc06-action-cluster">
+                        <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addNewsModal">
+                            <i class="fa-solid fa-plus"></i>
+                            Đăng tin mới
+                        </button>
                     </div>
-                    <label class="pc06-select-control compact">
-                        <span>Lĩnh vực</span>
-                        <select id="newsCategoryFilter" class="form-select">
-                            <option value="ALL">Tất cả lĩnh vực</option>
-                            {% for unit in pro_units %}
-                            <option value="{{ unit.name|lower }}">{{ unit.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-                    <span class="pc06-toolbar-count" id="newsResultCount">{{ news_list|length }} tin</span>
+                    {% endif %}
+                    <div class="pc06-hero-toolbar pc06-hero-toolbar-inline">
+                        <div class="pc06-toolbar-row compact-filters">
+                            <div class="pc06-select-control search-grow">
+                                <span>Tìm kiếm</span>
+                                <label class="pc06-search-control">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                    <input type="text" id="newsSearch" placeholder="Tìm tiêu đề hoặc nội dung bản tin">
+                                </label>
+                            </div>
+                            <label class="pc06-select-control compact">
+                                <span>Lĩnh vực</span>
+                                <select id="newsCategoryFilter" class="form-select">
+                                    <option value="ALL">Tất cả lĩnh vực</option>
+                                    {% for unit in pro_units %}
+                                    <option value="{{ unit.name|lower }}">{{ unit.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            <span class="pc06-toolbar-count" id="newsResultCount">{{ news_list|length }} tin</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
