@@ -1,42 +1,134 @@
 {% extends "base_mobile.html" %}
 
-{% block title %}Cập nhật Hệ thống - PC06 Mobile{% endblock %}
+{% block title %}Cập nhật bản vá{% endblock %}
+
+{% block head %}
+<style>
+    .mobile-update-hero { background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff; padding: 20px; border-radius: 24px; margin-bottom: 16px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18); }
+    .mobile-update-hero h1 { margin: 10px 0 8px; font-size: 1.5rem; font-weight: 800; }
+    .mobile-update-hero p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.9rem; }
+    .mobile-update-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
+    .mobile-update-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); padding: 16px; margin-bottom: 14px; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="animate__animated animate__fadeIn">
-    <div class="mb-4">
-        <h1 class="h4 fw-bold mb-1">Cập nhật Hệ thống</h1>
-        <p class="text-muted small">Quản lý phiên bản và nâng cấp</p>
-    </div>
+<section class="mobile-update-hero">
+    <div class="mobile-update-kicker"><i class="fa-solid fa-code-branch"></i>Cập nhật bản vá</div>
+    <h1>Phiên bản hệ thống</h1>
+    <p>Quản lý gói cập nhật, đồng bộ Git và kiểm tra trạng thái repository.</p>
+</section>
 
-    <!-- Current Version -->
-    <div class="mobile-card p-4 mb-4 bg-primary text-white text-center border-0">
-        <div class="text-white text-opacity-75 tiny fw-bold mb-1">PHIÊN BẢN HIỆN TẠI</div>
-        <div class="h2 fw-bold mb-0">v1.5.0</div>
-        <div class="mt-2 tiny text-white text-opacity-50">Ngày cập nhật: {{ now_str if now_str else "Tự động" }}</div>
+<section class="mobile-update-card">
+    <h6 class="fw-bold mb-3">Thông tin phiên bản</h6>
+    <div class="pc06-info-list">
+        <div class="pc06-info-item"><span>Nhánh</span><strong>{{ git_info.branch|default('main') }}</strong></div>
+        <div class="pc06-info-item"><span>Phiên bản</span><strong>{{ git_info.version|default('v3.5.0') }}</strong></div>
+        <div class="pc06-info-item"><span>Commit gần nhất</span><strong>{{ git_info.commit_msg|default('Phiên bản hiện tại') }}</strong></div>
     </div>
+</section>
 
-    <div class="mobile-card p-4 mb-3">
-        <h6 class="fw-bold text-dark mb-3 small">TẢI LÊN BẢN VÁ (.ZIP)</h6>
-        <form method="POST" enctype="multipart/form-data">
-            <div class="mb-3">
-                <div class="p-3 border-dashed rounded-3 bg-light text-center" onclick="document.getElementById('zipInput').click()" style="border: 2px dashed var(--border);">
-                    <div class="tiny fw-bold text-muted" id="zipFileName">Chạm để chọn file ZIP</div>
-                    <input type="file" name="update_pkg" id="zipInput" class="d-none" accept=".zip" onchange="document.getElementById('zipFileName').innerText = this.files[0].name; document.getElementById('zipFileName').className = 'tiny fw-bold text-success';">
-                </div>
+<section class="mobile-update-card">
+    <h6 class="fw-bold mb-3">Tải gói cập nhật</h6>
+    <form method="POST" enctype="multipart/form-data">
+        <div class="mb-3">
+            <input type="file" name="update_pkg" class="form-control" accept=".zip">
+        </div>
+        <button type="submit" class="btn-mobile btn-mobile-primary">Tải lên và áp dụng</button>
+    </form>
+</section>
+
+<section class="mobile-update-card">
+    <h6 class="fw-bold mb-3">Remote URL</h6>
+    <input type="text" class="form-control mb-3" id="remoteUrlInput" placeholder="https://github.com/username/repo.git" value="{{ git_info.remote_url|default('') }}">
+    <div class="d-grid gap-2">
+        <button class="btn btn-light rounded-pill border" type="button" onclick="loadRemote()">Tải remote</button>
+        <button class="btn btn-light rounded-pill border" type="button" onclick="setRemote()">Lưu remote</button>
+        <form action="{{ url_for('admin_bp.git_pull') }}" method="POST" id="gitPullForm"></form>
+        <button class="btn btn-dark rounded-pill" type="button" onclick="confirmGitPull()">Git pull</button>
+        <button class="btn btn-outline-dark rounded-pill" type="button" onclick="checkGitStatus()">Kiểm tra status</button>
+        <button class="btn btn-outline-primary rounded-pill" type="button" onclick="showGitLog()">Xem commit</button>
+    </div>
+</section>
+
+<div class="modal fade" id="gitStatusModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Trạng thái Git</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">BẮT ĐẦU NÂNG CẤP</button>
-        </form>
-    </div>
-
-    <div class="mobile-card p-4 mb-4">
-        <h6 class="fw-bold text-dark mb-3 small">ĐỒNG BỘ GITHUB</h6>
-        <p class="text-muted tiny mb-3">Thực hiện 'git pull' trực tiếp từ nhánh chính. Hệ thống sẽ tự khởi động lại sau khi kéo mã nguồn.</p>
-        <form action="{{ url_for('admin_bp.git_pull') }}" method="POST">
-            <button type="button" class="btn btn-dark w-100 rounded-pill py-2 fw-bold" onclick="if(confirm('Đồng bộ GitHub và khởi động lại hệ thống?')) this.form.submit();">
-                THỰC HIỆN GIT PULL
-            </button>
-        </form>
+            <div class="modal-body">
+                <pre class="bg-dark text-light p-3 rounded-3 small" id="gitStatusOutput" style="white-space: pre-wrap;">Đang kiểm tra...</pre>
+            </div>
+        </div>
     </div>
 </div>
+
+<div class="modal fade" id="gitLogModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Lịch sử commit</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="gitLogOutput"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmGitPull() {
+    if (confirm('Đồng bộ GitHub và khởi động lại hệ thống?')) {
+        document.getElementById('gitPullForm').submit();
+    }
+}
+
+function checkGitStatus() {
+    fetch('{{ url_for("admin_bp.git_status") }}')
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('gitStatusOutput').textContent = data.output || 'Không có thay đổi';
+        new bootstrap.Modal(document.getElementById('gitStatusModal')).show();
+    });
+}
+
+function showGitLog() {
+    fetch('{{ url_for("admin_bp.git_log") }}')
+    .then(r => r.json())
+    .then(data => {
+        let html = '';
+        (data.commits || []).forEach(c => {
+            html += `<div class="border rounded-3 p-3 mb-2"><div class="fw-bold">${c.msg}</div><div class="tiny text-muted mt-1">${c.author} · ${c.date}</div></div>`;
+        });
+        document.getElementById('gitLogOutput').innerHTML = html || '<div class="text-muted small">Không có commit</div>';
+        new bootstrap.Modal(document.getElementById('gitLogModal')).show();
+    });
+}
+
+function loadRemote() {
+    fetch('{{ url_for("admin_bp.git_remote") }}')
+    .then(r => r.json())
+    .then(data => {
+        const match = data.output.match(/origin\s+(https?:\S+)\s+\(fetch\)/);
+        if (match) {
+            document.getElementById('remoteUrlInput').value = match[1];
+        }
+    });
+}
+
+function setRemote() {
+    const url = document.getElementById('remoteUrlInput').value.trim();
+    if (!url) return;
+    const formData = new FormData();
+    formData.append('remote_url', url);
+    fetch('{{ url_for("admin_bp.git_remote") }}', { method: 'POST', body: formData })
+    .then(r => r.json())
+    .then(data => alert(data.message || 'Đã cập nhật remote URL'));
+}
+
+document.addEventListener('DOMContentLoaded', loadRemote);
+</script>
 {% endblock %}

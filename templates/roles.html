@@ -1,224 +1,154 @@
 {% extends "base.html" %}
 
+{% block title %}Tài khoản và vai trò{% endblock %}
+
 {% block content %}
-<div class="page-header mb-4 setup-mode animate__animated animate__fadeIn">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-        <!-- Hybrid-Next Breadcrumb Flow -->
-        <div class="d-flex align-items-center gap-3">
-            <nav class="breadcrumb-nav glass-card d-none d-lg-flex px-3 py-2 rounded-pill">
-                <span class="segment fw-bold text-dark">HỆ THỐNG</span>
-                <div class="picker-chip glass-card active shadow-sm" style="background: rgba(255,255,255,0.4) !important;">
-                    NGƯỜI DÙNG & PHÂN QUYỀN
+<div class="pc06-page-shell">
+    <section class="pc06-hero-card">
+        <div class="pc06-hero-grid">
+            <div>
+                <div class="pc06-page-kicker">
+                    <i class="fa-solid fa-user-shield"></i>
+                    Tài khoản và vai trò
                 </div>
-            </nav>
-            <h1 class="h4 fw-bold text-dark mb-0 d-lg-none">Quản trị</h1>
-        </div>
-        
-        <div class="header-actions d-none d-md-flex gap-2">
-            <button class="btn btn-outline-success rounded-pill px-4 fw-bold tiny shadow-sm" data-bs-toggle="modal" data-bs-target="#importUserModal">
-                <i class="fa-solid fa-file-excel me-1"></i> NHẬP EXCEL
-            </button>
-            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
-                <i class="fa-solid fa-user-plus me-2"></i> THÊM TÀI KHOẢN
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Mobile Speed Dial FAB -->
-<div class="position-fixed d-md-none" style="bottom: 85px; right: 20px; z-index: 1050;">
-    <div class="fab-container text-end">
-        <div class="fab-options mb-3 collapse" id="rolesSpeedDial">
-            <button class="btn btn-success rounded-pill shadow-sm mb-3 d-flex align-items-center justify-content-center px-3 fw-bold tiny" style="height: 40px; min-width: 120px;" 
-                    data-bs-toggle="modal" data-bs-target="#importUserModal">
-                NHẬP EXCEL
-            </button>
-            <button class="btn btn-primary rounded-pill shadow-sm mb-3 d-flex align-items-center justify-content-center px-3 fw-bold tiny" style="height: 40px; min-width: 120px;" 
-                    data-bs-toggle="modal" data-bs-target="#addRoleModal">
-                TẠO VAI TRÒ
-            </button>
-            <button class="btn btn-info text-white rounded-pill shadow-sm mb-3 d-flex align-items-center justify-content-center px-3 fw-bold tiny" style="height: 40px; min-width: 120px;" 
-                    data-bs-toggle="modal" data-bs-target="#addUserModal">
-                THÊM TÀI KHOẢN
-            </button>
-        </div>
-        <button class="btn btn-primary btn-circle shadow-lg" style="--circle-size: 60px; border: none; font-size: 24px;" 
-                data-bs-toggle="collapse" data-bs-target="#rolesSpeedDial">
-            +
-        </button>
-    </div>
-</div>
-
-<div class="main-content-area animate__animated animate__fadeInUp">
-    <div class="row g-4 post-header-pt">
-        <!-- Roles List: Bento Style -->
-        <div class="col-xl-4 col-lg-5">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100 glass-card">
-                <div class="glass-header info justify-content-between">
-                    <span><i class="fa-solid fa-user-shield me-2"></i>Danh sách vai trò</span>
-                    <button class="btn btn-sm btn-primary rounded-pill px-3 tiny fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addRoleModal">
-                        <i class="fa-solid fa-plus me-1"></i> THÊM
+                <h1 class="pc06-page-title">Quản trị người dùng và phân quyền</h1>
+                <p class="pc06-page-lead">
+                    Quản lý vai trò, tài khoản, trạng thái sử dụng và nhập dữ liệu hàng loạt trên một màn hình quản trị thống nhất.
+                </p>
+                <div class="pc06-action-cluster">
+                    <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importUserModal">
+                        <i class="fa-solid fa-file-excel"></i>
+                        Nhập Excel
+                    </button>
+                    <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#addRoleModal">
+                        <i class="fa-solid fa-user-tag"></i>
+                        Thêm vai trò
+                    </button>
+                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                        <i class="fa-solid fa-user-plus"></i>
+                        Thêm tài khoản
                     </button>
                 </div>
-                <div class="list-group list-group-flush border-top">
-                    <a href="{{ url_for('admin_bp.roles') }}"
-                       class="list-group-item border-0 px-4 py-3 hover-bg-light role-filter-item {% if not selected_role_id %}active{% endif %}">
-                        <div class="d-flex justify-content-between align-items-start gap-3">
-                            <div>
-                                <div class="fw-bold text-dark">Tất cả vai trò</div>
-                                <div class="tiny text-muted">Hiển thị toàn bộ tài khoản trong hệ thống.</div>
-                            </div>
-                            <span class="badge bg-light text-primary border rounded-pill px-2 tiny fw-bold">{{ total_user_count }}</span>
+            </div>
+            <div class="pc06-stat-strip">
+                <div class="pc06-metric-card"><span>Vai trò</span><strong>{{ roles|length }}</strong></div>
+                <div class="pc06-metric-card"><span>Tài khoản</span><strong>{{ total_user_count }}</strong></div>
+                <div class="pc06-metric-card"><span>Bộ lọc</span><strong style="font-size:1rem;">{{ selected_role.name if selected_role else 'Tất cả vai trò' }}</strong></div>
+            </div>
+        </div>
+    </section>
+
+    <div class="pc06-detail-grid">
+        <aside class="pc06-detail-side">
+            <section class="pc06-panel">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>Danh sách vai trò</h2>
+                        <p>Chọn vai trò để lọc tài khoản theo phạm vi phân quyền.</p>
+                    </div>
+                </div>
+                <div class="role-filter-stack">
+                    <a href="{{ url_for('admin_bp.roles') }}" class="role-filter-card {% if not selected_role_id %}active{% endif %}">
+                        <div>
+                            <strong>Tất cả vai trò</strong>
+                            <span>Toàn bộ tài khoản trong hệ thống</span>
                         </div>
+                        <span class="role-filter-count">{{ total_user_count }}</span>
                     </a>
                     {% for r in roles %}
-                    <div class="list-group-item border-0 px-4 py-3 hover-bg-light role-filter-item {% if selected_role_id == r.id %}active{% endif %}">
-                        <div class="d-flex justify-content-between align-items-center gap-3">
-                            <a href="{{ url_for('admin_bp.roles', role_id=r.id) }}" class="text-decoration-none flex-grow-1 role-filter-link">
-                                <div class="fw-bold text-dark">{{ r.name }}</div>
-                                <div class="tiny text-muted">{{ get_labels(r.perms) or 'Chưa phân quyền' }}</div>
-                                <div class="mt-2">
-                                    <span class="badge bg-light text-primary border rounded-pill px-2 tiny fw-bold">
-                                        {{ role_user_counts.get(r.id, 0) }} tài khoản
-                                    </span>
-                                </div>
-                            </a>
-                            <div class="d-flex align-items-center gap-2">
-                                <a href="{{ url_for('admin_bp.roles', role_id=r.id) }}" class="btn btn-sm btn-outline-primary border btn-circle shadow-sm d-flex align-items-center justify-content-center" style="--circle-size: 32px;" title="Xem tài khoản">
-                                    <i class="fa-solid fa-users"></i>
+                    <div class="role-filter-card {% if selected_role_id == r.id %}active{% endif %}">
+                        <a href="{{ url_for('admin_bp.roles', role_id=r.id) }}" class="role-filter-link-main">
+                            <strong>{{ r.name }}</strong>
+                            <span>{{ get_labels(r.perms) or 'Chưa phân quyền' }}</span>
+                        </a>
+                        <div class="role-filter-foot">
+                            <span class="role-filter-count">{{ role_user_counts.get(r.id, 0) }}</span>
+                            <div class="d-flex gap-2">
+                                <a href="{{ url_for('admin_bp.roles', role_id=r.id) }}" class="btn btn-light btn-circle btn-circle-sm border shadow-sm" title="Xem tài khoản">
+                                    <i class="fa-solid fa-users tiny"></i>
                                 </a>
-                                <button class="btn btn-sm btn-outline-primary border btn-circle shadow-sm d-flex align-items-center justify-content-center" style="--circle-size: 32px;" title="Phân quyền" onclick='openEditPerms({{ r.id }}, "{{ r.name }}", {{ r.perms|safe if r.perms else "{}" }})'>
-                                    <i class="fa-solid fa-user-gear"></i>
+                                <button class="btn btn-light btn-circle btn-circle-sm border shadow-sm" title="Phân quyền" onclick='openEditPerms({{ r.id }}, "{{ r.name }}", {{ r.perms|safe if r.perms else "{}" }})'>
+                                    <i class="fa-solid fa-user-gear tiny"></i>
                                 </button>
                             </div>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
-            </div>
-        </div>
+            </section>
+        </aside>
 
-        <!-- Users List: Bento Style -->
-        <div class="col-xl-8 col-lg-7">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden glass-card">
-                <div class="glass-header justify-content-between">
-                    <span>
-                        <i class="fa-solid fa-users-gear me-2"></i>
-                        {{ selected_role.name if selected_role else 'Quản trị người dùng' }}
-                    </span>
-                    <span class="badge glass-card border text-primary px-2 tiny fw-bold" style="background: rgba(255,255,255,0.4) !important;">{{ users|length }} tài khoản</span>
-                </div>
-                <div class="p-0">
-                    <div class="table-responsive d-none d-md-block">
-                        <table class="table table-custom align-middle mb-0">
-                            <thead class="pill-thead">
-                                <tr class="text-center">
-                                    <th style="width: 250px;">NGƯỜI DÙNG</th>
-                                    <th>ĐƠN VỊ</th>
-                                    <th>VAI TRÒ</th>
-                                    <th style="width: 150px;">TRẠNG THÁI</th>
-                                    <th style="width: 180px;">THAO TÁC</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% if users %}
-                                {% for u in users %}
-                                <tr class="text-center">
-                                    <td>
-                                        <div class="d-flex align-items-center justify-content-center gap-3">
-                                            <div class="text-truncate">
-                                                <div class="fw-bold text-dark text-truncate">{{ u.fullname }}</div>
-                                                <div class="tiny text-muted">@{{ u.username }}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="small fw-bold text-primary">{{ u.unit_area }}</td>
-                                    <td><span class="badge bg-light text-dark border px-2 tiny fw-bold">{{ u.role.name if u.role else 'Chưa cấp' }}</span></td>
-                                    <td>
-                                        {% if u.is_active %}
-                                        <span class="badge bg-success-subtle text-success border px-2 tiny">Đang sử dụng</span>
-                                        {% else %}
-                                        <span class="badge bg-secondary-subtle text-secondary border px-2 tiny">Vô hiệu hóa</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="pe-4 text-center">
-                                        <div class="d-flex justify-content-center gap-2">
-                                            <button class="btn btn-link text-primary p-0 border-0 fs-5" title="Chỉnh sửa" onclick='openEditUser({{ u.id }}, "{{ u.username }}", "{{ u.fullname }}", "{{ u.unit_area }}", {{ u.role_id }})'>
-                                                <i class="fa-solid fa-pen-to-square"></i>
-                                            </button>
-                                            <a href="/admin/user/toggle-status/{{ u.id }}" class="btn btn-link p-0 border-0 fs-5 {% if u.is_active %}text-warning{% else %}text-success{% endif %}" title="{{ 'Khóa tài khoản' if u.is_active else 'Mở khóa' }}">
-                                                <i class="fa-solid {{ 'fa-lock' if u.is_active else 'fa-lock-open' }}"></i>
-                                            </a>
-                                            <form method="POST" action="{{ url_for('admin_bp.delete_user', uid=u.id) }}" class="d-inline m-0" onsubmit="return confirm('Bạn có chắc chắn muốn xóa tài khoản này?')">
-                                                <button type="submit" class="btn btn-link text-danger p-0 border-0 fs-5" title="Xóa tài khoản">
-                                                    <i class="fa-solid fa-trash-can"></i>
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                                {% else %}
-                                <tr>
-                                    <td colspan="5" class="py-5 text-center text-muted">
-                                        Không có tài khoản nào thuộc vai trò này.
-                                    </td>
-                                </tr>
-                                {% endif %}
-                            </tbody>
-                        </table>
+        <div class="pc06-detail-main">
+            <section class="pc06-panel">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>{{ selected_role.name if selected_role else 'Danh sách tài khoản' }}</h2>
+                        <p>{{ users|length }} tài khoản trong phạm vi hiển thị hiện tại.</p>
                     </div>
+                    <span class="pc06-status-badge neutral">{{ users|length }} tài khoản</span>
+                </div>
 
-                    <!-- Mobile User List (Cards) -->
-                    <div class="d-md-none border-top">
-                        {% if users %}
-                        {% for u in users %}
-                        <div class="p-3 border-bottom">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <div class="d-flex align-items-center gap-2">
-                                    <div>
-                                        <div class="fw-bold text-dark small">{{ u.fullname }}</div>
-                                        <div class="tiny text-muted">@{{ u.username }}</div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="pill-thead">
+                            <tr>
+                                <th class="ps-4">Người dùng</th>
+                                <th>Đơn vị</th>
+                                <th>Vai trò</th>
+                                <th>Trạng thái</th>
+                                <th class="pe-4 text-end">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if users %}
+                            {% for u in users %}
+                            <tr>
+                                <td class="ps-4 py-3">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="contact-avatar">{{ u.fullname[:1].upper() }}</div>
+                                        <div>
+                                            <div class="fw-bold text-dark">{{ u.fullname }}</div>
+                                            <div class="tiny text-muted">@{{ u.username }}</div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="d-flex gap-3">
-                                    <button class="btn btn-link p-0 text-primary transition-all" title="Sửa" onclick='openEditUser({{ u.id }}, "{{ u.username }}", "{{ u.fullname }}", "{{ u.unit_area }}", {{ u.role_id }})'>
-                                        <i class="fa-solid fa-pen-to-square"></i>
-                                    </button>
-                                    <a href="/admin/user/toggle-status/{{ u.id }}" class="btn btn-link p-0 {% if u.is_active %}text-warning{% else %}text-success{% endif %} transition-all" title="Khóa/Mở">
-                                        <i class="fa-solid {{ 'fa-lock' if u.is_active else 'fa-lock-open' }}"></i>
-                                    </a>
-                                    <form method="POST" action="{{ url_for('admin_bp.delete_user', uid=u.id) }}" class="d-inline m-0" onsubmit="return confirm('Xóa tài khoản này?')">
-                                        <button type="submit" class="btn btn-link p-0 text-danger transition-all" title="Xóa">
-                                            <i class="fa-solid fa-trash-can"></i>
+                                </td>
+                                <td class="small text-muted">{{ u.unit_area }}</td>
+                                <td><span class="pc06-soft-tag neutral">{{ u.role.name if u.role else 'Chưa cấp' }}</span></td>
+                                <td>
+                                    <span class="pc06-status-badge {% if u.is_active %}done{% else %}neutral{% endif %}">
+                                        {{ 'Hoạt động' if u.is_active else 'Vô hiệu hóa' }}
+                                    </span>
+                                </td>
+                                <td class="pe-4 text-end">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        <button class="btn btn-light btn-circle btn-circle-sm border shadow-sm" title="Chỉnh sửa" onclick='openEditUser({{ u.id }}, "{{ u.username }}", "{{ u.fullname }}", "{{ u.unit_area }}", {{ u.role_id }})'>
+                                            <i class="fa-solid fa-pen-to-square tiny text-primary"></i>
                                         </button>
-                                    </form>
-                                </div>
-                                {% if u.is_active %}
-                                <span class="badge bg-success-subtle text-success border px-2 tiny">Hoạt động</span>
-                                {% else %}
-                                <span class="badge bg-secondary-subtle text-secondary border px-2 tiny">Vô hiệu hóa</span>
-                                {% endif %}
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div class="tiny fw-bold text-primary">{{ u.unit_area }}</div>
-                                <div class="tiny fw-bold text-muted text-uppercase">{{ u.role.name if u.role else 'Khách' }}</div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                        {% else %}
-                        <div class="p-4 text-center text-muted small">
-                            Không có tài khoản nào thuộc vai trò này.
-                        </div>
-                        {% endif %}
-                    </div>
+                                        <a href="/admin/user/toggle-status/{{ u.id }}" class="btn btn-light btn-circle btn-circle-sm border shadow-sm" title="{{ 'Khóa tài khoản' if u.is_active else 'Mở khóa' }}">
+                                            <i class="fa-solid {{ 'fa-lock' if u.is_active else 'fa-lock-open' }} tiny {% if u.is_active %}text-warning{% else %}text-success{% endif %}"></i>
+                                        </a>
+                                        <form method="POST" action="{{ url_for('admin_bp.delete_user', uid=u.id) }}" class="d-inline m-0" onsubmit="return confirm('Xóa tài khoản này?')">
+                                            <button type="submit" class="btn btn-light btn-circle btn-circle-sm border shadow-sm" title="Xóa tài khoản">
+                                                <i class="fa-solid fa-trash-can tiny text-danger"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="py-5 text-center text-muted">Không có tài khoản trong vai trò đang chọn.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
                 </div>
-            </div>
+            </section>
         </div>
     </div>
 </div>
 
-<!-- Modals -->
 <!-- Add Role Modal -->
 <div class="modal fade" id="addRoleModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -247,16 +177,8 @@
                                 {% for k, v in [('dash','Tổng quan'),('task','Công việc'),('lib','Thư viện'),('news','Bảng tin'),('contact','Danh bạ'),('form','Cấu hình biểu mẫu'),('input','Nhập liệu'),('stat','Thống kê'),('user','Tài khoản')] %}
                                 <tr>
                                     <td class="small fw-bold">{{ v }}</td>
-                                    <td class="text-center">
-                                        <div class="form-check d-inline-block">
-                                            <input class="form-check-input" type="checkbox" name="perms" value="p_{{ k }}_lead" id="p_lead_{{ k }}">
-                                        </div>
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="form-check d-inline-block">
-                                            <input class="form-check-input" type="checkbox" name="perms" value="p_{{ k }}_exec" id="p_exec_{{ k }}">
-                                        </div>
-                                    </td>
+                                    <td class="text-center"><div class="form-check d-inline-block"><input class="form-check-input" type="checkbox" name="perms" value="p_{{ k }}_lead" id="p_lead_{{ k }}"></div></td>
+                                    <td class="text-center"><div class="form-check d-inline-block"><input class="form-check-input" type="checkbox" name="perms" value="p_{{ k }}_exec" id="p_exec_{{ k }}"></div></td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -296,16 +218,8 @@
                                 {% for k, v in [('dash','Tổng quan'),('task','Công việc'),('lib','Thư viện'),('news','Bảng tin'),('contact','Danh bạ'),('form','Cấu hình biểu mẫu'),('input','Nhập liệu'),('stat','Thống kê'),('user','Tài khoản')] %}
                                 <tr>
                                     <td class="small fw-bold">{{ v }}</td>
-                                    <td class="text-center">
-                                        <div class="form-check d-inline-block">
-                                            <input class="form-check-input perm-check" type="checkbox" name="perms" value="p_{{ k }}_lead" id="edit_p_lead_{{ k }}">
-                                        </div>
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="form-check d-inline-block">
-                                            <input class="form-check-input perm-check" type="checkbox" name="perms" value="p_{{ k }}_exec" id="edit_p_exec_{{ k }}">
-                                        </div>
-                                    </td>
+                                    <td class="text-center"><div class="form-check d-inline-block"><input class="form-check-input perm-check" type="checkbox" name="perms" value="p_{{ k }}_lead" id="edit_p_lead_{{ k }}"></div></td>
+                                    <td class="text-center"><div class="form-check d-inline-block"><input class="form-check-input perm-check" type="checkbox" name="perms" value="p_{{ k }}_exec" id="edit_p_exec_{{ k }}"></div></td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -354,14 +268,10 @@
                             <div data-category-picker data-group-name="Đơn vị" data-placeholder="Chọn đơn vị" data-storage-key="modal.roles.unit_add">
                                 <select name="unit" class="form-select border-0 bg-light py-2 rounded-3 shadow-sm" required data-category-target>
                                     <option value="" disabled selected>Chọn đơn vị</option>
-                                    {% for u in unit_cats %}
-                                    <option value="{{ u.name }}">{{ u.name }}</option>
-                                    {% endfor %}
+                                    {% for u in unit_cats %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
                                 </select>
                             </div>
-                            {% if not unit_cats %}
-                            <div class="tiny text-danger mt-1 fw-bold italic">* Hãy vào mục Thiết lập danh mục để tạo Đơn vị!</div>
-                            {% endif %}
+                            {% if not unit_cats %}<div class="tiny text-danger mt-1 fw-bold italic">* Cần khai báo danh mục Đơn vị trước khi tạo tài khoản.</div>{% endif %}
                         </div>
                         <div class="col-6">
                             <label class="form-label fw-bold text-dark small">VAI TRÒ</label>
@@ -411,9 +321,7 @@
                             <label class="form-label fw-bold text-dark small">ĐƠN VỊ</label>
                             <div data-category-picker data-group-name="Đơn vị" data-placeholder="Chọn đơn vị" data-storage-key="modal.roles.unit_edit">
                                 <select name="unit" id="edit_unit" class="form-select border-0 bg-light py-2 rounded-3 shadow-sm" required data-category-target>
-                                    {% for u in unit_cats %}
-                                    <option value="{{ u.name }}">{{ u.name }}</option>
-                                    {% endfor %}
+                                    {% for u in unit_cats %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
                                 </select>
                             </div>
                         </div>
@@ -446,17 +354,13 @@
                 <div class="modal-body p-4">
                     <div class="alert alert-success border-0 rounded-3 small mb-4">
                         <i class="fa-solid fa-circle-info me-2"></i>
-                        Hệ thống sẽ tự động sinh mã tài khoản và mật khẩu (123456). 
-                        File Excel chỉ cần có cột <strong>Tên đơn vị</strong>.
+                        Hệ thống tự sinh mã tài khoản và mật khẩu mặc định `123456`.
                     </div>
                     <div class="mb-4">
                         <label class="form-label fw-bold text-dark small">CHỌN VAI TRÒ CHUNG</label>
                         <select name="role_id" class="form-select py-2 shadow-sm border-light" required>
-                            {% for r in roles %}
-                            <option value="{{ r.id }}">{{ r.name }}</option>
-                            {% endfor %}
+                            {% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}
                         </select>
-                        <div class="tiny text-muted mt-2">Tất cả tài khoản trong file sẽ được gán vai trò này.</div>
                     </div>
                     <div class="mb-0">
                         <label class="form-label fw-bold text-dark small">CHỌN FILE EXCEL (.xlsx, .xls)</label>
@@ -475,22 +379,20 @@
 function openEditPerms(rid, name, perms) {
     document.getElementById('edit_rid').value = rid;
     document.getElementById('edit_role_name').innerText = "SỬA QUYỀN: " + name;
-    
     document.querySelectorAll('.perm-check').forEach(ck => {
         ck.checked = perms[ck.value] == 1;
     });
-    
     new bootstrap.Modal(document.getElementById('editPermsModal')).show();
 }
 
-    function openEditUser(id, user, full, unit, rid) {
-        document.getElementById('edit_user_id').value = id;
-        document.querySelector('#editUserModal [name="username"]').value = user;
-        document.querySelector('#editUserModal [name="fullname"]').value = full;
-        document.getElementById('edit_unit').value = unit;
-        document.getElementById('edit_role_select').value = rid;
-        new bootstrap.Modal(document.getElementById('editUserModal')).show();
-    }
+function openEditUser(id, user, full, unit, rid) {
+    document.getElementById('edit_user_id').value = id;
+    document.querySelector('#editUserModal [name="username"]').value = user;
+    document.querySelector('#editUserModal [name="fullname"]').value = full;
+    document.getElementById('edit_unit').value = unit;
+    document.getElementById('edit_role_select').value = rid;
+    new bootstrap.Modal(document.getElementById('editUserModal')).show();
+}
 
 document.querySelectorAll('.toggle-password').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -507,16 +409,16 @@ document.querySelectorAll('.toggle-password').forEach(btn => {
 </script>
 
 <style>
-    .hover-bg-light:hover { background-color: #f8fafc; }
-    .tiny { font-size: 10px; }
-    .transition-all { transition: all 0.2s; }
-    .hover-primary:hover { border-color: var(--primary) !important; color: var(--primary) !important; }
-    .role-filter-item.active {
-        background: rgba(37, 99, 235, 0.08);
-        box-shadow: inset 3px 0 0 var(--primary);
-    }
-    .role-filter-link {
-        color: inherit;
-    }
+    .role-filter-stack { display: flex; flex-direction: column; gap: 12px; }
+    .role-filter-card { padding: 16px 18px; border-radius: 20px; border: 1px solid rgba(148, 163, 184, 0.14); background: #fff; }
+    .role-filter-card.active { border-color: rgba(37, 99, 235, 0.28); box-shadow: inset 3px 0 0 #2563eb; background: rgba(239, 246, 255, 0.92); }
+    .role-filter-card strong { display: block; color: var(--text-main); }
+    .role-filter-card span { display: block; margin-top: 4px; color: var(--text-muted); font-size: 0.82rem; }
+    .role-filter-link-main { color: inherit; text-decoration: none; display: block; }
+    .role-filter-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; }
+    .role-filter-count { min-width: 38px; height: 34px; padding: 0 12px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; }
+    [data-theme="dark"] .role-filter-card { background: rgba(15, 23, 42, 0.84); border-color: rgba(148, 163, 184, 0.18); }
+    [data-theme="dark"] .role-filter-card.active { background: rgba(30, 64, 175, 0.18); }
+    [data-theme="dark"] .role-filter-count { background: rgba(30, 64, 175, 0.22); color: #bfdbfe; }
 </style>
 {% endblock %}

@@ -1,165 +1,222 @@
 {% extends "base_mobile.html" %}
 
-{% block title %}Quản trị người dùng - PC06 Mobile{% endblock %}
+{% block title %}Tài khoản và vai trò{% endblock %}
+
+{% block head %}
+<style>
+    .mobile-role-hero { background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff; padding: 20px; border-radius: 24px; margin-bottom: 16px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18); }
+    .mobile-role-hero h1 { margin: 10px 0 8px; font-size: 1.5rem; font-weight: 800; }
+    .mobile-role-hero p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.9rem; }
+    .mobile-role-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
+    .mobile-role-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+    .mobile-role-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); padding: 16px; margin-bottom: 14px; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="animate__animated animate__fadeIn">
-    <div class="mb-4 d-flex justify-content-between align-items-center">
-        <h4 class="fw-bold text-dark mb-0">Người dùng</h4>
-        <div class="d-flex gap-2">
-            <button class="btn btn-outline-success btn-sm rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#importUserModal">
-                <i class="fa-solid fa-file-excel"></i>
-            </button>
-            <button class="btn btn-primary btn-sm rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#addUserModal">
-                <i class="fa-solid fa-plus"></i> THÊM
-            </button>
+<section class="mobile-role-hero">
+    <div class="mobile-role-kicker"><i class="fa-solid fa-user-shield"></i>Tài khoản và vai trò</div>
+    <h1>Quản trị người dùng</h1>
+    <p>Quản lý vai trò, tài khoản và nhập dữ liệu hàng loạt trên thiết bị di động.</p>
+    <div class="mobile-role-actions">
+        <button class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#importUserModal"><i class="fa-solid fa-file-excel"></i></button>
+        <button class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#addRoleModal"><i class="fa-solid fa-user-tag"></i></button>
+        <button class="btn btn-mobile btn-mobile-primary" data-bs-toggle="modal" data-bs-target="#addUserModal"><i class="fa-solid fa-plus"></i></button>
+    </div>
+</section>
+
+<section class="mobile-role-card">
+    <h6 class="fw-bold mb-3">Vai trò</h6>
+    {% for r in roles %}
+    <div class="border rounded-4 p-3 mb-2">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+            <div>
+                <div class="fw-bold text-dark">{{ r.name }}</div>
+                <div class="tiny text-muted mt-1">{{ get_labels(r.perms) or 'Chưa phân quyền' }}</div>
+            </div>
+            <button class="btn btn-sm btn-outline-primary rounded-pill" onclick='openEditPerms({{ r.id }}, "{{ r.name }}", {{ r.perms|safe if r.perms else "{}" }})'>Quyền</button>
         </div>
     </div>
+    {% endfor %}
+</section>
 
-    <!-- Tabs for Roles/Users -->
-    <ul class="nav nav-pills mb-3 bg-white p-1 rounded-pill border shadow-sm" id="pills-tab" role="tablist">
-        <li class="nav-item flex-grow-1" role="presentation">
-            <button class="nav-link active rounded-pill w-100 tiny fw-bold" id="pills-users-tab" data-bs-toggle="pill" data-bs-target="#pills-users" type="button">TÀI KHOẢN</button>
-        </li>
-        <li class="nav-item flex-grow-1" role="presentation">
-            <button class="nav-link rounded-pill w-100 tiny fw-bold" id="pills-roles-tab" data-bs-toggle="pill" data-bs-target="#pills-roles" type="button">VAI TRÒ</button>
-        </li>
-    </ul>
-
-    <div class="tab-content" id="pills-tabContent">
-        <!-- Users Tab -->
-        <div class="tab-pane fade show active" id="pills-users" role="tabpanel">
-             <div class="mobile-card p-2 mb-3">
-                <div class="input-group input-group-sm border-0">
-                    <span class="input-group-text bg-transparent border-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-                    <input type="text" id="userSearch" class="form-control border-0 shadow-none" placeholder="Tìm tên, đơn vị..." onkeyup="filterUsers()">
-                </div>
+<section class="mobile-role-card">
+    <h6 class="fw-bold mb-3">{{ selected_role.name if selected_role else 'Tài khoản' }}</h6>
+    {% if users %}
+    {% for u in users %}
+    <div class="border rounded-4 p-3 mb-2">
+        <div class="d-flex justify-content-between gap-3">
+            <div>
+                <div class="fw-bold text-dark">{{ u.fullname }}</div>
+                <div class="tiny text-muted">@{{ u.username }}</div>
+                <div class="tiny text-muted mt-1">{{ u.unit_area }}</div>
             </div>
-
-            <div id="userList">
-                {% for u in users %}
-                <div class="mobile-card user-item mb-2" data-search="{{ u.fullname }} {{ u.username }} {{ u.unit_area }}">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div class="d-flex align-items-center gap-2">
-                             <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px;">
-                                {{ u.fullname[:1].upper() }}
-                             </div>
-                             <div>
-                                <div class="fw-bold text-dark small">{{ u.fullname }}</div>
-                                <div class="tiny text-muted">@{{ u.username }}</div>
-                             </div>
-                        </div>
-                        <div class="text-end">
-                             {% if u.is_active %}
-                             <span class="badge bg-success bg-opacity-10 text-success rounded-pill tiny" style="font-size: 9px;">HOẠT ĐỘNG</span>
-                             {% else %}
-                             <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill tiny" style="font-size: 9px;">KHÓA</span>
-                             {% endif %}
-                        </div>
-                    </div>
-                    
-                    <div class="d-flex justify-content-between align-items-center py-2 border-top border-bottom mb-3">
-                         <div class="tiny text-muted"><i class="fa-solid fa-hotel me-1"></i>{{ u.unit_area }}</div>
-                         <div class="badge bg-light text-primary border tiny">{{ u.role.name if u.role else 'Khách' }}</div>
-                    </div>
-
-                    <div class="d-flex justify-content-end gap-3">
-                         <button class="btn btn-link p-0 text-primary" onclick='openEditUser({{ u.id }}, "{{ u.username }}", "{{ u.fullname }}", "{{ u.unit_area }}", {{ u.role_id }})'>
-                            <i class="fa-solid fa-pen-to-square"></i> Sửa
-                         </button>
-                         <a href="/admin/user/toggle-status/{{ u.id }}" class="btn btn-link p-0 {{ 'text-warning' if u.is_active else 'text-success' }}">
-                            <i class="fa-solid {{ 'fa-lock' if u.is_active else 'fa-lock-open' }}"></i> {{ 'Khóa' if u.is_active else 'Mở' }}
-                         </a>
-                         <form method="POST" action="{{ url_for('admin_bp.delete_user', uid=u.id) }}" class="d-inline m-0" onsubmit="return confirm('Xóa account này?')">
-                            <button type="submit" class="btn btn-link p-0 text-danger">
-                                <i class="fa-solid fa-trash-can"></i> Xóa
-                            </button>
-                         </form>
-                    </div>
-                </div>
-                {% endfor %}
+            <span class="pc06-status-badge {% if u.is_active %}done{% else %}neutral{% endif %}">{{ 'Hoạt động' if u.is_active else 'Khóa' }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+            <span class="pc06-soft-tag neutral">{{ u.role.name if u.role else 'Chưa cấp' }}</span>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-primary rounded-pill" onclick='openEditUser({{ u.id }}, "{{ u.username }}", "{{ u.fullname }}", "{{ u.unit_area }}", {{ u.role_id }})'>Sửa</button>
+                <a href="/admin/user/toggle-status/{{ u.id }}" class="btn btn-sm btn-outline-secondary rounded-pill">{{ 'Khóa' if u.is_active else 'Mở' }}</a>
             </div>
         </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="text-muted small">Không có tài khoản trong vai trò đang chọn.</div>
+    {% endif %}
+</section>
 
-        <!-- Roles Tab -->
-        <div class="tab-pane fade" id="pills-roles" role="tabpanel">
-            <div id="roleList">
-                {% for r in roles %}
-                <div class="mobile-card mb-2">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div class="fw-bold text-dark">{{ r.name }}</div>
-                        <button class="btn btn-sm btn-outline-primary rounded-pill tiny fw-bold" onclick='openEditPerms({{ r.id }}, "{{ r.name }}", {{ r.perms|safe if r.perms else "{}" }})'>
-                            QUYỀN HẠN
-                        </button>
-                    </div>
-                    <div class="text-muted" style="font-size: 11px;">
-                        {{ get_labels(r.perms) or 'Chưa cấu hình quyền' }}
-                    </div>
+{% include "roles_modals_mobile_partial.html" ignore missing %}
+
+<!-- Add Role Modal -->
+<div class="modal fade" id="addRoleModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered mx-3">
+        <div class="modal-content border-0 rounded-4">
+            <form method="POST">
+                <input type="hidden" name="action" value="add_role">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Tạo vai trò mới</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                {% endfor %}
-                <button class="btn-mobile btn-mobile-primary mt-3" data-bs-toggle="modal" data-bs-target="#addRoleModal">
-                    <i class="fa-solid fa-plus"></i> TẠO VAI TRÒ MỚI
-                </button>
-            </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Tên vai trò</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    {% for k, v in [('dash','Tổng quan'),('task','Công việc'),('lib','Thư viện'),('news','Bảng tin'),('contact','Danh bạ'),('form','Cấu hình biểu mẫu'),('input','Nhập liệu'),('stat','Thống kê'),('user','Tài khoản')] %}
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <span class="small fw-bold">{{ v }}</span>
+                        <div class="d-flex gap-3">
+                            <label class="small"><input class="form-check-input me-1" type="checkbox" name="perms" value="p_{{ k }}_lead">Chỉ đạo</label>
+                            <label class="small"><input class="form-check-input me-1" type="checkbox" name="perms" value="p_{{ k }}_exec">Thực hiện</label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary">Tạo vai trò</button></div>
+            </form>
         </div>
     </div>
 </div>
 
-<!-- Modal Mobile Add User -->
+<div class="modal fade" id="editPermsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered mx-3">
+        <div class="modal-content border-0 rounded-4">
+            <form method="POST">
+                <input type="hidden" name="action" value="edit_perms">
+                <input type="hidden" name="role_id" id="edit_rid">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold" id="edit_role_name">Sửa quyền vai trò</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    {% for k, v in [('dash','Tổng quan'),('task','Công việc'),('lib','Thư viện'),('news','Bảng tin'),('contact','Danh bạ'),('form','Cấu hình biểu mẫu'),('input','Nhập liệu'),('stat','Thống kê'),('user','Tài khoản')] %}
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <span class="small fw-bold">{{ v }}</span>
+                        <div class="d-flex gap-3">
+                            <label class="small"><input class="form-check-input perm-check me-1" type="checkbox" name="perms" value="p_{{ k }}_lead">Chỉ đạo</label>
+                            <label class="small"><input class="form-check-input perm-check me-1" type="checkbox" name="perms" value="p_{{ k }}_exec">Thực hiện</label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary">Cập nhật quyền</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="addUserModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered mx-3">
         <div class="modal-content border-0 rounded-4">
             <form method="POST">
                 <input type="hidden" name="action" value="add_user">
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold">THÊM TÀI KHOẢN</h5>
+                    <h5 class="modal-title fw-bold">Thêm tài khoản</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">Tên đăng nhập</label>
-                        <input type="text" name="username" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">Họ và tên</label>
-                        <input type="text" name="fullname" class="form-control" required>
-                    </div>
+                <div class="modal-body">
+                    <div class="mb-3"><label class="form-label small fw-bold">Tài khoản</label><input type="text" name="username" class="form-control" required></div>
+                    <div class="mb-3"><label class="form-label small fw-bold">Mật khẩu</label><input type="password" name="password" class="form-control" value="123" required></div>
+                    <div class="mb-3"><label class="form-label small fw-bold">Họ và tên</label><input type="text" name="fullname" class="form-control" required></div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Đơn vị</label>
                         <div data-category-picker data-group-name="Đơn vị" data-placeholder="Chọn đơn vị" data-storage-key="mobile.roles.unit">
-                            <select name="unit" class="form-select" required data-category-target>
-                                {% for u in unit_cats %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
-                            </select>
+                            <select name="unit" class="form-select" required data-category-target>{% for u in unit_cats %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}</select>
                         </div>
                     </div>
+                    <div class="mb-0"><label class="form-label small fw-bold">Vai trò</label><select name="role_id" class="form-select" required>{% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select></div>
+                </div>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary">Tạo tài khoản</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered mx-3">
+        <div class="modal-content border-0 rounded-4">
+            <form method="POST">
+                <input type="hidden" name="action" value="edit_user">
+                <input type="hidden" name="user_id" id="edit_user_id">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Chỉnh sửa tài khoản</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3"><label class="form-label small fw-bold">Tài khoản</label><input type="text" name="username" id="edit_username" class="form-control" required></div>
+                    <div class="mb-3"><label class="form-label small fw-bold">Mật khẩu mới</label><input type="password" name="password" class="form-control" value="******"></div>
+                    <div class="mb-3"><label class="form-label small fw-bold">Họ và tên</label><input type="text" name="fullname" id="edit_fullname" class="form-control" required></div>
                     <div class="mb-3">
-                        <label class="form-label small fw-bold">Vai trò</label>
-                        <select name="role_id" class="form-select" required>
-                            {% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}
-                        </select>
+                        <label class="form-label small fw-bold">Đơn vị</label>
+                        <div data-category-picker data-group-name="Đơn vị" data-placeholder="Chọn đơn vị" data-storage-key="mobile.roles.unit_edit">
+                            <select name="unit" id="edit_unit" class="form-select" required data-category-target>{% for u in unit_cats %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}</select>
+                        </div>
                     </div>
+                    <div class="mb-0"><label class="form-label small fw-bold">Vai trò</label><select name="role_id" id="edit_role_select" class="form-select" required>{% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select></div>
                 </div>
-                <div class="modal-footer border-0">
-                    <button type="submit" class="btn-mobile btn-mobile-primary">XÁC NHẬN TẠO</button>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary">Cập nhật tài khoản</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="importUserModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered mx-3">
+        <div class="modal-content border-0 rounded-4">
+            <form action="/admin/users/import" method="POST" enctype="multipart/form-data">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Nhập tài khoản từ Excel</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
+                <div class="modal-body">
+                    <div class="mb-3"><label class="form-label small fw-bold">Vai trò chung</label><select name="role_id" class="form-select" required>{% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select></div>
+                    <div class="mb-0"><label class="form-label small fw-bold">File Excel</label><input type="file" name="import_excel" class="form-control" accept=".xlsx, .xls" required></div>
+                </div>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary">Bắt đầu nhập</button></div>
             </form>
         </div>
     </div>
 </div>
 
 <script>
-function filterUsers() {
-    const q = document.getElementById('userSearch').value.toLowerCase();
-    document.querySelectorAll('.user-item').forEach(item => {
-        item.style.display = item.getAttribute('data-search').toLowerCase().includes(q) ? 'block' : 'none';
-    });
-}
-function openEditUser(id, user, full, unit, rid) {
-    // Basic confirmation for now, or redirect to a dedicated edit page if exists
-    alert("Chức năng sửa thông tin chi tiết đang được đồng bộ hóa...");
-}
 function openEditPerms(rid, name, perms) {
-    alert("Cấu hình quyền hạn vai trò: " + name + "\nVui lòng thực hiện trên máy tính để có trải nghiệm tốt nhất.");
+    document.getElementById('edit_rid').value = rid;
+    document.getElementById('edit_role_name').innerText = "Sửa quyền: " + name;
+    document.querySelectorAll('.perm-check').forEach(ck => {
+        ck.checked = perms[ck.value] == 1;
+    });
+    new bootstrap.Modal(document.getElementById('editPermsModal')).show();
+}
+
+function openEditUser(id, user, full, unit, rid) {
+    document.getElementById('edit_user_id').value = id;
+    document.getElementById('edit_username').value = user;
+    document.getElementById('edit_fullname').value = full;
+    document.getElementById('edit_unit').value = unit;
+    document.getElementById('edit_role_select').value = rid;
+    new bootstrap.Modal(document.getElementById('editUserModal')).show();
 }
 </script>
 {% endblock %}

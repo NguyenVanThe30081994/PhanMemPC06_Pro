@@ -1,52 +1,41 @@
 {% extends "base_mobile.html" %}
 
-{% block title %}Công cụ Database - PC06 Mobile{% endblock %}
+{% block title %}Công cụ database{% endblock %}
+
+{% block head %}
+<style>
+    .mobile-db-hero { background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff; padding: 20px; border-radius: 24px; margin-bottom: 16px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18); }
+    .mobile-db-hero h1 { margin: 10px 0 8px; font-size: 1.5rem; font-weight: 800; }
+    .mobile-db-hero p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.9rem; }
+    .mobile-db-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
+    .mobile-db-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); padding: 16px; margin-bottom: 14px; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="animate__animated animate__fadeIn">
-    <div class="mb-4">
-        <h1 class="h4 fw-bold mb-1">Công cụ Database</h1>
-        <p class="text-muted small">Quản trị và bảo trì cơ sở dữ liệu</p>
-    </div>
+<section class="mobile-db-hero">
+    <div class="mobile-db-kicker"><i class="fa-solid fa-database"></i>Công cụ database</div>
+    <h1>Bảo trì dữ liệu</h1>
+    <p>Sao lưu hoặc khởi tạo lại hệ thống trong các tình huống quản trị đặc biệt.</p>
+</section>
 
-    <div class="mobile-card p-4 mb-4 border-danger border-opacity-25" style="border-left: 4px solid #ef4444;">
-        <div class="d-flex align-items-center gap-3 mb-3">
-             <div class="bg-danger bg-opacity-10 text-danger p-3 rounded-circle" style="width: 50px; height: 50px; display:flex; align-items:center; justify-content:center;">
-                <i class="fa-solid fa-triangle-exclamation fs-4"></i>
-             </div>
-             <div>
-                <h6 class="fw-bold text-danger mb-0">Reset Hệ thống</h6>
-                <div class="tiny text-muted">Hành động nguy hiểm</div>
-             </div>
-        </div>
-        <p class="text-muted small mb-4">Xóa sạch toàn bộ dữ liệu báo cáo, công việc, danh mục... Hệ thống sẽ trở về trạng thái như lúc mới cài đặt.</p>
-        
-        <form id="resetForm" action="{{ url_for('admin_bp.db_manage') }}" method="POST">
-            <input type="hidden" name="action" value="reset">
-            <button type="button" class="btn btn-danger w-100 rounded-pill fw-bold" onclick="if(confirm('CẢNH BÁO: BẠN SẮP XÓA SẠCH TOÀN BỘ HỆ THỐNG! XÁC NHẬN?')) document.getElementById('resetForm').submit();">
-                XÁC NHẬN RESET TOÀN BỘ
-            </button>
-        </form>
-    </div>
+<section class="mobile-db-card">
+    <h6 class="fw-bold mb-3 text-primary">Sao lưu cơ sở dữ liệu</h6>
+    <p class="text-muted small mb-4">Tải xuống tệp SQLite hiện tại để lưu trữ hoặc di chuyển môi trường.</p>
+    <form action="{{ url_for('admin_bp.db_manage') }}" method="POST">
+        <input type="hidden" name="action" value="backup">
+        <button type="submit" class="btn-mobile btn-mobile-primary">Tải file backup</button>
+    </form>
+</section>
 
-    <div class="mobile-card p-4 mb-4">
-        <div class="d-flex align-items-center gap-3 mb-3">
-             <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle" style="width: 50px; height: 50px; display:flex; align-items:center; justify-content:center;">
-                <i class="fa-solid fa-cloud-arrow-down fs-4"></i>
-             </div>
-             <div>
-                <h6 class="fw-bold text-primary mb-0">Sao lưu Dữ liệu</h6>
-                <div class="tiny text-muted">Backup SQLite</div>
-             </div>
-        </div>
-        <p class="text-muted small mb-4">Tải về file database hiện tại để lưu giữ phòng trường hợp sự cố máy chủ hoặc chuyển vùng dữ liệu.</p>
-        
-        <form action="{{ url_for('admin_bp.db_manage') }}" method="POST">
-            <input type="hidden" name="action" value="backup">
-            <button type="submit" class="btn btn-outline-primary w-100 rounded-pill fw-bold">
-                TẢI FILE BACKUP (.DB)
-            </button>
-        </form>
-    </div>
-</div>
+<section class="mobile-db-card border-danger border-opacity-25" style="border-left: 4px solid #ef4444;">
+    <h6 class="fw-bold mb-3 text-danger">Khởi tạo lại hệ thống</h6>
+    <p class="text-muted small mb-4">Thao tác này xóa toàn bộ dữ liệu hiện có và không thể hoàn tác.</p>
+    <form id="resetForm" action="{{ url_for('admin_bp.db_manage') }}" method="POST">
+        <input type="hidden" name="action" value="reset">
+        <button type="button" class="btn btn-danger w-100 rounded-pill fw-bold" onclick="if(confirm('Xác nhận reset toàn bộ hệ thống? Dữ liệu hiện tại sẽ bị xóa vĩnh viễn.')) document.getElementById('resetForm').submit();">
+            Reset toàn bộ hệ thống
+        </button>
+    </form>
+</section>
 {% endblock %}
