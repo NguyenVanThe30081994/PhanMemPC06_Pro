@@ -48,9 +48,17 @@
 
         <!-- Task List: Full Width 100% on PC -->
         <div class="col-12">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-                <div class="glass-header">
-                    <i class="fa-solid fa-list-check me-2"></i>Danh sách công việc đang quản lý
+            <div class="card border-0 overflow-hidden" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08);">
+                <div class="card-header border-0 bg-transparent py-4 px-4" style="border-radius: 24px 24px 0 0;">
+                    <div class="d-flex align-items-center gap-3">
+                        <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #0066FF, #0052CC); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(0,102,255,0.35);">
+                            <i class="fa-solid fa-list-check text-white fs-5"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold mb-0" style="color: #1e293b;">Danh sách công việc</h5>
+                            <p class="text-muted mb-0 small">Quản lý và theo dõi tiến độ công việc</p>
+                        </div>
+                    </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
@@ -70,16 +78,16 @@
                                 <td class="ps-4 py-3" data-label="Tên công việc">
                                     <div class="d-flex align-items-start gap-3">
                                         <div class="flex-grow-1">
-                                            <div class="fw-bold text-dark mb-1">{{ t.title }}</div>
-                                            <div class="small text-muted mb-2" style="line-height: 1.5;">{{ t.content[:100] if t.content else '' }}{{ '...' if t.content and t.content|length > 100 else '' }}</div>
+                                            <div class="fw-bold mb-1" style="color: #1e293b; font-size: 15px;">{{ t.title }}</div>
+                                            <div class="small mb-2" style="color: #64748b; line-height: 1.6;">{{ t.content[:100] if t.content else '' }}{{ '...' if t.content and t.content|length > 100 else '' }}</div>
                                             <div class="d-flex flex-wrap gap-2">
                                                 {% if t.task_type %}
-                                                <span class="badge bg-light text-dark border tiny">
+                                                <span class="badge" style="background: linear-gradient(135deg, #f1f5f9, #e2e8f0); color: #475569; border: none; padding: 4px 10px; font-size: 11px; font-weight: 600;">
                                                     <i class="fa-solid fa-tag me-1"></i>{{ t.task_type }}
                                                 </span>
                                                 {% endif %}
                                                 {% if t.priority %}
-                                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger tiny">
+                                                <span class="badge" style="background: linear-gradient(135deg, #FEE2E2, #FECACA); color: #DC2626; border: none; padding: 4px 10px; font-size: 11px; font-weight: 600;">
                                                     <i class="fa-solid fa-flag me-1"></i>{{ t.priority }}
                                                 </span>
                                                 {% endif %}
@@ -88,44 +96,46 @@
                                     </div>
                                 </td>
                                 <td data-label="Đội nghiệp vụ">
-                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-3 py-2 tiny fw-bold">
+                                    <span class="badge" style="background: linear-gradient(135deg, #DBEAFE, #BFDBFE); color: #1D4ED8; border: none; padding: 8px 14px; border-radius: 12px; font-size: 12px; font-weight: 700;">
                                         <i class="fa-solid fa-users me-1"></i>{{ t.domain or t.unit_name }}
                                     </span>
                                 </td>
                                 <td data-label="Thời hạn">
                                     <div class="d-flex align-items-center gap-2">
-                                        <i class="fa-regular fa-calendar-days {{ 'text-danger' if t.is_overdue else 'text-muted' }}"></i>
+                                        <div style="width: 36px; height: 36px; background: {% if t.is_overdue %}linear-gradient(135deg, #FEE2E2, #FECACA){% else %}linear-gradient(135deg, #f1f5f9, #e2e8f0){% endif %}; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                            <i class="fa-regular fa-calendar-days" style="color: {% if t.is_overdue %}#DC2626{% else %}#64748b{% endif %};"></i>
+                                        </div>
                                         <div>
-                                            <div class="small fw-bold {{ 'text-danger' if t.is_overdue else 'text-dark' }}">
+                                            <div class="small fw-bold" style="color: {% if t.is_overdue %}#DC2626{% else %}#1e293b{% endif %};">
                                                 {{ t.deadline.strftime('%d/%m/%Y') if t.deadline else 'Chưa có' }}
                                             </div>
                                             {% if t.is_overdue %}
-                                            <div class="tiny text-danger">Quá hạn</div>
+                                            <div style="font-size: 10px; color: #DC2626; font-weight: 600;">Quá hạn</div>
                                             {% endif %}
                                         </div>
                                     </div>
                                 </td>
                                 <td data-label="Trạng thái">
                                     {% if display_status == 'Hoàn thành' %}
-                                    <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 rounded-pill tiny fw-bold">
+                                    <span class="badge" style="background: linear-gradient(135deg, #D1FAE5, #A7F3D0); color: #059669; border: none; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 700;">
                                         <i class="fa-solid fa-circle-check me-1"></i>HOÀN THÀNH
                                     </span>
                                     {% elif display_status == 'Đang thực hiện' %}
-                                    <span class="badge bg-info bg-opacity-10 text-info border border-info px-3 py-2 rounded-pill tiny fw-bold">
+                                    <span class="badge" style="background: linear-gradient(135deg, #DBEAFE, #BFDBFE); color: #1D4ED8; border: none; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 700;">
                                         <i class="fa-solid fa-spinner fa-spin me-1"></i>ĐANG LÀM
                                     </span>
                                     {% elif display_status == 'Chưa tiếp nhận' %}
-                                    <span class="badge bg-warning bg-opacity-10 text-warning border border-warning px-3 py-2 rounded-pill tiny fw-bold">
+                                    <span class="badge" style="background: linear-gradient(135deg, #FEF3C7, #FDE68A); color: #92400E; border: none; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 700;">
                                         <i class="fa-solid fa-clock me-1"></i>CHƯA TIẾP NHẬN
                                     </span>
                                     {% else %}
-                                    <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary px-3 py-2 rounded-pill tiny fw-bold">
+                                    <span class="badge" style="background: linear-gradient(135deg, #f1f5f9, #e2e8f0); color: #475569; border: none; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 700;">
                                         <i class="fa-solid fa-circle me-1"></i>{{ display_status|upper }}
                                     </span>
                                     {% endif %}
                                 </td>
                                 <td class="pe-4 text-end" data-label="Chi tiết">
-                                    <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">
+                                    <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}" class="btn btn-sm fw-bold" style="background: linear-gradient(135deg, #0066FF, #0052CC); color: #fff; border-radius: 12px; padding: 8px 16px; border: none; box-shadow: 0 4px 12px rgba(0,102,255,0.25);">
                                         <i class="fa-solid fa-arrow-right me-1"></i>Xem
                                     </a>
                                 </td>
@@ -142,160 +152,232 @@
 <!-- Modal stays same but cleaned up classes -->
 <div class="modal fade" id="addTaskModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0">
+        <div class="modal-content border-0" style="border-radius: 24px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
             <form method="POST" enctype="multipart/form-data">
-                <div class="modal-header primary">
-                    <h5 class="modal-title fw-bold">THÊM CÔNG VIỆC MỚI</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="modal-header border-0 py-4 px-4" style="background: linear-gradient(135deg, #0066FF, #0052CC);">
+                    <div class="d-flex align-items-center gap-3">
+                        <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); border-radius: 14px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
+                            <i class="fa-solid fa-plus text-white fs-5"></i>
+                        </div>
+                        <div>
+                            <h5 class="modal-title fw-bold text-white mb-0">Thêm công việc mới</h5>
+                            <p class="text-white-50 small mb-0">Tạo và giao việc cho đơn vị</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
 
-                <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small">TIÊU ĐỀ CÔNG VIỆC</label>
-                        <input type="text" name="title" class="form-control" required>
+                <div class="modal-body p-4" style="background: linear-gradient(145deg, #ffffff, #f8fafc);">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold mb-2" style="color: #334155;">Tiêu đề công việc</label>
+                        <div class="input-group" style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff;">
+                            <span class="input-group-text border-0 bg-transparent" style="border-radius: 16px 0 0 16px;">
+                                <i class="fa-solid fa-heading text-muted"></i>
+                            </span>
+                            <input type="text" name="title" class="form-control border-0 bg-transparent py-3" placeholder="Nhập tiêu đề công việc..." required style="box-shadow: none; border-radius: 0 16px 16px 0;">
+                        </div>
                     </div>
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small">ĐỘI NGHIỆP VỤ</label>
+                            <label class="form-label fw-bold mb-2" style="color: #334155;">Đội nghiệp vụ</label>
                             <div data-category-picker data-module="tasks" data-field="domain" data-placeholder="Chọn đội nghiệp vụ" data-storage-key="modal.tasks.domain">
-                                <select name="unit_name" class="form-select" required data-category-target>
+                                <select name="unit_name" class="form-control" required data-category-target style="border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0; background: white;">
                                     <option value="" disabled selected>Chọn đội nghiệp vụ</option>
                                     {% for u in pro_units %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
                                 </select>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small">MỨC ĐỘ ƯU TIÊN</label>
+                            <label class="form-label fw-bold mb-2" style="color: #334155;">Mức độ ưu tiên</label>
                             <div data-category-picker data-module="tasks" data-field="priority" data-placeholder="Chọn mức độ ưu tiên" data-storage-key="modal.tasks.priority">
-                                <select name="priority" class="form-select" data-category-target>
+                                <select name="priority" class="form-control" data-category-target style="border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0; background: white;">
                                     <option value="">Chọn mức độ ưu tiên</option>
                                     {% for item in priority_items %}<option value="{{ item.name }}">{{ item.name }}</option>{% endfor %}
                                 </select>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small">THỜI HẠN</label>
-                            <select name="deadline_type" id="deadlineType" class="form-select" onchange="toggleDeadline()">
-                                <option value="custom">Ngày cụ thể</option>
-                                <option value="week">Định kỳ Tuần</option>
-                                <option value="month">Định kỳ Tháng</option>
-                                <option value="quarter">Định kỳ Quý</option>
-                                <option value="6months">Định kỳ 6 Tháng</option>
-                                <option value="year">Định kỳ Năm</option>
-                            </select>
+                            <label class="form-label fw-bold mb-2" style="color: #334155;">Thời hạn</label>
+                            <div style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff; overflow: hidden;">
+                                <select name="deadline_type" id="deadlineType" class="form-control border-0 bg-transparent py-3" onchange="toggleDeadline()" style="box-shadow: none;">
+                                    <option value="custom">Ngày cụ thể</option>
+                                    <option value="week">Định kỳ Tuần</option>
+                                    <option value="month">Định kỳ Tháng</option>
+                                    <option value="quarter">Định kỳ Quý</option>
+                                    <option value="6months">Định kỳ 6 Tháng</option>
+                                    <option value="year">Định kỳ Năm</option>
+                                </select>
+                            </div>
                         </div>
                         
                         <!-- Custom date -->
                         <div class="col-md-3" id="customDeadline">
-                            <label class="form-label fw-bold small">CHỌN NGÀY</label>
-                            <input type="date" name="deadline" class="form-control">
+                            <label class="form-label fw-bold mb-2" style="color: #334155;">Chọn ngày</label>
+                            <div style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff; overflow: hidden;">
+                                <input type="date" name="deadline" class="form-control border-0 bg-transparent py-3" style="box-shadow: none;">
+                            </div>
                         </div>
                         
                         <!-- Weekday selector (for weekly) -->
                         <div class="col-md-3" id="weekdaySelect" style="display:none;">
-                            <label class="form-label fw-bold small">THỨ</label>
-                            <select name="weekday" class="form-select">
-                                <option value="0">Thứ Hai</option>
-                                <option value="1">Thứ Ba</option>
-                                <option value="2">Thứ Tư</option>
-                                <option value="3">Thứ Năm</option>
-                                <option value="4">Thứ Sáu</option>
-                                <option value="5">Thứ Bảy</option>
-                                <option value="6">Chủ Nhật</option>
-                            </select>
+                            <label class="form-label fw-bold mb-2" style="color: #334155;">Thứ</label>
+                            <div style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff; overflow: hidden;">
+                                <select name="weekday" class="form-control border-0 bg-transparent py-3" style="box-shadow: none;">
+                                    <option value="0">Thứ Hai</option>
+                                    <option value="1">Thứ Ba</option>
+                                    <option value="2">Thứ Tư</option>
+                                    <option value="3">Thứ Năm</option>
+                                    <option value="4">Thứ Sáu</option>
+                                    <option value="5">Thứ Bảy</option>
+                                    <option value="6">Chủ Nhật</option>
+                                </select>
+                            </div>
                         </div>
                         
                         <!-- Day of month (for monthly/quarterly/6months/yearly) -->
                         <div class="col-md-3" id="daySelect" style="display:none;">
-                            <label class="form-label fw-bold small">NGÀY</label>
-                            <select name="day_of_month" class="form-select">
-                                {% for d in range(1, 32) %}
-                                <option value="{{ d }}">{{ d }}</option>
-                                {% endfor %}
-                            </select>
+                            <label class="form-label fw-bold mb-2" style="color: #334155;">Ngày</label>
+                            <div style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff; overflow: hidden;">
+                                <select name="day_of_month" class="form-control border-0 bg-transparent py-3" style="box-shadow: none;">
+                                    {% for d in range(1, 32) %}
+                                    <option value="{{ d }}">{{ d }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                         </div>
                         
                         <!-- Month selector (for quarter/6months/year) -->
                         <div class="col-md-3" id="monthSelect" style="display:none;">
-                            <label class="form-label fw-bold small">THÁNG</label>
-                            <select name="month_of_period" class="form-select">
-                                <option value="1">Tháng 1</option>
-                                <option value="2">Tháng 2</option>
-                                <option value="3">Tháng 3</option>
-                                <option value="4">Tháng 4</option>
-                                <option value="5">Tháng 5</option>
-                                <option value="6">Tháng 6</option>
-                                <option value="7">Tháng 7</option>
-                                <option value="8">Tháng 8</option>
-                                <option value="9">Tháng 9</option>
-                                <option value="10">Tháng 10</option>
-                                <option value="11">Tháng 11</option>
-                                <option value="12">Tháng 12</option>
-                            </select>
+                            <label class="form-label fw-bold mb-2" style="color: #334155;">Tháng</label>
+                            <div style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff; overflow: hidden;">
+                                <select name="month_of_period" class="form-control border-0 bg-transparent py-3" style="box-shadow: none;">
+                                    <option value="1">Tháng 1</option>
+                                    <option value="2">Tháng 2</option>
+                                    <option value="3">Tháng 3</option>
+                                    <option value="4">Tháng 4</option>
+                                    <option value="5">Tháng 5</option>
+                                    <option value="6">Tháng 6</option>
+                                    <option value="7">Tháng 7</option>
+                                    <option value="8">Tháng 8</option>
+                                    <option value="9">Tháng 9</option>
+                                    <option value="10">Tháng 10</option>
+                                    <option value="11">Tháng 11</option>
+                                    <option value="12">Tháng 12</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                     
                     <!-- Giao cho ai -->
-                    <div class="mt-3">
-                        <label class="form-label fw-bold small">GIAO CHO</label>
+                    <div class="mt-4">
+                        <label class="form-label fw-bold mb-2" style="color: #334155;">Giao cho</label>
                         
                         <!-- Chọn loại giao việc -->
-                        <div class="mb-2">
-                            <div class="btn-group" role="group">
+                        <div class="mb-3">
+                            <div class="btn-group w-100" role="group">
                                 <input type="radio" class="btn-check" name="assign_type" id="assign_user" value="user" checked onchange="toggleAssignType()">
-                                <label class="btn btn-outline-primary btn-sm" for="assign_user">Cá nhân</label>
+                                <label class="btn btn-outline-primary" for="assign_user" style="border-radius: 12px 0 0 12px; padding: 10px 20px;">
+                                    <i class="fa-solid fa-user me-2"></i>Cá nhân
+                                </label>
                                 
                                 <input type="radio" class="btn-check" name="assign_type" id="assign_role" value="role" onchange="toggleAssignType()">
-                                <label class="btn btn-outline-primary btn-sm" for="assign_role">Theo vai trò</label>
+                                <label class="btn btn-outline-primary" for="assign_role" style="border-radius: 0 12px 12px 0; padding: 10px 20px;">
+                                    <i class="fa-solid fa-users me-2"></i>Theo vai trò
+                                </label>
                             </div>
                         </div>
                         
                         <!-- Chọn cá nhân -->
                         <div id="userSelect">
-                            <select name="assignee_id" class="form-select">
-                                <option value="">-- Chọn người thực hiện --</option>
-                                {% if users %}
+                            <div style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff; overflow: hidden;">
+                                <select name="assignee_id" class="form-control border-0 bg-transparent py-3" style="box-shadow: none;">
+                                    <option value="">-- Chọn người thực hiện --</option>
+                                    {% if users %}
                                     {% for u in users %}
                                     <option value="{{ u.id }}">{{ u.fullname }} ({{ u.unit_area or 'Chưa có đơn vị' }})</option>
                                     {% endfor %}
                                 {% endif %}
-                            </select>
+                                </select>
+                            </div>
                         </div>
                         
                         <!-- Chọn vai trò -->
                         <div id="roleSelect" style="display:none;">
-                            <select name="assignee_role_id" class="form-select">
-                                <option value="">-- Chọn vai trò --</option>
-                                {% if roles %}
-                                    {% for r in roles %}
-                                    <option value="{{ r.id }}">{{ r.name }}</option>
-                                    {% endfor %}
-                                {% endif %}
-                            </select>
-                            <div class="form-text small text-muted">Sẽ giao cho tất cả tài khoản có vai trò này</div>
+                            <div style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff; overflow: hidden;">
+                                <select name="assignee_role_id" class="form-control border-0 bg-transparent py-3" style="box-shadow: none;">
+                                    <option value="">-- Chọn vai trò --</option>
+                                    {% if roles %}
+                                        {% for r in roles %}
+                                        <option value="{{ r.id }}">{{ r.name }}</option>
+                                        {% endfor %}
+                                    {% endif %}
+                                </select>
+                            </div>
+                            <div class="form-text small text-muted mt-2">
+                                <i class="fa-solid fa-info-circle me-1"></i>Sẽ giao cho tất cả tài khoản có vai trò này
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="mt-3">
-                        <label class="form-label fw-bold small">NỘI DUNG CHI TIẾT</label>
-                        <textarea name="description" class="form-control" rows="4"></textarea>
+                    <div class="mt-4">
+                        <label class="form-label fw-bold mb-2" style="color: #334155;">Nội dung chi tiết</label>
+                        <div style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff; overflow: hidden;">
+                            <textarea name="description" class="form-control border-0 bg-transparent py-3 px-3" rows="4" placeholder="Mô tả chi tiết công việc..." style="box-shadow: none; resize: none;"></textarea>
+                        </div>
                     </div>
                     
                     <!-- Đính kèm tệp -->
-                    <div class="mt-3">
-                        <label class="form-label fw-bold small">ĐÍNH KÈM TỆP</label>
-                        <input type="file" name="task_file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar">
-                        <div class="form-text">Hỗ trợ: PDF, Word, Excel, Hình ảnh, ZIP (Max 10MB)</div>
+                    <div class="mt-4">
+                        <label class="form-label fw-bold mb-2" style="color: #334155;">Đính kèm tệp</label>
+                        <div style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff; overflow: hidden; padding: 3px;">
+                            <input type="file" name="task_file" class="form-control border-0 bg-transparent py-3" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar" style="box-shadow: none;">
+                        </div>
+                        <div class="form-text small text-muted mt-2">
+                            <i class="fa-solid fa-paperclip me-1"></i>Hỗ trợ: PDF, Word, Excel, Hình ảnh, ZIP (Max 10MB)
+                        </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-light px-4 rounded-pill fw-bold border" data-bs-dismiss="modal">HỦY</button>
-                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">TẠO CÔNG VIỆC</button>
+                <div class="modal-footer border-0 p-4" style="background: linear-gradient(145deg, #ffffff, #f8fafc);">
+                    <button type="button" class="btn btn-light px-4 fw-bold border" data-bs-dismiss="modal" style="border-radius: 12px; padding: 10px 24px;">
+                        <i class="fa-solid fa-xmark me-2"></i>Hủy
+                    </button>
+                    <button type="submit" class="btn px-5 fw-bold shadow" style="background: linear-gradient(135deg, #0066FF, #0052CC); color: white; border: none; border-radius: 12px; padding: 10px 32px;">
+                        <i class="fa-solid fa-check me-2"></i>Tạo công việc
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<style>
+    /* Smooth transitions for status changes */
+    .badge {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .badge:hover {
+        transform: scale(1.05);
+    }
+    
+    /* Modal animations */
+    .modal.fade .modal-dialog {
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    /* Form input focus effects */
+    .form-control:focus, .form-select:focus {
+        box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1) !important;
+        border-color: #0066FF !important;
+    }
+    
+    /* Button group active state */
+    .btn-check:checked + .btn-outline-primary {
+        background: linear-gradient(135deg, #0066FF, #0052CC);
+        border-color: #0066FF;
+        color: white;
+    }
+</style>
 
 <script>
     function toggleDeadline() {

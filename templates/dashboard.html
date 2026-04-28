@@ -1,79 +1,104 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header mb-5 animate__animated animate__fadeIn">
-    <div class="d-flex justify-content-between align-items-center">
+<div class="page-header mb-4 animate__animated animate__fadeIn">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div>
-            <h1 class="h3 fw-bold text-dark mb-1">Tổng quan hệ thống PC06</h1>
+            <h1 class="h3 fw-bold mb-1" style="color: #1e293b;">Tổng quan hệ thống PC06</h1>
+            <p class="text-muted mb-0">Dashboard quản lý và theo dõi hoạt động</p>
         </div>
         <div class="text-end">
-            <div class="badge glass-card border text-primary px-3 py-2 rounded-pill mb-1" style="background: rgba(var(--primary-rgb), 0.1) !important; border-top: 1px solid rgba(255,255,255,0.4) !important;">
+            <div class="badge px-4 py-2 rounded-pill mb-1" style="background: linear-gradient(135deg, #DBEAFE, #BFDBFE); color: #1D4ED8; border: none; font-weight: 700;">
                 <i class="fa-regular fa-clock me-2"></i>{{ dt_str }}
             </div>
-            <div class="text-muted small opacity-75">Cập nhật lúc: {{ dt_str.split(' ')[1] }}</div>
+            <div class="text-muted small">Cập nhật lúc: {{ dt_str.split(' ')[1] }}</div>
         </div>
     </div>
 </div>
 
 <!-- Stats Row -->
-<div class="row g-4 mb-5">
+<div class="row g-4 mb-4">
     <div class="col-md-3">
-        <div class="stat-card p-4 glass-card position-relative overflow-hidden" style="background: linear-gradient(135deg, rgba(0, 102, 255, 0.15), rgba(0, 102, 255, 0.05)) !important;">
-            <div class="position-relative" style="z-index: 2;">
-                <h6 class="text-primary small text-uppercase fw-bold mb-3">Tổng công việc</h6>
-                <div class="d-flex align-items-end gap-2">
-                    <h2 class="display-6 fw-bold mb-0 text-primary">{{ tot }}</h2>
+        <div class="card border-0 h-100 position-relative overflow-hidden" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08); transition: all 0.3s ease;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #0066FF, #0052CC); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(0,102,255,0.35);">
+                        <i class="fa-solid fa-list-check text-white fs-5"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted small mb-1 text-uppercase fw-bold" style="font-size: 11px;">Tổng công việc</h6>
+                        <h2 class="fw-bold mb-0" style="color: #0066FF; font-size: 2rem;">{{ tot }}</h2>
+                    </div>
                 </div>
-                <div class="mt-3 small text-muted">
-                    <i class="fa-solid fa-check-circle me-1 text-success"></i> {{ done }} Hoàn thành
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge" style="background: linear-gradient(135deg, #D1FAE5, #A7F3D0); color: #059669; border: none; padding: 4px 10px; font-size: 11px; font-weight: 600;">
+                        <i class="fa-solid fa-check-circle me-1"></i>{{ done }} Hoàn thành
+                    </span>
                 </div>
             </div>
-            <i class="fa-solid fa-list-check position-absolute end-0 bottom-0 p-4 opacity-10 display-1 text-primary" style="transform: translate(10%, 20%)"></i>
         </div>
     </div>
     
     <div class="col-md-3">
-        <div class="stat-card p-4 glass-card position-relative overflow-hidden" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05)) !important;">
-            <div class="position-relative" style="z-index: 2;">
-                <h6 class="text-success small text-uppercase fw-bold mb-3">Danh bạ liên hệ</h6>
-                <div class="d-flex align-items-end gap-2">
-                    <h2 class="display-6 fw-bold mb-0 text-success">{{ c_contacts }}</h2>
+        <div class="card border-0 h-100 position-relative overflow-hidden" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08); transition: all 0.3s ease;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(16,185,129,0.35);">
+                        <i class="fa-solid fa-address-book text-white fs-5"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted small mb-1 text-uppercase fw-bold" style="font-size: 11px;">Danh bạ liên hệ</h6>
+                        <h2 class="fw-bold mb-0" style="color: #10b981; font-size: 2rem;">{{ c_contacts }}</h2>
+                    </div>
                 </div>
-                <div class="mt-3 small text-muted">
-                    <i class="fa-solid fa-address-book me-1 text-success"></i> Thông tin liên lạc
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge" style="background: linear-gradient(135deg, #D1FAE5, #A7F3D0); color: #059669; border: none; padding: 4px 10px; font-size: 11px; font-weight: 600;">
+                        <i class="fa-solid fa-phone me-1"></i>Thông tin liên lạc
+                    </span>
                 </div>
             </div>
-            <i class="fa-solid fa-address-book position-absolute end-0 bottom-0 p-4 opacity-10 display-1 text-success" style="transform: translate(10%, 20%)"></i>
         </div>
     </div>
 
     <div class="col-md-3">
-        <div class="stat-card p-4 glass-card position-relative overflow-hidden" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05)) !important;">
-            <div class="position-relative" style="z-index: 2;">
-                <h6 class="text-warning small text-uppercase fw-bold mb-3">Người dùng hệ thống</h6>
-                <div class="d-flex align-items-end gap-2">
-                    <h2 class="display-6 fw-bold mb-0 text-warning">{{ c_users }}</h2>
+        <div class="card border-0 h-100 position-relative overflow-hidden" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08); transition: all 0.3s ease;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(245,158,11,0.35);">
+                        <i class="fa-solid fa-users text-white fs-5"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted small mb-1 text-uppercase fw-bold" style="font-size: 11px;">Người dùng</h6>
+                        <h2 class="fw-bold mb-0" style="color: #f59e0b; font-size: 2rem;">{{ c_users }}</h2>
+                    </div>
                 </div>
-                <div class="mt-3 small text-muted">
-                    <i class="fa-solid fa-users me-1 text-warning"></i> Tài khoản nội bộ
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge" style="background: linear-gradient(135deg, #FEF3C7, #FDE68A); color: #92400E; border: none; padding: 4px 10px; font-size: 11px; font-weight: 600;">
+                        <i class="fa-solid fa-user-check me-1"></i>Tài khoản nội bộ
+                    </span>
                 </div>
             </div>
-            <i class="fa-solid fa-users position-absolute end-0 bottom-0 p-4 opacity-10 display-1 text-warning" style="transform: translate(10%, 20%)"></i>
         </div>
     </div>
 
     <div class="col-md-3">
-        <div class="stat-card p-4 glass-card position-relative overflow-hidden" style="background: linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(0, 212, 255, 0.05)) !important;">
-            <div class="position-relative" style="z-index: 2;">
-                <h6 class="text-info small text-uppercase fw-bold mb-3 text-info">Đơn vị quản lý</h6>
-                <div class="d-flex align-items-end gap-2">
-                    <h2 class="display-6 fw-bold mb-0 text-info">{{ c_units }}</h2>
+        <div class="card border-0 h-100 position-relative overflow-hidden" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08); transition: all 0.3s ease;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #06b6d4, #0891b2); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(6,182,212,0.35);">
+                        <i class="fa-solid fa-building text-white fs-5"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted small mb-1 text-uppercase fw-bold" style="font-size: 11px;">Đơn vị quản lý</h6>
+                        <h2 class="fw-bold mb-0" style="color: #06b6d4; font-size: 2rem;">{{ c_units }}</h2>
+                    </div>
                 </div>
-                <div class="mt-3 small text-muted">
-                    <i class="fa-solid fa-building me-1"></i> Tỉnh / Huyện / Xã
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge" style="background: linear-gradient(135deg, #CFFAFE, #A5F3FC); color: #0e7490; border: none; padding: 4px 10px; font-size: 11px; font-weight: 600;">
+                        <i class="fa-solid fa-map-location-dot me-1"></i>Tỉnh / Huyện / Xã
+                    </span>
                 </div>
             </div>
-            <i class="fa-solid fa-building position-absolute end-0 bottom-0 p-4 opacity-10 display-1 text-info" style="transform: translate(10%, 20%)"></i>
         </div>
     </div>
 </div>
@@ -81,28 +106,38 @@
 <div class="row g-4">
     <!-- Recent Activity Column -->
     <div class="col-lg-8">
-        <div class="glass-card shadow-sm h-100 overflow-hidden">
-            <div class="glass-header danger">
-                <div class="w-100 d-flex justify-content-between align-items-center">
-                    <span><i class="fa-solid fa-bolt-lightning text-warning me-2"></i> Hoạt động gần đây</span>
-                    <a href="/tasks" class="btn btn-sm btn-light border-0 rounded-pill px-3 shadow-sm bg-white bg-opacity-75">Tất cả</a>
+        <div class="card border-0 h-100 overflow-hidden" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08);">
+            <div class="card-header border-0 bg-transparent py-4 px-4" style="border-radius: 24px 24px 0 0;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-3">
+                        <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(245,158,11,0.35);">
+                            <i class="fa-solid fa-bolt-lightning text-white fs-5"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold mb-0" style="color: #1e293b;">Hoạt động gần đây</h5>
+                            <p class="text-muted mb-0 small">Cập nhật công việc mới nhất</p>
+                        </div>
+                    </div>
+                    <a href="/tasks" class="btn btn-sm fw-bold" style="background: linear-gradient(135deg, #f1f5f9, #e2e8f0); color: #475569; border-radius: 12px; padding: 8px 16px; border: none;">
+                        <i class="fa-solid fa-arrow-right me-1"></i>Tất cả
+                    </a>
                 </div>
             </div>
             <div class="card-body p-4">
                 {% if recent_activity %}
                     {% for assign, task in recent_activity %}
-                    <div class="activity-item d-flex gap-3 mb-4 pb-4 border-bottom last-border-0">
-                        <div class="activity-icon bg-primary bg-opacity-10 text-primary btn-circle d-flex align-items-center justify-content-center flex-shrink-0" style="--circle-size: 45px;">
-                            <i class="fa-solid fa-file-pen"></i>
+                    <div class="activity-item d-flex gap-3 mb-3 pb-3 border-bottom" style="transition: all 0.3s ease;">
+                        <div style="width: 45px; height: 45px; background: {% if assign.status == 'Hoàn thành' %}linear-gradient(135deg, #D1FAE5, #A7F3D0){% elif assign.status == 'Đang thực hiện' %}linear-gradient(135deg, #DBEAFE, #BFDBFE){% else %}linear-gradient(135deg, #FEF3C7, #FDE68A){% endif %}; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="fa-solid fa-file-pen" style="color: {% if assign.status == 'Hoàn thành' %}#059669{% elif assign.status == 'Đang thực hiện' %}#1D4ED8{% else %}#92400E{% endif %};"></i>
                         </div>
                         <div class="flex-grow-1">
                             <div class="d-flex justify-content-between align-items-start mb-1">
-                                <h6 class="fw-bold text-dark mb-0">{{ task.title }}</h6>
-                                <span class="badge bg-{{ 'success' if assign.status == 'Hoàn thành' else ('warning' if assign.status == 'Đang thực hiện' else 'secondary') }} bg-opacity-10 text-{{ 'success' if assign.status == 'Hoàn thành' else ('warning' if assign.status == 'Đang thực hiện' else 'secondary') }} rounded-pill px-2">
+                                <h6 class="fw-bold mb-0" style="color: #1e293b; font-size: 14px;">{{ task.title }}</h6>
+                                <span class="badge" style="background: {% if assign.status == 'Hoàn thành' %}linear-gradient(135deg, #D1FAE5, #A7F3D0){% elif assign.status == 'Đang thực hiện' %}linear-gradient(135deg, #DBEAFE, #BFDBFE){% else %}linear-gradient(135deg, #FEF3C7, #FDE68A){% endif %}; color: {% if assign.status == 'Hoàn thành' %}#059669{% elif assign.status == 'Đang thực hiện' %}#1D4ED8{% else %}#92400E{% endif %}; border: none; padding: 4px 10px; font-size: 10px; font-weight: 600;">
                                     {{ assign.status }}
                                 </span>
                             </div>
-                            <p class="text-muted small mb-2 line-clamp-2">{{ task.content }}</p>
+                            <p class="text-muted small mb-2" style="font-size: 13px; line-height: 1.5;">{{ task.content[:80] if task.content else '' }}{{ '...' if task.content and task.content|length > 80 else '' }}</p>
                             <div class="d-flex align-items-center gap-3 text-muted" style="font-size: 11px;">
                                 <span><i class="fa-regular fa-user me-1"></i>{{ task.author_name }}</span>
                                 <span><i class="fa-regular fa-clock me-1"></i>{{ assign.updated_at.strftime('%H:%M %d/%m/%Y') }}</span>
@@ -112,7 +147,7 @@
                     {% endfor %}
                 {% else %}
                     <div class="text-center py-5">
-                        <img src="https://cdn-icons-png.flaticon.com/512/5058/5058315.png" width="100" class="opacity-25 mb-3">
+                        <i class="fa-solid fa-inbox fs-1 text-muted opacity-25 mb-3 d-block"></i>
                         <h6 class="text-muted">Chưa có hoạt động nào được ghi nhận</h6>
                     </div>
                 {% endif %}
@@ -120,30 +155,67 @@
         </div>
     </div>
     
-    <!-- Right Column: Quick Links & Rankings -->
+    <!-- Right Column: Charts & Quick Links -->
     <div class="col-lg-4">
-        <div class="card border-0 shadow-sm rounded-4 mb-4">
-            <div class="card-header bg-white border-bottom p-4">
-                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-ranking-star text-primary me-2"></i> Xếp hạng thi đua</h5>
+        <!-- Task Progress Chart -->
+        <div class="card border-0 mb-4 overflow-hidden" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08);">
+            <div class="card-header border-0 bg-transparent py-4 px-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #8B5CF6, #7C3AED); border-radius: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(139,92,246,0.35);">
+                        <i class="fa-solid fa-chart-pie text-white fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold mb-0" style="color: #1e293b;">Tiến độ công việc</h5>
+                        <p class="text-muted mb-0 small">Phân bổ theo trạng thái</p>
+                    </div>
+                </div>
             </div>
-            <div class="card-body p-4" id="ranking-list">
-                <!-- Will be loaded via JS for smoothness -->
-                <div class="text-center py-4">
-                    <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+            <div class="card-body p-4">
+                <div style="height: 250px; position: relative;">
+                    <canvas id="taskProgressChart" 
+                            data-completed="{{ done }}" 
+                            data-doing="{{ tot - done - (tot - done - (tot - done)) }}" 
+                            data-pending="{{ tot - done }}"></canvas>
                 </div>
             </div>
         </div>
         
-        <div class="card border-0 shadow-sm rounded-4" style="background: linear-gradient(to bottom, #ffffff, #f1f5f9);">
+        <!-- Quick Actions -->
+        <div class="card border-0" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08);">
             <div class="card-body p-4">
-                <h6 class="fw-bold text-dark mb-3">Công cụ nhanh</h6>
+                <h6 class="fw-bold mb-3" style="color: #1e293b;">Công cụ nhanh</h6>
                 <div class="d-grid gap-2">
-                    <a href="/reporting" class="btn btn-white border shadow-sm text-start p-3 rounded-3 d-flex align-items-center gap-3 hover-elevate">
-                        <div class="bg-indigo-light p-2 rounded-2"><i class="fa-solid fa-layer-group text-indigo"></i></div>
-                        <div>
-                            <div class="fw-bold small">Báo cáo</div>
+                    <a href="/tasks" class="btn text-start p-3 d-flex align-items-center gap-3" style="background: linear-gradient(145deg, #f8fafc, #ffffff); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 16px; transition: all 0.3s ease;">
+                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #0066FF, #0052CC); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fa-solid fa-list-check text-white"></i>
                         </div>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold small" style="color: #1e293b;">Quản lý công việc</div>
+                            <div class="text-muted" style="font-size: 11px;">Xem và giao việc</div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-muted"></i>
                     </a>
+                    
+                    <a href="/contacts" class="btn text-start p-3 d-flex align-items-center gap-3" style="background: linear-gradient(145deg, #f8fafc, #ffffff); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 16px; transition: all 0.3s ease;">
+                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fa-solid fa-address-book text-white"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold small" style="color: #1e293b;">Danh bạ liên hệ</div>
+                            <div class="text-muted" style="font-size: 11px;">Thông tin cán bộ</div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-muted"></i>
+                    </a>
+                    
+                    <a href="/reporting" class="btn text-start p-3 d-flex align-items-center gap-3" style="background: linear-gradient(145deg, #f8fafc, #ffffff); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 16px; transition: all 0.3s ease;">
+                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 12px; display: flex; align-items-center; justify-content: center;">
+                            <i class="fa-solid fa-file-lines text-white"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold small" style="color: #1e293b;">Báo cáo tổng hợp</div>
+                            <div class="text-muted" style="font-size: 11px;">Xuất báo cáo</div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-muted"></i>
                     </a>
                 </div>
             </div>
@@ -151,18 +223,37 @@
     </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Mock or Fetch dynamic ranking data
-    fetch('/api/performance-stats')
-        .then(r => r.json())
-        .then(data => {
-            const list = document.getElementById('ranking-list');
-            if(data.full_list && data.full_list.length > 0) {
-                list.innerHTML = data.full_list.slice(0, 5).map((u, i) => `
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <div class="fw-bold text-primary" style="width: 20px;">${i+1}</div>
-                        <div class="flex-grow-1">
+<!-- Add Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/dashboard-charts.js') }}"></script>
+
+<style>
+    /* Hover effects for quick action buttons */
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* Smooth animations for stat cards */
+    .card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px rgba(0,0,0,0.12) !important;
+    }
+    
+    /* Activity item hover */
+    .activity-item:hover {
+        background: rgba(0, 102, 255, 0.02);
+        border-radius: 12px;
+        margin-left: -8px;
+        margin-right: -8px;
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+</style>
                             <div class="fw-bold small">${u.name}</div>
                             <div class="progress mt-1" style="height: 4px;">
                                 <div class="progress-bar" style="width: ${Math.min(u.score, 100)}%"></div>

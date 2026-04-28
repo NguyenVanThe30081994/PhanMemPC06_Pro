@@ -31,35 +31,43 @@
         {% endfor %}
         
         {% if user_assign %}
-        <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden" style="{% if user_assign.status == 'Chưa tiếp nhận' or user_assign.status == 'Chưa bắt đầu' %}border: 3px solid #fbbf24 !important;{% endif %}">
+        <div class="card border-0 mb-4 overflow-hidden" style="border-radius: 24px; {% if user_assign.status == 'Chưa tiếp nhận' or user_assign.status == 'Chưa bắt đầu' %}box-shadow: 0 0 0 3px #FEF3C7;{% endif %}">
             <div class="card-body p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="flex-grow-1">
-                        <h5 class="fw-bold mb-3 text-white"><i class="fa-solid fa-clipboard-check me-2"></i>Trạng thái của bạn</h5>
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); border-radius: 14px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
+                                <i class="fa-solid fa-clipboard-check text-white fs-5"></i>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold mb-1 text-white">Trạng thái của bạn</h5>
+                                <p class="mb-0 text-white-50 small">Cập nhật tiến độ công việc</p>
+                            </div>
+                        </div>
                         <div class="d-flex flex-wrap align-items-center gap-3">
                             {% if user_assign.status == 'Chưa tiếp nhận' or user_assign.status == 'Chưa bắt đầu' %}
-                            <span class="badge bg-warning text-dark px-4 py-2 fs-6 fw-bold rounded-pill">
+                            <span class="badge px-4 py-2 fs-6 fw-bold" style="background: linear-gradient(135deg, #FEF3C7, #FDE68A); color: #92400E; border-radius: 20px;">
                                 <i class="fa-solid fa-clock me-2"></i>{{ user_assign.status }}
                             </span>
                             <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST" class="m-0">
                                 <input type="hidden" name="action" value="accept">
-                                <button type="submit" class="btn btn-light btn-lg rounded-pill px-5 fw-bold shadow-lg animate__animated animate__pulse animate__infinite" style="animation-duration: 2s;">
+                                <button type="submit" class="btn btn-lg fw-bold shadow-lg animate__animated animate__pulse animate__infinite" style="background: #fff; color: #667eea; border-radius: 16px; padding: 12px 32px; border: none; animation-duration: 2s; box-shadow: 0 8px 24px rgba(255,255,255,0.3);">
                                     <i class="fa-solid fa-hand-point-right me-2"></i>TIẾP NHẬN CÔNG VIỆC
                                 </button>
                             </form>
                             {% elif user_assign.status == 'Đang thực hiện' %}
-                            <span class="badge bg-info text-white px-4 py-2 fs-6 fw-bold rounded-pill">
+                            <span class="badge px-4 py-2 fs-6 fw-bold" style="background: linear-gradient(135deg, #DBEAFE, #BFDBFE); color: #1D4ED8; border-radius: 20px;">
                                 <i class="fa-solid fa-spinner fa-spin me-2"></i>{{ user_assign.status }}
                             </span>
                             <div class="text-white small">
                                 <i class="fa-solid fa-info-circle me-1"></i>Đang thực hiện công việc
                             </div>
                             {% elif user_assign.status == 'Hoàn thành' %}
-                            <span class="badge bg-success text-white px-4 py-2 fs-6 fw-bold rounded-pill">
+                            <span class="badge px-4 py-2 fs-6 fw-bold" style="background: linear-gradient(135deg, #D1FAE5, #A7F3D0); color: #059669; border-radius: 20px;">
                                 <i class="fa-solid fa-circle-check me-2"></i>{{ user_assign.status }}
                             </span>
                             {% else %}
-                            <span class="badge bg-secondary text-white px-4 py-2 fs-6 fw-bold rounded-pill">
+                            <span class="badge px-4 py-2 fs-6 fw-bold" style="background: rgba(255,255,255,0.2); color: #fff; border-radius: 20px;">
                                 {{ user_assign.status }}
                             </span>
                             {% endif %}
@@ -76,11 +84,19 @@
         {% endif %}
 
         <!-- 2. TASK CONTENT CARD -->
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4" style="background-color: var(--bg-surface);">
-            <div class="card-header border-bottom p-4" style="background-color: var(--bg-surface); border-color: var(--border) !important;">
-                <h5 class="fw-bold text-main mb-0"><i class="fa-solid fa-file-lines me-2 text-primary"></i>Nội dung Công việc</h5>
-            </div>
-            <div class="card-body p-4">
+        <div class="card border-0 mb-4 overflow-hidden" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08);">
+            <div class="card-header border-0 bg-transparent py-4 px-4" style="border-radius: 24px 24px 0 0;">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #0066FF, #0052CC); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(0,102,255,0.35);">
+                        <i class="fa-solid fa-file-lines text-white fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold mb-0" style="color: #1e293b;">Nội dung Công việc</h5>
+                        <p class="text-mut" style="background: linear-gradient(135deg, #f1f5f9, #e2e8f0); color: #475569; border: none; padding: 6px 14px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                            <i class="fa-solid fa-tag me-1"></i>{{ task.task_type }}
+                        </span>
+                        {% endif %}
+                        <span class="badge" style="background: linear-gradient(135deg, #DBEAFE, #BFDBFE); color: #1D4ED8; border: none; padding: 6px 14px; border-radius: 12px; font-size: 12px; font-weight: 600;
                 <div class="mb-3">
                     <div class="d-flex flex-wrap gap-2 mb-3">
                         {% if task.task_type %}
@@ -118,9 +134,17 @@
 
         <!-- 3. REPORT SUBMISSION CARD (Only if accepted) -->
         {% if user_assign and user_assign.status != 'Chưa tiếp nhận' and user_assign.status != 'Chưa bắt đầu' %}
-        <div class="card border-0 shadow-sm rounded-4 mb-4" style="background-color: var(--bg-surface);">
-            <div class="card-header border-bottom p-4" style="background-color: #f0f9ff; border-color: var(--border) !important;">
-                <h5 class="fw-bold text-primary mb-0"><i class="fa-solid fa-paper-plane me-2"></i>Báo cáo Công việc</h5>
+        <div class="card border-0 mb-4" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08);">
+            <div class="card-header border-0 py-4 px-4" style="background: linear-gradient(135deg, #DBEAFE, #BFDBFE); border-radius: 24px 24px 0 0;">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width: 50px; height: 50px; background: rgba(29,78,216,0.15); border-radius: 14px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
+                        <i class="fa-solid fa-paper-plane fs-5" style="color: #1D4ED8;"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold mb-0" style="color: #1e293b;">Báo cáo Công việc</h5>
+                        <p class="mb-0 small" style="color: #475569;">Gửi báo cáo kết quả thực hiện</p>
+                    </div>
+                </div>
             </div>
             <div class="card-body p-4">
                 <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data">
@@ -142,9 +166,17 @@
                         </div>
                         <button type="submit" class="btn btn-success btn-lg rounded-pill px-5 fw-bold shadow-sm">
                             <i class="fa-solid fa-paper-plane me-2"></i>GỬI BÁO CÁO
-                        </button>
+                        </button>" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08);">
+            <div class="card-header border-0 bg-transparent py-4 px-4" style="border-radius: 24px 24px 0 0;">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #8B5CF6, #7C3AED); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(139,92,246,0.35);">
+                        <i class="fa-solid fa-comments text-white fs-5"></i>
                     </div>
-                </form>
+                    <div>
+                        <h5 class="fw-bold mb-0" style="color: #1e293b;">Phản hồi & Thảo luận</h5>
+                        <p class="text-muted mb-0 small">Trao đổi và cập nhật tiến độ</p>
+                    </div>
+                </div
             </div>
         </div>
         {% endif %}
@@ -197,9 +229,17 @@
     <div class="col-md-4">
         
         <!-- PROGRESS CARD -->
-        <div class="card border-0 shadow-sm rounded-4 mb-4" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%);">
+        <div class="card border-0 mb-4 overflow-hidden" style="border-radius: 24px; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); box-shadow: 0 8px 32px rgba(0,0,0,0.2);">
             <div class="card-body p-4 text-white">
-                <h6 class="text-white-50 small fw-bold mb-3 text-uppercase"><i class="fa-solid fa-chart-line me-2"></i>Tiến độ</h6>
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.15); border-radius: 14px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
+                        <i class="fa-solid fa-chart-line text-white fs-5"></i>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold mb-0 text-white">Tiến độ</h6>
+                        <p class="mb-0 text-white-50 small">Mức độ hoàn thành</p>
+                    </div>
+                </div>
                 <div class="text-center mb-3">
                     <div class="display-4 fw-bold mb-1">{{ progress_percent }}%</div>
                     <div class="badge {% if progress_percent == 100 %}bg-success{% elif progress_percent > 0 %}bg-info{% else %}bg-secondary{% endif %} rounded-pill px-3 py-2">
@@ -212,43 +252,54 @@
                         {% endif %}
                     </div>
                 </div>
-                <div class="progress bg-white bg-opacity-20 mb-3" style="height: 10px;">
-                    <div class="progress-bar {% if progress_percent == 100 %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {{ progress_percent }}%;"></div>
+                <div class="progress bg-white bg-opacity-20 mb-3" style="height: 10px; border-radius: 10px;">
+                    <div class="progress-bar {% if progress_percent == 100 %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {{ progress_percent }}%; border-radius: 10px;"></div>
                 </div>
             </div>
         </div>
 
         <!-- TASK INFO CARD -->
-        <div class="card border-0 shadow-sm rounded-4 mb-4" style="background-color: var(--bg-surface);">
+        <div class="card border-0 mb-4" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08);">
             <div class="card-body p-4">
-                <h6 class="fw-bold text-dark mb-3 small text-uppercase"><i class="fa-solid fa-info-circle me-2 text-primary"></i>Thông tin</h6>
+                <h6 class="fw-bold mb-3 small text-uppercase" style="color: #64748b;"><i class="fa-solid fa-info-circle me-2" style="color: #0066FF;"></i>Thông tin</h6>
                 
                 <div class="info-item mb-3 pb-3 border-bottom">
-                    <div class="text-muted small mb-1">Thời hạn</div>
-                    <div class="fw-bold text-{% if task.deadline and task.deadline < now_dt.date() %}danger{% else %}dark{% endif %}">
-                        <i class="fa-solid fa-calendar-days me-2"></i>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa xác định' }}
+                    <div class="text-muted small mb-2">Thời hạn</div>
+                    <div class="d-flex align-items-center gap-2">
+                        <div style="width: 36px; height: 36px; background: {% if task.deadline and task.deadline < now_dt.date() %}linear-gradient(135deg, #FEE2E2, #FECACA){% else %}linear-gradient(135deg, #DBEAFE, #BFDBFE){% endif %}; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fa-solid fa-calendar-days" style="color: {% if task.deadline and task.deadline < now_dt.date() %}#DC2626{% else %}#1D4ED8{% endif %};"></i>
+                        </div>
+                        <div class="fw-bold" style="color: {% if task.deadline and task.deadline < now_dt.date() %}#DC2626{% else %}#1e293b{% endif %};">
+                            {{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa xác định' }}
+                        </div>
                     </div>
                 </div>
                 
                 <div class="info-item mb-3 pb-3 border-bottom">
-                    <div class="text-muted small mb-1">Người giao</div>
-                    <div class="fw-bold text-dark">
-                        <i class="fa-solid fa-user me-2"></i>{{ task.author_name }}
+                    <div class="text-muted small mb-2">Người giao</div>
+                    <div class="d-flex align-items-center gap-2">
+                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #D1FAE5, #A7F3D0); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fa-solid fa-user" style="color: #059669;"></i>
+                        </div>
+                        <div class="fw-bold" style="color: #1e293b;">{{ task.author_name }}</div>
                     </div>
                 </div>
                 
                 <div class="info-item mb-3 pb-3 border-bottom">
-                    <div class="text-muted small mb-1">Loại công việc</div>
-                    <div class="fw-bold text-dark">
-                        <i class="fa-solid fa-briefcase me-2"></i>{{ task.task_type or 'Công việc thường xuyên' }}
+                    <div class="text-muted small mb-2">Loại công việc</div>
+                    <div class="d-flex align-items-center gap-2">
+                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #FEF3C7, #FDE68A); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fa-solid fa-briefcase" style="color: #92400E;"></i>
+                        </div>
+                        <div class="fw-bold" style="color: #1e293b;">{{ task.task_type or 'Công việc thường xuyên' }}</div>
                     </div>
                 </div>
                 
                 <div class="info-item">
-                    <div class="text-muted small mb-1">Đội nghiệp vụ</div>
+                    <div class="text-muted small mb-2">Đội nghiệp vụ</div>
                     <div>
-                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-3 py-2 rounded-pill">
-                            {{ task.domain }}
+                        <span class="badge" style="background: linear-gradient(135deg, #DBEAFE, #BFDBFE); color: #1D4ED8; border: none; padding: 8px 14px; border-radius: 12px; font-size: 12px; font-weight: 700;">
+                            <i class="fa-solid fa-users me-1"></i>{{ task.domain }}
                         </span>
                     </div>
                 </div>
@@ -257,9 +308,9 @@
 
         <!-- ASSIGNEES CARD (Only for Lead/Admin) -->
         {% if is_lead %}
-        <div class="card border-0 shadow-sm rounded-4" style="background-color: var(--bg-surface);">
+        <div class="card border-0" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08);">
             <div class="card-body p-4">
-                <h6 class="fw-bold text-dark mb-3 small text-uppercase"><i class="fa-solid fa-users me-2 text-primary"></i>Người được giao</h6>
+                <h6 class="fw-bold mb-3 small text-uppercase" style="color: #64748b;"><i class="fa-solid fa-users me-2" style="color: #8B5CF6;"></i>Người được giao</h6>
                 <div class="d-flex flex-column gap-2">
                     {% for a, u in assigns %}
                     <div class="d-flex align-items-center p-2 rounded-3 border">
