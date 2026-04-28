@@ -22,15 +22,15 @@
         </div>
         <div class="pc06-hero-toolbar-grid compact">
             <div class="pc06-hero-toolbar">
-                <div class="pc06-toolbar-row">
-                    <label class="pc06-search-control">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="newsSearch" placeholder="Tìm tiêu đề hoặc nội dung bản tin">
-                    </label>
-                    <span class="pc06-toolbar-count" id="newsResultCount">{{ news_list|length }} tin</span>
-                </div>
-                <div class="pc06-filter-grid">
-                    <label class="pc06-select-control">
+                <div class="pc06-toolbar-row compact-filters">
+                    <div class="pc06-select-control search-grow">
+                        <span>Tìm kiếm</span>
+                        <label class="pc06-search-control">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="newsSearch" placeholder="Tìm tiêu đề hoặc nội dung bản tin">
+                        </label>
+                    </div>
+                    <label class="pc06-select-control compact">
                         <span>Lĩnh vực</span>
                         <select id="newsCategoryFilter" class="form-select">
                             <option value="ALL">Tất cả lĩnh vực</option>
@@ -39,6 +39,7 @@
                             {% endfor %}
                         </select>
                     </label>
+                    <span class="pc06-toolbar-count" id="newsResultCount">{{ news_list|length }} tin</span>
                 </div>
             </div>
         </div>

@@ -30,11 +30,8 @@
         </div>
         <div class="pc06-hero-toolbar-grid compact">
             <div class="pc06-hero-toolbar">
-                <div class="pc06-toolbar-row">
-                    <span class="pc06-toolbar-count">{{ users|length }} tài khoản</span>
-                </div>
-                <div class="pc06-filter-grid">
-                    <label class="pc06-select-control">
+                <div class="pc06-toolbar-row compact-filters">
+                    <label class="pc06-select-control compact wide">
                         <span>Vai trò</span>
                         <select class="form-select" onchange="window.location.href=this.value">
                             <option value="{{ url_for('admin_bp.roles') }}" {% if not selected_role_id %}selected{% endif %}>Tất cả vai trò ({{ total_user_count }})</option>
@@ -43,6 +40,7 @@
                             {% endfor %}
                         </select>
                     </label>
+                    <span class="pc06-toolbar-count">{{ users|length }} tài khoản</span>
                 </div>
             </div>
         </div>

@@ -26,15 +26,15 @@
         </div>
         <div class="pc06-hero-toolbar-grid compact">
             <div class="pc06-hero-toolbar">
-                <div class="pc06-toolbar-row">
-                    <label class="pc06-search-control">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="contactSearch" placeholder="Tìm tên, số điện thoại hoặc đơn vị..." onkeyup="filterContactsInTable()">
-                    </label>
-                    <span class="pc06-toolbar-count" id="contactVisibleCount">{{ contacts|length }} liên hệ</span>
-                </div>
-                <div class="pc06-filter-grid">
-                    <label class="pc06-select-control">
+                <div class="pc06-toolbar-row compact-filters">
+                    <div class="pc06-select-control search-grow">
+                        <span>Tìm kiếm</span>
+                        <label class="pc06-search-control">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="contactSearch" placeholder="Tìm tên, số điện thoại hoặc đơn vị..." onkeyup="filterContactsInTable()">
+                        </label>
+                    </div>
+                    <label class="pc06-select-control compact wide">
                         <span>Nhóm</span>
                         <select id="contactGroupFilter" class="form-select" onchange="window.location.href=this.value">
                             <option value="{{ url_for('portal_bp.contacts') }}" {% if not current_group %}selected{% endif %}>Tất cả nhóm ({{ total_contact_count }})</option>
@@ -43,6 +43,7 @@
                             {% endfor %}
                         </select>
                     </label>
+                    <span class="pc06-toolbar-count" id="contactVisibleCount">{{ contacts|length }} liên hệ</span>
                 </div>
             </div>
         </div>

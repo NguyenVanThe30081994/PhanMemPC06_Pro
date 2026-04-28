@@ -44,12 +44,14 @@
         </div>
         <div class="pc06-hero-toolbar-grid compact">
             <div class="pc06-hero-toolbar">
-                <div class="pc06-toolbar-row">
-                    <label class="pc06-search-control">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="taskSearch" placeholder="Tìm theo tên công việc, nội dung hoặc đơn vị">
-                    </label>
-                    <div class="pc06-filter-grid inline-compact">
+                <div class="pc06-toolbar-row compact-filters">
+                    <div class="pc06-select-control search-grow">
+                        <span>Tìm kiếm</span>
+                        <label class="pc06-search-control">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="taskSearch" placeholder="Tìm theo tên công việc, nội dung hoặc đơn vị">
+                        </label>
+                    </div>
                     <label class="pc06-select-control compact">
                         <span>Đơn vị</span>
                         <select id="taskUnitFilter" class="form-select">
@@ -68,7 +70,6 @@
                             <option value="hoàn thành">Hoàn thành</option>
                         </select>
                     </label>
-                    </div>
                     <span class="pc06-toolbar-count" id="taskResultCount">{{ tasks|length }} việc</span>
                 </div>
             </div>
