@@ -1,60 +1,79 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header px-4 pt-4 mb-4 animate__animated animate__fadeIn">
-    <div class="header-main-group">
-        <div class="header-title-pill shadow-sm glass-card">
-            <h1 class="mb-0">Bảng xếp hạng 124 Xã (Đội 1)</h1>
-        </div>
-        <div class="header-actions">
-            <a href="/ranking/export" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
-                <i class="fa-solid fa-file-excel me-2"></i>XUẤT BIỂU
-            </a>
-            <a href="/ranking/input" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm ms-2">
-                <i class="fa-solid fa-cloud-arrow-up me-2"></i>TẢI FILE CHẤM ĐIỂM
-            </a>
-            <button class="btn btn-light rounded-pill px-4 fw-bold shadow-sm ms-2" onclick="window.location.reload()">
-                <i class="fa-solid fa-rotate me-2"></i>LÀM MỚI
-            </button>
-        </div>
-    </div>
-</div>
-
-<div class="main-content-area px-4 animate__animated animate__fadeInUp">
-    <div class="row g-4 mb-5">
-        <div class="col-12">
-            <div class="card border-0 shadow-lg rounded-4 overflow-hidden" style="background: linear-gradient(135deg, #0068ff 0%, #00a1ff 100%);">
-                <div class="card-body p-4 p-xl-5 text-white">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4 class="fw-bold mb-0"><i class="fa-solid fa-trophy me-3"></i>NHÓM 1: ĐƠN VỊ DẪN ĐẦU (12 ĐIỂM)</h4>
-                        <span class="badge bg-white text-primary px-3 py-2 rounded-pill fw-bold">TOP 10</span>
-                    </div>
-
-                    <div class="row g-3">
-                        {% for item in leaderboard[:10] %}
-                        <div class="col-md-6 col-xl-2 col-lg-3">
-                            <div class="card bg-white bg-opacity-15 border-0 rounded-4 p-3 h-100 text-center backdrop-blur">
-                                <div class="rank-badge mb-2">#{{ item.rank }}</div>
-                                <div class="fw-bold text-truncate w-100" style="font-size: 0.95rem;">{{ item.name }}</div>
-                                <div class="small opacity-75 mt-1">{{ item.total_score }} điểm</div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
+<div class="pc06-page-shell">
+    <section class="pc06-hero-card">
+        <div class="pc06-hero-grid">
+            <div>
+                <div class="pc06-page-kicker">
+                    <i class="fa-solid fa-trophy"></i>
+                    Xếp hạng Đội 1
+                </div>
+                <h1 class="pc06-page-title">Bảng xếp hạng 124 xã theo chuẩn BDHVS</h1>
+                <p class="pc06-page-lead">
+                    Đưa phần xếp hạng về cùng ngôn ngữ điều hành với các module khác: nổi bật nhóm dẫn đầu, rõ cơ chế chấm điểm,
+                    dễ truy cập thao tác nhập liệu và xuất biểu.
+                </p>
+                <div class="pc06-action-cluster">
+                    <a href="/ranking/export" class="btn btn-bdhvs light">
+                        <i class="fa-solid fa-file-excel"></i>
+                        Xuất biểu
+                    </a>
+                    <a href="/ranking/input" class="btn btn-bdhvs primary">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        Tải file chấm điểm
+                    </a>
+                </div>
+            </div>
+            <div class="pc06-stat-strip">
+                <div class="pc06-metric-card">
+                    <span>Tổng đơn vị</span>
+                    <strong>{{ leaderboard|length }}</strong>
+                </div>
+                <div class="pc06-metric-card">
+                    <span>Đơn vị số 1</span>
+                    <strong style="font-size:1.1rem;">{{ leaderboard[0].name if leaderboard else 'Chưa có' }}</strong>
+                </div>
+                <div class="pc06-metric-card">
+                    <span>Điểm dẫn đầu</span>
+                    <strong>{{ leaderboard[0].total_score if leaderboard else 0 }}</strong>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <div class="row g-4">
-        <div class="col-xl-8">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-                <div class="glass-header">
-                    <i class="fa-solid fa-ranking-star me-2"></i>Chi tiết xếp hạng hệ thống (Nhóm 1)
+    <div class="pc06-detail-grid">
+        <div class="pc06-detail-main">
+            <section class="pc06-panel">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>Nhóm dẫn đầu</h2>
+                        <p>Top đơn vị được tách riêng để chỉ huy nắm nhanh vị trí đầu bảng.</p>
+                    </div>
+                    <span class="pc06-status-badge done">TOP 10</span>
                 </div>
-                <div class="table-responsive custom-scrollbar" style="max-height: 600px;">
+                <div class="ranking-top-grid">
+                    {% for item in leaderboard[:10] %}
+                    <article class="ranking-top-card {% if item.rank == 1 %}champion{% endif %}">
+                        <div class="ranking-top-rank">#{{ item.rank }}</div>
+                        <h3>{{ item.name }}</h3>
+                        <p>{{ item.total_score }} điểm tổng</p>
+                        <span class="pc06-soft-tag neutral">Nhóm {{ item.group }} • {{ item.group_points }} điểm nhóm</span>
+                    </article>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="pc06-panel">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>Chi tiết xếp hạng</h2>
+                        <p>Bảng đầy đủ theo tổng điểm, nhóm và điểm nhóm.</p>
+                    </div>
+                </div>
+                <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="pill-thead sticky-top" style="z-index: 10;">
+                        <thead class="pill-thead">
                             <tr>
                                 <th class="ps-4">Hạng</th>
                                 <th>Đơn vị công an cấp xã</th>
@@ -65,93 +84,70 @@
                         </thead>
                         <tbody>
                             {% for item in leaderboard %}
-                            <tr class="ranking-row group-{{ item.group }}">
-                                <td class="ps-4" data-label="Hạng">
-                                    <span class="badge {{ 'bg-warning' if item.rank <= 3 else 'bg-light text-dark' }} rounded-pill px-3 py-2 fw-bold">
-                                        {{ item.rank }}
-                                    </span>
+                            <tr>
+                                <td class="ps-4">
+                                    <span class="badge {% if item.rank <= 3 %}bg-warning text-dark{% else %}bg-light text-dark{% endif %} rounded-pill px-3 py-2 fw-bold">{{ item.rank }}</span>
                                 </td>
-                                <td data-label="Đơn vị">
-                                    <div class="fw-bold text-dark">{{ item.name }}</div>
-                                </td>
-                                <td class="text-center fw-bold text-primary" data-label="Tổng điểm">{{ item.total_score }}</td>
-                                <td class="text-center" data-label="Phân nhóm">
-                                    <span class="badge group-badge-{{ item.group }} px-3 py-1 fw-bold rounded-pill">Nhóm {{ item.group }}</span>
-                                </td>
-                                <td class="pe-4 text-end" data-label="Điểm nhóm">
-                                    <div class="fw-black text-dark" style="font-size: 1.1rem;">{{ item.group_points }}</div>
-                                </td>
+                                <td><div class="fw-bold text-dark">{{ item.name }}</div></td>
+                                <td class="text-center fw-bold text-primary">{{ item.total_score }}</td>
+                                <td class="text-center"><span class="pc06-soft-tag neutral">Nhóm {{ item.group }}</span></td>
+                                <td class="pe-4 text-end fw-bold text-dark">{{ item.group_points }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </section>
         </div>
 
-        <div class="col-xl-4 text-dark">
-            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
-                <h6 class="fw-bold mb-3">Quy tắc chấm điểm (V13)</h6>
-                <ul class="list-unstyled small mb-0">
-                    <li class="mb-3 d-flex gap-2">
-                        <i class="fa-solid fa-circle-info text-primary mt-1"></i>
-                        <span><strong>Mô phỏng Excel:</strong> Điểm mỗi chỉ tiêu = Thứ hạng đơn vị trong chỉ tiêu đó x Hệ số.</span>
-                    </li>
-                    <li class="mb-3 d-flex gap-2">
-                        <i class="fa-solid fa-star text-warning mt-1"></i>
-                        <span><strong>Hệ số:</strong> Trọng điểm x2, Thường xuyên x1. Xếp hạng tổng theo thứ tự tăng dần, tổng điểm thấp đứng đầu.</span>
-                    </li>
-                    <li class="mb-0 d-flex gap-2">
-                        <i class="fa-solid fa-triangle-exclamation text-danger mt-1"></i>
-                        <span><strong>Vi phạm ANAT:</strong> Trừ trực tiếp 4 điểm vào tổng điểm cuối.</span>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-                <div class="p-4 bg-primary text-white">
-                    <h6 class="fw-bold mb-0">Cơ cấu điểm Nhóm</h6>
+        <aside class="pc06-detail-side">
+            <section class="pc06-panel">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>Quy tắc chấm điểm</h2>
+                        <p>Tóm tắt nhanh để đọc bảng đúng ngữ cảnh.</p>
+                    </div>
                 </div>
-                <div class="p-4">
-                    <div class="d-flex justify-content-between mb-2"><span>Nhóm 1 (10 đơn vị)</span> <span class="fw-bold">12 điểm</span></div>
-                    <div class="d-flex justify-content-between mb-2"><span>Nhóm 2 (20 đơn vị)</span> <span class="fw-bold">9 điểm</span></div>
-                    <div class="d-flex justify-content-between mb-2"><span>Nhóm 3 (20 đơn vị)</span> <span class="fw-bold">8 điểm</span></div>
-                    <div class="d-flex justify-content-between mb-2"><span>Nhóm 4 (20 đơn vị)</span> <span class="fw-bold">7 điểm</span></div>
-                    <div class="d-flex justify-content-between mb-2"><span>Nhóm 5 (20 đơn vị)</span> <span class="fw-bold">6 điểm</span></div>
-                    <div class="d-flex justify-content-between mb-2"><span>Nhóm 6 (20 đơn vị)</span> <span class="fw-bold">5 điểm</span></div>
-                    <div class="d-flex justify-content-between"><span>Nhóm 7 (14 đơn vị)</span> <span class="fw-bold">2 điểm</span></div>
+                <div class="pc06-info-list">
+                    <div class="pc06-info-item"><span>Mô phỏng Excel</span><strong>Thứ hạng chỉ tiêu x hệ số</strong></div>
+                    <div class="pc06-info-item"><span>Hệ số</span><strong>Trọng điểm x2, thường xuyên x1</strong></div>
+                    <div class="pc06-info-item"><span>Vi phạm ANAT</span><strong>Trừ trực tiếp 4 điểm</strong></div>
                 </div>
-            </div>
-        </div>
+            </section>
+            <section class="pc06-panel">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>Cơ cấu nhóm</h2>
+                        <p>Điểm nhóm được phân bổ theo từng cụm thứ hạng.</p>
+                    </div>
+                </div>
+                <div class="ranking-group-stack">
+                    <div class="ranking-group-row"><span>Nhóm 1 (10 đơn vị)</span><strong>12 điểm</strong></div>
+                    <div class="ranking-group-row"><span>Nhóm 2 (20 đơn vị)</span><strong>9 điểm</strong></div>
+                    <div class="ranking-group-row"><span>Nhóm 3 (20 đơn vị)</span><strong>8 điểm</strong></div>
+                    <div class="ranking-group-row"><span>Nhóm 4 (20 đơn vị)</span><strong>7 điểm</strong></div>
+                    <div class="ranking-group-row"><span>Nhóm 5 (20 đơn vị)</span><strong>6 điểm</strong></div>
+                    <div class="ranking-group-row"><span>Nhóm 6 (20 đơn vị)</span><strong>5 điểm</strong></div>
+                    <div class="ranking-group-row"><span>Nhóm 7 (14 đơn vị)</span><strong>2 điểm</strong></div>
+                </div>
+            </section>
+        </aside>
     </div>
 </div>
 
 <style>
-    .rank-badge {
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        background: #fff;
-        color: #0068ff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 800;
-        margin: 0 auto;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
-
-    .backdrop-blur {
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        transform: translateZ(0);
-    }
-
-    .group-badge-1 { background: #fee2e2; color: #ef4444; }
-    .group-badge-2 { background: #ffedd5; color: #f97316; }
-    .group-badge-7 { background: #f1f5f9; color: #64748b; }
-
-    .ranking-row { transition: all 0.2s; }
-    .ranking-row:hover { background-color: rgba(255, 255, 255, 0.1) !important; transform: scale(1.002); }
+    .ranking-top-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+    .ranking-top-card { padding: 18px; border-radius: 22px; background: rgba(248, 250, 252, 0.96); border: 1px solid rgba(148, 163, 184, 0.14); box-shadow: 0 14px 28px rgba(15, 23, 42, 0.04); }
+    .ranking-top-card.champion { background: linear-gradient(135deg, #dbeafe, #eff6ff); border-color: rgba(37, 99, 235, 0.22); }
+    .ranking-top-rank { display: inline-flex; align-items: center; justify-content: center; min-width: 46px; height: 38px; padding: 0 12px; border-radius: 999px; background: #fff; color: #1d4ed8; font-weight: 900; margin-bottom: 14px; }
+    .ranking-top-card h3 { margin: 0 0 8px; font-size: 0.96rem; font-weight: 800; color: var(--text-main); }
+    .ranking-top-card p { margin: 0 0 12px; color: var(--text-muted); font-size: 0.86rem; }
+    .ranking-group-stack { display: grid; gap: 10px; }
+    .ranking-group-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 16px; border-radius: 18px; background: rgba(248, 250, 252, 0.94); border: 1px solid rgba(148, 163, 184, 0.12); color: var(--text-main); }
+    .ranking-group-row strong { font-weight: 800; }
+    [data-theme="dark"] .ranking-top-card, [data-theme="dark"] .ranking-group-row { background: rgba(15, 23, 42, 0.72); border-color: rgba(148, 163, 184, 0.14); }
+    [data-theme="dark"] .ranking-top-card.champion { background: rgba(30, 64, 175, 0.18); }
+    @media (max-width: 1200px) { .ranking-top-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 768px) { .ranking-top-grid { grid-template-columns: 1fr; } }
 </style>
 {% endblock %}

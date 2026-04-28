@@ -1,144 +1,163 @@
 {% extends "base_mobile.html" %}
 
-{% block title %}Danh bạ - PC06 Mobile{% endblock %}
+{% block title %}Danh bạ PC06{% endblock %}
+
+{% block head %}
+<style>
+    .mobile-contact-hero { background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff; padding: 20px; border-radius: 24px; margin-bottom: 16px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18); }
+    .mobile-contact-hero h1 { margin: 10px 0 8px; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; }
+    .mobile-contact-hero p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.9rem; }
+    .mobile-contact-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
+    .mobile-contact-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+    .mobile-contact-search, .mobile-contact-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); }
+    .mobile-contact-search { padding: 16px; margin-bottom: 16px; }
+    .mobile-search-input { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px; background: var(--bg-body); border: 1px solid var(--border); margin-bottom: 12px; }
+    .mobile-search-input input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--text-main); }
+    .mobile-chip-row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+    .mobile-chip-row::-webkit-scrollbar { display: none; }
+    .mobile-chip { padding: 10px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-body); color: var(--text-muted); font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
+    .mobile-chip.active { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; border-color: transparent; }
+    .mobile-contact-list { display: grid; gap: 14px; }
+    .mobile-contact-card { padding: 16px; }
+    .mobile-contact-head { display: flex; gap: 12px; align-items: center; }
+    .mobile-contact-avatar { width: 46px; height: 46px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #3b82f6); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; }
+    .mobile-contact-copy { min-width: 0; flex: 1; }
+    .mobile-contact-copy h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-main); }
+    .mobile-contact-copy p { margin: 5px 0 0; color: var(--text-muted); font-size: 0.82rem; }
+    .mobile-contact-phone { display: inline-block; margin-top: 10px; color: #1d4ed8; font-weight: 800; text-decoration: none; }
+    .mobile-contact-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--border); }
+    .mobile-contact-fab { position: fixed; bottom: 88px; right: 18px; width: 58px; height: 58px; border-radius: 18px; border: 0; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; box-shadow: 0 18px 30px rgba(37, 99, 235, 0.3); }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="animate__animated animate__fadeIn">
-    <div class="d-flex align-items-center mb-3">
-        <a href="/" class="btn btn-outline-primary rounded-4">
-            <i class="fa-solid fa-house"></i>
-        </a>
+<section class="mobile-contact-hero">
+    <div class="mobile-contact-kicker"><i class="fa-solid fa-address-book"></i>Danh bạ đơn vị</div>
+    <h1>Danh bạ PC06</h1>
+    <p>Tìm nhanh liên hệ nội bộ, lọc theo nhóm và thao tác thêm mới ngay trên giao diện di động.</p>
+    {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
+    <div class="mobile-contact-actions">
+        <button class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#importContactModal"><i class="fa-solid fa-file-excel"></i>Nhập Excel</button>
+        <button class="btn btn-mobile btn-mobile-primary" data-bs-toggle="modal" data-bs-target="#addContactModal"><i class="fa-solid fa-plus"></i>Thêm mới</button>
     </div>
-    
-    <div class="mb-4 d-flex justify-content-between align-items-center">
-        <h4 class="fw-bold text-dark mb-0">Danh bạ</h4>
-        {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
-        <button class="btn btn-primary btn-sm rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#addContactModal">
-            <i class="fa-solid fa-plus"></i> THÊM MỚI
-        </button>
-        {% endif %}
-    </div>
+    {% endif %}
+</section>
 
-    <!-- Search Box -->
-    <div class="mobile-card p-2 mb-3">
-        <div class="input-group input-group-sm border-0">
-            <span class="input-group-text bg-transparent border-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-            <input type="text" id="contactSearch" class="form-control border-0 shadow-none" placeholder="Tìm tên, SĐT, đơn vị..." onkeyup="unifiedFilter()">
-        </div>
-    </div>
-
-    <!-- Category Scroll -->
-    <div class="d-flex gap-2 overflow-auto pb-3 mb-2 no-scrollbar" id="categoryFilters">
-        <div class="pill pill-primary flex-shrink-0 active" data-cat="ALL" onclick="setCategoryFilter('ALL')">Tất cả</div>
+<section class="mobile-contact-search">
+    <label class="mobile-search-input">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="contactSearch" placeholder="Tìm tên, SĐT, đơn vị...">
+    </label>
+    <div class="mobile-chip-row" id="categoryFilters">
+        <button type="button" class="mobile-chip active" data-cat="ALL">Tất cả</button>
         {% for cat in groups %}
-        <div class="pill bg-white border flex-shrink-0 text-muted" data-cat="{{ cat.name }}" onclick="setCategoryFilter('{{ cat.name }}')">{{ cat.name }}</div>
+        <button type="button" class="mobile-chip" data-cat="{{ cat.name }}">{{ cat.name }}</button>
         {% endfor %}
     </div>
+</section>
 
-    <div id="contactGrid">
-        {% for c in contacts %}
-        <div class="mobile-card contact-item mb-2" data-category="{{ c.contact_group }}">
-            <div class="d-flex align-items-center gap-3">
-                <div class="bg-primary-gradient text-white rounded-circle shadow-sm fw-bold d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; font-size: 16px; background: linear-gradient(135deg, #2563eb, #3b82f6);">
-                    {{ c.name[:1].upper() }}
-                </div>
-                <div class="flex-grow-1 overflow-hidden">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <h6 class="fw-bold text-dark mb-0 text-truncate">{{ c.name }}</h6>
-                        <span class="badge bg-light text-primary border tiny fw-bold">{{ c.contact_group }}</span>
-                    </div>
-                    <div class="tiny text-muted mt-1">{{ c.role or 'Cán bộ' }}</div>
-                    <div class="fw-bold text-primary small mt-1"><i class="fa-solid fa-phone me-1"></i>{{ c.phone }}</div>
-                </div>
-                <div class="ms-2">
-                    <a href="tel:{{ c.phone }}" class="btn btn-success btn-circle rounded-circle shadow-sm d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                        <i class="fa-solid fa-phone text-white"></i>
-                    </a>
-                </div>
+<section class="mobile-contact-list" id="contactGrid">
+    {% for c in contacts %}
+    <article class="mobile-contact-card contact-item" data-category="{{ c.contact_group }}">
+        <div class="mobile-contact-head">
+            <div class="mobile-contact-avatar">{{ c.name[:1].upper() }}</div>
+            <div class="mobile-contact-copy">
+                <span class="pc06-soft-tag neutral">{{ c.contact_group }}</span>
+                <h3 class="mt-2">{{ c.name }}</h3>
+                <p>{{ c.role or 'Cán bộ' }}{% if c.unit_name %} • {{ c.unit_name }}{% endif %}</p>
+                <a href="tel:{{ c.phone }}" class="mobile-contact-phone"><i class="fa-solid fa-phone me-1"></i>{{ c.phone }}</a>
             </div>
-            {% if perms.get('p_contact_lead') or is_admin %}
-            <div class="text-end mt-2 pt-2 border-top">
-                <form method="POST" action="{{ url_for('portal_bp.contact_delete', cid=c.id) }}" class="d-inline m-0" onsubmit="return confirm('Xóa liên hệ này?')">
-                    <button type="submit" class="btn btn-link p-0 text-danger small text-decoration-none fw-bold">
-                        <i class="fa-solid fa-trash-can me-1"></i> XÓA
-                    </button>
-                </form>
-            </div>
-            {% endif %}
         </div>
-        {% endfor %}
-        
-        {% if not contacts %}
-        <div class="text-center py-5">
-             <div class="opacity-10 mb-2"><i class="fa-solid fa-address-book fa-3x"></i></div>
-             <p class="text-muted small">Danh bạ đang trống</p>
+        {% if perms.get('p_contact_lead') or is_admin %}
+        <div class="mobile-contact-foot">
+            <span class="small text-muted">Xử lý liên hệ</span>
+            <form method="POST" action="{{ url_for('portal_bp.contact_delete', cid=c.id) }}" class="m-0" onsubmit="return confirm('Xóa liên hệ này?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">Xóa</button>
+            </form>
         </div>
         {% endif %}
-    </div>
-</div>
+    </article>
+    {% else %}
+    <div class="mobile-contact-card text-center text-muted">Danh bạ đang trống.</div>
+    {% endfor %}
+</section>
 
-<!-- Modal Mobile -->
+{% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
 <div class="modal fade" id="addContactModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered mx-3">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 rounded-4">
             <form method="POST">
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-uppercase">Thêm Liên Hệ</h5>
+                <div class="modal-header border-0">
+                    <div><h5 class="modal-title fw-bold mb-1">Thêm liên hệ</h5></div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">Tên đơn vị / Cá nhân</label>
-                        <input type="text" name="name" class="form-control" placeholder="Nhập tên..." required>
-                    </div>
+                <div class="modal-body pt-0">
+                    <div class="mb-3"><label class="form-label small fw-bold">Tên đơn vị / Cá nhân</label><input type="text" name="name" class="form-control" required></div>
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label class="form-label small fw-bold">Chức vụ</label>
                             <div data-category-picker data-module="contacts" data-field="role" data-placeholder="Chọn chức vụ" data-storage-key="mobile.contacts.role">
-                                <select name="role" class="form-select" data-category-target>
-                                    {% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}
-                                </select>
+                                <select name="role" class="form-select" data-category-target>{% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}</select>
                             </div>
                         </div>
                         <div class="col-6">
                             <label class="form-label small fw-bold">Nhóm</label>
                             <div data-category-picker data-module="contacts" data-field="contact_group" data-placeholder="Chọn nhóm danh bạ" data-storage-key="mobile.contacts.group">
-                                <select name="contact_group" class="form-select" required data-category-target>
-                                    {% for cat in groups %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}
-                                </select>
+                                <select name="contact_group" class="form-select" required data-category-target>{% for cat in groups %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}</select>
                             </div>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">Số điện thoại</label>
-                        <input type="tel" name="phone" id="phone_mobile" class="form-control" placeholder="0xxx.xxx.xxx" required>
-                    </div>
+                    <div class="mb-3"><label class="form-label small fw-bold">Số điện thoại</label><input type="tel" name="phone" class="form-control" required></div>
                 </div>
-                <div class="modal-footer border-0">
-                    <button type="submit" class="btn-mobile btn-mobile-primary">LƯU LIÊN HỆ</button>
-                </div>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary">Lưu liên hệ</button></div>
             </form>
         </div>
     </div>
 </div>
 
-<style>
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    #categoryFilters .active { background: var(--primary); color: white; border-color: var(--primary); }
-    .btn-circle { padding: 0; min-width: 40px; }
-</style>
+<div class="modal fade" id="importContactModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4">
+            <form action="{{ url_for('portal_bp.contact_import') }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="has_header" value="1">
+                <div class="modal-header border-0">
+                    <div><h5 class="modal-title fw-bold mb-1">Nhập danh bạ</h5></div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <div class="mb-3"><label class="form-label small fw-bold">File Excel</label><input type="file" name="import_excel" class="form-control" accept=".xlsx,.xls" required></div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Nhóm danh bạ</label>
+                        <div data-category-picker data-module="contacts" data-field="contact_group" data-placeholder="Chọn nhóm danh bạ" data-storage-key="mobile.contacts.import_group_simple">
+                            <select name="global_group" class="form-select" required data-category-target>{% for cat in groups %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}</select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Chức vụ</label>
+                        <div data-category-picker data-module="contacts" data-field="role" data-placeholder="Chọn chức vụ" data-storage-key="mobile.contacts.import_role_simple">
+                            <select name="global_role" class="form-select" required data-category-target>{% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}</select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary">Nhập danh bạ</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
 
+{% block scripts %}
 <script>
     let currentCat = 'ALL';
-    function setCategoryFilter(cat) {
-        currentCat = cat;
-        document.querySelectorAll('#categoryFilters .pill').forEach(p => {
-            p.classList.toggle('active', p.getAttribute('data-cat') === cat);
-            p.classList.toggle('pill-primary', p.getAttribute('data-cat') === cat);
+    document.getElementById('contactSearch')?.addEventListener('input', unifiedFilter);
+    document.querySelectorAll('#categoryFilters .mobile-chip').forEach((chip) => {
+        chip.addEventListener('click', () => {
+            currentCat = chip.getAttribute('data-cat');
+            document.querySelectorAll('#categoryFilters .mobile-chip').forEach((item) => item.classList.toggle('active', item === chip));
+            unifiedFilter();
         });
-        unifiedFilter();
-    }
+    });
     function unifiedFilter() {
         const query = document.getElementById('contactSearch').value.toLowerCase();
         document.querySelectorAll('.contact-item').forEach(item => {

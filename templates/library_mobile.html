@@ -1,87 +1,88 @@
 {% extends "base_mobile.html" %}
 
-{% block title %}Thư viện - PC06 Mobile{% endblock %}
+{% block title %}Thư viện PC06{% endblock %}
+
+{% block head %}
+<style>
+    .mobile-library-hero { background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff; padding: 20px; border-radius: 24px; margin-bottom: 16px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18); }
+    .mobile-library-hero h1 { margin: 10px 0 8px; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; }
+    .mobile-library-hero p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.9rem; }
+    .mobile-library-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
+    .mobile-library-search, .mobile-library-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); }
+    .mobile-library-search { padding: 16px; margin-bottom: 16px; }
+    .mobile-search-input { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px; background: var(--bg-body); border: 1px solid var(--border); margin-bottom: 12px; }
+    .mobile-search-input input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--text-main); }
+    .mobile-chip-row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+    .mobile-chip-row::-webkit-scrollbar { display: none; }
+    .mobile-chip { padding: 10px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-body); color: var(--text-muted); font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
+    .mobile-chip.active { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; border-color: transparent; }
+    .mobile-library-list { display: grid; gap: 14px; }
+    .mobile-library-card { padding: 16px; }
+    .mobile-library-card-head, .mobile-library-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .mobile-library-icon { width: 44px; height: 44px; border-radius: 14px; background: #dbeafe; color: #1d4ed8; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+    .mobile-library-copy { min-width: 0; flex: 1; }
+    .mobile-library-copy h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-main); }
+    .mobile-library-copy p { margin: 10px 0 0; color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
+    .mobile-library-foot span { font-size: 0.8rem; color: var(--text-muted); }
+    .mobile-library-fab { position: fixed; bottom: 88px; right: 18px; width: 58px; height: 58px; border-radius: 18px; border: 0; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; box-shadow: 0 18px 30px rgba(37, 99, 235, 0.3); }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="animate__animated animate__fadeIn">
-    <div class="d-flex align-items-center mb-3">
-        <a href="/" class="btn btn-outline-primary rounded-4">
-            <i class="fa-solid fa-house"></i>
-        </a>
-    </div>
-    
-    <div class="mb-4 d-flex justify-content-between align-items-center">
-        <h4 class="fw-bold text-dark mb-0">Thư viện</h4>
-        {% if perms.get('p_lib_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
-        <button class="btn btn-primary btn-sm rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#addLibraryModal">
-            <i class="fa-solid fa-plus"></i> TẢI LÊN
-        </button>
-        {% endif %}
-    </div>
+<section class="mobile-library-hero">
+    <div class="mobile-library-kicker"><i class="fa-solid fa-book-bookmark"></i>Kho tài liệu</div>
+    <h1>Thư viện PC06</h1>
+    <p>Lưu trữ, phân loại và tải nhanh tài liệu nghiệp vụ trên giao diện di động đồng bộ với hệ thống mới.</p>
+</section>
 
-    <!-- Search Box -->
-    <div class="mobile-card p-2 mb-3">
-        <div class="input-group input-group-sm border-0">
-            <span class="input-group-text bg-transparent border-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-            <input type="text" id="librarySearch" class="form-control border-0 shadow-none" placeholder="Tìm tài liệu..." onkeyup="unifiedFilter()">
-        </div>
-    </div>
-
-    <!-- Category Scroll -->
-    <div class="d-flex gap-2 overflow-auto pb-3 mb-2 no-scrollbar" id="categoryFilters">
-        <div class="pill pill-primary flex-shrink-0 active" data-cat="ALL" onclick="setCategoryFilter('ALL')">Tất cả</div>
+<section class="mobile-library-search">
+    <label class="mobile-search-input">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="mobileLibrarySearch" placeholder="Tìm tài liệu">
+    </label>
+    <div class="mobile-chip-row">
+        <button type="button" class="mobile-chip active" data-filter-type="category" data-filter-value="ALL">Tất cả</button>
         {% for cat in cats %}
-        <div class="pill bg-white border flex-shrink-0 text-muted" data-cat="{{ cat.name }}" onclick="setCategoryFilter('{{ cat.name }}')">{{ cat.name }}</div>
+        <button type="button" class="mobile-chip" data-filter-type="category" data-filter-value="{{ cat.name|lower }}">{{ cat.name }}</button>
         {% endfor %}
     </div>
+</section>
 
-    <div id="libraryGrid">
-        {% for item in docs %}
-        <div class="mobile-card library-item" data-category="{{ item.category }}">
-            <div class="d-flex align-items-center gap-3 mb-3">
-                <div class="bg-primary bg-opacity-10 p-2 rounded-3 text-primary">
-                    <i class="fa-solid fa-file-pdf fs-4"></i>
-                </div>
-                <div class="overflow-hidden">
-                    <div class="badge bg-light text-muted border tiny mb-1">{{ item.category }}</div>
-                    <h6 class="fw-bold text-dark mb-0 text-truncate">{{ item.title }}</h6>
-                </div>
-            </div>
-            
-            <p class="text-muted small mb-3 text-truncate-2">{{ item.description or 'Không có mô tả' }}</p>
-            
-            <div class="d-flex justify-content-between align-items-center pt-3 border-top">
-                <div class="tiny text-muted fw-bold"><i class="fa-regular fa-calendar me-1"></i>{{ item.uploaded_at.strftime('%d/%m/%Y') }}</div>
-                <a href="/dl_file/{{ item.filename }}" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold">
-                    <i class="fa-solid fa-download"></i> TẢI VỀ
-                </a>
+<section class="mobile-library-list">
+    {% for item in docs %}
+    <article class="mobile-library-card mobile-library-item" data-category="{{ item.category|lower }}" data-search="{{ (item.title ~ ' ' ~ (item.description or '') ~ ' ' ~ (item.category or ''))|lower }}">
+        <div class="mobile-library-card-head">
+            <div class="mobile-library-icon"><i class="fa-solid fa-file-pdf"></i></div>
+            <div class="mobile-library-copy">
+                <span class="pc06-soft-tag neutral">{{ item.category }}</span>
+                <h3 class="mt-2">{{ item.title }}</h3>
+                <p>{{ item.description or 'Không có mô tả.' }}</p>
             </div>
         </div>
-        {% endfor %}
-        
-        {% if not docs %}
-        <div class="text-center py-5">
-             <div class="opacity-10 mb-2"><i class="fa-solid fa-book-open fa-3x"></i></div>
-             <p class="text-muted small">Chưa có tài liệu nào</p>
+        <div class="mobile-library-foot">
+            <span>{{ item.uploaded_at.strftime('%d/%m/%Y') }}</span>
+            <a href="/dl_file/{{ item.filename }}" class="btn btn-sm btn-primary rounded-pill px-3">Tải về</a>
         </div>
-        {% endif %}
-    </div>
-</div>
+    </article>
+    {% else %}
+    <div class="mobile-library-card text-center text-muted">Chưa có tài liệu nào.</div>
+    {% endfor %}
+</section>
 
-<!-- Modal Mobile -->
+{% if perms.get('p_lib_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
+<button class="mobile-library-fab" data-bs-toggle="modal" data-bs-target="#addLibraryModal"><i class="fa-solid fa-plus"></i></button>
+{% endif %}
+
 <div class="modal fade" id="addLibraryModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered mx-3">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 rounded-4">
             <form method="POST" enctype="multipart/form-data">
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold">TẢI LÊN TÀI LIỆU</h5>
+                <div class="modal-header border-0">
+                    <div><h5 class="modal-title fw-bold mb-1">Tải tài liệu lên</h5></div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">Tên tài liệu</label>
-                        <input type="text" name="title" class="form-control" required>
-                    </div>
+                <div class="modal-body pt-0">
+                    <div class="mb-3"><label class="form-label small fw-bold">Tên tài liệu</label><input type="text" name="title" class="form-control" required></div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Lĩnh vực</label>
                         <div data-category-picker data-module="library" data-field="category" data-placeholder="Chọn lĩnh vực" data-storage-key="mobile.library.category">
@@ -90,42 +91,38 @@
                             </select>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">File đính kèm</label>
-                        <input type="file" name="file" class="form-control" required>
-                    </div>
+                    <div class="mb-3"><label class="form-label small fw-bold">Mô tả</label><textarea name="description" class="form-control" rows="3"></textarea></div>
+                    <div><label class="form-label small fw-bold">Tệp đính kèm</label><input type="file" name="file" class="form-control" required></div>
                 </div>
-                <div class="modal-footer border-0">
-                    <button type="submit" class="btn-mobile btn-mobile-primary">TẢI LÊN NGAY</button>
-                </div>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary">Tải lên</button></div>
             </form>
         </div>
     </div>
 </div>
+{% endblock %}
 
-<style>
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    #categoryFilters .active { background: var(--primary); color: white; border-color: var(--primary); }
-</style>
-
+{% block scripts %}
 <script>
-    let currentCat = 'ALL';
-    function setCategoryFilter(cat) {
-        currentCat = cat;
-        document.querySelectorAll('#categoryFilters .pill').forEach(p => {
-            p.classList.toggle('active', p.getAttribute('data-cat') === cat);
-            p.classList.toggle('pill-primary', p.getAttribute('data-cat') === cat);
-        });
-        unifiedFilter();
-    }
-    function unifiedFilter() {
-        const query = document.getElementById('librarySearch').value.toLowerCase();
-        document.querySelectorAll('.library-item').forEach(item => {
-            const matchText = item.innerText.toLowerCase().includes(query);
-            const matchCat = (currentCat === 'ALL' || item.getAttribute('data-category') === currentCat);
-            item.style.display = (matchText && matchCat) ? 'block' : 'none';
+    const mobileLibraryFilters = { category: 'ALL', query: '' };
+    function applyMobileLibraryFilters() {
+        document.querySelectorAll('.mobile-library-item').forEach((item) => {
+            const category = item.dataset.category || '';
+            const search = item.dataset.search || '';
+            const categoryMatch = mobileLibraryFilters.category === 'ALL' || category === mobileLibraryFilters.category;
+            const searchMatch = !mobileLibraryFilters.query || search.includes(mobileLibraryFilters.query);
+            item.style.display = categoryMatch && searchMatch ? '' : 'none';
         });
     }
+    document.getElementById('mobileLibrarySearch')?.addEventListener('input', (event) => {
+        mobileLibraryFilters.query = event.target.value.trim().toLowerCase();
+        applyMobileLibraryFilters();
+    });
+    document.querySelectorAll('.mobile-chip[data-filter-type="category"]').forEach((chip) => {
+        chip.addEventListener('click', () => {
+            mobileLibraryFilters.category = chip.dataset.filterValue;
+            document.querySelectorAll('.mobile-chip[data-filter-type="category"]').forEach((item) => item.classList.toggle('active', item === chip));
+            applyMobileLibraryFilters();
+        });
+    });
 </script>
 {% endblock %}

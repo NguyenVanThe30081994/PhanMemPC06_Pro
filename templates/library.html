@@ -1,125 +1,114 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header mb-4 animate__animated animate__fadeIn">
-    <div class="header-main-group">
-        <div class="header-title-pill shadow-sm glass-card">
-            <i class="fa-solid fa-book-bookmark"></i>
-            <h1 class="mb-0">Thư viện Tài liệu</h1>
-        </div>
-        
-        <div class="header-actions">
-            {% if perms.get('p_lib_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
-            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#addLibraryModal">
-                <i class="fa-solid fa-plus me-2"></i>TẢI LÊN TÀI LIỆU
-            </button>
-            {% endif %}
-        </div>
-    </div>
-</div>
-
-<!-- Unified Filter Hub -->
-<div class="filter-bar-unified animate__animated animate__fadeInUp mb-4 glass-card" style="background: rgba(255,255,255,0.2) !important;">
-    <div class="search-box-modern">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" id="librarySearch" placeholder="Tìm tên tài liệu hoặc mô tả..." onkeyup="unifiedFilter()">
-    </div>
-    
-    <div class="filter-divider"></div>
-    
-    <div class="filter-pills-container" id="categoryFilters">
-        <div class="filter-pill active" data-cat="ALL" onclick="setCategoryFilter('ALL')">TẤT CẢ LĨNH VỰC</div>
-        {% for cat in categories %}
-        <div class="filter-pill" data-cat="{{ cat.name }}" onclick="setCategoryFilter('{{ cat.name }}')">{{ cat.name|upper }}</div>
-        {% endfor %}
-    </div>
-</div>
-
-<div class="main-content-area animate__animated animate__fadeInUp">
-    <div class="card glass-card border-0 shadow-none mb-4" style="background: transparent !important; backdrop-filter: none !important;">
-        <div class="glass-header border-0 ps-0 mb-3" style="background: transparent !important;">
-            <i class="fa-solid fa-book-open me-2 text-primary"></i>Danh mục tài liệu nghiệp vụ
-        </div>
-        <div class="row g-4">
-
-        <!-- Library Items: Full Width 100% on PC -->
-        <div class="col-12">
-            <div class="row g-4" id="libraryGrid">
-                {% for item in items %}
-                <div class="col-xl-3 col-lg-4 col-md-6 library-item" data-category="{{ item.category }}">
-                    <div class="card h-100 bento-card border shadow-sm">
-                        <div class="card-body p-4 d-flex flex-column">
-                            <div class="row g-2 align-items-center mb-3">
-                                <div class="col-auto">
-                                    <div class="bg-primary bg-opacity-10 p-2 rounded-3">
-                                        <i class="fa-solid fa-file-pdf text-primary"></i>
-                                    </div>
-                                </div>
-                                <div class="col text-end">
-                                    <span class="badge bg-light text-muted border px-2 tiny fw-bold d-inline-block">{{ item.category }}</span>
-                                </div>
-                            </div>
-                            <h6 class="fw-bold text-main mb-2 line-clamp-2" style="min-height: 2.8em;">{{ item.title }}</h6>
-                            <p class="text-muted tiny mb-4 line-clamp-2" style="min-height: 2.8em;">{{ item.description or 'Không có mô tả chi tiết' }}</p>
-                            
-                            <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
-                                <div class="tiny text-muted fw-bold">{{ item.uploaded_at.strftime('%d/%m/%Y') }}</div>
-                                <a href="/dl_file/{{ item.filename }}" class="btn btn-primary rounded-pill px-4 btn-sm fw-bold shadow-sm">
-                                    <i class="fa-solid fa-download me-1"></i> TẢI VỀ
-                                </a>
-                            </div>
-                        </div>
-                    </div>
+<div class="pc06-page-shell">
+    <section class="pc06-hero-card">
+        <div class="pc06-hero-grid">
+            <div>
+                <div class="pc06-page-kicker">
+                    <i class="fa-solid fa-book-bookmark"></i>
+                    Kho tài liệu nghiệp vụ
                 </div>
-                {% endfor %}
-
-                {% if not items %}
-                <div class="col-12 py-5 text-center">
-                    <div class="opacity-25 mb-3"><i class="fa-solid fa-book fa-4x"></i></div>
-                    <h5 class="fw-bold text-muted">Chưa có tài liệu nào trong thư viện</h5>
+                <h1 class="pc06-page-title">Thư viện tài liệu theo phong cách mới</h1>
+                <p class="pc06-page-lead">
+                    Chuẩn hóa thư viện về cùng trải nghiệm với công việc: tìm kiếm nhanh, lọc theo lĩnh vực, đọc mô tả ngắn
+                    và tải tài liệu ngay từ card thông tin.
+                </p>
+                {% if perms.get('p_lib_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
+                <div class="pc06-action-cluster">
+                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLibraryModal">
+                        <i class="fa-solid fa-upload"></i>
+                        Tải tài liệu lên
+                    </button>
                 </div>
                 {% endif %}
             </div>
+            <div class="pc06-stat-strip">
+                <div class="pc06-metric-card"><span>Tổng tài liệu</span><strong>{{ items|length }}</strong></div>
+                <div class="pc06-metric-card"><span>Lĩnh vực</span><strong>{{ categories|length }}</strong></div>
+            </div>
         </div>
-    </div>
+    </section>
+
+    <section class="pc06-panel pc06-toolbar-panel">
+        <label class="pc06-search-control">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="librarySearch" placeholder="Tìm tên tài liệu hoặc mô tả">
+        </label>
+        <div class="pc06-chip-group">
+            <button type="button" class="pc06-chip active" data-filter-type="category" data-filter-value="ALL">Tất cả lĩnh vực</button>
+            {% for cat in categories %}
+            <button type="button" class="pc06-chip" data-filter-type="category" data-filter-value="{{ cat.name|lower }}">{{ cat.name }}</button>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="library-grid-bdhvs">
+        {% for item in items %}
+        <article class="library-card-bdhvs library-item" data-category="{{ item.category|lower }}" data-search="{{ (item.title ~ ' ' ~ (item.description or '') ~ ' ' ~ (item.category or ''))|lower }}">
+            <div class="library-card-head">
+                <div class="library-file-icon"><i class="fa-solid fa-file-pdf"></i></div>
+                <span class="pc06-soft-tag neutral">{{ item.category }}</span>
+            </div>
+            <h3>{{ item.title }}</h3>
+            <p>{{ item.description or 'Không có mô tả chi tiết cho tài liệu này.' }}</p>
+            <div class="library-card-foot">
+                <span class="news-date">{{ item.uploaded_at.strftime('%d/%m/%Y') }}</span>
+                <a href="/dl_file/{{ item.filename }}" class="btn btn-bdhvs primary">
+                    <i class="fa-solid fa-download"></i>
+                    Tải về
+                </a>
+            </div>
+        </article>
+        {% else %}
+        <section class="pc06-panel pc06-empty-panel">
+            <div class="pc06-empty-state">
+                <div class="pc06-empty-icon"><i class="fa-solid fa-book-open"></i></div>
+                <h3>Thư viện đang trống</h3>
+                <p>Chưa có tài liệu nào được tải lên trong hệ thống.</p>
+            </div>
+        </section>
+        {% endfor %}
+    </section>
 </div>
 
-<!-- Modal stays same but fixed input -->
 <div class="modal fade" id="addLibraryModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0">
+        <div class="modal-content border-0 pc06-modal-shell">
             <form method="POST" enctype="multipart/form-data">
-                <div class="modal-header primary">
-                    <h5 class="modal-title fw-bold">TẢI LÊN TÀI LIỆU MỚI</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-
-                <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold text-dark small">TÊN TÀI LIỆU</label>
-                        <input type="text" name="title" class="form-control shadow-none" placeholder="Nhập tên văn bản..." required>
+                <div class="modal-header border-0 pc06-modal-head">
+                    <div>
+                        <div class="pc06-page-kicker mb-2"><i class="fa-solid fa-folder-plus"></i>Bổ sung tài liệu</div>
+                        <h5 class="modal-title fw-bold mb-1">Tải lên tài liệu mới</h5>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold text-dark small">LĨNH VỰC</label>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Tên tài liệu</label>
+                        <input type="text" name="title" class="form-control" placeholder="Nhập tên văn bản..." required>
+                    </div>
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Lĩnh vực</label>
                         <div data-category-picker data-module="library" data-field="category" data-placeholder="Chọn lĩnh vực" data-storage-key="modal.library.category">
-                            <select name="category" class="form-select shadow-none" required data-category-target>
+                            <select name="category" class="form-select" required data-category-target>
                                 <option value="" disabled selected>Chọn lĩnh vực</option>
                                 {% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
                             </select>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold text-dark small">MÔ TẢ NGẮN (TÙY CHỌN)</label>
-                        <textarea name="description" class="form-control shadow-none" rows="3" placeholder="Ghi chú về tài liệu..."></textarea>
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Mô tả ngắn</label>
+                        <textarea name="description" class="form-control" rows="3" placeholder="Ghi chú về tài liệu..."></textarea>
                     </div>
-                    <div class="mb-1">
-                        <label class="form-label small fw-bold text-muted">Tên tệp đính kèm (Tối đa 20MB)</label>
+                    <div class="pc06-form-section mb-0">
+                        <label class="form-label fw-bold">Tệp đính kèm</label>
                         <input type="file" name="file" class="form-control" required>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-light px-4 rounded-pill fw-bold border" data-bs-dismiss="modal">HỦY</button>
-                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">TẢI LÊN</button>
+                    <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-bdhvs primary"><i class="fa-solid fa-upload"></i>Tải lên</button>
                 </div>
             </form>
         </div>
@@ -127,38 +116,15 @@
 </div>
 
 <style>
-    .tiny { font-size: 10px; }
-    .library-item.d-none { display: none !important; }
+    .library-grid-bdhvs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+    .library-card-bdhvs { padding: 20px; border-radius: 24px; background: rgba(255,255,255,0.96); border: 1px solid rgba(148,163,184,0.16); box-shadow: 0 18px 40px rgba(15,23,42,0.06); display: grid; gap: 14px; }
+    .library-card-head, .library-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .library-file-icon { width: 46px; height: 46px; border-radius: 16px; background: #dbeafe; color: #1d4ed8; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+    .library-card-bdhvs h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-main); line-height: 1.5; }
+    .library-card-bdhvs p { margin: 0; color: var(--text-muted); line-height: 1.7; font-size: 0.9rem; }
+    [data-theme="dark"] .library-card-bdhvs { background: rgba(30,41,59,0.92); border-color: rgba(148,163,184,0.14); }
+    @media (max-width: 1320px) { .library-grid-bdhvs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 1080px) { .library-grid-bdhvs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 768px) { .library-grid-bdhvs { grid-template-columns: 1fr; } }
 </style>
-
-<script>
-    let currentCat = 'ALL';
-
-    function setCategoryFilter(cat) {
-        currentCat = cat;
-        document.querySelectorAll('#categoryFilters .filter-pill').forEach(p => {
-            p.classList.toggle('active', p.getAttribute('data-cat') === cat);
-        });
-        unifiedFilter();
-    }
-
-    function unifiedFilter() {
-        const query = document.getElementById('librarySearch').value.toLowerCase();
-        const items = document.querySelectorAll('.library-item');
-        
-        items.forEach(item => {
-            const text = item.innerText.toLowerCase();
-            const cat = item.getAttribute('data-category');
-            
-            const matchText = text.includes(query);
-            const matchCat = (currentCat === 'ALL' || cat === currentCat);
-            
-            if (matchText && matchCat) {
-                item.style.display = 'block';
-            } else {
-                item.style.display = 'none';
-            }
-        });
-    }
-</script>
 {% endblock %}

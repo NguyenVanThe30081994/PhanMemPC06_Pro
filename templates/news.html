@@ -1,132 +1,138 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header mb-4 animate__animated animate__fadeIn">
-    <div class="header-main-group">
-        <div class="header-title-pill shadow-sm glass-card">
-            <h1 class="mb-0">Bảng tin - Thông báo</h1>
-        </div>
-        
-        <div class="header-actions">
-            {% if perms.get('p_news_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
-            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#addNewsModal">
-                <i class="fa-solid fa-plus me-2"></i>ĐĂNG TIN MỚI
-            </button>
-            {% endif %}
-        </div>
-    </div>
-</div>
-
-<!-- Unified Filter Hub -->
-<div class="filter-bar-unified animate__animated animate__fadeInUp mb-4 glass-card" style="background: rgba(255,255,255,0.2) !important;">
-    <div class="search-box-modern">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" id="newsSearch" placeholder="Tìm tiêu đề..." onkeyup="unifiedFilter()">
-    </div>
-    
-    <div class="filter-divider"></div>
-    
-    <div class="filter-pills-container" id="unitFilters">
-        <div class="filter-pill active" data-unit="ALL" onclick="setUnitFilter('ALL')">TẤT CẢ</div>
-        {% for unit in pro_units %}
-        <div class="filter-pill" data-unit="{{ unit.name }}" onclick="setUnitFilter('{{ unit.name }}')">{{ unit.name|upper }}</div>
-        {% endfor %}
-    </div>
-</div>
-
-<div class="main-content-area animate__animated animate__fadeInUp">
-    <div class="card glass-card border-0 shadow-none mb-4" style="background: transparent !important; backdrop-filter: none !important;">
-        <div class="glass-header border-0 ps-0 mb-3" style="background: transparent !important;">
-            <i class="fa-solid fa-bullhorn me-2 text-primary"></i>Danh sách bản tin mới nhất
-        </div>
-        <div class="row g-3" id="newsGrid">
-        {% for n in news_list %}
-        <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 news-item" data-category="{{ n.category }}">
-            <div class="card compact-news-card h-100 shadow-sm">
-                <div class="card-body d-flex flex-column p-3">
-                    <!-- Row 1: Icon & Category (Ngang hàng) -->
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <div class="bg-primary bg-opacity-10 p-2 rounded-3">
-                            <i class="fa-solid fa-file-pdf text-primary" style="font-size: 14px;"></i>
-                        </div>
-                        <span class="badge bg-light text-primary border px-2 tiny fw-bold text-truncate" style="max-width: 150px;">{{ n.category }}</span>
-                    </div>
-                    
-                    <!-- Row 2: Date -->
-                    <div class="tiny text-muted mb-2">
-                        <i class="fa-regular fa-calendar-days me-1"></i>{{ n.uploaded_at.strftime('%d/%m/%Y') }}
-                    </div>
-
-                    <!-- Row 3: Title -->
-                    <h6 class="fw-bold text-main mb-3 line-clamp-2" title="{{ n.title }}" style="min-height: 2.8em; font-size: 0.9rem;">
-                        {{ n.title }}
-                    </h6>
-
-                    <!-- Row 4: Attachment & Eye -->
-                    <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
-                        {% if n.filename %}
-                        <a href="/dl_file/{{ n.filename }}" class="text-primary text-decoration-none d-flex align-items-center gap-2 tiny fw-bold overflow-hidden" title="{{ n.filename }}" style="max-width: 80%;">
-                             <i class="fa-solid fa-paperclip" style="font-size: 10px;"></i> 
-                             <span class="text-truncate">{{ n.filename }}</span>
-                        </a>
-                        {% else %}
-                        <div class="tiny text-muted italic" style="font-size: 10px;">Không có đính kèm</div>
-                        {% endif %}
-                        
-                        <button class="btn btn-tiny btn-light shadow-sm flex-shrink-0" onclick="Swal.fire({title: '{{ n.title }}', text: '{{ n.content }}', icon: 'info'})">
-                            <i class="fa-solid fa-eye"></i>
-                        </button>
-                    </div>
+<div class="pc06-page-shell">
+    <section class="pc06-hero-card">
+        <div class="pc06-hero-grid">
+            <div>
+                <div class="pc06-page-kicker">
+                    <i class="fa-solid fa-bullhorn"></i>
+                    Trung tâm bản tin
+                </div>
+                <h1 class="pc06-page-title">Bảng tin và thông báo nội bộ</h1>
+                <p class="pc06-page-lead">
+                    Chuẩn hóa bản tin theo phong cách BDHVS: bộ lọc rõ, thẻ nội dung gọn, file đính kèm dễ truy cập và
+                    hành động đăng tin được đẩy lên vị trí điều hành.
+                </p>
+                {% if perms.get('p_news_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
+                <div class="pc06-action-cluster">
+                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addNewsModal">
+                        <i class="fa-solid fa-plus"></i>
+                        Đăng tin mới
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+            <div class="pc06-stat-strip">
+                <div class="pc06-metric-card">
+                    <span>Tổng bản tin</span>
+                    <strong>{{ news_list|length }}</strong>
+                </div>
+                <div class="pc06-metric-card">
+                    <span>Nhóm lĩnh vực</span>
+                    <strong>{{ pro_units|length }}</strong>
+                </div>
+                <div class="pc06-metric-card">
+                    <span>Cập nhật</span>
+                    <strong style="font-size:1rem;">{{ now_str }}</strong>
                 </div>
             </div>
         </div>
-        {% endfor %}
+    </section>
 
-        {% if not news_list %}
-        <div class="col-12 py-5 text-center">
-            <div class="opacity-25 mb-3"><i class="fa-solid fa-newspaper fa-4x text-muted"></i></div>
-            <h5 class="fw-bold text-muted">Chưa có tin tức nào mới</h5>
+    <section class="pc06-panel pc06-toolbar-panel">
+        <div class="pc06-toolbar-row">
+            <label class="pc06-search-control">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="newsSearch" placeholder="Tìm tiêu đề hoặc nội dung bản tin">
+            </label>
         </div>
-        {% endif %}
-    </div>
+        <div class="pc06-chip-group">
+            <button type="button" class="pc06-chip active" data-filter-type="category" data-filter-value="ALL">Tất cả lĩnh vực</button>
+            {% for unit in pro_units %}
+            <button type="button" class="pc06-chip" data-filter-type="category" data-filter-value="{{ unit.name|lower }}">{{ unit.name }}</button>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="news-grid-bdhvs">
+        {% for n in news_list %}
+        <article class="news-card-bdhvs news-item" data-category="{{ n.category|lower }}" data-search="{{ (n.title ~ ' ' ~ (n.content or '') ~ ' ' ~ (n.category or ''))|lower }}">
+            <div class="news-card-head">
+                <span class="pc06-soft-tag">
+                    <i class="fa-solid fa-layer-group"></i>
+                    {{ n.category }}
+                </span>
+                <span class="news-date">{{ n.uploaded_at.strftime('%d/%m/%Y') }}</span>
+            </div>
+            <h3>{{ n.title }}</h3>
+            <p>{{ n.content[:180] if n.content else 'Không có nội dung mô tả.' }}{{ '...' if n.content and n.content|length > 180 else '' }}</p>
+            <div class="news-card-foot">
+                {% if n.filename %}
+                <a href="/dl_file/{{ n.filename }}" class="news-inline-link">
+                    <i class="fa-solid fa-paperclip"></i>
+                    {{ n.filename }}
+                </a>
+                {% else %}
+                <span class="news-empty-attach">Không có đính kèm</span>
+                {% endif %}
+                <button
+                    class="btn btn-bdhvs light"
+                    onclick='Swal.fire({title: {{ n.title|tojson }}, text: {{ (n.content|default("", true)|replace("\n", " "))|tojson }}, icon: "info"})'>
+                    <i class="fa-solid fa-eye"></i>
+                    Xem
+                </button>
+            </div>
+        </article>
+        {% else %}
+        <section class="pc06-panel pc06-empty-panel">
+            <div class="pc06-empty-state">
+                <div class="pc06-empty-icon"><i class="fa-solid fa-newspaper"></i></div>
+                <h3>Chưa có bản tin nào</h3>
+                <p>Bản tin mới sẽ xuất hiện tại đây khi có thông báo từ hệ thống.</p>
+            </div>
+        </section>
+        {% endfor %}
+    </section>
 </div>
 
-<!-- Add News Modal -->
 <div class="modal fade" id="addNewsModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0">
+        <div class="modal-content border-0 pc06-modal-shell">
             <form method="POST" enctype="multipart/form-data">
-                <div class="modal-header primary">
-                    <h5 class="modal-title fw-bold">ĐĂNG BẢN TIN MỚI</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-
-                <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold text-dark small">TIÊU ĐỀ BẢN TIN</label>
-                        <input type="text" name="title" class="form-control shadow-none" placeholder="Nhập tiêu đề..." required>
+                <div class="modal-header border-0 pc06-modal-head">
+                    <div>
+                        <div class="pc06-page-kicker mb-2"><i class="fa-solid fa-bullhorn"></i>Đăng tải nội bộ</div>
+                        <h5 class="modal-title fw-bold mb-1">Đăng bản tin mới</h5>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold text-dark small">LĨNH VỰC / ĐỘI NGHIỆP VỤ</label>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Tiêu đề bản tin</label>
+                        <input type="text" name="title" class="form-control" placeholder="Nhập tiêu đề..." required>
+                    </div>
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Lĩnh vực / Đội nghiệp vụ</label>
                         <div data-category-picker data-module="news" data-field="category" data-placeholder="Chọn danh mục" data-storage-key="modal.news.category">
-                            <select name="category" class="form-select shadow-none" required data-category-target>
+                            <select name="category" class="form-select" required data-category-target>
                                 <option value="" disabled selected>Chọn danh mục</option>
                                 {% for u in pro_units %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
                             </select>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold text-dark small">NỘI DUNG</label>
-                        <textarea name="content" class="form-control shadow-none" rows="5" placeholder="Nhập nội dung thông báo..."></textarea>
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Nội dung</label>
+                        <textarea name="content" class="form-control" rows="5" placeholder="Nhập nội dung thông báo..."></textarea>
                     </div>
-                    <div class="mb-0">
-                        <label class="form-label fw-bold text-dark small">TỆP ĐÍNH KÈM (Tuy chọn)</label>
-                        <input type="file" name="file" class="form-control shadow-none">
+                    <div class="pc06-form-section mb-0">
+                        <label class="form-label fw-bold">Tệp đính kèm</label>
+                        <input type="file" name="file" class="form-control">
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-light border rounded-pill px-4 fw-bold" data-bs-dismiss="modal">HỦY</button>
-                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">ĐĂNG TIN NGAY</button>
+                    <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-bdhvs primary"><i class="fa-solid fa-paper-plane"></i>Đăng tin</button>
                 </div>
             </form>
         </div>
@@ -134,34 +140,16 @@
 </div>
 
 <style>
-    /* Custom News Transitions */
-    .btn-tiny { width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; border-radius: 6px; }
-    .italic { font-style: italic; }
-    .tiny { font-size: 11px; }
-    .compact-news-card { padding: 10px; }
-    .compact-news-card .card-body { padding: 8px; }
+    .news-grid-bdhvs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+    .news-card-bdhvs { padding: 20px; border-radius: 24px; background: rgba(255,255,255,0.96); border: 1px solid rgba(148,163,184,0.16); box-shadow: 0 18px 40px rgba(15,23,42,0.06); display: grid; gap: 14px; }
+    .news-card-head, .news-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .news-date, .news-empty-attach { font-size: 0.78rem; color: var(--text-muted); }
+    .news-card-bdhvs h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-main); line-height: 1.5; }
+    .news-card-bdhvs p { margin: 0; color: var(--text-muted); line-height: 1.7; font-size: 0.9rem; }
+    .news-inline-link { display: inline-flex; align-items: center; gap: 8px; color: var(--primary); text-decoration: none; font-size: 0.84rem; font-weight: 700; min-width: 0; }
+    [data-theme="dark"] .news-card-bdhvs { background: rgba(30,41,59,0.92); border-color: rgba(148,163,184,0.14); }
+    @media (max-width: 1320px) { .news-grid-bdhvs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 1080px) { .news-grid-bdhvs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 768px) { .news-grid-bdhvs { grid-template-columns: 1fr; } }
 </style>
-
-<script>
-    function unifiedFilter() {
-        const query = document.getElementById('newsSearch').value.toLowerCase();
-        document.querySelectorAll('.news-item').forEach(el => {
-            const title = el.querySelector('h6').innerText.toLowerCase();
-            el.style.display = title.includes(query) ? 'block' : 'none';
-        });
-    }
-
-    function setUnitFilter(unit) {
-        document.querySelectorAll('#unitFilters .filter-pill').forEach(p => p.classList.remove('active'));
-        document.querySelector(`[data-unit="${unit}"]`).classList.add('active');
-        
-        document.querySelectorAll('.news-item').forEach(el => {
-            if (unit === 'ALL' || el.getAttribute('data-category') === unit) {
-                el.style.display = 'block';
-            } else {
-                el.style.display = 'none';
-            }
-        });
-    }
-</script>
 {% endblock %}

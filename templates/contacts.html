@@ -1,88 +1,110 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header mb-4 animate__animated animate__fadeIn">
-    <div class="header-main-group">
-        <div class="header-title-pill shadow-sm glass-card">
-            <i class="fa-solid fa-address-book"></i>
-            <h1 class="mb-0">Danh bạ Đơn vị</h1>
-        </div>
-        
-        <div class="header-actions d-flex gap-2">
-            {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin or session.get('uid') %}
-            <button class="btn btn-outline-primary rounded-pill px-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#importContactModal">
-                <i class="fa-solid fa-file-excel me-2"></i>NHẬP EXCEL
-            </button>
-            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#addContactModal">
-                <i class="fa-solid fa-plus me-2"></i>THÊM LIÊN HỆ
-            </button>
-            {% endif %}
-        </div>
-    </div>
-</div>
-
-<div class="main-content-area animate__animated animate__fadeInUp">
-    <div class="row g-4">
-        <div class="col-xl-4 col-lg-5">
-            <div class="card glass-card border-0 shadow-sm rounded-4 overflow-hidden h-100">
-                <div class="glass-header info">
-                    <i class="fa-solid fa-layer-group me-2"></i>Nhóm danh bạ
+<div class="pc06-page-shell">
+    <section class="pc06-hero-card">
+        <div class="pc06-hero-grid">
+            <div>
+                <div class="pc06-page-kicker">
+                    <i class="fa-solid fa-address-book"></i>
+                    Danh bạ đơn vị
                 </div>
-                <div class="list-group list-group-flush border-top">
-                    <a href="{{ url_for('portal_bp.contacts') }}"
-                       class="list-group-item border-0 px-4 py-3 hover-bg-light role-filter-item {% if not current_group %}active{% endif %}">
-                        <div class="d-flex justify-content-between align-items-start gap-3">
-                            <div>
-                                <div class="fw-bold text-dark">Tất cả nhóm</div>
-                                <div class="tiny text-muted">Hiển thị toàn bộ liên hệ trong phạm vi đang xem.</div>
-                            </div>
-                            <span class="badge bg-light text-primary border rounded-pill px-2 tiny fw-bold">
-                                {{ total_contact_count }}
-                            </span>
-                        </div>
-                    </a>
-                    {% for cat in groups %}
-                    <a href="{{ url_for('portal_bp.contacts', group=cat.name) }}"
-                       class="list-group-item border-0 px-4 py-3 hover-bg-light role-filter-item {% if current_group == cat.name %}active{% endif %}">
-                        <div class="d-flex justify-content-between align-items-start gap-3">
-                            <div>
-                                <div class="fw-bold text-dark">{{ cat.name }}</div>
-                                <div class="tiny text-muted">Lọc danh bạ theo nhóm đã chọn.</div>
-                            </div>
-                            <span class="badge bg-light text-primary border rounded-pill px-2 tiny fw-bold">
-                                {{ group_contact_counts.get(cat.name, 0) }}
-                            </span>
-                        </div>
-                    </a>
-                    {% endfor %}
+                <h1 class="pc06-page-title">Quản lý liên hệ toàn hệ thống</h1>
+                <p class="pc06-page-lead">
+                    Đưa danh bạ về cùng phong cách điều hành với công việc: lọc theo nhóm, tìm theo đơn vị hoặc số điện thoại,
+                    hỗ trợ nhập Excel và xử lý hàng loạt trên cùng một khung thao tác.
+                </p>
+                {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin or session.get('uid') %}
+                <div class="pc06-action-cluster">
+                    <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importContactModal">
+                        <i class="fa-solid fa-file-excel"></i>
+                        Nhập Excel
+                    </button>
+                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addContactModal">
+                        <i class="fa-solid fa-plus"></i>
+                        Thêm liên hệ
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+            <div class="pc06-stat-strip">
+                <div class="pc06-metric-card">
+                    <span>Tổng liên hệ</span>
+                    <strong>{{ total_contact_count }}</strong>
+                </div>
+                <div class="pc06-metric-card">
+                    <span>Nhóm danh bạ</span>
+                    <strong>{{ groups|length }}</strong>
+                </div>
+                <div class="pc06-metric-card">
+                    <span>Nhóm đang xem</span>
+                    <strong style="font-size:1rem;">{{ current_group or 'Tất cả nhóm' }}</strong>
                 </div>
             </div>
         </div>
+    </section>
 
-        <div class="col-xl-8 col-lg-7">
-            <div class="card glass-card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-                <div class="glass-header justify-content-between">
-                    <span><i class="fa-solid fa-address-book me-2"></i>{{ current_group or 'Danh sách liên hệ đơn vị' }}</span>
-                    <span class="badge glass-card border text-primary px-2 tiny fw-bold" style="background: rgba(255,255,255,0.4) !important;">{{ contacts|length }} liên hệ</span>
-                </div>
-                <div class="px-4 pt-3 pb-2 border-bottom bg-white bg-opacity-50">
-                    <div class="search-box-modern">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="contactSearch" placeholder="Tìm tên, số điện thoại hoặc đơn vị trong nhóm đang chọn..." onkeyup="filterContactsInTable()">
+    <div class="pc06-detail-grid">
+        <aside class="pc06-detail-side">
+            <section class="pc06-panel">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>Nhóm danh bạ</h2>
+                        <p>Chọn nhóm để giới hạn phạm vi liên hệ cần xem.</p>
                     </div>
                 </div>
-                {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
-                <div class="px-4 pt-3 pb-2 d-flex flex-wrap gap-2 align-items-center border-bottom bg-white bg-opacity-50">
-                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill fw-bold" onclick="toggleAllContacts()">
-                        <i class="fa-solid fa-check-double me-1"></i>Chọn tất cả
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill fw-bold" id="bulkDeleteBtn" onclick="submitBulkDelete()" disabled>
-                        <i class="fa-solid fa-trash-can me-1"></i>Xóa đã chọn
-                    </button>
-                    <span class="small text-muted" id="bulkSelectionText">Chưa chọn liên hệ nào</span>
+                <div class="contact-filter-stack">
+                    <a href="{{ url_for('portal_bp.contacts') }}" class="contact-filter-card {% if not current_group %}active{% endif %}">
+                        <div>
+                            <strong>Tất cả nhóm</strong>
+                            <span>Hiển thị toàn bộ liên hệ trong phạm vi đang xem.</span>
+                        </div>
+                        <span class="contact-filter-count">{{ total_contact_count }}</span>
+                    </a>
+                    {% for cat in groups %}
+                    <a href="{{ url_for('portal_bp.contacts', group=cat.name) }}" class="contact-filter-card {% if current_group == cat.name %}active{% endif %}">
+                        <div>
+                            <strong>{{ cat.name }}</strong>
+                            <span>Lọc danh bạ theo nhóm đã chọn.</span>
+                        </div>
+                        <span class="contact-filter-count">{{ group_contact_counts.get(cat.name, 0) }}</span>
+                    </a>
+                    {% endfor %}
                 </div>
-                {% endif %}
-                <div class="table-responsive">
+            </section>
+        </aside>
+
+        <div class="pc06-detail-main">
+            <section class="pc06-panel">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>{{ current_group or 'Danh sách liên hệ đơn vị' }}</h2>
+                        <p>{{ contacts|length }} liên hệ đang hiển thị trong nhóm đã chọn.</p>
+                    </div>
+                    <span class="pc06-status-badge neutral">{{ contacts|length }} liên hệ</span>
+                </div>
+
+                <div class="pc06-toolbar-panel" style="padding:0; box-shadow:none; border:0; background:transparent;">
+                    <label class="pc06-search-control">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="contactSearch" placeholder="Tìm tên, số điện thoại hoặc đơn vị..." onkeyup="filterContactsInTable()">
+                    </label>
+                    {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
+                    <div class="contact-bulk-bar">
+                        <button type="button" class="btn btn-bdhvs light" onclick="toggleAllContacts()">
+                            <i class="fa-solid fa-check-double"></i>
+                            Chọn tất cả
+                        </button>
+                        <button type="button" class="btn btn-bdhvs light text-danger" id="bulkDeleteBtn" onclick="submitBulkDelete()" disabled>
+                            <i class="fa-solid fa-trash-can"></i>
+                            Xóa đã chọn
+                        </button>
+                        <span class="small text-muted" id="bulkSelectionText">Chưa chọn liên hệ nào</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="table-responsive mt-3">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="pill-thead">
                             <tr>
@@ -91,10 +113,10 @@
                                     <input type="checkbox" class="form-check-input" id="contactCheckAll" onchange="handleCheckAllChange()">
                                 </th>
                                 {% endif %}
-                                <th class="ps-4">Tên đơn vị / Cá nhân</th>
-                                <th>Chức vụ / Nhóm</th>
+                                <th class="ps-4">Tên liên hệ</th>
+                                <th>Nhóm / Chức vụ</th>
                                 <th>Số điện thoại</th>
-                                <th>Email</th>
+                                <th>Đơn vị</th>
                                 <th class="pe-4 text-end">Thao tác</th>
                             </tr>
                         </thead>
@@ -109,9 +131,7 @@
                                 {% endif %}
                                 <td class="ps-4 py-3">
                                     <div class="d-flex align-items-center gap-3">
-                                        <div class="bg-primary-gradient text-white rounded-circle shadow-sm fw-bold d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; font-size: 14px;">
-                                            {{ c.name[:1].upper() }}
-                                        </div>
+                                        <div class="contact-avatar">{{ c.name[:1].upper() }}</div>
                                         <div>
                                             <div class="fw-bold text-dark">{{ c.name }}</div>
                                             <div class="tiny text-muted d-lg-none">{{ c.role or 'Thành viên' }}</div>
@@ -119,7 +139,7 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <div class="badge bg-light text-primary border rounded-pill px-2 tiny fw-bold">{{ c.contact_group }}</div>
+                                    <div class="pc06-soft-tag neutral">{{ c.contact_group }}</div>
                                     <div class="small text-muted fw-medium mt-1 d-none d-lg-block">{{ c.role or 'Thành viên' }}</div>
                                 </td>
                                 <td class="fw-bold text-primary">{{ c.phone }}</td>
@@ -150,7 +170,7 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </section>
         </div>
     </div>
 </div>
@@ -161,24 +181,25 @@
 </form>
 {% endif %}
 
-<!-- Modal stays same but cleaned up classes -->
 <div class="modal fade" id="addContactModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0">
+        <div class="modal-content border-0 pc06-modal-shell">
             <form method="POST">
-                <div class="modal-header primary">
-                    <h5 class="modal-title fw-bold">THÊM LIÊN HỆ MỚI</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="modal-header border-0 pc06-modal-head">
+                    <div>
+                        <div class="pc06-page-kicker mb-2"><i class="fa-solid fa-user-plus"></i>Danh bạ đơn vị</div>
+                        <h5 class="modal-title fw-bold mb-1">Thêm liên hệ mới</h5>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-
                 <div class="modal-body p-4">
                     <div class="row g-3">
                         <div class="col-12">
-                            <label class="form-label fw-bold text-dark small">TÊN ĐƠN VỊ / CÁ NHÂN</label>
+                            <label class="form-label fw-bold">Tên đơn vị / Cá nhân</label>
                             <input type="text" name="name" class="form-control" placeholder="Nhập tên..." required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-bold text-dark small">CHỨC VỤ</label>
+                            <label class="form-label fw-bold">Chức vụ</label>
                             <div data-category-picker data-module="contacts" data-field="role" data-placeholder="Chọn chức vụ" data-storage-key="modal.contacts.role">
                                 <select name="role" class="form-select" data-category-target>
                                     <option value="" disabled selected>Chọn chức vụ</option>
@@ -187,7 +208,7 @@
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-bold text-dark small">NHÓM</label>
+                            <label class="form-label fw-bold">Nhóm</label>
                             <div data-category-picker data-module="contacts" data-field="contact_group" data-placeholder="Chọn nhóm danh bạ" data-storage-key="modal.contacts.group">
                                 <select name="contact_group" class="form-select" required data-category-target>
                                     <option value="" disabled selected>Chọn nhóm danh bạ</option>
@@ -196,52 +217,45 @@
                             </div>
                         </div>
                         <div class="col-12">
-                            <label class="form-label fw-bold text-dark small">SỐ ĐIỆN THOẠI</label>
-                            <input type="tel" name="phone" class="form-control"
-                                   placeholder="0xxx.xxx.xxx"
-                                   pattern="0[0-9]{9}"
-                                   maxlength="10"
-                                   title="Số điện thoại gồm 10 số, bắt đầu bằng số 0"
-                                   required>
-                            <div class="form-text text-muted tiny">10 số, bắt đầu bằng số 0 (ví dụ: 0912345678)</div>
+                            <label class="form-label fw-bold">Số điện thoại</label>
+                            <input type="tel" name="phone" class="form-control" placeholder="0xxx.xxx.xxx" pattern="0[0-9]{9}" maxlength="10" title="Số điện thoại gồm 10 số, bắt đầu bằng số 0" required>
+                            <div class="form-text text-muted">10 số, bắt đầu bằng số 0. Ví dụ: 0912345678</div>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-light px-4 rounded-pill fw-bold border" data-bs-dismiss="modal">HỦY</button>
-                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">THÊM VÀO DANH BẠ</button>
+                    <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-bdhvs primary"><i class="fa-solid fa-floppy-disk"></i>Lưu liên hệ</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Bulk Import Modal -->
 <div class="modal fade" id="importContactModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0">
+        <div class="modal-content border-0 pc06-modal-shell">
             <form action="{{ url_for('portal_bp.contact_import') }}" method="POST" enctype="multipart/form-data" id="importForm">
                 <input type="hidden" name="has_header" id="hasHeaderValue" value="1">
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-file-excel me-2"></i>NHẬP DANH BẠ HÀNG LOẠT</h5>
+                <div class="modal-header border-0 pc06-modal-head">
+                    <div>
+                        <div class="pc06-page-kicker mb-2"><i class="fa-solid fa-file-excel"></i>Nhập liệu hàng loạt</div>
+                        <h5 class="modal-title fw-bold mb-1">Nhập danh bạ bằng Excel</h5>
+                    </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="alert alert-info small mb-4">
-                        <i class="fa-solid fa-circle-info me-2"></i>
-                        File Excel chỉ cần 2 cột dữ liệu:
-                        <b>Họ tên</b> và <b>Số điện thoại</b>.
-                        Nhóm danh bạ và chức vụ sẽ lấy theo lựa chọn bên dưới.
+                        File Excel chỉ cần 2 cột dữ liệu: <b>Họ tên</b> và <b>Số điện thoại</b>. Nhóm danh bạ và chức vụ sẽ lấy theo lựa chọn bên dưới.
                     </div>
 
                     <div class="row g-3">
                         <div class="col-12">
-                            <label class="form-label fw-bold text-dark small">CHỌN FILE EXCEL (.xlsx, .xls)</label>
+                            <label class="form-label fw-bold">Chọn file Excel (.xlsx, .xls)</label>
                             <input type="file" id="importExcelFile" name="import_excel" class="form-control" accept=".xlsx, .xls" required>
                         </div>
-
                         <div class="col-md-6">
-                            <label class="form-label fw-bold text-dark small">NHÓM DANH BẠ</label>
+                            <label class="form-label fw-bold">Nhóm danh bạ</label>
                             <div data-category-picker data-module="contacts" data-field="contact_group" data-placeholder="Chọn nhóm danh bạ" data-storage-key="modal.contacts.import_group_simple">
                                 <select name="global_group" class="form-select" id="globalGroupSelect" required data-category-target>
                                     <option value="" disabled selected>Chọn nhóm danh bạ</option>
@@ -249,9 +263,8 @@
                                 </select>
                             </div>
                         </div>
-
                         <div class="col-md-6">
-                            <label class="form-label fw-bold text-dark small">CHỨC VỤ</label>
+                            <label class="form-label fw-bold">Chức vụ</label>
                             <div data-category-picker data-module="contacts" data-field="role" data-placeholder="Chọn chức vụ" data-storage-key="modal.contacts.import_role_simple">
                                 <select name="global_role" class="form-select" id="globalRoleSelect" required data-category-target>
                                     <option value="" disabled selected>Chọn chức vụ</option>
@@ -259,16 +272,13 @@
                                 </select>
                             </div>
                         </div>
-
                         <div class="col-12">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="hasHeaderCheck" checked onchange="syncHeaderMode()">
                                 <label class="form-check-label fw-bold small" for="hasHeaderCheck">Dòng đầu tiên là tiêu đề</label>
                             </div>
                             <div class="small text-muted mt-2">
-                                Nếu bật tùy chọn này, file phải có tiêu đề cột là <b>Họ tên</b> và <b>Số điện thoại</b> ở dòng đầu.
-                                Nếu tắt, hệ thống sẽ đọc ngay từ dòng 1 với quy ước:
-                                <b>cột A = Họ tên</b>, <b>cột B = Số điện thoại</b>.
+                                Nếu bật tùy chọn này, file phải có tiêu đề cột là <b>Họ tên</b> và <b>Số điện thoại</b> ở dòng đầu. Nếu tắt, hệ thống sẽ đọc ngay từ dòng 1 với quy ước: <b>cột A = Họ tên</b>, <b>cột B = Số điện thoại</b>.
                             </div>
                         </div>
                     </div>
@@ -303,13 +313,9 @@
                     <div id="previewError" class="alert alert-danger small mt-3 d-none"></div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-light px-4 rounded-pill fw-bold border" data-bs-dismiss="modal">ĐÓNG</button>
-                    <button type="button" class="btn btn-outline-success px-4 rounded-pill fw-bold" onclick="previewExcel()">
-                        <i class="fa-solid fa-eye me-2"></i>XEM TRƯỚC
-                    </button>
-                    <button type="submit" class="btn btn-success px-5 rounded-pill fw-bold shadow">
-                        <i class="fa-solid fa-upload me-2"></i>NHẬP DANH BẠ
-                    </button>
+                    <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" class="btn btn-bdhvs light" onclick="previewExcel()"><i class="fa-solid fa-eye"></i>Xem trước</button>
+                    <button type="submit" class="btn btn-bdhvs primary"><i class="fa-solid fa-upload"></i>Nhập danh bạ</button>
                 </div>
             </form>
         </div>
@@ -322,7 +328,6 @@
     function filterContactsInTable() {
         const query = document.getElementById('contactSearch').value.toLowerCase();
         const rows = document.querySelectorAll('.contact-row');
-        
         rows.forEach(row => {
             const text = row.innerText.toLowerCase();
             row.style.display = text.includes(query) ? 'table-row' : 'none';
@@ -342,7 +347,6 @@
     }
 
     function updateBulkSelectionState() {
-        const allChecks = Array.from(document.querySelectorAll('.contact-row-check'));
         const visibleChecks = getVisibleContactChecks();
         const selectedChecks = getSelectedContactChecks();
         const visibleSelectedCount = visibleChecks.filter(check => check.checked).length;
@@ -350,16 +354,10 @@
         const bulkSelectionText = document.getElementById('bulkSelectionText');
         const contactCheckAll = document.getElementById('contactCheckAll');
 
-        if (!bulkDeleteBtn || !bulkSelectionText || !contactCheckAll) {
-            return;
-        }
+        if (!bulkDeleteBtn || !bulkSelectionText || !contactCheckAll) return;
 
         bulkDeleteBtn.disabled = selectedChecks.length === 0;
-        if (selectedChecks.length === 0) {
-            bulkSelectionText.textContent = 'Chưa chọn liên hệ nào';
-        } else {
-            bulkSelectionText.textContent = `Đã chọn ${selectedChecks.length} liên hệ`;
-        }
+        bulkSelectionText.textContent = selectedChecks.length === 0 ? 'Chưa chọn liên hệ nào' : `Đã chọn ${selectedChecks.length} liên hệ`;
 
         if (visibleChecks.length === 0) {
             contactCheckAll.checked = false;
@@ -381,13 +379,9 @@
 
     function toggleAllContacts() {
         const visibleChecks = getVisibleContactChecks();
-        if (!visibleChecks.length) {
-            return;
-        }
+        if (!visibleChecks.length) return;
         const shouldSelectAll = visibleChecks.some(check => !check.checked);
-        visibleChecks.forEach(check => {
-            check.checked = shouldSelectAll;
-        });
+        visibleChecks.forEach(check => { check.checked = shouldSelectAll; });
         updateBulkSelectionState();
     }
 
@@ -397,9 +391,7 @@
             alert('Vui lòng chọn ít nhất 1 liên hệ để xóa.');
             return;
         }
-        if (!confirm(`Xóa ${selectedIds.length} liên hệ đã chọn?`)) {
-            return;
-        }
+        if (!confirm(`Xóa ${selectedIds.length} liên hệ đã chọn?`)) return;
         document.getElementById('bulkDeleteSelectedIds').value = JSON.stringify(selectedIds);
         document.getElementById('bulkDeleteForm').submit();
     }
@@ -414,7 +406,7 @@
         const previewError = document.getElementById('previewError');
         const previewCount = document.getElementById('previewCount');
         const previewMeta = document.getElementById('previewMeta');
-        
+
         if (!fileInput.files || !fileInput.files[0]) {
             previewError.textContent = 'Vui lòng chọn file Excel!';
             previewError.classList.remove('d-none');
@@ -423,52 +415,43 @@
         }
 
         syncHeaderMode();
-
         const formData = new FormData();
         formData.append('import_excel', fileInput.files[0]);
         formData.append('has_header', document.getElementById('hasHeaderValue').value);
-        
-        fetch('{{ url_for("portal_bp.contact_preview_import") }}', {
-            method: 'POST',
-            body: formData
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                previewData = data.data;
-                renderPreviewTable();
-                previewArea.classList.remove('d-none');
-                previewError.classList.add('d-none');
-                previewCount.textContent = `${data.valid_rows} dòng hợp lệ`;
 
-                const previewNotes = [];
-                previewNotes.push(`Tổng số dòng đọc được: ${data.total}`);
-                if (data.skipped_empty) {
-                    previewNotes.push(`Dòng trống đã bỏ qua: ${data.skipped_empty}`);
+        fetch('{{ url_for("portal_bp.contact_preview_import") }}', { method: 'POST', body: formData })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    previewData = data.data;
+                    renderPreviewTable();
+                    previewArea.classList.remove('d-none');
+                    previewError.classList.add('d-none');
+                    previewCount.textContent = `${data.valid_rows} dòng hợp lệ`;
+
+                    const previewNotes = [];
+                    previewNotes.push(`Tổng số dòng đọc được: ${data.total}`);
+                    if (data.skipped_empty) previewNotes.push(`Dòng trống đã bỏ qua: ${data.skipped_empty}`);
+                    if (data.invalid_rows && data.invalid_rows.length) previewNotes.push(`Dòng thiếu Họ tên/SĐT: ${data.invalid_rows.join(', ')}`);
+                    previewMeta.textContent = previewNotes.join(' | ');
+                } else {
+                    previewError.textContent = data.error || 'Lỗi đọc file!';
+                    previewError.classList.remove('d-none');
+                    previewArea.classList.add('d-none');
+                    previewMeta.textContent = '';
                 }
-                if (data.invalid_rows && data.invalid_rows.length) {
-                    previewNotes.push(`Dòng thiếu Họ tên/SĐT: ${data.invalid_rows.join(', ')}`);
-                }
-                previewMeta.textContent = previewNotes.join(' | ');
-            } else {
-                previewError.textContent = data.error || 'Lỗi đọc file!';
+            })
+            .catch(err => {
+                previewError.textContent = 'Lỗi kết nối: ' + err.message;
                 previewError.classList.remove('d-none');
                 previewArea.classList.add('d-none');
                 previewMeta.textContent = '';
-            }
-        })
-        .catch(err => {
-            previewError.textContent = 'Lỗi kết nối: ' + err.message;
-            previewError.classList.remove('d-none');
-            previewArea.classList.add('d-none');
-            previewMeta.textContent = '';
-        });
+            });
     }
 
     function renderPreviewTable() {
         const tbody = document.getElementById('previewTableBody');
         tbody.innerHTML = '';
-        
         previewData.forEach(item => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -484,7 +467,6 @@
         syncHeaderMode();
     });
 
-    // Reset modal when closed
     document.getElementById('importContactModal').addEventListener('hidden.bs.modal', function() {
         document.getElementById('importForm').reset();
         document.getElementById('previewArea').classList.add('d-none');
@@ -499,10 +481,16 @@
 </script>
 
 <style>
-    .hover-bg-light:hover { background-color: #f8fafc; }
-    .role-filter-item.active {
-        background: rgba(37, 99, 235, 0.08);
-        box-shadow: inset 3px 0 0 var(--primary);
-    }
+    .contact-filter-stack { display: grid; gap: 12px; }
+    .contact-filter-card { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 16px; border-radius: 20px; background: rgba(248,250,252,0.94); border: 1px solid rgba(148,163,184,0.12); text-decoration: none; }
+    .contact-filter-card strong { display: block; color: var(--text-main); font-size: 0.95rem; }
+    .contact-filter-card span { color: var(--text-muted); font-size: 0.82rem; line-height: 1.6; }
+    .contact-filter-card.active { background: rgba(219,234,254,0.72); border-color: rgba(37,99,235,0.24); }
+    .contact-filter-count { min-width: 42px; height: 36px; padding: 0 12px; border-radius: 999px; background: #fff; color: #1d4ed8; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; }
+    .contact-bulk-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .contact-avatar { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #3b82f6); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; }
+    [data-theme="dark"] .contact-filter-card { background: rgba(15,23,42,0.72); border-color: rgba(148,163,184,0.14); }
+    [data-theme="dark"] .contact-filter-card.active { background: rgba(30,64,175,0.18); }
+    @media (max-width: 1080px) { .contact-bulk-bar { align-items: flex-start; } }
 </style>
 {% endblock %}
