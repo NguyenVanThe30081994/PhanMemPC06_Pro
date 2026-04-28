@@ -7,7 +7,7 @@ from models import db, NewsDoc, DocumentLib, Contact, CategoryItem, AppRole
 from category_helpers import get_category_items, get_module_field_items, get_bound_group, get_category_group, slugify_code
 from utils import log_action, push_global_notif, render_auto_template as render_template
 try:
-    from utils.file_validator import validate_file_upload
+    from security_utils.file_validator import validate_file_upload
 except ImportError:
     def validate_file_upload(f):
         return True, "OK", f.filename

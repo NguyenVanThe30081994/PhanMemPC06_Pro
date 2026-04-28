@@ -4,7 +4,7 @@ from models import db, User, AppRole
 from utils import log_action, render_auto_template as render_template
 import re
 try:
-    from utils.security_helpers import log_security_event
+    from security_utils.security_helpers import log_security_event
 except ImportError:
     def log_security_event(event, details=""):
         pass

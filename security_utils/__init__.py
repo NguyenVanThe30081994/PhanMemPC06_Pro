@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Utils package initialization
+Security utilities package
 """
 from .file_validator import validate_file_upload, allowed_file, validate_file_size
 from .password_validator import validate_password, get_password_requirements

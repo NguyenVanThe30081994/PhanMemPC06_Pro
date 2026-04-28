@@ -2,7 +2,7 @@
 from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, current_app, Response, send_from_directory
 from models import db, User, AppRole, MasterData, SystemLog, Task, NewsDoc, DocumentLib, Contact, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding, AIAssistantConfig
 try:
-    from utils.password_validator import validate_password, get_password_requirements
+    from security_utils.password_validator import validate_password, get_password_requirements
 except ImportError:
     def validate_password(pwd):
         return len(pwd) >= 8, "Mật khẩu phải có ít nhất 8 ký tự"
@@ -902,7 +902,7 @@ def fix_db_manually():
         
         # Import security validators
         try:
-            from utils.security_helpers import validate_table_name, validate_column_name, validate_column_type
+            from security_utils.security_helpers import validate_table_name, validate_column_name, validate_column_type
         except ImportError:
             # Fallback validation
             import re
