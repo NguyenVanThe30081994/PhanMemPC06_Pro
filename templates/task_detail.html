@@ -1,71 +1,28 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header mb-5 animate__animated animate__fadeIn">
+<div class="page-header mb-4 animate__animated animate__fadeIn">
     <div class="d-flex justify-content-between align-items-center">
         <div>
             <a href="{{ url_for('tasks_bp.tasks') }}" class="btn btn-sm btn-light border rounded-pill px-3 mb-3 text-muted text-decoration-none">
                 <i class="fa-solid fa-arrow-left me-1"></i> Quay lại danh sách
             </a>
-            <h1 class="h3 fw-bold text-dark mb-1">Chi tiết Công việc</h1>
-            <p class="text-muted mb-0">Theo dõi tiến độ và phản hồi về công việc được giao.</p>
+            <h1 class="h3 fw-bold text-dark mb-1">{{ task.title }}</h1>
+            <p class="text-muted mb-0">Ngày giao: {{ task.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
         </div>
         <div>
             <span class="badge {% if task.priority == 'Khẩn cấp' %}bg-danger{% elif task.priority in ['Cao', 'Quan trọng'] %}bg-warning{% else %}bg-primary{% endif %} rounded-pill px-3 py-2 shadow-sm">
-                Ưu tiên: {{ task.priority or 'Trung bình' }}
+                <i class="fa-solid fa-flag me-1"></i>{{ task.priority or 'Trung bình' }}
             </span>
         </div>
     </div>
 </div>
 
 <div class="row g-4">
+    <!-- LEFT COLUMN: Main Content -->
     <div class="col-md-8">
-        <!-- 1. Task Content -->
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bounce-in" style="background-color: var(--bg-surface);">
-            <div class="card-header border-bottom p-4" style="background-color: var(--bg-surface); border-color: var(--border) !important;">
-                <div class="d-flex justify-content-between align-items-start">
-                    <h4 class="fw-bold text-main mb-0 text-uppercase">{{ task.title }}</h4>
-                    <div class="text-end text-muted small">
-                         Ngày giao: {{ task.created_at.strftime('%d/%m/%Y %H:%M') }}
-                    </div>
-                </div>
-            </div>
-            <div class="card-body p-4">
-                <div class="mb-4">
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        {% if task.task_type %}
-                        <span class="badge bg-light text-dark border px-3 py-2 rounded-pill">{{ task.task_type }}</span>
-                        {% endif %}
-                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2 rounded-pill">
-                            Trạng thái khởi tạo: {{ task.initial_status or 'Chưa bắt đầu' }}
-                        </span>
-                    </div>
-                    <h6 class="fw-bold text-muted small text-uppercase mb-3">NỘI DUNG YÊU CẦU</h6>
-                    <div class="p-4 rounded-4 text-main shadow-inset" style="background-color: var(--bg-body); white-space: pre-line; line-height: 1.6;">
-                        {{ task.content }}
-                    </div>
-                </div>
-
-                {% if task.file_path %}
-                <div class="mb-0">
-                    <h6 class="fw-bold text-muted small text-uppercase mb-3">TÀI LIỆU ĐÍNH KÈM</h6>
-                    <div class="d-flex align-items-center p-3 border rounded-4 hover-bg-light cursor-pointer shadow-sm" style="background-color: var(--bg-surface);">
-                        <i class="fa-solid fa-file-pdf fs-3 text-danger me-3"></i>
-                        <div class="flex-grow-1">
-                            <div class="fw-bold text-dark small text-truncate" style="max-width: 300px;">{{ task.file_path }}</div>
-                            <div class="text-muted tiny">Click để tải xuống tài liệu gốc</div>
-                        </div>
-                        <a href="{{ url_for('dl_file', fn=task.file_path) }}" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold">
-                            TẢI XUỐNG
-                        </a>
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-
-        <!-- Task Acceptance and Report Section for Assignees -->
+        
+        <!-- 1. TASK ACCEPTANCE CARD (For Assignees Only) -->
         {% set user_assign = None %}
         {% for a, u in assigns %}
             {% if a.user_id == session['uid'] %}
@@ -74,96 +31,147 @@
         {% endfor %}
         
         {% if user_assign %}
-        <div class="card border-0 shadow-sm rounded-4 mb-4" style="background-color: var(--bg-surface);">
-            <div class="card-header border-bottom p-4" style="background-color: var(--bg-surface); border-color: var(--border) !important;">
-                <h5 class="fw-bold text-main mb-0"><i class="fa-solid fa-clipboard-check me-2 text-primary"></i>Tiếp nhận & Báo cáo Công việc</h5>
-            </div>
-            <div class="card-body p-4">
-                <div class="d-flex align-items-center mb-4 pb-3 border-bottom">
-                    <span class="me-3 fw-bold">Trạng thái của bạn:</span>
-                    <span class="badge {% if user_assign.status == 'Chưa tiếp nhận' %}bg-secondary{% elif user_assign.status == 'Đang thực hiện' %}bg-info{% elif user_assign.status == 'Hoàn thành' %}bg-success{% else %}bg-warning{% endif %} rounded-pill px-3 py-2">
-                        {{ user_assign.status }}
-                    </span>
-                    
-                    {% if user_assign.status == 'Chưa tiếp nhận' or user_assign.status == 'Chưa bắt đầu' %}
-                    <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST" class="ms-3 m-0">
-                        <input type="hidden" name="action" value="accept">
-                        <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
-                            <i class="fa-solid fa-hand-point-right me-2"></i>Tiếp nhận công việc
-                        </button>
-                    </form>
+        <div class="card border-0 shadow-sm rounded-4 mb-4 {% if user_assign.status == 'Chưa tiếp nhận' or user_assign.status == 'Chưa bắt đầu' %}border-warning border-3{% endif %}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="card-body p-4 text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="fw-bold mb-2"><i class="fa-solid fa-clipboard-check me-2"></i>Trạng thái của bạn</h5>
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="badge {% if user_assign.status == 'Chưa tiếp nhận' or user_assign.status == 'Chưa bắt đầu' %}bg-warning text-dark{% elif user_assign.status == 'Đang thực hiện' %}bg-info{% elif user_assign.status == 'Hoàn thành' %}bg-success{% else %}bg-secondary{% endif %} rounded-pill px-4 py-2 fs-6">
+                                {{ user_assign.status }}
+                            </span>
+                            
+                            {% if user_assign.status == 'Chưa tiếp nhận' or user_assign.status == 'Chưa bắt đầu' %}
+                            <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST" class="m-0">
+                                <input type="hidden" name="action" value="accept">
+                                <button type="submit" class="btn btn-light btn-lg rounded-pill px-5 fw-bold shadow-lg animate__animated animate__pulse animate__infinite">
+                                    <i class="fa-solid fa-hand-point-right me-2"></i>TIẾP NHẬN CÔNG VIỆC
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if user_assign.status == 'Hoàn thành' %}
+                    <div class="text-end">
+                        <i class="fa-solid fa-circle-check fa-3x opacity-50"></i>
+                    </div>
                     {% endif %}
                 </div>
-                
-                {% if user_assign.status != 'Chưa tiếp nhận' and user_assign.status != 'Chưa bắt đầu' %}
-                <div class="mt-4">
-                    <h6 class="fw-bold text-muted small text-uppercase mb-3"><i class="fa-solid fa-file-lines me-2"></i>Khung Báo cáo Công việc</h6>
-                    <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data" class="p-4 rounded-4 border" style="background-color: var(--bg-body);">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold small">Nội dung tóm tắt <span class="text-danger">*</span></label>
-                            <textarea name="report_content" class="form-control rounded-3 border-2" rows="4" placeholder="Nhập nội dung báo cáo tóm tắt về tiến độ hoặc kết quả công việc..." required style="background-color: var(--bg-surface);"></textarea>
-                            <small class="text-muted">Mô tả chi tiết những gì đã thực hiện, kết quả đạt được</small>
-                        </div>
-                        <div class="mb-4">
-                            <label class="form-label fw-bold small">Tệp đính kèm</label>
-                            <input type="file" name="report_file" class="form-control rounded-3 border-2" style="background-color: var(--bg-surface);">
-                            <small class="text-muted">Đính kèm tài liệu, hình ảnh minh chứng (nếu có)</small>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center pt-3 border-top">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="mark_completed" value="1" id="markCompleted">
-                                <label class="form-check-label fw-bold text-success" for="markCompleted">
-                                    <i class="fa-solid fa-check-circle me-1"></i>Đánh dấu Hoàn thành
-                                </label>
-                            </div>
-                            <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
-                                <i class="fa-solid fa-paper-plane me-2"></i>Gửi Báo Cáo
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                {% endif %}
             </div>
         </div>
         {% endif %}
 
-        <!-- 2. Comments Section -->
+        <!-- 2. TASK CONTENT CARD -->
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4" style="background-color: var(--bg-surface);">
+            <div class="card-header border-bottom p-4" style="background-color: var(--bg-surface); border-color: var(--border) !important;">
+                <h5 class="fw-bold text-main mb-0"><i class="fa-solid fa-file-lines me-2 text-primary"></i>Nội dung Công việc</h5>
+            </div>
+            <div class="card-body p-4">
+                <div class="mb-3">
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        {% if task.task_type %}
+                        <span class="badge bg-light text-dark border px-3 py-2 rounded-pill">
+                            <i class="fa-solid fa-tag me-1"></i>{{ task.task_type }}
+                        </span>
+                        {% endif %}
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2 rounded-pill">
+                            {{ task.initial_status or 'Chưa bắt đầu' }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="p-4 rounded-4 text-main shadow-sm" style="background-color: var(--bg-body); white-space: pre-line; line-height: 1.8; border-left: 4px solid #667eea;">
+                    {{ task.content }}
+                </div>
+
+                {% if task.file_path %}
+                <div class="mt-4">
+                    <h6 class="fw-bold text-muted small text-uppercase mb-3"><i class="fa-solid fa-paperclip me-2"></i>Tài liệu đính kèm</h6>
+                    <div class="d-flex align-items-center p-3 border rounded-4 hover-bg-light cursor-pointer shadow-sm" style="background-color: var(--bg-surface);">
+                        <i class="fa-solid fa-file-pdf fs-3 text-danger me-3"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold text-dark small text-truncate" style="max-width: 300px;">{{ task.file_path }}</div>
+                            <div class="text-muted tiny">Click để tải xuống tài liệu</div>
+                        </div>
+                        <a href="{{ url_for('dl_file', fn=task.file_path) }}" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold">
+                            <i class="fa-solid fa-download me-1"></i>TẢI XUỐNG
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 3. REPORT SUBMISSION CARD (Only if accepted) -->
+        {% if user_assign and user_assign.status != 'Chưa tiếp nhận' and user_assign.status != 'Chưa bắt đầu' %}
+        <div class="card border-0 shadow-sm rounded-4 mb-4" style="background-color: var(--bg-surface);">
+            <div class="card-header border-bottom p-4" style="background-color: #f0f9ff; border-color: var(--border) !important;">
+                <h5 class="fw-bold text-primary mb-0"><i class="fa-solid fa-paper-plane me-2"></i>Báo cáo Công việc</h5>
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nội dung tóm tắt <span class="text-danger">*</span></label>
+                        <textarea name="report_content" class="form-control rounded-3 border-2" rows="5" placeholder="Mô tả chi tiết những gì đã thực hiện, kết quả đạt được, khó khăn gặp phải (nếu có)..." required style="background-color: white; font-size: 14px;"></textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Tệp đính kèm</label>
+                        <input type="file" name="report_file" class="form-control rounded-3 border-2" style="background-color: white;">
+                        <small class="text-muted"><i class="fa-solid fa-info-circle me-1"></i>Đính kèm tài liệu, hình ảnh minh chứng (nếu có)</small>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="mark_completed" value="1" id="markCompleted" style="width: 3em; height: 1.5em;">
+                            <label class="form-check-label fw-bold text-success ms-2" for="markCompleted" style="font-size: 16px;">
+                                <i class="fa-solid fa-check-circle me-1"></i>Đánh dấu Hoàn thành
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-success btn-lg rounded-pill px-5 fw-bold shadow-sm">
+                            <i class="fa-solid fa-paper-plane me-2"></i>GỬI BÁO CÁO
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 4. COMMENTS SECTION -->
         <div class="card border-0 shadow-sm rounded-4" style="background-color: var(--bg-surface);">
             <div class="card-header border-bottom p-4" style="background-color: var(--bg-surface); border-color: var(--border) !important;">
                 <h5 class="fw-bold text-main mb-0"><i class="fa-solid fa-comments me-2 text-primary"></i>Phản hồi & Thảo luận</h5>
             </div>
             <div class="card-body p-4">
-                <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST" class="mb-5">
+                <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST" class="mb-4">
                     <div class="mb-3">
-                        <textarea name="content" class="form-control rounded-4 border-2" placeholder="Nhập ý kiến phản hồi, thảo luận về công việc..." style="height: 120px; background-color: var(--bg-surface); color: var(--text-main) !important; padding: 1rem;" required></textarea>
+                        <textarea name="content" class="form-control rounded-3 border-2" placeholder="Nhập ý kiến phản hồi, thảo luận về công việc..." style="height: 100px; background-color: white; padding: 1rem; font-size: 14px;" required></textarea>
                     </div>
                     <div class="text-end">
-                        <button type="submit" class="btn btn-primary rounded-pill px-5 py-2 fw-bold shadow-sm">
-                            GỬI PHẢN HỒI <i class="fa-solid fa-paper-plane ms-2"></i>
+                        <button type="submit" class="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-sm">
+                            <i class="fa-solid fa-paper-plane me-2"></i>GỬI PHẢN HỒI
                         </button>
                     </div>
                 </form>
 
-                <div class="comment-list">
+                <div class="comment-list mt-4">
                     {% for c in comments %}
-                    <div class="comment-item d-flex gap-3 mb-4 animate__animated animate__fadeInUp">
-                        <div class="avatar bg-primary-light text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width: 48px; height: 48px; font-size: 18px;">
+                    <div class="comment-item d-flex gap-3 mb-3 animate__animated animate__fadeInUp">
+                        <div class="avatar bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width: 45px; height: 45px; font-size: 16px;">
                             {{ c.user_name[:1].upper() }}
                         </div>
                         <div class="flex-grow-1">
-                            <div class="p-3 rounded-4 shadow-sm" style="background-color: var(--bg-body);">
+                            <div class="p-3 rounded-3 shadow-sm" style="background-color: {% if '[BÁO CÁO]' in c.content %}#f0fdf4{% else %}var(--bg-body){% endif %}; {% if '[BÁO CÁO]' in c.content %}border-left: 4px solid #22c55e;{% endif %}">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <span class="fw-bold text-main">{{ c.user_name }}</span>
                                     <span class="text-muted tiny">{{ c.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
                                 </div>
-                                <div class="text-main small">{{ c.content }}</div>
+                                <div class="text-main" style="font-size: 14px; line-height: 1.6;">{{ c.content }}</div>
                             </div>
                         </div>
                     </div>
                     {% else %}
-                    <div class="text-center py-4 text-muted opacity-50">
-                        <i class="fa-regular fa-comment-dots fs-1 mb-2"></i>
-                        <p class="mb-0">Chưa có phản hồi nào cho công việc này</p>
+                    <div class="text-center py-5 text-muted">
+                        <i class="fa-regular fa-comment-dots fs-1 mb-3 opacity-25"></i>
+                        <p class="mb-0">Chưa có phản hồi nào</p>
                     </div>
                     {% endfor %}
                 </div>
@@ -171,80 +179,93 @@
         </div>
     </div>
 
+    <!-- RIGHT COLUMN: Info Sidebar -->
     <div class="col-md-4">
-        <!-- 3. Progress Info -->
-        <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-dark text-white">
-            <h6 class="text-white-50 small fw-bold mb-4 uppercase">TRẠNG THÁI TIẾN ĐỘ</h6>
-            <div class="text-center mb-4">
-                <div class="display-6 fw-bold text-white mb-1">{{ progress_percent }}%</div>
-                <div class="text-white-50 tiny">Mức độ hoàn thành</div>
-            </div>
-            <div class="progress bg-white bg-opacity-20 mb-3" style="height: 8px;">
-                <div class="progress-bar bg-primary" role="progressbar" style="width: {{ progress_percent }}%;"></div>
-            </div>
-            <hr class="opacity-10 my-4">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="text-white-50 small">Thời hạn:</span>
-                <span class="fw-bold text-{% if task.deadline < now_dt.date() %}danger{% else %}white{% endif %}">
-                    {{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa xác định' }}
-                </span>
-            </div>
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="text-white-50 small">Người giao:</span>
-                <span class="fw-bold">{{ task.author_name }}</span>
-            </div>
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="text-white-50 small">Loại công việc:</span>
-                <span class="fw-bold">{{ task.task_type or 'Công việc thường xuyên' }}</span>
-            </div>
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="text-white-50 small">Trạng thái khởi tạo:</span>
-                <span class="fw-bold">{{ task.initial_status or 'Chưa bắt đầu' }}</span>
-            </div>
-            <div class="d-flex justify-content-between align-items-center">
-                <span class="text-white-50 small">Đội nghiệp vụ:</span>
-                <span class="badge bg-primary bg-opacity-25 text-white border border-primary border-opacity-50 px-3 rounded-pill">{{ task.domain }}</span>
-            </div>
-        </div>
-
-        <!-- 4. Progress Tracking Tab -->
-        <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
-            <h6 class="fw-bold text-dark mb-4 small uppercase"><i class="fa-solid fa-chart-line me-2 text-primary"></i>Theo dõi Tiến độ</h6>
-            <div class="text-center py-3">
-                <div class="text-muted small mb-2">Trạng thái hiện tại</div>
-                <div class="badge {% if progress_percent == 100 %}bg-success{% elif progress_percent > 0 %}bg-info{% else %}bg-secondary{% endif %} rounded-pill px-4 py-2 fs-6">
-                    {% if progress_percent == 100 %}
-                        <i class="fa-solid fa-check-circle me-1"></i>Đã hoàn thành
-                    {% elif progress_percent > 0 %}
-                        <i class="fa-solid fa-spinner me-1"></i>Đang thực hiện
-                    {% else %}
-                        <i class="fa-solid fa-clock me-1"></i>Chưa bắt đầu
-                    {% endif %}
+        
+        <!-- PROGRESS CARD -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%);">
+            <div class="card-body p-4 text-white">
+                <h6 class="text-white-50 small fw-bold mb-3 text-uppercase"><i class="fa-solid fa-chart-line me-2"></i>Tiến độ</h6>
+                <div class="text-center mb-3">
+                    <div class="display-4 fw-bold mb-1">{{ progress_percent }}%</div>
+                    <div class="badge {% if progress_percent == 100 %}bg-success{% elif progress_percent > 0 %}bg-info{% else %}bg-secondary{% endif %} rounded-pill px-3 py-2">
+                        {% if progress_percent == 100 %}
+                            <i class="fa-solid fa-check-circle me-1"></i>Đã hoàn thành
+                        {% elif progress_percent > 0 %}
+                            <i class="fa-solid fa-spinner me-1"></i>Đang thực hiện
+                        {% else %}
+                            <i class="fa-solid fa-clock me-1"></i>Chưa bắt đầu
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="progress bg-white bg-opacity-20 mb-3" style="height: 10px;">
+                    <div class="progress-bar {% if progress_percent == 100 %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {{ progress_percent }}%;"></div>
                 </div>
             </div>
         </div>
 
-        <!-- 5. Assignments - Only for Lead/Admin -->
+        <!-- TASK INFO CARD -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4" style="background-color: var(--bg-surface);">
+            <div class="card-body p-4">
+                <h6 class="fw-bold text-dark mb-3 small text-uppercase"><i class="fa-solid fa-info-circle me-2 text-primary"></i>Thông tin</h6>
+                
+                <div class="info-item mb-3 pb-3 border-bottom">
+                    <div class="text-muted small mb-1">Thời hạn</div>
+                    <div class="fw-bold text-{% if task.deadline and task.deadline < now_dt.date() %}danger{% else %}dark{% endif %}">
+                        <i class="fa-solid fa-calendar-days me-2"></i>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa xác định' }}
+                    </div>
+                </div>
+                
+                <div class="info-item mb-3 pb-3 border-bottom">
+                    <div class="text-muted small mb-1">Người giao</div>
+                    <div class="fw-bold text-dark">
+                        <i class="fa-solid fa-user me-2"></i>{{ task.author_name }}
+                    </div>
+                </div>
+                
+                <div class="info-item mb-3 pb-3 border-bottom">
+                    <div class="text-muted small mb-1">Loại công việc</div>
+                    <div class="fw-bold text-dark">
+                        <i class="fa-solid fa-briefcase me-2"></i>{{ task.task_type or 'Công việc thường xuyên' }}
+                    </div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="text-muted small mb-1">Đội nghiệp vụ</div>
+                    <div>
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-3 py-2 rounded-pill">
+                            {{ task.domain }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ASSIGNEES CARD (Only for Lead/Admin) -->
         {% if is_lead %}
-        <div class="card border-0 shadow-sm rounded-4 p-4">
-            <h6 class="fw-bold text-dark mb-4 small uppercase"><i class="fa-solid fa-users me-2 text-primary"></i>Người được giao</h6>
-            <div class="d-flex flex-column gap-3">
-                {% for a, u in assigns %}
-                <div class="d-flex align-items-center border-bottom pb-3 last-no-border">
-                    <div class="avatar bg-light text-muted rounded-circle d-flex align-items-center justify-content-center fw-bold me-3" style="width: 40px; height: 40px;">
-                         {{ u.fullname[:1].upper() }}
+        <div class="card border-0 shadow-sm rounded-4" style="background-color: var(--bg-surface);">
+            <div class="card-body p-4">
+                <h6 class="fw-bold text-dark mb-3 small text-uppercase"><i class="fa-solid fa-users me-2 text-primary"></i>Người được giao</h6>
+                <div class="d-flex flex-column gap-2">
+                    {% for a, u in assigns %}
+                    <div class="d-flex align-items-center p-2 rounded-3 border">
+                        <div class="avatar bg-light text-muted rounded-circle d-flex align-items-center justify-content-center fw-bold me-2" style="width: 36px; height: 36px; font-size: 14px;">
+                            {{ u.fullname[:1].upper() }}
+                        </div>
+                        <div class="flex-grow-1 overflow-hidden">
+                            <div class="fw-bold text-dark small text-truncate">{{ u.fullname }}</div>
+                            <div class="text-muted tiny text-truncate">{{ u.unit_area }}</div>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge {% if a.status == 'Hoàn thành' %}bg-success{% elif a.status == 'Đang thực hiện' %}bg-info{% else %}bg-secondary{% endif %} tiny">
+                                {{ a.status }}
+                            </span>
+                        </div>
                     </div>
-                    <div class="flex-grow-1 overflow-hidden">
-                        <div class="fw-bold text-dark small text-truncate">{{ u.fullname }}</div>
-                        <div class="text-muted tiny text-truncate">{{ u.unit_area }}</div>
-                    </div>
-                    <div class="text-end">
-                        <span class="badge {% if a.status == 'Hoàn thành' %}bg-success{% elif a.status == 'Đang thực hiện' %}bg-info{% else %}bg-secondary{% endif %} tiny">{{ a.status }}</span>
-                    </div>
+                    {% else %}
+                    <p class="text-muted small text-center mb-0">Chưa giao cụ thể</p>
+                    {% endfor %}
                 </div>
-                {% else %}
-                <p class="text-muted small text-center mb-0">Chưa được giao cụ thể cho ai</p>
-                {% endfor %}
             </div>
         </div>
         {% endif %}
@@ -252,10 +273,13 @@
 </div>
 
 <style>
-    .shadow-inset { box-shadow: inset 0 2px 4px 0 rgba(0,0,0,0.03); }
-    .bg-primary-light { background-color: rgba(37,99,235,0.1); }
     .tiny { font-size: 11px; }
-    .uppercase { text-transform: uppercase; letter-spacing: 0.5px; }
-    .last-no-border:last-child { border-bottom: none !important; margin-bottom: 0 !important; padding-bottom: 0 !important; }
+    .hover-bg-light:hover { background-color: rgba(0,0,0,0.02) !important; }
+    .info-item:last-child { border-bottom: none !important; padding-bottom: 0 !important; margin-bottom: 0 !important; }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
 </style>
 {% endblock %}
