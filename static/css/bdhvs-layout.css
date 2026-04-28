@@ -435,6 +435,10 @@
     align-items: start;
 }
 
+.pc06-hero-grid.compact {
+    grid-template-columns: minmax(0, 1fr);
+}
+
 .pc06-hero-card.with-toolbar {
     display: grid;
     gap: 18px;
@@ -455,6 +459,10 @@
     grid-template-columns: minmax(0, 820px) minmax(260px, 1fr);
     gap: 16px;
     align-items: start;
+}
+
+.pc06-hero-toolbar-grid.compact {
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .pc06-hero-toolbar-side {
@@ -638,6 +646,12 @@
     border-color: rgba(148, 163, 184, 0.16) !important;
 }
 
+[data-theme="dark"] .pc06-select-control .form-select {
+    background: rgba(15, 23, 42, 0.62);
+    border-color: rgba(148, 163, 184, 0.16);
+    color: #e2e8f0;
+}
+
 .pc06-hero-toolbar-side .pc06-toolbar-note {
     text-align: left;
     color: rgba(226, 232, 240, 0.82);
@@ -649,6 +663,52 @@
     outline: 0;
     background: transparent;
     color: var(--text-main, #0f172a);
+}
+
+.pc06-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.pc06-select-control {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+
+.pc06-select-control span {
+    display: block;
+    color: rgba(226, 232, 240, 0.72);
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 800;
+}
+
+.pc06-select-control .form-select {
+    min-height: 48px;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--text-main, #0f172a);
+    font-weight: 700;
+    box-shadow: none;
+}
+
+.pc06-toolbar-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    color: #fff;
+    font-size: 0.84rem;
+    font-weight: 900;
+    white-space: nowrap;
 }
 
 .pc06-filter-stack {
@@ -1359,6 +1419,10 @@ a.pc06-chip {
         min-width: 100%;
     }
 
+    .pc06-filter-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .pc06-toolbar-form-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -1399,6 +1463,14 @@ a.pc06-chip {
     .pc06-card-actions {
         width: 100%;
         flex-wrap: wrap;
+    }
+
+    .pc06-filter-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .pc06-toolbar-count {
+        justify-content: flex-start;
     }
 
     .pc06-stat-strip.stat-grid-2x2,

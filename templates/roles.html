@@ -5,16 +5,13 @@
 {% block content %}
 <div class="pc06-page-shell">
     <section class="pc06-hero-card with-toolbar">
-        <div class="pc06-hero-grid">
+        <div class="pc06-hero-grid compact">
             <div>
                 <div class="pc06-page-kicker">
                     <i class="fa-solid fa-user-shield"></i>
-                    Tài khoản và vai trò
+                    Người dùng và quyền
                 </div>
-                <h1 class="pc06-page-title">Quản trị người dùng và phân quyền</h1>
-                <p class="pc06-page-lead">
-                    Quản lý vai trò, tài khoản, trạng thái sử dụng và nhập dữ liệu hàng loạt trên một màn hình quản trị thống nhất.
-                </p>
+                <h1 class="pc06-page-title">Tài khoản và vai trò</h1>
                 <div class="pc06-action-cluster">
                     <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importUserModal">
                         <i class="fa-solid fa-file-excel"></i>
@@ -30,44 +27,28 @@
                     </button>
                 </div>
             </div>
-            <div class="pc06-stat-strip">
-                <div class="pc06-metric-card"><span>Vai trò</span><strong>{{ roles|length }}</strong></div>
-                <div class="pc06-metric-card"><span>Tài khoản</span><strong>{{ total_user_count }}</strong></div>
-                <div class="pc06-metric-card"><span>Bộ lọc</span><strong style="font-size:1rem;">{{ selected_role.name if selected_role else 'Tất cả vai trò' }}</strong></div>
-            </div>
         </div>
-        <div class="pc06-hero-toolbar-grid">
+        <div class="pc06-hero-toolbar-grid compact">
             <div class="pc06-hero-toolbar">
-                <div class="pc06-chip-group">
-                    <a href="{{ url_for('admin_bp.roles') }}" class="pc06-chip {% if not selected_role_id %}active{% endif %}">
-                        <span>Tất cả vai trò</span>
-                        <span class="pc06-chip-count">{{ total_user_count }}</span>
-                    </a>
-                    {% for r in roles %}
-                    <a href="{{ url_for('admin_bp.roles', role_id=r.id) }}" class="pc06-chip {% if selected_role_id == r.id %}active{% endif %}">
-                        <span>{{ r.name }}</span>
-                        <span class="pc06-chip-count">{{ role_user_counts.get(r.id, 0) }}</span>
-                    </a>
-                    {% endfor %}
+                <div class="pc06-toolbar-row">
+                    <span class="pc06-toolbar-count">{{ users|length }} tài khoản</span>
                 </div>
-            </div>
-            <div class="pc06-hero-toolbar pc06-hero-toolbar-side">
-                <span class="pc06-toolbar-side-label">Vai trò đang lọc</span>
-                <span class="pc06-toolbar-side-value">{{ selected_role.name if selected_role else 'Tất cả vai trò' }}</span>
-                <p class="pc06-toolbar-note">Chọn vai trò để lọc tài khoản theo phạm vi phân quyền. Các thẻ tự co theo độ dài tên vai trò.</p>
+                <div class="pc06-filter-grid">
+                    <label class="pc06-select-control">
+                        <span>Vai trò</span>
+                        <select class="form-select" onchange="window.location.href=this.value">
+                            <option value="{{ url_for('admin_bp.roles') }}" {% if not selected_role_id %}selected{% endif %}>Tất cả vai trò ({{ total_user_count }})</option>
+                            {% for r in roles %}
+                            <option value="{{ url_for('admin_bp.roles', role_id=r.id) }}" {% if selected_role_id == r.id %}selected{% endif %}>{{ r.name }} ({{ role_user_counts.get(r.id, 0) }})</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                </div>
             </div>
         </div>
     </section>
 
     <section class="pc06-panel">
-        <div class="pc06-panel-head">
-            <div>
-                <h2>{{ selected_role.name if selected_role else 'Danh sách tài khoản' }}</h2>
-                <p>{{ users|length }} tài khoản trong phạm vi hiển thị hiện tại.</p>
-            </div>
-            <span class="pc06-status-badge neutral">{{ users|length }} tài khoản</span>
-        </div>
-
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="pill-thead">

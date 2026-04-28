@@ -3,16 +3,13 @@
 {% block content %}
 <div class="pc06-page-shell">
     <section class="pc06-hero-card with-toolbar">
-        <div class="pc06-hero-grid">
+        <div class="pc06-hero-grid compact">
             <div>
                 <div class="pc06-page-kicker">
                     <i class="fa-solid fa-book-bookmark"></i>
-                    Kho tài liệu nghiệp vụ
+                    Thư viện
                 </div>
-                <h1 class="pc06-page-title">Thư viện tài liệu</h1>
-                <p class="pc06-page-lead">
-                    Quản lý, phân loại và truy cập tài liệu nghiệp vụ theo từng lĩnh vực.
-                </p>
+                <h1 class="pc06-page-title">Thư viện</h1>
                 {% if perms.get('p_lib_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
                 <div class="pc06-action-cluster">
                     <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLibraryModal">
@@ -22,28 +19,27 @@
                 </div>
                 {% endif %}
             </div>
-            <div class="pc06-stat-strip">
-                <div class="pc06-metric-card"><span>Tổng tài liệu</span><strong>{{ items|length }}</strong></div>
-                <div class="pc06-metric-card"><span>Lĩnh vực</span><strong>{{ categories|length }}</strong></div>
-            </div>
         </div>
-        <div class="pc06-hero-toolbar-grid">
+        <div class="pc06-hero-toolbar-grid compact">
             <div class="pc06-hero-toolbar">
-                <label class="pc06-search-control">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="librarySearch" placeholder="Tìm tên tài liệu hoặc mô tả">
-                </label>
-                <div class="pc06-chip-group">
-                    <button type="button" class="pc06-chip active" data-filter-type="category" data-filter-value="ALL">Tất cả lĩnh vực</button>
-                    {% for cat in categories %}
-                    <button type="button" class="pc06-chip" data-filter-type="category" data-filter-value="{{ cat.name|lower }}">{{ cat.name }}</button>
-                    {% endfor %}
+                <div class="pc06-toolbar-row">
+                    <label class="pc06-search-control">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="librarySearch" placeholder="Tìm tên tài liệu hoặc mô tả">
+                    </label>
+                    <span class="pc06-toolbar-count" id="libraryResultCount">{{ items|length }} tài liệu</span>
                 </div>
-            </div>
-            <div class="pc06-hero-toolbar pc06-hero-toolbar-side">
-                <span class="pc06-toolbar-side-label">Bộ lọc thư viện</span>
-                <span class="pc06-toolbar-side-value">{{ categories|length }} lĩnh vực đang khả dụng</span>
-                <p class="pc06-toolbar-note">Khối lọc được thu gọn về bên trái để nhường không gian đọc nội dung cho phần bên dưới.</p>
+                <div class="pc06-filter-grid">
+                    <label class="pc06-select-control">
+                        <span>Lĩnh vực</span>
+                        <select id="libraryCategoryFilter" class="form-select">
+                            <option value="ALL">Tất cả lĩnh vực</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.name|lower }}">{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                </div>
             </div>
         </div>
     </section>
@@ -132,4 +128,40 @@
     @media (max-width: 1080px) { .library-grid-bdhvs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (max-width: 768px) { .library-grid-bdhvs { grid-template-columns: 1fr; } }
 </style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const libraryFilters = {
+        category: 'ALL',
+        query: ''
+    };
+
+    function applyLibraryFilters() {
+        let visibleCount = 0;
+        document.querySelectorAll('.library-item').forEach((item) => {
+            const category = item.dataset.category || '';
+            const search = item.dataset.search || '';
+            const categoryMatch = libraryFilters.category === 'ALL' || category === libraryFilters.category;
+            const searchMatch = !libraryFilters.query || search.includes(libraryFilters.query);
+            const isVisible = categoryMatch && searchMatch;
+            item.style.display = isVisible ? '' : 'none';
+            if (isVisible) visibleCount += 1;
+        });
+        const countNode = document.getElementById('libraryResultCount');
+        if (countNode) countNode.textContent = `${visibleCount} tài liệu`;
+    }
+
+    document.getElementById('librarySearch')?.addEventListener('input', (event) => {
+        libraryFilters.query = event.target.value.trim().toLowerCase();
+        applyLibraryFilters();
+    });
+
+    document.getElementById('libraryCategoryFilter')?.addEventListener('change', (event) => {
+        libraryFilters.category = event.target.value;
+        applyLibraryFilters();
+    });
+
+    applyLibraryFilters();
+</script>
 {% endblock %}

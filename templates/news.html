@@ -3,16 +3,13 @@
 {% block content %}
 <div class="pc06-page-shell">
     <section class="pc06-hero-card with-toolbar">
-        <div class="pc06-hero-grid">
+        <div class="pc06-hero-grid compact">
             <div>
                 <div class="pc06-page-kicker">
                     <i class="fa-solid fa-bullhorn"></i>
-                    Trung tâm bản tin
+                    Bảng tin
                 </div>
-                <h1 class="pc06-page-title">Bảng tin và thông báo nội bộ</h1>
-                <p class="pc06-page-lead">
-                    Quản lý tin điều hành, tệp đính kèm và nội dung phát hành theo từng lĩnh vực.
-                </p>
+                <h1 class="pc06-page-title">Bảng tin</h1>
                 {% if perms.get('p_news_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
                 <div class="pc06-action-cluster">
                     <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addNewsModal">
@@ -22,40 +19,27 @@
                 </div>
                 {% endif %}
             </div>
-            <div class="pc06-stat-strip">
-                <div class="pc06-metric-card">
-                    <span>Tổng bản tin</span>
-                    <strong>{{ news_list|length }}</strong>
-                </div>
-                <div class="pc06-metric-card">
-                    <span>Nhóm lĩnh vực</span>
-                    <strong>{{ pro_units|length }}</strong>
-                </div>
-                <div class="pc06-metric-card">
-                    <span>Cập nhật</span>
-                    <strong style="font-size:1rem;">{{ now_str }}</strong>
-                </div>
-            </div>
         </div>
-        <div class="pc06-hero-toolbar-grid">
+        <div class="pc06-hero-toolbar-grid compact">
             <div class="pc06-hero-toolbar">
                 <div class="pc06-toolbar-row">
                     <label class="pc06-search-control">
                         <i class="fa-solid fa-magnifying-glass"></i>
                         <input type="text" id="newsSearch" placeholder="Tìm tiêu đề hoặc nội dung bản tin">
                     </label>
+                    <span class="pc06-toolbar-count" id="newsResultCount">{{ news_list|length }} tin</span>
                 </div>
-                <div class="pc06-chip-group">
-                    <button type="button" class="pc06-chip active" data-filter-type="category" data-filter-value="ALL">Tất cả lĩnh vực</button>
-                    {% for unit in pro_units %}
-                    <button type="button" class="pc06-chip" data-filter-type="category" data-filter-value="{{ unit.name|lower }}">{{ unit.name }}</button>
-                    {% endfor %}
+                <div class="pc06-filter-grid">
+                    <label class="pc06-select-control">
+                        <span>Lĩnh vực</span>
+                        <select id="newsCategoryFilter" class="form-select">
+                            <option value="ALL">Tất cả lĩnh vực</option>
+                            {% for unit in pro_units %}
+                            <option value="{{ unit.name|lower }}">{{ unit.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
                 </div>
-            </div>
-            <div class="pc06-hero-toolbar pc06-hero-toolbar-side">
-                <span class="pc06-toolbar-side-label">Phạm vi bản tin</span>
-                <span class="pc06-toolbar-side-value">{{ pro_units|length }} lĩnh vực nghiệp vụ</span>
-                <p class="pc06-toolbar-note">Lọc theo đội nghiệp vụ hoặc tìm thẳng theo tiêu đề, không kéo dài cả bề ngang của hero.</p>
             </div>
         </div>
     </section>
@@ -157,4 +141,40 @@
     @media (max-width: 1080px) { .news-grid-bdhvs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (max-width: 768px) { .news-grid-bdhvs { grid-template-columns: 1fr; } }
 </style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const newsFilters = {
+        category: 'ALL',
+        query: ''
+    };
+
+    function applyNewsFilters() {
+        let visibleCount = 0;
+        document.querySelectorAll('.news-item').forEach((item) => {
+            const category = item.dataset.category || '';
+            const search = item.dataset.search || '';
+            const categoryMatch = newsFilters.category === 'ALL' || category === newsFilters.category;
+            const searchMatch = !newsFilters.query || search.includes(newsFilters.query);
+            const isVisible = categoryMatch && searchMatch;
+            item.style.display = isVisible ? '' : 'none';
+            if (isVisible) visibleCount += 1;
+        });
+        const countNode = document.getElementById('newsResultCount');
+        if (countNode) countNode.textContent = `${visibleCount} tin`;
+    }
+
+    document.getElementById('newsSearch')?.addEventListener('input', (event) => {
+        newsFilters.query = event.target.value.trim().toLowerCase();
+        applyNewsFilters();
+    });
+
+    document.getElementById('newsCategoryFilter')?.addEventListener('change', (event) => {
+        newsFilters.category = event.target.value;
+        applyNewsFilters();
+    });
+
+    applyNewsFilters();
+</script>
 {% endblock %}
