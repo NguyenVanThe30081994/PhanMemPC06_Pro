@@ -31,29 +31,43 @@
         {% endfor %}
         
         {% if user_assign %}
-        <div class="card border-0 shadow-sm rounded-4 mb-4 {% if user_assign.status == 'Chưa tiếp nhận' or user_assign.status == 'Chưa bắt đầu' %}border-warning border-3{% endif %}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-            <div class="card-body p-4 text-white">
+        <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden" style="{% if user_assign.status == 'Chưa tiếp nhận' or user_assign.status == 'Chưa bắt đầu' %}border: 3px solid #fbbf24 !important;{% endif %}">
+            <div class="card-body p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                 <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="fw-bold mb-2"><i class="fa-solid fa-clipboard-check me-2"></i>Trạng thái của bạn</h5>
-                        <div class="d-flex align-items-center gap-3">
-                            <span class="badge {% if user_assign.status == 'Chưa tiếp nhận' or user_assign.status == 'Chưa bắt đầu' %}bg-warning text-dark{% elif user_assign.status == 'Đang thực hiện' %}bg-info{% elif user_assign.status == 'Hoàn thành' %}bg-success{% else %}bg-secondary{% endif %} rounded-pill px-4 py-2 fs-6">
-                                {{ user_assign.status }}
-                            </span>
-                            
+                    <div class="flex-grow-1">
+                        <h5 class="fw-bold mb-3 text-white"><i class="fa-solid fa-clipboard-check me-2"></i>Trạng thái của bạn</h5>
+                        <div class="d-flex flex-wrap align-items-center gap-3">
                             {% if user_assign.status == 'Chưa tiếp nhận' or user_assign.status == 'Chưa bắt đầu' %}
+                            <span class="badge bg-warning text-dark px-4 py-2 fs-6 fw-bold rounded-pill">
+                                <i class="fa-solid fa-clock me-2"></i>{{ user_assign.status }}
+                            </span>
                             <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST" class="m-0">
                                 <input type="hidden" name="action" value="accept">
-                                <button type="submit" class="btn btn-light btn-lg rounded-pill px-5 fw-bold shadow-lg animate__animated animate__pulse animate__infinite">
+                                <button type="submit" class="btn btn-light btn-lg rounded-pill px-5 fw-bold shadow-lg animate__animated animate__pulse animate__infinite" style="animation-duration: 2s;">
                                     <i class="fa-solid fa-hand-point-right me-2"></i>TIẾP NHẬN CÔNG VIỆC
                                 </button>
                             </form>
+                            {% elif user_assign.status == 'Đang thực hiện' %}
+                            <span class="badge bg-info text-white px-4 py-2 fs-6 fw-bold rounded-pill">
+                                <i class="fa-solid fa-spinner fa-spin me-2"></i>{{ user_assign.status }}
+                            </span>
+                            <div class="text-white small">
+                                <i class="fa-solid fa-info-circle me-1"></i>Đang thực hiện công việc
+                            </div>
+                            {% elif user_assign.status == 'Hoàn thành' %}
+                            <span class="badge bg-success text-white px-4 py-2 fs-6 fw-bold rounded-pill">
+                                <i class="fa-solid fa-circle-check me-2"></i>{{ user_assign.status }}
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary text-white px-4 py-2 fs-6 fw-bold rounded-pill">
+                                {{ user_assign.status }}
+                            </span>
                             {% endif %}
                         </div>
                     </div>
                     {% if user_assign.status == 'Hoàn thành' %}
                     <div class="text-end">
-                        <i class="fa-solid fa-circle-check fa-3x opacity-50"></i>
+                        <i class="fa-solid fa-circle-check fa-3x text-white opacity-50"></i>
                     </div>
                     {% endif %}
                 </div>
@@ -75,7 +89,7 @@
                         </span>
                         {% endif %}
                         <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2 rounded-pill">
-                            {{ task.initial_status or 'Chưa bắt đầu' }}
+                            {{ task.initial_status or 'Chưa tiếp nhận' }}
                         </span>
                     </div>
                 </div>

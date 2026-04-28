@@ -42,33 +42,62 @@
         <div class="filter-chip active" onclick="filterTasks('ALL')">Tất cả</div>
         <div class="filter-chip" onclick="filterTasks('Đang thực hiện')">Đang làm</div>
         <div class="filter-chip" onclick="filterTasks('Hoàn thành')">Hoàn thành</div>
-        <div class="filter-chip" onclick="filterTasks('Chưa bắt đầu')">Chưa bắt đầu</div>
+        <div class="filter-chip" onclick="filterTasks('Chưa tiếp nhận')">Chưa tiếp nhận</div>
     </div>
 
     <!-- Task List -->
     <div class="task-list">
         {% if tasks %}
             {% for t in tasks %}
-            {% set display_status = t.assignments[0].status if t.assignments else (t.initial_status or 'Chưa bắt đầu') %}
+            {% set display_status = t.assignments[0].status if t.assignments else (t.initial_status or 'Chưa tiếp nhận') %}
+            {% set user_assign = None %}
+            {% for a in t.assignments %}
+                {% if a.user_id == session['uid'] %}
+                    {% set user_assign = a %}
+                {% endif %}
+            {% endfor %}
             <div class="task-item" data-status="{{ display_status }}">
                 <div class="task-status-bar {% if display_status == 'Hoàn thành' %}status-done{% elif display_status == 'Đang thực hiện' %}status-doing{% else %}status-todo{% endif %}"></div>
-                <div class="d-flex justify-content-between align-items-start mb-1">
+                <div class="d-flex justify-content-between align-items-start mb-2">
                     <div class="task-title">{{ t.title }}</div>
-                    <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}" class="text-muted"><i class="fa-solid fa-chevron-right"></i></a>
+                    <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}" class="text-primary"><i class="fa-solid fa-arrow-right"></i></a>
                 </div>
                 <div class="task-meta mb-2">
                     <span><i class="fa-regular fa-calendar-check me-1"></i>{{ t.deadline.strftime('%d/%m') if t.deadline else 'Chưa hạn' }}</span>
                     <span><i class="fa-solid fa-layer-group me-1"></i>{{ t.domain or 'Chung' }}</span>
                 </div>
-                <div class="small text-muted ms-2 mb-2 text-truncate">{{ t.content or '' }}</div>
-                <div class="d-flex flex-wrap gap-2 ms-2">
+                <div class="small text-muted ms-2 mb-2" style="line-height: 1.4;">{{ t.content[:80] if t.content else '' }}{{ '...' if t.content and t.content|length > 80 else '' }}</div>
+                <div class="d-flex flex-wrap gap-2 ms-2 align-items-center">
                     {% if t.task_type %}
-                    <span class="badge bg-light text-dark border">{{ t.task_type }}</span>
+                    <span class="badge bg-light text-dark border tiny">{{ t.task_type }}</span>
                     {% endif %}
                     {% if t.priority %}
-                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">{{ t.priority }}</span>
+                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger tiny">{{ t.priority }}</span>
                     {% endif %}
-                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">{{ display_status }}</span>
+                    {% if display_status == 'Hoàn thành' %}
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success tiny">
+                        <i class="fa-solid fa-circle-check me-1"></i>{{ display_status }}
+                    </span>
+                    {% elif display_status == 'Đang thực hiện' %}
+                    <span class="badge bg-info bg-opacity-10 text-info border border-info tiny">
+                        <i class="fa-solid fa-spinner fa-spin me-1"></i>{{ display_status }}
+                    </span>
+                    {% elif display_status == 'Chưa tiếp nhận' %}
+                    <span class="badge bg-warning bg-opacity-10 text-warning border border-warning tiny">
+                        <i class="fa-solid fa-clock me-1"></i>{{ display_status }}
+                    </span>
+                    {% else %}
+                    <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary tiny">{{ display_status }}</span>
+                    {% endif %}
+                    
+                    {% if user_assign and (user_assign.status == 'Chưa tiếp nhận' or user_assign.status == 'Chưa bắt đầu') %}
+                    <form action="{{ url_for('tasks_bp.update_task_status', tid=t.id) }}" method="POST" class="d-inline m-0">
+                        <input type="hidden" name="action" value="accept">
+                        <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 py-1" style="font-size: 11px;">
+                            <i class="fa-solid fa-hand-point-right me-1"></i>Tiếp nhận
+                        </button>
+                    </form>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
