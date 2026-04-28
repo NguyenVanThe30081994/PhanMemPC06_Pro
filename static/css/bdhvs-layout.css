@@ -526,6 +526,24 @@
     margin-top: 16px;
 }
 
+.pc06-hero-inline-band {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 14px;
+    margin-top: 16px;
+}
+
+.pc06-hero-inline-band .pc06-action-cluster {
+    margin-top: 0;
+    flex: 0 0 auto;
+}
+
+.pc06-hero-toolbar-inline {
+    flex: 1 1 720px;
+    padding: 14px 16px;
+}
+
 .pc06-stat-strip {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1453,6 +1471,16 @@ a.pc06-chip {
 
     .pc06-search-control {
         min-width: 100%;
+    }
+
+    .pc06-hero-inline-band {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .pc06-hero-toolbar-inline {
+        width: 100%;
+        flex-basis: auto;
     }
 
     .pc06-filter-grid {
