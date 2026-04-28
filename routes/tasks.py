@@ -104,7 +104,7 @@ def tasks():
             author_name=session.get('fullname', 'Admin'),
             priority=request.form.get('priority', 'Trung bình'),
             task_type=request.form.get('task_type') or 'Công việc thường xuyên',
-            initial_status=request.form.get('initial_status') or 'Chưa bắt đầu'
+            initial_status='Chưa tiếp nhận'
         )
         db.session.add(new_task)
         db.session.commit()
@@ -120,7 +120,7 @@ def tasks():
             # Giao cho tất cả user có role này và đang hoạt động
             role_users = User.query.filter_by(role_id=int(assignee_role_id), is_active=True).all()
             for u in role_users:
-                db.session.add(TaskAssignment(task_id=new_task.id, user_id=u.id, status=new_task.initial_status))
+                db.session.add(TaskAssignment(task_id=new_task.id, user_id=u.id, status='Chưa tiếp nhận'))
                 push_notif(u.id, "Công việc mới", f"Bạn vừa được giao: {new_task.title}", f"/tasks/{new_task.id}")
         else:
             # Giao cho cá nhân (từ assignee_id hoặc target_users)
@@ -129,7 +129,7 @@ def tasks():
             
             for aid in assign_ids:
                 if aid:
-                    db.session.add(TaskAssignment(task_id=new_task.id, user_id=int(aid), status=new_task.initial_status))
+                    db.session.add(TaskAssignment(task_id=new_task.id, user_id=int(aid), status='Chưa tiếp nhận'))
                     push_notif(int(aid), "Công việc mới", f"Bạn vừa được giao: {new_task.title}", f"/tasks/{new_task.id}")
         
         db.session.commit()
@@ -156,7 +156,7 @@ def tasks():
     overdue_count = 0
     completed_count = 0
     for t in all_tasks:
-        display_status = t.assignments[0].status if t.assignments else (t.initial_status or 'Chưa bắt đầu')
+        display_status = t.assignments[0].status if t.assignments else (t.initial_status or 'Chưa tiếp nhận')
         is_overdue = bool(t.deadline and t.deadline < now_dt.date() and display_status != 'Hoàn thành')
         setattr(t, 'display_status', display_status)
         setattr(t, 'is_overdue', is_overdue)
@@ -194,8 +194,21 @@ def task_detail(tid):
     task = db.session.get(Task, tid)
     if not task: return "Not Found", 404
     
+    role = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
+    perms = json.loads(role.perms) if role and role.perms else {}
+    is_lead = perms.get('p_task_lead') or session.get('is_admin')
+
     comments = TaskComment.query.filter_by(task_id=tid).order_by(TaskComment.created_at.desc()).all()
     assigns = db.session.query(TaskAssignment, User).join(User, TaskAssignment.user_id == User.id).filter(TaskAssignment.task_id == tid).all()
+    
+    # Calculate progress percent based on logic
+    display_status = task.initial_status
+    if assigns:
+        all_completed = all(a.status == 'Hoàn thành' for a, u in assigns)
+        if all_completed:
+            display_status = 'Hoàn thành'
+    
+    progress_percent = 100 if display_status == 'Hoàn thành' else 0
     
     if request.method == 'POST':
         content = request.form.get('content')
@@ -205,4 +218,53 @@ def task_detail(tid):
             flash('Đã gửi phản hồi!', 'success')
             return redirect(url_for('tasks_bp.task_detail', tid=tid))
             
-    return render_template('task_detail.html', task=task, comments=comments, assigns=assigns, now_dt=datetime.now())
+    return render_template('task_detail.html', task=task, comments=comments, assigns=assigns, now_dt=datetime.now(), is_lead=is_lead, progress_percent=progress_percent)
+
+@tasks_bp.route('/tasks/<int:tid>/update_status', methods=['POST'])
+def update_task_status(tid):
+    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
+    
+    action = request.form.get('action')
+    assign = TaskAssignment.query.filter_by(task_id=tid, user_id=session['uid']).first()
+    
+    if assign and action == 'accept':
+        assign.status = 'Đang thực hiện'
+        db.session.commit()
+        flash('Đã tiếp nhận công việc!', 'success')
+        
+    return redirect(url_for('tasks_bp.task_detail', tid=tid))
+
+@tasks_bp.route('/tasks/<int:tid>/submit_report', methods=['POST'])
+def submit_task_report(tid):
+    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
+    
+    report_content = request.form.get('report_content')
+    mark_completed = request.form.get('mark_completed')
+    f = request.files.get('report_file')
+    
+    assign = TaskAssignment.query.filter_by(task_id=tid, user_id=session['uid']).first()
+    if not assign:
+        flash('Bạn không được giao công việc này.', 'danger')
+        return redirect(url_for('tasks_bp.task_detail', tid=tid))
+        
+    fn = ""
+    if f and f.filename:
+        fn = secure_filename(f.filename)
+        f.save(os.path.join(current_app.root_path, 'task_files', fn))
+        
+    if report_content:
+        # Create a comment as a report
+        msg = f"[BÁO CÁO] {report_content}"
+        if fn:
+            msg += f" (Đính kèm: {fn})"
+            
+        db.session.add(TaskComment(task_id=tid, user_id=session['uid'], user_name=session['fullname'], content=msg))
+        
+    if mark_completed == '1':
+        assign.status = 'Hoàn thành'
+        if fn:
+            assign.result_file = fn
+            
+    db.session.commit()
+    flash('Đã gửi báo cáo thành công!', 'success')
+    return redirect(url_for('tasks_bp.task_detail', tid=tid))

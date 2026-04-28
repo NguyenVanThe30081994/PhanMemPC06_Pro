@@ -65,7 +65,7 @@
                         </thead>
                         <tbody>
                             {% for t in tasks %}
-                            <tr class="task-row" data-unit="{{ t.domain or t.unit_name }}" data-status="{{ t.display_status or (t.assignments[0].status if t.assignments else (t.initial_status or 'Chưa bắt đầu')) }}">
+                            <tr class="task-row" data-unit="{{ t.domain or t.unit_name }}" data-status="{{ t.display_status or (t.assignments[0].status if t.assignments else (t.initial_status or 'Chưa tiếp nhận')) }}">
                                 <td class="ps-4 py-3" data-label="Tên công việc">
                                     <div class="fw-bold text-dark">{{ t.title }}</div>
                                     <div class="tiny text-muted text-truncate mt-1" style="max-width: 300px;">{{ t.content or t.description }}</div>
@@ -87,7 +87,7 @@
                                     </div>
                                 </td>
                                 <td data-label="Trạng thái">
-                                    {% set display_status = t.display_status or (t.assignments[0].status if t.assignments else (t.initial_status or 'Chưa bắt đầu')) %}
+                                    {% set display_status = t.display_status or (t.assignments[0].status if t.assignments else (t.initial_status or 'Chưa tiếp nhận')) %}
                                     {% if display_status == 'Hoàn thành' %}
                                     <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill tiny fw-bold"><i class="fa-solid fa-circle-check me-1"></i>HOÀN THÀNH</span>
                                     {% elif display_status == 'Đang thực hiện' %}
