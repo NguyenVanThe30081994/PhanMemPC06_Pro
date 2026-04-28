@@ -35,62 +35,62 @@ SUGGESTED_TOPICS = [
 ]
 
 WELCOME_MESSAGE = (
-    "Xin chào! Tôi là trợ lý AI của PC06 Tuyên Quang.\n\n"
-    "- Tôi hỗ trợ hỏi đáp về thủ tục hành chính, giấy tờ thường gặp và thông tin đời sống cơ bản.\n"
-    "- Nếu thủ tục có thể thay đổi theo thời điểm, tôi sẽ nhắc bạn kiểm tra lại với cơ quan tiếp nhận hoặc cổng dịch vụ công.\n"
-    "- Bạn có thể hỏi ngắn gọn như đang nhắn tin bình thường."
+    "Trung tâm hỗ trợ thủ tục PC06.\n\n"
+    "- Phạm vi tra cứu: thủ tục hành chính, giấy tờ thường gặp, nơi tiếp nhận và thời gian làm việc.\n"
+    "- Kết quả có giá trị tham khảo; nội dung thay đổi theo thời điểm cần đối chiếu nguồn chính thức.\n"
+    "- Nhập ngắn gọn nội dung cần tra cứu."
 )
 
-AI_SYSTEM_PROMPT = """Bạn là trợ lý AI của PC06 Tuyên Quang.
+AI_SYSTEM_PROMPT = """Bạn là mô-đun hỗ trợ tra cứu của PC06 Tuyên Quang.
 
 Mục tiêu:
-- Trả lời bằng tiếng Việt tự nhiên, dễ hiểu, thân thiện với người Việt.
-- Hỗ trợ hỏi đáp về thủ tục hành chính, dịch vụ công, thông tin đời sống, nơi liên hệ, giấy tờ thường gặp.
+- Trả lời bằng tiếng Việt rõ ràng, ngắn gọn, trung tính.
+- Hỗ trợ tra cứu về thủ tục hành chính, dịch vụ công, nơi liên hệ, giấy tờ thường gặp và thông tin công vụ cơ bản.
 - Ưu tiên câu trả lời ngắn gọn, đúng trọng tâm, có cấu trúc rõ ràng.
 
 Nguyên tắc trả lời:
-- Nếu biết tương đối chắc, hãy trả lời theo cấu trúc: Việc cần biết / Hồ sơ thường gặp / Nơi liên hệ hoặc lưu ý.
-- Nếu thủ tục có thể thay đổi theo thời điểm hoặc địa phương, phải nói rõ đây là thông tin tham khảo và khuyên người dùng kiểm tra thêm tại cổng dịch vụ công hoặc cơ quan tiếp nhận.
+- Nếu có đủ dữ liệu, trả lời theo cấu trúc: Nội dung chính / Hồ sơ thường gặp / Nơi tiếp nhận hoặc lưu ý.
+- Nếu thủ tục có thể thay đổi theo thời điểm hoặc địa phương, phải ghi rõ đây là thông tin tham khảo và yêu cầu đối chiếu tại cổng dịch vụ công hoặc cơ quan tiếp nhận.
 - Không tự bịa đặt mức phí, thời hạn, căn cứ pháp lý hoặc địa chỉ cụ thể nếu không chắc chắn.
-- Khi câu hỏi mơ hồ, hãy trả lời theo hướng thực tế nhất cho người dân.
-- Không dùng giọng quá máy móc. Tránh dài dòng.
+- Khi câu hỏi mơ hồ, yêu cầu người dùng bổ sung thông tin còn thiếu.
+- Không dùng giọng hội thoại xã giao. Không dài dòng.
 """
 
 TTHC_KNOWLEDGE = {
     "căn cước công dân": {
-        "answer": "Với căn cước công dân, bạn thường cần giấy tờ tùy thân đang có và thông tin cư trú để đối chiếu. Hồ sơ thực tế có thể thay đổi theo từng trường hợp như cấp mới, cấp đổi hoặc cấp lại. Bạn nên mang theo giấy tờ cá nhân hiện có và kiểm tra trước tại cơ quan công an hoặc cổng dịch vụ công.",
+        "answer": "Hồ sơ căn cước công dân thường gồm giấy tờ tùy thân hiện có và thông tin cư trú để đối chiếu. Thành phần hồ sơ có thể thay đổi theo từng trường hợp như cấp mới, cấp đổi hoặc cấp lại. Cần đối chiếu trước tại cơ quan công an hoặc cổng dịch vụ công.",
         "keywords": ["cccd", "căn cước", "thẻ căn cước", "làm căn cước"]
     },
     "đăng ký thường trú": {
-        "answer": "Hồ sơ đăng ký thường trú thường gồm tờ khai cư trú và giấy tờ chứng minh chỗ ở hợp pháp. Tùy trường hợp, cơ quan tiếp nhận có thể yêu cầu thêm giấy tờ nhân thân hoặc giấy tờ liên quan đến chủ hộ/chủ sở hữu chỗ ở. Bạn nên kiểm tra trước tại công an địa phương hoặc cổng dịch vụ công để tránh thiếu hồ sơ.",
+        "answer": "Hồ sơ đăng ký thường trú thường gồm tờ khai cư trú và giấy tờ chứng minh chỗ ở hợp pháp. Tùy trường hợp, cơ quan tiếp nhận có thể yêu cầu thêm giấy tờ nhân thân hoặc giấy tờ liên quan đến chủ hộ, chủ sở hữu chỗ ở. Cần đối chiếu trước tại công an địa phương hoặc cổng dịch vụ công.",
         "keywords": ["thường trú", "đăng ký thường trú", "hộ khẩu", "cư trú"]
     },
     "đăng ký tạm trú": {
-        "answer": "Đăng ký tạm trú thường cần thông tin cá nhân, giấy tờ tùy thân và giấy tờ chứng minh nơi ở hợp pháp như hợp đồng thuê, xác nhận của chủ nhà hoặc giấy tờ tương đương. Bạn nên chuẩn bị bản gốc hoặc bản chụp rõ ràng để đối chiếu khi cần.",
+        "answer": "Đăng ký tạm trú thường cần thông tin cá nhân, giấy tờ tùy thân và giấy tờ chứng minh nơi ở hợp pháp như hợp đồng thuê, xác nhận của chủ nhà hoặc giấy tờ tương đương. Cần chuẩn bị bản gốc hoặc bản chụp rõ ràng để đối chiếu khi cần.",
         "keywords": ["tạm trú", "đăng ký tạm trú", "khai báo tạm trú", "tạm vắng"]
     },
     "lý lịch tư pháp": {
-        "answer": "Với phiếu lý lịch tư pháp, bạn thường cần tờ khai theo mẫu và giấy tờ tùy thân hợp lệ. Tùy nơi nộp hồ sơ, bạn có thể được hướng dẫn nộp trực tiếp hoặc trực tuyến. Nếu cần gấp, nên hỏi trước cơ quan tiếp nhận về thời gian xử lý thực tế.",
+        "answer": "Hồ sơ phiếu lý lịch tư pháp thường gồm tờ khai theo mẫu và giấy tờ tùy thân hợp lệ. Tùy nơi tiếp nhận, hồ sơ có thể nộp trực tiếp hoặc trực tuyến. Trường hợp cần gấp phải xác nhận trước thời gian xử lý thực tế với cơ quan tiếp nhận.",
         "keywords": ["lý lịch tư pháp", "phiếu lý lịch", "lý lịch"]
     },
     "hộ chiếu": {
-        "answer": "Hồ sơ cấp hộ chiếu phổ thông thường xoay quanh giấy tờ tùy thân và tờ khai theo mẫu. Với một số trường hợp đặc biệt như trẻ em hoặc cấp lại, cơ quan tiếp nhận có thể yêu cầu thêm giấy tờ liên quan. Bạn nên kiểm tra nơi nộp gần nhất và lịch tiếp nhận trước khi đi.",
+        "answer": "Hồ sơ cấp hộ chiếu phổ thông thường gồm giấy tờ tùy thân và tờ khai theo mẫu. Với một số trường hợp đặc biệt như trẻ em hoặc cấp lại, cơ quan tiếp nhận có thể yêu cầu thêm giấy tờ liên quan. Cần kiểm tra trước nơi nộp và lịch tiếp nhận.",
         "keywords": ["hộ chiếu", "passport", "xuất nhập cảnh"]
     },
     "bhyt hộ gia đình": {
-        "answer": "Khi tham gia BHYT hộ gia đình, bạn thường cần thông tin nhân khẩu trong hộ và giấy tờ nhân thân của người tham gia. Mức đóng và cách kê khai có thể thay đổi theo quy định hiện hành, nên nên xác nhận lại với cơ quan BHXH hoặc đại lý thu gần nhất.",
+        "answer": "Hồ sơ tham gia BHYT hộ gia đình thường cần thông tin nhân khẩu trong hộ và giấy tờ nhân thân của người tham gia. Mức đóng và cách kê khai có thể thay đổi theo quy định hiện hành; cần xác nhận lại với cơ quan BHXH hoặc đại lý thu.",
         "keywords": ["bhyt", "bảo hiểm y tế", "bảo hiểm hộ gia đình", "bhxh"]
     },
     "giờ làm việc": {
-        "answer": "Giờ làm việc của cơ quan nhà nước thường theo giờ hành chính từ thứ hai đến thứ sáu, nhưng lịch tiếp nhận hồ sơ thực tế có thể khác theo từng đơn vị. Bạn nên gọi điện hoặc xem thông báo chính thức của cơ quan trước khi đến.",
+        "answer": "Giờ làm việc của cơ quan nhà nước thường theo giờ hành chính từ thứ hai đến thứ sáu, nhưng lịch tiếp nhận hồ sơ có thể khác theo từng đơn vị. Cần đối chiếu trước thông báo chính thức của cơ quan.",
         "keywords": ["giờ làm việc", "mấy giờ làm việc", "thời gian làm việc"]
     },
 }
 
 CANNED_RESPONSES = {
-    "xin chào": "Xin chào! Tôi có thể hỗ trợ bạn về thủ tục hành chính, giấy tờ thường gặp và một số câu hỏi đời sống cơ bản. Bạn đang cần hỏi vấn đề gì?",
-    "cảm ơn": "Rất vui được hỗ trợ bạn. Nếu cần, bạn cứ hỏi tiếp theo cách tự nhiên nhất nhé.",
-    "help": "Bạn có thể hỏi về căn cước công dân, cư trú, hộ chiếu, lý lịch tư pháp, BHYT, giờ làm việc, nơi liên hệ hoặc các câu hỏi đời sống dân sinh thường gặp.",
+    "xin chào": "Trung tâm hỗ trợ thủ tục sẵn sàng tiếp nhận yêu cầu tra cứu. Nhập nội dung cần xử lý.",
+    "cảm ơn": "Đã ghi nhận. Có thể tiếp tục nhập nội dung cần tra cứu.",
+    "help": "Có thể tra cứu căn cước công dân, cư trú, hộ chiếu, lý lịch tư pháp, BHYT, thời gian làm việc, nơi tiếp nhận hồ sơ và thông tin dân sinh cơ bản.",
 }
 
 LEGAL_REFERENCE_KEYWORDS = [
@@ -386,11 +386,10 @@ def _build_official_legal_answer(query, doc):
 
 def _build_legal_reference_safety_answer(query):
     return (
-        f"Tôi chưa được nối với nguồn tra cứu văn bản pháp luật chính thức, nên hiện không thể xác minh chính xác câu hỏi "
-        f"\"{query.strip()}\" có văn bản tương ứng hay không.\n\n"
-        f"Để tránh trả lời sai, tôi không nên khẳng định văn bản đó tồn tại, không tồn tại hoặc đã có hiệu lực khi chưa tra cứu nguồn chính thức.\n\n"
-        f"Bạn nên kiểm tra tại các nguồn chính thức như Cơ sở dữ liệu quốc gia về văn bản pháp luật, Cổng Thông tin điện tử Chính phủ hoặc Bộ Tư pháp. "
-        f"Nếu bạn muốn, ở bước tiếp theo tôi sẽ bổ sung chức năng tra cứu nguồn chính thức trước khi AI trả lời các câu hỏi kiểu này."
+        f"Chưa có kết quả xác minh từ nguồn tra cứu văn bản pháp luật chính thức đối với yêu cầu "
+        f"\"{query.strip()}\".\n\n"
+        f"Hệ thống không kết luận văn bản có tồn tại, không tồn tại hoặc đã có hiệu lực khi chưa tra cứu nguồn chính thức.\n\n"
+        f"Đề nghị đối chiếu tại Cơ sở dữ liệu quốc gia về văn bản pháp luật, Cổng Thông tin điện tử Chính phủ hoặc Bộ Tư pháp."
     )
 
 
@@ -528,9 +527,9 @@ def _build_provider_failure_message(provider_error):
     model_name = (provider_error or {}).get('model', '')
     error_text = (provider_error or {}).get('error', 'Không rõ nguyên nhân')
     pieces = [
-        f"Đã cấu hình {provider} nhưng hiện chưa gọi được model {model_name}.",
+        f"Dịch vụ {provider} hiện không phản hồi với mô hình {model_name}.",
         f"Chi tiết: {error_text}.",
-        "Bạn kiểm tra lại API key, số dư/quota và khả năng kết nối outbound từ host tới API."
+        "Kiểm tra lại API key, quota và kết nối outbound từ máy chủ tới API."
     ]
     return ' '.join(pieces)
 
@@ -804,7 +803,7 @@ def index():
 
     return render_template(
         'ai_assistant.html',
-        title='Trợ lý AI',
+        title='Hỗ trợ thủ tục',
         news=news,
         suggested_topics=SUGGESTED_TOPICS,
         assistant_runtime=runtime,
@@ -865,7 +864,7 @@ def chat():
         if runtime['configured'] and provider_errors:
             answer = (
                 f"{answer}\n\n"
-                f"Lưu ý: hiện engine AI ngoài đang lỗi, nên đây là câu trả lời mẫu nội bộ. "
+                f"Lưu ý: dịch vụ AI ngoài đang lỗi, hệ thống đang dùng câu trả lời mẫu nội bộ. "
                 f"{_build_provider_failure_message(provider_errors[0])}"
             )
         return jsonify({
@@ -885,8 +884,8 @@ def chat():
     return jsonify({
         'success': False,
         'answer': (
-            "Tôi chưa có câu trả lời đủ chắc cho nội dung này. "
-            "Bạn có thể hỏi lại cụ thể hơn về thủ tục, giấy tờ, nơi nộp hồ sơ hoặc tình huống thực tế của bạn."
+            "Chưa đủ dữ liệu để kết luận nội dung này. "
+            "Bổ sung rõ thủ tục, giấy tờ, nơi nộp hồ sơ hoặc tình huống thực tế để tiếp tục tra cứu."
         ),
         'type': 'no_match',
         'suggestions': suggestions

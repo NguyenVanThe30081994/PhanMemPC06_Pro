@@ -1,140 +1,162 @@
 {% extends "base.html" %}
 
+{% block title %}QR và liên kết rút gọn{% endblock %}
+
 {% block content %}
-<div class="page-header mb-4 animate__animated animate__fadeIn">
-    <div class="header-main-group">
-        <div class="header-title-pill shadow-sm glass-card">
-            <i class="fa-solid fa-link"></i>
-            <h1 class="mb-0">QR Code & Link Rút gọn</h1>
-        </div>
-
-        <div class="header-actions">
-            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addLinkModal">
-                <i class="fa-solid fa-plus me-2"></i>Tạo Link Mới
-            </button>
-        </div>
-    </div>
-</div>
-
-<div class="main-content-area animate__animated animate__fadeInUp">
-    <div class="card glass-card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-        <div class="glass-header">
-            <i class="fa-solid fa-link-slash me-2"></i>Danh sách liên kết rút gọn
-        </div>
-                <div class="table-responsive">
-                    <table class="table table-custom table-hover align-middle mb-0">
-                        <thead class="pill-thead">
-                            <tr>
-                                <th class="ps-4">Liên kết gốc</th>
-                                <th>Liên kết rút gọn</th>
-                                <th>Thông tin</th>
-                                <th class="text-center">Click</th>
-                                <th class="text-center">QR Code</th>
-                                <th class="text-center">Ngày tạo</th>
-                                <th class="pe-4 text-end">Thao tác</th>
-                            </tr>
-                        </thead>
-                    <tbody>
-                        {% for link in links %}
-                        {% set short_url = request.host_url.rstrip('/') ~ '/s/' ~ link.short_code %}
-                        <tr>
-                            <td class="px-4 py-2 text-center">
-                                <div class="text-muted text-truncate mx-auto" style="max-width: 250px;" title="{{ link.original_url }}">
-                                    {{ link.original_url }}
-                                </div>
-                            </td>
-                            <td class="px-3 py-2 text-center">
-                                <div class="d-flex align-items-center justify-content-center gap-2">
-                                    <a href="{{ short_url }}" target="_blank" class="fw-bold text-primary small text-decoration-none">
-                                        {{ short_url }}
-                                    </a>
-                                    <button class="btn btn-link p-0 text-muted transition-all" onclick="copyToClipboard('{{ short_url }}')" title="Sao chép">
-                                        <i class="fa-regular fa-copy"></i>
-                                    </button>
-                                </div>
-                            </td>
-                            <td class="px-4 py-2 text-center">
-                                <div class="text-muted small">{{ link.info or link.custom_name or "Không có thông tin" }}</div>
-                            </td>
-                            <td class="px-3 py-2 text-center fw-bold text-success">
-                                {{ link.clicks }}
-                            </td>
-                            <td class="px-3 py-2 text-center">
-                                <a href="{{ url_for('shortlink_bp.get_qr', code=link.short_code) }}" class="btn btn-outline-dark rounded-pill px-3 fw-bold tiny py-1">
-                                    <i class="fa-solid fa-qrcode me-1"></i>Tải QR
-                                </a>
-                            </td>
-                            <td class="px-3 py-2 small text-muted text-center">
-                                {{ link.created_at.strftime('%d/%m/%Y') }}
-                            </td>
-                            <td class="px-4 py-2 text-center">
-                                {% if is_admin or link.created_by == session.uid %}
-                                <form method="POST" action="{{ url_for('shortlink_bp.delete_link', link_id=link.id) }}" class="d-inline m-0" onsubmit="return confirm('Bạn có chắc chắn muốn xoá link rút gọn này không?')">
-                                    <button type="submit" class="btn btn-link p-0 text-danger transition-all" title="Xoá">
-                                        <i class="fa-solid fa-trash-can"></i>
-                                    </button>
-                                </form>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="7" class="text-center py-5 border-0">
-                                <div class="bg-light rounded-circle p-4 d-inline-block mb-3">
-                                    <i class="fa-solid fa-link-slash fa-3x text-muted opacity-50"></i>
-                                </div>
-                                <h6 class="fw-bold text-dark">Chưa có link rút gọn nào</h6>
-                                <p class="text-muted small mb-0">Bấm nút "Tạo Link Mới" để bắt đầu.</p>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+<div class="pc06-page-shell">
+    <section class="pc06-hero-card">
+        <div class="pc06-hero-grid">
+            <div>
+                <div class="pc06-page-kicker">
+                    <i class="fa-solid fa-qrcode"></i>
+                    QR và liên kết rút gọn
+                </div>
+                <h1 class="pc06-page-title">Quản lý đường dẫn và mã QR</h1>
+                <p class="pc06-page-lead">
+                    Quản lý liên kết nội bộ, mã QR và thống kê truy cập trên cùng một giao diện điều hành.
+                </p>
+                <div class="pc06-action-cluster">
+                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLinkModal">
+                        <i class="fa-solid fa-plus"></i>
+                        Tạo liên kết
+                    </button>
+                </div>
+            </div>
+            <div class="pc06-stat-strip">
+                <div class="pc06-metric-card">
+                    <span>Tổng liên kết</span>
+                    <strong>{{ links|length }}</strong>
+                </div>
+                <div class="pc06-metric-card">
+                    <span>Tổng lượt mở</span>
+                    <strong>{{ links|sum(attribute='clicks') }}</strong>
+                </div>
+                <div class="pc06-metric-card">
+                    <span>Phạm vi</span>
+                    <strong style="font-size:1rem;">{{ 'Toàn hệ thống' if is_admin else 'Cá nhân' }}</strong>
+                </div>
             </div>
         </div>
-    </div>
+    </section>
+
+    <section class="pc06-panel">
+        <div class="pc06-panel-head">
+            <div>
+                <h2>Danh sách liên kết</h2>
+                <p>Theo dõi đường dẫn gốc, mã rút gọn, mã QR và lượt truy cập.</p>
+            </div>
+            <span class="pc06-status-badge neutral">{{ links|length }} liên kết</span>
+        </div>
+
+        {% if links %}
+        <div class="shortlink-table-wrap table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="pill-thead">
+                    <tr>
+                        <th class="ps-4">Tên / Ghi chú</th>
+                        <th>Đường dẫn gốc</th>
+                        <th>Liên kết rút gọn</th>
+                        <th class="text-center">Lượt mở</th>
+                        <th class="text-center">QR</th>
+                        <th class="text-center">Ngày tạo</th>
+                        <th class="pe-4 text-end">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for link in links %}
+                    {% set short_url = request.host_url.rstrip('/') ~ '/s/' ~ link.short_code %}
+                    <tr>
+                        <td class="ps-4 py-3">
+                            <div class="fw-bold text-dark">{{ link.custom_name or 'Liên kết rút gọn' }}</div>
+                            <div class="small text-muted mt-1">{{ link.info or 'Không có ghi chú' }}</div>
+                        </td>
+                        <td class="py-3">
+                            <div class="text-muted text-truncate" style="max-width: 280px;" title="{{ link.original_url }}">
+                                {{ link.original_url }}
+                            </div>
+                        </td>
+                        <td class="py-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <a href="{{ short_url }}" target="_blank" class="fw-bold text-primary text-decoration-none text-break">
+                                    {{ short_url }}
+                                </a>
+                                <button type="button" class="btn btn-light btn-circle btn-circle-sm border shadow-sm" onclick="copyToClipboard({{ short_url|tojson }})" title="Sao chép">
+                                    <i class="fa-regular fa-copy tiny"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td class="text-center fw-bold text-success">{{ link.clicks }}</td>
+                        <td class="text-center">
+                            <a href="{{ url_for('shortlink_bp.get_qr', code=link.short_code) }}" class="btn btn-bdhvs light">
+                                <i class="fa-solid fa-download"></i>
+                                Tải QR
+                            </a>
+                        </td>
+                        <td class="text-center text-muted small">{{ link.created_at.strftime('%d/%m/%Y') }}</td>
+                        <td class="pe-4 text-end">
+                            {% if is_admin or link.created_by == session.uid %}
+                            <form method="POST" action="{{ url_for('shortlink_bp.delete_link', link_id=link.id) }}" class="d-inline m-0" onsubmit="return confirm('Xóa liên kết này?')">
+                                <button type="submit" class="btn btn-light btn-circle btn-circle-sm border shadow-sm text-danger" title="Xóa">
+                                    <i class="fa-solid fa-trash-can tiny"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="pc06-empty-state">
+            <div class="pc06-empty-icon"><i class="fa-solid fa-link-slash"></i></div>
+            <h3>Chưa phát sinh liên kết</h3>
+            <p>Danh mục liên kết rút gọn hiện chưa có dữ liệu.</p>
+        </div>
+        {% endif %}
+    </section>
 </div>
 
-<!-- Add Link Modal -->
 <div class="modal fade" id="addLinkModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0">
+        <div class="modal-content border-0 pc06-modal-shell">
             <form method="POST" action="{{ url_for('shortlink_bp.add_link') }}">
-                <div class="modal-header modal-header-pill primary">
-                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-wand-magic-sparkles me-2"></i>Tạo Link Rút Gọn</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="modal-header border-0 pc06-modal-head">
+                    <div>
+                        <div class="pc06-page-kicker mb-2"><i class="fa-solid fa-link"></i>Thiết lập liên kết</div>
+                        <h5 class="modal-title fw-bold mb-1">Tạo liên kết rút gọn</h5>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-
-                <div class="modal-body p-4 bg-light">
-                    <div class="mb-4">
-                        <label class="form-label fw-bold text-dark small"><i class="fa-solid fa-globe me-2 text-primary"></i>LIÊN KẾT GỐC (URL)*</label>
-                        <input type="url" name="original_url" class="form-control form-control-lg border-light shadow-sm py-3" style="font-size: 1rem;" placeholder="https://example.com/very/long/path..." required>
+                <div class="modal-body p-4">
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Đường dẫn gốc</label>
+                        <input type="url" name="original_url" class="form-control" placeholder="https://example.com/..." required>
                     </div>
-                    
-                    <div class="row g-3 mb-4">
+                    <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label fw-bold text-dark small">TÊN GỢI NHỚ</label>
-                            <input type="text" name="custom_name" class="form-control py-2 border-light shadow-sm" placeholder="VD: Link khảo sát đội 1">
+                            <label class="form-label fw-bold">Tên hiển thị</label>
+                            <input type="text" name="custom_name" class="form-control" placeholder="Ví dụ: Khảo sát Đội 1">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-bold text-dark small">GHI CHÚ</label>
-                            <input type="text" name="info" class="form-control py-2 border-light shadow-sm" placeholder="Nhập ghi chú...">
+                            <label class="form-label fw-bold">Ghi chú</label>
+                            <input type="text" name="info" class="form-control" placeholder="Thông tin bổ sung">
                         </div>
                     </div>
-
-                    <div class="mb-0">
-                        <label class="form-label fw-bold text-dark small"><i class="fa-solid fa-pen-to-square me-2 text-success"></i>TÙY CHỈNH ĐUÔI LINK (KHÔNG BẮT BUỘC)</label>
-                        <div class="input-group shadow-sm">
-                            <span class="input-group-text bg-white text-muted border-light fw-bold small">{{ request.host_url.rstrip('/') }}/s/</span>
-                            <input type="text" name="custom_code" class="form-control border-light shadow-none fw-bold text-primary" placeholder="vidu123" pattern="[a-zA-Z0-9_-]+" title="Chỉ chứa chữ cái, số, gạch ngang, gạch dưới">
+                    <div class="pc06-form-section mb-0 mt-3">
+                        <label class="form-label fw-bold">Mã rút gọn</label>
+                        <div class="input-group">
+                            <span class="input-group-text">{{ request.host_url.rstrip('/') }}/s/</span>
+                            <input type="text" name="custom_code" class="form-control" placeholder="ma-noi-bo" pattern="[a-zA-Z0-9_-]+" title="Chỉ chứa chữ cái, số, gạch ngang hoặc gạch dưới">
                         </div>
-                        <div class="form-text mt-2 tiny text-muted">Bỏ trống để hệ thống tự sinh mã ngẫu nhiên.</div>
+                        <div class="form-text">Để trống nếu sử dụng mã tự sinh.</div>
                     </div>
                 </div>
-                <div class="modal-footer bg-white border-0 p-3">
-                    <button type="button" class="btn btn-light rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
-                        <i class="fa-solid fa-bolt me-2"></i>Tạo Ngay
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-bdhvs primary">
+                        <i class="fa-solid fa-bolt"></i>
+                        Tạo liên kết
                     </button>
                 </div>
             </form>
@@ -143,31 +165,33 @@
 </div>
 
 <style>
-    .tiny { font-size: 11px; }
-    .tiny { font-size: 11px; }
+    .shortlink-table-wrap .table td,
+    .shortlink-table-wrap .table th {
+        vertical-align: middle;
+    }
 </style>
 <script>
     function copyToClipboard(text) {
         navigator.clipboard.writeText(text).then(function() {
             Swal.fire({
                 icon: 'success',
-                title: 'Đã sao chép!',
+                title: 'Đã sao chép',
                 text: text,
                 toast: true,
                 position: 'top-end',
                 showConfirmButton: false,
-                timer: 2000,
+                timer: 1800,
                 timerProgressBar: true
             });
         }, function(err) {
             Swal.fire({
                 icon: 'error',
-                title: 'Lỗi sao chép',
-                text: err,
+                title: 'Không sao chép được',
+                text: String(err),
                 toast: true,
                 position: 'top-end',
                 showConfirmButton: false,
-                timer: 3000
+                timer: 2600
             });
         });
     }

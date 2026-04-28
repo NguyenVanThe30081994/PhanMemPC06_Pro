@@ -652,7 +652,7 @@
                 <a href="{{ url_for('shortlink_bp.manage_links') }}" class="nav-link-top {% if request.path.startswith('/links') %}active{% endif %}">QR & Link</a>
 
                 <a href="/ai" class="nav-link-top {% if request.path.startswith('/ai') %}active{% endif %}">
-                    <i class="fa-solid fa-robot me-1"></i>Trợ lý AI
+                    <i class="fa-solid fa-robot me-1"></i>Hỗ trợ thủ tục
                 </a>
 
                 {% if perms.get('p_user_lead') or perms.get('p_sys_lead') %}
@@ -672,7 +672,7 @@
                         <li>
                             <hr class="dropdown-divider opacity-10 mx-2">
                         </li>
-                        <li><a class="dropdown-item py-2 rounded-3" href="/admin/ai-settings"> Cấu hình AI</a></li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="/admin/ai-settings"> Cấu hình dịch vụ AI</a></li>
                         <li>
                             <hr class="dropdown-divider opacity-10 mx-2">
                         </li>
@@ -893,7 +893,7 @@
                     {% endif %}
                     {% if perms.get('p_sys_lead') %}
                     <a href="/admin/module-categories" class="list-group-item py-2 ps-5">Thiết lập danh mục</a>
-                    <a href="/admin/ai-settings" class="list-group-item py-2 ps-5">Cấu hình AI</a>
+                    <a href="/admin/ai-settings" class="list-group-item py-2 ps-5">Cấu hình dịch vụ AI</a>
                     <a href="/logs" class="list-group-item py-2 ps-5">Nhật ký hoạt động</a>
                     <a href="/admin/system/update" class="list-group-item py-2 ps-5 text-primary">Cập nhật bản vá</a>
                     <a href="/admin/db-tool" class="list-group-item py-2 ps-5 text-danger">Công cụ Database</a>

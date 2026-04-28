@@ -1,20 +1,19 @@
 <div
-  class="assistant-page"
+  class="pc06-page-shell assistant-page"
   data-ai-assistant
   data-chat-endpoint="{{ url_for('ai_bp.chat') }}"
   data-news-endpoint="{{ url_for('ai_bp.news') }}"
   data-welcome="{{ assistant_welcome|e }}">
-  <div class="assistant-shell">
-    <div class="assistant-hero">
+  <section class="pc06-hero-card assistant-hero-card">
+    <div class="assistant-hero-layout">
       <div>
-        <div class="assistant-chip mb-3">
-          <i class="fa-solid fa-robot"></i>
-          <span>Trợ lý AI</span>
+        <div class="pc06-page-kicker">
+          <i class="fa-solid fa-compass-drafting"></i>
+          Hỗ trợ thủ tục
         </div>
-        <h3>Hỏi đáp TTHC và thông tin đời sống</h3>
-        <p class="assistant-subtitle">
-          Trợ lý này được thiết kế cho câu hỏi ngắn, rõ việc: thủ tục hành chính, giấy tờ thường gặp,
-          nơi liên hệ, giờ làm việc, thông tin dân sinh và các tình huống cần hướng dẫn ban đầu.
+        <h1 class="pc06-page-title">Tra cứu thủ tục và thông tin hành chính</h1>
+        <p class="pc06-page-lead">
+          Tra cứu hồ sơ, nơi tiếp nhận, thời gian làm việc và thông tin công vụ cơ bản trên một giao diện thống nhất.
         </p>
       </div>
       <div class="assistant-hero-actions">
@@ -23,115 +22,130 @@
           {{ assistant_runtime.label }}
         </span>
         <span class="assistant-pill">
-          <i class="fa-solid fa-language"></i>
-          Tiếng Việt thân thiện
+          <i class="fa-solid fa-shield-halved"></i>
+          Phục vụ nội bộ
         </span>
       </div>
     </div>
 
-    {% if not assistant_runtime.configured %}
-    <div class="assistant-warning mb-4">
-      <strong>Lưu ý cấu hình:</strong> hiện chưa thấy API key cho engine ưu tiên, nên hệ thống sẽ rơi về phần trả lời mẫu nếu không gọi được model ngoài.
+    <div class="pc06-stat-strip">
+      <div class="pc06-metric-card">
+        <span>Phạm vi</span>
+        <strong>Thủ tục hành chính</strong>
+      </div>
+      <div class="pc06-metric-card">
+        <span>Dữ liệu</span>
+        <strong>KB nội bộ và nguồn tỉnh</strong>
+      </div>
+      <div class="pc06-metric-card">
+        <span>Hình thức</span>
+        <strong>Tra cứu theo phiên</strong>
+      </div>
     </div>
-    {% endif %}
+  </section>
 
-    <div class="assistant-grid">
-      <div class="assistant-chat-panel">
-        <div class="assistant-chat-header">
-          <div class="assistant-chat-title">
-            <span class="assistant-status-dot"></span>
-            <span>Khung hỏi đáp</span>
-          </div>
-          <button type="button" class="assistant-clear-btn" data-chat-clear>
-            <i class="fa-solid fa-broom me-1"></i>Làm sạch
-          </button>
-        </div>
+  {% if not assistant_runtime.configured %}
+  <div class="assistant-warning">
+    Chưa khai báo khóa dịch vụ. Hệ thống đang sử dụng tập trả lời dự phòng khi không gọi được mô hình ngoài.
+  </div>
+  {% endif %}
 
-        <div class="assistant-chat-body">
-          <div class="assistant-message-list" data-chat-messages></div>
-          <div class="assistant-typing" data-chat-typing>
-            <span></span><span></span><span></span>
-          </div>
-          <div class="assistant-input-area">
-            <div class="assistant-quick-chips mb-2">
-              {% for topic in suggested_topics[:5] %}
-              <button type="button" class="assistant-quick-chip" data-ask-question="{{ topic.prompt }}">
-                <i class="{{ topic.icon }} me-1"></i>{{ topic.title }}
-              </button>
-              {% endfor %}
-            </div>
-            <div class="assistant-input-row">
-              <textarea
-                class="assistant-textarea"
-                rows="1"
-                placeholder="Nhập câu hỏi theo cách tự nhiên, ví dụ: Làm hộ chiếu cần chuẩn bị gì?"
-                data-chat-input></textarea>
-              <button type="button" class="assistant-send-btn" data-chat-send>
-                <i class="fa-solid fa-paper-plane"></i>
-              </button>
-            </div>
-          </div>
+  <div class="assistant-grid">
+    <section class="assistant-chat-panel">
+      <div class="assistant-chat-header">
+        <div class="assistant-chat-title">
+          <span class="assistant-status-dot"></span>
+          <span>Phiên tra cứu</span>
         </div>
+        <button type="button" class="assistant-clear-btn" data-chat-clear>
+          <i class="fa-solid fa-broom me-1"></i>Xóa phiên
+        </button>
       </div>
 
-      <div class="assistant-side-stack">
-        <div class="assistant-side-card">
-          <div class="assistant-card-body">
-            <h5 class="assistant-side-title">Chủ đề gợi ý</h5>
-            <p class="assistant-side-note mb-3">Chạm một chủ đề để gửi nhanh câu hỏi mẫu.</p>
-            <div class="assistant-topic-grid">
-              {% for topic in suggested_topics %}
-              <div class="assistant-topic-card" data-ask-question="{{ topic.prompt }}">
-                <div class="assistant-topic-icon"><i class="{{ topic.icon }}"></i></div>
-                <div class="assistant-topic-title">{{ topic.title }}</div>
-                <div class="assistant-topic-desc">{{ topic.prompt }}</div>
-              </div>
-              {% endfor %}
-            </div>
-          </div>
+      <div class="assistant-chat-body">
+        <div class="assistant-message-list" data-chat-messages></div>
+        <div class="assistant-typing" data-chat-typing>
+          <span></span><span></span><span></span>
         </div>
-
-        <div class="assistant-side-card">
-          <div class="assistant-card-body">
-            <h5 class="assistant-side-title">Phạm vi hỗ trợ</h5>
-            <ul class="assistant-scope-list">
-              <li>Giấy tờ, hồ sơ, nơi nộp và lưu ý ban đầu cho TTHC phổ biến.</li>
-              <li>Câu hỏi đời sống dân sinh cần hướng dẫn nhanh, dễ hiểu.</li>
-              <li>Gợi ý cách hỏi lại rõ hơn khi tình huống còn mơ hồ.</li>
-              <li>Nhắc kiểm tra nguồn chính thức khi nội dung có thể thay đổi theo thời điểm.</li>
-            </ul>
+        <div class="assistant-input-area">
+          <div class="assistant-quick-chips mb-2">
+            {% for topic in suggested_topics[:5] %}
+            <button type="button" class="assistant-quick-chip" data-ask-question="{{ topic.prompt }}">
+              <i class="{{ topic.icon }} me-1"></i>{{ topic.title }}
+            </button>
+            {% endfor %}
           </div>
-        </div>
-
-        <div class="assistant-side-card">
-          <div class="assistant-card-body">
-            <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
-              <div>
-                <h5 class="assistant-side-title mb-1">Tin mới từ tỉnh</h5>
-                <p class="assistant-side-note mb-0">Nguồn tham khảo: cổng thông tin điện tử tỉnh.</p>
-              </div>
-              <a href="https://tuyenquang.gov.vn" target="_blank" class="assistant-chip text-decoration-none">
-                <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                <span>Mở nguồn</span>
-              </a>
-            </div>
-            <div class="assistant-news-list" data-news-container>
-              {% for article in news %}
-              <a href="{{ article.link }}" target="_blank" class="assistant-news-item">
-                <div class="assistant-news-title">{{ article.title }}</div>
-                <div class="assistant-news-meta">
-                  <i class="fa-solid fa-globe me-1"></i>{{ article.source }}
-                  {% if article.date %}<span class="ms-2"><i class="fa-regular fa-calendar me-1"></i>{{ article.date }}</span>{% endif %}
-                </div>
-              </a>
-              {% endfor %}
-            </div>
-            <button type="button" class="assistant-news-refresh" data-news-refresh>
-              <i class="fa-solid fa-rotate me-2"></i>Cập nhật tin mới
+          <div class="assistant-input-row">
+            <textarea
+              class="assistant-textarea"
+              rows="1"
+              placeholder="Nhập nội dung cần tra cứu"
+              data-chat-input></textarea>
+            <button type="button" class="assistant-send-btn" data-chat-send>
+              <i class="fa-solid fa-paper-plane"></i>
             </button>
           </div>
         </div>
       </div>
+    </section>
+
+    <div class="assistant-side-stack">
+      <section class="assistant-side-card">
+        <div class="assistant-card-body">
+          <h5 class="assistant-side-title">Mẫu tra cứu</h5>
+          <p class="assistant-side-note mb-3">Chọn nội dung mẫu để gửi nhanh vào phiên tra cứu.</p>
+          <div class="assistant-topic-grid">
+            {% for topic in suggested_topics %}
+            <div class="assistant-topic-card" data-ask-question="{{ topic.prompt }}">
+              <div class="assistant-topic-icon"><i class="{{ topic.icon }}"></i></div>
+              <div class="assistant-topic-title">{{ topic.title }}</div>
+              <div class="assistant-topic-desc">{{ topic.prompt }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <section class="assistant-side-card">
+        <div class="assistant-card-body">
+          <h5 class="assistant-side-title">Phạm vi xử lý</h5>
+          <ul class="assistant-scope-list">
+            <li>Tra cứu hồ sơ, giấy tờ và nơi tiếp nhận đối với thủ tục phổ biến.</li>
+            <li>Tra cứu thời gian làm việc, đầu mối liên hệ và lưu ý xử lý ban đầu.</li>
+            <li>Đối chiếu nguồn chính thức đối với nội dung có khả năng thay đổi theo thời điểm.</li>
+            <li>Phân loại và gợi ý nội dung cần bổ sung khi yêu cầu chưa đủ dữ liệu.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="assistant-side-card">
+        <div class="assistant-card-body">
+          <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
+            <div>
+              <h5 class="assistant-side-title mb-1">Tin điều hành</h5>
+              <p class="assistant-side-note mb-0">Nguồn tham khảo: Cổng thông tin điện tử tỉnh Tuyên Quang.</p>
+            </div>
+            <a href="https://tuyenquang.gov.vn" target="_blank" class="assistant-chip text-decoration-none">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i>
+              <span>Mở nguồn</span>
+            </a>
+          </div>
+          <div class="assistant-news-list" data-news-container>
+            {% for article in news %}
+            <a href="{{ article.link }}" target="_blank" class="assistant-news-item">
+              <div class="assistant-news-title">{{ article.title }}</div>
+              <div class="assistant-news-meta">
+                <i class="fa-solid fa-globe me-1"></i>{{ article.source }}
+                {% if article.date %}<span class="ms-2"><i class="fa-regular fa-calendar me-1"></i>{{ article.date }}</span>{% endif %}
+              </div>
+            </a>
+            {% endfor %}
+          </div>
+          <button type="button" class="assistant-news-refresh" data-news-refresh>
+            <i class="fa-solid fa-rotate me-2"></i>Tải lại nguồn tin
+          </button>
+        </div>
+      </section>
     </div>
   </div>
 </div>

@@ -129,15 +129,15 @@
         if (data.success) {
           addMessage(data.answer, false);
         } else {
-          let reply = data.answer || 'Tôi chưa có câu trả lời phù hợp.';
+          let reply = data.answer || 'Chưa có kết quả phù hợp.';
           if (data.suggestions && data.suggestions.length) {
-            reply += '\n\n- Gợi ý: ' + data.suggestions.join(', ');
+            reply += '\n\n- Chủ đề liên quan: ' + data.suggestions.join(', ');
           }
           addMessage(reply, false);
         }
       } catch (error) {
         hideTyping();
-        addMessage('Xin lỗi, đã có lỗi kết nối. Bạn vui lòng thử lại sau.', false);
+        addMessage('Lỗi kết nối dịch vụ. Thử lại sau.', false);
       }
 
       setLoading(false);
@@ -166,7 +166,7 @@
         // Keep current news list when refresh fails.
       }
       newsButton.disabled = false;
-      newsButton.innerHTML = '<i class="fa-solid fa-rotate me-2"></i>Cập nhật tin mới';
+      newsButton.innerHTML = '<i class="fa-solid fa-rotate me-2"></i>Tải lại nguồn tin';
     }
 
     root.querySelectorAll('[data-ask-question]').forEach((button) => {

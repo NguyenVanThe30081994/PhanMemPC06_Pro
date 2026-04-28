@@ -11,8 +11,7 @@
                 </div>
                 <h1 class="pc06-page-title">Bảng tin và thông báo nội bộ</h1>
                 <p class="pc06-page-lead">
-                    Chuẩn hóa bản tin theo phong cách BDHVS: bộ lọc rõ, thẻ nội dung gọn, file đính kèm dễ truy cập và
-                    hành động đăng tin được đẩy lên vị trí điều hành.
+                    Quản lý tin điều hành, tệp đính kèm và nội dung phát hành theo từng lĩnh vực.
                 </p>
                 {% if perms.get('p_news_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
                 <div class="pc06-action-cluster">
@@ -89,7 +88,7 @@
             <div class="pc06-empty-state">
                 <div class="pc06-empty-icon"><i class="fa-solid fa-newspaper"></i></div>
                 <h3>Chưa có bản tin nào</h3>
-                <p>Bản tin mới sẽ xuất hiện tại đây khi có thông báo từ hệ thống.</p>
+                <p>Chưa phát sinh bản tin.</p>
             </div>
         </section>
         {% endfor %}

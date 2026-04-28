@@ -261,49 +261,49 @@
   <section class="pc06-hero-card">
     <div class="reporting-hero-grid">
       <div>
-        <span class="pc06-page-kicker">He thong bao cao</span>
-        <h1 class="pc06-page-title">Bo bieu mau va luong nhap lieu theo phong cach BDHVS</h1>
+        <span class="pc06-page-kicker">Hệ thống báo cáo</span>
+        <h1 class="pc06-page-title">Biểu mẫu và nhập liệu báo cáo</h1>
         <p class="reporting-hero-note">
-          Truy cap nhanh cac bieu mau dang hoat dong, theo doi han nop va phan tach ro theo doi nghiep vu de dong bo voi giao dien moi cua toan he thong.
+          Quản lý biểu mẫu, kỳ báo cáo và hạn nộp theo từng đội nghiệp vụ.
         </p>
         <div class="pc06-action-cluster mt-4">
           {% if session.get('is_admin') %}
           <button type="button" class="btn btn-light rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#uploadModal">
-            <i class="fa-solid fa-upload me-2"></i>Tai bieu mau
+            <i class="fa-solid fa-upload me-2"></i>Tải biểu mẫu
           </button>
           <a href="{{ url_for('reporting_bp.dashboard') }}" class="btn btn-primary rounded-pill px-4">
-            <i class="fa-solid fa-chart-line me-2"></i>Tong quan bao cao
+            <i class="fa-solid fa-chart-line me-2"></i>Tổng quan báo cáo
           </a>
           {% else %}
           <a href="{{ url_for('reporting_bp.history') }}" class="btn btn-light rounded-pill px-4">
-            <i class="fa-solid fa-clock-rotate-left me-2"></i>Lich su nop bao cao
+            <i class="fa-solid fa-clock-rotate-left me-2"></i>Lịch sử nộp báo cáo
           </a>
           {% endif %}
         </div>
       </div>
       <div class="reporting-summary-stack">
         <div class="reporting-summary-card">
-          <span class="reporting-summary-label">Bieu mau dang hoat dong</span>
-          <div class="reporting-summary-value">{{ templates|length }}<small>mau</small></div>
+          <span class="reporting-summary-label">Biểu mẫu đang hoạt động</span>
+          <div class="reporting-summary-value">{{ templates|length }}<small>mẫu</small></div>
         </div>
         <div class="reporting-summary-card">
-          <span class="reporting-summary-label">Doi nghiep vu</span>
-          <div class="reporting-summary-value">{{ department_dashboard|length }}<small>nhom phu trach</small></div>
+          <span class="reporting-summary-label">Đội nghiệp vụ</span>
+          <div class="reporting-summary-value">{{ department_dashboard|length }}<small>nhóm phụ trách</small></div>
         </div>
       </div>
     </div>
     <div class="pc06-stat-strip">
       <div class="pc06-metric-card">
-        <span class="pc06-metric-label">Mo hinh</span>
-        <strong class="pc06-metric-value">Danh sach mau + workspace</strong>
+        <span class="pc06-metric-label">Mô hình</span>
+        <strong class="pc06-metric-value">Danh sách mẫu và workspace</strong>
       </div>
       <div class="pc06-metric-card">
-        <span class="pc06-metric-label">Dong bo han nop</span>
-        <strong class="pc06-metric-value">Theo ky mo gan nhat</strong>
+        <span class="pc06-metric-label">Hạn nộp</span>
+        <strong class="pc06-metric-value">Theo kỳ mở gần nhất</strong>
       </div>
       <div class="pc06-metric-card">
-        <span class="pc06-metric-label">Quan tri</span>
-        <strong class="pc06-metric-value">{% if session.get('is_admin') %}Upload va xoa bieu mau{% else %}Theo doi va nhap lieu{% endif %}</strong>
+        <span class="pc06-metric-label">Quản trị</span>
+        <strong class="pc06-metric-value">{% if session.get('is_admin') %}Tải lên và xóa biểu mẫu{% else %}Theo dõi và nhập liệu{% endif %}</strong>
       </div>
     </div>
   </section>
@@ -312,11 +312,11 @@
     <section class="pc06-panel">
       <div class="reporting-section-head">
         <div>
-          <h4>Danh sach bieu mau bao cao</h4>
-          <p>Mo bieu mau, kiem tra han nop va dieu huong vao workspace xu ly chi tiet.</p>
+          <h4>Danh sách biểu mẫu báo cáo</h4>
+          <p>Mở biểu mẫu, kiểm tra hạn nộp và truy cập workspace xử lý.</p>
         </div>
         <span class="pc06-soft-tag">
-          <i class="fa-solid fa-file-circle-check"></i>{{ template_entries|length }} bieu mau
+          <i class="fa-solid fa-file-circle-check"></i>{{ template_entries|length }} biểu mẫu
         </span>
       </div>
 
@@ -355,12 +355,12 @@
               <a
                 href="{{ url_for('reporting_bp.template_workspace', template_id=entry.template.id) }}"
                 class="reporting-outline-btn"
-                title="Mo bieu mau">
+                title="Mở biểu mẫu">
                 <i class="fa-solid fa-pen"></i>
               </a>
               {% if session.get('is_admin') %}
-              <form action="{{ url_for('reporting_bp.template_delete', template_id=entry.template.id) }}" method="POST" onsubmit="return confirm('Xoa bieu mau nay va toan bo du lieu lien quan?');" class="m-0">
-                <button type="submit" class="reporting-outline-btn reporting-delete-btn" title="Xoa bieu mau">
+              <form action="{{ url_for('reporting_bp.template_delete', template_id=entry.template.id) }}" method="POST" onsubmit="return confirm('Xóa biểu mẫu này và toàn bộ dữ liệu liên quan?');" class="m-0">
+                <button type="submit" class="reporting-outline-btn reporting-delete-btn" title="Xóa biểu mẫu">
                   <i class="fa-solid fa-trash"></i>
                 </button>
               </form>
@@ -372,7 +372,7 @@
       </div>
       {% else %}
       <div class="reporting-empty-state">
-        <i class="fa-solid fa-circle-info me-2"></i>Chua co mau bieu nao trong he thong.
+        <i class="fa-solid fa-circle-info me-2"></i>Chưa phát sinh biểu mẫu.
       </div>
       {% endif %}
     </section>
@@ -380,11 +380,11 @@
     <aside class="pc06-panel">
       <div class="reporting-section-head">
         <div>
-          <h5>Phu trach theo doi</h5>
-          <p>Phan tach danh muc bieu mau theo tung doi nghiep vu de theo doi nhanh.</p>
+          <h5>Đội phụ trách</h5>
+          <p>Phân loại biểu mẫu theo từng đội nghiệp vụ.</p>
         </div>
         <span class="pc06-soft-tag">
-          <i class="fa-solid fa-users"></i>{{ department_dashboard|length }} doi
+          <i class="fa-solid fa-users"></i>{{ department_dashboard|length }} đội
         </span>
       </div>
 
@@ -394,7 +394,7 @@
         <section class="reporting-department-card">
           <div class="reporting-department-head">
             <h6>{{ group.department_name }}</h6>
-            <span class="pc06-status-badge status-active">{{ group.template_count }} mau</span>
+            <span class="pc06-status-badge status-active">{{ group.template_count }} mẫu</span>
           </div>
           <div class="reporting-department-list">
             {% for entry in group.entries %}
@@ -408,7 +408,7 @@
         {% endfor %}
       </div>
       {% else %}
-      <div class="reporting-empty-state">Chua co du lieu doi nghiep vu.</div>
+      <div class="reporting-empty-state">Chưa có dữ liệu đội nghiệp vụ.</div>
       {% endif %}
     </aside>
   </div>
@@ -420,23 +420,23 @@
     <div class="modal-content">
       <form action="{{ url_for('reporting_bp.template_upload') }}" method="POST" enctype="multipart/form-data">
         <div class="modal-header">
-          <h5 class="modal-title">Tai bieu mau Excel moi</h5>
+          <h5 class="modal-title">Tải biểu mẫu Excel mới</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
           <div class="mb-3">
-            <label class="form-label">Ten bieu mau</label>
-            <input type="text" class="form-control" name="name" placeholder="De trong de lay ten file">
+            <label class="form-label">Tên biểu mẫu</label>
+            <input type="text" class="form-control" name="name" placeholder="Để trống để lấy tên file">
           </div>
           <div class="mb-3">
-            <label class="form-label">Doi nghiep vu phu trach</label>
+            <label class="form-label">Đội nghiệp vụ phụ trách</label>
             <div
               data-category-picker
-              data-group-name="Doi nghiep vu"
-              data-placeholder="Chon doi nghiep vu"
+              data-group-name="Đội nghiệp vụ"
+              data-placeholder="Chọn đội nghiệp vụ"
               data-storage-key="reporting_default_category">
               <select class="form-select" name="department" id="departmentSelect" required data-category-target>
-                <option value="">Chon doi nghiep vu</option>
+                <option value="">Chọn đội nghiệp vụ</option>
               </select>
             </div>
           </div>
@@ -448,7 +448,7 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Dong</button>
           <button type="submit" class="btn btn-primary">
-            <i class="fa-solid fa-upload me-2"></i>Tai len
+            <i class="fa-solid fa-upload me-2"></i>Tải lên
           </button>
         </div>
       </form>

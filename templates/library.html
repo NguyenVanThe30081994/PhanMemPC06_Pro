@@ -9,10 +9,9 @@
                     <i class="fa-solid fa-book-bookmark"></i>
                     Kho tài liệu nghiệp vụ
                 </div>
-                <h1 class="pc06-page-title">Thư viện tài liệu theo phong cách mới</h1>
+                <h1 class="pc06-page-title">Thư viện tài liệu</h1>
                 <p class="pc06-page-lead">
-                    Chuẩn hóa thư viện về cùng trải nghiệm với công việc: tìm kiếm nhanh, lọc theo lĩnh vực, đọc mô tả ngắn
-                    và tải tài liệu ngay từ card thông tin.
+                    Quản lý, phân loại và truy cập tài liệu nghiệp vụ theo từng lĩnh vực.
                 </p>
                 {% if perms.get('p_lib_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
                 <div class="pc06-action-cluster">
@@ -65,7 +64,7 @@
             <div class="pc06-empty-state">
                 <div class="pc06-empty-icon"><i class="fa-solid fa-book-open"></i></div>
                 <h3>Thư viện đang trống</h3>
-                <p>Chưa có tài liệu nào được tải lên trong hệ thống.</p>
+                <p>Chưa phát sinh tài liệu.</p>
             </div>
         </section>
         {% endfor %}

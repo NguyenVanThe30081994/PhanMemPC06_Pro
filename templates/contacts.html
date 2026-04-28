@@ -11,8 +11,7 @@
                 </div>
                 <h1 class="pc06-page-title">Quản lý liên hệ toàn hệ thống</h1>
                 <p class="pc06-page-lead">
-                    Đưa danh bạ về cùng phong cách điều hành với công việc: lọc theo nhóm, tìm theo đơn vị hoặc số điện thoại,
-                    hỗ trợ nhập Excel và xử lý hàng loạt trên cùng một khung thao tác.
+                    Quản lý danh bạ nội bộ, lọc theo nhóm, tìm theo đơn vị và nhập dữ liệu tập trung.
                 </p>
                 {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin or session.get('uid') %}
                 <div class="pc06-action-cluster">
@@ -50,14 +49,14 @@
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Nhóm danh bạ</h2>
-                        <p>Chọn nhóm để giới hạn phạm vi liên hệ cần xem.</p>
+                        <p>Chọn nhóm để lọc danh bạ.</p>
                     </div>
                 </div>
                 <div class="contact-filter-stack">
                     <a href="{{ url_for('portal_bp.contacts') }}" class="contact-filter-card {% if not current_group %}active{% endif %}">
                         <div>
                             <strong>Tất cả nhóm</strong>
-                            <span>Hiển thị toàn bộ liên hệ trong phạm vi đang xem.</span>
+                            <span>Toàn bộ liên hệ trong danh mục hiện hành.</span>
                         </div>
                         <span class="contact-filter-count">{{ total_contact_count }}</span>
                     </a>
@@ -65,7 +64,7 @@
                     <a href="{{ url_for('portal_bp.contacts', group=cat.name) }}" class="contact-filter-card {% if current_group == cat.name %}active{% endif %}">
                         <div>
                             <strong>{{ cat.name }}</strong>
-                            <span>Lọc danh bạ theo nhóm đã chọn.</span>
+                            <span>Danh bạ theo nhóm.</span>
                         </div>
                         <span class="contact-filter-count">{{ group_contact_counts.get(cat.name, 0) }}</span>
                     </a>
@@ -79,7 +78,7 @@
                 <div class="pc06-panel-head">
                     <div>
                         <h2>{{ current_group or 'Danh sách liên hệ đơn vị' }}</h2>
-                        <p>{{ contacts|length }} liên hệ đang hiển thị trong nhóm đã chọn.</p>
+                        <p>{{ contacts|length }} liên hệ trong phạm vi hiện tại.</p>
                     </div>
                     <span class="pc06-status-badge neutral">{{ contacts|length }} liên hệ</span>
                 </div>

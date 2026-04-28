@@ -142,7 +142,7 @@ def get_qr(code):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return f"Lỗi hệ thống khi tạo QR: {str(e)}. Hãy thử F5 lại trang.", 500
+        return f"Lỗi hệ thống khi tạo QR: {str(e)}.", 500
 
 @shortlink_bp.route('/s/<code>')
 def redirect_short_link(code):

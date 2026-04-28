@@ -30,6 +30,19 @@
     color: var(--assistant-text);
 }
 
+.assistant-hero-card {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+.assistant-hero-layout {
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    align-items: flex-start;
+}
+
 .assistant-shell {
     background: var(--assistant-bg);
     border: 1px solid rgba(255, 255, 255, 0.7);
@@ -521,6 +534,10 @@
 @media (max-width: 1199px) {
     .assistant-grid {
         grid-template-columns: 1fr;
+    }
+
+    .assistant-hero-layout {
+        flex-direction: column;
     }
 }
 
