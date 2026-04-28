@@ -1,357 +1,249 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header mb-4 animate__animated animate__fadeIn">
-    <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <a href="{{ url_for('tasks_bp.tasks') }}" class="btn btn-sm btn-light border rounded-pill px-3 mb-3 text-muted text-decoration-none">
-                <i class="fa-solid fa-arrow-left me-1"></i> Quay lại danh sách
-            </a>
-            <h1 class="h3 fw-bold text-dark mb-1">{{ task.title }}</h1>
-            <p class="text-muted mb-0">Ngày giao: {{ task.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
-        </div>
-        <div>
-            <span class="badge {% if task.priority == 'Khẩn cấp' %}bg-danger{% elif task.priority in ['Cao', 'Quan trọng'] %}bg-warning{% else %}bg-primary{% endif %} rounded-pill px-3 py-2 shadow-sm">
-                <i class="fa-solid fa-flag me-1"></i>{{ task.priority or 'Trung bình' }}
-            </span>
-        </div>
-    </div>
-</div>
-
-<div class="row g-4">
-    <!-- LEFT COLUMN: Main Content -->
-    <div class="col-md-8">
-        
-        <!-- 1. TASK ACCEPTANCE CARD (For Assignees Only) -->
-        {% set user_assign = None %}
-        {% for a, u in assigns %}
-            {% if a.user_id == session['uid'] %}
-                {% set user_assign = a %}
-            {% endif %}
-        {% endfor %}
-        
-        {% if user_assign %}
-        <div class="card border-0 mb-4 overflow-hidden" style="border-radius: 24px; {% if user_assign.status == 'Chưa tiếp nhận' or user_assign.status == 'Chưa bắt đầu' %}box-shadow: 0 0 0 3px #FEF3C7;{% endif %}">
-            <div class="card-body p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="flex-grow-1">
-                        <div class="d-flex align-items-center gap-3 mb-3">
-                            <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); border-radius: 14px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
-                                <i class="fa-solid fa-clipboard-check text-white fs-5"></i>
-                            </div>
-                            <div>
-                                <h5 class="fw-bold mb-1 text-white">Trạng thái của bạn</h5>
-                                <p class="mb-0 text-white-50 small">Cập nhật tiến độ công việc</p>
-                            </div>
-                        </div>
-                        <div class="d-flex flex-wrap align-items-center gap-3">
-                            {% if user_assign.status == 'Chưa tiếp nhận' or user_assign.status == 'Chưa bắt đầu' %}
-                            <span class="badge px-4 py-2 fs-6 fw-bold" style="background: linear-gradient(135deg, #FEF3C7, #FDE68A); color: #92400E; border-radius: 20px;">
-                                <i class="fa-solid fa-clock me-2"></i>{{ user_assign.status }}
-                            </span>
-                            <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST" class="m-0">
-                                <input type="hidden" name="action" value="accept">
-                                <button type="submit" class="btn btn-lg fw-bold shadow-lg animate__animated animate__pulse animate__infinite" style="background: #fff; color: #667eea; border-radius: 16px; padding: 12px 32px; border: none; animation-duration: 2s; box-shadow: 0 8px 24px rgba(255,255,255,0.3);">
-                                    <i class="fa-solid fa-hand-point-right me-2"></i>TIẾP NHẬN CÔNG VIỆC
-                                </button>
-                            </form>
-                            {% elif user_assign.status == 'Đang thực hiện' %}
-                            <span class="badge px-4 py-2 fs-6 fw-bold" style="background: linear-gradient(135deg, #DBEAFE, #BFDBFE); color: #1D4ED8; border-radius: 20px;">
-                                <i class="fa-solid fa-spinner fa-spin me-2"></i>{{ user_assign.status }}
-                            </span>
-                            <div class="text-white small">
-                                <i class="fa-solid fa-info-circle me-1"></i>Đang thực hiện công việc
-                            </div>
-                            {% elif user_assign.status == 'Hoàn thành' %}
-                            <span class="badge px-4 py-2 fs-6 fw-bold" style="background: linear-gradient(135deg, #D1FAE5, #A7F3D0); color: #059669; border-radius: 20px;">
-                                <i class="fa-solid fa-circle-check me-2"></i>{{ user_assign.status }}
-                            </span>
-                            {% else %}
-                            <span class="badge px-4 py-2 fs-6 fw-bold" style="background: rgba(255,255,255,0.2); color: #fff; border-radius: 20px;">
-                                {{ user_assign.status }}
-                            </span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% if user_assign.status == 'Hoàn thành' %}
-                    <div class="text-end">
-                        <i class="fa-solid fa-circle-check fa-3x text-white opacity-50"></i>
-                    </div>
+{% set display_status = task.display_status or (user_assign.status if user_assign else (task.initial_status or 'Chưa tiếp nhận')) %}
+{% set status_key = display_status|lower %}
+<div class="pc06-page-shell">
+    <section class="pc06-hero-card detail-hero">
+        <div class="pc06-hero-grid">
+            <div>
+                <a href="{{ url_for('tasks_bp.tasks') }}" class="pc06-back-link">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    Quay lại danh sách
+                </a>
+                <div class="pc06-page-kicker mt-3">
+                    <i class="fa-solid fa-list-check"></i>
+                    Hồ sơ công việc
+                </div>
+                <h1 class="pc06-page-title">{{ task.title }}</h1>
+                <p class="pc06-page-lead">
+                    Người giao: <strong>{{ task.author_name }}</strong> •
+                    Ngày tạo: <strong>{{ task.created_at.strftime('%d/%m/%Y %H:%M') }}</strong>
+                </p>
+                <div class="pc06-task-tags mt-3">
+                    <span class="pc06-soft-tag">
+                        <i class="fa-solid fa-users"></i>
+                        {{ task.domain or 'Chưa phân đơn vị' }}
+                    </span>
+                    {% if task.task_type %}
+                    <span class="pc06-soft-tag neutral">
+                        <i class="fa-solid fa-tag"></i>
+                        {{ task.task_type }}
+                    </span>
+                    {% endif %}
+                    {% if task.priority %}
+                    <span class="pc06-soft-tag danger">
+                        <i class="fa-solid fa-flag"></i>
+                        {{ task.priority }}
+                    </span>
                     {% endif %}
                 </div>
             </div>
-        </div>
-        {% endif %}
 
-        <!-- 2. TASK CONTENT CARD -->
-        <div class="card border-0 mb-4 overflow-hidden" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08);">
-            <div class="card-header border-0 bg-transparent py-4 px-4" style="border-radius: 24px 24px 0 0;">
-                <div class="d-flex align-items-center gap-3">
-                    <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #0066FF, #0052CC); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(0,102,255,0.35);">
-                        <i class="fa-solid fa-file-lines text-white fs-5"></i>
-                    </div>
-                    <div>
-                        <h5 class="fw-bold mb-0" style="color: #1e293b;">Nội dung Công việc</h5>
-                        <p class="text-muted mb-0 small">Chi tiết công việc được giao</p>
-                    </div>
+            <div class="pc06-stat-strip">
+                <div class="pc06-metric-card">
+                    <span>Tiến độ</span>
+                    <strong>{{ progress_percent }}%</strong>
+                </div>
+                <div class="pc06-metric-card">
+                    <span>Đã hoàn thành</span>
+                    <strong>{{ task.completed_assignments or 0 }}/{{ task.assignee_count or 0 }}</strong>
+                </div>
+                <div class="pc06-metric-card {% if task.is_overdue %}danger{% endif %}">
+                    <span>Hạn xử lý</span>
+                    <strong>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa có' }}</strong>
+                </div>
+                <div class="pc06-metric-card">
+                    <span>Trạng thái</span>
+                    <strong style="font-size:1.05rem;">{{ display_status }}</strong>
                 </div>
             </div>
-            <div class="card-body p-4">
-                <div class="mb-3">
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        {% if task.task_type %}
-                        <span class="badge" style="background: linear-gradient(135deg, #f1f5f9, #e2e8f0); color: #475569; border: none; padding: 6px 14px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                            <i class="fa-solid fa-tag me-1"></i>{{ task.task_type }}
-                        </span>
-                        {% endif %}
-                        <span class="badge" style="background: linear-gradient(135deg, #DBEAFE, #BFDBFE); color: #1D4ED8; border: none; padding: 6px 14px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                            {{ task.initial_status or 'Chưa tiếp nhận' }}
-                        </span>
+        </div>
+    </section>
+
+    <div class="pc06-detail-grid">
+        <div class="pc06-detail-main">
+            {% if user_assign %}
+            <section class="pc06-panel">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>Trạng thái của bạn</h2>
+                        <p>Tiếp nhận và báo cáo trực tiếp trên cùng một luồng thao tác.</p>
+                    </div>
+                    <span class="pc06-status-badge {% if user_assign.status == 'Hoàn thành' %}done{% elif user_assign.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
+                        {{ user_assign.status }}
+                    </span>
+                </div>
+                {% if user_assign.status in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+                <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST" class="pc06-inline-form">
+                    <input type="hidden" name="action" value="accept">
+                    <button type="submit" class="btn btn-bdhvs primary">
+                        <i class="fa-solid fa-hand-point-right"></i>
+                        Tiếp nhận công việc
+                    </button>
+                </form>
+                {% else %}
+                <div class="pc06-info-banner">
+                    {% if user_assign.status == 'Hoàn thành' %}
+                    Công việc của bạn đã được đánh dấu hoàn thành.
+                    {% else %}
+                    Bạn đã tiếp nhận công việc, có thể cập nhật báo cáo ở khối bên dưới.
+                    {% endif %}
+                </div>
+                {% endif %}
+            </section>
+            {% endif %}
+
+            <section class="pc06-panel">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>Nội dung công việc</h2>
+                        <p>Mô tả yêu cầu và tài liệu nguồn đi kèm.</p>
                     </div>
                 </div>
-                
-                <div class="p-4 rounded-4 text-main shadow-sm" style="background-color: var(--bg-body); white-space: pre-line; line-height: 1.8; border-left: 4px solid #667eea;">
-                    {{ task.content }}
+                <div class="pc06-rich-content">
+                    {{ task.content or 'Chưa có mô tả chi tiết cho công việc này.' }}
                 </div>
 
                 {% if task.file_path %}
-                <div class="mt-4">
-                    <h6 class="fw-bold text-muted small text-uppercase mb-3"><i class="fa-solid fa-paperclip me-2"></i>Tài liệu đính kèm</h6>
-                    <div class="d-flex align-items-center p-3 border rounded-4 hover-bg-light cursor-pointer shadow-sm" style="background-color: var(--bg-surface);">
-                        <i class="fa-solid fa-file-pdf fs-3 text-danger me-3"></i>
-                        <div class="flex-grow-1">
-                            <div class="fw-bold text-dark small text-truncate" style="max-width: 300px;">{{ task.file_path }}</div>
-                            <div class="text-muted tiny">Click để tải xuống tài liệu</div>
-                        </div>
-                        <a href="{{ url_for('dl_file', fn=task.file_path) }}" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold">
-                            <i class="fa-solid fa-download me-1"></i>TẢI XUỐNG
-                        </a>
+                <div class="pc06-file-card">
+                    <div class="pc06-file-icon"><i class="fa-solid fa-paperclip"></i></div>
+                    <div class="pc06-file-copy">
+                        <strong>{{ task.file_path }}</strong>
+                        <span>Tài liệu đính kèm từ người giao việc</span>
                     </div>
+                    <a href="{{ url_for('dl_file', fn=task.file_path) }}" class="btn btn-bdhvs light">
+                        <i class="fa-solid fa-download"></i>
+                        Tải xuống
+                    </a>
                 </div>
                 {% endif %}
-            </div>
-        </div>
+            </section>
 
-        <!-- 3. REPORT SUBMISSION CARD (Only if accepted) -->
-        {% if user_assign and user_assign.status != 'Chưa tiếp nhận' and user_assign.status != 'Chưa bắt đầu' %}
-        <div class="card border-0 mb-4" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08);">
-            <div class="card-header border-0 py-4 px-4" style="background: linear-gradient(135deg, #DBEAFE, #BFDBFE); border-radius: 24px 24px 0 0;">
-                <div class="d-flex align-items-center gap-3">
-                    <div style="width: 50px; height: 50px; background: rgba(29,78,216,0.15); border-radius: 14px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
-                        <i class="fa-solid fa-paper-plane fs-5" style="color: #1D4ED8;"></i>
-                    </div>
+            {% if user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+            <section class="pc06-panel">
+                <div class="pc06-panel-head">
                     <div>
-                        <h5 class="fw-bold mb-0" style="color: #1e293b;">Báo cáo Công việc</h5>
-                        <p class="mb-0 small" style="color: #475569;">Gửi báo cáo kết quả thực hiện</p>
+                        <h2>Báo cáo kết quả</h2>
+                        <p>Nộp tóm tắt tiến độ, minh chứng và cập nhật trạng thái hoàn thành.</p>
                     </div>
                 </div>
-            </div>
-            <div class="card-body p-4">
-                <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Nội dung tóm tắt <span class="text-danger">*</span></label>
-                        <textarea name="report_content" class="form-control rounded-3 border-2" rows="5" placeholder="Mô tả chi tiết những gì đã thực hiện, kết quả đạt được, khó khăn gặp phải (nếu có)..." required style="background-color: white; font-size: 14px;"></textarea>
+                <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data" class="pc06-report-form">
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Nội dung báo cáo</label>
+                        <textarea name="report_content" rows="5" class="form-control" placeholder="Nêu rõ kết quả, tồn tại và kiến nghị nếu có" required></textarea>
                     </div>
-                    <div class="mb-4">
-                        <label class="form-label fw-bold">Tệp đính kèm</label>
-                        <input type="file" name="report_file" class="form-control rounded-3 border-2" style="background-color: white;">
-                        <small class="text-muted"><i class="fa-solid fa-info-circle me-1"></i>Đính kèm tài liệu, hình ảnh minh chứng (nếu có)</small>
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Tệp minh chứng</label>
+                        <input type="file" name="report_file" class="form-control">
                     </div>
-                    <div class="d-flex justify-content-between align-items-center pt-3 border-top">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" name="mark_completed" value="1" id="markCompleted" style="width: 3em; height: 1.5em;">
-                            <label class="form-check-label fw-bold text-success ms-2" for="markCompleted" style="font-size: 16px;">
-                                <i class="fa-solid fa-check-circle me-1"></i>Đánh dấu Hoàn thành
-                            </label>
-                        </div>
-                        <button type="submit" class="btn btn-success btn-lg rounded-pill px-5 fw-bold shadow-sm">
-                            <i class="fa-solid fa-paper-plane me-2"></i>GỬI BÁO CÁO
+                    <div class="pc06-report-footer">
+                        <label class="form-check pc06-checkline">
+                            <input class="form-check-input" type="checkbox" name="mark_completed" value="1">
+                            <span class="form-check-label">Đánh dấu hoàn thành sau khi gửi báo cáo</span>
+                        </label>
+                        <button type="submit" class="btn btn-bdhvs primary">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            Gửi báo cáo
                         </button>
                     </div>
                 </form>
-            </div>
-        </div>
-        {% endif %}
+            </section>
+            {% endif %}
 
-        <!-- 4. COMMENTS SECTION -->
-        <div class="card border-0 mb-4" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08);">
-            <div class="card-header border-0 bg-transparent py-4 px-4" style="border-radius: 24px 24px 0 0;">
-                <div class="d-flex align-items-center gap-3">
-                    <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #8B5CF6, #7C3AED); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(139,92,246,0.35);">
-                        <i class="fa-solid fa-comments text-white fs-5"></i>
-                    </div>
+            <section class="pc06-panel">
+                <div class="pc06-panel-head">
                     <div>
-                        <h5 class="fw-bold mb-0" style="color: #1e293b;">Phản hồi & Thảo luận</h5>
-                        <p class="text-muted mb-0 small">Trao đổi và cập nhật tiến độ</p>
+                        <h2>Trao đổi và phản hồi</h2>
+                        <p>Toàn bộ phản hồi và báo cáo được gom trong một luồng thảo luận.</p>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- 4. COMMENTS SECTION -->
-        <div class="card border-0 shadow-sm rounded-4" style="background-color: var(--bg-surface);">
-            <div class="card-header border-bottom p-4" style="background-color: var(--bg-surface); border-color: var(--border) !important;">
-                <h5 class="fw-bold text-main mb-0"><i class="fa-solid fa-comments me-2 text-primary"></i>Phản hồi & Thảo luận</h5>
-            </div>
-            <div class="card-body p-4">
-                <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST" class="mb-4">
-                    <div class="mb-3">
-                        <textarea name="content" class="form-control rounded-3 border-2" placeholder="Nhập ý kiến phản hồi, thảo luận về công việc..." style="height: 100px; background-color: white; padding: 1rem; font-size: 14px;" required></textarea>
-                    </div>
-                    <div class="text-end">
-                        <button type="submit" class="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-sm">
-                            <i class="fa-solid fa-paper-plane me-2"></i>GỬI PHẢN HỒI
+                <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST" class="pc06-comment-form">
+                    <textarea name="content" class="form-control" rows="4" placeholder="Nhập ý kiến phản hồi, nhắc việc hoặc cập nhật mới" required></textarea>
+                    <div class="text-end mt-3">
+                        <button type="submit" class="btn btn-bdhvs primary">
+                            <i class="fa-solid fa-reply"></i>
+                            Gửi phản hồi
                         </button>
                     </div>
                 </form>
 
-                <div class="comment-list mt-4">
+                <div class="pc06-comment-stack">
                     {% for c in comments %}
-                    <div class="comment-item d-flex gap-3 mb-3 animate__animated animate__fadeInUp">
-                        <div class="avatar bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width: 45px; height: 45px; font-size: 16px;">
-                            {{ c.user_name[:1].upper() }}
-                        </div>
-                        <div class="flex-grow-1">
-                            <div class="p-3 rounded-3 shadow-sm" style="background-color: {% if '[BÁO CÁO]' in c.content %}#f0fdf4{% else %}var(--bg-body){% endif %}; {% if '[BÁO CÁO]' in c.content %}border-left: 4px solid #22c55e;{% endif %}">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="fw-bold text-main">{{ c.user_name }}</span>
-                                    <span class="text-muted tiny">{{ c.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
-                                </div>
-                                <div class="text-main" style="font-size: 14px; line-height: 1.6;">{{ c.content }}</div>
+                    {% set is_report = c.content.startswith('[BÁO CÁO]') %}
+                    <article class="pc06-comment-card {% if is_report %}report{% endif %}">
+                        <div class="pc06-comment-avatar">{{ c.user_name[:1].upper() }}</div>
+                        <div class="pc06-comment-body">
+                            <div class="pc06-comment-head">
+                                <strong>{{ c.user_name }}</strong>
+                                <span>{{ c.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
                             </div>
+                            <div class="pc06-comment-text">{{ c.content }}</div>
                         </div>
-                    </div>
+                    </article>
                     {% else %}
-                    <div class="text-center py-5 text-muted">
-                        <i class="fa-regular fa-comment-dots fs-1 mb-3 opacity-25"></i>
-                        <p class="mb-0">Chưa có phản hồi nào</p>
+                    <div class="pc06-empty-state compact">
+                        <div class="pc06-empty-icon"><i class="fa-regular fa-comment-dots"></i></div>
+                        <h3>Chưa có phản hồi</h3>
+                        <p>Khi có trao đổi hoặc báo cáo, nội dung sẽ xuất hiện tại đây.</p>
                     </div>
                     {% endfor %}
                 </div>
-            </div>
+            </section>
         </div>
-    </div>
 
-    <!-- RIGHT COLUMN: Info Sidebar -->
-    <div class="col-md-4">
-        
-        <!-- PROGRESS CARD -->
-        <div class="card border-0 mb-4 overflow-hidden" style="border-radius: 24px; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); box-shadow: 0 8px 32px rgba(0,0,0,0.2);">
-            <div class="card-body p-4 text-white">
-                <div class="d-flex align-items-center gap-3 mb-3">
-                    <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.15); border-radius: 14px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
-                        <i class="fa-solid fa-chart-line text-white fs-5"></i>
-                    </div>
+        <aside class="pc06-detail-side">
+            <section class="pc06-panel">
+                <div class="pc06-panel-head">
                     <div>
-                        <h6 class="fw-bold mb-0 text-white">Tiến độ</h6>
-                        <p class="mb-0 text-white-50 small">Mức độ hoàn thành</p>
+                        <h2>Thông tin nhanh</h2>
+                        <p>Bức tranh tóm tắt của công việc đang xử lý.</p>
                     </div>
                 </div>
-                <div class="text-center mb-3">
-                    <div class="display-4 fw-bold mb-1">{{ progress_percent }}%</div>
-                    <div class="badge {% if progress_percent == 100 %}bg-success{% elif progress_percent > 0 %}bg-info{% else %}bg-secondary{% endif %} rounded-pill px-3 py-2">
-                        {% if progress_percent == 100 %}
-                            <i class="fa-solid fa-check-circle me-1"></i>Đã hoàn thành
-                        {% elif progress_percent > 0 %}
-                            <i class="fa-solid fa-spinner me-1"></i>Đang thực hiện
-                        {% else %}
-                            <i class="fa-solid fa-clock me-1"></i>Chưa bắt đầu
-                        {% endif %}
-                    </div>
+                <div class="pc06-info-list">
+                    <div class="pc06-info-item"><span>Đơn vị nghiệp vụ</span><strong>{{ task.domain or 'Chưa phân đơn vị' }}</strong></div>
+                    <div class="pc06-info-item"><span>Loại công việc</span><strong>{{ task.task_type or 'Công việc thường xuyên' }}</strong></div>
+                    <div class="pc06-info-item"><span>Mức ưu tiên</span><strong>{{ task.priority or 'Trung bình' }}</strong></div>
+                    <div class="pc06-info-item"><span>Người giao</span><strong>{{ task.author_name }}</strong></div>
                 </div>
-                <div class="progress bg-white bg-opacity-20 mb-3" style="height: 10px; border-radius: 10px;">
-                    <div class="progress-bar {% if progress_percent == 100 %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {{ progress_percent }}%; border-radius: 10px;"></div>
-                </div>
-            </div>
-        </div>
+            </section>
 
-        <!-- TASK INFO CARD -->
-        <div class="card border-0 mb-4" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08);">
-            <div class="card-body p-4">
-                <h6 class="fw-bold mb-3 small text-uppercase" style="color: #64748b;"><i class="fa-solid fa-info-circle me-2" style="color: #0066FF;"></i>Thông tin</h6>
-                
-                <div class="info-item mb-3 pb-3 border-bottom">
-                    <div class="text-muted small mb-2">Thời hạn</div>
-                    <div class="d-flex align-items-center gap-2">
-                        <div style="width: 36px; height: 36px; background: {% if task.deadline and task.deadline < now_dt.date() %}linear-gradient(135deg, #FEE2E2, #FECACA){% else %}linear-gradient(135deg, #DBEAFE, #BFDBFE){% endif %}; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                            <i class="fa-solid fa-calendar-days" style="color: {% if task.deadline and task.deadline < now_dt.date() %}#DC2626{% else %}#1D4ED8{% endif %};"></i>
-                        </div>
-                        <div class="fw-bold" style="color: {% if task.deadline and task.deadline < now_dt.date() %}#DC2626{% else %}#1e293b{% endif %};">
-                            {{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa xác định' }}
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="info-item mb-3 pb-3 border-bottom">
-                    <div class="text-muted small mb-2">Người giao</div>
-                    <div class="d-flex align-items-center gap-2">
-                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #D1FAE5, #A7F3D0); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                            <i class="fa-solid fa-user" style="color: #059669;"></i>
-                        </div>
-                        <div class="fw-bold" style="color: #1e293b;">{{ task.author_name }}</div>
-                    </div>
-                </div>
-                
-                <div class="info-item mb-3 pb-3 border-bottom">
-                    <div class="text-muted small mb-2">Loại công việc</div>
-                    <div class="d-flex align-items-center gap-2">
-                        <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #FEF3C7, #FDE68A); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                            <i class="fa-solid fa-briefcase" style="color: #92400E;"></i>
-                        </div>
-                        <div class="fw-bold" style="color: #1e293b;">{{ task.task_type or 'Công việc thường xuyên' }}</div>
-                    </div>
-                </div>
-                
-                <div class="info-item">
-                    <div class="text-muted small mb-2">Đội nghiệp vụ</div>
+            <section class="pc06-panel">
+                <div class="pc06-panel-head">
                     <div>
-                        <span class="badge" style="background: linear-gradient(135deg, #DBEAFE, #BFDBFE); color: #1D4ED8; border: none; padding: 8px 14px; border-radius: 12px; font-size: 12px; font-weight: 700;">
-                            <i class="fa-solid fa-users me-1"></i>{{ task.domain }}
-                        </span>
+                        <h2>Phân công thực hiện</h2>
+                        <p>Theo dõi ai đã tiếp nhận và ai đã hoàn thành.</p>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- ASSIGNEES CARD (Only for Lead/Admin) -->
-        {% if is_lead %}
-        <div class="card border-0" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08);">
-            <div class="card-body p-4">
-                <h6 class="fw-bold mb-3 small text-uppercase" style="color: #64748b;"><i class="fa-solid fa-users me-2" style="color: #8B5CF6;"></i>Người được giao</h6>
-                <div class="d-flex flex-column gap-2">
+                <div class="pc06-assignee-stack">
                     {% for a, u in assigns %}
-                    <div class="d-flex align-items-center p-2 rounded-3 border">
-                        <div class="avatar bg-light text-muted rounded-circle d-flex align-items-center justify-content-center fw-bold me-2" style="width: 36px; height: 36px; font-size: 14px;">
-                            {{ u.fullname[:1].upper() }}
+                    <article class="pc06-assignee-card">
+                        <div class="pc06-comment-avatar">{{ u.fullname[:1].upper() }}</div>
+                        <div class="pc06-assignee-copy">
+                            <strong>{{ u.fullname }}</strong>
+                            <span>{{ u.unit_area or 'Chưa có đơn vị' }}</span>
+                            {% if a.result_file %}
+                            <a href="{{ url_for('dl_file', fn=a.result_file) }}" class="pc06-inline-link">
+                                <i class="fa-solid fa-paperclip"></i>
+                                {{ a.result_file }}
+                            </a>
+                            {% endif %}
                         </div>
-                        <div class="flex-grow-1 overflow-hidden">
-                            <div class="fw-bold text-dark small text-truncate">{{ u.fullname }}</div>
-                            <div class="text-muted tiny text-truncate">{{ u.unit_area }}</div>
-                        </div>
-                        <div class="text-end">
-                            <span class="badge {% if a.status == 'Hoàn thành' %}bg-success{% elif a.status == 'Đang thực hiện' %}bg-info{% else %}bg-secondary{% endif %} tiny">
-                                {{ a.status }}
-                            </span>
-                        </div>
-                    </div>
+                        <span class="pc06-status-badge {% if a.status == 'Hoàn thành' %}done{% elif a.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
+                            {{ a.status }}
+                        </span>
+                    </article>
                     {% else %}
-                    <p class="text-muted small text-center mb-0">Chưa giao cụ thể</p>
+                    <div class="pc06-empty-state compact">
+                        <div class="pc06-empty-icon"><i class="fa-solid fa-users-slash"></i></div>
+                        <h3>Chưa có người nhận</h3>
+                        <p>Công việc này chưa được gán cho cá nhân hoặc đơn vị cụ thể.</p>
+                    </div>
                     {% endfor %}
                 </div>
-            </div>
-        </div>
-        {% endif %}
+            </section>
+        </aside>
     </div>
 </div>
-
-<style>
-    .tiny { font-size: 11px; }
-    .hover-bg-light:hover { background-color: rgba(0,0,0,0.02) !important; }
-    .info-item:last-child { border-bottom: none !important; padding-bottom: 0 !important; margin-bottom: 0 !important; }
-    
-    @keyframes pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-    }
-</style>
 {% endblock %}

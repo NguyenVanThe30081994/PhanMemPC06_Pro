@@ -1,516 +1,447 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header mb-4 animate__animated animate__fadeIn">
-    <div class="header-main-group">
-        <div class="header-title-pill shadow-sm glass-card">
-            <i class="fa-solid fa-list-check"></i>
-            <h1 class="mb-0">Quản lý Công việc</h1>
-        </div>
-        
-        <div class="header-actions">
-            {% if perms.get('p_task_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
-            <button class="btn btn-primary rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#addTaskModal">
-                <i class="fa-solid fa-plus me-2"></i>THÊM CÔNG VIỆC
-            </button>
-            {% endif %}
-        </div>
-    </div>
-</div>
-
-<!-- Unified Filter Hub -->
-<div class="filter-bar-unified animate__animated animate__fadeInUp glass-card" style="background: rgba(255,255,255,0.2) !important;">
-    <div class="search-box-modern">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" id="taskSearch" placeholder="Tìm tên công việc hoặc nội dung..." onkeyup="unifiedFilter()">
-    </div>
-    
-    <div class="filter-divider"></div>
-    
-    <div class="filter-pills-container" id="unitFilters">
-        <div class="filter-pill active" data-unit="ALL" onclick="setUnitFilter('ALL')">TẤT CẢ</div>
-        {% for unit in pro_units %}
-        <div class="filter-pill" data-unit="{{ unit.name }}" onclick="setUnitFilter('{{ unit.name }}')">{{ unit.name|upper }}</div>
-        {% endfor %}
-    </div>
-
-    <div class="filter-divider d-none d-xl-block"></div>
-    
-    <div class="filter-pills-container d-none d-xl-flex" id="statusFilters">
-        <div class="filter-pill active" data-status="ALL" onclick="setStatusFilter('ALL')">MỌI TRẠNG THÁI</div>
-        <div class="filter-pill" data-status="Hoàn thành" onclick="setStatusFilter('Hoàn thành')">ĐÃ XONG</div>
-        <div class="filter-pill" data-status="Đang thực hiện" onclick="setStatusFilter('Đang thực hiện')">ĐANG LÀM</div>
-    </div>
-</div>
-
-<div class="main-content-area animate__animated animate__fadeInUp">
-    <div class="row g-4">
-        {% for t in tasks %}
-        {% set display_status = t.display_status or (t.assignments[0].status if t.assignments else (t.initial_status or 'Chưa tiếp nhận')) %}
-        
-        <!-- Task Card -->
-        <div class="col-12 col-md-6 col-xl-4 task-row" data-unit="{{ t.domain or t.unit_name }}" data-status="{{ display_status }}">
-            <div class="card border-0 h-100 overflow-hidden" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08); transition: all 0.3s ease;">
-                <!-- Card Header with Icon -->
-                <div class="card-header border-0 py-3 px-4" style="background: linear-gradient(135deg, #0066FF, #0052CC);">
-                    <div class="d-flex align-items-center gap-3">
-                        <div style="width: 48px; height: 48px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
-                            <i class="fa-solid fa-clipboard-list text-white fs-5"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <h6 class="fw-bold text-white mb-0" style="font-size: 15px; line-height: 1.3;">{{ t.title }}</h6>
-                            <small class="text-white-50">{{ t.created_at.strftime('%d/%m/%Y') }}</small>
-                        </div>
-                    </div>
+<div class="pc06-page-shell">
+    <section class="pc06-hero-card">
+        <div class="pc06-hero-grid">
+            <div>
+                <div class="pc06-page-kicker">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    Trung tâm điều hành công việc
                 </div>
-                
-                <!-- Card Body -->
-                <div class="card-body p-4">
-                    <!-- Content Preview -->
-                    <p class="text-muted mb-3" style="font-size: 13px; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
-                        {{ t.content[:120] if t.content else 'Không có mô tả' }}{{ '...' if t.content and t.content|length > 120 else '' }}
-                    </p>
-                    
-                    <!-- Metadata Row 1: Unit & Priority -->
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        <span class="badge" style="background: linear-gradient(135deg, #DBEAFE, #BFDBFE); color: #1D4ED8; border: none; padding: 6px 12px; border-radius: 10px; font-size: 11px; font-weight: 600;">
-                            <i class="fa-solid fa-users me-1"></i>{{ t.domain or t.unit_name }}
-                        </span>
-                        {% if t.priority %}
-                        <span class="badge" style="background: linear-gradient(135deg, #FEE2E2, #FECACA); color: #DC2626; border: none; padding: 6px 12px; border-radius: 10px; font-size: 11px; font-weight: 600;">
-                            <i class="fa-solid fa-flag me-1"></i>{{ t.priority }}
-                        </span>
-                        {% endif %}
-                        {% if t.task_type %}
-                        <span class="badge" style="background: linear-gradient(135deg, #f1f5f9, #e2e8f0); color: #475569; border: none; padding: 6px 12px; border-radius: 10px; font-size: 11px; font-weight: 600;">
-                            <i class="fa-solid fa-tag me-1"></i>{{ t.task_type }}
-                        </span>
-                        {% endif %}
-                    </div>
-                    
-                    <!-- Deadline -->
-                    <div class="d-flex align-items-center gap-2 mb-3 p-2 rounded-3" style="background: {% if t.is_overdue %}rgba(220, 38, 38, 0.05){% else %}rgba(100, 116, 139, 0.05){% endif %};">
-                        <div style="width: 32px; height: 32px; background: {% if t.is_overdue %}linear-gradient(135deg, #FEE2E2, #FECACA){% else %}linear-gradient(135deg, #f1f5f9, #e2e8f0){% endif %}; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                            <i class="fa-regular fa-calendar-days" style="color: {% if t.is_overdue %}#DC2626{% else %}#64748b{% endif %}; font-size: 14px;"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <div class="small fw-bold" style="color: {% if t.is_overdue %}#DC2626{% else %}#1e293b{% endif %}; font-size: 12px;">
-                                Hạn: {{ t.deadline.strftime('%d/%m/%Y') if t.deadline else 'Chưa có' }}
-                            </div>
-                            {% if t.is_overdue %}
-                            <div style="font-size: 10px; color: #DC2626; font-weight: 600;">⚠️ Quá hạn</div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    
-                    <!-- Status Badge -->
-                    <div class="mb-3">
-                        {% if 'Hoàn thành' in display_status %}
-                        <span class="badge w-100 py-2" style="background: linear-gradient(135deg, #D1FAE5, #A7F3D0); color: #059669; border: none; border-radius: 12px; font-size: 12px; font-weight: 700;">
-                            <i class="fa-solid fa-circle-check me-1"></i>{{ display_status|upper }}
-                        </span>
-                        {% elif 'Đang' in display_status or 'tiếp nhận' in display_status %}
-                        <span class="badge w-100 py-2" style="background: linear-gradient(135deg, #DBEAFE, #BFDBFE); color: #1D4ED8; border: none; border-radius: 12px; font-size: 12px; font-weight: 700;">
-                            <i class="fa-solid fa-spinner fa-spin me-1"></i>{{ display_status|upper }}
-                        </span>
-                        {% elif 'Chưa tiếp nhận' in display_status %}
-                        <span class="badge w-100 py-2" style="background: linear-gradient(135deg, #FEF3C7, #FDE68A); color: #92400E; border: none; border-radius: 12px; font-size: 12px; font-weight: 700;">
-                            <i class="fa-solid fa-clock me-1"></i>{{ display_status|upper }}
-                        </span>
-                        {% else %}
-                        <span class="badge w-100 py-2" style="background: linear-gradient(135deg, #f1f5f9, #e2e8f0); color: #475569; border: none; border-radius: 12px; font-size: 12px; font-weight: 700;">
-                            <i class="fa-solid fa-circle me-1"></i>{{ display_status|upper }}
-                        </span>
-                        {% endif %}
-                    </div>
-                    
-                    <!-- Action Buttons -->
-                    {% set user_assignment = namespace(found=False, status='') %}
-                    {% for a in t.assignments %}
-                        {% if a.user_id == session['uid'] %}
-                            {% set user_assignment.found = True %}
-                            {% set user_assignment.status = a.status %}
-                        {% endif %}
-                    {% endfor %}
-                    
-                    {% if user_assignment.found and (user_assignment.status == 'Chưa tiếp nhận' or user_assignment.status == 'Chưa bắt đầu') %}
-                    <!-- Nút tiếp nhận cho đơn vị được giao việc -->
-                    <form action="{{ url_for('tasks_bp.update_task_status', tid=t.id) }}" method="POST" class="mb-2">
-                        <input type="hidden" name="action" value="accept">
-                        <button type="submit" class="btn w-100 fw-bold mb-2" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; border-radius: 12px; padding: 10px; border: none; box-shadow: 0 4px 12px rgba(16,185,129,0.25);">
-                            <i class="fa-solid fa-hand-point-right me-2"></i>Tiếp nhận công việc
-                        </button>
-                    </form>
+                <h1 class="pc06-page-title">Cải tổ quản lý công việc theo phong cách BDHVS</h1>
+                <p class="pc06-page-lead">
+                    Gom toàn bộ giao việc, tiếp nhận, theo dõi tiến độ và cảnh báo quá hạn vào một mặt bằng thống nhất,
+                    giảm thao tác thừa và loại bỏ các trạng thái hiển thị thiếu nhất quán.
+                </p>
+                <div class="pc06-action-cluster">
+                    {% if is_lead or is_admin %}
+                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                        <i class="fa-solid fa-plus"></i>
+                        Giao công việc mới
+                    </button>
                     {% endif %}
-                    
-                    <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}" class="btn w-100 fw-bold" style="background: linear-gradient(135deg, #0066FF, #0052CC); color: #fff; border-radius: 12px; padding: 10px; border: none; box-shadow: 0 4px 12px rgba(0,102,255,0.25);">
-                        <i class="fa-solid fa-arrow-right me-2"></i>Xem chi tiết
+                    <a class="btn btn-bdhvs light" href="#taskGrid">
+                        <i class="fa-solid fa-table-cells-large"></i>
+                        Xem danh sách
                     </a>
                 </div>
             </div>
+            <div class="pc06-stat-strip">
+                <div class="pc06-metric-card">
+                    <span>Tổng công việc</span>
+                    <strong>{{ stats.total }}</strong>
+                </div>
+                <div class="pc06-metric-card">
+                    <span>Đã hoàn thành</span>
+                    <strong>{{ stats.completed }}</strong>
+                </div>
+                <div class="pc06-metric-card">
+                    <span>Đang xử lý</span>
+                    <strong>{{ stats.pending }}</strong>
+                </div>
+                <div class="pc06-metric-card danger">
+                    <span>Quá hạn</span>
+                    <strong>{{ stats.overdue }}</strong>
+                </div>
+            </div>
         </div>
+    </section>
+
+    <section class="pc06-panel pc06-toolbar-panel">
+        <div class="pc06-toolbar-row">
+            <label class="pc06-search-control">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="taskSearch" placeholder="Tìm theo tên công việc, nội dung hoặc đơn vị">
+            </label>
+            <div class="pc06-toolbar-note">
+                {% if is_lead %}
+                Hiển thị trạng thái tổng hợp theo toàn bộ người được giao.
+                {% else %}
+                Hiển thị trạng thái công việc của chính bạn.
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="pc06-filter-stack">
+            <div class="pc06-chip-group">
+                <button type="button" class="pc06-chip active" data-filter-type="unit" data-filter-value="ALL">Tất cả đơn vị</button>
+                {% for unit in pro_units %}
+                <button type="button" class="pc06-chip" data-filter-type="unit" data-filter-value="{{ unit.name|lower }}">{{ unit.name }}</button>
+                {% endfor %}
+            </div>
+            <div class="pc06-chip-group">
+                <button type="button" class="pc06-chip active" data-filter-type="status" data-filter-value="ALL">Mọi trạng thái</button>
+                <button type="button" class="pc06-chip" data-filter-type="status" data-filter-value="chưa tiếp nhận">Chưa tiếp nhận</button>
+                <button type="button" class="pc06-chip" data-filter-type="status" data-filter-value="đang thực hiện">Đang thực hiện</button>
+                <button type="button" class="pc06-chip" data-filter-type="status" data-filter-value="hoàn thành">Hoàn thành</button>
+            </div>
+        </div>
+    </section>
+
+    {% if tasks %}
+    <section class="pc06-task-grid" id="taskGrid">
+        {% for t in tasks %}
+        {% set status_text = t.display_status or 'Chưa tiếp nhận' %}
+        {% set status_key = status_text|lower %}
+        <article
+            class="pc06-task-card task-row"
+            data-unit="{{ (t.domain or 'Không xác định')|lower }}"
+            data-status="{{ status_key }}"
+            data-search="{{ (t.title ~ ' ' ~ (t.content or '') ~ ' ' ~ (t.domain or ''))|lower }}"
+        >
+            <div class="pc06-task-card-head">
+                <div class="pc06-task-card-icon">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                </div>
+                <div class="pc06-task-head-copy">
+                    <h3>{{ t.title }}</h3>
+                    <p>{{ t.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                </div>
+                <span class="pc06-progress-pill">{{ t.progress_percent }}%</span>
+            </div>
+
+            <div class="pc06-task-tags">
+                <span class="pc06-soft-tag">
+                    <i class="fa-solid fa-users"></i>
+                    {{ t.domain or 'Chưa phân đơn vị' }}
+                </span>
+                {% if t.task_type %}
+                <span class="pc06-soft-tag neutral">
+                    <i class="fa-solid fa-tag"></i>
+                    {{ t.task_type }}
+                </span>
+                {% endif %}
+                {% if t.priority %}
+                <span class="pc06-soft-tag danger">
+                    <i class="fa-solid fa-flag"></i>
+                    {{ t.priority }}
+                </span>
+                {% endif %}
+            </div>
+
+            <p class="pc06-task-snippet">
+                {{ t.content[:180] if t.content else 'Công việc chưa có mô tả chi tiết.' }}{{ '...' if t.content and t.content|length > 180 else '' }}
+            </p>
+
+            <div class="pc06-task-meta">
+                <div>
+                    <span>Thời hạn</span>
+                    <strong class="{% if t.is_overdue %}text-danger{% endif %}">
+                        {{ t.deadline.strftime('%d/%m/%Y') if t.deadline else 'Chưa xác định' }}
+                    </strong>
+                </div>
+                <div>
+                    <span>Phân công</span>
+                    <strong>{{ t.assignee_count or 0 }} người</strong>
+                </div>
+                <div>
+                    <span>Đã hoàn tất</span>
+                    <strong>{{ t.completed_assignments or 0 }}</strong>
+                </div>
+            </div>
+
+            <div class="pc06-task-footer">
+                <span class="pc06-status-badge {% if 'hoàn thành' in status_key %}done{% elif 'đang thực hiện' in status_key %}doing{% elif 'chưa tiếp nhận' in status_key %}todo{% else %}neutral{% endif %}">
+                    {{ status_text }}
+                </span>
+
+                <div class="pc06-card-actions">
+                    {% if t.current_user_status in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+                    <form action="{{ url_for('tasks_bp.update_task_status', tid=t.id) }}" method="POST">
+                        <input type="hidden" name="action" value="accept">
+                        <button type="submit" class="btn btn-bdhvs light">
+                            <i class="fa-solid fa-hand-point-right"></i>
+                            Tiếp nhận
+                        </button>
+                    </form>
+                    {% endif %}
+                    <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}" class="btn btn-bdhvs primary">
+                        <i class="fa-solid fa-arrow-right"></i>
+                        Chi tiết
+                    </a>
+                </div>
+            </div>
+        </article>
         {% endfor %}
-    </div>
+    </section>
+    {% else %}
+    <section class="pc06-panel pc06-empty-panel">
+        <div class="pc06-empty-state">
+            <div class="pc06-empty-icon"><i class="fa-solid fa-list-check"></i></div>
+            <h3>Chưa có công việc nào</h3>
+            <p>Hệ thống hiện chưa có đầu việc phù hợp với quyền truy cập hoặc bộ lọc hiện tại.</p>
+        </div>
+    </section>
+    {% endif %}
 </div>
 
-<style>
-    .card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 12px 40px rgba(0,0,0,0.12) !important;
-    }
-</style>
-
-<!-- Modal stays same but cleaned up classes -->
-<div class="modal fade" id="addTaskModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0" style="border-radius: 24px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+{% if is_lead or is_admin %}
+<div class="modal fade" id="addTaskModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content border-0 pc06-modal-shell">
             <form method="POST" enctype="multipart/form-data">
-                <div class="modal-header border-0 py-4 px-4" style="background: linear-gradient(135deg, #0066FF, #0052CC);">
-                    <div class="d-flex align-items-center gap-3">
-                        <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); border-radius: 14px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
-                            <i class="fa-solid fa-plus text-white fs-5"></i>
+                <div class="modal-header border-0 pc06-modal-head">
+                    <div>
+                        <div class="pc06-page-kicker mb-2">
+                            <i class="fa-solid fa-layer-group"></i>
+                            Khởi tạo đầu việc
                         </div>
-                        <div>
-                            <h5 class="modal-title fw-bold text-white mb-0">Thêm công việc mới</h5>
-                            <p class="text-white-50 small mb-0">Tạo và giao việc cho đơn vị</p>
-                        </div>
+                        <h5 class="modal-title fw-bold mb-1">Giao việc theo chuẩn BDHVS</h5>
+                        <p class="mb-0 text-white-50">Chọn đơn vị, cách giao và mốc hạn xử lý ngay trong một biểu mẫu thống nhất.</p>
                     </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
 
-                <div class="modal-body p-4" style="background: linear-gradient(145deg, #ffffff, #f8fafc);">
-                    <div class="mb-4">
-                        <label class="form-label fw-bold mb-2" style="color: #334155;">Tiêu đề công việc</label>
-                        <div class="input-group" style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff;">
-                            <span class="input-group-text border-0 bg-transparent" style="border-radius: 16px 0 0 16px;">
-                                <i class="fa-solid fa-heading text-muted"></i>
-                            </span>
-                            <input type="text" name="title" class="form-control border-0 bg-transparent py-3" placeholder="Nhập tiêu đề công việc..." required style="box-shadow: none; border-radius: 0 16px 16px 0;">
-                        </div>
-                    </div>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold mb-2" style="color: #334155;">Đội nghiệp vụ</label>
-                            <div data-category-picker data-module="tasks" data-field="domain" data-placeholder="Chọn đội nghiệp vụ" data-storage-key="modal.tasks.domain">
-                                <select name="unit_name" class="form-control" required data-category-target style="border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0; background: white;">
-                                    <option value="" disabled selected>Chọn đội nghiệp vụ</option>
-                                    {% for u in pro_units %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
-                                </select>
+                <div class="modal-body p-4 p-lg-5">
+                    <div class="row g-4">
+                        <div class="col-lg-7">
+                            <div class="pc06-form-panel">
+                                <div class="pc06-form-section">
+                                    <label class="form-label fw-bold">Tiêu đề công việc</label>
+                                    <input type="text" name="title" class="form-control form-control-lg" placeholder="Ví dụ: Rà soát dữ liệu cư trú tháng này" required>
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="pc06-form-section">
+                                            <label class="form-label fw-bold">Đội nghiệp vụ</label>
+                                            <div data-category-picker data-module="tasks" data-field="domain" data-placeholder="Chọn đội nghiệp vụ" data-storage-key="modal.tasks.domain">
+                                                <select name="unit_name" class="form-select form-select-lg" required data-category-target>
+                                                    <option value="" disabled selected>Chọn đội nghiệp vụ</option>
+                                                    {% for u in pro_units %}
+                                                    <option value="{{ u.name }}">{{ u.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="pc06-form-section">
+                                            <label class="form-label fw-bold">Mức độ ưu tiên</label>
+                                            <div data-category-picker data-module="tasks" data-field="priority" data-placeholder="Chọn mức độ ưu tiên" data-storage-key="modal.tasks.priority">
+                                                <select name="priority" class="form-select form-select-lg" data-category-target>
+                                                    <option value="">Chọn mức độ</option>
+                                                    {% for item in priority_items %}
+                                                    <option value="{{ item.name }}">{{ item.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="pc06-form-section">
+                                            <label class="form-label fw-bold">Loại công việc</label>
+                                            <select name="task_type" class="form-select form-select-lg">
+                                                <option value="">Công việc thường xuyên</option>
+                                                {% for item in task_types %}
+                                                <option value="{{ item.name }}">{{ item.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="pc06-form-section">
+                                            <label class="form-label fw-bold">Cơ chế hạn</label>
+                                            <select name="deadline_type" id="deadlineType" class="form-select form-select-lg" onchange="toggleDeadlineFields()">
+                                                <option value="custom">Ngày cụ thể</option>
+                                                <option value="week">Theo tuần</option>
+                                                <option value="month">Theo tháng</option>
+                                                <option value="quarter">Theo quý</option>
+                                                <option value="6months">6 tháng</option>
+                                                <option value="year">Theo năm</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 deadline-field" id="customDeadlineField">
+                                        <div class="pc06-form-section">
+                                            <label class="form-label fw-bold">Ngày cụ thể</label>
+                                            <input type="date" name="deadline" class="form-control form-control-lg">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 deadline-field d-none" id="weekdayField">
+                                        <div class="pc06-form-section">
+                                            <label class="form-label fw-bold">Thứ trong tuần</label>
+                                            <select name="weekday" class="form-select form-select-lg">
+                                                <option value="0">Thứ Hai</option>
+                                                <option value="1">Thứ Ba</option>
+                                                <option value="2">Thứ Tư</option>
+                                                <option value="3">Thứ Năm</option>
+                                                <option value="4">Thứ Sáu</option>
+                                                <option value="5">Thứ Bảy</option>
+                                                <option value="6">Chủ Nhật</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 deadline-field d-none" id="dayOfMonthField">
+                                        <div class="pc06-form-section">
+                                            <label class="form-label fw-bold">Ngày trong kỳ</label>
+                                            <select name="day_of_month" class="form-select form-select-lg">
+                                                {% for d in range(1, 32) %}
+                                                <option value="{{ d }}">{{ d }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 deadline-field d-none" id="monthOfPeriodField">
+                                        <div class="pc06-form-section">
+                                            <label class="form-label fw-bold">Tháng chốt kỳ</label>
+                                            <select name="month_of_period" class="form-select form-select-lg">
+                                                {% for m in [1,2,3,4,5,6,7,8,9,10,11,12] %}
+                                                <option value="{{ m }}">{{ m }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="pc06-form-section">
+                                    <label class="form-label fw-bold">Nội dung công việc</label>
+                                    <textarea name="description" rows="6" class="form-control" placeholder="Mô tả rõ yêu cầu, đầu ra mong muốn và mốc kiểm soát"></textarea>
+                                </div>
+
+                                <div class="pc06-form-section mb-0">
+                                    <label class="form-label fw-bold">Tài liệu đính kèm</label>
+                                    <input type="file" name="task_file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar">
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold mb-2" style="color: #334155;">Mức độ ưu tiên</label>
-                            <div data-category-picker data-module="tasks" data-field="priority" data-placeholder="Chọn mức độ ưu tiên" data-storage-key="modal.tasks.priority">
-                                <select name="priority" class="form-control" data-category-target style="border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0; background: white;">
-                                    <option value="">Chọn mức độ ưu tiên</option>
-                                    {% for item in priority_items %}<option value="{{ item.name }}">{{ item.name }}</option>{% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold mb-2" style="color: #334155;">Thời hạn</label>
-                            <div style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff; overflow: hidden;">
-                                <select name="deadline_type" id="deadlineType" class="form-control border-0 bg-transparent py-3" onchange="toggleDeadline()" style="box-shadow: none;">
-                                    <option value="custom">Ngày cụ thể</option>
-                                    <option value="week">Định kỳ Tuần</option>
-                                    <option value="month">Định kỳ Tháng</option>
-                                    <option value="quarter">Định kỳ Quý</option>
-                                    <option value="6months">Định kỳ 6 Tháng</option>
-                                    <option value="year">Định kỳ Năm</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <!-- Custom date -->
-                        <div class="col-md-3" id="customDeadline">
-                            <label class="form-label fw-bold mb-2" style="color: #334155;">Chọn ngày</label>
-                            <div style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff; overflow: hidden;">
-                                <input type="date" name="deadline" class="form-control border-0 bg-transparent py-3" style="box-shadow: none;">
-                            </div>
-                        </div>
-                        
-                        <!-- Weekday selector (for weekly) -->
-                        <div class="col-md-3" id="weekdaySelect" style="display:none;">
-                            <label class="form-label fw-bold mb-2" style="color: #334155;">Thứ</label>
-                            <div style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff; overflow: hidden;">
-                                <select name="weekday" class="form-control border-0 bg-transparent py-3" style="box-shadow: none;">
-                                    <option value="0">Thứ Hai</option>
-                                    <option value="1">Thứ Ba</option>
-                                    <option value="2">Thứ Tư</option>
-                                    <option value="3">Thứ Năm</option>
-                                    <option value="4">Thứ Sáu</option>
-                                    <option value="5">Thứ Bảy</option>
-                                    <option value="6">Chủ Nhật</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <!-- Day of month (for monthly/quarterly/6months/yearly) -->
-                        <div class="col-md-3" id="daySelect" style="display:none;">
-                            <label class="form-label fw-bold mb-2" style="color: #334155;">Ngày</label>
-                            <div style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff; overflow: hidden;">
-                                <select name="day_of_month" class="form-control border-0 bg-transparent py-3" style="box-shadow: none;">
-                                    {% for d in range(1, 32) %}
-                                    <option value="{{ d }}">{{ d }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <!-- Month selector (for quarter/6months/year) -->
-                        <div class="col-md-3" id="monthSelect" style="display:none;">
-                            <label class="form-label fw-bold mb-2" style="color: #334155;">Tháng</label>
-                            <div style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff; overflow: hidden;">
-                                <select name="month_of_period" class="form-control border-0 bg-transparent py-3" style="box-shadow: none;">
-                                    <option value="1">Tháng 1</option>
-                                    <option value="2">Tháng 2</option>
-                                    <option value="3">Tháng 3</option>
-                                    <option value="4">Tháng 4</option>
-                                    <option value="5">Tháng 5</option>
-                                    <option value="6">Tháng 6</option>
-                                    <option value="7">Tháng 7</option>
-                                    <option value="8">Tháng 8</option>
-                                    <option value="9">Tháng 9</option>
-                                    <option value="10">Tháng 10</option>
-                                    <option value="11">Tháng 11</option>
-                                    <option value="12">Tháng 12</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Giao cho ai -->
-                    <div class="mt-4">
-                        <label class="form-label fw-bold mb-2" style="color: #334155;">Giao cho</label>
-                        
-                        <!-- Chọn loại giao việc -->
-                        <div class="mb-3">
-                            <div class="btn-group w-100" role="group">
-                                <input type="radio" class="btn-check" name="assign_type" id="assign_user" value="user" checked onchange="toggleAssignType()">
-                                <label class="btn btn-outline-primary" for="assign_user" style="border-radius: 12px 0 0 12px; padding: 10px 20px;">
-                                    <i class="fa-solid fa-user me-2"></i>Cá nhân
-                                </label>
-                                
-                                <input type="radio" class="btn-check" name="assign_type" id="assign_role" value="role" onchange="toggleAssignType()">
-                                <label class="btn btn-outline-primary" for="assign_role" style="border-radius: 0 12px 12px 0; padding: 10px 20px;">
-                                    <i class="fa-solid fa-users me-2"></i>Theo vai trò
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <!-- Chọn cá nhân -->
-                        <div id="userSelect">
-                            <div style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff; overflow: hidden;">
-                                <select name="assignee_id" class="form-control border-0 bg-transparent py-3" style="box-shadow: none;">
-                                    <option value="">-- Chọn người thực hiện --</option>
-                                    {% if users %}
-                                    {% for u in users %}
-                                    <option value="{{ u.id }}">{{ u.fullname }} ({{ u.unit_area or 'Chưa có đơn vị' }})</option>
-                                    {% endfor %}
-                                {% endif %}
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <!-- Chọn vai trò -->
-                        <div id="roleSelect" style="display:none;">
-                            <div style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff; overflow: hidden;">
-                                <select name="assignee_role_id" class="form-control border-0 bg-transparent py-3" style="box-shadow: none;">
-                                    <option value="">-- Chọn vai trò --</option>
-                                    {% if roles %}
-                                        {% for r in roles %}
-                                        <option value="{{ r.id }}">{{ r.name }}</option>
+
+                        <div class="col-lg-5">
+                            <div class="pc06-form-panel">
+                                <div class="pc06-side-title">
+                                    <h6>Luồng giao việc</h6>
+                                    <p>Chọn đúng phương thức để backend giao việc nhất quán với giao diện.</p>
+                                </div>
+
+                                <div class="pc06-segmented" id="assignmentModes">
+                                    <label class="pc06-radio-card active">
+                                        <input type="radio" name="assign_type" value="unit" checked>
+                                        <span class="pc06-radio-title">Theo đơn vị</span>
+                                        <small>Tự động giao cho toàn bộ cán bộ đang hoạt động của đơn vị đã chọn.</small>
+                                    </label>
+                                    <label class="pc06-radio-card">
+                                        <input type="radio" name="assign_type" value="role">
+                                        <span class="pc06-radio-title">Theo vai trò</span>
+                                        <small>Giao đồng loạt theo vai trò hệ thống.</small>
+                                    </label>
+                                    <label class="pc06-radio-card">
+                                        <input type="radio" name="assign_type" value="user">
+                                        <span class="pc06-radio-title">Theo cá nhân</span>
+                                        <small>Chọn một hoặc nhiều cán bộ nhận việc cụ thể.</small>
+                                    </label>
+                                </div>
+
+                                <div class="pc06-form-section d-none" id="roleAssignmentPanel">
+                                    <label class="form-label fw-bold">Vai trò nhận việc</label>
+                                    <select name="assignee_role_id" class="form-select form-select-lg">
+                                        <option value="">Chọn vai trò</option>
+                                        {% for role in roles %}
+                                        <option value="{{ role.id }}">{{ role.name }}</option>
                                         {% endfor %}
-                                    {% endif %}
-                                </select>
+                                    </select>
+                                </div>
+
+                                <div class="pc06-form-section d-none" id="userAssignmentPanel">
+                                    <label class="form-label fw-bold">Cán bộ nhận việc</label>
+                                    <select name="target_users" class="form-select" size="10" multiple>
+                                        {% for user in users %}
+                                        <option value="{{ user.id }}">{{ user.fullname }}{% if user.unit_area %} - {{ user.unit_area }}{% endif %}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">Giữ `Ctrl` hoặc `Cmd` để chọn nhiều cán bộ.</div>
+                                </div>
+
+                                <div class="pc06-mode-help">
+                                    Đơn vị được chọn ở cột bên trái sẽ quyết định phạm vi chuyên môn của công việc, kể cả khi bạn giao theo vai trò hoặc cá nhân.
+                                </div>
                             </div>
-                            <div class="form-text small text-muted mt-2">
-                                <i class="fa-solid fa-info-circle me-1"></i>Sẽ giao cho tất cả tài khoản có vai trò này
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-4">
-                        <label class="form-label fw-bold mb-2" style="color: #334155;">Nội dung chi tiết</label>
-                        <div style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff; overflow: hidden;">
-                            <textarea name="description" class="form-control border-0 bg-transparent py-3 px-3" rows="4" placeholder="Mô tả chi tiết công việc..." style="box-shadow: none; resize: none;"></textarea>
-                        </div>
-                    </div>
-                    
-                    <!-- Đính kèm tệp -->
-                    <div class="mt-4">
-                        <label class="form-label fw-bold mb-2" style="color: #334155;">Đính kèm tệp</label>
-                        <div style="border-radius: 16px; background: linear-gradient(145deg, #f8fafc, #ffffff); box-shadow: inset 3px 3px 6px #e2e8f0, inset -3px -3px 6px #ffffff; overflow: hidden; padding: 3px;">
-                            <input type="file" name="task_file" class="form-control border-0 bg-transparent py-3" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar" style="box-shadow: none;">
-                        </div>
-                        <div class="form-text small text-muted mt-2">
-                            <i class="fa-solid fa-paperclip me-1"></i>Hỗ trợ: PDF, Word, Excel, Hình ảnh, ZIP (Max 10MB)
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0 p-4" style="background: linear-gradient(145deg, #ffffff, #f8fafc);">
-                    <button type="button" class="btn btn-light px-4 fw-bold border" data-bs-dismiss="modal" style="border-radius: 12px; padding: 10px 24px;">
-                        <i class="fa-solid fa-xmark me-2"></i>Hủy
-                    </button>
-                    <button type="submit" class="btn px-5 fw-bold shadow" style="background: linear-gradient(135deg, #0066FF, #0052CC); color: white; border: none; border-radius: 12px; padding: 10px 32px;">
-                        <i class="fa-solid fa-check me-2"></i>Tạo công việc
+
+                <div class="modal-footer border-0 px-4 px-lg-5 pb-4">
+                    <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-bdhvs primary">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        Xác nhận giao việc
                     </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+{% endif %}
+{% endblock %}
 
-<style>
-    /* Smooth transitions for status changes */
-    .badge {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    
-    .badge:hover {
-        transform: scale(1.05);
-    }
-    
-    /* Modal animations */
-    .modal.fade .modal-dialog {
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    
-    /* Form input focus effects */
-    .form-control:focus, .form-select:focus {
-        box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1) !important;
-        border-color: #0066FF !important;
-    }
-    
-    /* Button group active state */
-    .btn-check:checked + .btn-outline-primary {
-        background: linear-gradient(135deg, #0066FF, #0052CC);
-        border-color: #0066FF;
-        color: white;
-    }
-</style>
-
+{% block scripts %}
 <script>
-    function toggleDeadline() {
-        const type = document.getElementById('deadlineType').value;
-        const customDiv = document.getElementById('customDeadline');
-        const weekdayDiv = document.getElementById('weekdaySelect');
-        const dayDiv = document.getElementById('daySelect');
-        const monthDiv = document.getElementById('monthSelect');
-        const customInput = customDiv.querySelector('input[name="deadline"]');
-        const weekdayInput = weekdayDiv.querySelector('select[name="weekday"]');
-        const dayInput = dayDiv.querySelector('select[name="day_of_month"]');
-        const monthInput = monthDiv.querySelector('select[name="month_of_period"]');
-        
-        // Reset all states first so hidden fields do not block submit.
-        customDiv.style.display = 'none';
-        weekdayDiv.style.display = 'none';
-        dayDiv.style.display = 'none';
-        monthDiv.style.display = 'none';
+    const taskFilters = {
+        unit: 'ALL',
+        status: 'ALL',
+        query: ''
+    };
 
-        [customInput, weekdayInput, dayInput, monthInput].forEach(input => {
-            input.removeAttribute('required');
-            input.disabled = true;
+    function applyTaskFilters() {
+        document.querySelectorAll('.task-row').forEach((row) => {
+            const unit = row.dataset.unit || '';
+            const status = row.dataset.status || '';
+            const search = row.dataset.search || '';
+            const unitMatch = taskFilters.unit === 'ALL' || unit === taskFilters.unit;
+            const statusMatch = taskFilters.status === 'ALL' || status.includes(taskFilters.status);
+            const searchMatch = !taskFilters.query || search.includes(taskFilters.query);
+            row.style.display = unitMatch && statusMatch && searchMatch ? '' : 'none';
         });
-        
-        if (type === 'custom') {
-            customDiv.style.display = 'block';
-            customDiv.className = 'col-md-6';
-            customInput.disabled = false;
-            customInput.setAttribute('required', 'required');
-        } else if (type === 'week') {
-            weekdayDiv.style.display = 'block';
-            weekdayDiv.className = 'col-md-3';
-            weekdayInput.disabled = false;
-            weekdayInput.setAttribute('required', 'required');
-        } else if (type === 'month') {
-            dayDiv.style.display = 'block';
-            dayDiv.className = 'col-md-3';
-            dayInput.disabled = false;
-            dayInput.setAttribute('required', 'required');
-        } else if (type === 'quarter') {
-            dayDiv.style.display = 'block';
-            dayDiv.className = 'col-md-3';
-            dayInput.disabled = false;
-            dayInput.setAttribute('required', 'required');
-        } else {
-            dayDiv.style.display = 'block';
-            dayDiv.className = 'col-md-3';
-            dayInput.disabled = false;
-            dayInput.setAttribute('required', 'required');
-            monthDiv.style.display = 'block';
-            monthDiv.className = 'col-md-3';
-            monthInput.disabled = false;
-            monthInput.setAttribute('required', 'required');
-        }
     }
-    
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        toggleDeadline();
-        updateQuarterDefaults();
+
+    document.getElementById('taskSearch')?.addEventListener('input', (event) => {
+        taskFilters.query = event.target.value.trim().toLowerCase();
+        applyTaskFilters();
     });
-    
-    function toggleAssignType() {
-        const assignType = document.querySelector('input[name="assign_type"]:checked').value;
-        document.getElementById('userSelect').style.display = (assignType === 'user') ? 'block' : 'none';
-        document.getElementById('roleSelect').style.display = (assignType === 'role') ? 'block' : 'none';
-    }
-    
-    function updateQuarterDefaults() {
-        const type = document.getElementById('deadlineType').value;
-        if (type === 'quarter') {
-            const currentMonth = new Date().getMonth() + 1;
-            const quarter = Math.ceil(currentMonth / 3);
-            const lastMonthOfQuarter = quarter * 3; // 3, 6, 9, 12
-            const monthSelect = document.querySelector('select[name="month_of_period"]');
-            if (monthSelect) {
-                monthSelect.value = lastMonthOfQuarter;
-            }
-        }
-    }
-    
-    // Add event listener to update quarter month when type changes
-    document.getElementById('deadlineType').addEventListener('change', updateQuarterDefaults);
-    
-    let currentUnit = 'ALL';
-    let currentStatus = 'ALL';
 
-    function setUnitFilter(unit) {
-        currentUnit = unit;
-        document.querySelectorAll('#unitFilters .filter-pill').forEach(p => {
-            p.classList.toggle('active', p.getAttribute('data-unit') === unit);
+    document.querySelectorAll('.pc06-chip[data-filter-type]').forEach((chip) => {
+        chip.addEventListener('click', () => {
+            const type = chip.dataset.filterType;
+            taskFilters[type] = chip.dataset.filterValue;
+
+            document.querySelectorAll(`.pc06-chip[data-filter-type="${type}"]`).forEach((item) => {
+                item.classList.toggle('active', item === chip);
+            });
+
+            applyTaskFilters();
         });
-        unifiedFilter();
+    });
+
+    function toggleDeadlineFields() {
+        const type = document.getElementById('deadlineType')?.value || 'custom';
+        const showCustom = type === 'custom';
+        const showWeekday = type === 'week';
+        const showDayOnly = ['month', 'quarter', '6months', 'year'].includes(type);
+        const showMonth = ['6months', 'year'].includes(type);
+
+        document.getElementById('customDeadlineField')?.classList.toggle('d-none', !showCustom);
+        document.getElementById('weekdayField')?.classList.toggle('d-none', !showWeekday);
+        document.getElementById('dayOfMonthField')?.classList.toggle('d-none', !showDayOnly);
+        document.getElementById('monthOfPeriodField')?.classList.toggle('d-none', !showMonth);
     }
 
-    function setStatusFilter(status) {
-        currentStatus = status;
-        document.querySelectorAll('#statusFilters .filter-pill').forEach(p => {
-            p.classList.toggle('active', p.getAttribute('data-status') === status);
+    function syncAssignmentMode() {
+        const selected = document.querySelector('input[name="assign_type"]:checked')?.value || 'unit';
+
+        document.querySelectorAll('#assignmentModes .pc06-radio-card').forEach((card) => {
+            const radio = card.querySelector('input[name="assign_type"]');
+            card.classList.toggle('active', radio?.checked);
         });
-        unifiedFilter();
+
+        document.getElementById('roleAssignmentPanel')?.classList.toggle('d-none', selected !== 'role');
+        document.getElementById('userAssignmentPanel')?.classList.toggle('d-none', selected !== 'user');
     }
 
-    function unifiedFilter() {
-        const query = document.getElementById('taskSearch').value.toLowerCase();
-        const rows = document.querySelectorAll('.task-row');
-        
-        rows.forEach(row => {
-            const text = row.innerText.toLowerCase();
-            const unit = row.getAttribute('data-unit');
-            const status = row.getAttribute('data-status');
-            
-            const matchText = text.includes(query);
-            const matchUnit = (currentUnit === 'ALL' || unit === currentUnit);
-            const matchStatus = (currentStatus === 'ALL' || status === currentStatus);
-            
-            if (matchText && matchUnit && matchStatus) {
-                row.style.display = 'table-row';
-            } else {
-                row.style.display = 'none';
-            }
-        });
-    }
+    document.querySelectorAll('input[name="assign_type"]').forEach((radio) => {
+        radio.addEventListener('change', syncAssignmentMode);
+    });
+
+    toggleDeadlineFields();
+    syncAssignmentMode();
 </script>
 {% endblock %}

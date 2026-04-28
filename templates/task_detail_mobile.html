@@ -1,0 +1,145 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}Chi tiết công việc{% endblock %}
+
+{% block head %}
+<style>
+    .detail-mobile-hero { background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff; border-radius: 24px; padding: 20px; margin-bottom: 16px; box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18); }
+    .detail-mobile-hero a { color: #fff; text-decoration: none; font-weight: 700; font-size: 0.9rem; }
+    .detail-mobile-hero h1 { margin: 14px 0 10px; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.03em; }
+    .detail-mobile-hero p { margin: 0; color: rgba(255, 255, 255, 0.82); font-size: 0.9rem; }
+    .detail-mobile-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+    .detail-mobile-stat { padding: 12px; border-radius: 16px; background: rgba(255, 255, 255, 0.12); }
+    .detail-mobile-stat span { display: block; font-size: 0.76rem; color: rgba(255, 255, 255, 0.7); }
+    .detail-mobile-stat strong { display: block; margin-top: 6px; font-size: 1.1rem; font-weight: 800; }
+    .detail-mobile-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; padding: 16px; margin-bottom: 16px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); }
+    .detail-mobile-card h2 { margin: 0 0 8px; font-size: 1rem; font-weight: 800; color: var(--text-main); }
+    .detail-mobile-card p.helper { margin: 0 0 14px; font-size: 0.84rem; color: var(--text-muted); }
+    .detail-mobile-status { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 800; margin-bottom: 12px; }
+    .detail-mobile-status.todo { background: #fef3c7; color: #92400e; }
+    .detail-mobile-status.doing { background: #dbeafe; color: #1d4ed8; }
+    .detail-mobile-status.done { background: #dcfce7; color: #166534; }
+    .detail-mobile-body { white-space: pre-line; line-height: 1.7; color: var(--text-main); background: var(--bg-body); border-radius: 16px; padding: 14px; }
+    .detail-mobile-file, .detail-mobile-assignee, .detail-mobile-comment { display: flex; gap: 12px; align-items: flex-start; }
+    .detail-mobile-file { margin-top: 14px; padding: 14px; border-radius: 16px; background: var(--bg-body); }
+    .detail-mobile-badge { width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: #dbeafe; color: #1d4ed8; flex-shrink: 0; }
+    .detail-mobile-stack { display: grid; gap: 12px; }
+    .detail-mobile-assignee { padding: 14px; border-radius: 16px; background: var(--bg-body); }
+    .detail-mobile-assignee-copy, .detail-mobile-comment-copy { min-width: 0; flex: 1; }
+    .detail-mobile-assignee-copy strong, .detail-mobile-comment-copy strong { display: block; color: var(--text-main); }
+    .detail-mobile-assignee-copy span, .detail-mobile-comment-copy span { display: block; color: var(--text-muted); font-size: 0.82rem; margin-top: 3px; }
+    .detail-mobile-comment { padding: 14px; border-radius: 16px; background: var(--bg-body); }
+    .detail-mobile-comment.report { border-left: 4px solid #10b981; background: #f0fdf4; }
+    .detail-mobile-avatar { width: 40px; height: 40px; border-radius: 50%; background: #dbeafe; color: #1d4ed8; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set display_status = task.display_status or (user_assign.status if user_assign else (task.initial_status or 'Chưa tiếp nhận')) %}
+<section class="detail-mobile-hero">
+    <a href="{{ url_for('tasks_bp.tasks') }}"><i class="fa-solid fa-arrow-left me-1"></i>Quay lại danh sách</a>
+    <h1>{{ task.title }}</h1>
+    <p>{{ task.author_name }} • {{ task.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+    <div class="detail-mobile-stats">
+        <div class="detail-mobile-stat"><span>Tiến độ</span><strong>{{ progress_percent }}%</strong></div>
+        <div class="detail-mobile-stat"><span>Trạng thái</span><strong style="font-size:0.95rem;">{{ display_status }}</strong></div>
+        <div class="detail-mobile-stat"><span>Đơn vị</span><strong style="font-size:0.95rem;">{{ task.domain or 'Chưa phân' }}</strong></div>
+        <div class="detail-mobile-stat"><span>Hạn xử lý</span><strong style="font-size:0.95rem;">{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa có' }}</strong></div>
+    </div>
+</section>
+
+{% if user_assign %}
+<section class="detail-mobile-card">
+    <h2>Trạng thái của bạn</h2>
+    <p class="helper">Tiếp nhận và gửi báo cáo ngay trên di động.</p>
+    <div class="detail-mobile-status {% if user_assign.status == 'Hoàn thành' %}done{% elif user_assign.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">{{ user_assign.status }}</div>
+    {% if user_assign.status in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+    <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST">
+        <input type="hidden" name="action" value="accept">
+        <button type="submit" class="btn btn-mobile btn-mobile-primary"><i class="fa-solid fa-hand-point-right"></i>Tiếp nhận công việc</button>
+    </form>
+    {% endif %}
+</section>
+{% endif %}
+
+<section class="detail-mobile-card">
+    <h2>Nội dung công việc</h2>
+    <p class="helper">Chi tiết đầu việc và yêu cầu xử lý.</p>
+    <div class="detail-mobile-body">{{ task.content or 'Chưa có mô tả chi tiết.' }}</div>
+    {% if task.file_path %}
+    <div class="detail-mobile-file">
+        <div class="detail-mobile-badge"><i class="fa-solid fa-paperclip"></i></div>
+        <div class="detail-mobile-assignee-copy">
+            <strong>{{ task.file_path }}</strong>
+            <span>Tệp đính kèm từ người giao việc</span>
+        </div>
+        <a href="{{ url_for('dl_file', fn=task.file_path) }}" class="btn btn-sm btn-outline-primary rounded-pill">Tải</a>
+    </div>
+    {% endif %}
+</section>
+
+{% if user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+<section class="detail-mobile-card">
+    <h2>Báo cáo kết quả</h2>
+    <p class="helper">Gửi kết quả xử lý và tệp minh chứng.</p>
+    <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data">
+        <div class="mb-3"><textarea name="report_content" rows="4" class="form-control" placeholder="Nội dung báo cáo" required></textarea></div>
+        <div class="mb-3"><input type="file" name="report_file" class="form-control"></div>
+        <label class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="mark_completed" value="1">
+            <span class="form-check-label">Đánh dấu hoàn thành</span>
+        </label>
+        <button type="submit" class="btn btn-mobile btn-mobile-primary"><i class="fa-solid fa-paper-plane"></i>Gửi báo cáo</button>
+    </form>
+</section>
+{% endif %}
+
+<section class="detail-mobile-card">
+    <h2>Phản hồi nhanh</h2>
+    <p class="helper">Trao đổi ngay trên luồng công việc.</p>
+    <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST">
+        <textarea name="content" rows="3" class="form-control" placeholder="Nhập phản hồi" required></textarea>
+        <button type="submit" class="btn btn-mobile btn-mobile-primary mt-3"><i class="fa-solid fa-reply"></i>Gửi phản hồi</button>
+    </form>
+</section>
+
+<section class="detail-mobile-card">
+    <h2>Người thực hiện</h2>
+    <p class="helper">Danh sách cán bộ đang nhận việc.</p>
+    <div class="detail-mobile-stack">
+        {% for a, u in assigns %}
+        <article class="detail-mobile-assignee">
+            <div class="detail-mobile-avatar">{{ u.fullname[:1].upper() }}</div>
+            <div class="detail-mobile-assignee-copy">
+                <strong>{{ u.fullname }}</strong>
+                <span>{{ u.unit_area or 'Chưa có đơn vị' }}</span>
+                {% if a.result_file %}<span><i class="fa-solid fa-paperclip me-1"></i>{{ a.result_file }}</span>{% endif %}
+            </div>
+            <div class="detail-mobile-status {% if a.status == 'Hoàn thành' %}done{% elif a.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}" style="margin-bottom:0;">{{ a.status }}</div>
+        </article>
+        {% else %}
+        <div class="text-muted small">Chưa có người nhận việc.</div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="detail-mobile-card">
+    <h2>Lịch sử trao đổi</h2>
+    <p class="helper">Báo cáo và phản hồi được gom tại đây.</p>
+    <div class="detail-mobile-stack">
+        {% for c in comments %}
+        {% set is_report = c.content.startswith('[BÁO CÁO]') %}
+        <article class="detail-mobile-comment {% if is_report %}report{% endif %}">
+            <div class="detail-mobile-avatar">{{ c.user_name[:1].upper() }}</div>
+            <div class="detail-mobile-comment-copy">
+                <strong>{{ c.user_name }}</strong>
+                <span>{{ c.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                <div class="mt-2" style="white-space:pre-line;color:var(--text-main);">{{ c.content }}</div>
+            </div>
+        </article>
+        {% else %}
+        <div class="text-muted small">Chưa có trao đổi nào.</div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}
