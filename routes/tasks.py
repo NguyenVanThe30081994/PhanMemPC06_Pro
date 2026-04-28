@@ -156,16 +156,41 @@ def tasks():
     overdue_count = 0
     completed_count = 0
     for t in all_tasks:
-        display_status = t.assignments[0].status if t.assignments else (t.initial_status or 'Chưa tiếp nhận')
-        is_overdue = bool(t.deadline and t.deadline < now_dt.date() and display_status != 'Hoàn thành')
+        # Xác định trạng thái hiển thị
+        if is_lead:
+            # Người giao việc: hiển thị tổng hợp trạng thái các đơn vị
+            if t.assignments:
+                total_assigns = len(t.assignments)
+                accepted_count = sum(1 for a in t.assignments if a.status != 'Chưa tiếp nhận' and a.status != 'Chưa bắt đầu')
+                completed_assigns = sum(1 for a in t.assignments if a.status == 'Hoàn thành')
+                
+                if completed_assigns == total_assigns:
+                    display_status = 'Hoàn thành'
+                elif accepted_count == 0:
+                    display_status = f'Chưa tiếp nhận (0/{total_assigns})'
+                else:
+                    display_status = f'Đã tiếp nhận ({accepted_count}/{total_assigns})'
+            else:
+                display_status = t.initial_status or 'Chưa tiếp nhận'
+        else:
+            # Người được giao việc: hiển thị trạng thái của chính mình
+            user_assignment = next((a for a in t.assignments if a.user_id == session['uid']), None)
+            if user_assignment:
+                # Chuẩn hóa trạng thái "Chưa bắt đầu" thành "Chưa tiếp nhận"
+                if user_assignment.status == 'Chưa bắt đầu':
+                    display_status = 'Chưa tiếp nhận'
+                else:
+                    display_status = user_assignment.status
+            else:
+                display_status = t.initial_status or 'Chưa tiếp nhận'
+        
+        is_overdue = bool(t.deadline and t.deadline < now_dt.date() and 'Hoàn thành' not in display_status)
         setattr(t, 'display_status', display_status)
         setattr(t, 'is_overdue', is_overdue)
+        
         if is_overdue:
             overdue_count += 1
-        if t.assignments:
-            if all(a.status == 'Hoàn thành' for a in t.assignments):
-                completed_count += 1
-        elif display_status == 'Hoàn thành':
+        if 'Hoàn thành' in display_status or display_status == 'Hoàn thành':
             completed_count += 1
     
     pending_count = total_count - completed_count
