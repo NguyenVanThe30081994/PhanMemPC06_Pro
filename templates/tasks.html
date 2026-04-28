@@ -124,7 +124,25 @@
                         {% endif %}
                     </div>
                     
-                    <!-- Action Button -->
+                    <!-- Action Buttons -->
+                    {% set user_assignment = namespace(found=False, status='') %}
+                    {% for a in t.assignments %}
+                        {% if a.user_id == session['uid'] %}
+                            {% set user_assignment.found = True %}
+                            {% set user_assignment.status = a.status %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if user_assignment.found and (user_assignment.status == 'Chưa tiếp nhận' or user_assignment.status == 'Chưa bắt đầu') %}
+                    <!-- Nút tiếp nhận cho đơn vị được giao việc -->
+                    <form action="{{ url_for('tasks_bp.update_task_status', tid=t.id) }}" method="POST" class="mb-2">
+                        <input type="hidden" name="action" value="accept">
+                        <button type="submit" class="btn w-100 fw-bold mb-2" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; border-radius: 12px; padding: 10px; border: none; box-shadow: 0 4px 12px rgba(16,185,129,0.25);">
+                            <i class="fa-solid fa-hand-point-right me-2"></i>Tiếp nhận công việc
+                        </button>
+                    </form>
+                    {% endif %}
+                    
                     <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}" class="btn w-100 fw-bold" style="background: linear-gradient(135deg, #0066FF, #0052CC); color: #fff; border-radius: 12px; padding: 10px; border: none; box-shadow: 0 4px 12px rgba(0,102,255,0.25);">
                         <i class="fa-solid fa-arrow-right me-2"></i>Xem chi tiết
                     </a>
