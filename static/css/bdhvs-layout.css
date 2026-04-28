@@ -435,6 +435,21 @@
     align-items: stretch;
 }
 
+.pc06-hero-card.with-toolbar {
+    display: grid;
+    gap: 24px;
+}
+
+.pc06-hero-toolbar {
+    display: grid;
+    gap: 16px;
+    padding: 20px 22px;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(16px);
+}
+
 .pc06-page-kicker {
     display: inline-flex;
     align-items: center;
@@ -531,6 +546,7 @@
     justify-content: space-between;
     gap: 16px;
     align-items: center;
+    flex-wrap: wrap;
 }
 
 .pc06-toolbar-note {
@@ -554,6 +570,39 @@
     background: rgba(15, 23, 42, 0.48);
 }
 
+.pc06-hero-toolbar .pc06-toolbar-note {
+    color: rgba(226, 232, 240, 0.84);
+}
+
+.pc06-hero-toolbar .pc06-search-control {
+    background: rgba(255, 255, 255, 0.92);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.pc06-hero-toolbar .form-control,
+.pc06-hero-toolbar .form-select,
+.pc06-hero-toolbar .input-group-text {
+    background: rgba(255, 255, 255, 0.92) !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+[data-theme="dark"] .pc06-hero-toolbar {
+    background: rgba(15, 23, 42, 0.26);
+    border-color: rgba(148, 163, 184, 0.16);
+}
+
+[data-theme="dark"] .pc06-hero-toolbar .pc06-search-control {
+    background: rgba(15, 23, 42, 0.62);
+    border-color: rgba(148, 163, 184, 0.16);
+}
+
+[data-theme="dark"] .pc06-hero-toolbar .form-control,
+[data-theme="dark"] .pc06-hero-toolbar .form-select,
+[data-theme="dark"] .pc06-hero-toolbar .input-group-text {
+    background: rgba(15, 23, 42, 0.62) !important;
+    border-color: rgba(148, 163, 184, 0.16) !important;
+}
+
 .pc06-search-control input {
     width: 100%;
     border: 0;
@@ -571,9 +620,17 @@
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    align-items: flex-start;
 }
 
 .pc06-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex: 0 0 auto;
+    width: fit-content;
+    max-width: 100%;
     border: 1px solid rgba(148, 163, 184, 0.22);
     background: rgba(241, 245, 249, 0.9);
     color: var(--text-muted, #64748b);
@@ -581,7 +638,29 @@
     border-radius: 999px;
     font-size: 0.83rem;
     font-weight: 800;
+    line-height: 1.35;
+    text-align: left;
+    white-space: normal;
     transition: all 0.2s ease;
+}
+
+a.pc06-chip {
+    text-decoration: none;
+}
+
+.pc06-chip-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.9);
+    color: #1d4ed8;
+    font-size: 0.78rem;
+    font-weight: 900;
+    flex-shrink: 0;
 }
 
 .pc06-chip.active,
@@ -590,6 +669,136 @@
     color: #fff;
     border-color: transparent;
     box-shadow: 0 12px 26px rgba(37, 99, 235, 0.22);
+}
+
+.pc06-chip.active .pc06-chip-count,
+.pc06-chip:hover .pc06-chip-count {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+}
+
+.pc06-pill-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.pc06-pill-tabs .nav-item {
+    flex: 0 0 auto;
+}
+
+.pc06-pill-tabs .nav-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    max-width: 100%;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 999px;
+    background: rgba(241, 245, 249, 0.9);
+    color: var(--text-muted, #64748b);
+    padding: 10px 16px;
+    font-size: 0.83rem;
+    font-weight: 800;
+    line-height: 1.35;
+    white-space: normal;
+    text-align: left;
+}
+
+.pc06-pill-tabs .nav-link.active,
+.pc06-pill-tabs .nav-link:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 12px 26px rgba(37, 99, 235, 0.22);
+}
+
+.pc06-toolbar-form-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 14px;
+    align-items: end;
+}
+
+.pc06-toolbar-field {
+    display: grid;
+    gap: 8px;
+}
+
+.pc06-toolbar-field.span-2 {
+    grid-column: span 2;
+}
+
+.pc06-toolbar-field.span-3 {
+    grid-column: span 3;
+}
+
+.pc06-toolbar-field.span-4 {
+    grid-column: span 4;
+}
+
+.pc06-toolbar-field.span-5 {
+    grid-column: span 5;
+}
+
+.pc06-toolbar-field.span-6 {
+    grid-column: span 6;
+}
+
+.pc06-toolbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.pc06-stat-strip.stat-grid-2x2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+}
+
+.pc06-compact-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+}
+
+.pc06-compact-card {
+    padding: 18px;
+    border-radius: 22px;
+    background: rgba(248, 250, 252, 0.96);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    display: grid;
+    gap: 12px;
+}
+
+.pc06-compact-card-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.pc06-compact-card h3 {
+    margin: 0;
+    font-size: 0.98rem;
+    font-weight: 800;
+    color: var(--text-main, #0f172a);
+}
+
+.pc06-compact-card p {
+    margin: 4px 0 0;
+    font-size: 0.83rem;
+    color: var(--text-muted, #64748b);
+    line-height: 1.5;
+}
+
+[data-theme="dark"] .pc06-compact-card {
+    background: rgba(15, 23, 42, 0.72);
+    border-color: rgba(148, 163, 184, 0.16);
 }
 
 .pc06-task-grid {
@@ -1108,6 +1317,18 @@
     .pc06-search-control {
         min-width: 100%;
     }
+
+    .pc06-toolbar-form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .pc06-toolbar-field.span-2,
+    .pc06-toolbar-field.span-3,
+    .pc06-toolbar-field.span-4,
+    .pc06-toolbar-field.span-5,
+    .pc06-toolbar-field.span-6 {
+        grid-column: span 1;
+    }
 }
 
 @media (max-width: 768px) {
@@ -1137,5 +1358,10 @@
     .pc06-card-actions {
         width: 100%;
         flex-wrap: wrap;
+    }
+
+    .pc06-stat-strip.stat-grid-2x2,
+    .pc06-toolbar-form-grid {
+        grid-template-columns: 1fr;
     }
 }
