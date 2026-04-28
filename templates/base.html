@@ -452,7 +452,7 @@
                 
                 <a href="{{ url_for('shortlink_bp.manage_links') }}" class="nav-link-top {% if request.path.startswith('/links') %}active{% endif %}">QR & Link</a>
 
-                <a href="{{ url_for('convert.index') }}" class="nav-link-top {% if request.path.startswith('/convert') %}active{% endif %}">Chuyển đổi</a>
+                {# <a href="{{ url_for('convert.index') }}" class="nav-link-top {% if request.path.startswith('/convert') %}active{% endif %}">Chuyển đổi</a> #}
 
                 <a href="/bdhv" class="nav-link-top {% if request.endpoint.startswith('bdhv_bp') %}active{% endif %}">Bình dân học vụ số</a>
 
@@ -655,7 +655,7 @@
                     <i class="fa-solid fa-camera me-3 opacity-75"></i>OCR Chuyển ảnh
                 </a>
 
-                <a href="{{ url_for('convert.index') }}" class="list-group-item py-3 px-4">
+                {# <a href="{{ url_for('convert.index') }}" class="list-group-item py-3 px-4"> #}
                     <i class="fa-solid fa-file-arrow-right me-3 opacity-75"></i>Chuyển đổi file
                 </a>
 
