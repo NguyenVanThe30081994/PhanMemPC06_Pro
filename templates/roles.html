@@ -12,6 +12,7 @@
                     Người dùng và quyền
                 </div>
                 <h1 class="pc06-page-title">Tài khoản và vai trò</h1>
+                {% if can_manage_roles %}
                 <div class="pc06-action-cluster">
                     <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importUserModal">
                         <i class="fa-solid fa-file-excel"></i>
@@ -26,6 +27,7 @@
                         Thêm tài khoản
                     </button>
                 </div>
+                {% endif %}
             </div>
         </div>
         <div class="pc06-hero-toolbar-grid compact">
@@ -79,6 +81,7 @@
                             </span>
                         </td>
                         <td class="pe-4 text-end">
+                            {% if can_manage_roles %}
                             <div class="d-flex justify-content-end gap-2">
                                 <button class="btn btn-light btn-circle btn-circle-sm border shadow-sm" title="Chỉnh sửa" onclick='openEditUser({{ u.id }}, "{{ u.username }}", "{{ u.fullname }}", "{{ u.unit_area }}", {{ u.role_id }})'>
                                     <i class="fa-solid fa-pen-to-square tiny text-primary"></i>
@@ -92,6 +95,9 @@
                                     </button>
                                 </form>
                             </div>
+                            {% else %}
+                            <span class="small text-muted">Chỉ xem</span>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -127,10 +133,12 @@
                         <i class="fa-solid fa-users"></i>
                         Xem tài khoản
                     </a>
+                    {% if can_manage_roles %}
                     <button class="btn btn-bdhvs primary" onclick='openEditPerms({{ r.id }}, "{{ r.name }}", {{ r.perms|safe if r.perms else "{}" }})'>
                         <i class="fa-solid fa-user-gear"></i>
                         Phân quyền
                     </button>
+                    {% endif %}
                 </div>
             </article>
             {% endfor %}
@@ -138,6 +146,7 @@
     </section>
 </div>
 
+{% if can_manage_roles %}
 <!-- Add Role Modal -->
 <div class="modal fade" id="addRoleModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -400,4 +409,5 @@ document.querySelectorAll('.toggle-password').forEach(btn => {
 <style>
     .pc06-compact-card .pc06-chip-count { min-width: 38px; }
 </style>
+{% endif %}
 {% endblock %}

@@ -18,11 +18,13 @@
     <div class="mobile-role-kicker"><i class="fa-solid fa-user-shield"></i>Tài khoản và vai trò</div>
     <h1>Quản trị người dùng</h1>
     <p>Quản lý vai trò, tài khoản và nhập dữ liệu hàng loạt trên thiết bị di động.</p>
+    {% if can_manage_roles %}
     <div class="mobile-role-actions">
         <button class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#importUserModal"><i class="fa-solid fa-file-excel"></i></button>
         <button class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#addRoleModal"><i class="fa-solid fa-user-tag"></i></button>
         <button class="btn btn-mobile btn-mobile-primary" data-bs-toggle="modal" data-bs-target="#addUserModal"><i class="fa-solid fa-plus"></i></button>
     </div>
+    {% endif %}
 </section>
 
 <section class="mobile-role-card">
@@ -34,7 +36,9 @@
                 <div class="fw-bold text-dark">{{ r.name }}</div>
                 <div class="tiny text-muted mt-1">{{ get_labels(r.perms) or 'Chưa phân quyền' }}</div>
             </div>
+            {% if can_manage_roles %}
             <button class="btn btn-sm btn-outline-primary rounded-pill" onclick='openEditPerms({{ r.id }}, "{{ r.name }}", {{ r.perms|safe if r.perms else "{}" }})'>Quyền</button>
+            {% endif %}
         </div>
     </div>
     {% endfor %}
@@ -55,10 +59,14 @@
         </div>
         <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
             <span class="pc06-soft-tag neutral">{{ u.role.name if u.role else 'Chưa cấp' }}</span>
+            {% if can_manage_roles %}
             <div class="d-flex gap-2">
                 <button class="btn btn-sm btn-outline-primary rounded-pill" onclick='openEditUser({{ u.id }}, "{{ u.username }}", "{{ u.fullname }}", "{{ u.unit_area }}", {{ u.role_id }})'>Sửa</button>
                 <a href="/admin/user/toggle-status/{{ u.id }}" class="btn btn-sm btn-outline-secondary rounded-pill">{{ 'Khóa' if u.is_active else 'Mở' }}</a>
             </div>
+            {% else %}
+            <span class="small text-muted">Chỉ xem</span>
+            {% endif %}
         </div>
     </div>
     {% endfor %}
@@ -69,6 +77,7 @@
 
 {% include "roles_modals_mobile_partial.html" ignore missing %}
 
+{% if can_manage_roles %}
 <!-- Add Role Modal -->
 <div class="modal fade" id="addRoleModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered mx-3">
@@ -219,4 +228,5 @@ function openEditUser(id, user, full, unit, rid) {
     new bootstrap.Modal(document.getElementById('editUserModal')).show();
 }
 </script>
+{% endif %}
 {% endblock %}

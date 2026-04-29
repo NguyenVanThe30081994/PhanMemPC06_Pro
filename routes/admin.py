@@ -39,6 +39,17 @@ AI_PROVIDER_DEFAULTS = {
 }
 
 
+def _get_admin_perms():
+    role_id = session.get('role_id')
+    role = db.session.get(AppRole, role_id) if role_id else None
+    if role and role.perms:
+        try:
+            return json.loads(role.perms)
+        except Exception:
+            return {}
+    return {}
+
+
 def _mask_secret(value):
     value = (value or '').strip()
     if not value:
@@ -243,8 +254,18 @@ def db_manage():
 
 @admin_bp.route('/roles', methods=['GET', 'POST'])
 def roles():
-    if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    perms = _get_admin_perms()
+    is_admin = bool(session.get('is_admin'))
+    can_view_roles = is_admin or perms.get('p_user_lead')
+
+    if not can_view_roles:
+        flash('Bạn không có quyền truy cập trang tài khoản và vai trò.', 'warning')
+        return redirect(url_for('admin_bp.index'))
+
     if request.method == 'POST':
+        if not is_admin:
+            flash('Chỉ quản trị viên mới được thay đổi tài khoản và vai trò.', 'danger')
+            return redirect(url_for('admin_bp.roles'))
         action = request.form.get('action')
         try:
             if action == 'add_role':
@@ -343,6 +364,7 @@ def roles():
     unit_cats = CategoryItem.query.filter_by(group_id=unit_group.id).all() if unit_group else []
     return render_template(
         'roles.html',
+        can_manage_roles=is_admin,
         roles=roles,
         users=users,
         selected_role=selected_role,
@@ -359,7 +381,9 @@ def roles():
 
 @admin_bp.route('/admin/user/delete/<int:uid>', methods=['POST'])
 def delete_user(uid):
-    if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    if not session.get('is_admin'):
+        flash('Chỉ quản trị viên mới được xóa tài khoản.', 'danger')
+        return redirect(url_for('admin_bp.roles'))
     u = db.session.get(User, uid)
     if u:
         if u.username == 'admin':
@@ -374,7 +398,9 @@ def delete_user(uid):
 
 @admin_bp.route('/admin/user/toggle-status/<int:uid>')
 def toggle_user_status(uid):
-    if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    if not session.get('is_admin'):
+        flash('Chỉ quản trị viên mới được thay đổi trạng thái tài khoản.', 'danger')
+        return redirect(url_for('admin_bp.roles'))
     u = db.session.get(User, uid)
     if u:
         if u.username == 'admin':
