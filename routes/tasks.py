@@ -142,6 +142,12 @@ def _resolve_assignees(form, domain):
     return _dedupe_users(users), None
 
 
+def _can_edit_task(task):
+    if not task or not session.get("uid"):
+        return False
+    return bool(session.get("is_admin")) or task.author_id == session.get("uid")
+
+
 def _decorate_task(task, current_uid, is_lead):
     assignments = task.assignments or []
     normalized_statuses = [_normalize_status(a.status) for a in assignments]
@@ -349,8 +355,12 @@ def task_detail(tid):
     if not task:
         return "Not Found", 404
 
+    pro_units = get_module_field_items("tasks", "domain") or get_category_items("Đội nghiệp vụ")
+    task_types = get_module_field_items("tasks", "task_type") or get_category_items("Loại công việc")
+    priority_items = get_module_field_items("tasks", "priority") or get_category_items("Mức độ ưu tiên")
     perms = _current_perms()
     is_lead = perms.get("p_task_lead") or session.get("is_admin")
+    can_edit_task = _can_edit_task(task)
     comments = TaskComment.query.filter_by(task_id=tid).order_by(TaskComment.created_at.desc()).all()
     assigns = (
         db.session.query(TaskAssignment, User)
@@ -383,11 +393,64 @@ def task_detail(tid):
         task=task,
         comments=comments,
         assigns=assigns,
+        pro_units=pro_units,
+        task_types=task_types,
+        priority_items=priority_items,
         now_dt=datetime.now(),
         is_lead=is_lead,
+        can_edit_task=can_edit_task,
         user_assign=user_assign,
         progress_percent=task_metrics["progress_percent"],
     )
+
+
+@tasks_bp.route("/tasks/<int:tid>/edit", methods=["POST"])
+def edit_task(tid):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    if not _can_edit_task(task):
+        flash("Bạn không có quyền sửa công việc này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    title = (request.form.get("title") or "").strip()
+    domain = (request.form.get("domain") or "").strip()
+    content = (request.form.get("content") or "").strip()
+    priority = (request.form.get("priority") or "Trung bình").strip()
+    task_type = (request.form.get("task_type") or "Công việc thường xuyên").strip()
+
+    if not title:
+        flash("Tiêu đề công việc không được để trống.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    task.title = title
+    task.domain = domain
+    task.content = content
+    task.priority = priority
+    task.task_type = task_type
+    task.deadline = _parse_deadline(request.form)
+
+    attachment = request.files.get("task_file")
+    if attachment and attachment.filename:
+        attachment_name = secure_filename(attachment.filename)
+        attachment.save(os.path.join(current_app.root_path, "task_files", attachment_name))
+        task.file_path = attachment_name
+
+    db.session.commit()
+
+    log_action(
+        session["uid"],
+        session.get("fullname", "Quản trị"),
+        "Cập nhật công việc",
+        "Công việc",
+        f"Task #{task.id} | {task.title}",
+    )
+    flash("Đã cập nhật công việc.", "success")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
 
 @tasks_bp.route("/tasks/<int:tid>/update_status", methods=["POST"])

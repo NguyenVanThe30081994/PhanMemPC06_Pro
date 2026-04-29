@@ -40,6 +40,14 @@
     <a href="{{ url_for('tasks_bp.tasks') }}"><i class="fa-solid fa-arrow-left me-1"></i>Quay lại danh sách</a>
     <h1>{{ task.title }}</h1>
     <p>{{ task.author_name }} • {{ task.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+    {% if can_edit_task %}
+    <div class="mt-3">
+        <button type="button" class="btn btn-mobile" style="background:rgba(255,255,255,0.16);color:#fff;border:1px solid rgba(255,255,255,0.22);" data-bs-toggle="modal" data-bs-target="#editTaskMobileModal">
+            <i class="fa-solid fa-pen-to-square"></i>
+            Sửa công việc
+        </button>
+    </div>
+    {% endif %}
     <div class="detail-mobile-stats">
         <div class="detail-mobile-stat"><span>Tiến độ</span><strong>{{ progress_percent }}%</strong></div>
         <div class="detail-mobile-stat"><span>Trạng thái</span><strong style="font-size:0.95rem;">{{ display_status }}</strong></div>
@@ -47,6 +55,82 @@
         <div class="detail-mobile-stat"><span>Hạn xử lý</span><strong style="font-size:0.95rem;">{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa có' }}</strong></div>
     </div>
 </section>
+
+{% if can_edit_task %}
+<div class="modal fade" id="editTaskMobileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4">
+            <form action="{{ url_for('tasks_bp.edit_task', tid=task.id) }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-header border-0">
+                    <div>
+                        <h5 class="modal-title fw-bold mb-1">Sửa công việc</h5>
+                        <p class="mb-0 text-muted small">Chỉ cập nhật thông tin công việc, không đổi danh sách người nhận.</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Tiêu đề</label>
+                        <input type="text" name="title" class="form-control" value="{{ task.title }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Đơn vị nghiệp vụ</label>
+                        <select name="domain" class="form-select">
+                            <option value="">Chọn đơn vị</option>
+                            {% for unit in pro_units %}
+                            <option value="{{ unit.name }}" {% if unit.name == task.domain %}selected{% endif %}>{{ unit.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold small">Ưu tiên</label>
+                            <select name="priority" class="form-select">
+                                <option value="">Chọn mức độ</option>
+                                {% for item in priority_items %}
+                                <option value="{{ item.name }}" {% if item.name == task.priority %}selected{% endif %}>{{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold small">Loại việc</label>
+                            <select name="task_type" class="form-select">
+                                <option value="">Thường xuyên</option>
+                                {% for item in task_types %}
+                                <option value="{{ item.name }}" {% if item.name == task.task_type %}selected{% endif %}>{{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label fw-bold small">Hạn xử lý</label>
+                        <input type="hidden" name="deadline_type" value="custom">
+                        <input type="date" name="deadline" class="form-control" value="{{ task.deadline.strftime('%Y-%m-%d') if task.deadline else '' }}">
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label fw-bold small">Nội dung</label>
+                        <textarea name="content" rows="4" class="form-control">{{ task.content or '' }}</textarea>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label fw-bold small">Tệp đính kèm mới</label>
+                        <input type="file" name="task_file" class="form-control">
+                        {% if task.file_path %}
+                        <div class="form-text">Đang dùng tệp: {{ task.file_path }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-mobile btn-mobile-primary">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        Lưu thay đổi
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 {% if user_assign %}
 <section class="detail-mobile-card">
