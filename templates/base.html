@@ -614,9 +614,8 @@
             </div>
 
             <div class="nav-center d-none d-lg-flex h-100 justify-content-center align-items-stretch flex-grow-1 px-4">
-                {% if perms.get('p_dash_lead') or perms.get('p_dash_exec') %}<a href="/admin"
-                    class="nav-link-top {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">Tổng quan</a>{%
-                endif %}
+                <a href="/admin"
+                    class="nav-link-top {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">Tổng quan</a>
                 {% if perms.get('p_task_lead') or perms.get('p_task_exec') %}<a href="/tasks"
                     class="nav-link-top {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">Công việc</a>{%
                 endif %}
@@ -811,12 +810,10 @@
 
         <div class="offcanvas-body p-0">
             <div class="list-group">
-                {% if perms.get('p_dash_lead') or perms.get('p_dash_exec') %}
                 <a href="/admin"
                     class="list-group-item py-3 px-4 {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">
                     <i class="fa-solid fa-house-chimney me-3 opacity-75"></i>Tổng quan
                 </a>
-                {% endif %}
 
                 {% if perms.get('p_task_lead') or perms.get('p_task_exec') %}
                 <a href="/tasks"

@@ -95,9 +95,6 @@ def index():
     try:
         if not session.get('uid'): 
             return redirect(url_for('auth_bp.login'))
-        if not session.get('is_admin'):
-            flash('Bạn không có quyền truy cập trang tổng quan quản trị.', 'warning')
-            return redirect(url_for('tasks_bp.tasks'))
 
         from sqlalchemy import func
         from models_reporting import FormTemplate
