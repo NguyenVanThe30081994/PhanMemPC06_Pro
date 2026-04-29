@@ -39,32 +39,8 @@
                         <table class="overview-table">
                             <thead>
                                 <tr>
-                                    <th>
-                                        {% if card.title == 'Công việc' %}
-                                        Đội nghiệp vụ
-                                        {% elif card.title == 'Báo cáo' %}
-                                        Đội nghiệp vụ
-                                        {% elif card.title == 'Thư viện' %}
-                                        Lĩnh vực
-                                        {% elif card.title == 'Danh bạ' %}
-                                        Nhóm danh bạ
-                                        {% else %}
-                                        Nhóm
-                                        {% endif %}
-                                    </th>
-                                    <th class="text-end">
-                                        {% if card.title == 'Công việc' %}
-                                        Số việc đã giao
-                                        {% elif card.title == 'Báo cáo' %}
-                                        Số biểu mẫu
-                                        {% elif card.title == 'Thư viện' %}
-                                        Số tài liệu
-                                        {% elif card.title == 'Danh bạ' %}
-                                        Số liên hệ
-                                        {% else %}
-                                        Số lượng
-                                        {% endif %}
-                                    </th>
+                                    <th>{{ card.row_label or 'Nhóm' }}</th>
+                                    <th class="text-end">{{ card.count_label or 'Số lượng' }}</th>
                                 </tr>
                             </thead>
                             <tbody>

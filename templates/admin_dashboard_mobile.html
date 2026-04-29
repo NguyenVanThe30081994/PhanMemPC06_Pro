@@ -64,7 +64,7 @@
                 <div class="overview-mobile-icon accent-{{ card.accent_class }}"><i class="{{ card.icon }}"></i></div>
                 <div>
                     <h3>{{ card.title }}</h3>
-                    <p>{{ card.subtitle }}</p>
+                    <p>{{ card.row_label }} · {{ card.count_label }}</p>
                 </div>
             </div>
             <div class="overview-mobile-total">{{ card.total }}</div>
@@ -74,11 +74,7 @@
             {% for row in card.rows %}
             <div class="overview-mobile-row">
                 <span class="overview-mobile-name">{{ row.name }}</span>
-                {% if card.title == 'Báo cáo' %}
-                <span class="overview-mobile-text">Đang có {{ row.count }} biểu mẫu</span>
-                {% else %}
                 <span class="overview-mobile-count">{{ row.count }}</span>
-                {% endif %}
             </div>
             {% endfor %}
         </div>

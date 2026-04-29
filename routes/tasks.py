@@ -139,6 +139,43 @@ def _resolve_role_assignees(role_id):
     return _dedupe_users(users)
 
 
+def _infer_assignment_context(task):
+    assignments = task.assignments or []
+    assigned_user_ids = [assignment.user_id for assignment in assignments if assignment.user_id]
+    context = {
+        "mode": "unit",
+        "role_id": None,
+        "user_ids": assigned_user_ids,
+    }
+
+    if not assigned_user_ids:
+        return context
+
+    assigned_users = User.query.filter(User.id.in_(assigned_user_ids)).all()
+    if not assigned_users:
+        return context
+
+    if task.domain:
+        domain_user_ids = {
+            user.id
+            for user in User.query.filter_by(unit_area=task.domain, is_active=True).all()
+        }
+        if domain_user_ids and domain_user_ids == set(assigned_user_ids):
+            return context
+
+    role_ids = {user.role_id for user in assigned_users if user.role_id}
+    if len(role_ids) == 1:
+        role_id = next(iter(role_ids))
+        role_user_ids = {user.id for user in _resolve_role_assignees(role_id)}
+        if role_user_ids and role_user_ids == set(assigned_user_ids):
+            context["mode"] = "role"
+            context["role_id"] = role_id
+            return context
+
+    context["mode"] = "user"
+    return context
+
+
 def _resolve_assignees(form, domain):
     assign_type = form.get("assign_type", "unit")
     target_ids = [int(uid) for uid in form.getlist("target_users") if str(uid).isdigit()]
@@ -393,6 +430,8 @@ def task_detail(tid):
     pro_units = get_module_field_items("tasks", "domain") or get_category_items("Đội nghiệp vụ")
     task_types = get_module_field_items("tasks", "task_type") or get_category_items("Loại công việc")
     priority_items = get_module_field_items("tasks", "priority") or get_category_items("Mức độ ưu tiên")
+    active_users = User.query.filter_by(is_active=True).order_by(User.unit_area.asc(), User.fullname.asc()).all()
+    roles = AppRole.query.order_by(AppRole.name.asc()).all()
     perms = _current_perms()
     is_lead = perms.get("p_task_lead") or session.get("is_admin")
     can_edit_task = _can_edit_task(task)
@@ -407,6 +446,7 @@ def task_detail(tid):
 
     task_metrics = _decorate_task(task, session["uid"], is_lead)
     user_assign = task_metrics["user_assignment"]
+    assignment_context = _infer_assignment_context(task)
 
     if request.method == "POST":
         content = (request.form.get("content") or "").strip()
@@ -431,6 +471,9 @@ def task_detail(tid):
         pro_units=pro_units,
         task_types=task_types,
         priority_items=priority_items,
+        users=active_users,
+        roles=roles,
+        assignment_context=assignment_context,
         now_dt=datetime.now(),
         is_lead=is_lead,
         can_edit_task=can_edit_task,
@@ -444,7 +487,7 @@ def edit_task(tid):
     if not session.get("uid"):
         return redirect(url_for("auth_bp.login"))
 
-    task = Task.query.filter_by(id=tid).first()
+    task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
     if not task:
         return "Not Found", 404
 
@@ -469,6 +512,30 @@ def edit_task(tid):
     task.task_type = task_type
     task.deadline = _parse_deadline(request.form)
 
+    refreshed_assignee_count = None
+    new_assignees_to_notify = []
+    if request.form.get("refresh_assignments") == "1":
+        assignees, error_message = _resolve_assignees(request.form, task.domain)
+        if error_message:
+            flash(error_message, "danger")
+            return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+        existing_assignments = {assignment.user_id: assignment for assignment in task.assignments}
+        new_assignee_ids = {user.id for user in assignees}
+
+        for assignment in list(task.assignments):
+            if assignment.user_id not in new_assignee_ids:
+                db.session.delete(assignment)
+
+        for user in assignees:
+            if user.id not in existing_assignments:
+                db.session.add(
+                    TaskAssignment(task_id=task.id, user_id=user.id, status="Chưa tiếp nhận")
+                )
+                new_assignees_to_notify.append(user)
+
+        refreshed_assignee_count = len(new_assignee_ids)
+
     attachment = request.files.get("task_file")
     if attachment and attachment.filename:
         attachment_name = secure_filename(attachment.filename)
@@ -477,14 +544,22 @@ def edit_task(tid):
 
     db.session.commit()
 
+    for user in new_assignees_to_notify:
+        push_notif(user.id, "Cập nhật công việc", f"Bạn vừa được bổ sung vào công việc: {task.title}", f"/tasks/{task.id}")
+
     log_action(
         session["uid"],
         session.get("fullname", "Quản trị"),
         "Cập nhật công việc",
         "Công việc",
-        f"Task #{task.id} | {task.title}",
+        f"Task #{task.id} | {task.title}" + (
+            f" | cap_nhat_phan_cong={refreshed_assignee_count}" if refreshed_assignee_count is not None else ""
+        ),
     )
-    flash("Đã cập nhật công việc.", "success")
+    success_message = "Đã cập nhật công việc."
+    if refreshed_assignee_count is not None:
+        success_message = f"Đã cập nhật công việc và đồng bộ {refreshed_assignee_count} người được giao."
+    flash(success_message, "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
 

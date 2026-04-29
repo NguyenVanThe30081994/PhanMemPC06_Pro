@@ -314,6 +314,51 @@
                             <textarea name="content" rows="6" class="form-control">{{ task.content or '' }}</textarea>
                         </div>
                         <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="refresh_assignments" value="1" id="refreshAssignmentsDesktop">
+                                <label class="form-check-label fw-bold" for="refreshAssignmentsDesktop">Cập nhật lại luồng giao việc</label>
+                            </div>
+                            <div class="form-text">Bật tùy chọn này nếu cần giao lại theo đơn vị, vai trò hoặc danh sách cán bộ mới.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Cách giao việc</label>
+                            <div class="pc06-segmented" id="editAssignmentModes">
+                                <label class="pc06-radio-card {% if assignment_context.mode == 'unit' %}active{% endif %}">
+                                    <input type="radio" name="assign_type" value="unit" {% if assignment_context.mode == 'unit' %}checked{% endif %}>
+                                    <span class="pc06-radio-title">Theo đơn vị</span>
+                                    <small>Giao cho toàn bộ cán bộ hoạt động của đơn vị đã chọn.</small>
+                                </label>
+                                <label class="pc06-radio-card {% if assignment_context.mode == 'role' %}active{% endif %}">
+                                    <input type="radio" name="assign_type" value="role" {% if assignment_context.mode == 'role' %}checked{% endif %}>
+                                    <span class="pc06-radio-title">Theo vai trò</span>
+                                    <small>Giao đồng loạt theo vai trò hệ thống.</small>
+                                </label>
+                                <label class="pc06-radio-card {% if assignment_context.mode == 'user' %}active{% endif %}">
+                                    <input type="radio" name="assign_type" value="user" {% if assignment_context.mode == 'user' %}checked{% endif %}>
+                                    <span class="pc06-radio-title">Theo cá nhân</span>
+                                    <small>Chọn một hoặc nhiều cán bộ cụ thể.</small>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 {% if assignment_context.mode != 'role' %}d-none{% endif %}" id="editRoleAssignmentPanel">
+                            <label class="form-label fw-bold">Vai trò nhận việc</label>
+                            <select name="assignee_role_id" class="form-select form-select-lg">
+                                <option value="">Chọn vai trò</option>
+                                {% for role in roles %}
+                                <option value="{{ role.id }}" {% if assignment_context.role_id == role.id %}selected{% endif %}>{{ role.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12 {% if assignment_context.mode != 'user' %}d-none{% endif %}" id="editUserAssignmentPanel">
+                            <label class="form-label fw-bold">Cán bộ nhận việc</label>
+                            <select name="target_users" class="form-select" size="10" multiple>
+                                {% for user in users %}
+                                <option value="{{ user.id }}" {% if user.id in assignment_context.user_ids %}selected{% endif %}>{{ user.fullname }}{% if user.unit_area %} - {{ user.unit_area }}{% endif %}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Giữ `Ctrl` hoặc `Cmd` để chọn nhiều cán bộ.</div>
+                        </div>
+                        <div class="col-12">
                             <label class="form-label fw-bold">Tệp đính kèm mới</label>
                             <input type="file" name="task_file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar">
                             {% if task.file_path %}
@@ -334,4 +379,27 @@
     </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    function syncEditAssignmentMode() {
+        const selected = document.querySelector('#editTaskModal input[name="assign_type"]:checked')?.value || 'unit';
+
+        document.querySelectorAll('#editAssignmentModes .pc06-radio-card').forEach((card) => {
+            const radio = card.querySelector('input[name="assign_type"]');
+            card.classList.toggle('active', !!radio?.checked);
+        });
+
+        document.getElementById('editRoleAssignmentPanel')?.classList.toggle('d-none', selected !== 'role');
+        document.getElementById('editUserAssignmentPanel')?.classList.toggle('d-none', selected !== 'user');
+    }
+
+    document.querySelectorAll('#editTaskModal input[name="assign_type"]').forEach((radio) => {
+        radio.addEventListener('change', syncEditAssignmentMode);
+    });
+
+    syncEditAssignmentMode();
+</script>
 {% endblock %}

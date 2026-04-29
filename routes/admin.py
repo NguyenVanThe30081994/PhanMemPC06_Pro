@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, current_app, Response, send_from_directory
+from sqlalchemy import func
 from models import db, User, AppRole, MasterData, SystemLog, Task, NewsDoc, DocumentLib, Contact, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding, AIAssistantConfig
 try:
     from security_utils.password_validator import validate_password, get_password_requirements
@@ -90,13 +91,17 @@ def _build_grouped_rows(raw_counts, ordered_items=None, fallback_label='Chưa ph
     rows = [row for row in rows if row['count'] > 0]
     return rows
 
+
+def _remove_row_by_name(rows, excluded_names):
+    excluded = {name.strip().lower() for name in excluded_names if name and name.strip()}
+    return [row for row in rows if row.get('name', '').strip().lower() not in excluded]
+
 @admin_bp.route('/admin')
 def index():
     try:
         if not session.get('uid'): 
             return redirect(url_for('auth_bp.login'))
 
-        from sqlalchemy import func
         from models_reporting import FormTemplate
 
         task_domain_items = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
@@ -115,7 +120,12 @@ def index():
         report_raw_counts = db.session.query(
             FormTemplate.department,
             func.count(FormTemplate.id)
-        ).filter_by(is_active=True).group_by(FormTemplate.department).all()
+        ).filter(
+            FormTemplate.is_active.is_(True),
+            FormTemplate.department.isnot(None),
+            func.trim(FormTemplate.department) != '',
+            func.lower(func.trim(FormTemplate.department)) != 'chưa phân đội'
+        ).group_by(FormTemplate.department).all()
 
         document_raw_counts = db.session.query(
             DocumentLib.category,
@@ -131,11 +141,13 @@ def index():
         report_dashboard = _build_grouped_rows(report_raw_counts, task_domain_items, fallback_label='Chưa phân đội')
         document_dashboard = _build_grouped_rows(document_raw_counts, document_field_items, fallback_label='Chưa phân lĩnh vực')
         contact_dashboard = _build_grouped_rows(contact_raw_counts, contact_group_items, fallback_label='Chưa phân nhóm')
+        report_dashboard = _remove_row_by_name(report_dashboard, {'Chưa phân đội'})
 
         dashboard_cards = [
             {
                 'title': 'Công việc được giao',
-                'subtitle': 'Đội nghiệp vụ - số việc',
+                'row_label': 'Đội nghiệp vụ',
+                'count_label': 'Số việc đã giao',
                 'icon': 'fa-solid fa-list-check',
                 'accent_class': 'primary',
                 'link': '/tasks',
@@ -145,7 +157,8 @@ def index():
             },
             {
                 'title': 'Báo cáo',
-                'subtitle': 'Đội nghiệp vụ - số biểu mẫu',
+                'row_label': 'Đội nghiệp vụ',
+                'count_label': 'Số biểu mẫu',
                 'icon': 'fa-solid fa-file-excel',
                 'accent_class': 'success',
                 'link': '/reporting',
@@ -155,7 +168,8 @@ def index():
             },
             {
                 'title': 'Thông tin tài liệu',
-                'subtitle': 'Lĩnh vực - số tài liệu',
+                'row_label': 'Lĩnh vực',
+                'count_label': 'Số tài liệu',
                 'icon': 'fa-solid fa-folder-open',
                 'accent_class': 'warning',
                 'link': '/library',
@@ -165,7 +179,8 @@ def index():
             },
             {
                 'title': 'Danh bạ',
-                'subtitle': 'Nhóm danh bạ - số liên hệ',
+                'row_label': 'Nhóm danh bạ',
+                'count_label': 'Số liên hệ',
                 'icon': 'fa-solid fa-address-book',
                 'accent_class': 'indigo',
                 'link': '/contacts',
