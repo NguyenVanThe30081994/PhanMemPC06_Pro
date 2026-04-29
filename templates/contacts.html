@@ -74,7 +74,7 @@
                         </th>
                         {% endif %}
                         <th class="ps-4">Tên liên hệ</th>
-                        <th>Nhóm / Chức vụ</th>
+                        <th>Chức vụ</th>
                         <th>Số điện thoại</th>
                         <th>Đơn vị</th>
                         <th class="pe-4 text-end">Thao tác</th>
@@ -99,8 +99,7 @@
                             </div>
                         </td>
                         <td>
-                            <div class="pc06-soft-tag neutral">{{ c.contact_group }}</div>
-                            <div class="small text-muted fw-medium mt-1 d-none d-lg-block">{{ c.role or 'Thành viên' }}</div>
+                            <div class="fw-bold text-dark">{{ c.role or 'Chưa cập nhật' }}</div>
                         </td>
                         <td class="fw-bold text-primary">{{ c.phone }}</td>
                         <td class="small text-muted">{{ c.unit_name or '-' }}</td>
