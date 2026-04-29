@@ -352,12 +352,12 @@ def contact_add():
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
     is_contact_lead = perms.get('p_contact_lead') or perms.get('p_contact_exec') or session.get('is_admin')
-    user_unit = session.get('unit')
+    user_unit = _get_current_user_unit()
 
     name = request.form.get('name')
     phone = request.form.get('phone')
     role = request.form.get('role')
-    unit = request.form.get('unit_name')
+    unit = (request.form.get('unit_name') or user_unit or '').strip()
     
     if not is_contact_lead:
         unit = user_unit # Force own unit

@@ -11,7 +11,7 @@
                 </div>
                 <h1 class="pc06-page-title">Danh bạ</h1>
                 <div class="pc06-hero-inline-band">
-                    {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin or session.get('uid') %}
+                    {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
                     <div class="pc06-action-cluster">
                         <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importContactModal">
                             <i class="fa-solid fa-file-excel"></i>
@@ -142,7 +142,7 @@
 <div class="modal fade" id="addContactModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 pc06-modal-shell">
-            <form method="POST">
+            <form method="POST" action="{{ url_for('portal_bp.contact_add') }}">
                 <div class="modal-header border-0 pc06-modal-head">
                     <div>
                         <div class="pc06-page-kicker mb-2"><i class="fa-solid fa-user-plus"></i>Danh bạ đơn vị</div>

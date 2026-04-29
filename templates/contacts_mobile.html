@@ -86,7 +86,7 @@
 <div class="modal fade" id="addContactModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 rounded-4">
-            <form method="POST">
+            <form method="POST" action="{{ url_for('portal_bp.contact_add') }}">
                 <div class="modal-header border-0">
                     <div><h5 class="modal-title fw-bold mb-1">Thêm liên hệ</h5></div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
