@@ -47,24 +47,13 @@
                 <div class="category-group-head">
                     <div>
                         <h3>{{ g.name }}</h3>
-                        <p>Code: {{ g.code or 'Chưa đặt' }}</p>
                     </div>
                     <span class="pc06-soft-tag neutral">{{ g.items|length }} mục</span>
-                </div>
-                <div class="category-group-links">
-                    {% if g.module_links %}
-                        {% for link in g.module_links %}
-                        <span class="pc06-soft-tag">{{ link.module.name }}</span>
-                        {% endfor %}
-                    {% else %}
-                        <span class="text-muted small">Chưa liên kết phân hệ</span>
-                    {% endif %}
                 </div>
                 <div class="category-group-items">
                     {% if g.items %}
                     <form method="POST" class="category-item-picker">
                         <input type="hidden" name="action" value="delete_item">
-                        <label class="form-label small fw-bold mb-2">Thành phần trong danh mục</label>
                         <div class="category-item-picker-row">
                             <select name="item_id" class="form-select" required>
                                 {% for item in g.items %}

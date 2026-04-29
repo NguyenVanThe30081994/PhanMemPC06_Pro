@@ -282,12 +282,41 @@ def roles():
         return redirect(url_for('admin_bp.roles'))
 
     selected_role_id = request.args.get('role_id', type=int)
+    selected_unit = (request.args.get('unit') or '').strip()
+    search_query = (request.args.get('q') or '').strip()
     selected_role = db.session.get(AppRole, selected_role_id) if selected_role_id else None
 
     roles = AppRole.query.order_by(AppRole.name.asc()).all()
     users_query = User.query
     if selected_role:
         users_query = users_query.filter(User.role_id == selected_role.id)
+
+    unit_options_query = db.session.query(User.unit_area)
+    if selected_role:
+        unit_options_query = unit_options_query.filter(User.role_id == selected_role.id)
+    available_units = sorted(
+        {
+            unit_name.strip()
+            for unit_name, in unit_options_query.distinct().all()
+            if unit_name and unit_name.strip()
+        },
+        key=lambda value: value.lower()
+    )
+
+    if selected_unit:
+        users_query = users_query.filter(User.unit_area == selected_unit)
+
+    if search_query:
+        from sqlalchemy import or_
+
+        term = f"%{search_query}%"
+        users_query = users_query.filter(
+            or_(
+                User.fullname.ilike(term),
+                User.username.ilike(term),
+                User.unit_area.ilike(term)
+            )
+        )
 
     users = users_query.order_by(User.fullname.asc(), User.username.asc()).all()
 
@@ -306,7 +335,11 @@ def roles():
         users=users,
         selected_role=selected_role,
         selected_role_id=selected_role.id if selected_role else None,
+        selected_unit=selected_unit,
+        search_query=search_query,
+        available_units=available_units,
         role_user_counts=role_user_counts,
+        total_role_count=len(roles),
         total_user_count=sum(role_user_counts.values()),
         units=[u[0] for u in db.session.query(MasterData.name).distinct().all() if u[0]],
         unit_cats=unit_cats
