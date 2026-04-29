@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import os
+import re
 from datetime import datetime, timedelta
 
 from flask import Blueprint, current_app, flash, redirect, request, session, url_for
@@ -8,12 +9,14 @@ from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 
 from category_helpers import get_category_items, get_module_field_items
-from models import AppRole, Task, TaskAssignment, TaskComment, User, db
+from models import AppRole, RankingUnit, Task, TaskAssignment, TaskComment, User, db
 from utils import (
     apply_migrations,
     log_action,
+    normalize_unit_name,
     push_global_notif,
     push_notif,
+    remove_accents,
     render_auto_template as render_template,
 )
 
@@ -100,6 +103,42 @@ def _dedupe_users(users):
     return unique_users
 
 
+def _is_commune_role(role_name):
+    normalized = re.sub(r"\s+", " ", remove_accents(role_name or "")).strip().lower()
+    return any(
+        token in normalized
+        for token in ["cap xa", "cong an cap xa", "xa thi tran", "phuong thi tran"]
+    )
+
+
+def _resolve_role_assignees(role_id):
+    role = db.session.get(AppRole, role_id)
+    users = (
+        User.query.filter_by(role_id=role_id, is_active=True)
+        .order_by(User.fullname.asc())
+        .all()
+    )
+
+    if role and _is_commune_role(role.name):
+        ranking_unit_keys = {
+            normalize_unit_name(unit_name)
+            for unit_name, in db.session.query(RankingUnit.name).all()
+            if unit_name and str(unit_name).strip()
+        }
+
+        if ranking_unit_keys:
+            commune_users = (
+                User.query.filter(User.is_active.is_(True), User.unit_area.isnot(None))
+                .order_by(User.fullname.asc())
+                .all()
+            )
+            for user in commune_users:
+                if normalize_unit_name(user.unit_area) in ranking_unit_keys:
+                    users.append(user)
+
+    return _dedupe_users(users)
+
+
 def _resolve_assignees(form, domain):
     assign_type = form.get("assign_type", "unit")
     target_ids = [int(uid) for uid in form.getlist("target_users") if str(uid).isdigit()]
@@ -108,11 +147,7 @@ def _resolve_assignees(form, domain):
     if assign_type == "role":
         if not assignee_role_id or not str(assignee_role_id).isdigit():
             return [], "Cần chọn vai trò nhận việc."
-        users = (
-            User.query.filter_by(role_id=int(assignee_role_id), is_active=True)
-            .order_by(User.fullname.asc())
-            .all()
-        )
+        users = _resolve_role_assignees(int(assignee_role_id))
         if not users:
             return [], "Không có cán bộ hoạt động nào thuộc vai trò đã chọn."
         return _dedupe_users(users), None

@@ -1136,11 +1136,15 @@ def template_config(template_id):
     template = FormTemplate.query.get_or_404(template_id)
 
     if request.method == 'POST':
+        template_name = (request.form.get('name') or '').strip()
         report_type = (request.form.get('report_type') or 'adhoc').strip().lower()
         frequency = None
         deadline_rule = None
 
         try:
+            if not template_name:
+                raise ValueError('Tên báo cáo không được để trống.')
+
             if report_type == 'daily':
                 deadline_rule = json.dumps(
                     {'time': request.form.get('daily_time', '17:00')},
@@ -1186,6 +1190,7 @@ def template_config(template_id):
                 else:
                     raise ValueError('Tần suất báo cáo không hợp lệ.')
 
+            template.name = template_name
             template.report_type = report_type
             template.frequency = frequency
             template.deadline_rule = deadline_rule
