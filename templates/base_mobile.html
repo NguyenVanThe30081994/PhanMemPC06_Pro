@@ -378,10 +378,20 @@
                         {% if session.get('is_admin') or perms.get('p_user_lead') %}
                         <a href="/roles" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">Tài khoản & Vai trò</a>
                         {% endif %}
-                        <a href="/password" class="nav-link-sidebar {% if request.endpoint == 'auth_bp.change_password' %}active{% endif %}">Đổi mật khẩu</a>
-                        <a href="/logout" class="nav-link-sidebar text-danger">Đăng xuất</a>
                         {% endif %}
                     </div>
+                </div>
+            </div>
+
+            <div class="mb-2 pt-2 border-top">
+                <div class="tiny fw-bold text-uppercase px-1 mb-2" style="color: var(--text-muted); letter-spacing: 0.08em;">Tài khoản</div>
+                <div class="nav-links">
+                    <a href="/password" class="nav-link-sidebar {% if request.endpoint == 'auth_bp.change_password' %}active{% endif %}">
+                        <i class="fa-solid fa-key me-2"></i>Đổi mật khẩu
+                    </a>
+                    <a href="/logout" class="nav-link-sidebar text-danger">
+                        <i class="fa-solid fa-right-from-bracket me-2"></i>Đăng xuất
+                    </a>
                 </div>
             </div>
         </div>
