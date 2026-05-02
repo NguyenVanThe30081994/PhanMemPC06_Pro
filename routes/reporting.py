@@ -844,6 +844,9 @@ def fill_form_desktop(template_id, period_id):
         }
         config_payload = {
             'documentType': 'cell',
+            'type': 'desktop',
+            'width': '100%',
+            'height': '100%',
             'document': document,
             'editorConfig': editor_config,
         }

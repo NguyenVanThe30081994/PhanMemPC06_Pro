@@ -29,16 +29,68 @@
   {% if onlyoffice_available and onlyoffice_config %}
   <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
     <div class="card-body p-0">
+      <div id="onlyoffice-status" class="alert alert-info border-0 rounded-0 m-0">
+        Đang tải giao diện ONLYOFFICE...
+      </div>
       <div id="onlyoffice-editor" style="width: 100%; height: calc(100vh - 180px); min-height: 720px;"></div>
     </div>
   </div>
 
   <script src="{{ onlyoffice_server_url }}/web-apps/apps/api/documents/api.js"></script>
   <script>
-    window.addEventListener('load', function () {
-      const config = {{ onlyoffice_config | tojson }};
-      new DocsAPI.DocEditor('onlyoffice-editor', config);
-    });
+    (function () {
+      const statusEl = document.getElementById('onlyoffice-status');
+      const editorEl = document.getElementById('onlyoffice-editor');
+      const serverUrl = {{ onlyoffice_server_url | tojson }};
+      const pageIsHttps = window.location.protocol === 'https:';
+      const serverIsHttp = serverUrl && serverUrl.startsWith('http://');
+
+      function showStatus(type, message) {
+        if (statusEl) {
+          statusEl.className = 'alert alert-' + type + ' border-0 rounded-0 m-0';
+          statusEl.textContent = message;
+          statusEl.style.display = 'block';
+        }
+      }
+
+      if (pageIsHttps && serverIsHttp) {
+        showStatus('warning', 'Document Server đang dùng HTTP trên trang HTTPS, trình duyệt sẽ chặn. Hãy đổi ONLYOFFICE_DOCUMENT_SERVER_URL sang HTTPS.');
+        if (editorEl) editorEl.style.display = 'none';
+        return;
+      }
+
+      const boot = function () {
+        if (!window.DocsAPI || !window.DocsAPI.DocEditor) {
+          showStatus('danger', 'Không tải được ONLYOFFICE api.js. Kiểm tra lại URL Document Server.');
+          if (editorEl) editorEl.style.display = 'none';
+          return;
+        }
+
+        const config = {{ onlyoffice_config | tojson }};
+        config.events = Object.assign({}, config.events || {}, {
+          onAppReady: function () {
+            showStatus('success', 'ONLYOFFICE đã sẵn sàng.');
+          },
+          onError: function (event) {
+            showStatus('danger', 'ONLYOFFICE báo lỗi khởi tạo. Kiểm tra token, URL file và Document Server.');
+            console.error('ONLYOFFICE error', event);
+          }
+        });
+
+        try {
+          new DocsAPI.DocEditor('onlyoffice-editor', config);
+        } catch (error) {
+          showStatus('danger', 'Không thể khởi tạo ONLYOFFICE: ' + error.message);
+          console.error(error);
+        }
+      };
+
+      if (document.readyState === 'complete') {
+        boot();
+      } else {
+        window.addEventListener('load', boot);
+      }
+    })();
   </script>
   {% else %}
   <div class="card border-0 shadow-sm rounded-4">
