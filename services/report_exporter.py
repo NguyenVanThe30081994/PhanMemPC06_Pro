@@ -8,6 +8,7 @@ from datetime import datetime
 import re
 from openpyxl import load_workbook, Workbook
 from openpyxl.styles import Protection
+from excel_renderer import format_excel_number
 
 from models_reporting import db, ReportInstance, ReportFieldValue, FormField
 
@@ -142,19 +143,27 @@ class ReportExporter:
             if value is None:
                 continue
 
+            if field.field_type == 'number' or field.data_type in ['integer', 'decimal']:
+                try:
+                    value = format_excel_number(float(str(value).replace(',', '').strip()), None)
+                except Exception:
+                    value = str(value).strip()
+            else:
+                value = str(value).strip()
+
             values_written[field.field_code] = value
             fv = ReportFieldValue.query.filter_by(
                 instance_id=instance_id,
                 field_code=field.field_code
             ).first()
             if fv:
-                fv.value = str(value)
+                fv.value = value
                 fv.value_type = 'decimal' if field.field_type == 'number' else 'text'
             else:
                 db.session.add(ReportFieldValue(
                     instance_id=instance_id,
                     field_code=field.field_code,
-                    value=str(value),
+                    value=value,
                     value_type='decimal' if field.field_type == 'number' else 'text'
                 ))
 

@@ -216,6 +216,7 @@ def _build_excel_like_rows(instance):
             v_align = (alignment.vertical if alignment and alignment.vertical else 'center')
             wrap = bool(alignment and alignment.wrap_text)
             border_style = _border_css(border)
+            is_numeric = bool(field and (field.field_type == 'number' or field.data_type in ('integer', 'decimal')))
 
             row_cells.append({
                 'coord': coord,
@@ -223,6 +224,7 @@ def _build_excel_like_rows(instance):
                 'field_type': field.field_type if field else 'text',
                 'is_input': can_edit,
                 'raw_value': '' if raw_value is None else str(raw_value),
+                'display_value': display_value,
                 'value': display_value,
                 'rowspan': merge_info['rowspan'],
                 'colspan': merge_info['colspan'],
@@ -237,6 +239,7 @@ def _build_excel_like_rows(instance):
                 'wrap_text': wrap,
                 'border_style': border_style,
                 'col_idx': c,
+                'is_numeric': is_numeric,
             })
 
         raw_height = ws.row_dimensions[r].height
@@ -693,7 +696,8 @@ def template_upload():
             # Tạo field với logic linh hoạt cho mọi biểu mẫu
             fields = []
             order = 1
-            all_columns = detected.get('columns', [])
+            all_columns = detected.get('visible_columns', detected.get('columns', []))
+            hidden_columns = set(detected.get('hidden_columns', []))
             total_cols = detected.get('total_cols', len(all_columns))
             
             def is_title_row(row_number):
@@ -730,6 +734,8 @@ def template_upload():
             skip_fragments = ['DON VI', 'HANH CHINH', 'DIA PHUONG', 'DIA BAN']
             
             for col_letter in all_columns:
+                if col_letter in hidden_columns:
+                    continue
                 # Kiểm tra TẤT CẢ các dòng header
                 should_skip = False
                 for r in real_header_rows:
@@ -742,6 +748,8 @@ def template_upload():
             
             # Quét tất cả các cột (trừ cột skip)
             for col_letter in all_columns:
+                if col_letter in hidden_columns:
+                    continue
                 if col_letter in skip_columns:
                     continue
                 

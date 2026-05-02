@@ -7,6 +7,7 @@ import ast
 import json
 import operator as op
 from datetime import datetime
+from excel_renderer import format_excel_number
 from models_reporting import db, FormTemplate, FormVersion, FormField, ReportInstance, ReportFieldValue, ReportAuditLog, ReportingPeriod
 from flask import session
 
@@ -81,6 +82,40 @@ class FormEngine:
     @staticmethod
     def _current_unit():
         return session.get('unit_area', session.get('unit', ''))
+
+    @staticmethod
+    def _is_numeric_field(field):
+        return bool(field and (field.field_type == 'number' or field.data_type in ('integer', 'decimal')))
+
+    @staticmethod
+    def _coerce_numeric(raw_value):
+        if raw_value in (None, ''):
+            raise ValueError('Empty numeric value')
+        return float(str(raw_value).replace(',', '').strip())
+
+    @staticmethod
+    def _format_display_value(raw_value, field=None):
+        if raw_value in (None, ''):
+            return ''
+        if field and FormEngine._is_numeric_field(field):
+            try:
+                numeric = FormEngine._coerce_numeric(raw_value)
+                return format_excel_number(numeric, None)
+            except Exception:
+                return str(raw_value)
+        return str(raw_value)
+
+    @staticmethod
+    def _normalize_storage_value(raw_value, field=None):
+        if raw_value in (None, ''):
+            return None, 'string'
+        if field and FormEngine._is_numeric_field(field):
+            try:
+                numeric = FormEngine._coerce_numeric(raw_value)
+                return format_excel_number(numeric, None), 'decimal'
+            except Exception:
+                return str(raw_value).strip(), 'string'
+        return str(raw_value).strip(), 'string'
 
     def _ensure_report_access(self, instance, user_unit=None, is_admin=False, write=False):
         if not instance:
@@ -214,11 +249,19 @@ class FormEngine:
         # Lấy schema
         schema = self.get_form_schema(instance.version_id)
         
+        field_map = {
+            field.field_code: field
+            for field in FormField.query.filter_by(version_id=instance.version_id).all()
+        }
+
         # Lấy values
         values = {}
         for fv in instance.field_values:
+            field = field_map.get(fv.field_code)
+            raw_value = fv.value if fv.value is not None else ''
             values[fv.field_code] = {
-                'value': fv.value if fv.value is not None else '',
+                'value': raw_value,
+                'display_value': self._format_display_value(raw_value, field),
                 'type': fv.value_type,
                 'row_index': fv.row_index
             }
@@ -250,12 +293,18 @@ class FormEngine:
         """
         instance = ReportInstance.query.get(instance_id)
         self._ensure_report_access(instance, user_unit=user_unit, is_admin=is_admin, write=True)
+        field_map = {
+            field.field_code: field
+            for field in FormField.query.filter_by(version_id=instance.version_id).all()
+        }
 
         if instance.status not in ['draft', 'returned']:
             raise ValueError(f"Không thể sửa báo cáo ở trạng thái {instance.status}")
         
         # Lưu từng field
         for field_code, value in data.items():
+            field = field_map.get(field_code)
+            stored_value, value_type = self._normalize_storage_value(value, field)
             # Tìm field value hiện tại
             fv = ReportFieldValue.query.filter_by(
                 instance_id=instance_id,
@@ -265,19 +314,20 @@ class FormEngine:
             old_value = fv.value if fv else None
             
             if fv:
-                fv.value = str(value) if value is not None else None
+                fv.value = stored_value
+                fv.value_type = value_type
                 fv.updated_at = datetime.now()
             else:
                 fv = ReportFieldValue(
                     instance_id=instance_id,
                     field_code=field_code,
-                    value=str(value) if value is not None else None,
-                    value_type='string'
+                    value=stored_value,
+                    value_type=value_type
                 )
                 db.session.add(fv)
             
             # Audit log nếu có thay đổi
-            if old_value != str(value):
+            if old_value != stored_value:
                 self._log_audit(
                     user_id=user_id,
                     org_unit=instance.org_unit,
@@ -286,7 +336,7 @@ class FormEngine:
                     action='update',
                     field_code=field_code,
                     old_value=old_value,
-                    new_value=str(value) if value is not None else None
+                    new_value=stored_value
                 )
         
         instance.updated_at = datetime.now()
@@ -312,8 +362,8 @@ class FormEngine:
         values = {}
         for fv in instance.field_values:
             try:
-                values[fv.field_code] = float(fv.value) if fv.value not in (None, '') else 0
-            except:
+                values[fv.field_code] = self._coerce_numeric(fv.value) if fv.value not in (None, '') else 0
+            except Exception:
                 values[fv.field_code] = 0
         
         # Tính toán
@@ -336,18 +386,20 @@ class FormEngine:
                     field_code=field.field_code
                 ).first()
                 
+                normalized_result = format_excel_number(float(result), None)
                 if fv:
-                    fv.value = str(round(result, 2))
+                    fv.value = normalized_result
+                    fv.value_type = 'decimal'
                 else:
                     fv = ReportFieldValue(
                         instance_id=instance_id,
                         field_code=field.field_code,
-                        value=str(round(result, 2)),
+                        value=normalized_result,
                         value_type='decimal'
                     )
                     db.session.add(fv)
 
-                values[field.field_code] = float(result)
+                values[field.field_code] = self._coerce_numeric(result)
                 
             except Exception as e:
                 print(f"Error calculating {field.field_code}: {e}")

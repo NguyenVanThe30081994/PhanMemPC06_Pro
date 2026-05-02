@@ -85,10 +85,28 @@ def scan_excel_structure(excel_blob):
                 used_max_col = col - 1
     
     used_width = max(1, used_max_col - used_min_col + 1)
+    hidden_rows = []
+    hidden_columns = []
+    visible_columns = []
+    for row in range(used_min_row, used_max_row + 1):
+        if ws.row_dimensions[row].hidden:
+            hidden_rows.append(row)
+    for col in range(used_min_col, used_max_col + 1):
+        letter = get_column_letter(col)
+        if ws.column_dimensions[letter].hidden:
+            hidden_columns.append(letter)
+        else:
+            visible_columns.append(letter)
+
     result = {
+        'sheet_name': ws.title,
         'total_rows': used_max_row,
         'total_cols': used_max_col,
+        'used_range': f"{get_column_letter(used_min_col)}{used_min_row}:{get_column_letter(used_max_col)}{used_max_row}",
         'columns': [],  # ['A', 'B', 'C', ...]
+        'visible_columns': [],
+        'hidden_rows': hidden_rows,
+        'hidden_columns': hidden_columns,
         'header_rows': [],
         'data_start_row': 4,  # Default
         'headers': {},  # {row: {col: value}}
@@ -102,6 +120,7 @@ def scan_excel_structure(excel_blob):
     # Get columns (chỉ vùng có dữ liệu)
     for col in range(used_min_col, used_max_col + 1):
         result['columns'].append(get_column_letter(col))
+    result['visible_columns'] = visible_columns
     
     # Scan merged cells
     for merged_range in ws.merged_cells.ranges:
@@ -127,6 +146,8 @@ def scan_excel_structure(excel_blob):
     detected_data_row = None
     scan_limit = min(used_max_row, used_min_row + 39)
     for row in range(used_min_row, scan_limit + 1):
+        if ws.row_dimensions[row].hidden:
+            continue
         row_values = [ws.cell(row, col).value for col in range(used_min_col, used_max_col + 1)]
         non_empty = [value for value in row_values if not _is_blank(value)]
         if not non_empty:
@@ -150,6 +171,10 @@ def scan_excel_structure(excel_blob):
             and numeric_like_count >= 2
             and text_like_count <= 2
             and formula_like_count <= 2
+        ) or (
+            header_candidates
+            and (numeric_like_count > 0 or formula_like_count > 0)
+            and text_like_count <= max(1, len(non_empty) // 2)
         )
 
         if header_candidates and looks_like_data:
@@ -178,6 +203,8 @@ def scan_excel_structure(excel_blob):
 
     # Scan headers - use raw value directly, don't convert
     for row in header_candidates:
+        if ws.row_dimensions[row].hidden:
+            continue
         result['headers'][row] = {}
         for col in range(used_min_col, used_max_col + 1):
             cell_val = ws.cell(row, col).value
@@ -191,7 +218,7 @@ def scan_excel_structure(excel_blob):
         numeric_cols = set()
         sample_rows = [
             row for row in range(data_row, min(data_row + 8, used_max_row + 1))
-            if any(not _is_blank(ws.cell(row, col).value) for col in range(used_min_col, used_max_col + 1))
+            if not ws.row_dimensions[row].hidden and any(not _is_blank(ws.cell(row, col).value) for col in range(used_min_col, used_max_col + 1))
         ]
         
         for col in range(used_min_col, used_max_col + 1):
@@ -213,17 +240,24 @@ def scan_excel_structure(excel_blob):
     formula_cols = {}
     if data_row <= ws.max_row:
         for col in range(used_min_col, used_max_col + 1):
-            cell = ws.cell(data_row, col)
-            if cell.data_type == 'f':
-                formula = str(cell.value)
-                if 'SUM' in formula.upper():
-                    formula_cols[get_column_letter(col)] = 'SUM'
-                elif 'AVG' in formula.upper():
-                    formula_cols[get_column_letter(col)] = 'AVG'
-                elif '/' in formula and '%' not in formula.upper():
-                    formula_cols[get_column_letter(col)] = 'RATIO'
-                else:
-                    formula_cols[get_column_letter(col)] = 'CUSTOM'
+            seen_formula = None
+            for row in range(data_row, min(data_row + 8, used_max_row + 1)):
+                if ws.row_dimensions[row].hidden:
+                    continue
+                cell = ws.cell(row, col)
+                if cell.data_type == 'f' or (isinstance(cell.value, str) and cell.value.startswith('=')):
+                    formula = str(cell.value or '')
+                    if 'SUM' in formula.upper():
+                        seen_formula = 'SUM'
+                    elif 'AVG' in formula.upper():
+                        seen_formula = 'AVG'
+                    elif '/' in formula and '%' not in formula.upper():
+                        seen_formula = 'RATIO'
+                    else:
+                        seen_formula = 'CUSTOM'
+                    break
+            if seen_formula:
+                formula_cols[get_column_letter(col)] = seen_formula
     
     result['formulas'] = formula_cols
     

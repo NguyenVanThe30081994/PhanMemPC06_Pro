@@ -69,16 +69,17 @@
                        class="form-control reporting-field-readonly"
                        id="field_{{ field.code }}"
                        name="{{ field.code }}"
-                       value="{{ report_data['values'].get(field.code, {}).get('value', '') }}"
+                       value="{{ report_data['values'].get(field.code, {}).get('display_value', report_data['values'].get(field.code, {}).get('value', '')) }}"
+                       style="{% if field.type == 'number' %}text-align:right;font-variant-numeric:tabular-nums;{% endif %}"
                        readonly>
                 {% else %}
-                <input type="{{ 'number' if field.type == 'number' else 'text' }}"
-                       class="form-control"
+                <input type="text"
+                       class="form-control{% if field.type == 'number' %} text-end{% endif %}"
                        id="field_{{ field.code }}"
                        name="{{ field.code }}"
-                       value="{{ report_data['values'].get(field.code, {}).get('value', '') }}"
+                       value="{{ report_data['values'].get(field.code, {}).get('display_value', report_data['values'].get(field.code, {}).get('value', '')) }}"
                        {% if field.required %}required{% endif %}
-                       {% if field.type == 'number' %}step="0.01"{% endif %}
+                       {% if field.type == 'number' %}inputmode="decimal" style="text-align:right;font-variant-numeric:tabular-nums;"{% endif %}
                        onchange="calculateFields()">
                 {% endif %}
               </div>

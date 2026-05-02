@@ -98,16 +98,16 @@
                     {% if cell.is_input %}
                     <input
                       type="text"
-                      class="xl-input"
+                      class="xl-input{% if cell.is_numeric %} xl-input-number{% endif %}"
                       data-field-code="{{ cell.field_code }}"
                       data-cell="{{ cell.coord }}"
-                      value="{{ cell.raw_value|e }}"
+                      value="{{ cell.display_value|e }}"
                       {% if instance.status != 'draft' and instance.status != 'returned' %}disabled{% endif %}
-                      {% if cell.field_type == 'number' %}inputmode="decimal"{% endif %}
+                      {% if cell.is_numeric %}inputmode="decimal"{% endif %}
                       oninput="scheduleAutoSave()"
                     >
                     {% else %}
-                    {{ cell.value }}
+                    {{ cell.display_value }}
                     {% endif %}
                   </td>
                   {% endfor %}
@@ -289,6 +289,7 @@
 
 .xl-input-cell {
   background: #eff6ff !important;
+  padding: 0 !important;
 }
 
 [data-theme="dark"] .xl-input-cell {
@@ -304,6 +305,12 @@
   padding: 2px 4px;
   font: inherit;
   color: inherit;
+  box-sizing: border-box;
+}
+
+.xl-input-number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .xl-tbl tbody tr:hover > .xl-cell {

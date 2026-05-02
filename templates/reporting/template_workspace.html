@@ -36,14 +36,12 @@
       </div>
     </div>
 
+    {% if is_reporting_admin or is_reporting_lead %}
     <div class="reporting-action-grid mb-4">
-      {% if is_reporting_admin or is_reporting_lead %}
       <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.field_settings', template_id=template.id) }}" id="action_field_settings">
         <div class="action-icon"><i class="fa-solid fa-pen"></i></div>
         <h6>Chỉnh sửa biểu mẫu</h6>
       </a>
-      {% endif %}
-
       {% if is_reporting_admin %}
       <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.template_config', template_id=template.id) }}" id="action_template_config">
         <div class="action-icon"><i class="fa-solid fa-calendar-day"></i></div>
@@ -54,43 +52,35 @@
         <h6>Quản lý kỳ báo cáo</h6>
       </a>
       {% endif %}
-
       <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.preview_template', template_id=template.id) }}" id="action_preview_template">
         <div class="action-icon"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
         <h6>Xem báo cáo dạng Excel</h6>
       </a>
-
       <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.template_history', template_id=template.id) }}" id="action_template_history">
         <div class="action-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
         <h6>Lịch sử nhập</h6>
       </a>
-
-      {% if is_reporting_admin or is_reporting_lead %}
       <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.template_statistics', template_id=template.id) }}" id="action_template_statistics">
         <div class="action-icon"><i class="fa-solid fa-chart-column"></i></div>
         <h6>Thống kê chung</h6>
       </a>
-      {% else %}
+    </div>
+    {% else %}
+    <div class="reporting-action-grid mb-4">
+      <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.preview_template', template_id=template.id) }}" id="action_preview_template">
+        <div class="action-icon"><i class="fa-regular fa-eye"></i></div>
+        <h6>Xem</h6>
+      </a>
+      <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.template_history', template_id=template.id) }}" id="action_template_history">
+        <div class="action-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+        <h6>Lịch sử</h6>
+      </a>
       <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.select_period', template_id=template.id) }}" id="action_input_data">
         <div class="action-icon"><i class="fa-solid fa-pen-to-square"></i></div>
-        <h6>Nhập liệu</h6>
+        <h6>Nhập</h6>
       </a>
-      {% endif %}
-
-      {% if not is_reporting_admin and not is_reporting_lead %}
-        {% if latest_report %}
-        <a class="action-card text-decoration-none" href="{{ url_for('reporting_bp.view_report', instance_id=latest_report.id) }}" id="action_view_report">
-          <div class="action-icon"><i class="fa-solid fa-file-circle-check"></i></div>
-          <h6>Mở báo cáo gần nhất</h6>
-        </a>
-        {% else %}
-        <div class="action-card disabled-card">
-          <div class="action-icon"><i class="fa-solid fa-file-circle-xmark"></i></div>
-          <h6>Chưa có báo cáo đã lưu</h6>
-        </div>
-        {% endif %}
-      {% endif %}
     </div>
+    {% endif %}
 
     {% if periods %}
     <div class="reporting-table-shell">

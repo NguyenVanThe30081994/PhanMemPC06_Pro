@@ -43,13 +43,14 @@
           <div class="reporting-form-grid">
             {% for field in fields %}
             {% if not field.hidden %}
-            <div class="reporting-field">
-              <label>{{ field.name }}</label>
-              <input type="text"
-                     class="form-control reporting-field-readonly"
-                     value="{{ report_data['values'].get(field.code, {}).get('value', '') }}"
+              <div class="reporting-field">
+                <label>{{ field.name }}</label>
+                <input type="text"
+                     class="form-control reporting-field-readonly{% if field.type == 'number' %} text-end{% endif %}"
+                     value="{{ report_data['values'].get(field.code, {}).get('display_value', report_data['values'].get(field.code, {}).get('value', '')) }}"
+                     style="{% if field.type == 'number' %}text-align:right;font-variant-numeric:tabular-nums;{% endif %}"
                      readonly>
-            </div>
+              </div>
             {% endif %}
             {% endfor %}
           </div>
