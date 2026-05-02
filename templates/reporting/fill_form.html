@@ -24,7 +24,7 @@
         </span>
         {% if not g.is_mobile %}
         <a href="{{ url_for('reporting_bp.fill_form_desktop', template_id=report_data.schema.template_id, period_id=instance.period_id) }}" class="btn btn-outline-dark rounded-pill px-4">
-          <i class="fa-solid fa-table-cells-large me-2"></i>Bảng tính beta
+          <i class="fa-solid fa-table-cells-large me-2"></i>Bảng tính Excel-like
         </a>
         {% endif %}
         <button type="button" class="btn btn-outline-secondary rounded-pill px-4" onclick="window.history.back()">

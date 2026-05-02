@@ -51,9 +51,6 @@ try:
         SESSION_COOKIE_HTTPONLY,
         SESSION_COOKIE_SAMESITE,
         CSRF_TOKEN_LIFETIME,
-        ONLYOFFICE_DOCUMENT_SERVER_URL,
-        ONLYOFFICE_JWT_SECRET,
-        ONLYOFFICE_ENABLED,
     )
 except ImportError:
     SECRET_KEY = 'PC06_FINAL_V3_5_2026'
@@ -63,9 +60,6 @@ except ImportError:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     CSRF_TOKEN_LIFETIME = 3600
-    ONLYOFFICE_DOCUMENT_SERVER_URL = ''
-    ONLYOFFICE_JWT_SECRET = ''
-    ONLYOFFICE_ENABLED = False
 
 app.secret_key = SECRET_KEY
 app.config['JSON_AS_ASCII'] = False  # Giữ nguyên tiếng Việt trong jsonify()
@@ -91,9 +85,6 @@ app.config['SESSION_COOKIE_SECURE'] = SESSION_COOKIE_SECURE  # Set True if using
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent XSS stealing cookies
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=SESSION_LIFETIME)  # 30 min timeout
-app.config['ONLYOFFICE_DOCUMENT_SERVER_URL'] = ONLYOFFICE_DOCUMENT_SERVER_URL
-app.config['ONLYOFFICE_JWT_SECRET'] = ONLYOFFICE_JWT_SECRET
-app.config['ONLYOFFICE_ENABLED'] = ONLYOFFICE_ENABLED
 
 # CSRF Protection
 app.config['WTF_CSRF_ENABLED'] = True

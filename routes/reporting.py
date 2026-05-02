@@ -3,20 +3,15 @@
 Routes cho hệ thống nhập liệu báo cáo mới
 API endpoints và UI pages
 """
-from flask import Blueprint, request, session, redirect, url_for, jsonify, flash, make_response
-from flask import current_app, send_file, g
+from flask import Blueprint, request, session, redirect, url_for, jsonify, flash, make_response, g
 import calendar
-import base64
-import hashlib
 import json
 import datetime
-import hmac
 import re
 import unicodedata
 from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from excel_renderer import format_excel_number
 from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ReportInstance, ReportAuditLog
 from sqlalchemy import or_
@@ -24,7 +19,6 @@ from services.form_engine import FormEngine
 from services.report_exporter import ReportExporter
 from utils import log_action, render_auto_template as render_template
 from models import User
-import requests
 
 reporting_bp = Blueprint('reporting_bp', __name__, url_prefix='/reporting')
 form_engine = FormEngine()
@@ -78,47 +72,192 @@ def _load_authorized_report_instance(instance_id, write=False):
     return instance, None
 
 
-def _onlyoffice_settings():
-    document_server_url = (current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL') or '').rstrip('/')
-    jwt_secret = current_app.config.get('ONLYOFFICE_JWT_SECRET') or current_app.secret_key
+def _resolve_field_cell_ref(field, worksheet, target_row, exporter):
+    cell_ref = str(field.excel_cell_ref or '').strip()
+    if not cell_ref:
+        return None
+    if re.match(r'^[A-Za-z]+$', cell_ref):
+        if not target_row:
+            return None
+        cell_ref = f"{cell_ref}{target_row}"
+    return exporter._resolve_target_cell(worksheet, cell_ref)
+
+
+def _build_excel_like_rows(instance):
+    if not instance.template.excel_template_blob:
+        raise ValueError('Biểu mẫu chưa có file Excel gốc để hiển thị dạng bảng.')
+
+    wb_formula = load_workbook(BytesIO(instance.template.excel_template_blob), data_only=False)
+    wb_values = load_workbook(BytesIO(instance.template.excel_template_blob), data_only=True)
+    ws = wb_formula.active
+    ws_values = wb_values[ws.title] if ws.title in wb_values.sheetnames else wb_values.active
+    exporter = ReportExporter()
+    target_row = exporter._find_target_row(ws, instance.org_unit)
+
+    fields = FormField.query.filter_by(version_id=instance.version_id).order_by(FormField.display_order).all()
+    report_values = {fv.field_code: fv.value for fv in instance.field_values}
+
+    merged_map = {}
+    covered_cells = set()
+    for merged_range in ws.merged_cells.ranges:
+        min_col, min_row, max_col, max_row = merged_range.bounds
+        top_left = (min_row, min_col)
+        merged_map[top_left] = {
+            'rowspan': max_row - min_row + 1,
+            'colspan': max_col - min_col + 1,
+        }
+        for r in range(min_row, max_row + 1):
+            for c in range(min_col, max_col + 1):
+                if (r, c) != top_left:
+                    covered_cells.add((r, c))
+
+    max_row = min(ws.max_row or 1, 300)
+    max_col = min(ws.max_column or 1, 100)
+
+    col_widths = []
+    col_letters = []
+    for col_idx in range(1, max_col + 1):
+        letter = get_column_letter(col_idx)
+        col_letters.append(letter)
+        width = ws.column_dimensions[letter].width
+        px = int((width or 8.43) * 7.5)
+        col_widths.append(max(px, 28))
+
+    def _extract_color(color_obj):
+        if color_obj and color_obj.type == 'rgb' and color_obj.rgb:
+            rgb = str(color_obj.rgb)[-6:]
+            if rgb != '000000':
+                return f"#{rgb}"
+        return None
+
+    def _border_css(border):
+        if not border:
+            return ''
+        parts = []
+        for side, css_side in [('left', 'border-left'), ('right', 'border-right'),
+                                ('top', 'border-top'), ('bottom', 'border-bottom')]:
+            edge = getattr(border, side, None)
+            if edge and edge.style and edge.style != 'none':
+                weight = {'thin': '1px', 'medium': '2px', 'thick': '3px',
+                          'hair': '1px', 'dotted': '1px', 'dashed': '1px',
+                          'double': '3px'}.get(edge.style, '1px')
+                style = 'double' if edge.style == 'double' else (
+                    'dotted' if edge.style in ('dotted', 'hair') else (
+                    'dashed' if edge.style == 'dashed' else 'solid'))
+                color = '#000'
+                if edge.color and edge.color.type == 'rgb' and edge.color.rgb:
+                    color = f"#{str(edge.color.rgb)[-6:]}"
+                parts.append(f"{css_side}:{weight} {style} {color};")
+        return ''.join(parts)
+
+    coord_field_map = {}
+    for field in fields:
+        rules = json.loads(field.validation_rules_json) if field.validation_rules_json else {}
+        coord = _resolve_field_cell_ref(field, ws, target_row, exporter)
+        if not coord:
+            continue
+        coord_field_map[coord] = {
+            'field': field,
+            'hidden': bool(rules.get('hidden', False)),
+        }
+
+    rows = []
+    for r in range(1, max_row + 1):
+        row_cells = []
+        for c in range(1, max_col + 1):
+            if (r, c) in covered_cells:
+                continue
+
+            cell = ws.cell(row=r, column=c)
+            cell_value_obj = ws_values.cell(row=r, column=c)
+            merge_info = merged_map.get((r, c), {'rowspan': 1, 'colspan': 1})
+            font = cell.font
+            fill = cell.fill
+            alignment = cell.alignment
+            border = cell.border
+            coord = cell.coordinate
+            binding = coord_field_map.get(coord)
+            field = binding['field'] if binding else None
+            is_hidden = bool(binding and binding.get('hidden'))
+            can_edit = bool(
+                field and
+                not is_hidden and
+                not field.is_readonly and
+                not field.is_calculated and
+                instance.status in ('draft', 'returned')
+            )
+
+            bg_color = None
+            if fill and fill.fill_type and fill.fgColor:
+                bg_color = _extract_color(fill.fgColor)
+
+            font_color = None
+            if font and font.color:
+                font_color = _extract_color(font.color)
+
+            if field and field.field_code in report_values:
+                raw_value = report_values.get(field.field_code)
+            else:
+                raw_value = cell_value_obj.value
+
+            if raw_value is None and isinstance(cell.value, str) and cell.value.startswith('='):
+                display_value = ''
+            else:
+                display_source = raw_value
+                if field and display_source not in (None, '') and (field.field_type == 'number' or field.data_type in ('integer', 'decimal')):
+                    try:
+                        display_source = float(str(display_source).replace(',', ''))
+                    except Exception:
+                        pass
+                display_value = format_excel_number(display_source, cell.number_format)
+
+            font_size = int(font.sz) if font and font.sz else 11
+            h_align = (alignment.horizontal if alignment and alignment.horizontal else None)
+            v_align = (alignment.vertical if alignment and alignment.vertical else 'center')
+            wrap = bool(alignment and alignment.wrap_text)
+            border_style = _border_css(border)
+
+            row_cells.append({
+                'coord': coord,
+                'field_code': field.field_code if field else '',
+                'field_type': field.field_type if field else 'text',
+                'is_input': can_edit,
+                'raw_value': '' if raw_value is None else str(raw_value),
+                'value': display_value,
+                'rowspan': merge_info['rowspan'],
+                'colspan': merge_info['colspan'],
+                'bold': bool(font and font.bold),
+                'italic': bool(font and font.italic),
+                'underline': bool(font and font.underline),
+                'font_size': font_size,
+                'font_color': font_color,
+                'align': h_align or 'left',
+                'valign': v_align,
+                'bg_color': bg_color,
+                'wrap_text': wrap,
+                'border_style': border_style,
+                'col_idx': c,
+            })
+
+        raw_height = ws.row_dimensions[r].height
+        rows.append({
+            'height_px': max(int(raw_height * 1.0), 16) if raw_height else 20,
+            'cells': row_cells,
+        })
+
+    unresolved_fields = [
+        field for field in fields
+        if field.excel_cell_ref and not _resolve_field_cell_ref(field, ws, target_row, exporter)
+    ]
+
     return {
-        'enabled': bool(document_server_url),
-        'document_server_url': document_server_url,
-        'jwt_secret': jwt_secret,
+        'sheet_title': ws.title,
+        'rows': rows,
+        'col_widths': col_widths,
+        'col_letters': col_letters,
+        'target_row': target_row,
+        'unresolved_fields': unresolved_fields,
     }
-
-
-def _onlyoffice_serializer():
-    return URLSafeTimedSerializer(current_app.secret_key, salt='onlyoffice-reporting')
-
-
-def _sign_onlyoffice_access(instance_id, purpose):
-    return _onlyoffice_serializer().dumps({
-        'instance_id': int(instance_id),
-        'purpose': purpose,
-    })
-
-
-def _verify_onlyoffice_access(token, instance_id, purpose, max_age=86400):
-    payload = _onlyoffice_serializer().loads(token, max_age=max_age)
-    if int(payload.get('instance_id')) != int(instance_id) or payload.get('purpose') != purpose:
-        raise BadSignature('Invalid ONLYOFFICE token')
-    return payload
-
-
-def _base64url(data):
-    if isinstance(data, str):
-        data = data.encode('utf-8')
-    return base64.urlsafe_b64encode(data).rstrip(b'=').decode('ascii')
-
-
-def _build_onlyoffice_jwt(payload, secret):
-    header = {'alg': 'HS256', 'typ': 'JWT'}
-    header_segment = _base64url(json.dumps(header, separators=(',', ':')).encode('utf-8'))
-    payload_segment = _base64url(json.dumps(payload, ensure_ascii=False, separators=(',', ':')).encode('utf-8'))
-    signing_input = f"{header_segment}.{payload_segment}".encode('ascii')
-    signature = hmac.new(secret.encode('utf-8'), signing_input, hashlib.sha256).digest()
-    return f"{header_segment}.{payload_segment}.{_base64url(signature)}"
 
 
 def _parse_deadline_time(raw_value, fallback='17:00'):
@@ -768,13 +907,12 @@ def fill_form(template_id, period_id):
     return render_template('reporting/fill_form.html',
                           report_data=report_data,
                           instance=instance,
-                          template_id=template_id,
-                          onlyoffice_available=_onlyoffice_settings()['enabled'])
+                          template_id=template_id)
 
 
 @reporting_bp.route('/form/<int:template_id>/period/<int:period_id>/desktop')
 def fill_form_desktop(template_id, period_id):
-    """Desktop beta: mở báo cáo bằng ONLYOFFICE Spreadsheet Editor"""
+    """Desktop beta: mở báo cáo theo giao diện Excel-like"""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
 
@@ -793,135 +931,22 @@ def fill_form_desktop(template_id, period_id):
         user_id=user_id,
         org_unit=user_unit
     )
-    if instance.status not in ('draft', 'returned'):
-        flash('Chỉ có thể mở bảng tính beta cho báo cáo nháp hoặc đã trả về.', 'warning')
-        return redirect(url_for('reporting_bp.view_report', instance_id=instance.id))
-
     report_data = form_engine.get_report_data(instance.id)
-    settings = _onlyoffice_settings()
+    if not instance.template.excel_template_blob:
+        flash('Biểu mẫu chưa có file Excel gốc để mở dạng bảng.', 'warning')
+        return redirect(url_for('reporting_bp.fill_form', template_id=template_id, period_id=period_id))
 
-    onlyoffice_config = None
-    onlyoffice_message = None
-
-    if settings['enabled']:
-        file_token = _sign_onlyoffice_access(instance.id, 'file')
-        callback_token = _sign_onlyoffice_access(instance.id, 'callback')
-        file_url = url_for(
-            'reporting_bp.onlyoffice_report_file',
-            instance_id=instance.id,
-            token=file_token,
-            _external=True
-        )
-        callback_url = url_for(
-            'reporting_bp.onlyoffice_report_callback',
-            instance_id=instance.id,
-            token=callback_token,
-            _external=True
-        )
-
-        document = {
-            'fileType': 'xlsx',
-            'key': f'report-{instance.id}-{int(instance.updated_at.timestamp())}',
-            'title': f"{report_data['schema']['template_name']} - {instance.org_unit}.xlsx",
-            'url': file_url,
-            'permissions': {
-                'edit': True,
-                'download': True,
-                'print': True,
-            },
-        }
-        editor_config = {
-            'mode': 'edit',
-            'callbackUrl': callback_url,
-            'user': {
-                'id': str(user_id),
-                'name': session.get('fullname', 'PC06 User'),
-            },
-            'customization': {
-                'autosave': True,
-                'compactToolbar': True,
-            },
-        }
-        config_payload = {
-            'documentType': 'cell',
-            'type': 'desktop',
-            'width': '100%',
-            'height': '100%',
-            'document': document,
-            'editorConfig': editor_config,
-        }
-        onlyoffice_config = {
-            **config_payload,
-            'token': _build_onlyoffice_jwt(config_payload, settings['jwt_secret']),
-        }
-    else:
-        onlyoffice_message = 'Cần cấu hình ONLYOFFICE_DOCUMENT_SERVER_URL và ONLYOFFICE_JWT_SECRET để dùng chế độ thử nghiệm.'
+    excel_context = _build_excel_like_rows(instance)
+    if excel_context['target_row'] is None and any(field.excel_cell_ref and re.match(r'^[A-Za-z]+$', str(field.excel_cell_ref).strip()) for field in FormField.query.filter_by(version_id=instance.version_id).all()):
+        flash('Không tìm thấy dòng đơn vị trong file Excel để gắn cột nhập liệu.', 'warning')
 
     return render_template(
         'reporting/desktop_spreadsheet_editor.html',
         instance=instance,
         report_data=report_data,
-        onlyoffice_config=onlyoffice_config,
-        onlyoffice_message=onlyoffice_message,
-        onlyoffice_available=settings['enabled'],
-        onlyoffice_server_url=settings['document_server_url'],
+        excel_context=excel_context,
+        template_id=template_id,
     )
-
-
-@reporting_bp.route('/onlyoffice/reports/<int:instance_id>/file')
-def onlyoffice_report_file(instance_id):
-    """Cấp file XLSX cho ONLYOFFICE Document Server"""
-    token = request.args.get('token', '')
-    try:
-        _verify_onlyoffice_access(token, instance_id, 'file')
-        instance = ReportInstance.query.get_or_404(instance_id)
-        exporter = ReportExporter()
-        wb = exporter.build_workbook(instance.id, protect_cells=True)
-        output = BytesIO()
-        wb.save(output)
-        output.seek(0)
-        filename = exporter._safe_filename(instance)
-        return send_file(
-            output,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            as_attachment=False,
-            download_name=filename
-        )
-    except (BadSignature, SignatureExpired):
-        return jsonify({'success': False, 'message': 'Forbidden'}), 403
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
-
-
-@reporting_bp.route('/onlyoffice/reports/<int:instance_id>/callback', methods=['POST'])
-def onlyoffice_report_callback(instance_id):
-    """Nhận callback lưu file từ ONLYOFFICE"""
-    token = request.args.get('token', '')
-    try:
-        _verify_onlyoffice_access(token, instance_id, 'callback')
-    except (BadSignature, SignatureExpired):
-        return jsonify({'error': 1, 'message': 'Forbidden'}), 403
-
-    payload = request.get_json(silent=True) or {}
-    status = int(payload.get('status', 0) or 0)
-
-    if status in (2, 6):
-        file_url = payload.get('url')
-        if not file_url:
-            return jsonify({'error': 1, 'message': 'Missing file url'}), 400
-        try:
-            response = requests.get(file_url, timeout=60)
-            response.raise_for_status()
-            from services.report_exporter import ReportExporter
-            exporter = ReportExporter()
-            exporter.import_workbook_values(instance_id, response.content)
-            form_engine.calculate_fields(instance_id)
-            return jsonify({'error': 0})
-        except Exception as e:
-            current_app.logger.exception('ONLYOFFICE callback save failed')
-            return jsonify({'error': 1, 'message': str(e)}), 500
-
-    return jsonify({'error': 0})
 
 
 @reporting_bp.route('/report/<int:instance_id>')
