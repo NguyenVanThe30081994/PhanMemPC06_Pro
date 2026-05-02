@@ -5,9 +5,11 @@ Xuất dữ liệu báo cáo ra Excel từ template đã lưu trong DB.
 """
 from io import BytesIO
 from datetime import datetime
+import re
 from openpyxl import load_workbook, Workbook
+from openpyxl.styles import Protection
 
-from models_reporting import ReportInstance, FormField
+from models_reporting import db, ReportInstance, ReportFieldValue, FormField
 
 
 class ReportExporter:
@@ -28,7 +30,25 @@ class ReportExporter:
                 return merged_range.start_cell.coordinate
         return cell_ref
 
-    def export_to_excel_bytes(self, instance_id):
+    @staticmethod
+    def _find_target_row(ws, org_unit):
+        from utils import is_unit_match
+
+        for column_index in (2, 1):
+            for r in range(1, ws.max_row + 1):
+                cell_val = ws.cell(row=r, column=column_index).value
+                if cell_val and isinstance(cell_val, str) and is_unit_match(cell_val, org_unit):
+                    return r
+        return None
+
+    @staticmethod
+    def _safe_filename(instance):
+        import re
+        safe_unit = (instance.org_unit or 'unit')
+        safe_unit = re.sub(r'[^A-Za-z0-9._-]+', '_', safe_unit).strip('_') or 'unit'
+        return f"report_{instance.id}_{safe_unit}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+    def build_workbook(self, instance_id, protect_cells=False):
         instance = ReportInstance.query.get(instance_id)
         if not instance:
             raise ValueError(f"Report instance {instance_id} không tồn tại")
@@ -36,77 +56,119 @@ class ReportExporter:
         values_map = {fv.field_code: fv.value for fv in instance.field_values}
         fields = FormField.query.filter_by(version_id=instance.version_id).all()
 
-        # Load workbook từ blob template hoặc tạo mới
         if instance.template.excel_template_blob:
             wb = load_workbook(BytesIO(instance.template.excel_template_blob))
         else:
             wb = Workbook()
 
         ws = wb.active
-
-        # Tìm dòng của đơn vị trong file Excel
-        from utils import is_unit_match
-        import re
-        target_row = None
-        
-        # Quét cột B (cột 2) để tìm tên đơn vị
-        for r in range(1, ws.max_row + 1):
-            cell_val = ws.cell(row=r, column=2).value
-            if cell_val and isinstance(cell_val, str):
-                if is_unit_match(cell_val, instance.org_unit):
-                    target_row = r
-                    break
-        
-        # Fallback quét cột A (cột 1) nếu không thấy ở cột B
-        if not target_row:
-            for r in range(1, ws.max_row + 1):
-                cell_val = ws.cell(row=r, column=1).value
-                if cell_val and isinstance(cell_val, str):
-                    if is_unit_match(cell_val, instance.org_unit):
-                        target_row = r
-                        break
+        target_row = self._find_target_row(ws, instance.org_unit)
 
         for field in fields:
             raw_value = values_map.get(field.field_code)
             if raw_value in (None, '') or not field.excel_cell_ref:
                 continue
 
-            # Convert sang kiểu số để Excel có thể nhận diện và tự động tính toán các ô công thức
             if field.field_type == 'number' or field.data_type in ['integer', 'decimal']:
                 try:
-                    raw_str = str(raw_value).replace(',', '') # Xử lý trường hợp có dấu phẩy
-                    if '.' in raw_str:
-                        raw_value = float(raw_str)
-                    else:
-                        raw_value = int(raw_str)
+                    raw_str = str(raw_value).replace(',', '')
+                    raw_value = float(raw_str) if '.' in raw_str else int(raw_str)
                 except ValueError:
                     pass
 
             cell_ref_str = str(field.excel_cell_ref).strip()
-            
-            # Nếu excel_cell_ref chỉ chứa chữ cái (ví dụ 'C', 'AA'), ta ghép với target_row
             if re.match(r'^[A-Za-z]+$', cell_ref_str):
                 if target_row:
                     cell_ref = f"{cell_ref_str}{target_row}"
                 else:
-                    # Không tìm thấy dòng đơn vị, bỏ qua ghi dữ liệu vào cột này
                     continue
             else:
                 cell_ref = cell_ref_str
 
             target_cell = self._resolve_target_cell(ws, cell_ref)
-
             try:
                 ws[target_cell] = raw_value
             except Exception:
                 continue
 
+        if protect_cells:
+            # Lock calculated/read-only cells so the spreadsheet behaves like a form on desktop.
+            try:
+                for field in fields:
+                    if not field.excel_cell_ref:
+                        continue
+                    cell_ref_str = str(field.excel_cell_ref).strip()
+                    if re.match(r'^[A-Za-z]+$', cell_ref_str):
+                        if not target_row:
+                            continue
+                        cell_ref = f"{cell_ref_str}{target_row}"
+                    else:
+                        cell_ref = cell_ref_str
+                    target_cell = self._resolve_target_cell(ws, cell_ref)
+                    ws[target_cell].protection = Protection(locked=bool(field.is_readonly or field.is_calculated))
+                ws.protection.sheet = True
+                ws.protection.enable()
+            except Exception:
+                pass
+
+        return wb
+
+    def import_workbook_values(self, instance_id, file_bytes):
+        instance = ReportInstance.query.get(instance_id)
+        if not instance:
+            raise ValueError(f"Report instance {instance_id} không tồn tại")
+
+        wb = load_workbook(BytesIO(file_bytes), data_only=True)
+        ws = wb.active
+        fields = FormField.query.filter_by(version_id=instance.version_id).all()
+        target_row = self._find_target_row(ws, instance.org_unit)
+
+        values_written = {}
+        for field in fields:
+            if not field.excel_cell_ref:
+                continue
+
+            cell_ref_str = str(field.excel_cell_ref).strip()
+            if re.match(r'^[A-Za-z]+$', cell_ref_str):
+                if target_row:
+                    cell_ref = f"{cell_ref_str}{target_row}"
+                else:
+                    continue
+            else:
+                cell_ref = cell_ref_str
+
+            target_cell = self._resolve_target_cell(ws, cell_ref)
+            value = ws[target_cell].value
+            if value is None:
+                continue
+
+            values_written[field.field_code] = value
+            fv = ReportFieldValue.query.filter_by(
+                instance_id=instance_id,
+                field_code=field.field_code
+            ).first()
+            if fv:
+                fv.value = str(value)
+                fv.value_type = 'decimal' if field.field_type == 'number' else 'text'
+            else:
+                db.session.add(ReportFieldValue(
+                    instance_id=instance_id,
+                    field_code=field.field_code,
+                    value=str(value),
+                    value_type='decimal' if field.field_type == 'number' else 'text'
+                ))
+
+        db.session.commit()
+        return values_written
+
+    def export_to_excel_bytes(self, instance_id):
+        instance = ReportInstance.query.get(instance_id)
+        if not instance:
+            raise ValueError(f"Report instance {instance_id} không tồn tại")
+
+        wb = self.build_workbook(instance_id, protect_cells=False)
         output = BytesIO()
         wb.save(output)
         output.seek(0)
 
-        import re
-        safe_unit = (instance.org_unit or 'unit')
-        safe_unit = re.sub(r'[^A-Za-z0-9._-]+', '_', safe_unit).strip('_') or 'unit'
-        filename = f"report_{instance.id}_{safe_unit}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-        return output, filename
+        return output, self._safe_filename(instance)

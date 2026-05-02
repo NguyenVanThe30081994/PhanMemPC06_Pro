@@ -53,3 +53,8 @@ LOG_BACKUP_COUNT = 5
 # Application
 APP_VERSION = '3.5.0'
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+
+# ONLYOFFICE (desktop spreadsheet beta)
+ONLYOFFICE_DOCUMENT_SERVER_URL = os.environ.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '').rstrip('/')
+ONLYOFFICE_JWT_SECRET = os.environ.get('ONLYOFFICE_JWT_SECRET', '')
+ONLYOFFICE_ENABLED = bool(ONLYOFFICE_DOCUMENT_SERVER_URL)

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}{{ report_data.schema.template_name }} - Bảng tính thử nghiệm{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-lg-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+    <div>
+      <div class="text-uppercase text-muted small fw-semibold mb-1">Desktop beta</div>
+      <h3 class="mb-1">{{ report_data.schema.template_name }}</h3>
+      <div class="text-muted small">Chế độ nhập liệu dạng bảng tính ONLYOFFICE</div>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary rounded-pill" href="{{ url_for('reporting_bp.fill_form', template_id=report_data.schema.template_id, period_id=instance.period_id) }}">
+        <i class="fa-solid fa-table-list me-2"></i>Về form hiện tại
+      </a>
+      <a class="btn btn-outline-primary rounded-pill" href="{{ url_for('reporting_bp.view_report', instance_id=instance.id) }}">
+        <i class="fa-regular fa-eye me-2"></i>Xem báo cáo
+      </a>
+    </div>
+  </div>
+
+  {% if onlyoffice_message %}
+  <div class="alert alert-warning border-0 shadow-sm rounded-4">
+    {{ onlyoffice_message }}
+  </div>
+  {% endif %}
+
+  {% if onlyoffice_available and onlyoffice_config %}
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card-body p-0">
+      <div id="onlyoffice-editor" style="width: 100%; height: calc(100vh - 180px); min-height: 720px;"></div>
+    </div>
+  </div>
+
+  <script src="{{ onlyoffice_server_url }}/web-apps/apps/api/documents/api.js"></script>
+  <script>
+    window.addEventListener('load', function () {
+      const config = {{ onlyoffice_config | tojson }};
+      new DocsAPI.DocEditor('onlyoffice-editor', config);
+    });
+  </script>
+  {% else %}
+  <div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-4 p-lg-5">
+      <h5 class="mb-3">Chưa sẵn sàng kích hoạt ONLYOFFICE</h5>
+      <p class="text-muted mb-0">
+        Cần cấu hình <code>ONLYOFFICE_DOCUMENT_SERVER_URL</code> và <code>ONLYOFFICE_JWT_SECRET</code> để dùng chế độ bảng tính thử nghiệm.
+      </p>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

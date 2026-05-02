@@ -3,14 +3,100 @@
 Form Engine - Xử lý render form và validation
 Theo kiến trúc tài liệu: Form Engine + Metadata
 """
+import ast
 import json
+import operator as op
 from datetime import datetime
-from models_reporting import db, FormTemplate, FormVersion, FormField, ReportInstance, ReportFieldValue, ReportAuditLog
+from models_reporting import db, FormTemplate, FormVersion, FormField, ReportInstance, ReportFieldValue, ReportAuditLog, ReportingPeriod
 from flask import session
+
+
+class _SafeFormulaEvaluator(ast.NodeVisitor):
+    """Evaluate arithmetic formulas safely without eval()."""
+
+    _bin_ops = {
+        ast.Add: op.add,
+        ast.Sub: op.sub,
+        ast.Mult: op.mul,
+        ast.Div: op.truediv,
+        ast.FloorDiv: op.floordiv,
+        ast.Mod: op.mod,
+        ast.Pow: op.pow,
+    }
+    _unary_ops = {
+        ast.UAdd: op.pos,
+        ast.USub: op.neg,
+    }
+    _safe_funcs = {
+        'round': round,
+        'min': min,
+        'max': max,
+        'abs': abs,
+    }
+
+    def __init__(self, values):
+        self.values = values or {}
+
+    def visit_Expression(self, node):
+        return self.visit(node.body)
+
+    def visit_Constant(self, node):
+        if isinstance(node.value, (int, float, bool)):
+            return node.value
+        raise ValueError('Unsupported constant type')
+
+    def visit_Name(self, node):
+        if node.id not in self.values:
+            raise ValueError(f'Unknown field code: {node.id}')
+        return self.values[node.id]
+
+    def visit_BinOp(self, node):
+        operator = self._bin_ops.get(type(node.op))
+        if not operator:
+            raise ValueError('Unsupported operator')
+        return operator(self.visit(node.left), self.visit(node.right))
+
+    def visit_UnaryOp(self, node):
+        operator = self._unary_ops.get(type(node.op))
+        if not operator:
+            raise ValueError('Unsupported unary operator')
+        return operator(self.visit(node.operand))
+
+    def visit_Call(self, node):
+        if not isinstance(node.func, ast.Name):
+            raise ValueError('Unsupported function call')
+        func = self._safe_funcs.get(node.func.id)
+        if not func or node.keywords:
+            raise ValueError('Unsupported function call')
+        args = [self.visit(arg) for arg in node.args]
+        return func(*args)
+
+    def generic_visit(self, node):
+        raise ValueError(f'Unsupported expression element: {type(node).__name__}')
 
 
 class FormEngine:
     """Engine xử lý form động từ metadata"""
+
+    @staticmethod
+    def _current_unit():
+        return session.get('unit_area', session.get('unit', ''))
+
+    def _ensure_report_access(self, instance, user_unit=None, is_admin=False, write=False):
+        if not instance:
+            raise ValueError('Report instance không tồn tại')
+
+        if is_admin:
+            return instance
+
+        current_unit = user_unit if user_unit is not None else self._current_unit()
+        if (instance.org_unit or '') != current_unit:
+            raise PermissionError('Bạn không có quyền truy cập báo cáo của đơn vị khác.')
+
+        if write and getattr(instance.period, 'is_locked', False):
+            raise PermissionError('Kỳ báo cáo này đã bị khóa.')
+
+        return instance
     
     def get_form_schema(self, version_id):
         """
@@ -64,6 +150,14 @@ class FormEngine:
         """
         Tạo báo cáo mới
         """
+        period = db.session.get(ReportingPeriod, period_id)
+        if not period:
+            raise ValueError(f"Kỳ báo cáo {period_id} không tồn tại")
+        if period.template_id not in (None, template_id):
+            raise ValueError('Kỳ báo cáo không khớp với biểu mẫu được chọn')
+        if period.is_locked:
+            raise ValueError('Kỳ báo cáo đã bị khóa, không thể tạo báo cáo mới')
+
         # Lấy version published mới nhất
         version = FormVersion.query.filter_by(
             template_id=template_id,
@@ -149,15 +243,14 @@ class FormEngine:
             'values': values
         }
     
-    def save_draft(self, instance_id, data, user_id):
+    def save_draft(self, instance_id, data, user_id, user_unit=None, is_admin=False):
         """
         Lưu nháp - không validate
         data: dict {field_code: value}
         """
         instance = ReportInstance.query.get(instance_id)
-        if not instance:
-            raise ValueError(f"Report instance {instance_id} không tồn tại")
-        
+        self._ensure_report_access(instance, user_unit=user_unit, is_admin=is_admin, write=True)
+
         if instance.status not in ['draft', 'returned']:
             raise ValueError(f"Không thể sửa báo cáo ở trạng thái {instance.status}")
         
@@ -213,13 +306,13 @@ class FormEngine:
         calc_fields = FormField.query.filter_by(
             version_id=instance.version_id,
             is_calculated=True
-        ).all()
+        ).order_by(FormField.display_order).all()
         
         # Lấy tất cả values hiện tại
         values = {}
         for fv in instance.field_values:
             try:
-                values[fv.field_code] = float(fv.value) if fv.value else 0
+                values[fv.field_code] = float(fv.value) if fv.value not in (None, '') else 0
             except:
                 values[fv.field_code] = 0
         
@@ -229,16 +322,13 @@ class FormEngine:
                 continue
             
             try:
-                # Simple formula evaluation
-                # VD: "(luoi_ket_qua / luoi_chi_tieu) * 100"
-                formula = field.calculation_formula
-                
-                # Replace field codes with values
-                for code, val in values.items():
-                    formula = formula.replace(code, str(val))
-                
-                # Evaluate
-                result = eval(formula)
+                # Evaluate arithmetic formula safely using AST.
+                formula = (field.calculation_formula or '').strip()
+                if not formula:
+                    continue
+
+                tree = ast.parse(formula, mode='eval')
+                result = _SafeFormulaEvaluator(values).visit(tree)
                 
                 # Save
                 fv = ReportFieldValue.query.filter_by(
@@ -256,6 +346,8 @@ class FormEngine:
                         value_type='decimal'
                     )
                     db.session.add(fv)
+
+                values[field.field_code] = float(result)
                 
             except Exception as e:
                 print(f"Error calculating {field.field_code}: {e}")
@@ -296,16 +388,18 @@ class FormEngine:
             'errors': errors
         }
     
-    def submit_report(self, instance_id, user_id):
+    def submit_report(self, instance_id, user_id, user_unit=None, is_admin=False):
         """
         Submit báo cáo
         """
         instance = ReportInstance.query.get(instance_id)
-        if not instance:
-            raise ValueError(f"Report instance {instance_id} không tồn tại")
-        
+        self._ensure_report_access(instance, user_unit=user_unit, is_admin=is_admin, write=True)
+
         if instance.status != 'draft':
             raise ValueError(f"Chỉ có thể submit báo cáo ở trạng thái draft")
+
+        if getattr(instance.period, 'is_locked', False):
+            raise ValueError('Kỳ báo cáo đã bị khóa')
         
         # Validate
         validation = self.validate_report(instance_id)

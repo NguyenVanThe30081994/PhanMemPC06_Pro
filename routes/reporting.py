@@ -4,20 +4,27 @@ Routes cho hệ thống nhập liệu báo cáo mới
 API endpoints và UI pages
 """
 from flask import Blueprint, request, session, redirect, url_for, jsonify, flash, make_response
+from flask import current_app, send_file, g
 import calendar
+import base64
+import hashlib
 import json
 import datetime
+import hmac
 import re
 import unicodedata
 from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from excel_renderer import format_excel_number
 from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ReportInstance, ReportAuditLog
 from sqlalchemy import or_
 from services.form_engine import FormEngine
+from services.report_exporter import ReportExporter
 from utils import log_action, render_auto_template as render_template
 from models import User
+import requests
 
 reporting_bp = Blueprint('reporting_bp', __name__, url_prefix='/reporting')
 form_engine = FormEngine()
@@ -43,6 +50,75 @@ def _get_reporting_permissions():
         perms.get('p_form_lead')
     )
     return perms, is_admin, is_lead
+
+
+def _current_reporting_unit():
+    return session.get('unit_area', session.get('unit', ''))
+
+
+def _report_access_denied(message='Bạn không có quyền truy cập báo cáo này.', status_code=403):
+    return jsonify({'success': False, 'message': message}), status_code
+
+
+def _load_authorized_report_instance(instance_id, write=False):
+    if not session.get('uid'):
+        return None, _report_access_denied('Unauthorized', 401)
+
+    instance = ReportInstance.query.get(instance_id)
+    if not instance:
+        return None, _report_access_denied('Report instance không tồn tại', 404)
+
+    _, is_admin, _ = _get_reporting_permissions()
+    if not is_admin and (instance.org_unit or '') != _current_reporting_unit():
+        return None, _report_access_denied()
+
+    if write and getattr(instance.period, 'is_locked', False):
+        return None, _report_access_denied('Kỳ báo cáo này đã bị khóa.')
+
+    return instance, None
+
+
+def _onlyoffice_settings():
+    document_server_url = (current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL') or '').rstrip('/')
+    jwt_secret = current_app.config.get('ONLYOFFICE_JWT_SECRET') or current_app.secret_key
+    return {
+        'enabled': bool(document_server_url),
+        'document_server_url': document_server_url,
+        'jwt_secret': jwt_secret,
+    }
+
+
+def _onlyoffice_serializer():
+    return URLSafeTimedSerializer(current_app.secret_key, salt='onlyoffice-reporting')
+
+
+def _sign_onlyoffice_access(instance_id, purpose):
+    return _onlyoffice_serializer().dumps({
+        'instance_id': int(instance_id),
+        'purpose': purpose,
+    })
+
+
+def _verify_onlyoffice_access(token, instance_id, purpose, max_age=86400):
+    payload = _onlyoffice_serializer().loads(token, max_age=max_age)
+    if int(payload.get('instance_id')) != int(instance_id) or payload.get('purpose') != purpose:
+        raise BadSignature('Invalid ONLYOFFICE token')
+    return payload
+
+
+def _base64url(data):
+    if isinstance(data, str):
+        data = data.encode('utf-8')
+    return base64.urlsafe_b64encode(data).rstrip(b'=').decode('ascii')
+
+
+def _build_onlyoffice_jwt(payload, secret):
+    header = {'alg': 'HS256', 'typ': 'JWT'}
+    header_segment = _base64url(json.dumps(header, separators=(',', ':')).encode('utf-8'))
+    payload_segment = _base64url(json.dumps(payload, ensure_ascii=False, separators=(',', ':')).encode('utf-8'))
+    signing_input = f"{header_segment}.{payload_segment}".encode('ascii')
+    signature = hmac.new(secret.encode('utf-8'), signing_input, hashlib.sha256).digest()
+    return f"{header_segment}.{payload_segment}.{_base64url(signature)}"
 
 
 def _parse_deadline_time(raw_value, fallback='17:00'):
@@ -692,7 +768,157 @@ def fill_form(template_id, period_id):
     return render_template('reporting/fill_form.html',
                           report_data=report_data,
                           instance=instance,
-                          template_id=template_id)
+                          template_id=template_id,
+                          onlyoffice_available=_onlyoffice_settings()['enabled'])
+
+
+@reporting_bp.route('/form/<int:template_id>/period/<int:period_id>/desktop')
+def fill_form_desktop(template_id, period_id):
+    """Desktop beta: mở báo cáo bằng ONLYOFFICE Spreadsheet Editor"""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    if session.get('is_admin'):
+        flash('Tài khoản quản trị không nhập liệu trực tiếp. Vui lòng dùng tài khoản đơn vị để nhập báo cáo.', 'warning')
+        return redirect(url_for('reporting_bp.index'))
+
+    if g.get('is_mobile'):
+        return redirect(url_for('reporting_bp.fill_form', template_id=template_id, period_id=period_id))
+
+    user_id = session.get('uid')
+    user_unit = session.get('unit_area', session.get('unit', ''))
+    instance = form_engine.create_report_instance(
+        template_id=template_id,
+        period_id=period_id,
+        user_id=user_id,
+        org_unit=user_unit
+    )
+    if instance.status not in ('draft', 'returned'):
+        flash('Chỉ có thể mở bảng tính beta cho báo cáo nháp hoặc đã trả về.', 'warning')
+        return redirect(url_for('reporting_bp.view_report', instance_id=instance.id))
+
+    report_data = form_engine.get_report_data(instance.id)
+    settings = _onlyoffice_settings()
+
+    onlyoffice_config = None
+    onlyoffice_message = None
+
+    if settings['enabled']:
+        file_token = _sign_onlyoffice_access(instance.id, 'file')
+        callback_token = _sign_onlyoffice_access(instance.id, 'callback')
+        file_url = url_for(
+            'reporting_bp.onlyoffice_report_file',
+            instance_id=instance.id,
+            token=file_token,
+            _external=True
+        )
+        callback_url = url_for(
+            'reporting_bp.onlyoffice_report_callback',
+            instance_id=instance.id,
+            token=callback_token,
+            _external=True
+        )
+
+        document = {
+            'fileType': 'xlsx',
+            'key': f'report-{instance.id}-{int(instance.updated_at.timestamp())}',
+            'title': f"{report_data['schema']['template_name']} - {instance.org_unit}.xlsx",
+            'url': file_url,
+            'permissions': {
+                'edit': True,
+                'download': True,
+                'print': True,
+            },
+        }
+        editor_config = {
+            'mode': 'edit',
+            'callbackUrl': callback_url,
+            'user': {
+                'id': str(user_id),
+                'name': session.get('fullname', 'PC06 User'),
+            },
+            'customization': {
+                'autosave': True,
+                'compactToolbar': True,
+            },
+        }
+        config_payload = {
+            'documentType': 'cell',
+            'document': document,
+            'editorConfig': editor_config,
+        }
+        onlyoffice_config = {
+            **config_payload,
+            'token': _build_onlyoffice_jwt(config_payload, settings['jwt_secret']),
+        }
+    else:
+        onlyoffice_message = 'Cần cấu hình ONLYOFFICE_DOCUMENT_SERVER_URL và ONLYOFFICE_JWT_SECRET để dùng chế độ thử nghiệm.'
+
+    return render_template(
+        'reporting/desktop_spreadsheet_editor.html',
+        instance=instance,
+        report_data=report_data,
+        onlyoffice_config=onlyoffice_config,
+        onlyoffice_message=onlyoffice_message,
+        onlyoffice_available=settings['enabled'],
+        onlyoffice_server_url=settings['document_server_url'],
+    )
+
+
+@reporting_bp.route('/onlyoffice/reports/<int:instance_id>/file')
+def onlyoffice_report_file(instance_id):
+    """Cấp file XLSX cho ONLYOFFICE Document Server"""
+    token = request.args.get('token', '')
+    try:
+        _verify_onlyoffice_access(token, instance_id, 'file')
+        instance = ReportInstance.query.get_or_404(instance_id)
+        exporter = ReportExporter()
+        wb = exporter.build_workbook(instance.id, protect_cells=True)
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        filename = exporter._safe_filename(instance)
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=False,
+            download_name=filename
+        )
+    except (BadSignature, SignatureExpired):
+        return jsonify({'success': False, 'message': 'Forbidden'}), 403
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@reporting_bp.route('/onlyoffice/reports/<int:instance_id>/callback', methods=['POST'])
+def onlyoffice_report_callback(instance_id):
+    """Nhận callback lưu file từ ONLYOFFICE"""
+    token = request.args.get('token', '')
+    try:
+        _verify_onlyoffice_access(token, instance_id, 'callback')
+    except (BadSignature, SignatureExpired):
+        return jsonify({'error': 1, 'message': 'Forbidden'}), 403
+
+    payload = request.get_json(silent=True) or {}
+    status = int(payload.get('status', 0) or 0)
+
+    if status in (2, 6):
+        file_url = payload.get('url')
+        if not file_url:
+            return jsonify({'error': 1, 'message': 'Missing file url'}), 400
+        try:
+            response = requests.get(file_url, timeout=60)
+            response.raise_for_status()
+            from services.report_exporter import ReportExporter
+            exporter = ReportExporter()
+            exporter.import_workbook_values(instance_id, response.content)
+            form_engine.calculate_fields(instance_id)
+            return jsonify({'error': 0})
+        except Exception as e:
+            current_app.logger.exception('ONLYOFFICE callback save failed')
+            return jsonify({'error': 1, 'message': str(e)}), 500
+
+    return jsonify({'error': 0})
 
 
 @reporting_bp.route('/report/<int:instance_id>')
@@ -700,15 +926,13 @@ def view_report(instance_id):
     """Xem báo cáo (readonly)"""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
-    
-    report_data = form_engine.get_report_data(instance_id)
-    instance = ReportInstance.query.get_or_404(instance_id)
 
-    if not session.get('is_admin'):
-        user_unit = session.get('unit_area', session.get('unit', ''))
-        if instance.org_unit != user_unit:
-            flash('Bạn không có quyền xem báo cáo của đơn vị khác.', 'danger')
-            return redirect(url_for('reporting_bp.index'))
+    instance, denied = _load_authorized_report_instance(instance_id)
+    if denied:
+        flash('Bạn không có quyền xem báo cáo của đơn vị khác.', 'danger')
+        return redirect(url_for('reporting_bp.index'))
+
+    report_data = form_engine.get_report_data(instance.id)
     
     return render_template('reporting/view_report.html',
                           report_data=report_data,
@@ -725,14 +949,12 @@ def export_report(instance_id):
         from services.report_exporter import ReportExporter
         exporter = ReportExporter()
 
-        instance = ReportInstance.query.get_or_404(instance_id)
-        if not session.get('is_admin'):
-            user_unit = session.get('unit_area', session.get('unit', ''))
-            if instance.org_unit != user_unit:
-                flash('Bạn không có quyền xuất báo cáo của đơn vị khác.', 'danger')
-                return redirect(url_for('reporting_bp.index'))
+        instance, denied = _load_authorized_report_instance(instance_id)
+        if denied:
+            flash('Bạn không có quyền xuất báo cáo của đơn vị khác.', 'danger')
+            return redirect(url_for('reporting_bp.index'))
 
-        output, filename = exporter.export_to_excel_bytes(instance_id)
+        output, filename = exporter.export_to_excel_bytes(instance.id)
         file_bytes = output.getvalue()
 
         response = make_response(file_bytes)
@@ -1338,6 +1560,10 @@ def api_create_report():
             'success': True,
             'data': {'instance_id': instance.id}
         })
+    except PermissionError as e:
+        return jsonify({'success': False, 'message': str(e)}), 403
+    except ValueError as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
@@ -1346,6 +1572,9 @@ def api_create_report():
 def api_get_report(instance_id):
     """API: Lấy dữ liệu báo cáo"""
     try:
+        instance, denied = _load_authorized_report_instance(instance_id)
+        if denied:
+            return denied
         report_data = form_engine.get_report_data(instance_id)
         return jsonify({'success': True, 'data': report_data})
     except Exception as e:
@@ -1365,7 +1594,8 @@ def api_save_draft(instance_id):
     
     try:
         user_id = session.get('uid')
-        result = form_engine.save_draft(instance_id, field_values, user_id)
+        user_unit = _current_reporting_unit()
+        result = form_engine.save_draft(instance_id, field_values, user_id, user_unit=user_unit, is_admin=False)
         
         # Calculate fields
         form_engine.calculate_fields(instance_id)
@@ -1373,6 +1603,8 @@ def api_save_draft(instance_id):
         log_action(user_id, session.get('fullname', 'Unknown'), 'Lưu nháp báo cáo', 'Reporting', f'Report ID: {instance_id}')
         
         return jsonify(result)
+    except PermissionError as e:
+        return jsonify({'success': False, 'message': str(e)}), 403
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
@@ -1387,12 +1619,15 @@ def api_submit_report(instance_id):
     
     try:
         user_id = session.get('uid')
-        result = form_engine.submit_report(instance_id, user_id)
+        user_unit = _current_reporting_unit()
+        result = form_engine.submit_report(instance_id, user_id, user_unit=user_unit, is_admin=False)
         
         if result['success']:
             log_action(user_id, session.get('fullname', 'Unknown'), 'Nộp báo cáo', 'Reporting', f'Report ID: {instance_id}')
         
         return jsonify(result)
+    except PermissionError as e:
+        return jsonify({'success': False, 'message': str(e)}), 403
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
@@ -1401,6 +1636,9 @@ def api_submit_report(instance_id):
 def api_validate_report(instance_id):
     """API: Validate dữ liệu"""
     try:
+        instance, denied = _load_authorized_report_instance(instance_id)
+        if denied:
+            return denied
         validation = form_engine.validate_report(instance_id)
         return jsonify({'success': True, 'data': validation})
     except Exception as e:
@@ -1416,11 +1654,9 @@ def api_export_report(instance_id):
         from services.report_exporter import ReportExporter
         exporter = ReportExporter()
 
-        instance = ReportInstance.query.get_or_404(instance_id)
-        if not session.get('is_admin'):
-            user_unit = session.get('unit_area', session.get('unit', ''))
-            if instance.org_unit != user_unit:
-                return jsonify({'success': False, 'message': 'Forbidden'}), 403
+        instance, denied = _load_authorized_report_instance(instance_id)
+        if denied:
+            return denied
 
         output, filename = exporter.export_to_excel_bytes(instance_id)
         file_bytes = output.getvalue()
