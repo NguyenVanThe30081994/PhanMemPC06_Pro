@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, jsonify, session, request
-from models import db, Notification, User, Category
+from models import db, Notification, User
 
 api_bp = Blueprint('api_bp', __name__)
 
@@ -92,6 +92,8 @@ def get_categories():
 @api_bp.route('/api/categories', methods=['POST'])
 def create_category():
     """Tạo danh mục mới (Admin only)"""
+    from models import Category
+    
     if not session.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 403
     
@@ -114,6 +116,8 @@ def create_category():
 @api_bp.route('/api/categories/<int:cid>', methods=['PUT'])
 def update_category(cid):
     """Cập nhật danh mục (Admin only)"""
+    from models import Category
+    
     if not session.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 403
     
@@ -142,6 +146,8 @@ def update_category(cid):
 @api_bp.route('/api/categories/<int:cid>', methods=['DELETE'])
 def delete_category(cid):
     """Xóa danh mục (Admin only)"""
+    from models import Category
+    
     if not session.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 403
     
