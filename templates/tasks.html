@@ -2,17 +2,14 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    <section class="pc06-hero-card">
+    <section class="pc06-hero-card with-toolbar">
         <div class="pc06-hero-grid">
             <div>
                 <div class="pc06-page-kicker">
                     <i class="fa-solid fa-shield-halved"></i>
-                    Trung tâm điều hành công việc
+                    Điều hành công việc
                 </div>
-                <h1 class="pc06-page-title">Quản lý công việc</h1>
-                <p class="pc06-page-lead">
-                    Giao việc, tiếp nhận, theo dõi tiến độ và kiểm soát quá hạn trên một màn hình thống nhất.
-                </p>
+                <h1 class="pc06-page-title">Công việc</h1>
                 <div class="pc06-action-cluster">
                     {% if is_lead or is_admin %}
                     <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
@@ -45,35 +42,36 @@
                 </div>
             </div>
         </div>
-    </section>
-
-    <section class="pc06-panel pc06-toolbar-panel">
-        <div class="pc06-toolbar-row">
-            <label class="pc06-search-control">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" id="taskSearch" placeholder="Tìm theo tên công việc, nội dung hoặc đơn vị">
-            </label>
-            <div class="pc06-toolbar-note">
-                {% if is_lead %}
-                Hiển thị trạng thái tổng hợp theo toàn bộ người được giao.
-                {% else %}
-                Hiển thị trạng thái công việc theo tài khoản hiện tại.
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="pc06-filter-stack">
-            <div class="pc06-chip-group">
-                <button type="button" class="pc06-chip active" data-filter-type="unit" data-filter-value="ALL">Tất cả đơn vị</button>
-                {% for unit in pro_units %}
-                <button type="button" class="pc06-chip" data-filter-type="unit" data-filter-value="{{ unit.name|lower }}">{{ unit.name }}</button>
-                {% endfor %}
-            </div>
-            <div class="pc06-chip-group">
-                <button type="button" class="pc06-chip active" data-filter-type="status" data-filter-value="ALL">Mọi trạng thái</button>
-                <button type="button" class="pc06-chip" data-filter-type="status" data-filter-value="chưa tiếp nhận">Chưa tiếp nhận</button>
-                <button type="button" class="pc06-chip" data-filter-type="status" data-filter-value="đang thực hiện">Đang thực hiện</button>
-                <button type="button" class="pc06-chip" data-filter-type="status" data-filter-value="hoàn thành">Hoàn thành</button>
+        <div class="pc06-hero-toolbar-grid compact">
+            <div class="pc06-hero-toolbar">
+                <div class="pc06-toolbar-row compact-filters">
+                    <div class="pc06-select-control search-grow">
+                        <span>Tìm kiếm</span>
+                        <label class="pc06-search-control">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="taskSearch" placeholder="Tìm theo tên công việc, nội dung hoặc đơn vị">
+                        </label>
+                    </div>
+                    <label class="pc06-select-control compact">
+                        <span>Đơn vị</span>
+                        <select id="taskUnitFilter" class="form-select">
+                            <option value="ALL">Tất cả đơn vị</option>
+                            {% for unit in pro_units %}
+                            <option value="{{ unit.name|lower }}">{{ unit.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label class="pc06-select-control compact">
+                        <span>Trạng thái</span>
+                        <select id="taskStatusFilter" class="form-select">
+                            <option value="ALL">Tất cả trạng thái</option>
+                            <option value="chưa tiếp nhận">Chưa tiếp nhận</option>
+                            <option value="đang thực hiện">Đang thực hiện</option>
+                            <option value="hoàn thành">Hoàn thành</option>
+                        </select>
+                    </label>
+                    <span class="pc06-toolbar-count" id="taskResultCount">{{ tasks|length }} việc</span>
+                </div>
             </div>
         </div>
     </section>
@@ -382,6 +380,7 @@
     };
 
     function applyTaskFilters() {
+        let visibleCount = 0;
         document.querySelectorAll('.task-row').forEach((row) => {
             const unit = row.dataset.unit || '';
             const status = row.dataset.status || '';
@@ -389,8 +388,12 @@
             const unitMatch = taskFilters.unit === 'ALL' || unit === taskFilters.unit;
             const statusMatch = taskFilters.status === 'ALL' || status.includes(taskFilters.status);
             const searchMatch = !taskFilters.query || search.includes(taskFilters.query);
-            row.style.display = unitMatch && statusMatch && searchMatch ? '' : 'none';
+            const isVisible = unitMatch && statusMatch && searchMatch;
+            row.style.display = isVisible ? '' : 'none';
+            if (isVisible) visibleCount += 1;
         });
+        const countNode = document.getElementById('taskResultCount');
+        if (countNode) countNode.textContent = `${visibleCount} việc`;
     }
 
     document.getElementById('taskSearch')?.addEventListener('input', (event) => {
@@ -398,18 +401,17 @@
         applyTaskFilters();
     });
 
-    document.querySelectorAll('.pc06-chip[data-filter-type]').forEach((chip) => {
-        chip.addEventListener('click', () => {
-            const type = chip.dataset.filterType;
-            taskFilters[type] = chip.dataset.filterValue;
-
-            document.querySelectorAll(`.pc06-chip[data-filter-type="${type}"]`).forEach((item) => {
-                item.classList.toggle('active', item === chip);
-            });
-
-            applyTaskFilters();
-        });
+    document.getElementById('taskUnitFilter')?.addEventListener('change', (event) => {
+        taskFilters.unit = event.target.value;
+        applyTaskFilters();
     });
+
+    document.getElementById('taskStatusFilter')?.addEventListener('change', (event) => {
+        taskFilters.status = event.target.value;
+        applyTaskFilters();
+    });
+
+    applyTaskFilters();
 
     function toggleDeadlineFields() {
         const type = document.getElementById('deadlineType')?.value || 'custom';

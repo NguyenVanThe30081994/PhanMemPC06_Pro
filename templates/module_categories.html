@@ -47,32 +47,25 @@
                 <div class="category-group-head">
                     <div>
                         <h3>{{ g.name }}</h3>
-                        <p>Code: {{ g.code or 'Chưa đặt' }}</p>
                     </div>
                     <span class="pc06-soft-tag neutral">{{ g.items|length }} mục</span>
                 </div>
-                <div class="category-group-links">
-                    {% if g.module_links %}
-                        {% for link in g.module_links %}
-                        <span class="pc06-soft-tag">{{ link.module.name }}</span>
-                        {% endfor %}
-                    {% else %}
-                        <span class="text-muted small">Chưa liên kết phân hệ</span>
-                    {% endif %}
-                </div>
                 <div class="category-group-items">
-                    {% for item in g.items %}
-                    <div class="category-item-row">
-                        <span>{{ item.name }}</span>
-                        <form method="POST" class="m-0">
-                            <input type="hidden" name="action" value="delete_item">
-                            <input type="hidden" name="item_id" value="{{ item.id }}">
-                            <button type="submit" class="btn btn-link p-0 text-danger small text-decoration-none">Xóa</button>
-                        </form>
-                    </div>
+                    {% if g.items %}
+                    <form method="POST" class="category-item-picker">
+                        <input type="hidden" name="action" value="delete_item">
+                        <div class="category-item-picker-row">
+                            <select name="item_id" class="form-select" required>
+                                {% for item in g.items %}
+                                <option value="{{ item.id }}">{{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-light text-danger border">Xóa</button>
+                        </div>
+                    </form>
                     {% else %}
                     <div class="text-muted small">Chưa phát sinh thành phần.</div>
-                    {% endfor %}
+                    {% endif %}
                 </div>
                 <div class="category-group-actions">
                     <form method="POST" class="flex-grow-1">
@@ -233,10 +226,15 @@
     .category-group-head h3, .binding-module-head h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-main); }
     .category-group-head p, .binding-module-head p { margin: 4px 0 0; color: var(--text-muted); font-size: 0.82rem; }
     .category-group-links, .category-group-items, .binding-module-list { display: flex; flex-direction: column; gap: 10px; }
-    .category-item-row { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 14px; background: #f8fafc; }
+    .category-item-picker { display: grid; gap: 8px; }
+    .category-item-picker-row { display: flex; gap: 10px; align-items: center; }
+    .category-item-picker-row .form-select { min-width: 0; }
     .category-group-actions { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
     .binding-form-card { padding: 16px; border-radius: 18px; background: #f8fafc; border: 1px solid rgba(148,163,184,0.14); }
     [data-theme="dark"] .category-group-card, [data-theme="dark"] .binding-module-card { background: rgba(15,23,42,0.84); border-color: rgba(148,163,184,0.18); box-shadow: 0 18px 40px rgba(2,6,23,0.32); }
-    [data-theme="dark"] .category-item-row, [data-theme="dark"] .binding-form-card { background: rgba(30,41,59,0.92); }
+    [data-theme="dark"] .binding-form-card { background: rgba(30,41,59,0.92); }
+    @media (max-width: 768px) {
+        .category-item-picker-row { flex-direction: column; align-items: stretch; }
+    }
 </style>
 {% endblock %}

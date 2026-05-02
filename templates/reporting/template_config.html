@@ -34,6 +34,11 @@
           {% set freq = template.frequency|default('monthly', true) %}
           <div class="reporting-form-grid">
             <div class="reporting-field">
+              <label for="templateName">Tên báo cáo</label>
+              <input type="text" name="name" id="templateName" class="form-control" value="{{ template.name }}" required>
+            </div>
+
+            <div class="reporting-field">
               <label for="reportTypeSelect">Loại báo cáo</label>
               <select name="report_type" id="reportTypeSelect" class="form-select" onchange="toggleConfigFields()">
                 <option value="adhoc" {% if rt == 'adhoc' %}selected{% endif %}>Đột xuất có hạn nộp riêng</option>

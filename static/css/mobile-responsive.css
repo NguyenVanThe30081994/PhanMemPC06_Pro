@@ -2,4 +2,209 @@
     .pc06-page-shell {
         padding-inline: 0;
     }
+
+    .main-content {
+        padding-top: 72px;
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    .mobile-header {
+        height: 58px;
+        padding: 0 16px;
+    }
+
+    .header-title {
+        font-size: 16px;
+    }
+
+    .bottom-nav {
+        box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    .mobile-card,
+    .mobile-filter-card,
+    .mobile-contact-search,
+    .mobile-log-filter,
+    .mobile-library-search,
+    .mobile-news-search,
+    .mobile-link-card,
+    .mobile-task-card,
+    .mobile-contact-card,
+    .mobile-library-card,
+    .mobile-news-card,
+    .mobile-role-card,
+    .mobile-db-card,
+    .mobile-log-card,
+    .mobile-update-card,
+    .mobile-category-card,
+    .detail-mobile-card,
+    .ranking-mobile-list-card,
+    .overview-mobile-card {
+        border-radius: 18px !important;
+        border: 1px solid var(--border) !important;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06) !important;
+    }
+
+    .mobile-task-hero,
+    .mobile-contact-hero,
+    .mobile-news-hero,
+    .mobile-library-hero,
+    .mobile-role-hero,
+    .mobile-db-hero,
+    .mobile-log-hero,
+    .mobile-update-hero,
+    .mobile-link-hero,
+    .mobile-category-hero,
+    .overview-mobile-hero,
+    .ranking-mobile-hero,
+    .detail-mobile-hero {
+        background: var(--bg-surface) !important;
+        color: var(--text-main) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 20px !important;
+        padding: 16px 18px !important;
+        margin-bottom: 14px !important;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.07) !important;
+    }
+
+    .mobile-task-hero h1,
+    .mobile-contact-hero h1,
+    .mobile-news-hero h1,
+    .mobile-library-hero h1,
+    .mobile-role-hero h1,
+    .mobile-db-hero h1,
+    .mobile-log-hero h1,
+    .mobile-update-hero h1,
+    .mobile-link-hero h1,
+    .mobile-category-hero h1,
+    .overview-mobile-hero h1,
+    .ranking-mobile-hero h1,
+    .detail-mobile-hero h1 {
+        margin: 8px 0 6px !important;
+        font-size: 1.32rem !important;
+        font-weight: 800 !important;
+        letter-spacing: -0.02em !important;
+        color: var(--text-main) !important;
+    }
+
+    .mobile-task-hero p,
+    .mobile-contact-hero p,
+    .mobile-news-hero p,
+    .mobile-library-hero p,
+    .mobile-role-hero p,
+    .mobile-db-hero p,
+    .mobile-log-hero p,
+    .mobile-update-hero p,
+    .mobile-link-hero p,
+    .mobile-category-hero p,
+    .overview-mobile-hero p,
+    .ranking-mobile-hero p,
+    .detail-mobile-hero p {
+        color: var(--text-muted) !important;
+    }
+
+    .detail-mobile-hero a {
+        color: var(--primary) !important;
+    }
+
+    .mobile-task-kicker,
+    .mobile-contact-kicker,
+    .mobile-news-kicker,
+    .mobile-library-kicker,
+    .mobile-role-kicker,
+    .mobile-db-kicker,
+    .mobile-log-kicker,
+    .mobile-update-kicker,
+    .mobile-link-kicker,
+    .mobile-category-kicker,
+    .overview-mobile-kicker,
+    .ranking-mobile-kicker,
+    .detail-mobile-badge {
+        background: var(--primary-light) !important;
+        color: var(--primary) !important;
+        border: 1px solid rgba(37, 99, 235, 0.1);
+    }
+
+    .mobile-task-stats,
+    .mobile-link-stats,
+    .overview-mobile-stats,
+    .detail-mobile-stats {
+        gap: 10px !important;
+        margin-top: 14px !important;
+    }
+
+    .mobile-task-stat,
+    .mobile-link-stat,
+    .overview-mobile-stat,
+    .detail-mobile-stat {
+        background: var(--bg-body) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 14px !important;
+        padding: 12px !important;
+        backdrop-filter: none !important;
+    }
+
+    .mobile-task-stat span,
+    .mobile-link-stat span,
+    .overview-mobile-stat span,
+    .detail-mobile-stat span {
+        color: var(--text-muted) !important;
+    }
+
+    .mobile-task-stat strong,
+    .mobile-link-stat strong,
+    .overview-mobile-stat strong,
+    .detail-mobile-stat strong {
+        margin-top: 4px !important;
+        font-size: 1.15rem !important;
+        color: var(--text-main) !important;
+    }
+
+    .mobile-contact-actions,
+    .mobile-role-actions,
+    .mobile-category-actions,
+    .ranking-mobile-actions,
+    .mobile-link-actions,
+    .mobile-task-actions {
+        gap: 8px !important;
+        margin-top: 12px !important;
+    }
+
+    .mobile-search,
+    .mobile-search-input {
+        padding: 12px 14px !important;
+        border-radius: 14px !important;
+        margin-bottom: 10px !important;
+    }
+
+    .mobile-chip,
+    .pc06-soft-tag,
+    .mobile-soft-tag {
+        min-height: 0;
+        padding: 8px 12px !important;
+        border-radius: 999px !important;
+        font-size: 0.76rem !important;
+    }
+
+    .mobile-chip-row {
+        gap: 8px !important;
+        padding-bottom: 2px !important;
+    }
+
+    .mobile-fab,
+    .mobile-contact-fab,
+    .mobile-link-fab,
+    .mobile-library-fab {
+        width: 54px !important;
+        height: 54px !important;
+        border-radius: 16px !important;
+        bottom: 86px !important;
+    }
+
+    .reporting-page .reporting-shell {
+        padding: 14px;
+        border-radius: 18px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    }
 }

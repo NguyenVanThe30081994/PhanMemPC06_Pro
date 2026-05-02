@@ -14,7 +14,7 @@
     display: grid;
     grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr);
     gap: 20px;
-    align-items: end;
+    align-items: start;
   }
   .reporting-hero-note {
     margin: 0;
@@ -23,11 +23,11 @@
   }
   .reporting-summary-stack {
     display: grid;
-    gap: 14px;
+    gap: 10px;
   }
   .reporting-summary-card {
-    padding: 18px 20px;
-    border-radius: 20px;
+    padding: 14px 16px;
+    border-radius: 18px;
     background: rgba(15, 23, 42, 0.18);
     border: 1px solid rgba(255, 255, 255, 0.12);
   }
@@ -43,7 +43,7 @@
     display: flex;
     align-items: baseline;
     gap: 8px;
-    font-size: 1.9rem;
+    font-size: 1.5rem;
     font-weight: 700;
     color: #f8fafc;
   }
@@ -51,9 +51,31 @@
     font-size: 0.92rem;
     color: rgba(226, 232, 240, 0.74);
   }
+  .reporting-team-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .reporting-team-tile {
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: grid;
+    gap: 4px;
+  }
+  .reporting-team-tile strong {
+    font-size: 0.84rem;
+    color: #fff;
+  }
+  .reporting-team-tile span {
+    font-size: 0.76rem;
+    color: rgba(226, 232, 240, 0.76);
+  }
   .reporting-layout-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.75fr) minmax(300px, 1fr);
+    grid-template-columns: 1fr;
     gap: 24px;
     align-items: start;
   }
@@ -80,62 +102,134 @@
     flex-direction: column;
     gap: 16px;
   }
-  .reporting-template-card {
-    padding: 20px 22px;
-    border-radius: 24px;
+  .reporting-department-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .reporting-department-card {
+    border-radius: 22px;
     border: 1px solid rgba(148, 163, 184, 0.18);
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%);
     box-shadow: 0 18px 34px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
   }
-  .reporting-template-top {
+  .reporting-department-card[open] {
+    box-shadow: 0 22px 40px rgba(15, 23, 42, 0.12);
+  }
+  .reporting-department-summary {
+    list-style: none;
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+    padding: 18px 22px;
+  }
+  .reporting-department-summary::-webkit-details-marker {
+    display: none;
+  }
+  .reporting-department-title {
+    display: grid;
+    gap: 4px;
+  }
+  .reporting-department-title strong {
+    color: #0f172a;
+    font-size: 1rem;
+  }
+  .reporting-department-title span {
+    color: #64748b;
+    font-size: 0.82rem;
+  }
+  .reporting-department-select {
+    width: 100%;
+    min-height: 52px;
+    border-radius: 16px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 18px;
+    flex-shrink: 0;
+    font-weight: 700;
+    border: 1px solid rgba(37, 99, 235, 0.12);
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .reporting-department-select small {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #64748b;
+  }
+  .reporting-department-card[open] .reporting-department-select {
+    background: #dbeafe;
+    color: #1e3a8a;
+  }
+  .reporting-department-card[open] .reporting-department-select i {
+    transform: rotate(180deg);
+  }
+  .reporting-department-body {
+    padding: 0 22px 18px;
+    display: grid;
+    gap: 10px;
+  }
+  .reporting-department-empty {
+    padding: 10px 0 2px;
+    color: #94a3b8;
+    font-size: 0.84rem;
+  }
+  .reporting-template-row {
     display: flex;
     justify-content: space-between;
-    gap: 18px;
-    align-items: flex-start;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(255, 255, 255, 0.88);
   }
-  .reporting-template-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 12px;
+  .reporting-template-copy {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
   }
   .reporting-template-name {
     display: inline-block;
-    font-size: 1.08rem;
+    font-size: 1rem;
     font-weight: 700;
     color: #0f172a;
     text-decoration: none;
-    margin-bottom: 8px;
+    margin: 0;
   }
   .reporting-template-name:hover {
     color: #185adb;
   }
-  .reporting-template-info {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  .reporting-template-info .pc06-soft-tag {
-    background: #f8fafc;
+  .reporting-template-type {
+    color: #64748b;
+    font-size: 0.9rem;
+    font-weight: 600;
   }
   .reporting-template-actions {
     display: flex;
-    flex-wrap: wrap;
     gap: 10px;
     justify-content: flex-end;
+    flex-shrink: 0;
   }
   .reporting-outline-btn {
-    min-width: 42px;
-    height: 42px;
+    min-width: 88px;
+    height: 40px;
     padding: 0 14px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 14px;
+    gap: 8px;
+    border-radius: 12px;
     border: 1px solid rgba(37, 99, 235, 0.16);
     background: #eff6ff;
     color: #1d4ed8;
     text-decoration: none;
+    font-weight: 700;
     transition: all 0.2s ease;
   }
   .reporting-outline-btn:hover {
@@ -151,47 +245,6 @@
     background: #ffe4e6;
     color: #b91c1c;
   }
-  .reporting-department-card {
-    padding: 18px 20px;
-    border-radius: 22px;
-    border: 1px solid rgba(148, 163, 184, 0.14);
-    background: #fff;
-  }
-  .reporting-department-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 14px;
-  }
-  .reporting-department-head h6 {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 700;
-    color: #0f172a;
-  }
-  .reporting-department-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .reporting-department-item {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    align-items: center;
-    padding: 12px 14px;
-    border-radius: 16px;
-    background: #f8fafc;
-  }
-  .reporting-department-item a {
-    font-weight: 600;
-    color: #0f172a;
-    text-decoration: none;
-  }
-  .reporting-department-item a:hover {
-    color: #1d4ed8;
-  }
   .reporting-empty-state {
     padding: 22px;
     border-radius: 18px;
@@ -200,24 +253,41 @@
   }
   [data-theme="dark"] .reporting-section-head h4,
   [data-theme="dark"] .reporting-section-head h5,
-  [data-theme="dark"] .reporting-template-name,
-  [data-theme="dark"] .reporting-department-head h6,
-  [data-theme="dark"] .reporting-department-item a {
+  [data-theme="dark"] .reporting-template-name {
     color: #e2e8f0;
   }
   [data-theme="dark"] .reporting-section-head p {
     color: #94a3b8;
   }
   [data-theme="dark"] .reporting-template-card,
-  [data-theme="dark"] .reporting-department-card,
   [data-theme="dark"] .reporting-empty-state {
     background: rgba(15, 23, 42, 0.84);
     border-color: rgba(148, 163, 184, 0.18);
     box-shadow: 0 18px 34px rgba(2, 6, 23, 0.34);
   }
-  [data-theme="dark"] .reporting-department-item,
-  [data-theme="dark"] .reporting-template-info .pc06-soft-tag {
-    background: rgba(30, 41, 59, 0.92);
+  [data-theme="dark"] .reporting-department-card {
+    background: rgba(15, 23, 42, 0.84);
+    border-color: rgba(148, 163, 184, 0.18);
+    box-shadow: 0 18px 34px rgba(2, 6, 23, 0.34);
+  }
+  [data-theme="dark"] .reporting-template-row {
+    background: rgba(15, 23, 42, 0.78);
+    border-color: rgba(148, 163, 184, 0.18);
+  }
+  [data-theme="dark"] .reporting-department-title strong {
+    color: #e2e8f0;
+  }
+  [data-theme="dark"] .reporting-department-title span {
+    color: #94a3b8;
+  }
+  [data-theme="dark"] .reporting-department-select {
+    background: rgba(30, 64, 175, 0.22);
+    color: #bfdbfe;
+    border-color: rgba(96, 165, 250, 0.24);
+  }
+  [data-theme="dark"] .reporting-department-select small,
+  [data-theme="dark"] .reporting-template-type {
+    color: #94a3b8;
   }
   [data-theme="dark"] .reporting-outline-btn {
     background: rgba(30, 64, 175, 0.22);
@@ -242,15 +312,24 @@
     .reporting-layout-grid {
       grid-template-columns: 1fr;
     }
+    .reporting-department-summary {
+      grid-template-columns: 1fr;
+    }
   }
   @media (max-width: 767px) {
-    .reporting-template-top,
     .reporting-section-head {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .reporting-template-row {
       flex-direction: column;
       align-items: flex-start;
     }
     .reporting-template-actions {
       justify-content: flex-start;
+    }
+    .reporting-team-grid {
+      grid-template-columns: 1fr;
     }
   }
 </style>
@@ -288,22 +367,18 @@
         </div>
         <div class="reporting-summary-card">
           <span class="reporting-summary-label">Đội nghiệp vụ</span>
-          <div class="reporting-summary-value">{{ department_dashboard|length }}<small>nhóm phụ trách</small></div>
+          <div class="reporting-summary-value">{{ active_department_count }}<small>nhóm phụ trách</small></div>
+          <div class="reporting-team-grid">
+            {% for group in department_hero_cards %}
+            {% if group.department_name != 'Chưa phân đội' %}
+            <div class="reporting-team-tile">
+              <strong>{{ group.department_name }}</strong>
+              <span>{{ group.template_count }} biểu mẫu</span>
+            </div>
+            {% endif %}
+            {% endfor %}
+          </div>
         </div>
-      </div>
-    </div>
-    <div class="pc06-stat-strip">
-      <div class="pc06-metric-card">
-        <span class="pc06-metric-label">Mô hình</span>
-        <strong class="pc06-metric-value">Danh sách mẫu và workspace</strong>
-      </div>
-      <div class="pc06-metric-card">
-        <span class="pc06-metric-label">Hạn nộp</span>
-        <strong class="pc06-metric-value">Theo kỳ mở gần nhất</strong>
-      </div>
-      <div class="pc06-metric-card">
-        <span class="pc06-metric-label">Quản trị</span>
-        <strong class="pc06-metric-value">{% if session.get('is_admin') %}Tải lên và xóa biểu mẫu{% else %}Theo dõi và nhập liệu{% endif %}</strong>
       </div>
     </div>
   </section>
@@ -312,8 +387,7 @@
     <section class="pc06-panel">
       <div class="reporting-section-head">
         <div>
-          <h4>Danh sách biểu mẫu báo cáo</h4>
-          <p>Mở biểu mẫu, kiểm tra hạn nộp và truy cập workspace xử lý.</p>
+          <h4>Biểu mẫu theo đội</h4>
         </div>
         <span class="pc06-soft-tag">
           <i class="fa-solid fa-file-circle-check"></i>{{ template_entries|length }} biểu mẫu
@@ -321,53 +395,58 @@
       </div>
 
       {% if template_entries %}
-      <div class="reporting-template-stack">
-        {% for entry in template_entries %}
-        <article class="reporting-template-card">
-          <div class="reporting-template-top">
-            <div class="flex-grow-1">
-              <div class="reporting-template-meta">
-                <span class="pc06-soft-tag">
-                  <i class="fa-solid fa-shield-halved"></i>{{ entry.department_name }}
-                </span>
-                {% if entry.period_label %}
-                <span class="pc06-soft-tag">
-                  <i class="fa-solid fa-calendar-days"></i>{{ entry.period_label }}
-                </span>
-                {% endif %}
+      <div class="reporting-department-grid">
+        {% set department_limit = namespace(count=0) %}
+        {% for group in department_dashboard %}
+          {% if group.department_name != 'Chưa phân đội' and department_limit.count < 5 %}
+          {% set department_limit.count = department_limit.count + 1 %}
+          <details class="reporting-department-card">
+            <summary class="reporting-department-summary">
+              <div class="reporting-department-title">
+                <strong>{{ group.department_name }}</strong>
+                <span>{{ group.template_count }} biểu mẫu</span>
               </div>
-              <a
-                href="{{ url_for('reporting_bp.template_workspace', template_id=entry.template.id) }}"
-                class="reporting-template-name"
-                id="open_template_{{ entry.template.id }}">
-                {{ entry.template.name }}
-              </a>
-              <div class="reporting-template-info">
-                <span class="pc06-soft-tag">
-                  <i class="fa-solid fa-hourglass-half"></i>{{ entry.deadline_label }}
-                </span>
-                <span class="pc06-soft-tag">
-                  <i class="fa-solid fa-layer-group"></i>{{ entry.template.report_type|default('adhoc', true)|upper }}
-                </span>
+              <div class="reporting-department-select">
+                <span>Danh sách báo cáo</span>
+                <small>{{ group.template_count }} mục <i class="fa-solid fa-chevron-down ms-2"></i></small>
               </div>
-            </div>
-            <div class="reporting-template-actions">
-              <a
-                href="{{ url_for('reporting_bp.template_workspace', template_id=entry.template.id) }}"
-                class="reporting-outline-btn"
-                title="Mở biểu mẫu">
-                <i class="fa-solid fa-pen"></i>
-              </a>
-              {% if session.get('is_admin') %}
-              <form action="{{ url_for('reporting_bp.template_delete', template_id=entry.template.id) }}" method="POST" onsubmit="return confirm('Xóa biểu mẫu này và toàn bộ dữ liệu liên quan?');" class="m-0">
-                <button type="submit" class="reporting-outline-btn reporting-delete-btn" title="Xóa biểu mẫu">
-                  <i class="fa-solid fa-trash"></i>
-                </button>
-              </form>
+            </summary>
+            <div class="reporting-department-body">
+              {% if group.entries %}
+                {% for entry in group.entries %}
+                <article class="reporting-template-row">
+                  <div class="reporting-template-copy">
+                    <a
+                      href="{{ url_for('reporting_bp.template_workspace', template_id=entry.template.id) }}"
+                      class="reporting-template-name"
+                      id="open_template_{{ entry.template.id }}">
+                      {{ entry.template.name }}
+                    </a>
+                    <div class="reporting-template-type">Loại báo cáo: {{ entry.report_type_label }}</div>
+                  </div>
+                  <div class="reporting-template-actions">
+                    <a
+                      href="{{ url_for('reporting_bp.template_workspace', template_id=entry.template.id) }}"
+                      class="reporting-outline-btn"
+                      title="Sửa báo cáo">
+                      <i class="fa-solid fa-pen"></i>Sửa
+                    </a>
+                    {% if session.get('is_admin') %}
+                    <form action="{{ url_for('reporting_bp.template_delete', template_id=entry.template.id) }}" method="POST" onsubmit="return confirm('Xóa biểu mẫu này và toàn bộ dữ liệu liên quan?');" class="m-0">
+                      <button type="submit" class="reporting-outline-btn reporting-delete-btn" title="Xóa báo cáo">
+                        <i class="fa-solid fa-trash"></i>Xóa
+                      </button>
+                    </form>
+                    {% endif %}
+                  </div>
+                </article>
+                {% endfor %}
+              {% else %}
+              <div class="reporting-department-empty">Chưa có biểu mẫu.</div>
               {% endif %}
             </div>
-          </div>
-        </article>
+          </details>
+          {% endif %}
         {% endfor %}
       </div>
       {% else %}
@@ -376,41 +455,6 @@
       </div>
       {% endif %}
     </section>
-
-    <aside class="pc06-panel">
-      <div class="reporting-section-head">
-        <div>
-          <h5>Đội phụ trách</h5>
-          <p>Phân loại biểu mẫu theo từng đội nghiệp vụ.</p>
-        </div>
-        <span class="pc06-soft-tag">
-          <i class="fa-solid fa-users"></i>{{ department_dashboard|length }} đội
-        </span>
-      </div>
-
-      {% if department_dashboard %}
-      <div class="reporting-department-stack">
-        {% for group in department_dashboard %}
-        <section class="reporting-department-card">
-          <div class="reporting-department-head">
-            <h6>{{ group.department_name }}</h6>
-            <span class="pc06-status-badge status-active">{{ group.template_count }} mẫu</span>
-          </div>
-          <div class="reporting-department-list">
-            {% for entry in group.entries %}
-            <div class="reporting-department-item">
-              <a href="{{ url_for('reporting_bp.template_workspace', template_id=entry.template.id) }}">{{ entry.template.name }}</a>
-              <span class="pc06-soft-tag">{{ entry.deadline_label }}</span>
-            </div>
-            {% endfor %}
-          </div>
-        </section>
-        {% endfor %}
-      </div>
-      {% else %}
-      <div class="reporting-empty-state">Chưa có dữ liệu đội nghiệp vụ.</div>
-      {% endif %}
-    </aside>
   </div>
 </div>
 

@@ -62,9 +62,8 @@
         <div class="mobile-contact-head">
             <div class="mobile-contact-avatar">{{ c.name[:1].upper() }}</div>
             <div class="mobile-contact-copy">
-                <span class="pc06-soft-tag neutral">{{ c.contact_group }}</span>
                 <h3 class="mt-2">{{ c.name }}</h3>
-                <p>{{ c.role or 'Cán bộ' }}{% if c.unit_name %} • {{ c.unit_name }}{% endif %}</p>
+                <p><strong>{{ c.role or 'Chưa cập nhật' }}</strong>{% if c.unit_name %} • {{ c.unit_name }}{% endif %}</p>
                 <a href="tel:{{ c.phone }}" class="mobile-contact-phone"><i class="fa-solid fa-phone me-1"></i>{{ c.phone }}</a>
             </div>
         </div>
@@ -86,7 +85,7 @@
 <div class="modal fade" id="addContactModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 rounded-4">
-            <form method="POST">
+            <form method="POST" action="{{ url_for('portal_bp.contact_add') }}">
                 <div class="modal-header border-0">
                     <div><h5 class="modal-title fw-bold mb-1">Thêm liên hệ</h5></div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>

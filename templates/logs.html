@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    <section class="pc06-hero-card">
+    <section class="pc06-hero-card with-toolbar">
         <div class="pc06-hero-grid">
             <div>
                 <div class="pc06-page-kicker">
@@ -35,42 +35,36 @@
                 <div class="pc06-metric-card"><span>Bộ lọc</span><strong style="font-size:1rem;">{{ 'Đang áp dụng' if start or end or user_search else 'Mặc định' }}</strong></div>
             </div>
         </div>
-    </section>
-
-    <section class="pc06-panel">
-        <div class="pc06-panel-head">
-            <div>
-                <h2>Bộ lọc truy vết</h2>
-                <p>Lọc theo thời gian và người dùng trước khi xuất dữ liệu.</p>
-            </div>
-        </div>
-        <form action="/logs" method="GET">
-            <div class="row g-3 align-items-end">
-                <div class="col-md-3">
-                    <label class="form-label fw-bold">Từ ngày</label>
-                    <input type="date" name="start" class="form-control" value="{{ start }}">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-bold">Đến ngày</label>
-                    <input type="date" name="end" class="form-control" value="{{ end }}">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label fw-bold">Người dùng</label>
-                    <select name="user" class="form-select">
-                        <option value="">Tất cả người dùng</option>
-                        {% for u in user_list %}
-                        <option value="{{ u }}" {% if user_search == u %}selected{% endif %}>{{ u }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-bdhvs primary">Lọc</button>
-                        <a href="/logs" class="btn btn-bdhvs light">Đặt lại</a>
+        <div class="pc06-hero-toolbar">
+            <form action="/logs" method="GET">
+                <div class="pc06-toolbar-form-grid">
+                    <div class="pc06-toolbar-field span-3">
+                        <label class="form-label fw-bold text-white mb-0">Từ ngày</label>
+                        <input type="date" name="start" class="form-control" value="{{ start }}">
+                    </div>
+                    <div class="pc06-toolbar-field span-3">
+                        <label class="form-label fw-bold text-white mb-0">Đến ngày</label>
+                        <input type="date" name="end" class="form-control" value="{{ end }}">
+                    </div>
+                    <div class="pc06-toolbar-field span-4">
+                        <label class="form-label fw-bold text-white mb-0">Người dùng</label>
+                        <select name="user" class="form-select">
+                            <option value="">Tất cả người dùng</option>
+                            {% for u in user_list %}
+                            <option value="{{ u }}" {% if user_search == u %}selected{% endif %}>{{ u }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="pc06-toolbar-field span-2">
+                        <label class="form-label fw-bold text-white mb-0">Thao tác</label>
+                        <div class="pc06-toolbar-actions">
+                            <button type="submit" class="btn btn-bdhvs primary">Lọc</button>
+                            <a href="/logs" class="btn btn-bdhvs light">Đặt lại</a>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </form>
+            </form>
+        </div>
     </section>
 
     <section class="pc06-panel">

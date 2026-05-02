@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, current_app, Response, send_from_directory
+from sqlalchemy import func
 from models import db, User, AppRole, MasterData, SystemLog, Task, NewsDoc, DocumentLib, Contact, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding, AIAssistantConfig
 try:
     from security_utils.password_validator import validate_password, get_password_requirements
@@ -36,6 +37,17 @@ AI_PROVIDER_DEFAULTS = {
     'openai': 'gpt-4.1-mini',
     'groq': 'llama-3.3-70b-versatile',
 }
+
+
+def _get_admin_perms():
+    role_id = session.get('role_id')
+    role = db.session.get(AppRole, role_id) if role_id else None
+    if role and role.perms:
+        try:
+            return json.loads(role.perms)
+        except Exception:
+            return {}
+    return {}
 
 
 def _mask_secret(value):
@@ -90,16 +102,17 @@ def _build_grouped_rows(raw_counts, ordered_items=None, fallback_label='Chưa ph
     rows = [row for row in rows if row['count'] > 0]
     return rows
 
+
+def _remove_row_by_name(rows, excluded_names):
+    excluded = {name.strip().lower() for name in excluded_names if name and name.strip()}
+    return [row for row in rows if row.get('name', '').strip().lower() not in excluded]
+
 @admin_bp.route('/admin')
 def index():
     try:
         if not session.get('uid'): 
             return redirect(url_for('auth_bp.login'))
-        if not session.get('is_admin'):
-            flash('Bạn không có quyền truy cập trang tổng quan quản trị.', 'warning')
-            return redirect(url_for('tasks_bp.tasks'))
 
-        from sqlalchemy import func
         from models_reporting import FormTemplate
 
         task_domain_items = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
@@ -118,7 +131,12 @@ def index():
         report_raw_counts = db.session.query(
             FormTemplate.department,
             func.count(FormTemplate.id)
-        ).filter_by(is_active=True).group_by(FormTemplate.department).all()
+        ).filter(
+            FormTemplate.is_active.is_(True),
+            FormTemplate.department.isnot(None),
+            func.trim(FormTemplate.department) != '',
+            func.lower(func.trim(FormTemplate.department)) != 'chưa phân đội'
+        ).group_by(FormTemplate.department).all()
 
         document_raw_counts = db.session.query(
             DocumentLib.category,
@@ -134,11 +152,13 @@ def index():
         report_dashboard = _build_grouped_rows(report_raw_counts, task_domain_items, fallback_label='Chưa phân đội')
         document_dashboard = _build_grouped_rows(document_raw_counts, document_field_items, fallback_label='Chưa phân lĩnh vực')
         contact_dashboard = _build_grouped_rows(contact_raw_counts, contact_group_items, fallback_label='Chưa phân nhóm')
+        report_dashboard = _remove_row_by_name(report_dashboard, {'Chưa phân đội'})
 
         dashboard_cards = [
             {
                 'title': 'Công việc được giao',
-                'subtitle': 'Đội nghiệp vụ - số việc',
+                'row_label': 'Đội nghiệp vụ',
+                'count_label': 'Số việc đã giao',
                 'icon': 'fa-solid fa-list-check',
                 'accent_class': 'primary',
                 'link': '/tasks',
@@ -148,7 +168,8 @@ def index():
             },
             {
                 'title': 'Báo cáo',
-                'subtitle': 'Đội nghiệp vụ - số biểu mẫu',
+                'row_label': 'Đội nghiệp vụ',
+                'count_label': 'Số biểu mẫu',
                 'icon': 'fa-solid fa-file-excel',
                 'accent_class': 'success',
                 'link': '/reporting',
@@ -158,7 +179,8 @@ def index():
             },
             {
                 'title': 'Thông tin tài liệu',
-                'subtitle': 'Lĩnh vực - số tài liệu',
+                'row_label': 'Lĩnh vực',
+                'count_label': 'Số tài liệu',
                 'icon': 'fa-solid fa-folder-open',
                 'accent_class': 'warning',
                 'link': '/library',
@@ -168,7 +190,8 @@ def index():
             },
             {
                 'title': 'Danh bạ',
-                'subtitle': 'Nhóm danh bạ - số liên hệ',
+                'row_label': 'Nhóm danh bạ',
+                'count_label': 'Số liên hệ',
                 'icon': 'fa-solid fa-address-book',
                 'accent_class': 'indigo',
                 'link': '/contacts',
@@ -231,8 +254,18 @@ def db_manage():
 
 @admin_bp.route('/roles', methods=['GET', 'POST'])
 def roles():
-    if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    perms = _get_admin_perms()
+    is_admin = bool(session.get('is_admin'))
+    can_view_roles = is_admin or perms.get('p_user_lead')
+
+    if not can_view_roles:
+        flash('Bạn không có quyền truy cập trang tài khoản và vai trò.', 'warning')
+        return redirect(url_for('admin_bp.index'))
+
     if request.method == 'POST':
+        if not is_admin:
+            flash('Chỉ quản trị viên mới được thay đổi tài khoản và vai trò.', 'danger')
+            return redirect(url_for('admin_bp.roles'))
         action = request.form.get('action')
         try:
             if action == 'add_role':
@@ -282,12 +315,41 @@ def roles():
         return redirect(url_for('admin_bp.roles'))
 
     selected_role_id = request.args.get('role_id', type=int)
+    selected_unit = (request.args.get('unit') or '').strip()
+    search_query = (request.args.get('q') or '').strip()
     selected_role = db.session.get(AppRole, selected_role_id) if selected_role_id else None
 
     roles = AppRole.query.order_by(AppRole.name.asc()).all()
     users_query = User.query
     if selected_role:
         users_query = users_query.filter(User.role_id == selected_role.id)
+
+    unit_options_query = db.session.query(User.unit_area)
+    if selected_role:
+        unit_options_query = unit_options_query.filter(User.role_id == selected_role.id)
+    available_units = sorted(
+        {
+            unit_name.strip()
+            for unit_name, in unit_options_query.distinct().all()
+            if unit_name and unit_name.strip()
+        },
+        key=lambda value: value.lower()
+    )
+
+    if selected_unit:
+        users_query = users_query.filter(User.unit_area == selected_unit)
+
+    if search_query:
+        from sqlalchemy import or_
+
+        term = f"%{search_query}%"
+        users_query = users_query.filter(
+            or_(
+                User.fullname.ilike(term),
+                User.username.ilike(term),
+                User.unit_area.ilike(term)
+            )
+        )
 
     users = users_query.order_by(User.fullname.asc(), User.username.asc()).all()
 
@@ -302,11 +364,16 @@ def roles():
     unit_cats = CategoryItem.query.filter_by(group_id=unit_group.id).all() if unit_group else []
     return render_template(
         'roles.html',
+        can_manage_roles=is_admin,
         roles=roles,
         users=users,
         selected_role=selected_role,
         selected_role_id=selected_role.id if selected_role else None,
+        selected_unit=selected_unit,
+        search_query=search_query,
+        available_units=available_units,
         role_user_counts=role_user_counts,
+        total_role_count=len(roles),
         total_user_count=sum(role_user_counts.values()),
         units=[u[0] for u in db.session.query(MasterData.name).distinct().all() if u[0]],
         unit_cats=unit_cats
@@ -314,7 +381,9 @@ def roles():
 
 @admin_bp.route('/admin/user/delete/<int:uid>', methods=['POST'])
 def delete_user(uid):
-    if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    if not session.get('is_admin'):
+        flash('Chỉ quản trị viên mới được xóa tài khoản.', 'danger')
+        return redirect(url_for('admin_bp.roles'))
     u = db.session.get(User, uid)
     if u:
         if u.username == 'admin':
@@ -329,7 +398,9 @@ def delete_user(uid):
 
 @admin_bp.route('/admin/user/toggle-status/<int:uid>')
 def toggle_user_status(uid):
-    if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    if not session.get('is_admin'):
+        flash('Chỉ quản trị viên mới được thay đổi trạng thái tài khoản.', 'danger')
+        return redirect(url_for('admin_bp.roles'))
     u = db.session.get(User, uid)
     if u:
         if u.username == 'admin':

@@ -18,6 +18,7 @@ from logging.handlers import RotatingFileHandler
 import json
 from flask import Flask, session, request, redirect, url_for, send_from_directory, render_template, g, jsonify
 from datetime import datetime, timedelta
+from werkzeug.exceptions import HTTPException
 from models import db, AppRole
 from utils import init_db, get_perms_labels, is_mobile_device
 
@@ -314,6 +315,13 @@ def page_not_found(e):
 def internal_server_error(e):
     app.logger.error(f"500 Error: {str(e)}")
     return render_template('500.html'), 500
+
+@app.errorhandler(HTTPException)
+def handle_http_exception(e):
+    if e.code == 404:
+        return render_template('404.html'), 404
+    app.logger.warning(f"HTTP Error {e.code}: {e.description}")
+    return e
 
 # Global exception handler - logs ALL errors
 @app.errorhandler(Exception)
