@@ -321,6 +321,43 @@
       flex-direction: column;
       align-items: flex-start;
     }
+    .reporting-hero-note,
+    .reporting-section-head p,
+    .reporting-department-title span,
+    .reporting-template-type,
+    .reporting-department-select small,
+    .reporting-empty-state {
+      color: var(--text-muted);
+    }
+    .reporting-summary-card,
+    .reporting-department-card,
+    .reporting-template-row,
+    .reporting-empty-state {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+    }
+    .reporting-summary-label,
+    .reporting-summary-value small,
+    .reporting-team-tile span {
+      color: var(--text-muted);
+    }
+    .reporting-summary-value,
+    .reporting-summary-value small,
+    .reporting-team-tile strong,
+    .reporting-department-title strong,
+    .reporting-template-name {
+      color: var(--text-main);
+    }
+    .reporting-department-select {
+      background: var(--primary-light);
+      color: var(--primary);
+      border-color: rgba(37, 99, 235, 0.14);
+    }
+    html:not([data-theme="dark"]) .reporting-department-card[open] .reporting-department-select {
+      background: #dbeafe;
+      color: #1e3a8a;
+    }
     .reporting-template-row {
       flex-direction: column;
       align-items: flex-start;

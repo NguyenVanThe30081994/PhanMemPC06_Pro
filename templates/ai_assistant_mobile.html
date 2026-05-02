@@ -4,6 +4,61 @@
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ai-assistant.css') }}?v=20260426b">
+<style>
+    .assistant-page .pc06-hero-card {
+        background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%);
+        color: #fff;
+        padding: 20px;
+        border-radius: 24px;
+        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+    }
+    .assistant-page .assistant-hero-layout {
+        display: grid;
+        gap: 18px;
+    }
+    .assistant-page .pc06-page-kicker {
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+    }
+    .assistant-page .pc06-page-title {
+        color: #fff;
+        margin-top: 10px;
+        font-size: 1.6rem;
+        line-height: 1.18;
+    }
+    .assistant-page .pc06-page-lead {
+        color: rgba(255, 255, 255, 0.84);
+        font-size: 0.94rem;
+    }
+    .assistant-page .assistant-hero-actions {
+        justify-content: flex-start;
+        max-width: none;
+    }
+    .assistant-page .assistant-pill {
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.14);
+    }
+    .assistant-page .assistant-hero-scope {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.14);
+    }
+    .assistant-page .assistant-hero-scope-label,
+    .assistant-page .assistant-hero-scope small {
+        color: rgba(226, 232, 240, 0.84);
+    }
+    .assistant-page .assistant-hero-scope strong {
+        color: #fff;
+    }
+    @media (max-width: 767px) {
+        .assistant-page .pc06-hero-card {
+            padding: 18px;
+        }
+        .assistant-page .assistant-topic-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block content %}

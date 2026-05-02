@@ -4,6 +4,7 @@ import os
 import requests
 import re
 import unicodedata
+import time
 from datetime import datetime, timedelta
 from utils import render_auto_template as render_template
 from models import AIAssistantConfig
@@ -120,6 +121,11 @@ LEGAL_DOC_TYPE_MAP = {
 }
 
 OFFICIAL_LEGAL_SEARCH_API = 'https://genai.aiservice.vn/congbaosearch/search'
+GOV_NEWS_CACHE = {
+    'fetched_at': 0.0,
+    'articles': None,
+}
+GOV_NEWS_CACHE_TTL = 15 * 60
 
 
 def _get_ai_config():
@@ -736,6 +742,13 @@ def find_answer_from_kb(query):
 
 
 def fetch_gov_news(limit=10):
+    now = time.monotonic()
+    cached_articles = GOV_NEWS_CACHE.get('articles') or []
+    cached_at = float(GOV_NEWS_CACHE.get('fetched_at') or 0.0)
+
+    if cached_articles and (now - cached_at) < GOV_NEWS_CACHE_TTL:
+        return cached_articles[:limit]
+
     articles = []
     try:
         url = "https://tuyenquang.gov.vn"
@@ -745,7 +758,7 @@ def fetch_gov_news(limit=10):
             'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
         }
 
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=4)
         if response.status_code == 200:
             try:
                 html = response.content.decode('utf-8')
@@ -783,12 +796,19 @@ def fetch_gov_news(limit=10):
     except Exception as exc:
         print(f"Error fetching news: {exc}")
 
-    if not articles:
-        articles = [
-            {'title': 'Cập nhật thông tin điều hành và tin tức mới trên Cổng thông tin điện tử tỉnh Tuyên Quang', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': ''},
-            {'title': 'Hướng dẫn tra cứu thủ tục hành chính và thông tin công dân trên các cổng chính thức', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': ''},
-            {'title': 'Thông báo, lịch tiếp công dân và các bản tin phục vụ người dân địa phương', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': ''},
-        ]
+    if articles:
+        GOV_NEWS_CACHE['articles'] = articles
+        GOV_NEWS_CACHE['fetched_at'] = now
+        return articles[:limit]
+
+    if cached_articles:
+        return cached_articles[:limit]
+
+    articles = [
+        {'title': 'Cập nhật thông tin điều hành và tin tức mới trên Cổng thông tin điện tử tỉnh Tuyên Quang', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': ''},
+        {'title': 'Hướng dẫn tra cứu thủ tục hành chính và thông tin công dân trên các cổng chính thức', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': ''},
+        {'title': 'Thông báo, lịch tiếp công dân và các bản tin phục vụ người dân địa phương', 'link': 'https://tuyenquang.gov.vn', 'source': 'tuyenquang.gov.vn', 'date': ''},
+    ]
 
     return articles
 
