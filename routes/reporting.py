@@ -13,8 +13,8 @@ from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 from excel_renderer import format_excel_number
-from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ReportInstance, ReportAuditLog
-from sqlalchemy import or_
+from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ReportInstance, ReportAuditLog, ReportFieldValue, ReportAttachment
+from sqlalchemy import or_, and_
 from services.form_engine import FormEngine
 from services.excel_formula_engine import ExcelFormulaEngine
 from services.excel_recalc_service import ExcelRecalcService
@@ -1284,6 +1284,27 @@ def preview_template(template_id):
         return redirect(url_for('reporting_bp.index'))
 
 
+@reporting_bp.route('/template/<int:template_id>/download')
+def download_template(template_id):
+    """Tải file Excel mẫu gốc."""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    template = FormTemplate.query.get_or_404(template_id)
+    if not template.excel_template_blob:
+        flash('Biểu mẫu chưa có file Excel gốc để tải xuống.', 'warning')
+        return redirect(url_for('reporting_bp.index'))
+
+    safe_name = re.sub(r'[^A-Za-z0-9._-]+', '_', template.name or 'template').strip('_') or 'template'
+    filename = f"{safe_name}.xlsx"
+    file_bytes = bytes(template.excel_template_blob)
+    response = make_response(file_bytes)
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.headers['Content-Length'] = str(len(file_bytes))
+    return response
+
+
 @reporting_bp.route('/template/<int:template_id>/field-settings', methods=['GET', 'POST'])
 def field_settings(template_id):
     """Admin: Thiết lập cột được nhập liệu"""
@@ -1652,19 +1673,46 @@ def template_delete(template_id):
         return jsonify({'success': False, 'message': 'Không tìm thấy biểu mẫu'}), 404
 
     try:
-        versions = FormVersion.query.filter_by(template_id=template.id).all()
-        for v in versions:
-            FormField.query.filter_by(version_id=v.id).delete()
-            db.session.delete(v)
-            
-        periods = ReportingPeriod.query.filter_by(template_id=template.id).all()
-        for p in periods:
-            instances = ReportInstance.query.filter_by(period_id=p.id).all()
-            for instance in instances:
-                ReportAuditLog.query.filter_by(instance_id=instance.id).delete()
-                db.session.delete(instance)
-            db.session.delete(p)
-            
+        version_ids = [row.id for row in FormVersion.query.filter_by(template_id=template.id).all()]
+        instance_ids = [
+            row.id for row in ReportInstance.query.filter_by(template_id=template.id).all()
+        ]
+
+        field_value_ids = []
+        if instance_ids:
+            field_value_ids = [
+                row.id for row in ReportFieldValue.query.filter(ReportFieldValue.instance_id.in_(instance_ids)).all()
+            ]
+
+            attachments = ReportAttachment.query.filter(ReportAttachment.instance_id.in_(instance_ids)).all()
+            for attachment in attachments:
+                file_path = (attachment.file_path or '').strip()
+                if file_path:
+                    try:
+                        import os
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                    except Exception:
+                        pass
+
+            audit_filters = [
+                and_(ReportAuditLog.entity_type == 'report_instance', ReportAuditLog.entity_id.in_(instance_ids))
+            ]
+            if field_value_ids:
+                audit_filters.append(
+                    and_(ReportAuditLog.entity_type == 'field_value', ReportAuditLog.entity_id.in_(field_value_ids))
+                )
+            ReportAuditLog.query.filter(or_(*audit_filters)).delete(synchronize_session=False)
+            ReportAttachment.query.filter(ReportAttachment.instance_id.in_(instance_ids)).delete(synchronize_session=False)
+            ReportFieldValue.query.filter(ReportFieldValue.instance_id.in_(instance_ids)).delete(synchronize_session=False)
+            ReportInstance.query.filter(ReportInstance.id.in_(instance_ids)).delete(synchronize_session=False)
+
+        ReportingPeriod.query.filter_by(template_id=template.id).delete(synchronize_session=False)
+
+        if version_ids:
+            FormField.query.filter(FormField.version_id.in_(version_ids)).delete(synchronize_session=False)
+            FormVersion.query.filter(FormVersion.id.in_(version_ids)).delete(synchronize_session=False)
+
         db.session.delete(template)
         db.session.commit()
         

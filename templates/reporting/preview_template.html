@@ -31,6 +31,12 @@
         <button class="preview-btn btn px-3" type="button" onclick="zoomTable(0)">
           <i class="fa-solid fa-expand me-2"></i>Vừa màn hình
         </button>
+        <button class="preview-btn btn px-3" type="button" onclick="window.print()">
+          <i class="fa-solid fa-print me-2"></i>In
+        </button>
+        <a href="{{ url_for('reporting_bp.download_template', template_id=template.id) }}" class="preview-btn btn px-3 text-decoration-none">
+          <i class="fa-solid fa-download me-2"></i>Tải Excel
+        </a>
         <a href="{{ url_for('reporting_bp.index') }}" class="preview-btn btn px-3 text-decoration-none">
           <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
         </a>
@@ -69,7 +75,7 @@
                 <td
                   {% if cell.rowspan > 1 %}rowspan="{{ cell.rowspan }}"{% endif %}
                   {% if cell.colspan > 1 %}colspan="{{ cell.colspan }}"{% endif %}
-                  class="xl-cell{% if cell.col_idx <= 2 %} xl-sticky-{{ cell.col_idx }}{% endif %}"
+                  class="xl-cell"
                   style="
                     text-align:{{ cell.align if cell.align and cell.align != 'general' else 'left' }};
                     vertical-align:{{ cell.valign or 'center' }};
@@ -161,12 +167,6 @@
   background: #172033;
 }
 
-.xl-col-hdr-row {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
 .xl-corner,
 .xl-col-hdr,
 .xl-row-hdr {
@@ -182,10 +182,6 @@
 }
 
 .xl-corner {
-  position: sticky;
-  left: 0;
-  top: 0;
-  z-index: 12;
   border-right: 1px solid #bfd0de;
   border-bottom: 1px solid #bfd0de;
   min-width: 40px;
@@ -220,9 +216,6 @@
 }
 
 .xl-row-hdr {
-  position: sticky;
-  left: 0;
-  z-index: 5;
   border-right: 1px solid #bfd0de;
   border-bottom: 1px solid #d3dce4;
   text-align: center;
@@ -277,18 +270,6 @@
   color: #7dd3fc;
 }
 
-.xl-sticky-1,
-.xl-sticky-2 {
-  position: sticky;
-  z-index: 3;
-  background: #fff;
-}
-
-[data-theme="dark"] .xl-sticky-1,
-[data-theme="dark"] .xl-sticky-2 {
-  background: #172033;
-}
-
 .xl-scroll::-webkit-scrollbar {
   width: 12px;
   height: 12px;
@@ -327,15 +308,6 @@
 
   let currentZoom = 1;
 
-  function updateSticky() {
-    const col1 = table.querySelector('colgroup col:nth-child(2)');
-    if (!col1) return;
-    const headerWidth = 40;
-    const colWidth = col1.getBoundingClientRect().width / currentZoom;
-    table.querySelectorAll('.xl-sticky-1').forEach(el => { el.style.left = headerWidth + 'px'; });
-    table.querySelectorAll('.xl-sticky-2').forEach(el => { el.style.left = (headerWidth + colWidth) + 'px'; });
-  }
-
   function syncZoomUi() {
     zoomRange.value = currentZoom.toFixed(2);
     zoomLabel.textContent = Math.round(currentZoom * 100) + '%';
@@ -345,7 +317,6 @@
     scale.style.transform = `scale(${currentZoom})`;
     scale.style.height = `${table.offsetHeight * currentZoom}px`;
     syncZoomUi();
-    updateSticky();
   }
 
   function fitToViewport() {
