@@ -20,7 +20,7 @@
       <div class="reporting-hero-actions">
         <span class="reporting-pill"><i class="fa-solid fa-code-branch"></i>{{ version.version_number }}</span>
         <span class="reporting-pill"><i class="fa-solid fa-clock"></i>{{ schedule_summary }}</span>
-        <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="btn btn-outline-secondary rounded-pill px-4">
+        <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-secondary rounded-pill px-4">
           <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
         </a>
       </div>
@@ -88,7 +88,7 @@
       {% endfor %}
 
       <div class="reporting-sticky-actions">
-        <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) }}" class="btn btn-outline-secondary rounded-pill px-4">Hủy</a>
+        <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-secondary rounded-pill px-4">Hủy</a>
         <button type="submit" class="btn btn-primary rounded-pill px-4">
           <i class="fa-solid fa-floppy-disk me-2"></i>Lưu thiết lập
         </button>

@@ -516,20 +516,16 @@ def dashboard():
 
 @reporting_bp.route('/')
 def index():
-    """Trang chủ hệ thống báo cáo - chỉ hiển thị danh sách mẫu biểu"""
+    """Trang chủ hệ thống báo cáo - danh sách biểu mẫu tối giản theo vai trò."""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
 
-    from category_helpers import get_module_field_items, get_category_items
-
+    _, is_admin, is_lead = _get_reporting_permissions()
     templates = FormTemplate.query.filter_by(is_active=True).order_by(FormTemplate.name.asc()).all()
     open_periods = ReportingPeriod.query.filter(
         ReportingPeriod.template_id.isnot(None),
         ReportingPeriod.is_locked.is_(False)
     ).all()
-
-    department_items = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
-    fixed_department_names = [item.name for item in department_items if getattr(item, 'name', None)]
 
     period_map = {}
     for period in open_periods:
@@ -542,8 +538,6 @@ def index():
             period_map[period.template_id] = period
 
     template_entries = []
-    department_map = {}
-    visible_templates = []
     for template in templates:
         department_name = (template.department or '').strip()
         if not department_name or department_name.lower() == 'chưa phân đội':
@@ -566,48 +560,23 @@ def index():
             'report_type_label': report_type_label
         }
         template_entries.append(entry)
-        visible_templates.append(template)
 
-        bucket = department_map.setdefault(department_name, [])
-        bucket.append(entry)
-
-    department_dashboard = []
-    ordered_department_names = list(fixed_department_names)
-    for department_name in department_map.keys():
-        if department_name not in ordered_department_names and department_name != 'Chưa phân đội':
-            ordered_department_names.append(department_name)
-    for department_name in ordered_department_names:
-        entries = department_map.get(department_name, [])
-        sorted_entries = sorted(
-            entries,
-            key=lambda entry: (
-                entry['deadline_dt'] is None,
-                entry['deadline_dt'] or datetime.datetime.max,
-                entry['template'].name.lower()
-            )
+    template_entries = sorted(
+        template_entries,
+        key=lambda entry: (
+            entry['deadline_dt'] is None,
+            entry['deadline_dt'] or datetime.datetime.max,
+            entry['department_name'].lower(),
+            entry['template'].name.lower()
         )
-        department_dashboard.append({
-            'department_name': department_name,
-            'template_count': len(entries),
-            'entries': sorted_entries
-        })
-
-    department_hero_cards = [
-        {
-            'department_name': group['department_name'],
-            'template_count': group['template_count']
-        }
-        for group in department_dashboard
-    ][:5]
-    active_department_count = sum(1 for card in department_hero_cards if card['template_count'] > 0)
+    )
 
     return render_template(
         'reporting/index.html',
-        templates=visible_templates,
         template_entries=template_entries,
-        department_dashboard=department_dashboard,
-        department_hero_cards=department_hero_cards,
-        active_department_count=active_department_count
+        total_templates=len(template_entries),
+        is_reporting_admin=is_admin,
+        is_reporting_lead=is_lead
     )
 
 @reporting_bp.route('/template/upload', methods=['POST'])
@@ -1003,7 +972,7 @@ def template_statistics(template_id):
     _, is_admin, is_lead = _get_reporting_permissions()
     if not (is_admin or is_lead):
         flash('Bạn không có quyền truy cập chức năng này.', 'danger')
-        return redirect(url_for('reporting_bp.template_workspace', template_id=template_id))
+        return redirect(url_for('reporting_bp.index'))
 
     template = FormTemplate.query.get_or_404(template_id)
     
@@ -1020,7 +989,7 @@ def template_statistics(template_id):
         
     if not period:
         flash('Chưa có kỳ báo cáo nào được tạo.', 'warning')
-        return redirect(url_for('reporting_bp.template_workspace', template_id=template_id))
+        return redirect(url_for('reporting_bp.index'))
 
     # Lấy tất cả đơn vị
     from models import User
@@ -1307,7 +1276,8 @@ def field_settings(template_id):
     """Admin: Thiết lập cột được nhập liệu"""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
-    if not session.get('is_admin'):
+    _, is_admin, is_lead = _get_reporting_permissions()
+    if not (is_admin or is_lead):
         flash('Bạn không có quyền truy cập chức năng này.', 'danger')
         return redirect(url_for('reporting_bp.index'))
 
@@ -1376,9 +1346,10 @@ def template_config(template_id):
     """Admin: cấu hình loại báo cáo và quy tắc hạn nộp."""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
-    if not session.get('is_admin'):
+    _, is_admin, is_lead = _get_reporting_permissions()
+    if not (is_admin or is_lead):
         flash('Bạn không có quyền cấu hình biểu mẫu.', 'danger')
-        return redirect(url_for('reporting_bp.template_workspace', template_id=template_id))
+        return redirect(url_for('reporting_bp.index'))
 
     template = FormTemplate.query.get_or_404(template_id)
 
@@ -1443,7 +1414,7 @@ def template_config(template_id):
             template.deadline_rule = deadline_rule
             db.session.commit()
             flash('Đã cập nhật cấu hình reporting.', 'success')
-            return redirect(url_for('reporting_bp.template_workspace', template_id=template_id))
+            return redirect(url_for('reporting_bp.index'))
         except Exception as exc:
             db.session.rollback()
             flash(f'Lỗi lưu cấu hình: {exc}', 'danger')
@@ -1463,7 +1434,7 @@ def template_periods(template_id):
         return redirect(url_for('auth_bp.login'))
     if not session.get('is_admin'):
         flash('Bạn không có quyền quản lý kỳ báo cáo.', 'danger')
-        return redirect(url_for('reporting_bp.template_workspace', template_id=template_id))
+        return redirect(url_for('reporting_bp.index'))
 
     template = FormTemplate.query.get_or_404(template_id)
     report_type = (template.report_type or 'adhoc').strip().lower()
