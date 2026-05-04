@@ -16,6 +16,8 @@ from excel_renderer import format_excel_number
 from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ReportInstance, ReportAuditLog
 from sqlalchemy import or_
 from services.form_engine import FormEngine
+from services.excel_formula_engine import ExcelFormulaEngine
+from services.excel_recalc_service import ExcelRecalcService
 from services.report_exporter import ReportExporter
 from utils import log_action, render_auto_template as render_template
 from models import User
@@ -87,11 +89,17 @@ def _build_excel_like_rows(instance):
     if not instance.template.excel_template_blob:
         raise ValueError('Biểu mẫu chưa có file Excel gốc để hiển thị dạng bảng.')
 
-    wb_formula = load_workbook(BytesIO(instance.template.excel_template_blob), data_only=False)
-    wb_values = load_workbook(BytesIO(instance.template.excel_template_blob), data_only=True)
+    exporter = ReportExporter()
+    workbook_bytes = exporter.build_workbook_bytes(
+        instance.id,
+        protect_cells=False,
+        recalculate=ExcelRecalcService.is_available()
+    )
+    wb_formula = load_workbook(BytesIO(workbook_bytes), data_only=False)
+    wb_values = load_workbook(BytesIO(workbook_bytes), data_only=True)
     ws = wb_formula.active
     ws_values = wb_values[ws.title] if ws.title in wb_values.sheetnames else wb_values.active
-    exporter = ReportExporter()
+    evaluator = None if ExcelRecalcService.is_available() else ExcelFormulaEngine(wb_formula)
     target_row = exporter._find_target_row(ws, instance.org_unit)
 
     fields = FormField.query.filter_by(version_id=instance.version_id).order_by(FormField.display_order).all()
@@ -169,7 +177,7 @@ def _build_excel_like_rows(instance):
                 continue
 
             cell = ws.cell(row=r, column=c)
-            cell_value_obj = ws_values.cell(row=r, column=c)
+            value_cell = ws_values.cell(row=r, column=c)
             merge_info = merged_map.get((r, c), {'rowspan': 1, 'colspan': 1})
             font = cell.font
             fill = cell.fill
@@ -198,18 +206,23 @@ def _build_excel_like_rows(instance):
             if field and field.field_code in report_values:
                 raw_value = report_values.get(field.field_code)
             else:
-                raw_value = cell_value_obj.value
-
-            if raw_value is None and isinstance(cell.value, str) and cell.value.startswith('='):
-                display_value = ''
-            else:
-                display_source = raw_value
-                if field and display_source not in (None, '') and (field.field_type == 'number' or field.data_type in ('integer', 'decimal')):
+                if value_cell.value is not None:
+                    raw_value = value_cell.value
+                elif isinstance(cell.value, str) and cell.value.startswith('=') and evaluator:
                     try:
-                        display_source = float(str(display_source).replace(',', ''))
+                        raw_value = evaluator.evaluate_cell(ws, cell.coordinate)
                     except Exception:
-                        pass
-                display_value = format_excel_number(display_source, cell.number_format)
+                        raw_value = ''
+                else:
+                    raw_value = cell.value
+
+            display_source = raw_value
+            if field and display_source not in (None, '') and (field.field_type == 'number' or field.data_type in ('integer', 'decimal')):
+                try:
+                    display_source = float(str(display_source).replace(',', ''))
+                except Exception:
+                    pass
+            display_value = format_excel_number(display_source, cell.number_format)
 
             font_size = int(font.sz) if font and font.sz else 11
             h_align = (alignment.horizontal if alignment and alignment.horizontal else None)
@@ -260,6 +273,7 @@ def _build_excel_like_rows(instance):
         'col_letters': col_letters,
         'target_row': target_row,
         'unresolved_fields': unresolved_fields,
+        'recalc_mode': 'libreoffice' if ExcelRecalcService.is_available() else 'fallback',
     }
 
 
@@ -920,41 +934,9 @@ def fill_form(template_id, period_id):
 
 @reporting_bp.route('/form/<int:template_id>/period/<int:period_id>/desktop')
 def fill_form_desktop(template_id, period_id):
-    """Desktop beta: mở báo cáo theo giao diện Excel-like"""
-    if not session.get('uid'):
-        return redirect(url_for('auth_bp.login'))
-
-    if session.get('is_admin'):
-        flash('Tài khoản quản trị không nhập liệu trực tiếp. Vui lòng dùng tài khoản đơn vị để nhập báo cáo.', 'warning')
-        return redirect(url_for('reporting_bp.index'))
-
-    if g.get('is_mobile'):
-        return redirect(url_for('reporting_bp.fill_form', template_id=template_id, period_id=period_id))
-
-    user_id = session.get('uid')
-    user_unit = session.get('unit_area', session.get('unit', ''))
-    instance = form_engine.create_report_instance(
-        template_id=template_id,
-        period_id=period_id,
-        user_id=user_id,
-        org_unit=user_unit
-    )
-    report_data = form_engine.get_report_data(instance.id)
-    if not instance.template.excel_template_blob:
-        flash('Biểu mẫu chưa có file Excel gốc để mở dạng bảng.', 'warning')
-        return redirect(url_for('reporting_bp.fill_form', template_id=template_id, period_id=period_id))
-
-    excel_context = _build_excel_like_rows(instance)
-    if excel_context['target_row'] is None and any(field.excel_cell_ref and re.match(r'^[A-Za-z]+$', str(field.excel_cell_ref).strip()) for field in FormField.query.filter_by(version_id=instance.version_id).all()):
-        flash('Không tìm thấy dòng đơn vị trong file Excel để gắn cột nhập liệu.', 'warning')
-
-    return render_template(
-        'reporting/desktop_spreadsheet_editor.html',
-        instance=instance,
-        report_data=report_data,
-        excel_context=excel_context,
-        template_id=template_id,
-    )
+    """Giao diện Excel-like chỉ dùng để xem báo cáo, không dùng nhập liệu."""
+    flash('Giao diện Excel-like chỉ còn dùng cho màn hình xem báo cáo.', 'info')
+    return redirect(url_for('reporting_bp.fill_form', template_id=template_id, period_id=period_id))
 
 
 @reporting_bp.route('/report/<int:instance_id>')
@@ -969,10 +951,17 @@ def view_report(instance_id):
         return redirect(url_for('reporting_bp.index'))
 
     report_data = form_engine.get_report_data(instance.id)
+    excel_context = None
+    if instance.template.excel_template_blob:
+        try:
+            excel_context = _build_excel_like_rows(instance)
+        except Exception as exc:
+            flash(f'Không thể dựng giao diện Excel từ biểu mẫu: {exc}', 'warning')
     
     return render_template('reporting/view_report.html',
                           report_data=report_data,
-                          instance=instance)
+                          instance=instance,
+                          excel_context=excel_context)
 
 
 @reporting_bp.route('/report/<int:instance_id>/export')

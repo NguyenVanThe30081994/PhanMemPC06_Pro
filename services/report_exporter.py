@@ -11,6 +11,7 @@ from openpyxl.styles import Protection
 from excel_renderer import format_excel_number
 
 from models_reporting import db, ReportInstance, ReportFieldValue, FormField
+from services.excel_recalc_service import ExcelRecalcService
 
 
 class ReportExporter:
@@ -61,6 +62,13 @@ class ReportExporter:
             wb = load_workbook(BytesIO(instance.template.excel_template_blob))
         else:
             wb = Workbook()
+
+        try:
+            wb.calculation.fullCalcOnLoad = True
+            wb.calculation.forceFullCalc = True
+            wb.calculation.calcOnSave = True
+        except Exception:
+            pass
 
         ws = wb.active
         target_row = self._find_target_row(ws, instance.org_unit)
@@ -113,6 +121,15 @@ class ReportExporter:
                 pass
 
         return wb
+
+    def build_workbook_bytes(self, instance_id, protect_cells=False, recalculate=False):
+        wb = self.build_workbook(instance_id, protect_cells=protect_cells)
+        output = BytesIO()
+        wb.save(output)
+        workbook_bytes = output.getvalue()
+        if recalculate and ExcelRecalcService.is_available():
+            workbook_bytes = ExcelRecalcService.recalc_xlsx_bytes(workbook_bytes)
+        return workbook_bytes
 
     def import_workbook_values(self, instance_id, file_bytes):
         instance = ReportInstance.query.get(instance_id)
@@ -175,9 +192,8 @@ class ReportExporter:
         if not instance:
             raise ValueError(f"Report instance {instance_id} không tồn tại")
 
-        wb = self.build_workbook(instance_id, protect_cells=False)
-        output = BytesIO()
-        wb.save(output)
+        workbook_bytes = self.build_workbook_bytes(instance_id, protect_cells=False, recalculate=True)
+        output = BytesIO(workbook_bytes)
         output.seek(0)
 
         return output, self._safe_filename(instance)
