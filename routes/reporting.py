@@ -13,17 +13,19 @@ from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 from excel_renderer import format_excel_number
-from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ReportInstance, ReportAuditLog, ReportFieldValue, ReportAttachment
+from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ReportInstance, ReportAuditLog, ReportFieldValue, ReportAttachment, ReportSubmission, ReportValidationError, ReportWorkflowHistory
 from sqlalchemy import or_, and_
 from services.form_engine import FormEngine
 from services.excel_formula_engine import ExcelFormulaEngine
 from services.excel_recalc_service import ExcelRecalcService
 from services.report_exporter import ReportExporter
+from services.report_submission_service import ReportSubmissionService
 from utils import log_action, render_auto_template as render_template
 from models import User
 
 reporting_bp = Blueprint('reporting_bp', __name__, url_prefix='/reporting')
 form_engine = FormEngine()
+submission_service = ReportSubmissionService()
 
 
 def _get_reporting_permissions():
@@ -72,6 +74,25 @@ def _load_authorized_report_instance(instance_id, write=False):
         return None, _report_access_denied('Kỳ báo cáo này đã bị khóa.')
 
     return instance, None
+
+
+def _load_authorized_submission(submission_id, write=False):
+    if not session.get('uid'):
+        return None, _report_access_denied('Unauthorized', 401)
+
+    submission = ReportSubmission.query.get(submission_id)
+    if not submission:
+        return None, _report_access_denied('Bản nộp báo cáo không tồn tại', 404)
+
+    _, is_admin, is_lead = _get_reporting_permissions()
+    current_unit = _current_reporting_unit()
+    if not (is_admin or is_lead) and (submission.reporting_unit or '') != current_unit:
+        return None, _report_access_denied('Bạn không có quyền truy cập báo cáo của đơn vị khác.')
+
+    if write and submission.status in {submission_service.STATUS_APPROVED, submission_service.STATUS_LOCKED, submission_service.STATUS_CANCELLED}:
+        return None, _report_access_denied('Báo cáo này không còn cho phép chỉnh sửa.')
+
+    return submission, None
 
 
 def _resolve_field_cell_ref(field, worksheet, target_row, exporter):
@@ -277,13 +298,15 @@ def _build_excel_like_rows(instance):
     }
 
 
-def _parse_deadline_time(raw_value, fallback='17:00'):
-    raw = (raw_value or fallback or '17:00').strip()
+def _parse_deadline_time(raw_value, fallback=None):
+    raw = (raw_value or fallback or '').strip()
+    if not raw:
+        return None
     try:
         hour, minute = [int(part) for part in raw.split(':', 1)]
         return datetime.time(max(0, min(23, hour)), max(0, min(59, minute)))
     except Exception:
-        return datetime.time(17, 0)
+        return None
 
 
 def _safe_date_in_month(year, month, day):
@@ -302,53 +325,72 @@ def _parse_deadline_rule(template):
         except Exception:
             return {}
 
-    report_type = (template.report_type or 'adhoc').strip().lower()
+    report_type = (template.report_type or '').strip().lower()
     if report_type == 'daily' and ':' in rule_text:
         return {'time': rule_text}
 
     if report_type == 'periodic' and rule_text.isdigit():
-        return {'offset_days': int(rule_text), 'time': '17:00'}
+        return {'offset_days': int(rule_text)}
 
     return {}
 
 
 def _format_schedule_summary(template):
-    report_type = (template.report_type or 'adhoc').strip().lower()
+    report_type = (template.report_type or '').strip().lower()
     frequency = (template.frequency or '').strip().lower()
     rule = _parse_deadline_rule(template)
 
+    if not report_type:
+        return "Chưa cấu hình loại báo cáo"
+
     if report_type == 'daily':
-        return f"Hàng ngày, hạn nộp {rule.get('time', '17:00')}"
+        time_value = rule.get('time')
+        return f"Hàng ngày, hạn nộp {time_value}" if time_value else "Hàng ngày, chưa cấu hình giờ chốt"
 
     if report_type == 'periodic':
+        if not frequency:
+            return "Định kỳ, chưa chọn tần suất"
         if frequency == 'weekly':
             weekday_map = {
                 0: 'Thứ hai', 1: 'Thứ ba', 2: 'Thứ tư', 3: 'Thứ năm',
                 4: 'Thứ sáu', 5: 'Thứ bảy', 6: 'Chủ nhật'
             }
+            if 'weekday' not in rule or not rule.get('time'):
+                return "Hàng tuần, chưa cấu hình hạn nộp"
             weekday = int(rule.get('weekday', 0))
-            return f"Hàng tuần, hạn nộp {weekday_map.get(weekday, 'Thứ hai')} {rule.get('time', '17:00')}"
+            return f"Hàng tuần, hạn nộp {weekday_map.get(weekday, 'Thứ hai')} {rule.get('time')}"
         if frequency == 'monthly':
-            return f"Hàng tháng, hạn nộp ngày {rule.get('day', 5)} lúc {rule.get('time', '17:00')}"
+            if 'day' not in rule or not rule.get('time'):
+                return "Hàng tháng, chưa cấu hình hạn nộp"
+            return f"Hàng tháng, hạn nộp ngày {rule.get('day')} lúc {rule.get('time')}"
         if frequency == 'quarterly':
+            if 'month' not in rule or 'day' not in rule or not rule.get('time'):
+                return "Hàng quý, chưa cấu hình hạn nộp"
             return (
                 f"Hàng quý, hạn nộp tháng {rule.get('month', 1)} trong quý "
-                f"ngày {rule.get('day', 5)} lúc {rule.get('time', '17:00')}"
+                f"ngày {rule.get('day')} lúc {rule.get('time')}"
             )
         if frequency == 'yearly':
+            if 'month' not in rule or 'day' not in rule or not rule.get('time'):
+                return "Hàng năm, chưa cấu hình hạn nộp"
             return (
-                f"Hàng năm, hạn nộp ngày {rule.get('day', 15)}/{rule.get('month', 1)} "
-                f"lúc {rule.get('time', '17:00')}"
+                f"Hàng năm, hạn nộp ngày {rule.get('day')}/{rule.get('month')} "
+                f"lúc {rule.get('time')}"
             )
         if 'offset_days' in rule:
             return f"Định kỳ, hạn nộp sau {rule['offset_days']} ngày"
         return "Định kỳ, chưa cấu hình hạn nộp"
 
+    if report_type != 'adhoc':
+        return "Chưa cấu hình loại báo cáo"
+
     return "Đột xuất, hạn nộp khai báo theo từng kỳ"
 
 
 def _format_report_type_label(template):
-    report_type = (template.report_type or 'adhoc').strip().lower()
+    report_type = (template.report_type or '').strip().lower()
+    if not report_type:
+        return 'Chưa cấu hình'
     if report_type == 'daily':
         return 'Hàng ngày'
     if report_type == 'periodic':
@@ -357,9 +399,12 @@ def _format_report_type_label(template):
 
 
 def _create_template_period(template, form_data, created_by):
-    report_type = (template.report_type or 'adhoc').strip().lower()
+    report_type = (template.report_type or '').strip().lower()
     code = (form_data.get('code') or '').strip()
     name = (form_data.get('name') or '').strip()
+
+    if not report_type:
+        raise ValueError('Biểu mẫu chưa được cấu hình loại báo cáo.')
 
     if not code or not name:
         raise ValueError('Mã kỳ báo cáo và tên kỳ báo cáo là bắt buộc.')
@@ -378,7 +423,7 @@ def _create_template_period(template, form_data, created_by):
         explicit_deadline = datetime.datetime.strptime(deadline_raw, '%Y-%m-%dT%H:%M')
 
     deadline = _compute_period_deadline(template, start_date, end_date, explicit_deadline)
-    period_type = 'adhoc' if report_type == 'adhoc' else (template.frequency or report_type or 'custom')
+    period_type = 'adhoc' if report_type == 'adhoc' else (template.frequency or report_type)
 
     period = ReportingPeriod(
         template_id=template.id,
@@ -397,9 +442,12 @@ def _create_template_period(template, form_data, created_by):
 
 
 def _compute_period_deadline(template, start_date, end_date, explicit_deadline=None):
-    report_type = (template.report_type or 'adhoc').strip().lower()
+    report_type = (template.report_type or '').strip().lower()
     frequency = (template.frequency or '').strip().lower()
     rule = _parse_deadline_rule(template)
+
+    if not report_type:
+        raise ValueError('Biểu mẫu chưa được cấu hình loại báo cáo.')
 
     if report_type == 'adhoc':
         if explicit_deadline is None:
@@ -407,18 +455,28 @@ def _compute_period_deadline(template, start_date, end_date, explicit_deadline=N
         return explicit_deadline
 
     if report_type == 'daily':
-        return datetime.datetime.combine(end_date, _parse_deadline_time(rule.get('time')))
+        time_value = _parse_deadline_time(rule.get('time'))
+        if time_value is None:
+            raise ValueError('Báo cáo hàng ngày chưa được cấu hình giờ chốt.')
+        return datetime.datetime.combine(end_date, time_value)
 
     if report_type != 'periodic':
         return None
 
+    if not frequency:
+        raise ValueError('Báo cáo định kỳ chưa được chọn tần suất.')
+
     time_value = _parse_deadline_time(rule.get('time'))
+    if time_value is None:
+        raise ValueError('Báo cáo định kỳ chưa được cấu hình giờ đến hạn.')
 
     if 'offset_days' in rule:
         target_date = end_date + datetime.timedelta(days=int(rule['offset_days']))
         return datetime.datetime.combine(target_date, time_value)
 
     if frequency == 'weekly':
+        if 'weekday' not in rule:
+            raise ValueError('Báo cáo tuần chưa được cấu hình ngày đến hạn.')
         weekday = max(0, min(6, int(rule.get('weekday', 0))))
         days_ahead = (weekday - end_date.weekday()) % 7
         if days_ahead == 0:
@@ -427,30 +485,36 @@ def _compute_period_deadline(template, start_date, end_date, explicit_deadline=N
         return datetime.datetime.combine(target_date, time_value)
 
     if frequency == 'monthly':
+        if 'day' not in rule:
+            raise ValueError('Báo cáo tháng chưa được cấu hình ngày đến hạn.')
         next_month = end_date.month + 1
         target_year = end_date.year
         if next_month > 12:
             next_month = 1
             target_year += 1
-        target_date = _safe_date_in_month(target_year, next_month, int(rule.get('day', 5)))
+        target_date = _safe_date_in_month(target_year, next_month, int(rule.get('day')))
         return datetime.datetime.combine(target_date, time_value)
 
     if frequency == 'quarterly':
+        if 'month' not in rule or 'day' not in rule:
+            raise ValueError('Báo cáo quý chưa được cấu hình hạn nộp.')
         current_quarter = ((end_date.month - 1) // 3) + 1
         next_quarter_start_month = current_quarter * 3 + 1
         target_year = end_date.year
         if next_quarter_start_month > 12:
             next_quarter_start_month = 1
             target_year += 1
-        month_in_quarter = max(1, min(3, int(rule.get('month', 1))))
+        month_in_quarter = max(1, min(3, int(rule.get('month'))))
         target_month = next_quarter_start_month + month_in_quarter - 1
-        target_date = _safe_date_in_month(target_year, target_month, int(rule.get('day', 5)))
+        target_date = _safe_date_in_month(target_year, target_month, int(rule.get('day')))
         return datetime.datetime.combine(target_date, time_value)
 
     if frequency == 'yearly':
+        if 'month' not in rule or 'day' not in rule:
+            raise ValueError('Báo cáo năm chưa được cấu hình hạn nộp.')
         target_year = end_date.year + 1
-        target_month = max(1, min(12, int(rule.get('month', 1))))
-        target_date = _safe_date_in_month(target_year, target_month, int(rule.get('day', 15)))
+        target_month = max(1, min(12, int(rule.get('month'))))
+        target_date = _safe_date_in_month(target_year, target_month, int(rule.get('day')))
         return datetime.datetime.combine(target_date, time_value)
 
     return None
@@ -660,6 +724,9 @@ def template_upload():
             code=code,
             name=template_name,
             department=department,
+            report_type=None,
+            frequency=None,
+            deadline_rule=None,
             excel_template_blob=excel_blob,
             is_active=True,
             created_by=session.get('uid')
@@ -909,10 +976,11 @@ def template_upload():
             metadata['scan_summary']['message'] = str(parse_e)
             version.metadata_json = json.dumps(metadata, ensure_ascii=False)
 
+        submission_service.ensure_version_config(template, version)
         db.session.commit()
 
         flash(f'Tạo thành công biểu mẫu: {template_name}', 'success')
-        return redirect(url_for('reporting_bp.template_config', template_id=template.id, first_setup=1))
+        return redirect(url_for('reporting_bp.field_settings', template_id=template.id, first_setup=1))
 
     except Exception as e:
         db.session.rollback()
@@ -938,9 +1006,9 @@ def select_period(template_id):
         return redirect(url_for('reporting_bp.index'))
     
     template = FormTemplate.query.get_or_404(template_id)
-    periods = ReportingPeriod.query.filter(
-        or_(ReportingPeriod.template_id == template_id, ReportingPeriod.template_id == None),
-        ReportingPeriod.is_locked == False
+    periods = ReportingPeriod.query.filter_by(
+        template_id=template_id,
+        is_locked=False
     ).order_by(ReportingPeriod.start_date.desc()).all()
     
     return render_template('reporting/select_period.html',
@@ -950,32 +1018,35 @@ def select_period(template_id):
 
 @reporting_bp.route('/form/<int:template_id>/period/<int:period_id>')
 def fill_form(template_id, period_id):
-    """Trang nhập liệu"""
+    """Trang nhập liệu trực tiếp trên phần mềm."""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
 
     if session.get('is_admin'):
         flash('Tài khoản quản trị không nhập liệu trực tiếp. Vui lòng dùng tài khoản đơn vị để nhập báo cáo.', 'warning')
         return redirect(url_for('reporting_bp.index'))
-    
+
     user_id = session.get('uid')
     user_unit = session.get('unit_area', session.get('unit', ''))
     
-    # Tạo hoặc lấy report instance
     instance = form_engine.create_report_instance(
         template_id=template_id,
         period_id=period_id,
         user_id=user_id,
         org_unit=user_unit
     )
-    
-    # Lấy dữ liệu
     report_data = form_engine.get_report_data(instance.id)
-    
-    return render_template('reporting/fill_form.html',
-                          report_data=report_data,
-                          instance=instance,
-                          template_id=template_id)
+    version = submission_service.get_published_version(template_id)
+    config = submission_service.ensure_version_config(instance.template, version)
+
+    return render_template(
+        'reporting/fill_form.html',
+        report_data=report_data,
+        instance=instance,
+        template_id=template_id,
+        period=instance.period,
+        template_config=config
+    )
 
 
 @reporting_bp.route('/form/<int:template_id>/period/<int:period_id>/desktop')
@@ -983,6 +1054,98 @@ def fill_form_desktop(template_id, period_id):
     """Giao diện Excel-like chỉ dùng để xem báo cáo, không dùng nhập liệu."""
     flash('Giao diện Excel-like chỉ còn dùng cho màn hình xem báo cáo.', 'info')
     return redirect(url_for('reporting_bp.fill_form', template_id=template_id, period_id=period_id))
+
+
+@reporting_bp.route('/submission/<int:submission_id>')
+def view_submission(submission_id):
+    """Xem chi tiết một lần nộp báo cáo Excel."""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    submission, denied = _load_authorized_submission(submission_id)
+    if denied:
+        flash('Bạn không có quyền xem báo cáo này.', 'danger')
+        return redirect(url_for('reporting_bp.index'))
+
+    try:
+        detail = submission_service.get_submission_detail(submission_id)
+        preview_bytes = submission_service.read_submission_file_bytes(submission, prefer_processed=True)
+        preview_context = submission_service.build_preview_context(preview_bytes)
+    except Exception as exc:
+        flash(f'Không thể hiển thị chi tiết báo cáo: {exc}', 'danger')
+        return redirect(url_for('reporting_bp.index'))
+
+    return render_template(
+        'reporting/submission_detail.html',
+        detail=detail,
+        preview_context=preview_context,
+        can_submit=submission.status in {submission_service.STATUS_DRAFT, submission_service.STATUS_RETURNED},
+        can_review=session.get('is_admin'),
+        can_approve=session.get('is_admin'),
+    )
+
+
+@reporting_bp.route('/submission/<int:submission_id>/workflow/<action>', methods=['POST'])
+def submission_workflow(submission_id, action):
+    """Workflow cho lần nộp báo cáo."""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    submission, denied = _load_authorized_submission(submission_id, write=True)
+    if denied:
+        flash('Bạn không có quyền thao tác báo cáo này.', 'danger')
+        return redirect(url_for('reporting_bp.index'))
+
+    _, is_admin, is_lead = _get_reporting_permissions()
+    actor_id = session.get('uid')
+    comment = (request.form.get('comment') or '').strip() or None
+
+    if action != 'submit' and not (is_admin or is_lead):
+        flash('Bạn không có quyền thực hiện thao tác workflow này.', 'danger')
+        return redirect(url_for('reporting_bp.view_submission', submission_id=submission_id))
+
+    try:
+        submission_service.transition_submission(submission.id, action, actor_id, comment=comment)
+        flash('Đã cập nhật trạng thái báo cáo.', 'success')
+    except Exception as exc:
+        db.session.rollback()
+        flash(f'Lỗi workflow: {exc}', 'danger')
+    return redirect(url_for('reporting_bp.view_submission', submission_id=submission_id))
+
+
+@reporting_bp.route('/submission/<int:submission_id>/download/<kind>')
+def download_submission_file(submission_id, kind):
+    """Tải file gốc, file lỗi hoặc file đã xử lý."""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    submission, denied = _load_authorized_submission(submission_id)
+    if denied:
+        flash('Bạn không có quyền tải file này.', 'danger')
+        return redirect(url_for('reporting_bp.index'))
+
+    file_map = {
+        'original': submission.original_file_path,
+        'processed': submission.processed_file_path,
+        'error': submission.error_file_path,
+    }
+    file_path = file_map.get(kind)
+    if not file_path:
+        flash('Không có file tương ứng để tải xuống.', 'warning')
+        return redirect(url_for('reporting_bp.view_submission', submission_id=submission_id))
+
+    try:
+        file_bytes = BytesIO(open(file_path, 'rb').read())
+        file_bytes.seek(0)
+        safe_name = re.sub(r'[^A-Za-z0-9._-]+', '_', submission.original_filename or f'submission_{submission.id}.xlsx').strip('_') or f'submission_{submission.id}.xlsx'
+        prefix = {'original': 'original', 'processed': 'processed', 'error': 'errors'}.get(kind, kind)
+        response = make_response(file_bytes.getvalue())
+        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response.headers['Content-Disposition'] = f'attachment; filename="{prefix}_{safe_name}"'
+        return response
+    except Exception as exc:
+        flash(f'Lỗi tải file: {exc}', 'danger')
+        return redirect(url_for('reporting_bp.view_submission', submission_id=submission_id))
 
 
 @reporting_bp.route('/report/<int:instance_id>')
@@ -1054,14 +1217,14 @@ def template_statistics(template_id):
     template = FormTemplate.query.get_or_404(template_id)
     
     # Lấy kỳ báo cáo gần nhất của biểu mẫu
-    period = ReportingPeriod.query.filter(
-        or_(ReportingPeriod.template_id == template_id, ReportingPeriod.template_id == None),
-        ReportingPeriod.is_locked == False
+    period = ReportingPeriod.query.filter_by(
+        template_id=template_id,
+        is_locked=False
     ).order_by(ReportingPeriod.start_date.desc()).first()
     
     if not period:
-        period = ReportingPeriod.query.filter(
-            or_(ReportingPeriod.template_id == template_id, ReportingPeriod.template_id == None)
+        period = ReportingPeriod.query.filter_by(
+            template_id=template_id
         ).order_by(ReportingPeriod.start_date.desc()).first()
         
     if not period:
@@ -1439,7 +1602,8 @@ def field_settings(template_id):
         hidden_field_codes=hidden_field_codes,
         schedule_summary=_format_schedule_summary(template),
         total_fields=len(fields),
-        scan_summary=scan_summary
+        scan_summary=scan_summary,
+        first_setup=request.args.get('first_setup') == '1'
     )
 
 
@@ -1466,50 +1630,74 @@ def template_config(template_id):
                 flash('Đã tạo kỳ báo cáo mới.', 'success')
             else:
                 template_name = (request.form.get('name') or '').strip()
-                report_type = (request.form.get('report_type') or 'adhoc').strip().lower()
+                report_type = (request.form.get('report_type') or '').strip().lower()
                 frequency = None
                 deadline_rule = None
 
                 if not template_name:
                     raise ValueError('Tên báo cáo không được để trống.')
+                if report_type not in {'adhoc', 'daily', 'periodic'}:
+                    raise ValueError('Quản trị phải chọn loại báo cáo trước khi lưu cấu hình.')
 
                 if report_type == 'daily':
+                    time_value = (request.form.get('daily_time') or '').strip()
+                    if not _parse_deadline_time(time_value):
+                        raise ValueError('Giờ chốt báo cáo trong ngày không hợp lệ.')
                     deadline_rule = json.dumps(
-                        {'time': request.form.get('daily_time', '17:00')},
+                        {'time': time_value},
                         ensure_ascii=False,
                         separators=(',', ':')
                     )
                 elif report_type == 'periodic':
-                    frequency = (request.form.get('frequency') or 'monthly').strip().lower()
-                    time_value = request.form.get('periodic_time', '17:00')
+                    frequency = (request.form.get('frequency') or '').strip().lower()
+                    time_value = (request.form.get('periodic_time') or '').strip()
+
+                    if frequency not in {'weekly', 'monthly', 'quarterly', 'yearly'}:
+                        raise ValueError('Quản trị phải chọn tần suất cho báo cáo định kỳ.')
+                    if not _parse_deadline_time(time_value):
+                        raise ValueError('Giờ đến hạn không hợp lệ.')
 
                     if frequency == 'weekly':
+                        weekday_raw = request.form.get('weekly_weekday')
+                        if weekday_raw in (None, ''):
+                            raise ValueError('Báo cáo tuần phải chọn ngày đến hạn.')
                         deadline_rule = json.dumps(
-                            {'weekday': int(request.form.get('weekly_weekday', 0)), 'time': time_value},
+                            {'weekday': int(weekday_raw), 'time': time_value},
                             ensure_ascii=False,
                             separators=(',', ':')
                         )
                     elif frequency == 'monthly':
+                        monthly_day = request.form.get('monthly_day')
+                        if monthly_day in (None, ''):
+                            raise ValueError('Báo cáo tháng phải nhập ngày đến hạn.')
                         deadline_rule = json.dumps(
-                            {'day': int(request.form.get('monthly_day', 5)), 'time': time_value},
+                            {'day': int(monthly_day), 'time': time_value},
                             ensure_ascii=False,
                             separators=(',', ':')
                         )
                     elif frequency == 'quarterly':
+                        quarterly_month = request.form.get('quarterly_month')
+                        quarterly_day = request.form.get('quarterly_day')
+                        if quarterly_month in (None, '') or quarterly_day in (None, ''):
+                            raise ValueError('Báo cáo quý phải chọn tháng và ngày đến hạn.')
                         deadline_rule = json.dumps(
                             {
-                                'month': int(request.form.get('quarterly_month', 1)),
-                                'day': int(request.form.get('quarterly_day', 5)),
+                                'month': int(quarterly_month),
+                                'day': int(quarterly_day),
                                 'time': time_value
                             },
                             ensure_ascii=False,
                             separators=(',', ':')
                         )
                     elif frequency == 'yearly':
+                        yearly_month = request.form.get('yearly_month')
+                        yearly_day = request.form.get('yearly_day')
+                        if yearly_month in (None, '') or yearly_day in (None, ''):
+                            raise ValueError('Báo cáo năm phải nhập tháng và ngày đến hạn.')
                         deadline_rule = json.dumps(
                             {
-                                'month': int(request.form.get('yearly_month', 1)),
-                                'day': int(request.form.get('yearly_day', 15)),
+                                'month': int(yearly_month),
+                                'day': int(yearly_day),
                                 'time': time_value
                             },
                             ensure_ascii=False,
@@ -1533,8 +1721,8 @@ def template_config(template_id):
             db.session.rollback()
             flash(f'Lỗi lưu cấu hình: {exc}', 'danger')
 
-    periods = ReportingPeriod.query.filter(
-        or_(ReportingPeriod.template_id == template.id, ReportingPeriod.template_id == None)
+    periods = ReportingPeriod.query.filter_by(
+        template_id=template.id
     ).order_by(ReportingPeriod.start_date.desc()).all()
 
     return render_template(
@@ -1725,6 +1913,147 @@ def api_export_report(instance_id):
         return response
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@reporting_bp.route('/api/report-submissions/upload', methods=['POST'])
+def api_upload_report_submission():
+    """API upload báo cáo Excel theo phương án submission-centric."""
+    if not session.get('uid'):
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    if session.get('is_admin'):
+        return jsonify({'success': False, 'message': 'Tài khoản quản trị không nộp báo cáo trực tiếp'}), 403
+
+    template_id = request.form.get('template_id', type=int)
+    period_id = request.form.get('period_id', type=int)
+    excel_file = request.files.get('file')
+    if not template_id or not period_id or not excel_file:
+        return jsonify({'success': False, 'message': 'Thiếu template, kỳ báo cáo hoặc file upload'}), 400
+
+    try:
+        submission = submission_service.create_submission(
+            template_id=template_id,
+            period_id=period_id,
+            user_id=session.get('uid'),
+            reporting_unit=_current_reporting_unit(),
+            uploaded_file=excel_file
+        )
+        return jsonify({
+            'success': True,
+            'submission_id': submission.id,
+            'status': submission.status,
+            'total_rows': submission.total_rows,
+            'valid_rows': submission.valid_rows,
+            'invalid_rows': submission.invalid_rows,
+            'warnings': submission.warning_count,
+        })
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(exc)}), 400
+
+
+@reporting_bp.route('/api/report-submissions/<int:submission_id>', methods=['GET'])
+def api_get_submission(submission_id):
+    """API lấy thông tin một lần nộp báo cáo."""
+    try:
+        submission, denied = _load_authorized_submission(submission_id)
+        if denied:
+            return denied
+        detail = submission_service.get_submission_detail(submission_id)
+        return jsonify({
+            'success': True,
+            'data': {
+                'submission': {
+                    'id': detail['submission'].id,
+                    'status': detail['submission'].status,
+                    'reporting_unit': detail['submission'].reporting_unit,
+                    'period_id': detail['submission'].period_id,
+                    'total_rows': detail['submission'].total_rows,
+                    'valid_rows': detail['submission'].valid_rows,
+                    'invalid_rows': detail['submission'].invalid_rows,
+                    'warning_count': detail['submission'].warning_count,
+                },
+                'errors': [
+                    {
+                        'sheet_name': err.sheet_name,
+                        'cell_address': err.cell_address,
+                        'error_code': err.error_code,
+                        'error_message': err.error_message,
+                        'severity': err.severity,
+                    } for err in detail['errors']
+                ],
+            }
+        })
+    except Exception as exc:
+        return jsonify({'success': False, 'message': str(exc)}), 500
+
+
+@reporting_bp.route('/api/report-submissions/<int:submission_id>/errors', methods=['GET'])
+def api_get_submission_errors(submission_id):
+    """API lấy danh sách lỗi import."""
+    try:
+        submission, denied = _load_authorized_submission(submission_id)
+        if denied:
+            return denied
+        errors = ReportValidationError.query.filter_by(submission_id=submission.id).all()
+        return jsonify({
+            'success': True,
+            'data': [
+                {
+                    'sheet_name': err.sheet_name,
+                    'section_code': err.section_code,
+                    'row_index': err.row_index,
+                    'column_index': err.column_index,
+                    'cell_address': err.cell_address,
+                    'field_code': err.field_code,
+                    'error_code': err.error_code,
+                    'error_message': err.error_message,
+                    'severity': err.severity,
+                } for err in errors
+            ]
+        })
+    except Exception as exc:
+        return jsonify({'success': False, 'message': str(exc)}), 500
+
+
+@reporting_bp.route('/api/report-submissions/<int:submission_id>/history', methods=['GET'])
+def api_get_submission_history(submission_id):
+    """API lấy lịch sử workflow."""
+    try:
+        submission, denied = _load_authorized_submission(submission_id)
+        if denied:
+            return denied
+        history = ReportWorkflowHistory.query.filter_by(submission_id=submission.id).order_by(
+            ReportWorkflowHistory.acted_at.desc()
+        ).all()
+        return jsonify({
+            'success': True,
+            'data': [
+                {
+                    'from_status': item.from_status,
+                    'to_status': item.to_status,
+                    'action': item.action,
+                    'comment': item.comment,
+                    'actor_id': item.actor_id,
+                    'acted_at': item.acted_at.isoformat() if item.acted_at else None,
+                } for item in history
+            ]
+        })
+    except Exception as exc:
+        return jsonify({'success': False, 'message': str(exc)}), 500
+
+
+@reporting_bp.route('/api/report-submissions/<int:submission_id>/submit', methods=['POST'])
+def api_submit_submission(submission_id):
+    """API gửi báo cáo đã upload."""
+    try:
+        submission, denied = _load_authorized_submission(submission_id, write=True)
+        if denied:
+            return denied
+        submission_service.transition_submission(submission.id, 'submit', session.get('uid'))
+        return jsonify({'success': True, 'message': 'Đã gửi báo cáo'})
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(exc)}), 400
 
 
 @reporting_bp.route('/template/<int:template_id>/delete', methods=['POST'])

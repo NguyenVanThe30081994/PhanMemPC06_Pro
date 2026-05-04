@@ -1,0 +1,220 @@
+{% extends "base_mobile.html" if g.is_mobile else "base.html" %}
+
+{% block title %}Chi tiết báo cáo - {{ detail.submission.template.name }}{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reporting-modern.css') }}?v=20260426">
+{% endblock %}
+
+{% block content %}
+<div class="reporting-page">
+  <div class="reporting-shell">
+    <div class="reporting-hero">
+      <div>
+        <div class="reporting-chip mb-3">
+          <i class="fa-solid fa-file-circle-check"></i>
+          <span>Chi tiết lần nộp báo cáo</span>
+        </div>
+        <h3>{{ detail.submission.template.name }}</h3>
+      </div>
+      <div class="reporting-hero-actions">
+        <span class="reporting-pill"><i class="fa-solid fa-circle-info"></i>{{ detail.submission.status }}</span>
+        <a href="{{ url_for('reporting_bp.download_submission_file', submission_id=detail.submission.id, kind='original') }}" class="btn btn-outline-primary rounded-pill px-4">
+          <i class="fa-solid fa-file-arrow-down me-2"></i>File gốc
+        </a>
+        <a href="{{ url_for('reporting_bp.download_submission_file', submission_id=detail.submission.id, kind='processed') }}" class="btn btn-success rounded-pill px-4">
+          <i class="fa-solid fa-download me-2"></i>File xử lý
+        </a>
+        {% if detail.submission.error_file_path %}
+        <a href="{{ url_for('reporting_bp.download_submission_file', submission_id=detail.submission.id, kind='error') }}" class="btn btn-warning rounded-pill px-4">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>File lỗi
+        </a>
+        {% endif %}
+        <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-secondary rounded-pill px-4">
+          <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
+        </a>
+      </div>
+    </div>
+
+    <div class="reporting-panel mb-4">
+      <div class="reporting-panel-body">
+        <div class="reporting-form-grid">
+          <div class="reporting-field">
+            <label>Đơn vị báo cáo</label>
+            <input class="form-control reporting-field-readonly" value="{{ detail.submission.reporting_unit }}" readonly>
+          </div>
+          <div class="reporting-field">
+            <label>Kỳ báo cáo</label>
+            <input class="form-control reporting-field-readonly" value="{{ detail.submission.period.name }}" readonly>
+          </div>
+          <div class="reporting-field">
+            <label>Tổng số dòng</label>
+            <input class="form-control reporting-field-readonly" value="{{ detail.submission.total_rows }}" readonly>
+          </div>
+          <div class="reporting-field">
+            <label>Dòng hợp lệ / lỗi</label>
+            <input class="form-control reporting-field-readonly" value="{{ detail.submission.valid_rows }} / {{ detail.submission.invalid_rows }}" readonly>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap mt-3">
+          {% if can_submit %}
+          <form method="POST" action="{{ url_for('reporting_bp.submission_workflow', submission_id=detail.submission.id, action='submit') }}">
+            <button type="submit" class="btn btn-primary rounded-pill px-4">
+              <i class="fa-solid fa-paper-plane me-2"></i>Gửi báo cáo
+            </button>
+          </form>
+          {% endif %}
+          {% if can_review and detail.submission.status in ['SUBMITTED', 'UNDER_REVIEW'] %}
+          <form method="POST" action="{{ url_for('reporting_bp.submission_workflow', submission_id=detail.submission.id, action='approve') }}">
+            <button type="submit" class="btn btn-success rounded-pill px-4">
+              <i class="fa-solid fa-check me-2"></i>Phê duyệt
+            </button>
+          </form>
+          <form method="POST" action="{{ url_for('reporting_bp.submission_workflow', submission_id=detail.submission.id, action='return') }}">
+            <button type="submit" class="btn btn-outline-warning rounded-pill px-4">
+              <i class="fa-solid fa-rotate-left me-2"></i>Trả lại
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if detail.errors %}
+    <div class="reporting-table-shell mb-4">
+      <div class="reporting-panel-header">
+        <h5 class="mb-0">Lỗi và cảnh báo</h5>
+      </div>
+      <div class="reporting-panel-body">
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Sheet</th>
+                <th>Ô</th>
+                <th>Trường</th>
+                <th>Mức độ</th>
+                <th>Nội dung</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for error in detail.errors %}
+              <tr>
+                <td>{{ error.sheet_name or '-' }}</td>
+                <td>{{ error.cell_address or '-' }}</td>
+                <td>{{ error.field_code or '-' }}</td>
+                <td>{{ error.severity }}</td>
+                <td>{{ error.error_message }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if detail.history %}
+    <div class="reporting-table-shell mb-4">
+      <div class="reporting-panel-header">
+        <h5 class="mb-0">Lịch sử xử lý</h5>
+      </div>
+      <div class="reporting-panel-body">
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Thời gian</th>
+                <th>Hành động</th>
+                <th>Từ</th>
+                <th>Sang</th>
+                <th>Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in detail.history %}
+              <tr>
+                <td>{{ item.acted_at.strftime('%d/%m/%Y %H:%M') if item.acted_at else '-' }}</td>
+                <td>{{ item.action }}</td>
+                <td>{{ item.from_status or '-' }}</td>
+                <td>{{ item.to_status or '-' }}</td>
+                <td>{{ item.comment or '-' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="xl-sheet-tabs">
+      <span class="xl-sheet-tab active"><i class="fa-regular fa-file-lines"></i> {{ preview_context.sheet_title }}</span>
+    </div>
+    <div class="xl-frame">
+      <div class="xl-scroll">
+        <div class="xl-scale">
+          <table class="xl-tbl">
+            <colgroup>
+              <col class="xl-row-hdr-col">
+              {% for width in preview_context.col_widths %}
+              <col style="width:{{ width }}px;min-width:{{ width }}px;">
+              {% endfor %}
+            </colgroup>
+            <thead>
+              <tr class="xl-col-hdr-row">
+                <th class="xl-corner"></th>
+                {% for letter in preview_context.col_letters %}
+                <th class="xl-col-hdr">{{ letter }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in preview_context.rows %}
+              <tr style="height:{{ row.height_px }}px;">
+                <td class="xl-row-hdr">{{ loop.index }}</td>
+                {% for cell in row.cells %}
+                <td
+                  {% if cell.rowspan > 1 %}rowspan="{{ cell.rowspan }}"{% endif %}
+                  {% if cell.colspan > 1 %}colspan="{{ cell.colspan }}"{% endif %}
+                  class="xl-cell"
+                  style="
+                    text-align:{{ cell.align if cell.align and cell.align != 'general' else 'left' }};
+                    vertical-align:{{ cell.valign or 'center' }};
+                    font-size:{{ cell.font_size }}pt;
+                    {% if cell.bold %}font-weight:700;{% endif %}
+                    {% if cell.italic %}font-style:italic;{% endif %}
+                    {% if cell.underline %}text-decoration:underline;{% endif %}
+                    {% if cell.font_color %}color:{{ cell.font_color }};{% endif %}
+                    {% if cell.bg_color and cell.bg_color != '#000000' %}background:{{ cell.bg_color }};{% endif %}
+                    {% if cell.wrap_text %}white-space:normal;word-break:break-word;{% endif %}
+                    {% if cell.border_style %}{{ cell.border_style }}{% endif %}
+                  "
+                >{{ cell.display_value }}</td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.xl-sheet-tabs { display:flex; gap:8px; align-items:center; padding:12px 14px 0; }
+.xl-sheet-tab { display:inline-flex; align-items:center; gap:8px; padding:10px 16px; border-radius:16px 16px 0 0; background:rgba(255,255,255,.92); border:1px solid rgba(15,23,42,.08); border-bottom:none; color:#305267; font-weight:700; }
+.xl-frame { border:1px solid rgba(15,23,42,.08); border-radius:24px; background:rgba(255,255,255,.96); overflow:hidden; }
+.xl-scroll { overflow:auto; max-height:76vh; background:linear-gradient(180deg,#f7fafc 0%,#eef4f8 100%); }
+.xl-scale { transform-origin:top left; width:max-content; }
+.xl-tbl { border-collapse:collapse; font-family:Calibri,"Segoe UI",Arial,sans-serif; font-size:11pt; background:#fff; width:max-content; table-layout:fixed; }
+.xl-corner,.xl-col-hdr,.xl-row-hdr { background:linear-gradient(180deg,#f9fbfd 0%,#e4ebf2 100%); color:#526476; }
+.xl-corner { border-right:1px solid #bfd0de; border-bottom:1px solid #bfd0de; min-width:40px; width:40px; max-width:40px; }
+.xl-col-hdr { border-right:1px solid #d3dce4; border-bottom:1px solid #bfd0de; text-align:center; font-size:10px; font-weight:700; padding:3px 0; height:24px; }
+.xl-row-hdr-col { width:40px; min-width:40px; max-width:40px; }
+.xl-row-hdr { border-right:1px solid #bfd0de; border-bottom:1px solid #d3dce4; text-align:center; font-size:10px; font-weight:700; }
+.xl-cell { border:1px solid #d9e1e8; padding:4px 6px; min-width:28px; white-space:pre-wrap; }
+</style>
+{% endblock %}

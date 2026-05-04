@@ -1,9 +1,120 @@
 {% extends "base_mobile.html" if g.is_mobile else "base.html" %}
 
-{% block title %}Thiết lập cột nhập liệu - {{ template.name }}{% endblock %}
+{% block title %}Thiết lập nhập liệu - {{ template.name }}{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/reporting-modern.css') }}?v=20260426">
+<style>
+  .setup-note {
+    display: grid;
+    gap: 12px;
+  }
+  .setup-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .setup-section {
+    display: grid;
+    gap: 10px;
+  }
+  .setup-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .setup-section-head h5 {
+    margin: 0;
+  }
+  .setup-count {
+    color: #64748b;
+    font-size: 0.84rem;
+  }
+  .setup-list {
+    display: grid;
+    gap: 10px;
+  }
+  .setup-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 16px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.96);
+  }
+  .setup-copy {
+    min-width: 0;
+    display: grid;
+    gap: 6px;
+  }
+  .setup-name {
+    margin: 0;
+    font-size: 0.96rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .setup-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .setup-toggle-group {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .setup-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.88rem;
+    color: #334155;
+    white-space: nowrap;
+  }
+  .setup-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
+  [data-theme="dark"] .setup-row {
+    background: rgba(15, 23, 42, 0.84);
+    border-color: rgba(148, 163, 184, 0.18);
+  }
+  [data-theme="dark"] .setup-name {
+    color: #e2e8f0;
+  }
+  [data-theme="dark"] .setup-toggle {
+    color: #cbd5e1;
+  }
+  [data-theme="dark"] .setup-count {
+    color: #94a3b8;
+  }
+  [data-theme="dark"] .setup-chip {
+    background: rgba(30, 41, 59, 0.9);
+    color: #cbd5e1;
+  }
+  @media (max-width: 767px) {
+    .setup-row {
+      grid-template-columns: 1fr;
+      align-items: flex-start;
+    }
+    .setup-toggle-group {
+      justify-content: flex-start;
+      width: 100%;
+    }
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -13,7 +124,7 @@
       <div>
         <div class="reporting-chip mb-3">
           <i class="fa-solid fa-sliders"></i>
-          <span>Thiết lập cột nhập liệu</span>
+          <span>Thiết lập nhập liệu</span>
         </div>
         <h3>{{ template.name }}</h3>
       </div>
@@ -25,6 +136,20 @@
         </a>
       </div>
     </div>
+
+    {% if first_setup %}
+    <div class="alert alert-info border-0 shadow-sm rounded-4 setup-note">
+      <div>Biểu mẫu đã được quét xong. Kiểm tra nhanh các cột đơn vị được phép nhập, cột công thức và các cột cần ẩn trước khi chuyển sang cấu hình loại báo cáo.</div>
+      <div class="setup-actions">
+        <a href="{{ url_for('reporting_bp.template_config', template_id=template.id, first_setup=1) }}" class="btn btn-primary rounded-pill px-4">
+          <i class="fa-solid fa-screwdriver-wrench me-2"></i>Đi tới cấu hình
+        </a>
+        <a href="{{ url_for('reporting_bp.preview_template', template_id=template.id) }}" class="btn btn-outline-primary rounded-pill px-4">
+          <i class="fa-regular fa-eye me-2"></i>Xem biểu mẫu
+        </a>
+      </div>
+    </div>
+    {% endif %}
 
     {% if total_fields == 0 %}
     <div class="reporting-panel mb-4">
@@ -48,70 +173,70 @@
               <i class="fa-regular fa-eye me-2"></i>Xem biểu mẫu
             </a>
             <a href="{{ url_for('reporting_bp.template_config', template_id=template.id) }}" class="btn btn-primary rounded-pill px-4">
-              <i class="fa-solid fa-sliders me-2"></i>Về cấu hình
+              <i class="fa-solid fa-screwdriver-wrench me-2"></i>Về cấu hình
             </a>
           </div>
         </div>
       </div>
     </div>
     {% else %}
-    <form method="POST">
+    <form method="POST" class="setup-section">
       {% for section_name, fields in grouped_fields.items() %}
-      <section class="reporting-section mb-4">
-        <div class="reporting-section-title">
-          <div>
-            <h5 class="mb-1">{{ section_name }}</h5>
+      <section class="reporting-panel">
+        <div class="reporting-panel-body setup-section">
+          <div class="setup-section-head">
+            <h5>{{ section_name }}</h5>
+            <span class="setup-count">{{ fields|length }} trường</span>
           </div>
-        </div>
 
-        <div class="reporting-action-grid">
-          {% for field in fields %}
-          <div class="action-card">
-            <h6 class="mb-3">{{ field.field_name }}</h6>
+          <div class="setup-list">
+            {% for field in fields %}
+            <article class="setup-row">
+              <div class="setup-copy">
+                <h6 class="setup-name">{{ field.field_name }}</h6>
+                <div class="setup-meta">
+                  {% if field.is_calculated %}
+                  <span class="setup-chip"><i class="fa-solid fa-calculator"></i>Công thức</span>
+                  {% elif field.is_readonly %}
+                  <span class="setup-chip"><i class="fa-solid fa-lock"></i>Chỉ đọc</span>
+                  {% else %}
+                  <span class="setup-chip"><i class="fa-solid fa-pen"></i>Nhập liệu</span>
+                  {% endif %}
 
-            <div class="form-check mb-2">
-              <input class="form-check-input"
-                     type="checkbox"
-                     id="field_{{ field.id }}"
-                     name="editable_fields"
-                     value="{{ field.field_code }}"
-                     {% if not field.is_readonly and not field.is_calculated %}checked{% endif %}
-                     {% if field.is_calculated %}disabled{% endif %}>
-              <label class="form-check-label" for="field_{{ field.id }}">
-                Cho phép đơn vị nhập
-              </label>
-            </div>
+                  {% if field.field_code in hidden_field_codes %}
+                  <span class="setup-chip"><i class="fa-solid fa-eye-slash"></i>Ẩn</span>
+                  {% else %}
+                  <span class="setup-chip"><i class="fa-solid fa-eye"></i>Hiện</span>
+                  {% endif %}
+                </div>
+              </div>
 
-            <div class="form-check mb-3">
-              <input class="form-check-input"
-                     type="checkbox"
-                     id="hidden_{{ field.id }}"
-                     name="hidden_fields"
-                     value="{{ field.field_code }}"
-                     {% if field.field_code in hidden_field_codes %}checked{% endif %}
-                     {% if field.is_calculated %}disabled{% endif %}>
-              <label class="form-check-label" for="hidden_{{ field.id }}">
-                Ẩn khỏi giao diện nhập liệu
-              </label>
-            </div>
+              <div class="setup-toggle-group">
+                <label class="setup-toggle" for="field_{{ field.id }}">
+                  <input class="form-check-input m-0"
+                         type="checkbox"
+                         id="field_{{ field.id }}"
+                         name="editable_fields"
+                         value="{{ field.field_code }}"
+                         {% if not field.is_readonly and not field.is_calculated %}checked{% endif %}
+                         {% if field.is_calculated %}disabled{% endif %}>
+                  <span>Cho nhập</span>
+                </label>
 
-            <div class="d-flex flex-wrap gap-2">
-              {% if field.is_calculated %}
-              <span class="reporting-chip"><i class="fa-solid fa-calculator"></i>Công thức</span>
-              {% elif field.is_readonly %}
-              <span class="reporting-chip"><i class="fa-solid fa-lock"></i>Chỉ đọc</span>
-              {% else %}
-              <span class="reporting-chip"><i class="fa-solid fa-pen"></i>Cho phép nhập</span>
-              {% endif %}
-
-              {% if field.field_code in hidden_field_codes %}
-              <span class="reporting-chip"><i class="fa-solid fa-eye-slash"></i>Ẩn</span>
-              {% else %}
-              <span class="reporting-chip"><i class="fa-solid fa-eye"></i>Hiện</span>
-              {% endif %}
-            </div>
+                <label class="setup-toggle" for="hidden_{{ field.id }}">
+                  <input class="form-check-input m-0"
+                         type="checkbox"
+                         id="hidden_{{ field.id }}"
+                         name="hidden_fields"
+                         value="{{ field.field_code }}"
+                         {% if field.field_code in hidden_field_codes %}checked{% endif %}
+                         {% if field.is_calculated %}disabled{% endif %}>
+                  <span>Ẩn</span>
+                </label>
+              </div>
+            </article>
+            {% endfor %}
           </div>
-          {% endfor %}
         </div>
       </section>
       {% endfor %}
