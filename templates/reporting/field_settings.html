@@ -131,6 +131,9 @@
       <div class="reporting-hero-actions">
         <span class="reporting-pill"><i class="fa-solid fa-code-branch"></i>{{ version.version_number }}</span>
         <span class="reporting-pill"><i class="fa-solid fa-clock"></i>{{ schedule_summary }}</span>
+        <a href="{{ url_for('reporting_bp.template_structure', template_id=template.id) }}" class="btn btn-outline-primary rounded-pill px-4">
+          <i class="fa-solid fa-table-cells-large me-2"></i>Cấu trúc header
+        </a>
         <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-secondary rounded-pill px-4">
           <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
         </a>
@@ -139,8 +142,11 @@
 
     {% if first_setup %}
     <div class="alert alert-info border-0 shadow-sm rounded-4 setup-note">
-      <div>Biểu mẫu đã được quét xong. Kiểm tra nhanh các cột đơn vị được phép nhập, cột công thức và các cột cần ẩn trước khi chuyển sang cấu hình loại báo cáo.</div>
+      <div>Biểu mẫu đã được quét xong. Nếu cấu trúc header chưa đúng, hãy quay lại bước cấu trúc trước khi thiết lập nhập liệu.</div>
       <div class="setup-actions">
+        <a href="{{ url_for('reporting_bp.template_structure', template_id=template.id, first_setup=1) }}" class="btn btn-outline-primary rounded-pill px-4">
+          <i class="fa-solid fa-table-cells-large me-2"></i>Chỉnh cấu trúc
+        </a>
         <a href="{{ url_for('reporting_bp.template_config', template_id=template.id, first_setup=1) }}" class="btn btn-primary rounded-pill px-4">
           <i class="fa-solid fa-screwdriver-wrench me-2"></i>Đi tới cấu hình
         </a>
@@ -169,6 +175,9 @@
             {% if scan_summary.get('data_start_row') %} Dòng bắt đầu dữ liệu: {{ scan_summary.get('data_start_row') }}.{% endif %}
           </div>
           <div class="d-flex gap-2 flex-wrap mt-3">
+            <a href="{{ url_for('reporting_bp.template_structure', template_id=template.id) }}" class="btn btn-outline-primary rounded-pill px-4">
+              <i class="fa-solid fa-table-cells-large me-2"></i>Sửa cấu trúc
+            </a>
             <a href="{{ url_for('reporting_bp.preview_template', template_id=template.id) }}" class="btn btn-outline-primary rounded-pill px-4">
               <i class="fa-regular fa-eye me-2"></i>Xem biểu mẫu
             </a>

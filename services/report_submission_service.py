@@ -198,10 +198,10 @@ class ReportSubmissionService:
         }
         return config
 
-    def ensure_version_config(self, template, version):
+    def ensure_version_config(self, template, version, force=False):
         metadata = json.loads(version.metadata_json) if version.metadata_json else {}
         config = metadata.get('template_config')
-        if not config:
+        if force or not config:
             config = self.build_auto_config(template, version)
             metadata['template_config'] = config
             version.metadata_json = json.dumps(metadata, ensure_ascii=False)

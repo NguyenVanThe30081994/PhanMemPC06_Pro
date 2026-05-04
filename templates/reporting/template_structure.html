@@ -1,0 +1,190 @@
+{% extends "base_mobile.html" if g.is_mobile else "base.html" %}
+
+{% block title %}Thiết lập cấu trúc - {{ template.name }}{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reporting-modern.css') }}?v=20260426">
+<style>
+  .structure-shell { display:grid; gap:18px; }
+  .structure-grid { display:grid; grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); gap:18px; align-items:start; }
+  .structure-form { display:grid; gap:14px; }
+  .structure-form-grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px 14px; }
+  .structure-note { padding:12px 14px; border-radius:14px; background:#f8fafc; color:#475569; font-size:.9rem; }
+  .structure-preview-wrap { overflow:auto; border:1px solid rgba(148,163,184,.18); border-radius:18px; background:#fff; }
+  .structure-preview { width:max-content; min-width:100%; border-collapse:collapse; font-size:.84rem; }
+  .structure-preview th, .structure-preview td { border:1px solid #e2e8f0; padding:8px 10px; vertical-align:top; }
+  .structure-preview thead th { position:sticky; top:0; background:#f8fafc; z-index:1; }
+  .structure-row-tag { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-size:.74rem; font-weight:700; }
+  .tag-title { background:#eff6ff; color:#1d4ed8; }
+  .tag-header { background:#ecfeff; color:#0f766e; }
+  .tag-helper { background:#f8fafc; color:#475569; }
+  .tag-summary { background:#fff7ed; color:#c2410c; }
+  .tag-data { background:#ecfdf5; color:#047857; }
+  .structure-preview tr.role-title td { background:#f8fbff; }
+  .structure-preview tr.role-header td { background:#f0fdfa; }
+  .structure-preview tr.role-helper td { background:#f8fafc; }
+  .structure-preview tr.role-summary td { background:#fff7ed; }
+  .structure-preview tr.role-data td { background:#f9fffb; }
+  .structure-draft-list { display:grid; gap:10px; }
+  .structure-draft-item { padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,.18); background:rgba(255,255,255,.96); }
+  .structure-draft-path { color:#64748b; font-size:.83rem; }
+  [data-theme="dark"] .structure-note { background:rgba(15,23,42,.84); color:#cbd5e1; }
+  [data-theme="dark"] .structure-preview-wrap,
+  [data-theme="dark"] .structure-draft-item { background:rgba(15,23,42,.84); border-color:rgba(148,163,184,.18); }
+  [data-theme="dark"] .structure-preview th,
+  [data-theme="dark"] .structure-preview td { border-color:#334155; }
+  [data-theme="dark"] .structure-preview thead th { background:#172033; }
+  [data-theme="dark"] .structure-preview tr.role-title td { background:#142033; }
+  [data-theme="dark"] .structure-preview tr.role-header td { background:#102a2a; }
+  [data-theme="dark"] .structure-preview tr.role-helper td { background:#111827; }
+  [data-theme="dark"] .structure-preview tr.role-summary td { background:#2a1b10; }
+  [data-theme="dark"] .structure-preview tr.role-data td { background:#0f1f18; }
+  [data-theme="dark"] .structure-draft-path { color:#94a3b8; }
+  @media (max-width: 1100px) {
+    .structure-grid, .structure-form-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="reporting-page">
+  <div class="reporting-shell structure-shell">
+    <div class="reporting-hero">
+      <div>
+        <div class="reporting-chip mb-3">
+          <i class="fa-solid fa-table-cells-large"></i>
+          <span>Thiết lập cấu trúc header</span>
+        </div>
+        <h3>{{ template.name }}</h3>
+      </div>
+      <div class="reporting-hero-actions">
+        <span class="reporting-pill"><i class="fa-solid fa-code-branch"></i>{{ version.version_number }}</span>
+        <a href="{{ url_for('reporting_bp.field_settings', template_id=template.id) }}" class="btn btn-outline-primary rounded-pill px-4">
+          <i class="fa-solid fa-sliders me-2"></i>Thiết lập nhập
+        </a>
+        <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-secondary rounded-pill px-4">
+          <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
+        </a>
+      </div>
+    </div>
+
+    {% if first_setup %}
+    <div class="alert alert-info border-0 shadow-sm rounded-4">
+      Sau khi quét tự động, quản trị cần xác nhận lại các dòng tiêu đề, header, dòng phụ, dòng tổng và dòng bắt đầu dữ liệu trước khi thiết lập nhập liệu.
+    </div>
+    {% endif %}
+
+    <div class="structure-grid">
+      <section class="reporting-panel">
+        <div class="reporting-panel-body structure-form">
+          <form method="POST" class="structure-form">
+            <div class="structure-form-grid">
+              <div class="reporting-field">
+                <label for="titleRows">Dòng tiêu đề</label>
+                <input id="titleRows" name="title_rows" class="form-control" value="{{ structure.title_rows|join(', ') }}" placeholder="VD: 1,2,3,5,6">
+              </div>
+              <div class="reporting-field">
+                <label for="headerRows">Dòng header</label>
+                <input id="headerRows" name="header_rows" class="form-control" value="{{ structure.header_rows|join(', ') }}" placeholder="VD: 8,9,10" required>
+              </div>
+              <div class="reporting-field">
+                <label for="helperRows">Dòng phụ / đánh số</label>
+                <input id="helperRows" name="helper_rows" class="form-control" value="{{ structure.helper_rows|join(', ') }}" placeholder="VD: 11">
+              </div>
+              <div class="reporting-field">
+                <label for="summaryRows">Dòng tổng</label>
+                <input id="summaryRows" name="summary_rows" class="form-control" value="{{ structure.summary_rows|join(', ') }}" placeholder="VD: 12">
+              </div>
+              <div class="reporting-field">
+                <label for="dataStartRow">Dòng bắt đầu dữ liệu</label>
+                <input id="dataStartRow" name="data_start_row" type="number" min="1" class="form-control" value="{{ structure.data_start_row }}" required>
+              </div>
+              <div class="reporting-field">
+                <label for="unitColumn">Cột đơn vị</label>
+                <input id="unitColumn" name="unit_column" class="form-control" value="{{ structure.unit_column }}" placeholder="VD: B" required>
+              </div>
+            </div>
+
+            <div class="structure-note">
+              Hệ thống sẽ dùng các dòng header ở trên để ghép cây header cha/con, rồi sinh lại toàn bộ field. Nếu scan nhầm như đưa “Phụ lục” vào header, chỉ cần sửa lại danh sách dòng ở đây.
+            </div>
+
+            <div class="reporting-sticky-actions">
+              <a href="{{ url_for('reporting_bp.preview_template', template_id=template.id) }}" class="btn btn-outline-secondary rounded-pill px-4">Xem mẫu</a>
+              <button type="submit" class="btn btn-primary rounded-pill px-4">
+                <i class="fa-solid fa-arrows-rotate me-2"></i>Lưu và sinh lại field
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="reporting-panel">
+        <div class="reporting-panel-body structure-shell">
+          <div class="structure-note">
+            Sheet: <strong>{{ preview.sheet_name }}</strong>.
+            {% if scan_summary.get('used_range') %} Vùng dữ liệu: <strong>{{ scan_summary.get('used_range') }}</strong>.{% endif %}
+          </div>
+
+          <div class="structure-preview-wrap">
+            <table class="structure-preview">
+              <thead>
+                <tr>
+                  <th>Dòng</th>
+                  <th>Loại</th>
+                  {% for letter in preview.col_letters %}
+                  <th>{{ letter }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in preview.rows %}
+                <tr class="role-{{ row.role or 'none' }}">
+                  <td><strong>{{ row.row_index }}</strong></td>
+                  <td>
+                    {% if row.role == 'title' %}<span class="structure-row-tag tag-title">Tiêu đề</span>
+                    {% elif row.role == 'header' %}<span class="structure-row-tag tag-header">Header</span>
+                    {% elif row.role == 'helper' %}<span class="structure-row-tag tag-helper">Dòng phụ</span>
+                    {% elif row.role == 'summary' %}<span class="structure-row-tag tag-summary">Dòng tổng</span>
+                    {% elif row.role == 'data' %}<span class="structure-row-tag tag-data">Dữ liệu</span>
+                    {% else %}-{% endif %}
+                  </td>
+                  {% for cell in row.cells %}
+                  <td>{{ cell }}</td>
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="reporting-table-shell">
+      <div class="reporting-panel-header">
+        <h5 class="mb-0">Field sẽ được sinh ra</h5>
+      </div>
+      <div class="reporting-panel-body">
+        {% if field_drafts %}
+        <div class="structure-draft-list">
+          {% for field in field_drafts %}
+          <article class="structure-draft-item">
+            <div class="fw-bold">{{ field.field_name }}</div>
+            <div class="structure-draft-path">{{ field.header_path|join(' / ') }}</div>
+            <div class="small text-muted mt-1">
+              Cột {{ field.excel_cell_ref }} |
+              {{ 'Công thức' if field.is_calculated else ('Số' if field.field_type == 'number' else 'Văn bản') }} |
+              {{ field.section }}
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="reporting-empty">Chưa sinh được field nào từ cấu trúc hiện tại.</div>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

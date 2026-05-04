@@ -11,7 +11,7 @@ import re
 import unicodedata
 from io import BytesIO
 from openpyxl import load_workbook
-from openpyxl.utils import get_column_letter
+from openpyxl.utils import get_column_letter, column_index_from_string
 from excel_renderer import format_excel_number
 from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ReportInstance, ReportAuditLog, ReportFieldValue, ReportAttachment, ReportSubmission, ReportValidationError, ReportWorkflowHistory
 from sqlalchemy import or_, and_
@@ -533,6 +533,266 @@ def _normalize_header_text(text):
     return ' '.join(ascii_text.split())
 
 
+def _parse_row_list(raw_value):
+    if raw_value is None:
+        return []
+    numbers = []
+    for part in re.split(r'[\s,;]+', str(raw_value).strip()):
+        if not part:
+            continue
+        try:
+            numbers.append(int(part))
+        except ValueError:
+            continue
+    return sorted(set(num for num in numbers if num > 0))
+
+
+def _load_template_scan(excel_blob):
+    from pc06_excel_scanner import scan_excel_structure
+    return scan_excel_structure(excel_blob)
+
+
+def _build_effective_structure(scan_result, manual_override=None):
+    scan_result = dict(scan_result or {})
+    manual_override = manual_override or {}
+    structure = {
+        'sheet_name': scan_result.get('sheet_name'),
+        'used_range': scan_result.get('used_range'),
+        'columns': scan_result.get('columns', []),
+        'visible_columns': scan_result.get('visible_columns', scan_result.get('columns', [])),
+        'hidden_columns': scan_result.get('hidden_columns', []),
+        'merged_cells': scan_result.get('merged_cells', []),
+        'headers': scan_result.get('headers', {}),
+        'numeric_columns': scan_result.get('numeric_columns', []),
+        'formulas': scan_result.get('formulas', {}),
+        'title_rows': manual_override.get('title_rows', scan_result.get('title_rows', [])),
+        'header_rows': manual_override.get('header_rows', scan_result.get('header_rows', [])),
+        'helper_rows': manual_override.get('helper_rows', scan_result.get('helper_rows', [])),
+        'summary_rows': manual_override.get('summary_rows', scan_result.get('summary_rows', [])),
+        'data_start_row': int(manual_override.get('data_start_row') or scan_result.get('data_start_row') or 2),
+        'unit_column': (manual_override.get('unit_column') or scan_result.get('unit_column') or 'B').strip().upper(),
+    }
+    return structure
+
+
+def _update_version_structure_metadata(version, scan_result, manual_override=None):
+    metadata = json.loads(version.metadata_json) if version.metadata_json else {}
+    metadata['scan_result'] = scan_result or {}
+    metadata['manual_override'] = manual_override or {}
+    effective = _build_effective_structure(scan_result, manual_override)
+    metadata['effective_structure'] = effective
+    metadata['header_rows'] = max(effective.get('header_rows') or [1])
+    metadata['data_start_row'] = effective.get('data_start_row', 2)
+    metadata['scan_summary'] = {
+        'sheet_name': effective.get('sheet_name'),
+        'title_rows': effective.get('title_rows', []),
+        'header_rows': effective.get('header_rows', []),
+        'helper_rows': effective.get('helper_rows', []),
+        'summary_rows': effective.get('summary_rows', []),
+        'data_start_row': effective.get('data_start_row', 2),
+        'unit_column': effective.get('unit_column', 'B'),
+        'used_range': effective.get('used_range'),
+        'status': 'parsed'
+    }
+    version.metadata_json = json.dumps(metadata, ensure_ascii=False)
+    return metadata, effective
+
+
+def _get_structure_header_text(structure, row_number, col_letter):
+    c_idx = column_index_from_string(col_letter)
+    for m in structure.get('merged_cells', []):
+        m_r = m['row']
+        m_rs = m.get('rowspan', 1)
+        m_cs = column_index_from_string(m['col_start'])
+        m_ce = column_index_from_string(m['col_end'])
+        if m_r <= row_number < m_r + m_rs and m_cs <= c_idx <= m_ce:
+            return str(m['value']).strip() if m['value'] else ""
+
+    headers = structure.get('headers', {})
+    row_key = row_number if row_number in headers else str(row_number)
+    if row_key in headers and col_letter in headers[row_key]:
+        val = headers[row_key][col_letter]
+        return str(val).strip() if val else ""
+    return ""
+
+
+def _collect_detail_rows(worksheet, structure):
+    data_start_row = int(structure.get('data_start_row') or 2)
+    unit_col = structure.get('unit_column') or 'B'
+    unit_col_idx = column_index_from_string(unit_col)
+    detail_rows = []
+    for row_idx in range(data_start_row, min(data_start_row + 60, worksheet.max_row + 1)):
+        first_value = worksheet.cell(row=row_idx, column=1).value
+        unit_value = worksheet.cell(row=row_idx, column=unit_col_idx).value
+        unit_text = str(unit_value).strip().lower() if unit_value is not None else ''
+        if not unit_text:
+            continue
+        if 'đơn vị' == unit_text or 'tên đơn vị' in unit_text:
+            continue
+        if any(token in unit_text for token in ('toàn tỉnh', 'tổng', 'cộng')):
+            continue
+        if isinstance(first_value, (int, float)) and len(unit_text) >= 2:
+            detail_rows.append(row_idx)
+    if not detail_rows:
+        detail_rows = list(range(data_start_row, min(data_start_row + 24, worksheet.max_row + 1)))
+    return detail_rows
+
+
+def _detect_column_formula_mode(worksheet, detail_rows, col_letter):
+    col_idx = column_index_from_string(col_letter)
+    literal_found = False
+    formula_found = False
+
+    for row_idx in detail_rows[:24]:
+        cell = worksheet.cell(row=row_idx, column=col_idx)
+        cell_value = cell.value
+        if cell_value is None or str(cell_value).strip() == '':
+            continue
+        if isinstance(cell_value, str) and cell_value.startswith('='):
+            formula_found = True
+        elif cell.data_type == 'f':
+            formula_found = True
+        else:
+            literal_found = True
+        if literal_found and formula_found:
+            break
+
+    if formula_found and not literal_found:
+        return 'formula_only'
+    if formula_found:
+        return 'mixed'
+    return 'literal_only'
+
+
+def _draft_fields_from_structure(excel_blob, structure):
+    workbook = load_workbook(BytesIO(excel_blob), data_only=False)
+    worksheet = workbook.active
+    all_columns = structure.get('visible_columns', structure.get('columns', []))
+    hidden_columns = set(structure.get('hidden_columns', []))
+    header_rows = sorted(structure.get('header_rows', []))
+    detail_rows = _collect_detail_rows(worksheet, structure)
+
+    skip_columns = set()
+    skip_keywords = {
+        'STT', 'TT', 'SO TT', 'SO THU TU',
+        'DON VI', 'TEN DON VI', 'TEN DON VI HANH CHINH', 'DON VI HANH CHINH'
+    }
+    skip_fragments = ['DON VI', 'HANH CHINH', 'DIA PHUONG', 'DIA BAN']
+
+    for col_letter in all_columns:
+        if col_letter in hidden_columns:
+            continue
+        normalized_chain = [
+            _normalize_header_text(_get_structure_header_text(structure, row_idx, col_letter))
+            for row_idx in header_rows
+        ]
+        normalized_chain = [item for item in normalized_chain if item]
+        if any(item in skip_keywords for item in normalized_chain) or any(
+            any(fragment in item for fragment in skip_fragments) for item in normalized_chain
+        ):
+            skip_columns.add(col_letter)
+
+    drafts = []
+    seen_codes = set()
+    order = 1
+    for col_letter in all_columns:
+        if col_letter in hidden_columns or col_letter in skip_columns:
+            continue
+        parts = []
+        for row_idx in header_rows:
+            text = _get_structure_header_text(structure, row_idx, col_letter)
+            if not text:
+                continue
+            text_str = str(text).strip()
+            if text_str.startswith('='):
+                continue
+            if text_str and text_str not in parts:
+                parts.append(text_str)
+        if not parts:
+            continue
+
+        section = 'Thông tin chung' if len(parts) == 1 else ' / '.join(parts[:-1])
+        field_name = parts[0] if len(parts) == 1 else parts[-1]
+        field_code = _slugify_field_code(field_name) or f'col_{col_letter.lower()}'
+        original_code = field_code
+        counter = 1
+        while field_code in seen_codes:
+            field_code = f'{original_code}_{counter}'
+            counter += 1
+        seen_codes.add(field_code)
+
+        is_numeric = col_letter in structure.get('numeric_columns', [])
+        formula_mode = _detect_column_formula_mode(worksheet, detail_rows, col_letter)
+        drafts.append({
+            'field_code': field_code,
+            'field_name': field_name,
+            'field_type': 'number' if is_numeric else 'text',
+            'data_type': 'number' if is_numeric else 'string',
+            'is_calculated': formula_mode == 'formula_only',
+            'is_readonly': formula_mode == 'formula_only',
+            'display_order': order,
+            'section': section,
+            'excel_cell_ref': col_letter,
+            'header_path': parts,
+            'formula_mode': formula_mode,
+        })
+        order += 1
+
+    return drafts
+
+
+def _rebuild_fields_from_structure(version, excel_blob, structure):
+    FormField.query.filter_by(version_id=version.id).delete(synchronize_session=False)
+    drafts = _draft_fields_from_structure(excel_blob, structure)
+    if drafts:
+        db.session.add_all([
+            FormField(
+                version_id=version.id,
+                field_code=item['field_code'],
+                field_name=item['field_name'],
+                field_type=item['field_type'],
+                data_type=item['data_type'],
+                is_required=False,
+                is_readonly=item['is_readonly'],
+                is_calculated=item['is_calculated'],
+                display_order=item['display_order'],
+                section=item['section'],
+                excel_cell_ref=item['excel_cell_ref']
+            )
+            for item in drafts
+        ])
+    return drafts
+
+
+def _build_structure_preview(excel_blob, structure, max_rows=22, max_cols=12):
+    workbook = load_workbook(BytesIO(excel_blob), data_only=False)
+    worksheet = workbook.active
+    effective_max_row = min(worksheet.max_row or 1, max_rows)
+    effective_max_col = min(worksheet.max_column or 1, max_cols)
+    row_role_map = {}
+    for role_name in ('title', 'header', 'helper', 'summary'):
+        for row_idx in structure.get(f'{role_name}_rows', []):
+            row_role_map[row_idx] = role_name
+
+    preview_rows = []
+    for row_idx in range(1, effective_max_row + 1):
+        cells = []
+        for col_idx in range(1, effective_max_col + 1):
+            value = worksheet.cell(row=row_idx, column=col_idx).value
+            cells.append('' if value is None else str(value).replace('\n', ' '))
+        row_role = row_role_map.get(row_idx, 'data' if row_idx >= int(structure.get('data_start_row') or 2) else '')
+        preview_rows.append({
+            'row_index': row_idx,
+            'role': row_role,
+            'cells': cells
+        })
+    return {
+        'sheet_name': worksheet.title,
+        'col_letters': [get_column_letter(idx) for idx in range(1, effective_max_col + 1)],
+        'rows': preview_rows
+    }
+
+
 def _user_display_label(user, fallback=''):
     if user:
         return (user.fullname or user.username or fallback or '').strip()
@@ -757,233 +1017,32 @@ def template_upload():
         db.session.add(version)
         db.session.flush()
 
-            # 3. Tự động parse các trường (FormField) từ Excel sử dụng thuật toán MVP
+        # 3. Tự động scan cấu trúc và sinh field nháp
         try:
-            from pc06_excel_scanner import scan_excel_structure
-            from openpyxl.utils import column_index_from_string
-            workbook = load_workbook(BytesIO(excel_blob), data_only=False)
-            worksheet = workbook.active
-
-            detected = scan_excel_structure(excel_blob)
-            
-            # Cập nhật metadata
-            header_rows_list = detected.get('header_rows', [1])
-            metadata['header_rows'] = max(header_rows_list) if header_rows_list else 1
-            metadata['data_start_row'] = detected.get('data_start_row', 2)
-            metadata['scan_summary'] = {
-                'sheet_name': detected.get('sheet_name'),
-                'title_rows': detected.get('title_rows', []),
-                'header_rows': header_rows_list,
-                'helper_rows': detected.get('helper_rows', []),
-                'summary_rows': detected.get('summary_rows', []),
-                'data_start_row': detected.get('data_start_row', 2),
-                'used_range': detected.get('used_range'),
-                'status': 'parsed'
-            }
-            version.metadata_json = json.dumps(metadata, ensure_ascii=False)
-            
-            # Helper function để lấy nội dung text cho 1 ô (xử lý gộp ô)
-            def get_header_text_for_cell(r, c_letter):
-                c_idx = column_index_from_string(c_letter)
-                for m in detected.get('merged_cells', []):
-                    m_r = m['row']
-                    m_rs = m.get('rowspan', 1)
-                    m_cs = column_index_from_string(m['col_start'])
-                    m_ce = column_index_from_string(m['col_end'])
-                    if m_r <= r < m_r + m_rs and m_cs <= c_idx <= m_ce:
-                        return str(m['value']).strip() if m['value'] else ""
-                
-                headers = detected.get('headers', {})
-                if r in headers and c_letter in headers[r]:
-                    val = headers[r][c_letter]
-                    return str(val).strip() if val else ""
-                return ""
-
-            # Tạo field với logic linh hoạt cho mọi biểu mẫu
-            fields = []
-            order = 1
-            all_columns = detected.get('visible_columns', detected.get('columns', []))
-            hidden_columns = set(detected.get('hidden_columns', []))
-            total_cols = detected.get('total_cols', len(all_columns))
-
-            data_start_row = detected.get('data_start_row', 2)
-
-            detail_rows = []
-            for row_idx in range(data_start_row, min(data_start_row + 40, worksheet.max_row + 1)):
-                first_value = worksheet.cell(row=row_idx, column=1).value
-                unit_value = worksheet.cell(row=row_idx, column=2).value
-                unit_text = str(unit_value).strip().lower() if unit_value is not None else ''
-
-                if not unit_text:
-                    continue
-                if 'tên đơn vị' in unit_text or 'đơn vị' == unit_text:
-                    continue
-                if 'toàn tỉnh' in unit_text or 'tong' in unit_text and 'tinh' in unit_text:
-                    continue
-                if isinstance(first_value, (int, float)) and len(unit_text) >= 2:
-                    detail_rows.append(row_idx)
-
-            if not detail_rows:
-                detail_rows = list(range(data_start_row, min(data_start_row + 24, worksheet.max_row + 1)))
-
-            def detect_column_formula_mode(col_letter):
-                col_idx = column_index_from_string(col_letter)
-                literal_found = False
-                formula_found = False
-
-                for row_idx in detail_rows[:24]:
-                    cell = worksheet.cell(row=row_idx, column=col_idx)
-                    cell_value = cell.value
-                    if cell_value is None or str(cell_value).strip() == '':
-                        continue
-                    if isinstance(cell_value, str) and cell_value.startswith('='):
-                        formula_found = True
-                    else:
-                        literal_found = True
-                    if literal_found and formula_found:
-                        break
-
-                if formula_found and not literal_found:
-                    return 'formula_only'
-                if formula_found:
-                    return 'mixed'
-                return 'literal_only'
-            
-            def is_title_row(row_number):
-                row_parts = []
-                dominant_merge = None
-                for m in detected.get('merged_cells', []):
-                    if m['row'] == row_number and m.get('colspan', 1) >= max(4, int(total_cols * 0.8)):
-                        dominant_merge = m
-                        break
-
-                for col_letter in all_columns:
-                    text = get_header_text_for_cell(row_number, col_letter)
-                    text_str = str(text).strip() if text else ""
-                    if text_str and text_str not in row_parts:
-                        row_parts.append(text_str)
-
-                return bool(dominant_merge and len(row_parts) <= 1)
-
-            # Lọc bỏ các dòng title tổng quát, giữ lại các hàng header nhóm/cột thực tế
-            real_header_rows = []
-            for r in sorted(detected.get('header_rows', [])):
-                if not is_title_row(r):
-                    real_header_rows.append(r)
-
-            if not real_header_rows:
-                real_header_rows = sorted(detected.get('header_rows', []))
-
-            # Tìm các cột cần BỎ QUA (STT, đơn vị, tên đơn vị...)
-            skip_columns = set()
-            skip_keywords = {
-                'STT', 'TT', 'SO TT', 'SO THU TU',
-                'DON VI', 'TEN DON VI', 'TEN DON VI HANH CHINH', 'DON VI HANH CHINH'
-            }
-            skip_fragments = ['DON VI', 'HANH CHINH', 'DIA PHUONG', 'DIA BAN']
-            
-            for col_letter in all_columns:
-                if col_letter in hidden_columns:
-                    continue
-                # Kiểm tra TẤT CẢ các dòng header
-                should_skip = False
-                for r in real_header_rows:
-                    normalized_text = _normalize_header_text(get_header_text_for_cell(r, col_letter))
-                    if normalized_text in skip_keywords or any(fragment in normalized_text for fragment in skip_fragments):
-                        should_skip = True
-                        break
-                if should_skip:
-                    skip_columns.add(col_letter)
-            
-            # Quét tất cả các cột (trừ cột skip)
-            for col_letter in all_columns:
-                if col_letter in hidden_columns:
-                    continue
-                if col_letter in skip_columns:
-                    continue
-                
-                parts = []
-                for r in real_header_rows:
-                    text = get_header_text_for_cell(r, col_letter)
-                    # Bỏ qua công thức và giá trị số
-                    if text:
-                        text_str = str(text).strip()
-                        # Bỏ qua nếu là công thức hoặc số
-                        if text_str.startswith('=') or (isinstance(text, (int, float))):
-                            continue
-                        if text_str and text_str not in parts:
-                            parts.append(text_str)
-                
-                # Nếu không có header hợp lệ thì bỏ qua
-                if not parts:
-                    continue
-
-                formula_mode = detect_column_formula_mode(col_letter)
-                
-                # Logic linh hoạt:
-                # - Nếu chỉ có 1 header: section = "Thông tin chung", field = header đó
-                # - Nếu có >= 2 headers: section = header gần cuối, field = header cuối
-                if len(parts) == 1:
-                    section = 'Thông tin chung'
-                    field_name = parts[0]
-                elif len(parts) >= 2:
-                    section = ' / '.join(parts[:-1])
-                    field_name = parts[-1]  # Dòng header cuối cùng
-                else:
-                    continue
-                    
-                field_code = _slugify_field_code(field_name) or f"col_{col_letter.lower()}"
-
-                # Tránh trùng lặp code
-                original_code = field_code
-                counter = 1
-                while any(f.field_code == field_code for f in fields):
-                    field_code = f"{original_code}_{counter}"
-                    counter += 1
-                    
-                # Phân tích kiểu dữ liệu từ MVP scanner
-                is_numeric = col_letter in detected.get('numeric_columns', [])
-                data_type = 'number' if is_numeric else 'string'
-
-                is_calculated = formula_mode == 'formula_only'
-                field = FormField(
-                    version_id=version.id,
-                    field_code=field_code,
-                    field_name=field_name,
-                    field_type='number' if is_numeric else 'text',
-                    data_type=data_type,
-                    is_required=False,
-                    is_readonly=is_calculated,
-                    is_calculated=is_calculated,
-                    display_order=order,
-                    section=section,
-                    excel_cell_ref=col_letter
-                )
-                    
-                fields.append(field)
-                order += 1
-
-            if fields:
-                db.session.add_all(fields)
-            metadata['scan_summary']['field_count'] = len(fields)
-            if not fields:
+            detected = _load_template_scan(excel_blob)
+            metadata, effective = _update_version_structure_metadata(version, detected, manual_override={})
+            drafts = _rebuild_fields_from_structure(version, excel_blob, effective)
+            metadata['scan_summary']['field_count'] = len(drafts)
+            if not drafts:
                 metadata['scan_summary']['status'] = 'empty'
                 metadata['scan_summary']['message'] = 'Không sinh được trường nào từ cấu trúc biểu mẫu.'
             version.metadata_json = json.dumps(metadata, ensure_ascii=False)
-            
+
         except Exception as parse_e:
             import traceback
             traceback.print_exc()
             print(f"Lỗi parse excel fields: {parse_e}")
-            metadata['scan_summary']['status'] = 'error'
-            metadata['scan_summary']['message'] = str(parse_e)
-            version.metadata_json = json.dumps(metadata, ensure_ascii=False)
+            current_metadata = json.loads(version.metadata_json) if version.metadata_json else metadata
+            current_metadata.setdefault('scan_summary', {})
+            current_metadata['scan_summary']['status'] = 'error'
+            current_metadata['scan_summary']['message'] = str(parse_e)
+            version.metadata_json = json.dumps(current_metadata, ensure_ascii=False)
 
-        submission_service.ensure_version_config(template, version)
+        submission_service.ensure_version_config(template, version, force=True)
         db.session.commit()
 
         flash(f'Tạo thành công biểu mẫu: {template_name}', 'success')
-        return redirect(url_for('reporting_bp.field_settings', template_id=template.id, first_setup=1))
+        return redirect(url_for('reporting_bp.template_structure', template_id=template.id, first_setup=1))
 
     except Exception as e:
         db.session.rollback()
@@ -1533,6 +1592,84 @@ def download_template(template_id):
     response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
     response.headers['Content-Length'] = str(len(file_bytes))
     return response
+
+
+@reporting_bp.route('/template/<int:template_id>/structure', methods=['GET', 'POST'])
+def template_structure(template_id):
+    """Thiết lập cấu trúc quét header trước khi thiết lập nhập liệu."""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    _, is_admin, is_lead = _get_reporting_permissions()
+    if not (is_admin or is_lead):
+        flash('Bạn không có quyền chỉnh cấu trúc biểu mẫu.', 'danger')
+        return redirect(url_for('reporting_bp.index'))
+
+    template = FormTemplate.query.get_or_404(template_id)
+    version = FormVersion.query.filter_by(
+        template_id=template_id,
+        is_published=True
+    ).order_by(FormVersion.created_at.desc()).first()
+    if not version or not template.excel_template_blob:
+        flash('Biểu mẫu chưa sẵn sàng để chỉnh cấu trúc.', 'warning')
+        return redirect(url_for('reporting_bp.index'))
+
+    metadata = json.loads(version.metadata_json) if version.metadata_json else {}
+    scan_result = metadata.get('scan_result') or _load_template_scan(template.excel_template_blob)
+    manual_override = metadata.get('manual_override') or {}
+
+    if request.method == 'POST':
+        try:
+            manual_override = {
+                'title_rows': _parse_row_list(request.form.get('title_rows')),
+                'header_rows': _parse_row_list(request.form.get('header_rows')),
+                'helper_rows': _parse_row_list(request.form.get('helper_rows')),
+                'summary_rows': _parse_row_list(request.form.get('summary_rows')),
+                'data_start_row': int(request.form.get('data_start_row') or 0),
+                'unit_column': (request.form.get('unit_column') or 'B').strip().upper(),
+            }
+
+            if not manual_override['header_rows']:
+                raise ValueError('Phải xác định ít nhất một dòng header.')
+            expected_header_span = list(range(min(manual_override['header_rows']), max(manual_override['header_rows']) + 1))
+            if manual_override['header_rows'] != expected_header_span:
+                raise ValueError('Các dòng header phải liền nhau.')
+            if manual_override['data_start_row'] <= max(manual_override['header_rows']):
+                raise ValueError('Dòng bắt đầu dữ liệu phải nằm sau toàn bộ header.')
+            if not re.match(r'^[A-Z]+$', manual_override['unit_column']):
+                raise ValueError('Cột đơn vị không hợp lệ.')
+            if set(manual_override['header_rows']) & set(manual_override['title_rows']):
+                raise ValueError('Một dòng không thể vừa là tiêu đề vừa là header.')
+            if set(manual_override['header_rows']) & set(manual_override['summary_rows']):
+                raise ValueError('Một dòng không thể vừa là header vừa là dòng tổng.')
+
+            metadata, effective = _update_version_structure_metadata(version, scan_result, manual_override)
+            drafts = _rebuild_fields_from_structure(version, template.excel_template_blob, effective)
+            if not drafts:
+                raise ValueError('Sau khi chỉnh cấu trúc, hệ thống không sinh được trường nào.')
+            metadata['scan_summary']['field_count'] = len(drafts)
+            version.metadata_json = json.dumps(metadata, ensure_ascii=False)
+            submission_service.ensure_version_config(template, version, force=True)
+            db.session.commit()
+            flash('Đã cập nhật cấu trúc header và sinh lại các trường.', 'success')
+            return redirect(url_for('reporting_bp.field_settings', template_id=template_id, first_setup=request.args.get('first_setup')))
+        except Exception as exc:
+            db.session.rollback()
+            flash(f'Lỗi lưu cấu trúc: {exc}', 'danger')
+
+    effective_structure = _build_effective_structure(scan_result, manual_override)
+    preview = _build_structure_preview(template.excel_template_blob, effective_structure)
+    field_drafts = _draft_fields_from_structure(template.excel_template_blob, effective_structure)
+
+    return render_template(
+        'reporting/template_structure.html',
+        template=template,
+        version=version,
+        preview=preview,
+        structure=effective_structure,
+        field_drafts=field_drafts,
+        scan_summary=metadata.get('scan_summary', {}),
+        first_setup=request.args.get('first_setup') == '1'
+    )
 
 
 @reporting_bp.route('/template/<int:template_id>/field-settings', methods=['GET', 'POST'])

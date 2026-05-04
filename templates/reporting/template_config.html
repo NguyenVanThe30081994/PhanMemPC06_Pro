@@ -179,6 +179,9 @@
           <h3>{{ template.name }}</h3>
         </div>
         <div class="config-top-actions">
+          <a href="{{ url_for('reporting_bp.template_structure', template_id=template.id) }}" class="btn btn-outline-primary rounded-pill px-4">
+            <i class="fa-solid fa-table-cells-large me-2"></i>Cấu trúc header
+          </a>
           <a href="{{ url_for('reporting_bp.field_settings', template_id=template.id) }}" class="btn btn-outline-primary rounded-pill px-4">
             <i class="fa-solid fa-sliders me-2"></i>Thiết lập nhập
           </a>
