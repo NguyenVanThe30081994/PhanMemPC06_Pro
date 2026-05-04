@@ -772,7 +772,10 @@ def template_upload():
             metadata['data_start_row'] = detected.get('data_start_row', 2)
             metadata['scan_summary'] = {
                 'sheet_name': detected.get('sheet_name'),
+                'title_rows': detected.get('title_rows', []),
                 'header_rows': header_rows_list,
+                'helper_rows': detected.get('helper_rows', []),
+                'summary_rows': detected.get('summary_rows', []),
                 'data_start_row': detected.get('data_start_row', 2),
                 'used_range': detected.get('used_range'),
                 'status': 'parsed'
