@@ -43,6 +43,11 @@
       </div>
     </div>
 
+    <div class="reporting-note mb-4">
+      <i class="fa-solid fa-circle-info me-2"></i>
+      Đang theo dõi {{ report_context.name if report_context else period.name }}. {{ schedule_summary }}
+    </div>
+
     <div class="reporting-table-shell">
       <div class="reporting-panel-body">
         <div class="table-responsive">

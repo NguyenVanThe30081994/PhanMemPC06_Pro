@@ -6,7 +6,7 @@ Theo kiến trúc tài liệu: Form Engine + Metadata
 import ast
 import json
 import operator as op
-from datetime import datetime
+from datetime import datetime, timedelta
 from excel_renderer import format_excel_number
 from models_reporting import db, FormTemplate, FormVersion, FormField, ReportInstance, ReportFieldValue, ReportAuditLog, ReportingPeriod
 from flask import session
@@ -116,6 +116,149 @@ class FormEngine:
             except Exception:
                 return str(raw_value).strip(), 'string'
         return str(raw_value).strip(), 'string'
+
+    @staticmethod
+    def _parse_deadline_rule(deadline_rule):
+        raw = str(deadline_rule or '').strip()
+        if not raw:
+            return {}
+        if raw.startswith('{'):
+            try:
+                return json.loads(raw)
+            except Exception:
+                return {}
+        return {}
+
+    @staticmethod
+    def _end_of_day(target_date):
+        return datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59)
+
+    @staticmethod
+    def _safe_cycle_date(year, month, day):
+        if month >= 12:
+            last_day = 31 if month == 12 else 30
+        else:
+            last_day = (datetime(year, month + 1, 1).date() - timedelta(days=1)).day
+        return datetime(year, month, max(1, min(int(day), last_day))).date()
+
+    def get_reporting_context(self, template, today=None):
+        """Xác định chu kỳ báo cáo hiện tại theo cấu hình của biểu mẫu."""
+        if not template:
+            raise ValueError('Biểu mẫu không tồn tại')
+
+        today = today or datetime.now().date()
+        report_type = (template.report_type or '').strip().lower()
+        frequency = (template.frequency or '').strip().lower()
+        rule = self._parse_deadline_rule(template.deadline_rule)
+
+        if report_type == 'adhoc':
+            deadline = None
+            deadline_raw = str(rule.get('deadline') or '').strip()
+            if deadline_raw:
+                try:
+                    deadline = datetime.strptime(deadline_raw, '%Y-%m-%dT%H:%M')
+                except Exception:
+                    deadline = None
+            anchor_date = deadline.date() if deadline else today
+            return {
+                'code': f'SYS-ADHOC-{template.id}',
+                'name': 'Đột xuất',
+                'period_type': 'adhoc',
+                'start_date': anchor_date,
+                'end_date': anchor_date,
+                'deadline': deadline,
+            }
+
+        if report_type == 'daily':
+            return {
+                'code': f'SYS-DAILY-{template.id}-{today.isoformat()}',
+                'name': f'Ngày {today.strftime("%d/%m/%Y")}',
+                'period_type': 'daily',
+                'start_date': today,
+                'end_date': today,
+                'deadline': self._end_of_day(today),
+            }
+
+        if report_type != 'periodic':
+            raise ValueError('Biểu mẫu chưa được cấu hình loại báo cáo.')
+
+        if frequency == 'monthly':
+            start_date = today.replace(day=1)
+            if today.month == 12:
+                end_date = today.replace(day=31)
+            else:
+                end_date = datetime(today.year, today.month + 1, 1).date() - timedelta(days=1)
+            deadline_day = int(rule.get('day') or 0)
+            deadline = self._end_of_day(self._safe_cycle_date(today.year, today.month, deadline_day)) if deadline_day else None
+            return {
+                'code': f'SYS-MONTHLY-{template.id}-{today.strftime("%Y-%m")}',
+                'name': f'Tháng {today.month} năm {today.year}',
+                'period_type': 'monthly',
+                'start_date': start_date,
+                'end_date': end_date,
+                'deadline': deadline,
+            }
+
+        if frequency == 'quarterly':
+            quarter = ((today.month - 1) // 3) + 1
+            start_month = (quarter - 1) * 3 + 1
+            start_date = datetime(today.year, start_month, 1).date()
+            if quarter == 4:
+                end_date = datetime(today.year, 12, 31).date()
+            else:
+                end_date = datetime(today.year, start_month + 3, 1).date() - timedelta(days=1)
+            deadline_month = max(1, min(3, int(rule.get('month') or 0)))
+            deadline_day = int(rule.get('day') or 0)
+            deadline = None
+            if deadline_month and deadline_day:
+                deadline = self._end_of_day(self._safe_cycle_date(today.year, start_month + deadline_month - 1, deadline_day))
+            return {
+                'code': f'SYS-QUARTERLY-{template.id}-{today.year}-Q{quarter}',
+                'name': f'Quý {quarter} năm {today.year}',
+                'period_type': 'quarterly',
+                'start_date': start_date,
+                'end_date': end_date,
+                'deadline': deadline,
+            }
+
+        if frequency == 'semiannual':
+            half = 1 if today.month <= 6 else 2
+            start_month = 1 if half == 1 else 7
+            end_month = 6 if half == 1 else 12
+            start_date = datetime(today.year, start_month, 1).date()
+            end_date = datetime(today.year, end_month, 30 if end_month == 6 else 31).date()
+            deadline_month = max(1, min(6, int(rule.get('month') or 0)))
+            deadline_day = int(rule.get('day') or 0)
+            deadline = None
+            if deadline_month and deadline_day:
+                deadline = self._end_of_day(self._safe_cycle_date(today.year, start_month + deadline_month - 1, deadline_day))
+            return {
+                'code': f'SYS-SEMIANNUAL-{template.id}-{today.year}-H{half}',
+                'name': f'6 tháng {"đầu" if half == 1 else "cuối"} năm {today.year}',
+                'period_type': 'semiannual',
+                'start_date': start_date,
+                'end_date': end_date,
+                'deadline': deadline,
+            }
+
+        if frequency == 'yearly':
+            start_date = datetime(today.year, 1, 1).date()
+            end_date = datetime(today.year, 12, 31).date()
+            deadline_month = max(1, min(12, int(rule.get('month') or 0)))
+            deadline_day = int(rule.get('day') or 0)
+            deadline = None
+            if deadline_month and deadline_day:
+                deadline = self._end_of_day(self._safe_cycle_date(today.year, deadline_month, deadline_day))
+            return {
+                'code': f'SYS-YEARLY-{template.id}-{today.year}',
+                'name': f'Năm {today.year}',
+                'period_type': 'yearly',
+                'start_date': start_date,
+                'end_date': end_date,
+                'deadline': deadline,
+            }
+
+        raise ValueError('Loại định kỳ chưa được hỗ trợ.')
 
     def _ensure_report_access(self, instance, user_unit=None, is_admin=False, write=False):
         if not instance:
@@ -236,6 +379,51 @@ class FormEngine:
         
         db.session.commit()
         return instance
+
+    def resolve_internal_period(self, template_id, report_type=None, report_date=None, deadline_rule=None, frequency=None, period_key=None):
+        """Tạo/lấy period nội bộ, không hiển thị cho người dùng cuối."""
+        template = db.session.get(FormTemplate, template_id)
+        if not template:
+            raise ValueError(f"Template {template_id} không tồn tại")
+        context = self.get_reporting_context(template)
+        period = ReportingPeriod.query.filter_by(code=context['code']).first()
+        if not period:
+            period = ReportingPeriod(
+                template_id=template_id,
+                code=context['code'],
+                name=context['name'],
+                period_type=context['period_type'],
+                is_adhoc=(context['period_type'] == 'adhoc'),
+                start_date=context['start_date'],
+                end_date=context['end_date'],
+                deadline=context['deadline'],
+                is_locked=False,
+                created_by=template.created_by
+            )
+            db.session.add(period)
+            db.session.flush()
+            return period
+
+        period.template_id = template_id
+        period.name = context['name']
+        period.period_type = context['period_type']
+        period.is_adhoc = (context['period_type'] == 'adhoc')
+        period.start_date = context['start_date']
+        period.end_date = context['end_date']
+        period.deadline = context['deadline']
+        if period.is_locked:
+            period.is_locked = False
+        db.session.flush()
+        return period
+
+    def create_report_instance_for_context(self, template_id, user_id, org_unit, report_date=None, period_key=None):
+        template = db.session.get(FormTemplate, template_id)
+        if not template:
+            raise ValueError(f"Template {template_id} không tồn tại")
+        period = self.resolve_internal_period(
+            template_id=template_id,
+        )
+        return self.create_report_instance(template_id, period.id, user_id, org_unit)
     
     def get_report_data(self, instance_id):
         """

@@ -330,7 +330,7 @@ def _parse_deadline_rule(template):
         return {'time': rule_text}
 
     if report_type == 'periodic' and rule_text.isdigit():
-        return {'offset_days': int(rule_text)}
+        return {'day': int(rule_text)}
 
     return {}
 
@@ -344,47 +344,37 @@ def _format_schedule_summary(template):
         return "Chưa cấu hình loại báo cáo"
 
     if report_type == 'daily':
-        time_value = rule.get('time')
-        return f"Hàng ngày, hạn nộp {time_value}" if time_value else "Hàng ngày, chưa cấu hình giờ chốt"
+        return "Hàng ngày, hệ thống tự ghi nhận theo ngày hiện tại"
+
+    if report_type == 'adhoc':
+        deadline_raw = (rule.get('deadline') or '').strip()
+        if deadline_raw:
+            try:
+                deadline_dt = datetime.datetime.strptime(deadline_raw, '%Y-%m-%dT%H:%M')
+                return f"Đột xuất, hạn nộp {deadline_dt.strftime('%d/%m/%Y %H:%M')}"
+            except Exception:
+                pass
+        return "Đột xuất, chưa cấu hình mốc thời gian"
 
     if report_type == 'periodic':
-        if not frequency:
-            return "Định kỳ, chưa chọn tần suất"
-        if frequency == 'weekly':
-            weekday_map = {
-                0: 'Thứ hai', 1: 'Thứ ba', 2: 'Thứ tư', 3: 'Thứ năm',
-                4: 'Thứ sáu', 5: 'Thứ bảy', 6: 'Chủ nhật'
-            }
-            if 'weekday' not in rule or not rule.get('time'):
-                return "Hàng tuần, chưa cấu hình hạn nộp"
-            weekday = int(rule.get('weekday', 0))
-            return f"Hàng tuần, hạn nộp {weekday_map.get(weekday, 'Thứ hai')} {rule.get('time')}"
         if frequency == 'monthly':
-            if 'day' not in rule or not rule.get('time'):
-                return "Hàng tháng, chưa cấu hình hạn nộp"
-            return f"Hàng tháng, hạn nộp ngày {rule.get('day')} lúc {rule.get('time')}"
+            day = rule.get('day')
+            return f"Định kỳ tháng, hạn trước hoặc bằng ngày {day} hằng tháng" if day else "Định kỳ tháng, chưa cấu hình ngày hạn"
         if frequency == 'quarterly':
-            if 'month' not in rule or 'day' not in rule or not rule.get('time'):
-                return "Hàng quý, chưa cấu hình hạn nộp"
-            return (
-                f"Hàng quý, hạn nộp tháng {rule.get('month', 1)} trong quý "
-                f"ngày {rule.get('day')} lúc {rule.get('time')}"
-            )
+            month = rule.get('month')
+            day = rule.get('day')
+            return f"Định kỳ quý, hạn trước hoặc bằng ngày {day} tháng thứ {month} của quý" if month and day else "Định kỳ quý, chưa cấu hình mốc hạn"
+        if frequency == 'semiannual':
+            month = rule.get('month')
+            day = rule.get('day')
+            return f"Định kỳ 6 tháng, hạn trước hoặc bằng ngày {day} tháng thứ {month} của kỳ 6 tháng" if month and day else "Định kỳ 6 tháng, chưa cấu hình mốc hạn"
         if frequency == 'yearly':
-            if 'month' not in rule or 'day' not in rule or not rule.get('time'):
-                return "Hàng năm, chưa cấu hình hạn nộp"
-            return (
-                f"Hàng năm, hạn nộp ngày {rule.get('day')}/{rule.get('month')} "
-                f"lúc {rule.get('time')}"
-            )
-        if 'offset_days' in rule:
-            return f"Định kỳ, hạn nộp sau {rule['offset_days']} ngày"
-        return "Định kỳ, chưa cấu hình hạn nộp"
+            month = rule.get('month')
+            day = rule.get('day')
+            return f"Định kỳ năm, hạn trước hoặc bằng ngày {day}/{month} hằng năm" if month and day else "Định kỳ năm, chưa cấu hình mốc hạn"
+        return 'Định kỳ, chưa cấu hình loại chu kỳ'
 
-    if report_type != 'adhoc':
-        return "Chưa cấu hình loại báo cáo"
-
-    return "Đột xuất, hạn nộp khai báo theo từng kỳ"
+    return "Chưa cấu hình loại báo cáo"
 
 
 def _format_report_type_label(template):
@@ -394,130 +384,14 @@ def _format_report_type_label(template):
     if report_type == 'daily':
         return 'Hàng ngày'
     if report_type == 'periodic':
-        return 'Định kỳ'
+        labels = {
+            'monthly': 'Định kỳ tháng',
+            'quarterly': 'Định kỳ quý',
+            'semiannual': 'Định kỳ 6 tháng',
+            'yearly': 'Định kỳ năm',
+        }
+        return labels.get((template.frequency or '').strip().lower(), 'Định kỳ')
     return 'Đột xuất'
-
-
-def _create_template_period(template, form_data, created_by):
-    report_type = (template.report_type or '').strip().lower()
-    code = (form_data.get('code') or '').strip()
-    name = (form_data.get('name') or '').strip()
-
-    if not report_type:
-        raise ValueError('Biểu mẫu chưa được cấu hình loại báo cáo.')
-
-    if not code or not name:
-        raise ValueError('Mã kỳ báo cáo và tên kỳ báo cáo là bắt buộc.')
-
-    if ReportingPeriod.query.filter_by(code=code).first():
-        raise ValueError('Mã kỳ báo cáo đã tồn tại.')
-
-    start_date = datetime.datetime.strptime(form_data.get('start_date', ''), '%Y-%m-%d').date()
-    end_date = datetime.datetime.strptime(form_data.get('end_date', ''), '%Y-%m-%d').date()
-    if end_date < start_date:
-        raise ValueError('Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.')
-
-    explicit_deadline = None
-    if report_type == 'adhoc':
-        deadline_raw = form_data.get('deadline', '')
-        explicit_deadline = datetime.datetime.strptime(deadline_raw, '%Y-%m-%dT%H:%M')
-
-    deadline = _compute_period_deadline(template, start_date, end_date, explicit_deadline)
-    period_type = 'adhoc' if report_type == 'adhoc' else (template.frequency or report_type)
-
-    period = ReportingPeriod(
-        template_id=template.id,
-        code=code,
-        name=name,
-        period_type=period_type,
-        is_adhoc=(report_type == 'adhoc'),
-        start_date=start_date,
-        end_date=end_date,
-        deadline=deadline,
-        is_locked=False,
-        created_by=created_by
-    )
-    db.session.add(period)
-    return period
-
-
-def _compute_period_deadline(template, start_date, end_date, explicit_deadline=None):
-    report_type = (template.report_type or '').strip().lower()
-    frequency = (template.frequency or '').strip().lower()
-    rule = _parse_deadline_rule(template)
-
-    if not report_type:
-        raise ValueError('Biểu mẫu chưa được cấu hình loại báo cáo.')
-
-    if report_type == 'adhoc':
-        if explicit_deadline is None:
-            raise ValueError('Báo cáo đột xuất phải có hạn nộp cụ thể.')
-        return explicit_deadline
-
-    if report_type == 'daily':
-        time_value = _parse_deadline_time(rule.get('time'))
-        if time_value is None:
-            raise ValueError('Báo cáo hàng ngày chưa được cấu hình giờ chốt.')
-        return datetime.datetime.combine(end_date, time_value)
-
-    if report_type != 'periodic':
-        return None
-
-    if not frequency:
-        raise ValueError('Báo cáo định kỳ chưa được chọn tần suất.')
-
-    time_value = _parse_deadline_time(rule.get('time'))
-    if time_value is None:
-        raise ValueError('Báo cáo định kỳ chưa được cấu hình giờ đến hạn.')
-
-    if 'offset_days' in rule:
-        target_date = end_date + datetime.timedelta(days=int(rule['offset_days']))
-        return datetime.datetime.combine(target_date, time_value)
-
-    if frequency == 'weekly':
-        if 'weekday' not in rule:
-            raise ValueError('Báo cáo tuần chưa được cấu hình ngày đến hạn.')
-        weekday = max(0, min(6, int(rule.get('weekday', 0))))
-        days_ahead = (weekday - end_date.weekday()) % 7
-        if days_ahead == 0:
-            days_ahead = 7
-        target_date = end_date + datetime.timedelta(days=days_ahead)
-        return datetime.datetime.combine(target_date, time_value)
-
-    if frequency == 'monthly':
-        if 'day' not in rule:
-            raise ValueError('Báo cáo tháng chưa được cấu hình ngày đến hạn.')
-        next_month = end_date.month + 1
-        target_year = end_date.year
-        if next_month > 12:
-            next_month = 1
-            target_year += 1
-        target_date = _safe_date_in_month(target_year, next_month, int(rule.get('day')))
-        return datetime.datetime.combine(target_date, time_value)
-
-    if frequency == 'quarterly':
-        if 'month' not in rule or 'day' not in rule:
-            raise ValueError('Báo cáo quý chưa được cấu hình hạn nộp.')
-        current_quarter = ((end_date.month - 1) // 3) + 1
-        next_quarter_start_month = current_quarter * 3 + 1
-        target_year = end_date.year
-        if next_quarter_start_month > 12:
-            next_quarter_start_month = 1
-            target_year += 1
-        month_in_quarter = max(1, min(3, int(rule.get('month'))))
-        target_month = next_quarter_start_month + month_in_quarter - 1
-        target_date = _safe_date_in_month(target_year, target_month, int(rule.get('day')))
-        return datetime.datetime.combine(target_date, time_value)
-
-    if frequency == 'yearly':
-        if 'month' not in rule or 'day' not in rule:
-            raise ValueError('Báo cáo năm chưa được cấu hình hạn nộp.')
-        target_year = end_date.year + 1
-        target_month = max(1, min(12, int(rule.get('month'))))
-        target_date = _safe_date_in_month(target_year, target_month, int(rule.get('day')))
-        return datetime.datetime.combine(target_date, time_value)
-
-    return None
 
 
 def _slugify_field_code(text):
@@ -839,10 +713,7 @@ def dashboard():
     # Thống kê biểu mẫu
     total_templates = FormTemplate.query.count()
     active_templates = FormTemplate.query.filter_by(is_active=True).count()
-
-    # Thống kê kỳ báo cáo
-    total_periods = ReportingPeriod.query.count()
-    active_periods = ReportingPeriod.query.filter_by(is_locked=False).count()
+    configured_templates = FormTemplate.query.filter(FormTemplate.report_type.isnot(None)).count()
 
     # Thống kê báo cáo đã nộp
     total_reports = ReportInstance.query.count()
@@ -869,8 +740,7 @@ def dashboard():
         'reporting/dashboard.html',
         total_templates=total_templates,
         active_templates=active_templates,
-        total_periods=total_periods,
-        active_periods=active_periods,
+        configured_templates=configured_templates,
         total_reports=total_reports,
         submitted_reports=submitted_reports,
         draft_reports=draft_reports,
@@ -886,20 +756,6 @@ def index():
 
     _, is_admin, is_lead = _get_reporting_permissions()
     templates = FormTemplate.query.filter_by(is_active=True).order_by(FormTemplate.name.asc()).all()
-    open_periods = ReportingPeriod.query.filter(
-        ReportingPeriod.template_id.isnot(None),
-        ReportingPeriod.is_locked.is_(False)
-    ).all()
-
-    period_map = {}
-    for period in open_periods:
-        if not period.template_id:
-            continue
-        current = period_map.get(period.template_id)
-        period_deadline = period.deadline or datetime.datetime.max
-        current_deadline = (current.deadline if current and current.deadline else datetime.datetime.max)
-        if current is None or period_deadline < current_deadline:
-            period_map[period.template_id] = period
 
     template_entries = []
     for template in templates:
@@ -907,12 +763,16 @@ def index():
         if not department_name or department_name.lower() == 'chưa phân đội':
             continue
 
-        current_period = period_map.get(template.id)
-        deadline_dt = current_period.deadline if current_period else None
+        try:
+            current_context = form_engine.get_reporting_context(template) if template.report_type else None
+        except Exception:
+            current_context = None
+
+        deadline_dt = current_context.get('deadline') if current_context else None
         deadline_label = deadline_dt.strftime('%d/%m/%Y %H:%M') if deadline_dt else _format_schedule_summary(template)
-        period_label = current_period.name if current_period else None
+        period_label = current_context.get('name') if current_context else None
         report_type_label = _format_report_type_label(template)
-        schedule_label = f"Hạn nộp {deadline_label}" if deadline_dt else deadline_label
+        schedule_label = _format_schedule_summary(template)
 
         entry = {
             'template': template,
@@ -1059,27 +919,19 @@ def template_workspace(template_id):
 
 @reporting_bp.route('/form/<int:template_id>')
 def select_period(template_id):
-    """Chọn kỳ báo cáo"""
+    """Điểm vào báo cáo: chuyển thẳng sang form của chu kỳ hiện tại."""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
 
     if session.get('is_admin'):
         flash('Tài khoản quản trị không nhập liệu trực tiếp. Vui lòng dùng tài khoản đơn vị để nhập báo cáo.', 'warning')
         return redirect(url_for('reporting_bp.index'))
-    
-    template = FormTemplate.query.get_or_404(template_id)
-    periods = ReportingPeriod.query.filter_by(
-        template_id=template_id,
-        is_locked=False
-    ).order_by(ReportingPeriod.start_date.desc()).all()
-    
-    return render_template('reporting/select_period.html',
-                          template=template,
-                          periods=periods)
+
+    return redirect(url_for('reporting_bp.fill_form_direct', template_id=template_id))
 
 
-@reporting_bp.route('/form/<int:template_id>/period/<int:period_id>')
-def fill_form(template_id, period_id):
+@reporting_bp.route('/form/<int:template_id>/edit')
+def fill_form_direct(template_id):
     """Trang nhập liệu trực tiếp trên phần mềm."""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
@@ -1090,16 +942,21 @@ def fill_form(template_id, period_id):
 
     user_id = session.get('uid')
     user_unit = session.get('unit_area', session.get('unit', ''))
-    
-    instance = form_engine.create_report_instance(
+    template = FormTemplate.query.get_or_404(template_id)
+    report_type = (template.report_type or '').strip().lower()
+    if report_type not in {'adhoc', 'daily', 'periodic'}:
+        flash('Biểu mẫu chưa được cấu hình loại báo cáo.', 'warning')
+        return redirect(url_for('reporting_bp.index'))
+
+    instance = form_engine.create_report_instance_for_context(
         template_id=template_id,
-        period_id=period_id,
         user_id=user_id,
         org_unit=user_unit
     )
     report_data = form_engine.get_report_data(instance.id)
     version = submission_service.get_published_version(template_id)
     config = submission_service.ensure_version_config(instance.template, version)
+    report_context = form_engine.get_reporting_context(template)
 
     return render_template(
         'reporting/fill_form.html',
@@ -1107,8 +964,15 @@ def fill_form(template_id, period_id):
         instance=instance,
         template_id=template_id,
         period=instance.period,
+        report_context=report_context,
         template_config=config
     )
+
+
+@reporting_bp.route('/form/<int:template_id>/period/<int:period_id>')
+def fill_form(template_id, period_id):
+    """Legacy route: redirect sang form trực tiếp."""
+    return redirect(url_for('reporting_bp.fill_form_direct', template_id=template_id))
 
 
 @reporting_bp.route('/form/<int:template_id>/period/<int:period_id>/desktop')
@@ -1277,21 +1141,12 @@ def template_statistics(template_id):
         return redirect(url_for('reporting_bp.index'))
 
     template = FormTemplate.query.get_or_404(template_id)
-    
-    # Lấy kỳ báo cáo gần nhất của biểu mẫu
-    period = ReportingPeriod.query.filter_by(
-        template_id=template_id,
-        is_locked=False
-    ).order_by(ReportingPeriod.start_date.desc()).first()
-    
-    if not period:
-        period = ReportingPeriod.query.filter_by(
-            template_id=template_id
-        ).order_by(ReportingPeriod.start_date.desc()).first()
-        
-    if not period:
-        flash('Chưa có kỳ báo cáo nào được tạo.', 'warning')
+    if not template.report_type:
+        flash('Biểu mẫu chưa được cấu hình loại báo cáo.', 'warning')
         return redirect(url_for('reporting_bp.index'))
+
+    period = form_engine.resolve_internal_period(template_id)
+    context = form_engine.get_reporting_context(template)
 
     # Lấy tất cả đơn vị
     from models import User
@@ -1313,45 +1168,48 @@ def template_statistics(template_id):
     
     stats_list = []
     now = datetime.datetime.now()
-    deadline_dt = period.deadline  # datetime
-    deadline_date = period.end_date # date fallback
+    deadline_dt = context.get('deadline')
+    report_type = (template.report_type or '').strip().lower()
     
     for unit in all_units:
         report = submitted_units_map.get(unit)
         if report:
-            is_late = False
-            if deadline_dt:
-                if report.updated_at > deadline_dt:
-                    is_late = True
-            elif deadline_date and report.updated_at.date() > deadline_date:
-                is_late = True
-            
+            submitted_at = report.submitted_at or report.updated_at
+            if report_type == 'daily':
+                status_group = 'Đã báo cáo'
+                status_detail = 'Đã báo cáo hôm nay'
+            else:
+                is_late = bool(deadline_dt and submitted_at and submitted_at > deadline_dt)
+                status_group = 'Đã nộp'
+                status_detail = 'Đã nộp (Quá hạn)' if is_late else 'Đã nộp (Đúng hạn)'
+
             stats_list.append({
                 'unit': unit,
-                'status_group': 'Đã nộp',
-                'status_detail': 'Đã nộp (Quá hạn)' if is_late else 'Đã nộp (Đúng hạn)',
+                'status_group': status_group,
+                'status_detail': status_detail,
                 'report_id': report.id,
-                'updated_at': report.updated_at
+                'updated_at': submitted_at
             })
         else:
-            is_late_now = False
-            if deadline_dt:
-                if now > deadline_dt:
-                    is_late_now = True
-            elif deadline_date and now.date() > deadline_date:
-                is_late_now = True
-                
+            if report_type == 'daily':
+                status_group = 'Chưa báo cáo'
+                status_detail = 'Chưa báo cáo hôm nay'
+            else:
+                is_late_now = bool(deadline_dt and now > deadline_dt)
+                status_group = 'Chưa nộp'
+                status_detail = 'Chưa nộp (Quá hạn)' if is_late_now else 'Chưa nộp'
+
             stats_list.append({
                 'unit': unit,
-                'status_group': 'Chưa nộp',
-                'status_detail': 'Chưa nộp (Quá hạn)' if is_late_now else 'Chưa nộp',
+                'status_group': status_group,
+                'status_detail': status_detail,
                 'report_id': None,
                 'updated_at': None
             })
             
     # Tính toán tổng quan
     total = len(stats_list)
-    submitted = sum(1 for s in stats_list if s['status_group'] == 'Đã nộp')
+    submitted = sum(1 for s in stats_list if s['status_group'] in {'Đã nộp', 'Đã báo cáo'})
     not_submitted = total - submitted
     on_time = sum(1 for s in stats_list if s['status_detail'] == 'Đã nộp (Đúng hạn)')
     late = sum(1 for s in stats_list if 'Quá hạn' in s['status_detail'])
@@ -1368,6 +1226,7 @@ def template_statistics(template_id):
     return render_template('reporting/template_statistics.html', 
                            template=template, 
                            period=period, 
+                           report_context=context,
                            stats_list=stats_list,
                            summary=summary,
                            schedule_summary=_format_schedule_summary(template))
@@ -1749,7 +1608,7 @@ def field_settings(template_id):
 
 @reporting_bp.route('/template/<int:template_id>/config', methods=['GET', 'POST'])
 def template_config(template_id):
-    """Cấu hình biểu mẫu và quản lý kỳ báo cáo tại một màn hình."""
+    """Cấu hình loại báo cáo, hệ thống tự suy ra chu kỳ hiện tại."""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
     _, is_admin, is_lead = _get_reporting_permissions()
@@ -1760,99 +1619,66 @@ def template_config(template_id):
     template = FormTemplate.query.get_or_404(template_id)
 
     if request.method == 'POST':
-        action = (request.form.get('action') or 'save_config').strip()
         try:
-            if action == 'create_period':
-                if not is_admin:
-                    raise PermissionError('Chỉ quản trị viên mới được tạo kỳ báo cáo.')
-                _create_template_period(template, request.form, session.get('uid'))
-                db.session.commit()
-                flash('Đã tạo kỳ báo cáo mới.', 'success')
-            else:
-                template_name = (request.form.get('name') or '').strip()
-                report_type = (request.form.get('report_type') or '').strip().lower()
-                frequency = None
-                deadline_rule = None
+            template_name = (request.form.get('name') or '').strip()
+            report_type = (request.form.get('report_type') or '').strip().lower()
+            frequency = None
+            deadline_rule = None
 
-                if not template_name:
-                    raise ValueError('Tên báo cáo không được để trống.')
-                if report_type not in {'adhoc', 'daily', 'periodic'}:
-                    raise ValueError('Quản trị phải chọn loại báo cáo trước khi lưu cấu hình.')
+            if not template_name:
+                raise ValueError('Tên báo cáo không được để trống.')
+            if report_type not in {'adhoc', 'daily', 'periodic'}:
+                raise ValueError('Quản trị phải chọn loại báo cáo trước khi lưu cấu hình.')
 
-                if report_type == 'daily':
-                    time_value = (request.form.get('daily_time') or '').strip()
-                    if not _parse_deadline_time(time_value):
-                        raise ValueError('Giờ chốt báo cáo trong ngày không hợp lệ.')
-                    deadline_rule = json.dumps(
-                        {'time': time_value},
-                        ensure_ascii=False,
-                        separators=(',', ':')
-                    )
-                elif report_type == 'periodic':
-                    frequency = (request.form.get('frequency') or '').strip().lower()
-                    time_value = (request.form.get('periodic_time') or '').strip()
+            if report_type == 'adhoc':
+                deadline_value = (request.form.get('adhoc_deadline') or '').strip()
+                if not deadline_value:
+                    raise ValueError('Báo cáo đột xuất phải có mốc thời gian cố định.')
+                try:
+                    datetime.datetime.strptime(deadline_value, '%Y-%m-%dT%H:%M')
+                except Exception:
+                    raise ValueError('Mốc thời gian của báo cáo đột xuất không hợp lệ.')
+                deadline_rule = json.dumps({'deadline': deadline_value}, ensure_ascii=False, separators=(',', ':'))
+            elif report_type == 'periodic':
+                frequency = (request.form.get('frequency') or '').strip().lower()
+                if frequency not in {'monthly', 'quarterly', 'semiannual', 'yearly'}:
+                    raise ValueError('Phải chọn một loại định kỳ: tháng, quý, 6 tháng hoặc năm.')
+                if frequency == 'monthly':
+                    day = request.form.get('monthly_deadline_day', type=int)
+                    if not day or day < 1 or day > 31:
+                        raise ValueError('Báo cáo tháng phải có ngày hạn từ 1 đến 31.')
+                    deadline_rule = json.dumps({'day': day}, ensure_ascii=False, separators=(',', ':'))
+                elif frequency == 'quarterly':
+                    month = request.form.get('quarterly_deadline_month', type=int)
+                    day = request.form.get('quarterly_deadline_day', type=int)
+                    if not month or month < 1 or month > 3:
+                        raise ValueError('Báo cáo quý phải chọn tháng thứ 1, 2 hoặc 3 của quý.')
+                    if not day or day < 1 or day > 31:
+                        raise ValueError('Báo cáo quý phải có ngày hạn từ 1 đến 31.')
+                    deadline_rule = json.dumps({'month': month, 'day': day}, ensure_ascii=False, separators=(',', ':'))
+                elif frequency == 'semiannual':
+                    month = request.form.get('semiannual_deadline_month', type=int)
+                    day = request.form.get('semiannual_deadline_day', type=int)
+                    if not month or month < 1 or month > 6:
+                        raise ValueError('Báo cáo 6 tháng phải chọn tháng thứ 1 đến 6 của chu kỳ.')
+                    if not day or day < 1 or day > 31:
+                        raise ValueError('Báo cáo 6 tháng phải có ngày hạn từ 1 đến 31.')
+                    deadline_rule = json.dumps({'month': month, 'day': day}, ensure_ascii=False, separators=(',', ':'))
+                elif frequency == 'yearly':
+                    month = request.form.get('yearly_deadline_month', type=int)
+                    day = request.form.get('yearly_deadline_day', type=int)
+                    if not month or month < 1 or month > 12:
+                        raise ValueError('Báo cáo năm phải chọn tháng hạn từ 1 đến 12.')
+                    if not day or day < 1 or day > 31:
+                        raise ValueError('Báo cáo năm phải có ngày hạn từ 1 đến 31.')
+                    deadline_rule = json.dumps({'month': month, 'day': day}, ensure_ascii=False, separators=(',', ':'))
 
-                    if frequency not in {'weekly', 'monthly', 'quarterly', 'yearly'}:
-                        raise ValueError('Quản trị phải chọn tần suất cho báo cáo định kỳ.')
-                    if not _parse_deadline_time(time_value):
-                        raise ValueError('Giờ đến hạn không hợp lệ.')
-
-                    if frequency == 'weekly':
-                        weekday_raw = request.form.get('weekly_weekday')
-                        if weekday_raw in (None, ''):
-                            raise ValueError('Báo cáo tuần phải chọn ngày đến hạn.')
-                        deadline_rule = json.dumps(
-                            {'weekday': int(weekday_raw), 'time': time_value},
-                            ensure_ascii=False,
-                            separators=(',', ':')
-                        )
-                    elif frequency == 'monthly':
-                        monthly_day = request.form.get('monthly_day')
-                        if monthly_day in (None, ''):
-                            raise ValueError('Báo cáo tháng phải nhập ngày đến hạn.')
-                        deadline_rule = json.dumps(
-                            {'day': int(monthly_day), 'time': time_value},
-                            ensure_ascii=False,
-                            separators=(',', ':')
-                        )
-                    elif frequency == 'quarterly':
-                        quarterly_month = request.form.get('quarterly_month')
-                        quarterly_day = request.form.get('quarterly_day')
-                        if quarterly_month in (None, '') or quarterly_day in (None, ''):
-                            raise ValueError('Báo cáo quý phải chọn tháng và ngày đến hạn.')
-                        deadline_rule = json.dumps(
-                            {
-                                'month': int(quarterly_month),
-                                'day': int(quarterly_day),
-                                'time': time_value
-                            },
-                            ensure_ascii=False,
-                            separators=(',', ':')
-                        )
-                    elif frequency == 'yearly':
-                        yearly_month = request.form.get('yearly_month')
-                        yearly_day = request.form.get('yearly_day')
-                        if yearly_month in (None, '') or yearly_day in (None, ''):
-                            raise ValueError('Báo cáo năm phải nhập tháng và ngày đến hạn.')
-                        deadline_rule = json.dumps(
-                            {
-                                'month': int(yearly_month),
-                                'day': int(yearly_day),
-                                'time': time_value
-                            },
-                            ensure_ascii=False,
-                            separators=(',', ':')
-                        )
-                    else:
-                        raise ValueError('Tần suất báo cáo không hợp lệ.')
-
-                template.name = template_name
-                template.report_type = report_type
-                template.frequency = frequency
-                template.deadline_rule = deadline_rule
-                db.session.commit()
-                flash('Đã cập nhật cấu hình reporting.', 'success')
-
+            template.name = template_name
+            template.report_type = report_type
+            template.frequency = frequency
+            template.deadline_rule = deadline_rule
+            db.session.commit()
+            flash('Đã cập nhật cấu hình reporting.', 'success')
             return redirect(url_for('reporting_bp.template_config', template_id=template_id))
         except PermissionError as exc:
             db.session.rollback()
@@ -1861,16 +1687,11 @@ def template_config(template_id):
             db.session.rollback()
             flash(f'Lỗi lưu cấu hình: {exc}', 'danger')
 
-    periods = ReportingPeriod.query.filter_by(
-        template_id=template.id
-    ).order_by(ReportingPeriod.start_date.desc()).all()
-
     return render_template(
         'reporting/template_config.html',
         template=template,
         schedule_summary=_format_schedule_summary(template),
         deadline_config=_parse_deadline_rule(template),
-        periods=periods,
         is_reporting_admin=is_admin,
         first_setup=request.args.get('first_setup') == '1'
     )
@@ -2067,7 +1888,7 @@ def api_upload_report_submission():
     period_id = request.form.get('period_id', type=int)
     excel_file = request.files.get('file')
     if not template_id or not period_id or not excel_file:
-        return jsonify({'success': False, 'message': 'Thiếu template, kỳ báo cáo hoặc file upload'}), 400
+        return jsonify({'success': False, 'message': 'Thiếu template, chu kỳ dữ liệu hoặc file upload'}), 400
 
     try:
         submission = submission_service.create_submission(

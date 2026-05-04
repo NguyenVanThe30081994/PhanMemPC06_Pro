@@ -211,7 +211,25 @@
         <div class="config-summary">
           <div class="config-summary-card">
             <span class="config-summary-label">Loại báo cáo</span>
-            <div class="config-summary-value">{{ 'Chưa cấu hình' if not is_configured else ('Định kỳ' if rt == 'periodic' else 'Hàng ngày' if rt == 'daily' else 'Đột xuất') }}</div>
+            <div class="config-summary-value">
+              {% if not is_configured %}
+              Chưa cấu hình
+              {% elif rt == 'daily' %}
+              Hàng ngày
+              {% elif rt == 'adhoc' %}
+              Đột xuất
+              {% elif freq == 'monthly' %}
+              Định kỳ tháng
+              {% elif freq == 'quarterly' %}
+              Định kỳ quý
+              {% elif freq == 'semiannual' %}
+              Định kỳ 6 tháng
+              {% elif freq == 'yearly' %}
+              Định kỳ năm
+              {% else %}
+              Định kỳ
+              {% endif %}
+            </div>
           </div>
           <div class="config-summary-card">
             <span class="config-summary-label">Thiết lập hạn nộp</span>
@@ -239,87 +257,85 @@
             </div>
           </div>
 
-          <div id="dailyConfig" class="config-form-grid single" style="display:none;">
+          <div id="adhocConfig" class="config-form-grid single" style="display:none;">
             <div class="config-field">
-              <label for="dailyTime">Giờ chốt báo cáo</label>
-              <input type="time" name="daily_time" id="dailyTime" class="form-control" value="{{ deadline_config.get('time', '') if rt == 'daily' else '' }}">
+              <label for="adhocDeadline">Mốc thời gian cố định</label>
+              <input type="datetime-local" name="adhoc_deadline" id="adhocDeadline" class="form-control" value="{{ deadline_config.get('deadline', '') if rt == 'adhoc' else '' }}">
             </div>
           </div>
 
           <div id="periodicConfig" style="display:none;">
-            <div class="config-form-grid">
+            <div class="config-form-grid single">
               <div class="config-field">
-                <label for="frequencySelect">Tần suất</label>
-                <select name="frequency" id="frequencySelect" class="form-select" onchange="toggleFrequencyFields()">
-                  <option value="" {% if not freq %}selected{% endif %}>Chọn tần suất</option>
-                  <option value="weekly" {% if freq == 'weekly' %}selected{% endif %}>Hàng tuần</option>
-                  <option value="monthly" {% if freq == 'monthly' %}selected{% endif %}>Hàng tháng</option>
-                  <option value="quarterly" {% if freq == 'quarterly' %}selected{% endif %}>Hàng quý</option>
-                  <option value="yearly" {% if freq == 'yearly' %}selected{% endif %}>Hàng năm</option>
-                </select>
-              </div>
-
-              <div class="config-field">
-                <label for="periodicTime">Giờ đến hạn</label>
-                <input type="time" name="periodic_time" id="periodicTime" class="form-control" value="{{ deadline_config.get('time', '') if rt == 'periodic' else '' }}">
-              </div>
-            </div>
-
-            <div id="weeklyFields" class="config-form-grid single" style="display:none; margin-top: 14px;">
-              <div class="config-field">
-                <label for="weeklyWeekday">Ngày đến hạn</label>
-                {% set weekly_weekday = deadline_config.get('weekday') %}
-                <select name="weekly_weekday" id="weeklyWeekday" class="form-select">
-                  <option value="" {% if weekly_weekday is none %}selected{% endif %}>Chọn ngày</option>
-                  <option value="0" {% if weekly_weekday == 0 %}selected{% endif %}>Thứ hai</option>
-                  <option value="1" {% if weekly_weekday == 1 %}selected{% endif %}>Thứ ba</option>
-                  <option value="2" {% if weekly_weekday == 2 %}selected{% endif %}>Thứ tư</option>
-                  <option value="3" {% if weekly_weekday == 3 %}selected{% endif %}>Thứ năm</option>
-                  <option value="4" {% if weekly_weekday == 4 %}selected{% endif %}>Thứ sáu</option>
-                  <option value="5" {% if weekly_weekday == 5 %}selected{% endif %}>Thứ bảy</option>
-                  <option value="6" {% if weekly_weekday == 6 %}selected{% endif %}>Chủ nhật</option>
+                <label for="frequencySelect">Loại định kỳ</label>
+                <select name="frequency" id="frequencySelect" class="form-select" onchange="togglePeriodicDeadlineFields()">
+                  <option value="" {% if not freq %}selected{% endif %}>Chọn loại định kỳ</option>
+                  <option value="monthly" {% if freq == 'monthly' %}selected{% endif %}>Tháng</option>
+                  <option value="quarterly" {% if freq == 'quarterly' %}selected{% endif %}>Quý</option>
+                  <option value="semiannual" {% if freq == 'semiannual' %}selected{% endif %}>6 tháng</option>
+                  <option value="yearly" {% if freq == 'yearly' %}selected{% endif %}>1 năm</option>
                 </select>
               </div>
             </div>
 
-            <div id="monthlyFields" class="config-form-grid single" style="display:none; margin-top: 14px;">
+            <div id="periodicMonthlyFields" class="config-form-grid" style="display:none;">
               <div class="config-field">
-                <label for="monthlyDay">Ngày đến hạn</label>
-                <input type="number" name="monthly_day" id="monthlyDay" class="form-control" min="1" max="31" value="{{ deadline_config.get('day', '') if freq == 'monthly' else '' }}" placeholder="1 - 31">
+                <label for="monthlyDeadlineDay">Đúng hạn đến hết ngày</label>
+                <input type="number" min="1" max="31" name="monthly_deadline_day" id="monthlyDeadlineDay" class="form-control" value="{{ deadline_config.get('day', '') if freq == 'monthly' else '' }}">
               </div>
             </div>
 
-            <div id="quarterlyFields" class="config-form-grid" style="display:none; margin-top: 14px;">
+            <div id="periodicQuarterlyFields" class="config-form-grid" style="display:none;">
               <div class="config-field">
-                <label for="quarterlyMonth">Tháng trong quý kế tiếp</label>
-                {% set quarterly_month = deadline_config.get('month') %}
-                <select name="quarterly_month" id="quarterlyMonth" class="form-select">
-                  <option value="" {% if quarterly_month is none %}selected{% endif %}>Chọn tháng</option>
-                  <option value="1" {% if quarterly_month == 1 %}selected{% endif %}>Tháng đầu quý</option>
-                  <option value="2" {% if quarterly_month == 2 %}selected{% endif %}>Tháng giữa quý</option>
-                  <option value="3" {% if quarterly_month == 3 %}selected{% endif %}>Tháng cuối quý</option>
+                <label for="quarterlyDeadlineMonth">Tháng thứ của quý</label>
+                <select name="quarterly_deadline_month" id="quarterlyDeadlineMonth" class="form-select">
+                  <option value="">Chọn tháng</option>
+                  {% for value in [1, 2, 3] %}
+                  <option value="{{ value }}" {% if freq == 'quarterly' and deadline_config.get('month') == value %}selected{% endif %}>Tháng thứ {{ value }}</option>
+                  {% endfor %}
                 </select>
               </div>
               <div class="config-field">
-                <label for="quarterlyDay">Ngày đến hạn</label>
-                <input type="number" name="quarterly_day" id="quarterlyDay" class="form-control" min="1" max="31" value="{{ deadline_config.get('day', '') if freq == 'quarterly' else '' }}" placeholder="1 - 31">
+                <label for="quarterlyDeadlineDay">Đúng hạn đến hết ngày</label>
+                <input type="number" min="1" max="31" name="quarterly_deadline_day" id="quarterlyDeadlineDay" class="form-control" value="{{ deadline_config.get('day', '') if freq == 'quarterly' else '' }}">
               </div>
             </div>
 
-            <div id="yearlyFields" class="config-form-grid" style="display:none; margin-top: 14px;">
+            <div id="periodicSemiannualFields" class="config-form-grid" style="display:none;">
               <div class="config-field">
-                <label for="yearlyMonth">Tháng đến hạn</label>
-                <input type="number" name="yearly_month" id="yearlyMonth" class="form-control" min="1" max="12" value="{{ deadline_config.get('month', '') if freq == 'yearly' else '' }}" placeholder="1 - 12">
+                <label for="semiannualDeadlineMonth">Tháng thứ của kỳ 6 tháng</label>
+                <select name="semiannual_deadline_month" id="semiannualDeadlineMonth" class="form-select">
+                  <option value="">Chọn tháng</option>
+                  {% for value in [1, 2, 3, 4, 5, 6] %}
+                  <option value="{{ value }}" {% if freq == 'semiannual' and deadline_config.get('month') == value %}selected{% endif %}>Tháng thứ {{ value }}</option>
+                  {% endfor %}
+                </select>
               </div>
               <div class="config-field">
-                <label for="yearlyDay">Ngày đến hạn</label>
-                <input type="number" name="yearly_day" id="yearlyDay" class="form-control" min="1" max="31" value="{{ deadline_config.get('day', '') if freq == 'yearly' else '' }}" placeholder="1 - 31">
+                <label for="semiannualDeadlineDay">Đúng hạn đến hết ngày</label>
+                <input type="number" min="1" max="31" name="semiannual_deadline_day" id="semiannualDeadlineDay" class="form-control" value="{{ deadline_config.get('day', '') if freq == 'semiannual' else '' }}">
+              </div>
+            </div>
+
+            <div id="periodicYearlyFields" class="config-form-grid" style="display:none;">
+              <div class="config-field">
+                <label for="yearlyDeadlineMonth">Tháng hạn</label>
+                <select name="yearly_deadline_month" id="yearlyDeadlineMonth" class="form-select">
+                  <option value="">Chọn tháng</option>
+                  {% for value in range(1, 13) %}
+                  <option value="{{ value }}" {% if freq == 'yearly' and deadline_config.get('month') == value %}selected{% endif %}>Tháng {{ value }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="config-field">
+                <label for="yearlyDeadlineDay">Đúng hạn đến hết ngày</label>
+                <input type="number" min="1" max="31" name="yearly_deadline_day" id="yearlyDeadlineDay" class="form-control" value="{{ deadline_config.get('day', '') if freq == 'yearly' else '' }}">
               </div>
             </div>
           </div>
 
           <div class="config-note">
-            Chỉ khi quản trị lưu cấu hình xong thì biểu mẫu mới có thể tạo kỳ báo cáo. Hệ thống không tự chọn loại báo cáo, tần suất hay giờ hạn nộp.
+            Hệ thống không còn cơ chế mở kỳ báo cáo thủ công. Đơn vị vào thẳng biểu mẫu, hệ thống tự xác định hôm nay, tháng này, quý này, 6 tháng này hoặc năm nay để ghi nhận và đánh giá đúng hạn, quá hạn, chưa báo cáo.
           </div>
 
           <div class="reporting-sticky-actions">
@@ -332,136 +348,32 @@
       </div>
     </section>
 
-    <section class="reporting-table-shell">
-      <div class="reporting-panel-header">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <div>
-            <h5 class="mb-1">Kỳ báo cáo</h5>
-            <p class="reporting-muted mb-0">{{ periods|length }} kỳ thuộc biểu mẫu này.</p>
-          </div>
-          {% if is_reporting_admin %}
-          <button
-            class="btn btn-primary rounded-pill px-4"
-            data-bs-toggle="modal"
-            data-bs-target="#createPeriodModal"
-            {% if not is_configured %}disabled title="Cần lưu cấu hình trước khi tạo kỳ"{% endif %}>
-            <i class="fa-solid fa-plus me-2"></i>Tạo kỳ mới
-          </button>
-          {% endif %}
-        </div>
-      </div>
-      <div class="reporting-panel-body">
-        {% if periods %}
-        <div class="config-period-list">
-          {% for period in periods %}
-          <article class="config-period-row">
-            <div class="config-period-code">{{ period.code }}</div>
-            <div class="config-period-copy">
-              <div class="config-period-name">{{ period.name }}</div>
-              <div class="config-period-meta">{{ period.start_date.strftime('%d/%m/%Y') }} - {{ period.end_date.strftime('%d/%m/%Y') }}</div>
-            </div>
-            <div class="config-period-meta">{{ period.deadline.strftime('%d/%m/%Y %H:%M') if period.deadline else 'Không giới hạn' }}</div>
-            <span class="reporting-chip">
-              <i class="fa-solid {{ 'fa-lock' if period.is_locked else 'fa-lock-open' }}"></i>
-              {{ 'Đã khóa' if period.is_locked else 'Đang mở' }}
-            </span>
-          </article>
-          {% endfor %}
-        </div>
-        {% else %}
-        <div class="config-empty">
-          Chưa có kỳ báo cáo nào cho biểu mẫu này.
-        </div>
-        {% endif %}
-      </div>
-    </section>
   </div>
 </div>
-
-{% if is_reporting_admin %}
-<div class="modal fade" id="createPeriodModal" tabindex="-1">
-  <div class="modal-dialog">
-    <form class="modal-content border-0 rounded-4" method="POST">
-      <input type="hidden" name="action" value="create_period">
-      <div class="modal-header border-0 pb-0">
-        <div>
-          <h5 class="modal-title">Tạo kỳ báo cáo</h5>
-          <div class="text-muted small">{{ template.name }}</div>
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body pt-3">
-        <div class="config-form-grid">
-          <div class="config-field">
-            <label for="periodCode">Mã kỳ báo cáo</label>
-            <input type="text" id="periodCode" name="code" class="form-control" placeholder="VD: BC_2026_04" required>
-          </div>
-          <div class="config-field">
-            <label for="periodName">Tên kỳ báo cáo</label>
-            <input type="text" id="periodName" name="name" class="form-control" placeholder="VD: Tháng 04/2026" required>
-          </div>
-          <div class="config-field">
-            <label for="startDate">Từ ngày</label>
-            <input type="date" id="startDate" name="start_date" class="form-control" required>
-          </div>
-          <div class="config-field">
-            <label for="endDate">Đến ngày</label>
-            <input type="date" id="endDate" name="end_date" class="form-control" required>
-          </div>
-        </div>
-
-        {% if rt == 'adhoc' %}
-        <div class="config-form-grid single mt-3">
-          <div class="config-field">
-            <label for="deadline">Hạn nộp</label>
-            <input type="datetime-local" id="deadline" name="deadline" class="form-control" required>
-          </div>
-        </div>
-        {% else %}
-        <div class="config-note mt-3">
-          Hạn nộp sẽ lấy theo cấu hình hiện tại: <strong>{{ schedule_summary }}</strong>.
-        </div>
-        {% endif %}
-      </div>
-      <div class="modal-footer border-0">
-        <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Hủy</button>
-        <button type="submit" class="btn btn-primary rounded-pill px-4" {% if not is_configured %}disabled{% endif %}>
-          <i class="fa-solid fa-plus me-2"></i>Tạo kỳ
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
-{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
 function toggleConfigFields() {
   const type = document.getElementById('reportTypeSelect').value;
-  document.getElementById('dailyConfig').style.display = type === 'daily' ? '' : 'none';
+  document.getElementById('adhocConfig').style.display = type === 'adhoc' ? '' : 'none';
   document.getElementById('periodicConfig').style.display = type === 'periodic' ? '' : 'none';
-  toggleFrequencyFields();
+  togglePeriodicDeadlineFields();
 }
 
-function toggleFrequencyFields() {
-  const type = document.getElementById('reportTypeSelect').value;
-  const frequencySelect = document.getElementById('frequencySelect');
-  const frequency = frequencySelect ? frequencySelect.value : '';
-  const groups = ['weeklyFields', 'monthlyFields', 'quarterlyFields', 'yearlyFields'];
-  groups.forEach(id => {
-    const node = document.getElementById(id);
-    if (node) node.style.display = 'none';
+function togglePeriodicDeadlineFields() {
+  const frequency = document.getElementById('frequencySelect').value;
+  const sections = {
+    monthly: document.getElementById('periodicMonthlyFields'),
+    quarterly: document.getElementById('periodicQuarterlyFields'),
+    semiannual: document.getElementById('periodicSemiannualFields'),
+    yearly: document.getElementById('periodicYearlyFields')
+  };
+  Object.entries(sections).forEach(([key, element]) => {
+    if (element) {
+      element.style.display = frequency === key ? '' : 'none';
+    }
   });
-
-  if (type !== 'periodic') {
-    return;
-  }
-
-  if (frequency === 'weekly') document.getElementById('weeklyFields').style.display = '';
-  if (frequency === 'monthly') document.getElementById('monthlyFields').style.display = '';
-  if (frequency === 'quarterly') document.getElementById('quarterlyFields').style.display = '';
-  if (frequency === 'yearly') document.getElementById('yearlyFields').style.display = '';
 }
 
 document.addEventListener('DOMContentLoaded', function() {

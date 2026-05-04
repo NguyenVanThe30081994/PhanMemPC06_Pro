@@ -122,8 +122,8 @@
             <div class="report-direct-value">{{ instance.org_unit }}</div>
           </div>
           <div class="report-direct-card">
-            <span class="report-direct-label">Kỳ báo cáo</span>
-            <div class="report-direct-value">{{ period.name }}</div>
+            <span class="report-direct-label">Chu kỳ ghi nhận</span>
+            <div class="report-direct-value">{{ report_context.name if report_context else period.name }}</div>
           </div>
           <div class="report-direct-card">
             <span class="report-direct-label">Phiên bản mẫu</span>
@@ -132,7 +132,7 @@
         </div>
 
         <div class="report-direct-footnote">
-          Biểu mẫu được quét từ Excel và dựng thành các trường nhập trên phần mềm. Công thức gốc của biểu mẫu vẫn được giữ để hiển thị đúng trên màn xem báo cáo và file xuất.
+          Biểu mẫu được quét từ Excel và dựng thành các trường nhập trên phần mềm. Hệ thống tự ghi nhận chu kỳ hiện tại theo cấu hình báo cáo; công thức gốc của biểu mẫu vẫn được giữ để hiển thị đúng trên màn xem và file xuất.
         </div>
 
         <form id="reportForm" class="report-direct-sections">
