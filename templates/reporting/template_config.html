@@ -27,6 +27,12 @@
       </div>
     </div>
 
+    {% if first_setup %}
+    <div class="alert alert-info border-0 shadow-sm rounded-4">
+      Biểu mẫu đã được tải lên và quét cấu trúc. Hãy chọn loại báo cáo, kiểm tra lịch hạn nộp, rồi rà lại phần thiết lập trường nếu cần điều chỉnh.
+    </div>
+    {% endif %}
+
     <div class="reporting-panel mb-4">
       <div class="reporting-panel-body">
         <form method="POST" id="templateConfigForm">

@@ -672,7 +672,11 @@ def template_upload():
             'title': template_name,
             'header_rows': 1,
             'data_start_row': 2,
-            'sections': []
+            'sections': [],
+            'scan_summary': {
+                'field_count': 0,
+                'status': 'pending'
+            }
         }
         
         version = FormVersion(
@@ -690,6 +694,8 @@ def template_upload():
         try:
             from pc06_excel_scanner import scan_excel_structure
             from openpyxl.utils import column_index_from_string
+            workbook = load_workbook(BytesIO(excel_blob), data_only=False)
+            worksheet = workbook.active
 
             detected = scan_excel_structure(excel_blob)
             
@@ -697,6 +703,13 @@ def template_upload():
             header_rows_list = detected.get('header_rows', [1])
             metadata['header_rows'] = max(header_rows_list) if header_rows_list else 1
             metadata['data_start_row'] = detected.get('data_start_row', 2)
+            metadata['scan_summary'] = {
+                'sheet_name': detected.get('sheet_name'),
+                'header_rows': header_rows_list,
+                'data_start_row': detected.get('data_start_row', 2),
+                'used_range': detected.get('used_range'),
+                'status': 'parsed'
+            }
             version.metadata_json = json.dumps(metadata, ensure_ascii=False)
             
             # Helper function để lấy nội dung text cho 1 ô (xử lý gộp ô)
@@ -722,6 +735,49 @@ def template_upload():
             all_columns = detected.get('visible_columns', detected.get('columns', []))
             hidden_columns = set(detected.get('hidden_columns', []))
             total_cols = detected.get('total_cols', len(all_columns))
+
+            data_start_row = detected.get('data_start_row', 2)
+
+            detail_rows = []
+            for row_idx in range(data_start_row, min(data_start_row + 40, worksheet.max_row + 1)):
+                first_value = worksheet.cell(row=row_idx, column=1).value
+                unit_value = worksheet.cell(row=row_idx, column=2).value
+                unit_text = str(unit_value).strip().lower() if unit_value is not None else ''
+
+                if not unit_text:
+                    continue
+                if 'tên đơn vị' in unit_text or 'đơn vị' == unit_text:
+                    continue
+                if 'toàn tỉnh' in unit_text or 'tong' in unit_text and 'tinh' in unit_text:
+                    continue
+                if isinstance(first_value, (int, float)) and len(unit_text) >= 2:
+                    detail_rows.append(row_idx)
+
+            if not detail_rows:
+                detail_rows = list(range(data_start_row, min(data_start_row + 24, worksheet.max_row + 1)))
+
+            def detect_column_formula_mode(col_letter):
+                col_idx = column_index_from_string(col_letter)
+                literal_found = False
+                formula_found = False
+
+                for row_idx in detail_rows[:24]:
+                    cell = worksheet.cell(row=row_idx, column=col_idx)
+                    cell_value = cell.value
+                    if cell_value is None or str(cell_value).strip() == '':
+                        continue
+                    if isinstance(cell_value, str) and cell_value.startswith('='):
+                        formula_found = True
+                    else:
+                        literal_found = True
+                    if literal_found and formula_found:
+                        break
+
+                if formula_found and not literal_found:
+                    return 'formula_only'
+                if formula_found:
+                    return 'mixed'
+                return 'literal_only'
             
             def is_title_row(row_number):
                 row_parts = []
@@ -792,9 +848,7 @@ def template_upload():
                 if not parts:
                     continue
 
-                is_formula = col_letter in detected.get('formulas', {})
-                if is_formula:
-                    continue
+                formula_mode = detect_column_formula_mode(col_letter)
                 
                 # Logic linh hoạt:
                 # - Nếu chỉ có 1 header: section = "Thông tin chung", field = header đó
@@ -821,6 +875,7 @@ def template_upload():
                 is_numeric = col_letter in detected.get('numeric_columns', [])
                 data_type = 'number' if is_numeric else 'string'
 
+                is_calculated = formula_mode == 'formula_only'
                 field = FormField(
                     version_id=version.id,
                     field_code=field_code,
@@ -828,6 +883,8 @@ def template_upload():
                     field_type='number' if is_numeric else 'text',
                     data_type=data_type,
                     is_required=False,
+                    is_readonly=is_calculated,
+                    is_calculated=is_calculated,
                     display_order=order,
                     section=section,
                     excel_cell_ref=col_letter
@@ -838,17 +895,24 @@ def template_upload():
 
             if fields:
                 db.session.add_all(fields)
+            metadata['scan_summary']['field_count'] = len(fields)
+            if not fields:
+                metadata['scan_summary']['status'] = 'empty'
+                metadata['scan_summary']['message'] = 'Không sinh được trường nào từ cấu trúc biểu mẫu.'
+            version.metadata_json = json.dumps(metadata, ensure_ascii=False)
             
         except Exception as parse_e:
             import traceback
             traceback.print_exc()
             print(f"Lỗi parse excel fields: {parse_e}")
-            pass
+            metadata['scan_summary']['status'] = 'error'
+            metadata['scan_summary']['message'] = str(parse_e)
+            version.metadata_json = json.dumps(metadata, ensure_ascii=False)
 
         db.session.commit()
 
         flash(f'Tạo thành công biểu mẫu: {template_name}', 'success')
-        return redirect(url_for('reporting_bp.index'))
+        return redirect(url_for('reporting_bp.template_config', template_id=template.id, first_setup=1))
 
     except Exception as e:
         db.session.rollback()
@@ -1356,6 +1420,8 @@ def field_settings(template_id):
     # Simple flat grouping like MVP
     grouped_fields = {}
     hidden_field_codes = set()
+    metadata = json.loads(version.metadata_json) if version.metadata_json else {}
+    scan_summary = metadata.get('scan_summary', {})
     
     for field in fields:
         section_name = field.section or 'Thông tin chung'
@@ -1371,7 +1437,9 @@ def field_settings(template_id):
         version=version,
         grouped_fields=grouped_fields,
         hidden_field_codes=hidden_field_codes,
-        schedule_summary=_format_schedule_summary(template)
+        schedule_summary=_format_schedule_summary(template),
+        total_fields=len(fields),
+        scan_summary=scan_summary
     )
 
 
@@ -1475,7 +1543,8 @@ def template_config(template_id):
         schedule_summary=_format_schedule_summary(template),
         deadline_config=_parse_deadline_rule(template),
         periods=periods,
-        is_reporting_admin=is_admin
+        is_reporting_admin=is_admin,
+        first_setup=request.args.get('first_setup') == '1'
     )
 
 

@@ -26,6 +26,35 @@
       </div>
     </div>
 
+    {% if total_fields == 0 %}
+    <div class="reporting-panel mb-4">
+      <div class="reporting-panel-body">
+        <div class="alert alert-warning border-0 shadow-sm rounded-4 mb-0">
+          <div class="fw-bold mb-2">Biểu mẫu chưa sinh được trường để thiết lập</div>
+          <div class="small">
+            {% if scan_summary.get('message') %}
+            {{ scan_summary.get('message') }}
+            {% else %}
+            Hệ thống đã quét được file Excel nhưng chưa tạo ra trường dữ liệu. Cần kiểm tra lại cấu trúc header hoặc quét lại biểu mẫu.
+            {% endif %}
+          </div>
+          <div class="small mt-2 text-muted">
+            {% if scan_summary.get('sheet_name') %}Sheet: {{ scan_summary.get('sheet_name') }}.{% endif %}
+            {% if scan_summary.get('used_range') %} Vùng dữ liệu: {{ scan_summary.get('used_range') }}.{% endif %}
+            {% if scan_summary.get('data_start_row') %} Dòng bắt đầu dữ liệu: {{ scan_summary.get('data_start_row') }}.{% endif %}
+          </div>
+          <div class="d-flex gap-2 flex-wrap mt-3">
+            <a href="{{ url_for('reporting_bp.preview_template', template_id=template.id) }}" class="btn btn-outline-primary rounded-pill px-4">
+              <i class="fa-regular fa-eye me-2"></i>Xem biểu mẫu
+            </a>
+            <a href="{{ url_for('reporting_bp.template_config', template_id=template.id) }}" class="btn btn-primary rounded-pill px-4">
+              <i class="fa-solid fa-sliders me-2"></i>Về cấu hình
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
     <form method="POST">
       {% for section_name, fields in grouped_fields.items() %}
       <section class="reporting-section mb-4">
@@ -94,6 +123,7 @@
         </button>
       </div>
     </form>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
