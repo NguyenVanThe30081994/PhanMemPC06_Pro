@@ -18,7 +18,7 @@ except ImportError:
     HAS_PANDAS = False
     pd = None
 from datetime import datetime, timedelta
-from utils import log_action, clear_logs, init_db, render_auto_template as render_template
+from utils import build_account_username, clear_logs, extract_unit_key, init_db, log_action, render_auto_template as render_template
 from category_helpers import slugify_code
 from category_helpers import get_module_field_items, get_category_items
 
@@ -287,14 +287,20 @@ def roles():
                 unit = request.form.get('unit', 'Chưa xác định')
                 role_id = request.form.get('role_id')
                 password = request.form.get('password', '')
+                unit_key = extract_unit_key(unit or fullname or username)
                 
-                if not username or not role_id:
+                if not role_id:
                     flash('Thiếu thông tin bắt buộc!', 'danger')
                 else:
-                    u = User(username=username, fullname=fullname, unit_area=unit, role_id=role_id)
-                    u.set_password(password)
-                    db.session.add(u)
-                    log_action(session['uid'], session['fullname'], "Thêm tài khoản", "Tài khoản", u.username)
+                    if not username:
+                        username = build_account_username(unit, unit_key)
+                    if not username:
+                        flash('Không thể sinh tên đăng nhập từ đơn vị đã chọn!', 'danger')
+                    else:
+                        u = User(username=username, fullname=fullname, unit_area=unit, unit_key=unit_key, role_id=role_id)
+                        u.set_password(password)
+                        db.session.add(u)
+                        log_action(session['uid'], session['fullname'], "Thêm tài khoản", "Tài khoản", u.username)
             elif action == 'edit_user':
                 uid = request.form.get('user_id')
                 u = db.session.get(User, uid)
@@ -302,6 +308,7 @@ def roles():
                     u.username = request.form.get('username')
                     u.fullname = request.form.get('fullname')
                     u.unit_area = request.form.get('unit')
+                    u.unit_key = extract_unit_key(u.unit_area or u.fullname or u.username)
                     u.role_id = request.form.get('role_id')
                     pwd = request.form.get('password')
                     if pwd and pwd.strip() and pwd != '******':
@@ -316,6 +323,7 @@ def roles():
 
     selected_role_id = request.args.get('role_id', type=int)
     selected_unit = (request.args.get('unit') or '').strip()
+    selected_unit_key = extract_unit_key(selected_unit)
     search_query = (request.args.get('q') or '').strip()
     selected_role = db.session.get(AppRole, selected_role_id) if selected_role_id else None
 
@@ -337,7 +345,16 @@ def roles():
     )
 
     if selected_unit:
-        users_query = users_query.filter(User.unit_area == selected_unit)
+        from sqlalchemy import or_
+        if selected_unit_key:
+            users_query = users_query.filter(
+                or_(
+                    User.unit_area == selected_unit,
+                    User.unit_key == selected_unit_key
+                )
+            )
+        else:
+            users_query = users_query.filter(User.unit_area == selected_unit)
 
     if search_query:
         from sqlalchemy import or_
@@ -347,7 +364,8 @@ def roles():
             or_(
                 User.fullname.ilike(term),
                 User.username.ilike(term),
-                User.unit_area.ilike(term)
+                User.unit_area.ilike(term),
+                User.unit_key.ilike(term)
             )
         )
 
@@ -463,7 +481,6 @@ def import_users():
     
     if f and f.filename.endswith(('.xlsx', '.xls')):
         try:
-            from utils import slugify_unit
             df = pd.read_excel(io.BytesIO(f.read())).fillna('')
             # Find the best column name for "Tên đơn vị"
             col_name = next((c for c in df.columns if 'đơn vị' in str(c).lower()), df.columns[0])
@@ -473,7 +490,8 @@ def import_users():
                 if not unit_name: continue
                 
                 # Auto-generate username
-                base_uname = slugify_unit(unit_name)
+                unit_key = extract_unit_key(unit_name)
+                base_uname = build_account_username(unit_name, unit_key)
                 uname = base_uname
                 
                 # Handle duplicates
@@ -486,6 +504,7 @@ def import_users():
                     username=uname,
                     fullname=unit_name,
                     unit_area=unit_name,
+                    unit_key=unit_key,
                     role_id=role_id
                 )
                 u.set_password('123456')

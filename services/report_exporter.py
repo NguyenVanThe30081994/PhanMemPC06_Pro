@@ -18,6 +18,17 @@ class ReportExporter:
     """Xuất báo cáo ra Excel"""
 
     @staticmethod
+    def _effective_reporting_unit(instance):
+        from models import User
+
+        user = db.session.get(User, instance.user_id) if instance else None
+        user_fullname = (getattr(user, 'fullname', '') or '').strip()
+        stored_unit = (getattr(instance, 'org_unit', '') or '').strip()
+        if user_fullname and user_fullname != stored_unit:
+            return user_fullname
+        return stored_unit or user_fullname
+
+    @staticmethod
     def _resolve_target_cell(ws, cell_ref):
         """Nếu ô nằm trong merged range (không phải top-left) thì chuyển về top-left để tránh lỗi ghi."""
         from openpyxl.utils.cell import coordinate_to_tuple
@@ -71,7 +82,7 @@ class ReportExporter:
             pass
 
         ws = wb.active
-        target_row = self._find_target_row(ws, instance.org_unit)
+        target_row = self._find_target_row(ws, self._effective_reporting_unit(instance))
 
         for field in fields:
             raw_value = values_map.get(field.field_code)
@@ -139,7 +150,7 @@ class ReportExporter:
         wb = load_workbook(BytesIO(file_bytes), data_only=True)
         ws = wb.active
         fields = FormField.query.filter_by(version_id=instance.version_id).all()
-        target_row = self._find_target_row(ws, instance.org_unit)
+        target_row = self._find_target_row(ws, self._effective_reporting_unit(instance))
 
         values_written = {}
         for field in fields:

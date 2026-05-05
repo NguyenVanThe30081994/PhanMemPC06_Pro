@@ -9,6 +9,7 @@ import operator as op
 from datetime import datetime, timedelta
 from excel_renderer import format_excel_number
 from models_reporting import db, FormTemplate, FormVersion, FormField, ReportInstance, ReportFieldValue, ReportAuditLog, ReportingPeriod
+from utils import is_unit_match
 from flask import session
 
 
@@ -81,7 +82,9 @@ class FormEngine:
 
     @staticmethod
     def _current_unit():
-        return session.get('unit_area', session.get('unit', ''))
+        fullname = (session.get('fullname') or '').strip()
+        unit = (session.get('unit_area') or session.get('unit') or '').strip()
+        return fullname or unit
 
     @staticmethod
     def _is_numeric_field(field):
@@ -268,7 +271,7 @@ class FormEngine:
             return instance
 
         current_unit = user_unit if user_unit is not None else self._current_unit()
-        if (instance.org_unit or '') != current_unit:
+        if session.get('uid') != instance.user_id and not is_unit_match(instance.org_unit, current_unit):
             raise PermissionError('Bạn không có quyền truy cập báo cáo của đơn vị khác.')
 
         if write and getattr(instance.period, 'is_locked', False):
@@ -354,6 +357,17 @@ class FormEngine:
         
         if existing:
             return existing
+
+        legacy_existing = ReportInstance.query.filter_by(
+            template_id=template_id,
+            period_id=period_id,
+            user_id=user_id
+        ).order_by(ReportInstance.updated_at.desc()).first()
+        if legacy_existing:
+            if (legacy_existing.org_unit or '') != (org_unit or ''):
+                legacy_existing.org_unit = org_unit
+                db.session.flush()
+            return legacy_existing
         
         # Tạo mới
         instance = ReportInstance(

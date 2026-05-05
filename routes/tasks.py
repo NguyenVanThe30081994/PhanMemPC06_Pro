@@ -12,7 +12,9 @@ from category_helpers import get_category_items, get_module_field_items
 from models import AppRole, RankingUnit, Task, TaskAssignment, TaskComment, User, db
 from utils import (
     apply_migrations,
+    extract_unit_key,
     log_action,
+    is_unit_match,
     normalize_unit_name,
     push_global_notif,
     push_notif,
@@ -103,6 +105,29 @@ def _dedupe_users(users):
     return unique_users
 
 
+def _user_unit_key(user):
+    if not user:
+        return ""
+    return (getattr(user, "unit_key", "") or extract_unit_key(getattr(user, "fullname", "") or getattr(user, "unit_area", "") or getattr(user, "username", ""))).strip()
+
+
+def _users_for_unit(unit_name):
+    unit_key = extract_unit_key(unit_name)
+    query = User.query.filter(User.is_active.is_(True))
+    if unit_key:
+        users = query.filter(User.unit_key == unit_key).order_by(User.fullname.asc()).all()
+        if users:
+            return users
+
+    if unit_name:
+        users = query.filter(User.unit_area == unit_name).order_by(User.fullname.asc()).all()
+        if users:
+            return users
+
+    users = query.order_by(User.fullname.asc()).all()
+    return [user for user in users if is_unit_match(user.unit_area or user.fullname or user.username, unit_name)]
+
+
 def _is_commune_role(role_name):
     normalized = re.sub(r"\s+", " ", remove_accents(role_name or "")).strip().lower()
     return any(
@@ -121,7 +146,7 @@ def _resolve_role_assignees(role_id):
 
     if role and _is_commune_role(role.name):
         ranking_unit_keys = {
-            normalize_unit_name(unit_name)
+            extract_unit_key(unit_name)
             for unit_name, in db.session.query(RankingUnit.name).all()
             if unit_name and str(unit_name).strip()
         }
@@ -133,7 +158,7 @@ def _resolve_role_assignees(role_id):
                 .all()
             )
             for user in commune_users:
-                if normalize_unit_name(user.unit_area) in ranking_unit_keys:
+                if _user_unit_key(user) in ranking_unit_keys:
                     users.append(user)
 
     return _dedupe_users(users)
@@ -156,10 +181,7 @@ def _infer_assignment_context(task):
         return context
 
     if task.domain:
-        domain_user_ids = {
-            user.id
-            for user in User.query.filter_by(unit_area=task.domain, is_active=True).all()
-        }
+        domain_user_ids = {user.id for user in _users_for_unit(task.domain)}
         if domain_user_ids and domain_user_ids == set(assigned_user_ids):
             return context
 
@@ -204,11 +226,7 @@ def _resolve_assignees(form, domain):
     if not domain:
         return [], "Cần chọn đơn vị nghiệp vụ trước khi giao theo đơn vị."
 
-    users = (
-        User.query.filter_by(unit_area=domain, is_active=True)
-        .order_by(User.fullname.asc())
-        .all()
-    )
+    users = _users_for_unit(domain)
     if not users:
         return [], f"Không tìm thấy cán bộ hoạt động nào thuộc đơn vị {domain}."
     return _dedupe_users(users), None

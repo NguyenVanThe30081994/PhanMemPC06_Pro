@@ -20,7 +20,7 @@ from services.excel_formula_engine import ExcelFormulaEngine
 from services.excel_recalc_service import ExcelRecalcService
 from services.report_exporter import ReportExporter
 from services.report_submission_service import ReportSubmissionService
-from utils import log_action, render_auto_template as render_template
+from utils import extract_unit_key, is_unit_match, log_action, render_auto_template as render_template
 from models import User
 
 reporting_bp = Blueprint('reporting_bp', __name__, url_prefix='/reporting')
@@ -51,7 +51,35 @@ def _get_reporting_permissions():
 
 
 def _current_reporting_unit():
-    return session.get('unit_area', session.get('unit', ''))
+    fullname = (session.get('fullname') or '').strip()
+    unit = (session.get('unit_area') or session.get('unit') or '').strip()
+    return fullname or unit
+
+
+def _current_reporting_unit_key():
+    unit_key = (session.get('unit_key') or '').strip()
+    if unit_key:
+        return unit_key
+    return extract_unit_key(_current_reporting_unit())
+
+
+def _unit_matches_current(unit_value):
+    if not unit_value:
+        return False
+    current_unit = _current_reporting_unit()
+    current_key = _current_reporting_unit_key()
+    candidate_key = extract_unit_key(unit_value)
+    if current_key and candidate_key and current_key == candidate_key:
+        return True
+    return is_unit_match(unit_value, current_unit)
+
+
+def _instance_reporting_unit(instance):
+    if not instance:
+        return _current_reporting_unit()
+    if session.get('uid') == instance.user_id:
+        return _current_reporting_unit()
+    return (instance.org_unit or '').strip() or _current_reporting_unit()
 
 
 def _report_access_denied(message='Bạn không có quyền truy cập báo cáo này.', status_code=403):
@@ -67,7 +95,7 @@ def _load_authorized_report_instance(instance_id, write=False):
         return None, _report_access_denied('Report instance không tồn tại', 404)
 
     _, is_admin, _ = _get_reporting_permissions()
-    if not is_admin and (instance.org_unit or '') != _current_reporting_unit():
+    if not is_admin and session.get('uid') != instance.user_id and not _unit_matches_current(instance.org_unit):
         return None, _report_access_denied()
 
     if write and getattr(instance.period, 'is_locked', False):
@@ -85,8 +113,7 @@ def _load_authorized_submission(submission_id, write=False):
         return None, _report_access_denied('Bản nộp báo cáo không tồn tại', 404)
 
     _, is_admin, is_lead = _get_reporting_permissions()
-    current_unit = _current_reporting_unit()
-    if not (is_admin or is_lead) and (submission.reporting_unit or '') != current_unit:
+    if not (is_admin or is_lead) and session.get('uid') != submission.submitted_by and not _unit_matches_current(submission.reporting_unit):
         return None, _report_access_denied('Bạn không có quyền truy cập báo cáo của đơn vị khác.')
 
     if write and submission.status in {submission_service.STATUS_APPROVED, submission_service.STATUS_LOCKED, submission_service.STATUS_CANCELLED}:
@@ -130,7 +157,7 @@ def _build_excel_like_rows(instance):
     ws = wb_formula.active
     ws_values = wb_values[ws.title] if ws.title in wb_values.sheetnames else wb_values.active
     evaluator = None if ExcelRecalcService.is_available() else ExcelFormulaEngine(wb_formula)
-    target_row = exporter._find_target_row(ws, instance.org_unit)
+    target_row = exporter._find_target_row(ws, _instance_reporting_unit(instance))
 
     fields = FormField.query.filter_by(version_id=instance.version_id).order_by(FormField.display_order).all()
     report_values = {fv.field_code: fv.value for fv in instance.field_values}
@@ -950,7 +977,7 @@ def fill_form_direct(template_id):
         return redirect(url_for('reporting_bp.index'))
 
     user_id = session.get('uid')
-    user_unit = session.get('unit_area', session.get('unit', ''))
+    user_unit = _current_reporting_unit()
     template = FormTemplate.query.get_or_404(template_id)
     report_type = (template.report_type or '').strip().lower()
     if report_type not in {'adhoc', 'daily', 'periodic'}:
@@ -1162,10 +1189,10 @@ def template_statistics(template_id):
 
     # Lấy tất cả đơn vị
     from models import User
-    user_unit = session.get('unit_area', session.get('unit', ''))
-    all_units_query = db.session.query(User.unit_area).distinct()
-    if not is_admin:
-        all_units_query = all_units_query.filter(User.unit_area == user_unit)
+    user_unit_key = _current_reporting_unit_key()
+    all_units_query = db.session.query(User.unit_area, User.unit_key).distinct()
+    if not is_admin and user_unit_key:
+        all_units_query = all_units_query.filter(User.unit_key == user_unit_key)
     
     all_units = [u[0] for u in all_units_query.all() if u[0] and u[0] != 'Hệ thống']
 
@@ -1176,7 +1203,11 @@ def template_statistics(template_id):
         status='submitted'
     ).all()
     
-    submitted_units_map = {r.org_unit: r for r in submitted_reports}
+    submitted_units_map = {}
+    for report in submitted_reports:
+        report_key = extract_unit_key(report.org_unit)
+        if report_key and report_key not in submitted_units_map:
+            submitted_units_map[report_key] = report
     
     stats_list = []
     now = datetime.datetime.now()
@@ -1184,7 +1215,10 @@ def template_statistics(template_id):
     report_type = (template.report_type or '').strip().lower()
     
     for unit in all_units:
-        report = submitted_units_map.get(unit)
+        unit_key = extract_unit_key(unit)
+        report = submitted_units_map.get(unit_key)
+        if not report:
+            report = next((r for r in submitted_reports if is_unit_match(r.org_unit, unit)), None)
         if report:
             submitted_at = report.submitted_at or report.updated_at
             if report_type == 'daily':
@@ -1250,11 +1284,9 @@ def history():
         return redirect(url_for('auth_bp.login'))
 
     query = ReportAuditLog.query.order_by(ReportAuditLog.timestamp.desc())
-    if not session.get('is_admin'):
-        user_unit = session.get('unit_area', session.get('unit', ''))
-        query = query.filter(ReportAuditLog.org_unit == user_unit)
-
     logs = query.limit(200).all()
+    if not session.get('is_admin'):
+        logs = [log for log in logs if _unit_matches_current(log.org_unit)]
     _attach_log_display_names(logs)
     return render_template('reporting/history.html', logs=logs, reports=[], template=None)
 
@@ -1268,11 +1300,9 @@ def template_history(template_id):
     template = FormTemplate.query.get_or_404(template_id)
 
     instance_query = ReportInstance.query.filter_by(template_id=template_id)
-    if not session.get('is_admin'):
-        user_unit = session.get('unit_area', session.get('unit', ''))
-        instance_query = instance_query.filter(ReportInstance.org_unit == user_unit)
-
     reports = instance_query.order_by(ReportInstance.updated_at.desc()).all()
+    if not session.get('is_admin'):
+        reports = [report for report in reports if _unit_matches_current(report.org_unit)]
     _attach_report_display_names(reports)
     instance_ids = [row.id for row in reports]
     
@@ -1765,7 +1795,7 @@ def api_create_report():
     
     try:
         user_id = session.get('uid')
-        user_unit = session.get('unit_area', session.get('unit', ''))
+        user_unit = _current_reporting_unit()
         
         instance = form_engine.create_report_instance(
             template_id=template_id,

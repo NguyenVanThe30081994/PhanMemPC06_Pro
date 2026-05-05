@@ -93,13 +93,62 @@ def normalize_unit_name(name):
 def extract_unit_key(name):
     """
     Extracts the core unit key from a unit name.
-    'Công an xã An Tường' -> 'antuong'
-    'ubndphuongantuong' -> 'antuong'
+    'Công an xã An Tường' -> 'xaatuong'
+    'UBND phường An Tường' -> 'phuongantuong'
+    'phường An Tường' -> 'phuongantuong'
     """
     if not name: return ""
-    n = normalize_unit_name(name)
-    # Remove all spaces to get the pure slug/key
-    return re.sub(r'\s+', '', n)
+
+    import unicodedata
+
+    n = str(name).lower().strip()
+    n = unicodedata.normalize('NFKD', n).encode('ascii', 'ignore').decode('utf-8')
+    n = re.sub(r'[^a-z0-9\s]', ' ', n)
+    n = re.sub(r'\s+', ' ', n).strip()
+
+    tokens = n.split()
+    if not tokens:
+        return ""
+
+    prefixes = [
+        ('cong', 'an'),
+        ('ubnd',),
+        ('phong',),
+        ('doi',),
+        ('ban',),
+        ('trung', 'tam'),
+    ]
+    while tokens:
+        matched = False
+        for prefix in prefixes:
+            if len(tokens) >= len(prefix) and tuple(tokens[:len(prefix)]) == prefix:
+                tokens = tokens[len(prefix):]
+                matched = True
+                break
+        if not matched:
+            break
+
+    if not tokens:
+        return ""
+
+    unit_prefixes = {
+        'phuong', 'xa', 'thi', 'tran', 'thi-tran', 'thixa', 'thixa',
+        'huyen', 'quan', 'tp', 'thanhpho', 'thanh', 'pho', 'thi', 'xa', 'thi', 'tran'
+    }
+
+    lead = []
+    while tokens and tokens[0] in {'phuong', 'xa', 'huyen', 'quan', 'tp', 'thi', 'tran'}:
+        lead.append(tokens.pop(0))
+        if lead[-1] == 'thi' and tokens and tokens[0] == 'tran':
+            lead.append(tokens.pop(0))
+            break
+
+    if not lead and tokens:
+        # No geographic prefix was present, keep the remaining slug.
+        return re.sub(r'\s+', '', ' '.join(tokens))
+
+    slug = ''.join(lead + tokens)
+    return slug or re.sub(r'\s+', '', n)
 
 def is_unit_match(name1, name2):
     """
@@ -132,6 +181,14 @@ def slugify_unit(name):
     # Remove everything except alphanumeric for the slug
     n = re.sub(r'[^a-z0-9]', '', n)
     return n
+
+def build_account_username(unit_name, unit_key=None):
+    """
+    Tạo tên đăng nhập theo unit_key đã chuẩn hóa.
+    """
+    key = (unit_key or extract_unit_key(unit_name) or slugify_unit(unit_name) or '').strip().lower()
+    key = re.sub(r'[^a-z0-9]+', '', key)
+    return key
 
 def normalize_unit_key(unit_name):
     """
@@ -186,6 +243,7 @@ def apply_migrations(app):
     cursor = conn.cursor()
     migrations = [
         ("user", "must_change_password", "BOOLEAN DEFAULT 1"), 
+        ("user", "unit_key", "VARCHAR(100)"),
         ("app_role", "perms", "TEXT"),
         ("notification", "is_read", "BOOLEAN DEFAULT 0"),
         ("report_config", "is_daily", "BOOLEAN DEFAULT 0"),
@@ -220,6 +278,24 @@ def apply_migrations(app):
                 conn.commit()
         except Exception as e: 
             print(f"Migration Error on {table}.{col}: {e}")
+
+    try:
+        cursor.execute("PRAGMA table_info(user)")
+        user_columns = [c[1] for c in cursor.fetchall()]
+        if 'unit_key' in user_columns:
+            cursor.execute("SELECT id, fullname, unit_area, unit_key FROM user")
+            for user_id, fullname, unit_area, unit_key in cursor.fetchall():
+                if unit_key:
+                    continue
+                computed_key = extract_unit_key(fullname or unit_area or '')
+                if computed_key:
+                    cursor.execute(
+                        "UPDATE user SET unit_key = ? WHERE id = ?",
+                        (computed_key, user_id)
+                    )
+            conn.commit()
+    except Exception as e:
+        print(f"Backfill Error on user.unit_key: {e}")
 
     create_table_statements = [
         """
@@ -278,7 +354,13 @@ def init_db(app):
         # Admin User
         if admin_role and not User.query.filter_by(username='admin').first():
             try:
-                u = User(username='admin', fullname='Tài khoản quản trị', role_id=admin_role.id, unit_area='Hệ thống')
+                u = User(
+                    username='admin',
+                    fullname='Tài khoản quản trị',
+                    role_id=admin_role.id,
+                    unit_area='Hệ thống',
+                    unit_key=extract_unit_key('Hệ thống')
+                )
                 u.set_password('123')
                 db.session.add(u)
                 db.session.commit()

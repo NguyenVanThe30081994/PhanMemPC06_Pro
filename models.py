@@ -122,6 +122,7 @@ class User(db.Model):
     fullname = db.Column(db.String(100))
     role_id = db.Column(db.Integer, db.ForeignKey('app_role.id'))
     unit_area = db.Column(db.String(100))
+    unit_key = db.Column(db.String(100), index=True)
     is_active = db.Column(db.Boolean, default=True)
     phone = db.Column(db.String(20))  # SĐT Zalo format E.164 (+84...)
     must_change_password = db.Column(db.Boolean, default=True)

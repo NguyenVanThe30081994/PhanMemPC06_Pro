@@ -11,7 +11,7 @@ except ImportError:
     HAS_PANDAS = False
     pd = None
 from flask import Blueprint, jsonify, render_template, request, send_file
-from utils import normalize_unit_name, remove_accents, safe_float, render_auto_template
+from utils import extract_unit_key, normalize_unit_name, remove_accents, safe_float, render_auto_template
 
 from models import RankingEntry, RankingIndicator, RankingUnit, db
 
@@ -133,6 +133,45 @@ def _choose_value_column(df, unit_col):
     return ranked_candidates[0][2]
 
 
+def _build_unit_maps(db_units):
+    unit_key_map = {}
+    unit_name_map = {}
+    for unit in db_units:
+        if not unit or not unit.name:
+            continue
+        unit_key = extract_unit_key(unit.name)
+        if unit_key and unit_key not in unit_key_map:
+            unit_key_map[unit_key] = unit
+        unit_name = normalize_unit_name(unit.name)
+        if unit_name and unit_name not in unit_name_map:
+            unit_name_map[unit_name] = unit
+    return unit_key_map, unit_name_map
+
+
+def _find_unit_match(raw_name, unit_key_map, unit_name_map):
+    raw_text = str(raw_name or "").strip()
+    if not raw_text:
+        return None
+
+    raw_key = extract_unit_key(raw_text)
+    if raw_key and raw_key in unit_key_map:
+        return unit_key_map[raw_key]
+
+    raw_norm = normalize_unit_name(raw_text)
+    if raw_norm and raw_norm in unit_name_map:
+        return unit_name_map[raw_norm]
+
+    for key, unit in unit_key_map.items():
+        if key and raw_key and (key in raw_key or raw_key in key):
+            return unit
+
+    for norm, unit in unit_name_map.items():
+        if norm and raw_norm and (norm in raw_norm or raw_norm in norm):
+            return unit
+
+    return None
+
+
 try:
     import pdfplumber
 except ImportError:
@@ -153,7 +192,7 @@ def import_ranking_data():
 
     filename = file.filename.lower()
     db_units = RankingUnit.query.all()
-    unit_map = {normalize_unit_name(u.name): u for u in db_units}
+    unit_key_map, unit_name_map = _build_unit_maps(db_units)
     
     selected_indicator = None
     if indicator_id:
@@ -215,7 +254,7 @@ def import_ranking_data():
                 for _, row in df.iterrows():
                     raw_name = row.get(unit_col)
                     if pd.isna(raw_name) or str(raw_name).strip() == '': continue
-                    unit = unit_map.get(normalize_unit_name(str(raw_name).strip()))
+                    unit = _find_unit_match(raw_name, unit_key_map, unit_name_map)
                     if not unit:
                         unmatched_units.add(str(raw_name).strip())
                         continue
@@ -243,7 +282,7 @@ def import_ranking_data():
                             val = None
                             for cell in row:
                                 if not cell: continue
-                                u = unit_map.get(normalize_unit_name(cell))
+                                u = _find_unit_match(cell, unit_key_map, unit_name_map)
                                 if u: 
                                     unit = u
                                     break
@@ -264,14 +303,13 @@ def import_ranking_data():
                         text = page.extract_text()
                         if text:
                             for line in text.split('\n'):
-                                for u_norm, unit in unit_map.items():
-                                    if u_norm in normalize_unit_name(line):
-                                        # Use regex to find the last number in the line
-                                        nums = re.findall(r'(\d+[.,]?\d*)', line)
-                                        if nums:
-                                            imported_values[(unit.id, selected_indicator.id)] = safe_float(nums[-1])
-                                            matched_indicator_ids.add(selected_indicator.id)
-                                        break
+                                unit = _find_unit_match(line, unit_key_map, unit_name_map)
+                                if unit:
+                                    nums = re.findall(r'(\d+[.,]?\d*)', line)
+                                    if nums:
+                                        imported_values[(unit.id, selected_indicator.id)] = safe_float(nums[-1])
+                                        matched_indicator_ids.add(selected_indicator.id)
+                                    break
 
         else:
             return jsonify({"success": False, "message": "Định dạng file không được hỗ trợ (chỉ nhận .xlsx, .xls, .pdf)"}), 400
