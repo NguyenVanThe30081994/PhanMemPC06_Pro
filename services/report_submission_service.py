@@ -16,6 +16,7 @@ from openpyxl.styles import PatternFill
 from openpyxl.utils import column_index_from_string, get_column_letter
 
 from excel_renderer import format_excel_number
+from services.excel_formula_engine import ExcelFormulaEngine
 from models_reporting import (
     db,
     FormField,
@@ -560,6 +561,17 @@ class ReportSubmissionService:
                 except Exception:
                     continue
 
+        if not recalc:
+            evaluator = ExcelFormulaEngine(wb)
+            for ws in wb.worksheets:
+                for row in ws.iter_rows():
+                    for cell in row:
+                        if isinstance(cell.value, str) and cell.value.startswith('='):
+                            try:
+                                cell.value = evaluator.evaluate_cell(ws, cell.coordinate)
+                            except Exception:
+                                pass
+
         output = BytesIO()
         wb.save(output)
         workbook_bytes = output.getvalue()
@@ -817,6 +829,7 @@ class ReportSubmissionService:
         wb_values = load_workbook(BytesIO(file_bytes), data_only=True)
         ws = wb_formula.active
         ws_values = wb_values[ws.title] if ws.title in wb_values.sheetnames else wb_values.active
+        evaluator = None if ExcelRecalcService.is_available() else ExcelFormulaEngine(wb_formula)
 
         merged_map = {}
         covered_cells = set()
@@ -875,6 +888,11 @@ class ReportSubmissionService:
                 value_cell = ws_values.cell(row=row_idx, column=col_idx)
                 merge_info = merged_map.get((row_idx, col_idx), {'rowspan': 1, 'colspan': 1})
                 raw_value = value_cell.value
+                if raw_value is None and isinstance(cell.value, str) and cell.value.startswith('=') and evaluator:
+                    try:
+                        raw_value = evaluator.evaluate_cell(ws, cell.coordinate)
+                    except Exception:
+                        raw_value = None
                 display_value = '' if raw_value is None and isinstance(cell.value, str) and cell.value.startswith('=') else format_excel_number(raw_value, cell.number_format)
                 fill = cell.fill
                 font = cell.font

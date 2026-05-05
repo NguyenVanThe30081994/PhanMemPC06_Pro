@@ -12,6 +12,7 @@ from excel_renderer import format_excel_number
 
 from models_reporting import db, ReportInstance, ReportFieldValue, FormField
 from services.excel_recalc_service import ExcelRecalcService
+from services.excel_formula_engine import ExcelFormulaEngine
 
 
 class ReportExporter:
@@ -60,6 +61,19 @@ class ReportExporter:
         safe_unit = (instance.org_unit or 'unit')
         safe_unit = re.sub(r'[^A-Za-z0-9._-]+', '_', safe_unit).strip('_') or 'unit'
         return f"report_{instance.id}_{safe_unit}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+    @staticmethod
+    def _materialize_formula_cells(wb):
+        evaluator = ExcelFormulaEngine(wb)
+        for ws in wb.worksheets:
+            for row in ws.iter_rows():
+                for cell in row:
+                    if isinstance(cell.value, str) and cell.value.startswith('='):
+                        try:
+                            cell.value = evaluator.evaluate_cell(ws, cell.coordinate)
+                        except Exception:
+                            pass
+        return wb
 
     def build_workbook(self, instance_id, protect_cells=False):
         instance = ReportInstance.query.get(instance_id)
@@ -135,6 +149,8 @@ class ReportExporter:
 
     def build_workbook_bytes(self, instance_id, protect_cells=False, recalculate=False):
         wb = self.build_workbook(instance_id, protect_cells=protect_cells)
+        if recalculate and not ExcelRecalcService.is_available():
+            wb = self._materialize_formula_cells(wb)
         output = BytesIO()
         wb.save(output)
         workbook_bytes = output.getvalue()

@@ -17,8 +17,7 @@
 
 ## 📄 Tài liệu
 
-- **TONG_KET_CUOI_CUNG_DUNG.md** - Tổng kết đầy đủ
-- **CAI_THIEN_GIAO_DIEN_DUNG_CACH.md** - Cách cải thiện giao diện
+- **CHANGELOG.md** - Timeline gộp toàn bộ ghi chú thay đổi
 - **TOM_TAT_SUA_LOI.txt** - Hướng dẫn chức năng
 
 ## 🎨 Cải thiện giao diện
@@ -31,10 +30,6 @@
 - ✅ Glass effects
 - ✅ Hover animations
 - ✅ Giữ nguyên 100% chức năng
-
-## 💾 Backup
-
-- `backups/ui_backup_20260428_155036/`
 
 ---
 
