@@ -29,11 +29,13 @@ STATIC_DIR = os.path.join(basedir, 'static')
 UPLOAD_FOLDER = os.path.join(basedir, 'uploads')
 TASK_FOLDER = os.path.join(basedir, 'task_files')
 LIB_FOLDER = os.path.join(basedir, 'library_files')
+REPORT_TEMPLATE_FOLDER = os.path.join(basedir, 'report_templates')
+REPORT_EXPORT_FOLDER = os.path.join(basedir, 'report_exports')
 
 BACKUP_FOLDER = os.path.join(basedir, 'backups') # Added for safety
 
 # Ensure directories exist with absolute paths
-for f in [UPLOAD_FOLDER, TASK_FOLDER, LIB_FOLDER, BACKUP_FOLDER, os.path.join(basedir, 'tmp')]:
+for f in [UPLOAD_FOLDER, TASK_FOLDER, LIB_FOLDER, REPORT_TEMPLATE_FOLDER, REPORT_EXPORT_FOLDER, BACKUP_FOLDER, os.path.join(basedir, 'tmp')]:
     os.makedirs(f, exist_ok=True)
 
 app = Flask(__name__, 
@@ -189,6 +191,7 @@ from routes.tasks import tasks_bp
 from routes.ranking import ranking_bp
 from routes.api import api_bp
 from routes.shortlink import shortlink_bp
+from routes.reporting import reporting_bp
 from routes.ai_assistant import ai_bp
 from routes.health import health_bp
 
@@ -199,6 +202,7 @@ app.register_blueprint(tasks_bp)
 app.register_blueprint(ranking_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(shortlink_bp)
+app.register_blueprint(reporting_bp)
 app.register_blueprint(health_bp)
 app.register_blueprint(ai_bp)
 

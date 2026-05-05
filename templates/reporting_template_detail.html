@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+            <h1 class="h3 fw-bold mb-1">{{ template.name }}</h1>
+            <p class="text-muted mb-0">{{ template.code }} • {{ template.description or 'Không có mô tả' }}</p>
+        </div>
+        <a href="{{ url_for('reporting_bp.admin_dashboard') }}" class="btn btn-light rounded-pill px-4">Quay lại</a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3">Phiên bản</h5>
+                <div class="list-group list-group-flush">
+                    {% for version in versions %}
+                    <div class="list-group-item rounded-3 mb-2 border">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-bold">#{{ version.version_no }}</div>
+                                <div class="small text-muted">{{ version.source_filename }}</div>
+                            </div>
+                            {% if version.is_current %}
+                            <span class="badge bg-success">Hiện hành</span>
+                            {% else %}
+                            <form method="POST" action="{{ url_for('reporting_bp.activate_version', template_id=template.id, version_id=version.id) }}">
+                                <button class="btn btn-sm btn-outline-primary rounded-pill" type="submit">Kích hoạt</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3">Tổng quan mẫu</h5>
+                {% if current_version %}
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4"><div class="p-3 bg-light rounded-3"><div class="small text-muted">Sheet</div><div class="fw-bold">{{ sheets|length }}</div></div></div>
+                    <div class="col-md-4"><div class="p-3 bg-light rounded-3"><div class="small text-muted">Field</div><div class="fw-bold">{{ fields|length }}</div></div></div>
+                    <div class="col-md-4"><div class="p-3 bg-light rounded-3"><div class="small text-muted">Phiên bản</div><div class="fw-bold">#{{ current_version.version_no }}</div></div></div>
+                </div>
+                <h6 class="fw-bold mb-2">Sheet</h6>
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm align-middle">
+                        <thead><tr><th>Tên sheet</th><th>Header</th><th>Dòng dữ liệu</th><th>Input</th></tr></thead>
+                        <tbody>
+                            {% for sheet in sheets %}
+                            <tr>
+                                <td>{{ sheet.sheet_name }}</td>
+                                <td>{{ sheet.header_rows }}</td>
+                                <td>{{ sheet.data_start_row }}</td>
+                                <td>{{ sheet.visible_in_preview and 'Có' or 'Không' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <h6 class="fw-bold mb-2">Trường dữ liệu</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead><tr><th>Sheet</th><th>Mã</th><th>Tên</th><th>Cột</th><th>Kiểu</th></tr></thead>
+                        <tbody>
+                            {% for field in fields %}
+                            <tr>
+                                <td>{{ field.sheet_name }}</td>
+                                <td><code>{{ field.field_code }}</code></td>
+                                <td>{{ field.field_name }}</td>
+                                <td>{{ field.column_letter }}</td>
+                                <td>{{ field.data_type }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <h6 class="fw-bold mb-2">Metadata</h6>
+                <pre class="bg-light p-3 rounded-3 small mb-0" style="white-space: pre-wrap;">{{ metadata | tojson(indent=2) }}</pre>
+                {% else %}
+                <div class="text-muted">Chưa có phiên bản nào.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
