@@ -1,181 +1,105 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
-    <div class="card-body p-4 p-lg-5">
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+<div class="pc06-page-shell">
+    <section class="pc06-hero-card with-toolbar">
+        <div class="pc06-hero-grid compact">
             <div>
-                <div class="small text-uppercase text-muted fw-bold mb-2">Báo cáo Excel</div>
-                <h1 class="h3 fw-bold mb-2">{% if is_admin %}Thiết lập và quản lý biểu mẫu{% else %}Biểu mẫu báo cáo của đơn vị{% endif %}</h1>
-                <p class="text-muted mb-0">
-                    {% if is_admin %}
-                    Sau khi lưu biểu mẫu, hệ thống tự mở báo cáo để đơn vị vào nhập và quản trị theo dõi kết quả.
-                    {% else %}
-                    {{ current_unit.name if current_unit else 'Chưa xác định đơn vị' }}
-                    {% endif %}
-                </p>
-            </div>
-            {% if is_admin %}
-            <form method="POST" action="{{ url_for('reporting_bp.sync_units') }}">
-                <button class="btn btn-outline-secondary rounded-pill px-4" type="submit">Đồng bộ đơn vị</button>
-            </form>
-            {% endif %}
-        </div>
-
-        <div class="row g-3 mt-1">
-            {% if is_admin %}
-            <div class="col-md-4">
-                <div class="bg-light rounded-4 p-3 h-100">
-                    <div class="small text-muted">Biểu mẫu</div>
-                    <div class="fs-4 fw-bold">{{ templates|length }}</div>
+                <div class="pc06-page-kicker">
+                    <i class="fa-solid fa-table-list"></i>
+                    Báo cáo Excel
                 </div>
-            </div>
-            <div class="col-md-4">
-                <div class="bg-light rounded-4 p-3 h-100">
-                    <div class="small text-muted">Đội nghiệp vụ</div>
-                    <div class="fs-4 fw-bold">{{ template_groups|length }}</div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="bg-light rounded-4 p-3 h-100">
-                    <div class="small text-muted">Báo cáo đang mở</div>
-                    <div class="fs-4 fw-bold">{{ cycles|length }}</div>
-                </div>
-            </div>
-            {% else %}
-            <div class="col-md-6">
-                <div class="bg-light rounded-4 p-3 h-100">
-                    <div class="small text-muted">Đội nghiệp vụ</div>
-                    <div class="fs-4 fw-bold">{{ cycle_groups|length }}</div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="bg-light rounded-4 p-3 h-100">
-                    <div class="small text-muted">Báo cáo đang mở</div>
-                    <div class="fs-4 fw-bold">{{ cycles|length }}</div>
-                </div>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-</section>
-
-{% if is_admin %}
-<section class="card border-0 shadow-sm rounded-4 mb-4">
-    <div class="card-body p-4">
-        <h5 class="fw-bold mb-3">Thiết lập biểu mẫu mới</h5>
-        <form method="POST" action="{{ url_for('reporting_bp.upload_template') }}" enctype="multipart/form-data">
-            <div class="row g-3">
-                <div class="col-lg-6">
-                    <label class="form-label fw-bold">Tên biểu mẫu</label>
-                    <input type="text" name="name" class="form-control" required>
-                </div>
-                <div class="col-lg-6">
-                    <label class="form-label fw-bold">File biểu mẫu Excel</label>
-                    <input type="file" name="template_file" class="form-control" accept=".xlsx" required>
-                </div>
-            </div>
-
-            <details class="border rounded-4 p-3 mt-3">
-                <summary class="fw-bold">Lĩnh vực nghiệp vụ</summary>
-                <div class="row g-3 mt-1">
-                    <div class="col-lg-6">
-                        <label class="form-label fw-bold">Chọn đội nghiệp vụ</label>
-                        {% if professional_units %}
-                        <select name="professional_unit" class="form-select">
-                            <option value="">Chọn đội nghiệp vụ</option>
-                            {% for item in professional_units %}
-                            <option value="{{ item.name }}">{{ item.name }}</option>
-                            {% endfor %}
-                        </select>
+                <h1 class="pc06-page-title">{% if is_admin %}Thiết lập và quản lý báo cáo{% else %}Báo cáo đơn vị{% endif %}</h1>
+                <div class="pc06-hero-inline-band">
+                    <div class="text-muted">
+                        {% if is_admin %}
+                        Thiết lập biểu mẫu, theo dõi kết quả và quản lý toàn bộ báo cáo theo đội nghiệp vụ.
                         {% else %}
-                        <input type="text" name="professional_unit" class="form-control" placeholder="Nhập đội nghiệp vụ">
+                        {{ current_unit.name if current_unit else 'Chưa xác định đơn vị' }}
                         {% endif %}
                     </div>
-                    <div class="col-lg-6">
-                        <label class="form-label fw-bold">Văn bản chỉ đạo</label>
-                        <input type="file" name="directive_file" class="form-control">
+                    {% if is_admin %}
+                    <div class="pc06-action-cluster">
+                        <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#createReportTemplateModal">
+                            <i class="fa-solid fa-plus"></i>
+                            Thiết lập mẫu
+                        </button>
+                        <form method="POST" action="{{ url_for('reporting_bp.sync_units') }}">
+                            <button class="btn btn-bdhvs light" type="submit">
+                                <i class="fa-solid fa-rotate"></i>
+                                Đồng bộ đơn vị
+                            </button>
+                        </form>
                     </div>
+                    {% endif %}
                 </div>
-            </details>
-
-            <details class="border rounded-4 p-3 mt-3">
-                <summary class="fw-bold">Thiết lập nhận dạng dữ liệu</summary>
-                <div class="row g-3 mt-1">
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Header từ dòng</label>
-                        <input type="number" name="header_start_row" class="form-control" value="1" min="1">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Header đến dòng</label>
-                        <input type="number" name="header_end_row" class="form-control" value="2" min="1">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Đơn vị từ dòng</label>
-                        <input type="number" name="unit_start_row" class="form-control" value="3" min="1">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Đơn vị đến dòng</label>
-                        <input type="number" name="unit_end_row" class="form-control" value="20" min="1">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Tổng từ dòng</label>
-                        <input type="number" name="total_start_row" class="form-control" value="21" min="1">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Tổng đến dòng</label>
-                        <input type="number" name="total_end_row" class="form-control" value="21" min="1">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Cột từ</label>
-                        <input type="text" name="start_column" class="form-control text-uppercase" value="A" maxlength="4">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Cột đến</label>
-                        <input type="text" name="end_column" class="form-control text-uppercase" value="Z" maxlength="4">
-                    </div>
+            </div>
+            <div class="pc06-stat-strip">
+                {% if is_admin %}
+                <div class="pc06-metric-card">
+                    <span>Biểu mẫu</span>
+                    <strong>{{ templates|length }}</strong>
                 </div>
-            </details>
+                <div class="pc06-metric-card">
+                    <span>Đội nghiệp vụ</span>
+                    <strong>{{ template_groups|length }}</strong>
+                </div>
+                <div class="pc06-metric-card">
+                    <span>Báo cáo đang mở</span>
+                    <strong>{{ cycles|length }}</strong>
+                </div>
+                <div class="pc06-metric-card">
+                    <span>Đơn vị</span>
+                    <strong>{{ units|length }}</strong>
+                </div>
+                {% else %}
+                <div class="pc06-metric-card">
+                    <span>Đội nghiệp vụ</span>
+                    <strong>{{ cycle_groups|length }}</strong>
+                </div>
+                <div class="pc06-metric-card">
+                    <span>Báo cáo đang mở</span>
+                    <strong>{{ cycles|length }}</strong>
+                </div>
+                <div class="pc06-metric-card">
+                    <span>Bản ghi đơn vị</span>
+                    <strong>{{ instances|length if instances is defined else 0 }}</strong>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
 
-            <div class="mt-3">
-                <label class="form-label fw-bold">Ghi chú</label>
-                <textarea name="description" class="form-control" rows="2"></textarea>
+    <section class="pc06-panel">
+        <div class="report-groups-shell">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+                <div>
+                    <h2 class="h5 fw-bold mb-1">{% if is_admin %}Báo cáo theo đội nghiệp vụ{% else %}Danh sách báo cáo{% endif %}</h2>
+                    <div class="text-muted small">{% if is_admin %}Chọn đội để xem các biểu mẫu đang quản lý.{% else %}Chọn đội để mở biểu mẫu cần nhập, xem hoặc xem lịch sử.{% endif %}</div>
+                </div>
             </div>
 
-            <div class="d-flex justify-content-end mt-4">
-                <button class="btn btn-primary rounded-pill px-4" type="submit">Tải file và tiếp tục cấu hình</button>
-            </div>
-        </form>
-    </div>
-</section>
-{% endif %}
-
-<section class="card border-0 shadow-sm rounded-4">
-    <div class="card-body p-4">
-        <h5 class="fw-bold mb-3">{% if is_admin %}Biểu mẫu theo đội nghiệp vụ{% else %}Báo cáo theo đội nghiệp vụ{% endif %}</h5>
-
-        {% if is_admin %}
-        <div class="accordion" id="reportTemplateGroups">
-            {% for group in template_groups %}
-            <div class="accordion-item border rounded-4 mb-3 overflow-hidden">
-                <h2 class="accordion-header" id="template-group-{{ loop.index }}">
-                    <button class="accordion-button {% if not loop.first %}collapsed{% endif %} fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#template-group-body-{{ loop.index }}" aria-expanded="{{ 'true' if loop.first else 'false' }}">
-                        {{ group.name }}
-                        <span class="ms-2 small text-muted">({{ group.entries|length }})</span>
-                    </button>
-                </h2>
-                <div id="template-group-body-{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" data-bs-parent="#reportTemplateGroups">
-                    <div class="accordion-body p-3">
-                        <div class="list-group list-group-flush">
-                            {% for item in group.entries %}
-                            {% set template = item.template %}
-                            {% set current_version = item.current_version %}
-                            {% set current_cycle = item.current_cycle %}
-                            <div class="list-group-item rounded-4 mb-2 border">
-                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                                    <div>
-                                        <div class="fw-bold">{{ template.name }}</div>
-                                        <div class="small text-muted">
+            {% if is_admin %}
+            <div class="accordion" id="reportTemplateGroups">
+                {% for group in template_groups %}
+                <div class="accordion-item report-group-item">
+                    <h2 class="accordion-header" id="template-group-{{ loop.index }}">
+                        <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#template-group-body-{{ loop.index }}" aria-expanded="{{ 'true' if loop.first else 'false' }}">
+                            <span class="report-group-title">{{ group.name }}</span>
+                            <span class="report-group-count">{{ group.entries|length }}</span>
+                        </button>
+                    </h2>
+                    <div id="template-group-body-{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" data-bs-parent="#reportTemplateGroups">
+                        <div class="accordion-body">
+                            <div class="report-template-list">
+                                {% for item in group.entries %}
+                                {% set template = item.template %}
+                                {% set current_version = item.current_version %}
+                                {% set current_cycle = item.current_cycle %}
+                                <article class="report-template-row">
+                                    <div class="report-template-copy">
+                                        <h3>{{ template.name }}</h3>
+                                        <p>
                                             {% if current_version %}
                                             Bản {{ current_version.version_no }}
                                             {% else %}
@@ -184,9 +108,9 @@
                                             {% if template.directive_filename %}
                                             • {{ template.directive_filename }}
                                             {% endif %}
-                                        </div>
+                                        </p>
                                     </div>
-                                    <div class="d-flex gap-2">
+                                    <div class="report-template-actions">
                                         {% if current_cycle %}
                                         <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.admin_cycle_detail', cycle_id=current_cycle.id) }}" title="Lịch sử toàn bộ đơn vị">
                                             <i class="fa-solid fa-clock-rotate-left"></i>
@@ -208,42 +132,42 @@
                                             </button>
                                         </form>
                                     </div>
-                                </div>
+                                </article>
+                                {% endfor %}
                             </div>
-                            {% endfor %}
                         </div>
                     </div>
                 </div>
+                {% else %}
+                <div class="pc06-empty-state py-5">
+                    <div class="pc06-empty-icon"><i class="fa-solid fa-table-list"></i></div>
+                    <h3>Chưa có biểu mẫu nào</h3>
+                    <p>Hãy dùng nút thiết lập mẫu để tạo biểu mẫu đầu tiên.</p>
+                </div>
+                {% endfor %}
             </div>
             {% else %}
-            <div class="text-muted">Chưa có biểu mẫu nào.</div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="accordion" id="reportCycleGroups">
-            {% for group in cycle_groups %}
-            <div class="accordion-item border rounded-4 mb-3 overflow-hidden">
-                <h2 class="accordion-header" id="cycle-group-{{ loop.index }}">
-                    <button class="accordion-button {% if not loop.first %}collapsed{% endif %} fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#cycle-group-body-{{ loop.index }}" aria-expanded="{{ 'true' if loop.first else 'false' }}">
-                        {{ group.name }}
-                        <span class="ms-2 small text-muted">({{ group.entries|length }})</span>
-                    </button>
-                </h2>
-                <div id="cycle-group-body-{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" data-bs-parent="#reportCycleGroups">
-                    <div class="accordion-body p-3">
-                        <div class="list-group list-group-flush">
-                            {% for item in group.entries %}
-                            {% set cycle = item.cycle %}
-                            {% set instance = instance_map.get(cycle.id) if instance_map is defined else None %}
-                            <div class="list-group-item rounded-4 mb-2 border">
-                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                                    <div>
-                                        <div class="fw-bold">{{ cycle.name }}</div>
-                                        <div class="small text-muted">
-                                            {% if instance %}{{ instance.status }}{% else %}{{ cycle.status }}{% endif %}
-                                        </div>
+            <div class="accordion" id="reportCycleGroups">
+                {% for group in cycle_groups %}
+                <div class="accordion-item report-group-item">
+                    <h2 class="accordion-header" id="cycle-group-{{ loop.index }}">
+                        <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#cycle-group-body-{{ loop.index }}" aria-expanded="{{ 'true' if loop.first else 'false' }}">
+                            <span class="report-group-title">{{ group.name }}</span>
+                            <span class="report-group-count">{{ group.entries|length }}</span>
+                        </button>
+                    </h2>
+                    <div id="cycle-group-body-{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" data-bs-parent="#reportCycleGroups">
+                        <div class="accordion-body">
+                            <div class="report-template-list">
+                                {% for item in group.entries %}
+                                {% set cycle = item.cycle %}
+                                {% set instance = instance_map.get(cycle.id) if instance_map is defined else None %}
+                                <article class="report-template-row">
+                                    <div class="report-template-copy">
+                                        <h3>{{ cycle.name }}</h3>
+                                        <p>{% if instance %}{{ instance.status }}{% else %}{{ cycle.status }}{% endif %}</p>
                                     </div>
-                                    <div class="d-flex gap-2">
+                                    <div class="report-template-actions">
                                         <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.cycle_workspace', cycle_id=cycle.id) }}" title="Nhập">
                                             <i class="fa-solid fa-pen-to-square"></i>
                                         </a>
@@ -254,18 +178,229 @@
                                             <i class="fa-solid fa-clock-rotate-left"></i>
                                         </a>
                                     </div>
-                                </div>
+                                </article>
+                                {% endfor %}
                             </div>
-                            {% endfor %}
                         </div>
                     </div>
                 </div>
+                {% else %}
+                <div class="pc06-empty-state py-5">
+                    <div class="pc06-empty-icon"><i class="fa-solid fa-file-circle-xmark"></i></div>
+                    <h3>Chưa có báo cáo nào</h3>
+                    <p>Hiện chưa có biểu mẫu đang mở cho đơn vị.</p>
+                </div>
+                {% endfor %}
             </div>
-            {% else %}
-            <div class="text-muted">Chưa có báo cáo nào.</div>
-            {% endfor %}
+            {% endif %}
         </div>
-        {% endif %}
+    </section>
+</div>
+
+{% if is_admin %}
+<div class="modal fade" id="createReportTemplateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content border-0 pc06-modal-shell">
+            <form method="POST" action="{{ url_for('reporting_bp.upload_template') }}" enctype="multipart/form-data">
+                <div class="modal-header border-0 pc06-modal-head">
+                    <div>
+                        <div class="pc06-page-kicker mb-2">
+                            <i class="fa-solid fa-layer-group"></i>
+                            Thiết lập biểu mẫu
+                        </div>
+                        <h5 class="modal-title fw-bold mb-1">Tạo biểu mẫu báo cáo mới</h5>
+                        <p class="mb-0 text-white-50">Khai báo thông tin cơ bản, đội nghiệp vụ và vùng nhận dạng dữ liệu trước khi cấu hình chi tiết.</p>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body p-4 p-lg-5">
+                    <div class="row g-4">
+                        <div class="col-lg-6">
+                            <div class="pc06-form-panel">
+                                <div class="pc06-form-section">
+                                    <label class="form-label fw-bold">Tên biểu mẫu</label>
+                                    <input type="text" name="name" class="form-control form-control-lg" required>
+                                </div>
+                                <div class="pc06-form-section mb-0">
+                                    <label class="form-label fw-bold">File biểu mẫu Excel</label>
+                                    <input type="file" name="template_file" class="form-control form-control-lg" accept=".xlsx" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="pc06-form-panel">
+                                <details class="border rounded-4 p-3" open>
+                                    <summary class="fw-bold">Lĩnh vực nghiệp vụ</summary>
+                                    <div class="row g-3 mt-1">
+                                        <div class="col-12">
+                                            <label class="form-label fw-bold">Chọn đội nghiệp vụ</label>
+                                            {% if professional_units %}
+                                            <select name="professional_unit" class="form-select">
+                                                <option value="">Chọn đội nghiệp vụ</option>
+                                                {% for item in professional_units %}
+                                                <option value="{{ item.name }}">{{ item.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                            {% else %}
+                                            <input type="text" name="professional_unit" class="form-control" placeholder="Nhập đội nghiệp vụ">
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label fw-bold">Văn bản chỉ đạo</label>
+                                            <input type="file" name="directive_file" class="form-control">
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pc06-form-panel mt-4">
+                        <details class="border rounded-4 p-3" open>
+                            <summary class="fw-bold">Thiết lập nhận dạng dữ liệu</summary>
+                            <div class="row g-3 mt-1">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Header từ dòng</label>
+                                    <input type="number" name="header_start_row" class="form-control" value="1" min="1">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Header đến dòng</label>
+                                    <input type="number" name="header_end_row" class="form-control" value="2" min="1">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Đơn vị từ dòng</label>
+                                    <input type="number" name="unit_start_row" class="form-control" value="3" min="1">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Đơn vị đến dòng</label>
+                                    <input type="number" name="unit_end_row" class="form-control" value="20" min="1">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Tổng từ dòng</label>
+                                    <input type="number" name="total_start_row" class="form-control" value="21" min="1">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Tổng đến dòng</label>
+                                    <input type="number" name="total_end_row" class="form-control" value="21" min="1">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Cột từ</label>
+                                    <input type="text" name="start_column" class="form-control text-uppercase" value="A" maxlength="4">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Cột đến</label>
+                                    <input type="text" name="end_column" class="form-control text-uppercase" value="Z" maxlength="4">
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+
+                    <div class="pc06-form-panel mt-4">
+                        <div class="pc06-form-section mb-0">
+                            <label class="form-label fw-bold">Ghi chú</label>
+                            <textarea name="description" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-bdhvs primary">
+                        <i class="fa-solid fa-arrow-right"></i>
+                        Tải file và tiếp tục cấu hình
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
-</section>
+</div>
+{% endif %}
+
+<style>
+    .report-groups-shell { display: grid; gap: 18px; }
+    .report-group-item {
+        border: 1px solid rgba(148,163,184,0.16);
+        border-radius: 24px;
+        overflow: hidden;
+        background: rgba(255,255,255,0.96);
+        box-shadow: 0 18px 40px rgba(15,23,42,0.06);
+        margin-bottom: 14px;
+    }
+    .report-group-item .accordion-button {
+        background: transparent;
+        box-shadow: none;
+        padding: 18px 22px;
+        font-weight: 800;
+        gap: 12px;
+    }
+    .report-group-item .accordion-button:not(.collapsed) {
+        background: rgba(37,99,235,0.05);
+        color: var(--text-main);
+    }
+    .report-group-item .accordion-body { padding: 18px 22px 22px; }
+    .report-group-title { flex: 1; }
+    .report-group-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 34px;
+        height: 34px;
+        padding: 0 10px;
+        border-radius: 999px;
+        background: rgba(37,99,235,0.1);
+        color: var(--primary);
+        font-size: 0.84rem;
+        font-weight: 800;
+    }
+    .report-template-list { display: grid; gap: 12px; }
+    .report-template-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 16px 18px;
+        border-radius: 20px;
+        border: 1px solid rgba(148,163,184,0.14);
+        background: rgba(248,250,252,0.88);
+    }
+    .report-template-copy { min-width: 0; }
+    .report-template-copy h3 {
+        margin: 0 0 4px;
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--text-main);
+    }
+    .report-template-copy p {
+        margin: 0;
+        color: var(--text-muted);
+        font-size: 0.88rem;
+        line-height: 1.6;
+    }
+    .report-template-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+    .report-template-actions form { margin: 0; }
+    [data-theme="dark"] .report-group-item {
+        background: rgba(30,41,59,0.92);
+        border-color: rgba(148,163,184,0.14);
+    }
+    [data-theme="dark"] .report-template-row {
+        background: rgba(15,23,42,0.45);
+        border-color: rgba(148,163,184,0.14);
+    }
+    @media (max-width: 768px) {
+        .report-template-row {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .report-template-actions {
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+    }
+</style>
 {% endblock %}
