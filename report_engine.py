@@ -2,6 +2,7 @@
 import html
 import json
 import os
+import re
 import unicodedata
 from copy import copy
 from datetime import date, datetime
@@ -10,6 +11,9 @@ import openpyxl
 from openpyxl.styles import PatternFill
 from openpyxl.utils import column_index_from_string, get_column_letter
 from openpyxl.utils.cell import range_boundaries
+
+CELL_REF_RE = re.compile(r'(?<![A-Z0-9_"])\$?[A-Z]{1,3}\$?\d+')
+RANGE_REF_RE = re.compile(r'\$?[A-Z]{1,3}\$?\d+:\$?[A-Z]{1,3}\$?\d+')
 
 
 def normalize_code(value):
@@ -195,6 +199,164 @@ def _resolve_column_range(min_col, max_col, start_column=None, end_column=None):
     if end_col < start_col:
         end_col = start_col
     return start_col, end_col
+
+
+def _coerce_numeric(value):
+    if value in (None, ""):
+        return 0
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, (int, float)):
+        return value
+    text = str(value).strip().replace(",", "")
+    if not text:
+        return 0
+    try:
+        return float(text)
+    except Exception:
+        return value
+
+
+def _split_formula_args(expr):
+    args = []
+    current = []
+    depth = 0
+    in_string = False
+    i = 0
+    while i < len(expr):
+        ch = expr[i]
+        if ch == '"':
+            in_string = not in_string
+            current.append(ch)
+        elif not in_string and ch == "(":
+            depth += 1
+            current.append(ch)
+        elif not in_string and ch == ")":
+            depth = max(depth - 1, 0)
+            current.append(ch)
+        elif not in_string and depth == 0 and ch == ",":
+            args.append("".join(current).strip())
+            current = []
+        else:
+            current.append(ch)
+        i += 1
+    if current:
+        args.append("".join(current).strip())
+    return args
+
+
+def _evaluate_sheet_formulas(ws):
+    cache = {}
+    visiting = set()
+
+    def cell_value(coord):
+        coord = coord.replace("$", "").upper()
+        if coord in cache:
+            return cache[coord]
+        if coord in visiting:
+            return ""
+        visiting.add(coord)
+        cell = ws[coord]
+        value = cell.value
+        if cell.data_type == "f" and isinstance(value, str):
+            result = eval_formula(value)
+        else:
+            result = value
+        visiting.discard(coord)
+        cache[coord] = result
+        return result
+
+    def range_values(range_ref):
+        start, end = range_ref.split(":")
+        start = start.replace("$", "").upper()
+        end = end.replace("$", "").upper()
+        start_col, start_row, end_col, end_row = range_boundaries(f"{start}:{end}")
+        values = []
+        for row_index in range(start_row, end_row + 1):
+            for col_index in range(start_col, end_col + 1):
+                values.append(cell_value(f"{get_column_letter(col_index)}{row_index}"))
+        return values
+
+    def func_sum(*items):
+        total = 0
+        for item in items:
+            if isinstance(item, list):
+                total += func_sum(*item)
+                continue
+            number = _coerce_numeric(item)
+            if isinstance(number, (int, float)):
+                total += number
+        return total
+
+    def func_iferror(primary, fallback):
+        try:
+            if isinstance(primary, Exception):
+                raise primary
+            return primary
+        except Exception:
+            return fallback
+
+    def eval_formula(raw_formula):
+        formula = str(raw_formula or "").strip()
+        if formula.startswith("="):
+            formula = formula[1:]
+        if not formula:
+            return ""
+
+        transformed = formula.replace("^", "**")
+        transformed = re.sub(r'\bSUM\s*\(', 'FUNC_SUM(', transformed, flags=re.IGNORECASE)
+        transformed = re.sub(r'\bIFERROR\s*\(', 'FUNC_IFERROR(', transformed, flags=re.IGNORECASE)
+        range_placeholders = {}
+        def replace_range(match):
+            key = f"__RANGE_{len(range_placeholders)}__"
+            range_placeholders[key] = f'RANGE("{match.group(0).replace("$", "").upper()}")'
+            return key
+        transformed = RANGE_REF_RE.sub(replace_range, transformed)
+        transformed = CELL_REF_RE.sub(lambda m: f'CELL("{m.group(0).replace("$", "").upper()}")', transformed)
+        for key, replacement in range_placeholders.items():
+            transformed = transformed.replace(key, replacement)
+        try:
+            result = eval(
+                transformed,
+                {"__builtins__": {}},
+                {
+                    "CELL": cell_value,
+                    "RANGE": range_values,
+                    "FUNC_SUM": func_sum,
+                    "FUNC_IFERROR": func_iferror,
+                },
+            )
+        except ZeroDivisionError:
+            return ""
+        except Exception:
+            if transformed.startswith('FUNC_IFERROR(') and transformed.endswith(')'):
+                inner = transformed[len('FUNC_IFERROR('):-1]
+                args = _split_formula_args(inner)
+                if len(args) == 2:
+                    try:
+                        return eval(
+                            args[1],
+                            {"__builtins__": {}},
+                            {
+                                "CELL": cell_value,
+                                "RANGE": range_values,
+                                "FUNC_SUM": func_sum,
+                                "FUNC_IFERROR": func_iferror,
+                            },
+                        )
+                    except Exception:
+                        return ""
+            return formula
+        return result
+
+    overrides = {}
+    min_col, min_row, max_col, max_row = _active_bounds(ws)
+    for row_index in range(min_row, max_row + 1):
+        for col_index in range(min_col, max_col + 1):
+            cell = ws.cell(row=row_index, column=col_index)
+            if cell.data_type == "f":
+                overrides[cell.coordinate] = cell_value(cell.coordinate)
+    return overrides
 
 
 def _suggest_hidden_field(field):
@@ -456,11 +618,29 @@ def render_sheet_html(ws, editable_values=None, field_lookup=None, editable=True
     return "\n".join(html_rows)
 
 
+def build_preview_workbook(template_path, values_by_sheet=None):
+    wb = _load_workbook(template_path)
+    values_by_sheet = values_by_sheet or {}
+    formula_values = {}
+    for ws in wb.worksheets:
+        sheet_values = values_by_sheet.get(ws.title, {})
+        for cell_address, value in sheet_values.items():
+            ws[cell_address] = value
+        formula_values[ws.title] = _evaluate_sheet_formulas(ws)
+    return wb, formula_values
+
+
 def write_workbook_copy(template_path, output_path, values_by_sheet):
     wb = _load_workbook(template_path)
     for ws in wb.worksheets:
         sheet_values = values_by_sheet.get(ws.title, {})
         for cell_address, value in sheet_values.items():
             ws[cell_address] = value
+    try:
+        wb.calculation.calcMode = "auto"
+        wb.calculation.fullCalcOnLoad = True
+        wb.calculation.forceFullCalc = True
+    except Exception:
+        pass
     wb.save(output_path)
     return output_path

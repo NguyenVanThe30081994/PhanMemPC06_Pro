@@ -29,7 +29,7 @@ from models import (
     User,
 )
 from category_helpers import get_category_items, get_module_field_items
-from report_engine import normalize_code, parse_workbook, render_sheet_html, safe_filename, write_workbook_copy
+from report_engine import build_preview_workbook, normalize_code, parse_workbook, render_sheet_html, safe_filename, write_workbook_copy
 from utils import apply_migrations, extract_unit_key, is_unit_match, log_action, render_auto_template as render_template
 
 reporting_bp = Blueprint("reporting_bp", __name__)
@@ -1348,7 +1348,7 @@ def admin_template_preview(template_id):
         flash("Biểu mẫu này chưa có file để xem.", "warning")
         return redirect(url_for("reporting_bp.template_detail", template_id=template.id))
     metadata = json.loads(template_version.metadata_json or "{}")
-    workbook = _preview_workbook(template_version.source_path)
+    workbook, formula_values = build_preview_workbook(template_version.source_path, {})
     preview_sheets = []
     for sheet_meta in metadata.get("sheets", []):
         ws = workbook[sheet_meta["sheet_name"]]
@@ -1362,7 +1362,7 @@ def admin_template_preview(template_id):
                 "sheet_name": sheet_meta["sheet_name"],
                 "html": render_sheet_html(
                     ws,
-                    editable_values={},
+                    editable_values=formula_values.get(sheet_meta["sheet_name"], {}),
                     field_lookup={},
                     editable=False,
                     start_row=start_row,
@@ -1880,8 +1880,8 @@ def cycle_preview(cycle_id):
     report_type = context["report_type"]
     latest_submission = context["latest_submission"]
     metadata = json.loads(template_version.metadata_json or "{}")
-    workbook = _preview_workbook(template_version.source_path)
     existing_values = _submission_cell_values(latest_submission.id) if latest_submission else {}
+    workbook, formula_values = build_preview_workbook(template_version.source_path, existing_values)
     preview_sheets = []
     for sheet_meta in metadata.get("sheets", []):
         ws = workbook[sheet_meta["sheet_name"]]
@@ -1894,7 +1894,10 @@ def cycle_preview(cycle_id):
             "sheet_name": sheet_meta["sheet_name"],
             "html": render_sheet_html(
                 ws,
-                editable_values=existing_values.get(sheet_meta["sheet_name"], {}),
+                editable_values={
+                    **existing_values.get(sheet_meta["sheet_name"], {}),
+                    **formula_values.get(sheet_meta["sheet_name"], {}),
+                },
                 field_lookup={},
                 editable=False,
                 start_row=start_row,

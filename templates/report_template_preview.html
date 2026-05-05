@@ -104,14 +104,61 @@
     [data-theme="dark"] .report-preview-head {
         background: rgba(15,23,42,0.45);
     }
+    @page {
+        size: A4 landscape;
+        margin: 8mm;
+    }
     @media print {
+        html, body {
+            background: #fff !important;
+        }
         .pc06-hero-card,
         .btn,
         .pc06-action-cluster { display: none !important; }
-        .report-preview-stage { padding: 0; overflow: visible; }
-        .report-preview-fit { transform: none !important; width: auto !important; }
-        .report-preview-card { box-shadow: none; border: none; }
-        .report-preview-table { font-size: 10px; width: 100%; }
+        .pc06-page-shell,
+        .pc06-panel {
+            padding: 0 !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            background: #fff !important;
+        }
+        .report-preview-shell {
+            gap: 8px !important;
+        }
+        .report-preview-stage {
+            padding: 0 !important;
+            overflow: visible !important;
+        }
+        .report-preview-fit {
+            transform: none !important;
+            width: 100% !important;
+            height: auto !important;
+        }
+        .report-preview-card {
+            box-shadow: none !important;
+            border: none !important;
+            border-radius: 0 !important;
+            background: #fff !important;
+        }
+        .report-preview-head {
+            padding: 6px 0 !important;
+            border-bottom: none !important;
+            background: #fff !important;
+        }
+        .report-preview-table {
+            font-size: 9px !important;
+            width: 100% !important;
+            table-layout: fixed !important;
+        }
+        .report-preview-table td {
+            min-width: 0 !important;
+            max-width: none !important;
+            white-space: normal !important;
+            word-break: break-word !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+            padding: 2px 4px !important;
+        }
     }
 </style>
 
@@ -143,5 +190,13 @@ function togglePreviewFullscreen() {
 window.addEventListener('load', fitPreviewTables);
 window.addEventListener('resize', fitPreviewTables);
 document.addEventListener('fullscreenchange', fitPreviewTables);
+window.addEventListener('beforeprint', () => {
+    document.querySelectorAll('.js-preview-fit').forEach((fit) => {
+        fit.style.transform = 'none';
+        fit.style.height = 'auto';
+        fit.style.width = '100%';
+    });
+});
+window.addEventListener('afterprint', fitPreviewTables);
 </script>
 {% endblock %}
