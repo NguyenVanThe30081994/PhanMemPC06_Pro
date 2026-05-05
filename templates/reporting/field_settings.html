@@ -32,57 +32,64 @@
         <div class="reporting-section-title">
           <div>
             <h5 class="mb-1">{{ section_name }}</h5>
+            <small class="text-muted">{{ fields|length }} trường</small>
           </div>
         </div>
 
-        <div class="reporting-action-grid">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+          <div class="card-body p-0">
           {% for field in fields %}
-          <div class="action-card">
-            <h6 class="mb-3">{{ field.field_name }}</h6>
+          <div class="p-4{% if not loop.last %} border-bottom{% endif %}">
+            <div class="d-flex flex-column flex-lg-row justify-content-between gap-3">
+              <div class="flex-grow-1">
+                <h6 class="mb-2">{{ field.field_name }}</h6>
+                <div class="d-flex flex-wrap gap-2">
+                  {% if field.is_calculated %}
+                  <span class="reporting-chip"><i class="fa-solid fa-calculator"></i>Công thức</span>
+                  {% elif field.is_readonly %}
+                  <span class="reporting-chip"><i class="fa-solid fa-lock"></i>Chỉ đọc</span>
+                  {% else %}
+                  <span class="reporting-chip"><i class="fa-solid fa-pen"></i>Cho phép nhập</span>
+                  {% endif %}
 
-            <div class="form-check mb-2">
-              <input class="form-check-input"
-                     type="checkbox"
-                     id="field_{{ field.id }}"
-                     name="editable_fields"
-                     value="{{ field.field_code }}"
-                     {% if not field.is_readonly and not field.is_calculated %}checked{% endif %}
-                     {% if field.is_calculated %}disabled{% endif %}>
-              <label class="form-check-label" for="field_{{ field.id }}">
-                Cho phép đơn vị nhập
-              </label>
-            </div>
+                  {% if field.field_code in hidden_field_codes %}
+                  <span class="reporting-chip"><i class="fa-solid fa-eye-slash"></i>Ẩn</span>
+                  {% else %}
+                  <span class="reporting-chip"><i class="fa-solid fa-eye"></i>Hiện</span>
+                  {% endif %}
+                </div>
+              </div>
 
-            <div class="form-check mb-3">
-              <input class="form-check-input"
-                     type="checkbox"
-                     id="hidden_{{ field.id }}"
-                     name="hidden_fields"
-                     value="{{ field.field_code }}"
-                     {% if field.field_code in hidden_field_codes %}checked{% endif %}
-                     {% if field.is_calculated %}disabled{% endif %}>
-              <label class="form-check-label" for="hidden_{{ field.id }}">
-                Ẩn khỏi giao diện nhập liệu
-              </label>
-            </div>
+              <div class="d-flex flex-column gap-2">
+                <div class="form-check">
+                  <input class="form-check-input"
+                         type="checkbox"
+                         id="field_{{ field.id }}"
+                         name="editable_fields"
+                         value="{{ field.field_code }}"
+                         {% if not field.is_readonly and not field.is_calculated %}checked{% endif %}
+                         {% if field.is_calculated %}disabled{% endif %}>
+                  <label class="form-check-label" for="field_{{ field.id }}">
+                    Cho phép đơn vị nhập
+                  </label>
+                </div>
 
-            <div class="d-flex flex-wrap gap-2">
-              {% if field.is_calculated %}
-              <span class="reporting-chip"><i class="fa-solid fa-calculator"></i>Công thức</span>
-              {% elif field.is_readonly %}
-              <span class="reporting-chip"><i class="fa-solid fa-lock"></i>Chỉ đọc</span>
-              {% else %}
-              <span class="reporting-chip"><i class="fa-solid fa-pen"></i>Cho phép nhập</span>
-              {% endif %}
-
-              {% if field.field_code in hidden_field_codes %}
-              <span class="reporting-chip"><i class="fa-solid fa-eye-slash"></i>Ẩn</span>
-              {% else %}
-              <span class="reporting-chip"><i class="fa-solid fa-eye"></i>Hiện</span>
-              {% endif %}
+                <div class="form-check">
+                  <input class="form-check-input"
+                         type="checkbox"
+                         id="hidden_{{ field.id }}"
+                         name="hidden_fields"
+                         value="{{ field.field_code }}"
+                         {% if field.field_code in hidden_field_codes %}checked{% endif %}>
+                  <label class="form-check-label" for="hidden_{{ field.id }}">
+                    Ẩn khỏi giao diện nhập liệu
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
           {% endfor %}
+          </div>
         </div>
       </section>
       {% endfor %}

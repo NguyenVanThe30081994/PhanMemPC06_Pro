@@ -72,6 +72,15 @@ def _load_authorized_report_instance(instance_id, write=False):
     return instance, None
 
 
+def _refresh_report_calculations(instance):
+    if not instance:
+        return
+    try:
+        form_engine.calculate_fields(instance.id)
+    except Exception as exc:
+        print(f"[REPORTING] Skipped recalculation for report {instance.id}: {exc}")
+
+
 def _resolve_field_cell_ref(field, worksheet, target_row, exporter):
     cell_ref = str(field.excel_cell_ref or '').strip()
     if not cell_ref:
@@ -908,6 +917,7 @@ def fill_form(template_id, period_id):
         user_id=user_id,
         org_unit=user_unit
     )
+    _refresh_report_calculations(instance)
     
     # Lấy dữ liệu
     report_data = form_engine.get_report_data(instance.id)
@@ -939,6 +949,7 @@ def fill_form_desktop(template_id, period_id):
         user_id=user_id,
         org_unit=user_unit
     )
+    _refresh_report_calculations(instance)
     report_data = form_engine.get_report_data(instance.id)
     if not instance.template.excel_template_blob:
         flash('Biểu mẫu chưa có file Excel gốc để mở dạng bảng.', 'warning')
@@ -968,6 +979,7 @@ def view_report(instance_id):
         flash('Bạn không có quyền xem báo cáo của đơn vị khác.', 'danger')
         return redirect(url_for('reporting_bp.index'))
 
+    _refresh_report_calculations(instance)
     report_data = form_engine.get_report_data(instance.id)
     
     return render_template('reporting/view_report.html',
@@ -990,6 +1002,7 @@ def export_report(instance_id):
             flash('Bạn không có quyền xuất báo cáo của đơn vị khác.', 'danger')
             return redirect(url_for('reporting_bp.index'))
 
+        _refresh_report_calculations(instance)
         output, filename = exporter.export_to_excel_bytes(instance.id)
         file_bytes = output.getvalue()
 
@@ -1611,6 +1624,7 @@ def api_get_report(instance_id):
         instance, denied = _load_authorized_report_instance(instance_id)
         if denied:
             return denied
+        _refresh_report_calculations(instance)
         report_data = form_engine.get_report_data(instance_id)
         return jsonify({'success': True, 'data': report_data})
     except Exception as e:
@@ -1694,6 +1708,7 @@ def api_export_report(instance_id):
         if denied:
             return denied
 
+        _refresh_report_calculations(instance)
         output, filename = exporter.export_to_excel_bytes(instance_id)
         file_bytes = output.getvalue()
 

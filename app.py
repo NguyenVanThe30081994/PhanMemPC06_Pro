@@ -351,4 +351,7 @@ def dl_file(fn):
             return send_from_directory(b, fn, as_attachment=True)
     return render_template('404.html'), 404
 
-if __name__ == '__main__': app.run(host='0.0.0.0', port=5000, debug=True)
+if __name__ == '__main__':
+    host = os.environ.get('PC06_HOST', '127.0.0.1')
+    port = int(os.environ.get('PC06_PORT', '5000'))
+    app.run(host=host, port=port, debug=True)
