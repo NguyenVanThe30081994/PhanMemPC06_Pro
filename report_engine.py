@@ -262,6 +262,9 @@ def _evaluate_sheet_formulas(ws):
             result = eval_formula(value)
         else:
             result = value
+            coerced = _coerce_numeric(result)
+            if isinstance(coerced, (int, float)):
+                result = coerced
         visiting.discard(coord)
         cache[coord] = result
         return result
