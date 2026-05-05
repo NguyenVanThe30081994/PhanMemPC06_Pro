@@ -28,9 +28,13 @@ from models import (
     User,
 )
 from report_engine import normalize_code, parse_workbook, render_sheet_html, safe_filename, write_workbook_copy
-from utils import extract_unit_key, log_action, render_auto_template as render_template
+from utils import apply_migrations, extract_unit_key, log_action, render_auto_template as render_template
 
 reporting_bp = Blueprint("reporting_bp", __name__)
+
+
+def _ensure_report_schema():
+    apply_migrations(current_app)
 
 
 def _is_admin():
@@ -336,6 +340,7 @@ def _export_submission(submission):
 def admin_dashboard():
     if not _is_admin():
         return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
     _ensure_default_types()
     _sync_units_from_users()
 
@@ -367,6 +372,7 @@ def admin_dashboard():
 def upload_template():
     if not _is_admin():
         return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
 
     file = request.files.get("template_file")
     if not file or not file.filename.lower().endswith(".xlsx"):
@@ -465,6 +471,7 @@ def upload_template():
 def template_detail(template_id):
     if not _is_admin():
         return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
     template = db.session.get(ReportTemplate, template_id)
     if not template:
         return "Not Found", 404
@@ -491,6 +498,7 @@ def template_detail(template_id):
 def activate_version(template_id, version_id):
     if not _is_admin():
         return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
     ReportTemplateVersion.query.filter_by(template_id=template_id).update({"is_current": False})
     version = db.session.get(ReportTemplateVersion, version_id)
     if version:
@@ -505,6 +513,7 @@ def activate_version(template_id, version_id):
 def sync_units():
     if not _is_admin():
         return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
     _sync_units_from_users()
     flash("Đã đồng bộ đơn vị từ tài khoản.", "success")
     return redirect(url_for("reporting_bp.admin_dashboard"))
@@ -514,6 +523,7 @@ def sync_units():
 def create_cycle():
     if not _is_admin():
         return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
     template_version_id = int(request.form.get("template_version_id") or 0)
     report_type_id = int(request.form.get("report_type_id") or 0)
     name = (request.form.get("name") or "").strip()
@@ -571,6 +581,7 @@ def create_cycle():
 def user_dashboard():
     if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
     _ensure_default_types()
     _sync_units_from_users()
 
@@ -603,6 +614,7 @@ def user_dashboard():
 def cycle_workspace(cycle_id):
     if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
     _ensure_default_types()
     _sync_units_from_users()
 
@@ -668,6 +680,7 @@ def _payload_from_request():
 def save_cycle(cycle_id):
     if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
     cycle = db.session.get(ReportCycle, cycle_id)
     unit = _current_user_report_unit()
     if not cycle or not _cycle_accessible(cycle, unit.id if unit else None, _is_admin()):
@@ -685,6 +698,7 @@ def save_cycle(cycle_id):
 def submit_cycle(cycle_id):
     if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
     cycle = db.session.get(ReportCycle, cycle_id)
     unit = _current_user_report_unit()
     if not cycle or not _cycle_accessible(cycle, unit.id if unit else None, _is_admin()):
@@ -708,6 +722,7 @@ def submit_cycle(cycle_id):
 def download_submission(submission_id):
     if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
     submission = db.session.get(ReportSubmission, submission_id)
     if not submission:
         return "Not Found", 404
