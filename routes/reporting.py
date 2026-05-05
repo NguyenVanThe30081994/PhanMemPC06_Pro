@@ -157,7 +157,7 @@ def _build_excel_like_rows(instance):
     ws = wb_formula.active
     ws_values = wb_values[ws.title] if ws.title in wb_values.sheetnames else wb_values.active
     evaluator = None if ExcelRecalcService.is_available() else ExcelFormulaEngine(wb_formula)
-    target_row = exporter._find_target_row(ws, _instance_reporting_unit(instance))
+    target_row, target_row_source = exporter.resolve_target_row(instance, ws)
 
     fields = FormField.query.filter_by(version_id=instance.version_id).order_by(FormField.display_order).all()
     report_values = {fv.field_code: fv.value for fv in instance.field_values}
@@ -329,6 +329,7 @@ def _build_excel_like_rows(instance):
         'col_widths': col_widths,
         'col_letters': col_letters,
         'target_row': target_row,
+        'target_row_source': target_row_source,
         'unresolved_fields': unresolved_fields,
         'recalc_mode': 'libreoffice' if ExcelRecalcService.is_available() else 'fallback',
     }
@@ -1411,6 +1412,12 @@ def view_report(instance_id):
                           instance=instance,
                           excel_context=excel_context,
                           report_context=report_context)
+
+
+@reporting_bp.route('/report/<int:instance_id>/excel')
+def view_report_excel(instance_id):
+    """Shortcut để mở trực tiếp giao diện Excel-like của báo cáo."""
+    return redirect(url_for('reporting_bp.view_report', instance_id=instance_id, layout='excel'))
 
 
 @reporting_bp.route('/report/<int:instance_id>/export')

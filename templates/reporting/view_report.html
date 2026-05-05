@@ -85,6 +85,11 @@
         <button type="button" class="btn btn-light rounded-pill px-4" onclick="window.print()">
           In
         </button>
+        {% if instance.template.excel_template_blob %}
+        <a href="{{ url_for('reporting_bp.view_report_excel', instance_id=instance.id) }}" class="btn btn-outline-primary rounded-pill px-4">
+          Xem Excel
+        </a>
+        {% endif %}
         <button type="button" class="btn btn-outline-secondary rounded-pill px-4" onclick="window.history.back()">
           Quay lại
         </button>
@@ -111,6 +116,11 @@
     {% if excel_context.target_row is none %}
     <div class="alert alert-warning border-0 shadow-sm rounded-4">
       Chưa tìm thấy dòng đơn vị trong file Excel, nên có thể chưa đặt dữ liệu vào đúng hàng.
+    </div>
+    {% endif %}
+    {% if excel_context.target_row_source == 'fallback' %}
+    <div class="alert alert-info border-0 shadow-sm rounded-4">
+      Không khớp đúng dòng đơn vị trong mẫu, hệ thống đang hiển thị theo dòng dữ liệu đầu tiên để tránh mất số liệu.
     </div>
     {% endif %}
 

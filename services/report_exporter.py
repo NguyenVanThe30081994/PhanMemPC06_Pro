@@ -5,6 +5,7 @@ Xuất dữ liệu báo cáo ra Excel từ template đã lưu trong DB.
 """
 from io import BytesIO
 from datetime import datetime
+import json
 import re
 from openpyxl import load_workbook, Workbook
 from openpyxl.styles import Protection
@@ -56,6 +57,35 @@ class ReportExporter:
         return None
 
     @staticmethod
+    def _fallback_target_row(instance, ws):
+        metadata = {}
+        try:
+            metadata = json.loads(instance.version.metadata_json) if instance and instance.version and instance.version.metadata_json else {}
+        except Exception:
+            metadata = {}
+
+        effective = metadata.get('effective_structure') or {}
+        scan_summary = metadata.get('scan_summary') or {}
+        candidate = (
+            effective.get('data_start_row') or
+            scan_summary.get('data_start_row') or
+            metadata.get('data_start_row') or
+            2
+        )
+        try:
+            candidate = int(candidate)
+        except Exception:
+            candidate = 2
+        max_row = ws.max_row or candidate
+        return max(1, min(candidate, max_row))
+
+    def resolve_target_row(self, instance, ws):
+        matched = self._find_target_row(ws, self._effective_reporting_unit(instance))
+        if matched:
+            return matched, 'matched'
+        return self._fallback_target_row(instance, ws), 'fallback'
+
+    @staticmethod
     def _safe_filename(instance):
         import re
         safe_unit = (instance.org_unit or 'unit')
@@ -96,7 +126,7 @@ class ReportExporter:
             pass
 
         ws = wb.active
-        target_row = self._find_target_row(ws, self._effective_reporting_unit(instance))
+        target_row, target_row_source = self.resolve_target_row(instance, ws)
 
         for field in fields:
             raw_value = values_map.get(field.field_code)
