@@ -146,6 +146,9 @@ def index():
         if not session.get('uid'): 
             return redirect(url_for('auth_bp.login'))
 
+        from models import Task, DocumentLib, Contact, ReportTemplate, ReportCycle, ReportTemplateVersion
+        from category_helpers import get_module_field_items, get_category_items
+
         task_domain_items = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
         contact_group_items = get_module_field_items('contacts', 'contact_group') or get_category_items('Nhóm danh bạ')
         document_field_items = (
@@ -153,6 +156,10 @@ def index():
             or get_category_items('Lĩnh vực')
             or get_category_items('Loại tài liệu')
         )
+        report_domain_items = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
+
+        # Filter out 5 Đội nghiệp vụ manually since it's hardcoded constraint
+        fixed_report_teams = [{'name': f'Đội {i}'} for i in range(1, 6)]
 
         task_raw_counts = db.session.query(
             Task.domain,
@@ -169,11 +176,54 @@ def index():
             func.count(Contact.id)
         ).group_by(Contact.contact_group).all()
 
+        report_raw_counts = db.session.query(
+            ReportTemplate.professional_unit,
+            func.count(ReportCycle.id)
+        ).join(
+            ReportTemplateVersion, ReportCycle.template_version_id == ReportTemplateVersion.id
+        ).join(
+            ReportTemplate, ReportTemplateVersion.template_id == ReportTemplate.id
+        ).group_by(ReportTemplate.professional_unit).all()
+
         task_dashboard = _build_grouped_rows(task_raw_counts, task_domain_items, fallback_label='Chưa phân đội')
         document_dashboard = _build_grouped_rows(document_raw_counts, document_field_items, fallback_label='Chưa phân lĩnh vực')
         contact_dashboard = _build_grouped_rows(contact_raw_counts, contact_group_items, fallback_label='Chưa phân nhóm')
+        
+        # Build report dashboard using exactly Đội 1 -> Đội 5
+        report_dashboard = _build_grouped_rows(report_raw_counts, fixed_report_teams, fallback_label='Chưa phân đội')
+
+        # Ensure that only Đội 1 to Đội 5 and the fallback (if any exist) are present? 
+        # The instruction says "Cố định sẽ có 05 đội nghiệp vụ Đội 1 -> Đội 5"
+        # So we can ensure these rows always appear, even if 0.
+        # `_build_grouped_rows` filters out rows with 0 count, but the instruction implies it should be fixed.
+        # Let's override the result for report_dashboard to strictly ensure we have these 5 items.
+        
+        report_dashboard_map = {row['name']: row['count'] for row in report_dashboard}
+        fixed_report_dashboard = []
+        for i in range(1, 6):
+            team_name = f'Đội {i}'
+            fixed_report_dashboard.append({
+                'name': team_name,
+                'count': report_dashboard_map.get(team_name, 0)
+            })
+        
+        # Add 'Chưa phân đội' or any other if it has count > 0
+        for row in report_dashboard:
+            if row['name'] not in [f'Đội {i}' for i in range(1, 6)]:
+                fixed_report_dashboard.append(row)
 
         dashboard_cards = [
+            {
+                'title': 'Báo cáo',
+                'row_label': 'Đội nghiệp vụ',
+                'count_label': 'Số báo cáo',
+                'icon': 'fa-solid fa-chart-pie',
+                'accent_class': 'success',
+                'link': '/admin/reports',
+                'rows': fixed_report_dashboard,
+                'total': sum(row['count'] for row in fixed_report_dashboard),
+                'empty_text': 'Chưa có báo cáo nào.'
+            },
             {
                 'title': 'Công việc được giao',
                 'row_label': 'Đội nghiệp vụ',
