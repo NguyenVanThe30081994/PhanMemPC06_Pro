@@ -130,8 +130,9 @@
             overflow: visible !important;
         }
         .report-preview-fit {
-            transform: none !important;
-            width: 100% !important;
+            transform-origin: top left !important;
+            transform: scale(var(--print-scale, 1)) !important;
+            width: max-content !important;
             height: auto !important;
         }
         .report-preview-card {
@@ -140,6 +141,9 @@
             border-radius: 0 !important;
             background: #fff !important;
         }
+        .report-preview-card:not(:last-child) {
+            page-break-after: always;
+        }
         .report-preview-head {
             padding: 6px 0 !important;
             border-bottom: none !important;
@@ -147,8 +151,8 @@
         }
         .report-preview-table {
             font-size: 9px !important;
-            width: 100% !important;
-            table-layout: fixed !important;
+            width: auto !important;
+            table-layout: auto !important;
         }
         .report-preview-table td {
             min-width: 0 !important;
@@ -190,13 +194,22 @@ function togglePreviewFullscreen() {
 window.addEventListener('load', fitPreviewTables);
 window.addEventListener('resize', fitPreviewTables);
 document.addEventListener('fullscreenchange', fitPreviewTables);
-window.addEventListener('beforeprint', () => {
+function preparePrintLayout() {
+    const printableWidthPx = Math.round(((297 - 16) / 25.4) * 96);
     document.querySelectorAll('.js-preview-fit').forEach((fit) => {
+        const table = fit.querySelector('table');
+        if (!table) return;
         fit.style.transform = 'none';
         fit.style.height = 'auto';
-        fit.style.width = '100%';
+        fit.style.width = 'max-content';
+        fit.style.setProperty('--print-scale', '1');
+        const tableWidth = Math.max(table.scrollWidth, 1);
+        const scale = Math.min(1, printableWidthPx / tableWidth);
+        fit.style.setProperty('--print-scale', String(scale));
+        fit.style.height = `${Math.ceil(table.scrollHeight * scale)}px`;
     });
-});
+}
+window.addEventListener('beforeprint', preparePrintLayout);
 window.addEventListener('afterprint', fitPreviewTables);
 </script>
 {% endblock %}
