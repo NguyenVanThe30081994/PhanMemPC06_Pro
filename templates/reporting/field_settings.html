@@ -210,8 +210,7 @@
                          id="hidden_{{ field.id }}"
                          name="hidden_fields"
                          value="{{ field.field_code }}"
-                         {% if field.field_code in hidden_field_codes %}checked{% endif %}
-                         {% if field.is_calculated %}disabled{% endif %}>
+                         {% if field.field_code in hidden_field_codes %}checked{% endif %}>
                   <span>Ẩn</span>
                 </label>
               </div>

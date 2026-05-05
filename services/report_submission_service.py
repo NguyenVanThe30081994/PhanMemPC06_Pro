@@ -492,6 +492,81 @@ class ReportSubmissionService:
         target.write_bytes(file_bytes)
         return str(target)
 
+    @staticmethod
+    def _resolve_target_cell(ws, cell_ref):
+        from openpyxl.utils.cell import coordinate_to_tuple
+
+        try:
+            row_idx, col_idx = coordinate_to_tuple(cell_ref)
+        except Exception:
+            return cell_ref
+
+        for merged_range in ws.merged_cells.ranges:
+            if merged_range.min_row <= row_idx <= merged_range.max_row and merged_range.min_col <= col_idx <= merged_range.max_col:
+                return merged_range.start_cell.coordinate
+        return cell_ref
+
+    def _coerce_workbook_value(self, cell_data):
+        formula_text = str(cell_data.get('formula_text') or '').strip()
+        if formula_text:
+            return formula_text
+
+        value_type = str(cell_data.get('value_type') or '').strip().lower()
+        normalized_value = cell_data.get('normalized_value')
+        raw_value = cell_data.get('raw_value')
+        candidate = normalized_value if normalized_value not in (None, '') else raw_value
+        if candidate in (None, ''):
+            return None
+
+        if value_type in ('decimal', 'number', 'integer'):
+            try:
+                numeric = self._safe_float(candidate)
+                if numeric is None:
+                    return candidate
+                if value_type == 'integer' and float(numeric).is_integer():
+                    return int(round(numeric))
+                return numeric
+            except Exception:
+                return candidate
+
+        if value_type == 'date':
+            try:
+                return datetime.date.fromisoformat(str(candidate))
+            except Exception:
+                return candidate
+
+        if value_type == 'datetime':
+            try:
+                return datetime.datetime.fromisoformat(str(candidate))
+            except Exception:
+                return candidate
+
+        return candidate
+
+    def _filled_workbook_bytes(self, file_bytes, parsed_rows, recalc=False):
+        wb = load_workbook(BytesIO(file_bytes))
+        for row_data in parsed_rows or []:
+            sheet_name = row_data.get('sheet_name')
+            if not sheet_name or sheet_name not in wb.sheetnames:
+                continue
+            ws = wb[sheet_name]
+            for cell_data in row_data.get('cells', []):
+                cell_ref = (cell_data.get('excel_address') or '').strip()
+                if not cell_ref:
+                    continue
+                target_cell = self._resolve_target_cell(ws, cell_ref)
+                try:
+                    ws[target_cell] = self._coerce_workbook_value(cell_data)
+                except Exception:
+                    continue
+
+        output = BytesIO()
+        wb.save(output)
+        workbook_bytes = output.getvalue()
+        if recalc and ExcelRecalcService.is_available():
+            workbook_bytes = ExcelRecalcService.recalc_xlsx_bytes(workbook_bytes)
+        return workbook_bytes
+
     def _error_workbook_bytes(self, file_bytes, errors):
         wb = load_workbook(BytesIO(file_bytes))
         ws_errors = wb.create_sheet('Danh sách lỗi')
@@ -615,13 +690,18 @@ class ReportSubmissionService:
         original_path = self._write_bytes('originals', original_name, original_bytes)
 
         parsed = self.parse_workbook_bytes(original_bytes, config)
+        filled_bytes = self._filled_workbook_bytes(
+            original_bytes,
+            parsed['rows'],
+            recalc=ExcelRecalcService.is_available()
+        )
         processed_name = f'{file_token}_processed.xlsx'
-        processed_path = self._write_bytes('processed', processed_name, parsed['processed_bytes'])
+        processed_path = self._write_bytes('processed', processed_name, filled_bytes)
 
         error_path = None
         if parsed['errors']:
             error_name = f'{file_token}_errors.xlsx'
-            error_bytes = self._error_workbook_bytes(original_bytes, parsed['errors'])
+            error_bytes = self._error_workbook_bytes(filled_bytes, parsed['errors'])
             error_path = self._write_bytes('errors', error_name, error_bytes)
 
         submission.original_file_path = original_path
