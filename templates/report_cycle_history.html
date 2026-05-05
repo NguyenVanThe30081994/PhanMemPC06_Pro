@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+            <h1 class="h3 fw-bold mb-1">{{ cycle.name }}</h1>
+            <p class="text-muted mb-0">{{ template.name }} • {{ current_unit.name if current_unit else 'Không có đơn vị' }}</p>
+        </div>
+        <a href="{{ url_for('reporting_bp.user_dashboard') if not is_admin else url_for('reporting_bp.admin_cycle_detail', cycle_id=cycle.id) }}" class="btn btn-light rounded-pill px-4">Quay lại</a>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-4">
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Phiên bản</th>
+                        <th>Trạng thái</th>
+                        <th>Thời điểm</th>
+                        <th>Ghi chú</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for submission in submission_history %}
+                    <tr>
+                        <td>#{{ submission.version_no }}</td>
+                        <td>{{ submission.status }}</td>
+                        <td>{{ submission.created_at.strftime('%d/%m/%Y %H:%M') if submission.created_at else '' }}</td>
+                        <td>{{ submission.note or '' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="text-muted text-center py-4">Chưa có lịch sử chỉnh sửa.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

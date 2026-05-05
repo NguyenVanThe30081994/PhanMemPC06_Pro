@@ -28,6 +28,7 @@ from models import (
     ReportingPeriod,
     User,
 )
+from category_helpers import get_category_items, get_module_field_items
 from report_engine import normalize_code, parse_workbook, render_sheet_html, safe_filename, write_workbook_copy
 from utils import apply_migrations, extract_unit_key, log_action, render_auto_template as render_template
 
@@ -185,6 +186,45 @@ def _template_version_ids(template_id):
     return [row.id for row in ReportTemplateVersion.query.filter_by(template_id=template_id).all()]
 
 
+def _professional_unit_options():
+    return get_module_field_items("tasks", "domain") or get_category_items("Đội nghiệp vụ")
+
+
+def _template_professional_unit(template):
+    return (getattr(template, "professional_unit", None) or "").strip() or "Chưa phân đội"
+
+
+def _template_current_cycle(template):
+    version_ids = _template_version_ids(template.id)
+    if not version_ids:
+        return None
+    cycles = (
+        ReportCycle.query.filter(ReportCycle.template_version_id.in_(version_ids))
+        .order_by(ReportCycle.created_at.desc())
+        .all()
+    )
+    for cycle in cycles:
+        if cycle.status != "closed":
+            return cycle
+    return cycles[0] if cycles else None
+
+
+def _save_directive_file(file_storage, template_code):
+    if not file_storage or not file_storage.filename:
+        return "", ""
+    original_name = secure_filename(file_storage.filename)
+    if not original_name:
+        return "", ""
+    directive_dir = os.path.join(current_app.root_path, "report_templates", "directives")
+    os.makedirs(directive_dir, exist_ok=True)
+    filename = safe_filename(
+        f"{normalize_code(template_code) or 'report'}_directive_{datetime.now().strftime('%Y%m%d%H%M%S')}_{original_name}"
+    )
+    storage_path = os.path.join(directive_dir, filename)
+    file_storage.save(storage_path)
+    return original_name, storage_path
+
+
 def _scope_unit_ids(cycle):
     try:
         data = json.loads(cycle.scope_json or "[]")
@@ -325,6 +365,10 @@ def _cell_display_value(value):
     if value is None:
         return ""
     return str(value).strip()
+
+
+def _form_checked(name):
+    return "1" in request.form.getlist(name)
 
 
 def _sheet_header_range(sheet_or_meta):
@@ -565,6 +609,58 @@ def _ensure_active_cycle_for_template(template, version, report_type):
     return selected_cycle
 
 
+def _ensure_active_cycles_for_ready_templates():
+    templates = (
+        ReportTemplate.query.filter_by(status="active")
+        .order_by(ReportTemplate.updated_at.desc(), ReportTemplate.id.desc())
+        .all()
+    )
+    for template in templates:
+        version = _template_version(template)
+        if not version or not template.report_type_id:
+            continue
+        report_type = db.session.get(ReportType, template.report_type_id)
+        if not report_type:
+            continue
+        _ensure_active_cycle_for_template(template, version, report_type)
+
+
+def _group_admin_templates(templates):
+    groups = {}
+    for template in templates:
+        group_name = _template_professional_unit(template)
+        groups.setdefault(group_name, []).append(
+            {
+                "template": template,
+                "current_version": _template_version(template),
+                "current_cycle": _template_current_cycle(template),
+            }
+        )
+    return [
+        {"name": name, "items": groups[name]}
+        for name in sorted(groups.keys(), key=lambda value: (value == "Chưa phân đội", value.lower()))
+    ]
+
+
+def _group_cycles_by_professional_unit(cycles):
+    groups = {}
+    for cycle in cycles:
+        template_version = db.session.get(ReportTemplateVersion, cycle.template_version_id)
+        template = db.session.get(ReportTemplate, template_version.template_id) if template_version else None
+        group_name = _template_professional_unit(template)
+        groups.setdefault(group_name, []).append(
+            {
+                "cycle": cycle,
+                "template": template,
+                "template_version": template_version,
+            }
+        )
+    return [
+        {"name": name, "items": groups[name]}
+        for name in sorted(groups.keys(), key=lambda value: (value == "Chưa phân đội", value.lower()))
+    ]
+
+
 def _save_submission(instance, payload, final_submit=False):
     cycle = db.session.get(ReportCycle, instance.cycle_id)
     template_version = db.session.get(ReportTemplateVersion, cycle.template_version_id)
@@ -715,6 +811,7 @@ def admin_dashboard():
     _ensure_report_schema()
     _ensure_default_types()
     _sync_units_from_users()
+    _ensure_active_cycles_for_ready_templates()
 
     templates = ReportTemplate.query.order_by(ReportTemplate.updated_at.desc()).all()
     versions = ReportTemplateVersion.query.order_by(ReportTemplateVersion.created_at.desc()).all()
@@ -731,10 +828,12 @@ def admin_dashboard():
     return render_template(
         "reporting_dashboard.html",
         templates=templates,
+        template_groups=_group_admin_templates(templates),
         versions=versions,
         cycles=cycles,
         units=units,
         report_types=report_types,
+        professional_units=_professional_unit_options(),
         recent_submissions=recent_submissions,
         current_versions=current_versions,
         is_admin=True,
@@ -755,6 +854,7 @@ def upload_template():
     name = (request.form.get("name") or file.filename.rsplit(".", 1)[0]).strip()
     code = normalize_code(name or file.filename.rsplit(".", 1)[0]) or f"template_{datetime.now().strftime('%Y%m%d%H%M%S')}"
     description = (request.form.get("description") or "").strip()
+    professional_unit = (request.form.get("professional_unit") or "").strip()
     header_start_row = _parse_positive_int(request.form.get("header_start_row"), 1)
     header_end_row = _parse_positive_int(request.form.get("header_end_row"), max(header_start_row, 2))
     if header_end_row < header_start_row:
@@ -782,6 +882,20 @@ def upload_template():
         template.description = description
         template.status = "draft"
         db.session.flush()
+
+    if professional_unit:
+        template.professional_unit = professional_unit
+
+    directive_file = request.files.get("directive_file")
+    directive_filename, directive_path = _save_directive_file(directive_file, code)
+    if directive_filename and directive_path:
+        if template.directive_path and os.path.exists(template.directive_path):
+            try:
+                os.remove(template.directive_path)
+            except Exception:
+                pass
+        template.directive_filename = directive_filename
+        template.directive_path = directive_path
 
     existing_versions = ReportTemplateVersion.query.filter_by(template_id=template.id).count()
     version_no = existing_versions + 1
@@ -885,6 +999,7 @@ def template_detail(template_id):
     current_version = _template_version(template)
     version_usage = {version.id: _version_usage_count(version.id) for version in versions}
     report_types = ReportType.query.order_by(ReportType.name.asc()).all()
+    professional_units = _professional_unit_options()
     sheets = []
     fields = []
     field_rows = []
@@ -911,6 +1026,7 @@ def template_detail(template_id):
         "reporting_template_detail.html",
         template=template,
         report_types=report_types,
+        professional_units=professional_units,
         versions=versions,
         current_version=current_version,
         version_usage=version_usage,
@@ -940,6 +1056,10 @@ def save_template_config(template_id):
     if not report_type:
         flash("Bạn cần chọn loại báo cáo.", "danger")
         return redirect(url_for("reporting_bp.template_detail", template_id=template_id))
+    professional_unit = (request.form.get("professional_unit") or "").strip()
+    if not professional_unit:
+        flash("Bạn cần chọn đội nghiệp vụ.", "danger")
+        return redirect(url_for("reporting_bp.template_detail", template_id=template_id))
 
     fields = ReportTemplateField.query.filter_by(version_id=version.id).order_by(ReportTemplateField.sheet_name.asc(), ReportTemplateField.display_order.asc()).all()
     for field in fields:
@@ -953,10 +1073,21 @@ def save_template_config(template_id):
             field.path_code = " > ".join(levels)
         else:
             field.display_name = field.display_name or field.field_name or field.field_code
-        field.is_visible = request.form.get(f"field_{field.id}_visible") == "1"
-        field.is_editable = field.is_visible and request.form.get(f"field_{field.id}_editable") == "1"
+        field.is_visible = _form_checked(f"field_{field.id}_visible")
+        field.is_editable = field.is_visible and _form_checked(f"field_{field.id}_editable")
 
     template.report_type_id = report_type.id
+    template.professional_unit = professional_unit
+    directive_file = request.files.get("directive_file")
+    directive_filename, directive_path = _save_directive_file(directive_file, template.code or template.name or "report")
+    if directive_filename and directive_path:
+        if template.directive_path and os.path.exists(template.directive_path):
+            try:
+                os.remove(template.directive_path)
+            except Exception:
+                pass
+        template.directive_filename = directive_filename
+        template.directive_path = directive_path
     template.status = "active"
     db.session.commit()
     _sync_units_from_users()
@@ -1010,6 +1141,62 @@ def activate_version(template_id, version_id):
         _audit("activate_version", "report_template_version", version.id, f"template={template_id}")
         flash("Đã chuyển sang bản mẫu này.", "success")
     return redirect(url_for("reporting_bp.template_detail", template_id=template_id))
+
+
+@reporting_bp.route("/admin/reports/templates/<int:template_id>/view")
+def admin_template_preview(template_id):
+    if not _is_admin():
+        return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
+    template = db.session.get(ReportTemplate, template_id)
+    if not template:
+        return "Not Found", 404
+    template_version = _template_version(template)
+    if not template_version:
+        flash("Biểu mẫu này chưa có file để xem.", "warning")
+        return redirect(url_for("reporting_bp.template_detail", template_id=template.id))
+    metadata = json.loads(template_version.metadata_json or "{}")
+    workbook = load_workbook(template_version.source_path, data_only=False)
+    preview_sheets = []
+    for sheet_meta in metadata.get("sheets", []):
+        ws = workbook[sheet_meta["sheet_name"]]
+        start_row, header_end_row = _sheet_header_range(sheet_meta)
+        unit_end_row = int(sheet_meta.get("unit_end_row") or sheet_meta.get("data_end_row") or header_end_row + 1)
+        total_end_row = int(sheet_meta.get("total_end_row") or 0)
+        start_col = column_index_from_string(sheet_meta.get("start_column") or "A")
+        end_col = column_index_from_string(sheet_meta.get("end_column") or sheet_meta.get("start_column") or "A")
+        preview_sheets.append(
+            {
+                "sheet_name": sheet_meta["sheet_name"],
+                "html": render_sheet_html(
+                    ws,
+                    editable_values={},
+                    field_lookup={},
+                    editable=False,
+                    start_row=start_row,
+                    end_row=max(unit_end_row, total_end_row or 0),
+                    min_col=start_col,
+                    max_col=end_col,
+                ),
+            }
+        )
+    return render_template(
+        "report_template_preview.html",
+        template=template,
+        template_version=template_version,
+        preview_sheets=preview_sheets,
+    )
+
+
+@reporting_bp.route("/admin/reports/templates/<int:template_id>/directive")
+def download_template_directive(template_id):
+    if not _is_admin():
+        return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
+    template = db.session.get(ReportTemplate, template_id)
+    if not template or not template.directive_path or not os.path.exists(template.directive_path):
+        return "Not Found", 404
+    return send_file(template.directive_path, as_attachment=True, download_name=template.directive_filename or os.path.basename(template.directive_path))
 
 
 @reporting_bp.route("/admin/reports/templates/<int:template_id>/versions/<int:version_id>/delete", methods=["POST"])
@@ -1084,6 +1271,11 @@ def delete_template(template_id):
         ReportTemplateField.query.filter_by(version_id=version.id).delete(synchronize_session=False)
         ReportTemplateSheet.query.filter_by(version_id=version.id).delete(synchronize_session=False)
         db.session.delete(version)
+    if template.directive_path and os.path.exists(template.directive_path):
+        try:
+            os.remove(template.directive_path)
+        except Exception:
+            pass
     db.session.delete(template)
     db.session.commit()
     _audit("delete_template", "report_template", template_id, template.name)
@@ -1340,6 +1532,7 @@ def user_dashboard():
     _ensure_report_schema()
     _ensure_default_types()
     _sync_units_from_users()
+    _ensure_active_cycles_for_ready_templates()
 
     user = db.session.get(User, session.get("uid"))
     unit = _current_user_report_unit()
@@ -1354,6 +1547,7 @@ def user_dashboard():
     return render_template(
         "reporting_dashboard.html",
         templates=[],
+        cycle_groups=_group_cycles_by_professional_unit(accessible_cycles),
         versions=[],
         cycles=accessible_cycles,
         units=[unit] if unit else [],
@@ -1376,22 +1570,20 @@ def cycle_workspace(cycle_id):
     _ensure_default_types()
     _sync_units_from_users()
 
-    cycle = db.session.get(ReportCycle, cycle_id)
-    if not cycle:
+    context = _resolve_cycle_context(cycle_id)
+    if not context:
         return "Not Found", 404
-    unit = _resolve_cycle_unit(cycle)
-    if not _cycle_accessible(cycle, unit.id if unit else None, _is_admin()):
-        return "Forbidden", 403
-
-    user = db.session.get(User, session.get("uid"))
-    instance = _get_cycle_instance(cycle, unit, user)
-    template_version = db.session.get(ReportTemplateVersion, cycle.template_version_id)
-    template = db.session.get(ReportTemplate, template_version.template_id)
-    report_type = _report_type(cycle)
+    cycle = context["cycle"]
+    unit = context["unit"]
+    instance = context["instance"]
+    template_version = context["template_version"]
+    template = context["template"]
+    report_type = context["report_type"]
+    editable = not cycle.is_locked and cycle.status != "closed"
     metadata = json.loads(template_version.metadata_json or "{}")
     workbook = load_workbook(template_version.source_path, data_only=False)
-    latest_submission = _latest_submission(instance.id)
-    submission_history = ReportSubmission.query.filter_by(instance_id=instance.id).order_by(ReportSubmission.version_no.desc(), ReportSubmission.created_at.desc()).all()
+    latest_submission = context["latest_submission"]
+    submission_history = context["submission_history"]
     existing_values = _submission_cell_values(latest_submission.id) if latest_submission else {}
     available_units = _cycle_units(cycle) if _is_admin() else []
     sheet_views = []
@@ -1399,6 +1591,8 @@ def cycle_workspace(cycle_id):
         ws = workbook[sheet_meta["sheet_name"]]
         sheet_fields = ReportTemplateField.query.filter_by(version_id=template_version.id, sheet_name=sheet_meta["sheet_name"]).order_by(ReportTemplateField.display_order.asc()).all()
         visible_fields = [field for field in sheet_fields if field.is_visible]
+        if not visible_fields:
+            visible_fields = [field for field in sheet_fields if field.is_editable] or sheet_fields
         start_row, header_end_row = _sheet_header_range(sheet_meta)
         unit_start_row = int(sheet_meta.get("unit_start_row") or sheet_meta.get("data_start_row") or header_end_row + 1)
         unit_end_row = int(sheet_meta.get("unit_end_row") or sheet_meta.get("data_end_row") or unit_start_row)
@@ -1479,7 +1673,83 @@ def cycle_workspace(cycle_id):
         current_unit=unit,
         is_admin=_is_admin(),
         available_units=available_units,
-        editable=not cycle.is_locked and cycle.status != "closed",
+        editable=editable,
+    )
+
+
+@reporting_bp.route("/reports/cycles/<int:cycle_id>/view")
+def cycle_preview(cycle_id):
+    if not _require_login():
+        return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
+    _ensure_default_types()
+    _sync_units_from_users()
+
+    context = _resolve_cycle_context(cycle_id)
+    if not context:
+        return "Not Found", 404
+    cycle = context["cycle"]
+    unit = context["unit"]
+    template_version = context["template_version"]
+    template = context["template"]
+    report_type = context["report_type"]
+    latest_submission = context["latest_submission"]
+    metadata = json.loads(template_version.metadata_json or "{}")
+    workbook = load_workbook(template_version.source_path, data_only=False)
+    existing_values = _submission_cell_values(latest_submission.id) if latest_submission else {}
+    preview_sheets = []
+    for sheet_meta in metadata.get("sheets", []):
+        ws = workbook[sheet_meta["sheet_name"]]
+        start_row, header_end_row = _sheet_header_range(sheet_meta)
+        unit_end_row = int(sheet_meta.get("unit_end_row") or sheet_meta.get("data_end_row") or header_end_row + 1)
+        total_end_row = int(sheet_meta.get("total_end_row") or 0)
+        start_col = column_index_from_string(sheet_meta.get("start_column") or "A")
+        end_col = column_index_from_string(sheet_meta.get("end_column") or sheet_meta.get("start_column") or "A")
+        preview_sheets.append({
+            "sheet_name": sheet_meta["sheet_name"],
+            "html": render_sheet_html(
+                ws,
+                editable_values=existing_values.get(sheet_meta["sheet_name"], {}),
+                field_lookup={},
+                editable=False,
+                start_row=start_row,
+                end_row=max(unit_end_row, total_end_row or 0),
+                min_col=start_col,
+                max_col=end_col,
+            ),
+        })
+    return render_template(
+        "report_cycle_preview.html",
+        cycle=cycle,
+        template=template,
+        report_type=report_type,
+        latest_submission=latest_submission,
+        preview_sheets=preview_sheets,
+        current_unit=unit,
+        is_admin=_is_admin(),
+    )
+
+
+@reporting_bp.route("/reports/cycles/<int:cycle_id>/history")
+def cycle_history(cycle_id):
+    if not _require_login():
+        return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
+    _ensure_default_types()
+    _sync_units_from_users()
+
+    context = _resolve_cycle_context(cycle_id)
+    if not context:
+        return "Not Found", 404
+    return render_template(
+        "report_cycle_history.html",
+        cycle=context["cycle"],
+        template=context["template"],
+        report_type=context["report_type"],
+        current_unit=context["unit"],
+        latest_submission=context["latest_submission"],
+        submission_history=context["submission_history"],
+        is_admin=_is_admin(),
     )
 
 
@@ -1493,6 +1763,33 @@ def _payload_from_request():
     if request.is_json:
         return request.get_json(silent=True) or {}
     return {}
+
+
+def _resolve_cycle_context(cycle_id):
+    cycle = db.session.get(ReportCycle, cycle_id)
+    if not cycle:
+        return None
+    unit = _resolve_cycle_unit(cycle)
+    if not _cycle_accessible(cycle, unit.id if unit else None, _is_admin()):
+        return None
+    user = db.session.get(User, session.get("uid"))
+    instance = _get_cycle_instance(cycle, unit, user)
+    template_version = db.session.get(ReportTemplateVersion, cycle.template_version_id)
+    template = db.session.get(ReportTemplate, template_version.template_id)
+    report_type = _report_type(cycle)
+    latest_submission = _latest_submission(instance.id)
+    submission_history = ReportSubmission.query.filter_by(instance_id=instance.id).order_by(ReportSubmission.version_no.desc(), ReportSubmission.created_at.desc()).all()
+    return {
+        "cycle": cycle,
+        "unit": unit,
+        "user": user,
+        "instance": instance,
+        "template_version": template_version,
+        "template": template,
+        "report_type": report_type,
+        "latest_submission": latest_submission,
+        "submission_history": submission_history,
+    }
 
 
 @reporting_bp.route("/reports/cycles/<int:cycle_id>/save", methods=["POST"])

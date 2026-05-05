@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+            <h1 class="h3 fw-bold mb-1">{{ template.name }}</h1>
+            <p class="text-muted mb-0">
+                {% if template.professional_unit %}{{ template.professional_unit }} • {% endif %}
+                {% if template_version %}Bản {{ template_version.version_no }}{% endif %}
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('reporting_bp.admin_dashboard') }}" class="btn btn-light rounded-pill px-4">Quay lại</a>
+            <a href="{{ url_for('reporting_bp.template_detail', template_id=template.id) }}" class="btn btn-outline-primary rounded-pill px-4">Sửa cấu hình</a>
+        </div>
+    </div>
+</div>
+
+{% for sheet in preview_sheets %}
+<section class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white border-bottom py-3 px-4">
+        <h5 class="mb-0 fw-bold">{{ sheet.sheet_name }}</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height: 75vh; overflow:auto;">
+            <table class="table table-bordered mb-0 align-middle">
+                <tbody>
+                    {{ sheet.html|safe }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endfor %}
+{% endblock %}

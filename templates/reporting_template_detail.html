@@ -62,7 +62,31 @@
             <div class="card-body p-4">
                 <h5 class="fw-bold mb-3">Hoàn tất thiết lập</h5>
                 {% if current_version %}
-                <form method="POST" action="{{ url_for('reporting_bp.save_template_config', template_id=template.id) }}">
+                <form method="POST" action="{{ url_for('reporting_bp.save_template_config', template_id=template.id) }}" enctype="multipart/form-data">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Đội nghiệp vụ</label>
+                            {% if professional_units %}
+                            <select name="professional_unit" class="form-select" required>
+                                <option value="">Chọn đội nghiệp vụ</option>
+                                {% for item in professional_units %}
+                                <option value="{{ item.name }}" {% if template.professional_unit == item.name %}selected{% endif %}>{{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <input type="text" name="professional_unit" class="form-control" value="{{ template.professional_unit or '' }}" required>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Văn bản chỉ đạo</label>
+                            <input type="file" name="directive_file" class="form-control">
+                            {% if template.directive_filename %}
+                            <div class="small mt-1">
+                                <a href="{{ url_for('reporting_bp.download_template_directive', template_id=template.id) }}">{{ template.directive_filename }}</a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
                     <div class="mb-4">
                         <label class="form-label fw-bold">Loại báo cáo</label>
                         <select name="report_type_id" class="form-select" required>
