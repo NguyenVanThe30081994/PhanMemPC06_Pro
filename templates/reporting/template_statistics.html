@@ -11,15 +11,11 @@
   <div class="reporting-shell">
     <div class="reporting-hero">
       <div>
-        <div class="reporting-chip mb-3">
-          <i class="fa-solid fa-chart-column"></i>
-          <span>Thống kê tiến độ nộp</span>
-        </div>
         <h3>{{ template.name }}</h3>
       </div>
       <div class="reporting-hero-actions">
         <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-secondary rounded-pill px-4">
-          <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
+          Quay lại
         </a>
       </div>
     </div>
@@ -41,11 +37,6 @@
         <div class="reporting-stat-label">Quá hạn</div>
         <div class="reporting-stat-value">{{ summary.late }}</div>
       </div>
-    </div>
-
-    <div class="reporting-note mb-4">
-      <i class="fa-solid fa-circle-info me-2"></i>
-      Đang theo dõi {{ report_context.name if report_context else period.name }}. {{ schedule_summary }}
     </div>
 
     <div class="reporting-table-shell">

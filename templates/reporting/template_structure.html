@@ -9,7 +9,6 @@
   .structure-grid { display:grid; grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); gap:18px; align-items:start; }
   .structure-form { display:grid; gap:14px; }
   .structure-form-grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px 14px; }
-  .structure-note { padding:12px 14px; border-radius:14px; background:#f8fafc; color:#475569; font-size:.9rem; }
   .structure-preview-wrap { overflow:auto; border:1px solid rgba(148,163,184,.18); border-radius:18px; background:#fff; }
   .structure-preview { width:max-content; min-width:100%; border-collapse:collapse; font-size:.84rem; }
   .structure-preview th, .structure-preview td { border:1px solid #e2e8f0; padding:8px 10px; vertical-align:top; }
@@ -28,7 +27,6 @@
   .structure-draft-list { display:grid; gap:10px; }
   .structure-draft-item { padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,.18); background:rgba(255,255,255,.96); }
   .structure-draft-path { color:#64748b; font-size:.83rem; }
-  [data-theme="dark"] .structure-note { background:rgba(15,23,42,.84); color:#cbd5e1; }
   [data-theme="dark"] .structure-preview-wrap,
   [data-theme="dark"] .structure-draft-item { background:rgba(15,23,42,.84); border-color:rgba(148,163,184,.18); }
   [data-theme="dark"] .structure-preview th,
@@ -41,7 +39,14 @@
   [data-theme="dark"] .structure-preview tr.role-data td { background:#0f1f18; }
   [data-theme="dark"] .structure-draft-path { color:#94a3b8; }
   @media (max-width: 1100px) {
-    .structure-grid, .structure-form-grid { grid-template-columns: 1fr; }
+    .structure-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 767px) {
+    .structure-form-grid { grid-template-columns: 1fr; }
+    .structure-preview th,
+    .structure-preview td {
+      padding: 6px 8px;
+    }
   }
 </style>
 {% endblock %}
@@ -51,26 +56,21 @@
   <div class="reporting-shell structure-shell">
     <div class="reporting-hero">
       <div>
-        <div class="reporting-chip mb-3">
-          <i class="fa-solid fa-table-cells-large"></i>
-          <span>Thiết lập cấu trúc header</span>
-        </div>
         <h3>{{ template.name }}</h3>
       </div>
       <div class="reporting-hero-actions">
-        <span class="reporting-pill"><i class="fa-solid fa-code-branch"></i>{{ version.version_number }}</span>
         <a href="{{ url_for('reporting_bp.field_settings', template_id=template.id) }}" class="btn btn-outline-primary rounded-pill px-4">
-          <i class="fa-solid fa-sliders me-2"></i>Thiết lập nhập
+          Thiết lập nhập
         </a>
         <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-secondary rounded-pill px-4">
-          <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
+          Quay lại
         </a>
       </div>
     </div>
 
     {% if first_setup %}
     <div class="alert alert-info border-0 shadow-sm rounded-4">
-      Sau khi quét tự động, quản trị cần xác nhận lại các dòng tiêu đề, header, dòng phụ, dòng tổng và dòng bắt đầu dữ liệu trước khi thiết lập nhập liệu.
+      Sau khi quét tự động, xác nhận lại các dòng trước khi thiết lập nhập liệu.
     </div>
     {% endif %}
 
@@ -105,14 +105,10 @@
               </div>
             </div>
 
-            <div class="structure-note">
-              Hệ thống sẽ dùng các dòng header ở trên để ghép cây header cha/con, rồi sinh lại toàn bộ field. Nếu scan nhầm như đưa “Phụ lục” vào header, chỉ cần sửa lại danh sách dòng ở đây.
-            </div>
-
             <div class="reporting-sticky-actions">
               <a href="{{ url_for('reporting_bp.preview_template', template_id=template.id) }}" class="btn btn-outline-secondary rounded-pill px-4">Xem mẫu</a>
               <button type="submit" class="btn btn-primary rounded-pill px-4">
-                <i class="fa-solid fa-arrows-rotate me-2"></i>Lưu và sinh lại field
+                Lưu và sinh lại field
               </button>
             </div>
           </form>
@@ -121,11 +117,6 @@
 
       <section class="reporting-panel">
         <div class="reporting-panel-body structure-shell">
-          <div class="structure-note">
-            Sheet: <strong>{{ preview.sheet_name }}</strong>.
-            {% if scan_summary.get('used_range') %} Vùng dữ liệu: <strong>{{ scan_summary.get('used_range') }}</strong>.{% endif %}
-          </div>
-
           <div class="structure-preview-wrap">
             <table class="structure-preview">
               <thead>

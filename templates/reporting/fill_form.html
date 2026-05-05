@@ -7,30 +7,17 @@
 <style>
   .report-direct-shell {
     display: grid;
-    gap: 18px;
+    gap: 14px;
   }
-  .report-direct-summary {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
+  .report-direct-meta {
+    color: #475569;
+    font-size: 0.9rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
   }
-  .report-direct-card {
-    padding: 14px 16px;
-    border-radius: 16px;
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    background: rgba(255, 255, 255, 0.96);
-  }
-  .report-direct-label {
-    display: block;
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: #64748b;
-    margin-bottom: 4px;
-    text-transform: uppercase;
-  }
-  .report-direct-value {
-    font-weight: 700;
-    color: #0f172a;
+  .report-direct-meta span {
+    min-width: 0;
   }
   .report-direct-sections {
     display: grid;
@@ -51,29 +38,12 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px 18px;
   }
-  .report-direct-footnote {
-    padding: 12px 14px;
-    border-radius: 14px;
-    background: #f8fafc;
-    color: #475569;
-    font-size: 0.9rem;
-  }
-  [data-theme="dark"] .report-direct-card {
-    background: rgba(15, 23, 42, 0.84);
-    border-color: rgba(148, 163, 184, 0.18);
-  }
-  [data-theme="dark"] .report-direct-value {
-    color: #e2e8f0;
-  }
-  [data-theme="dark"] .report-direct-label {
-    color: #94a3b8;
-  }
-  [data-theme="dark"] .report-direct-footnote {
-    background: rgba(15, 23, 42, 0.84);
-    color: #cbd5e1;
-  }
+  [data-theme="dark"] .report-direct-meta { color: #cbd5e1; }
   @media (max-width: 991px) {
-    .report-direct-summary,
+    .report-direct-meta {
+      display: grid;
+      gap: 4px;
+    }
     .report-direct-grid {
       grid-template-columns: 1fr;
     }
@@ -86,29 +56,27 @@
   <div class="reporting-shell report-direct-shell">
     <div class="reporting-hero">
       <div>
-        <div class="reporting-chip mb-3">
-          <i class="fa-solid fa-pen-to-square"></i>
-          <span>Báo cáo trực tiếp trên phần mềm</span>
-        </div>
         <h3>{{ report_data.schema.template_name }}</h3>
+        <div class="report-direct-meta">
+          <span>{{ instance.org_unit }}</span>
+          <span>{{ report_context.name if report_context else period.name }}</span>
+          <span>{{ report_data.schema.version_number }}</span>
+          <span>{{ instance.status|upper }}</span>
+        </div>
       </div>
       <div class="reporting-hero-actions">
-        <span class="reporting-pill">
-          <i class="fa-solid fa-circle-info"></i>
-          {{ instance.status|upper }}
-        </span>
         <a href="{{ url_for('reporting_bp.preview_template', template_id=template_id) }}" class="btn btn-outline-primary rounded-pill px-4">
-          <i class="fa-regular fa-eye me-2"></i>Xem mẫu
+          Xem mẫu
         </a>
         <button type="button" class="btn btn-outline-secondary rounded-pill px-4" onclick="window.history.back()">
-          <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
+          Quay lại
         </button>
         {% if instance.status == 'draft' %}
         <button type="button" class="btn btn-primary rounded-pill px-4" onclick="saveDraft()">
-          <i class="fa-solid fa-floppy-disk me-2"></i>Lưu nháp
+          Lưu nháp
         </button>
         <button type="button" class="btn btn-success rounded-pill px-4" onclick="submitReport()">
-          <i class="fa-solid fa-paper-plane me-2"></i>Nộp báo cáo
+          Nộp báo cáo
         </button>
         {% endif %}
       </div>
@@ -116,32 +84,12 @@
 
     <section class="reporting-panel">
       <div class="reporting-panel-body report-direct-shell">
-        <div class="report-direct-summary">
-          <div class="report-direct-card">
-            <span class="report-direct-label">Đơn vị báo cáo</span>
-            <div class="report-direct-value">{{ instance.org_unit }}</div>
-          </div>
-          <div class="report-direct-card">
-            <span class="report-direct-label">Chu kỳ ghi nhận</span>
-            <div class="report-direct-value">{{ report_context.name if report_context else period.name }}</div>
-          </div>
-          <div class="report-direct-card">
-            <span class="report-direct-label">Phiên bản mẫu</span>
-            <div class="report-direct-value">{{ report_data.schema.version_number }}</div>
-          </div>
-        </div>
-
-        <div class="report-direct-footnote">
-          Biểu mẫu được quét từ Excel và dựng thành các trường nhập trên phần mềm. Hệ thống tự ghi nhận chu kỳ hiện tại theo cấu hình báo cáo; công thức gốc của biểu mẫu vẫn được giữ để hiển thị đúng trên màn xem và file xuất.
-        </div>
-
         <form id="reportForm" class="report-direct-sections">
           {% for section_name, fields in report_data.schema.sections.items() %}
           <section class="reporting-panel">
             <div class="reporting-panel-body">
               <div class="report-direct-section-head">
                 <h5>{{ section_name }}</h5>
-                <span class="reporting-muted small">{{ fields|selectattr('hidden', 'equalto', false)|list|length }} trường hiển thị</span>
               </div>
 
               <div class="report-direct-grid">

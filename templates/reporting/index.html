@@ -5,9 +5,21 @@
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/reporting-modern.css') }}?v=20260426">
 <style>
+  .reporting-list-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 20px;
+    align-items: start;
+  }
+  .pc06-action-cluster {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
   .reporting-list-shell {
     display: grid;
-    gap: 24px;
+    gap: 18px;
   }
   .reporting-list-panel {
     display: grid;
@@ -26,7 +38,7 @@
   }
   .reporting-list-copy {
     display: grid;
-    gap: 6px;
+    gap: 4px;
     min-width: 0;
   }
   .reporting-list-title {
@@ -38,9 +50,12 @@
   .reporting-list-meta {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px 14px;
+    gap: 6px 12px;
     color: #64748b;
     font-size: 0.86rem;
+  }
+  .reporting-list-meta span {
+    min-width: 0;
   }
   .reporting-icon-actions {
     display: flex;
@@ -133,9 +148,26 @@
     color: #d1fae5;
   }
   @media (max-width: 767px) {
+    .reporting-list-head {
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+    .pc06-action-cluster {
+      width: 100%;
+      justify-content: stretch;
+    }
+    .pc06-action-cluster > .btn,
+    .pc06-action-cluster > a {
+      width: 100%;
+      text-align: center;
+    }
     .reporting-list-row {
       grid-template-columns: 1fr;
       align-items: flex-start;
+    }
+    .reporting-list-meta {
+      display: grid;
+      gap: 4px;
     }
     .reporting-icon-actions {
       justify-content: flex-start;
@@ -147,22 +179,21 @@
 {% block content %}
 <div class="pc06-page-shell reporting-list-shell">
   <section class="pc06-hero-card">
-    <div class="reporting-hero-grid" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:start;">
+    <div class="reporting-list-head">
       <div>
-        <span class="pc06-page-kicker">Hệ thống báo cáo</span>
         <h1 class="pc06-page-title">Danh sách biểu mẫu báo cáo</h1>
       </div>
       <div class="pc06-action-cluster">
         {% if is_reporting_admin %}
         <button type="button" class="btn btn-light rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#uploadModal">
-          <i class="fa-solid fa-upload me-2"></i>Tải biểu mẫu
+          Tải biểu mẫu
         </button>
         <a href="{{ url_for('reporting_bp.dashboard') }}" class="btn btn-primary rounded-pill px-4">
-          <i class="fa-solid fa-chart-line me-2"></i>Tổng quan
+          Tổng quan
         </a>
         {% else %}
         <a href="{{ url_for('reporting_bp.history') }}" class="btn btn-light rounded-pill px-4">
-          <i class="fa-solid fa-clock-rotate-left me-2"></i>Lịch sử
+          Lịch sử
         </a>
         {% endif %}
       </div>
@@ -172,7 +203,7 @@
   <section class="pc06-panel reporting-list-panel">
     <div class="reporting-section-head" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
       <h4 class="m-0">Biểu mẫu</h4>
-      <span class="pc06-soft-tag"><i class="fa-solid fa-file-circle-check"></i>{{ total_templates }} biểu mẫu</span>
+      <span class="pc06-soft-tag">{{ total_templates }} biểu mẫu</span>
     </div>
 
     {% if template_entries %}
@@ -181,12 +212,12 @@
         <div class="reporting-list-copy">
           <h2 class="reporting-list-title">{{ entry.template.name }}</h2>
           <div class="reporting-list-meta">
-            <span><i class="fa-solid fa-building-shield me-1"></i>{{ entry.department_name }}</span>
-            <span><i class="fa-solid fa-tag me-1"></i>{{ entry.report_type_label }}</span>
+            <span>{{ entry.department_name }}</span>
+            <span>{{ entry.report_type_label }}</span>
             {% if entry.period_label %}
-            <span><i class="fa-solid fa-calendar-days me-1"></i>{{ entry.period_label }}</span>
+            <span>{{ entry.period_label }}</span>
             {% endif %}
-            <span><i class="fa-solid fa-clock me-1"></i>{{ entry.schedule_label }}</span>
+            <span>{{ entry.schedule_label }}</span>
           </div>
         </div>
 
@@ -228,7 +259,7 @@
       {% endfor %}
     {% else %}
     <div class="reporting-empty-state">
-      <i class="fa-solid fa-circle-info me-2"></i>Chưa phát sinh biểu mẫu.
+      Chưa phát sinh biểu mẫu.
     </div>
     {% endif %}
   </section>
@@ -268,7 +299,7 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
           <button type="submit" class="btn btn-primary">
-            <i class="fa-solid fa-upload me-2"></i>Tải lên
+            Tải lên
           </button>
         </div>
       </form>

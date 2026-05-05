@@ -28,33 +28,9 @@
     display: grid;
     gap: 10px;
   }
-  .config-summary {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-  }
-  .config-summary-card {
-    padding: 14px 16px;
-    border-radius: 16px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    background: rgba(255, 255, 255, 0.96);
-  }
-  .config-summary-label {
-    display: block;
-    margin-bottom: 4px;
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0;
-  }
-  .config-summary-value {
-    color: #0f172a;
-    font-weight: 700;
-  }
   .config-form {
     display: grid;
-    gap: 16px;
+    gap: 14px;
     max-width: 920px;
   }
   .config-form-grid {
@@ -80,73 +56,12 @@
     min-height: 42px;
     max-width: 320px;
   }
-  .config-note {
-    padding: 12px 14px;
-    border-radius: 14px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    background: #f8fafc;
-    color: #475569;
-    font-size: 0.9rem;
-  }
-  .config-period-list {
-    display: grid;
-    gap: 10px;
-  }
-  .config-period-row {
-    display: grid;
-    grid-template-columns: minmax(110px, 140px) minmax(0, 1fr) auto auto;
-    gap: 12px;
-    align-items: center;
-    padding: 14px 16px;
-    border-radius: 16px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    background: rgba(255, 255, 255, 0.96);
-  }
-  .config-period-copy {
-    min-width: 0;
-    display: grid;
-    gap: 4px;
-  }
-  .config-period-code {
-    font-weight: 700;
-    color: #0f172a;
-  }
-  .config-period-name {
-    font-weight: 700;
-    color: #0f172a;
-  }
-  .config-period-meta {
-    color: #64748b;
-    font-size: 0.86rem;
-  }
-  .config-empty {
-    padding: 16px;
-    border-radius: 16px;
-    background: #f8fafc;
-    color: #64748b;
-  }
-  [data-theme="dark"] .config-summary-card,
-  [data-theme="dark"] .config-period-row {
-    background: rgba(15, 23, 42, 0.84);
-    border-color: rgba(148, 163, 184, 0.18);
-  }
-  [data-theme="dark"] .config-summary-value,
-  [data-theme="dark"] .config-period-code,
-  [data-theme="dark"] .config-period-name {
-    color: #e2e8f0;
-  }
-  [data-theme="dark"] .config-summary-label,
-  [data-theme="dark"] .config-period-meta {
-    color: #94a3b8;
-  }
-  [data-theme="dark"] .config-note,
-  [data-theme="dark"] .config-empty {
-    background: rgba(15, 23, 42, 0.84);
-    color: #cbd5e1;
-    border-color: rgba(148, 163, 184, 0.18);
-  }
   @media (max-width: 991px) {
-    .config-summary,
+    .config-top,
+    .config-top-actions,
+    .config-inline-actions {
+      width: 100%;
+    }
     .config-form-grid {
       grid-template-columns: 1fr;
     }
@@ -155,9 +70,14 @@
     .config-form {
       max-width: 100%;
     }
-    .config-period-row {
-      grid-template-columns: 1fr;
-      align-items: flex-start;
+  }
+  @media (max-width: 575px) {
+    .config-top-actions > .btn,
+    .config-top-actions > a,
+    .config-inline-actions > .btn,
+    .config-inline-actions > a {
+      width: 100%;
+      text-align: center;
     }
   }
 </style>
@@ -172,21 +92,17 @@
     <div class="reporting-hero">
       <div class="config-top">
         <div>
-          <div class="reporting-chip mb-3">
-            <i class="fa-solid fa-screwdriver-wrench"></i>
-            <span>Cấu hình biểu mẫu</span>
-          </div>
           <h3>{{ template.name }}</h3>
         </div>
         <div class="config-top-actions">
           <a href="{{ url_for('reporting_bp.template_structure', template_id=template.id) }}" class="btn btn-outline-primary rounded-pill px-4">
-            <i class="fa-solid fa-table-cells-large me-2"></i>Cấu trúc header
+            Cấu trúc header
           </a>
           <a href="{{ url_for('reporting_bp.field_settings', template_id=template.id) }}" class="btn btn-outline-primary rounded-pill px-4">
-            <i class="fa-solid fa-sliders me-2"></i>Thiết lập nhập
+            Thiết lập nhập
           </a>
           <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-secondary rounded-pill px-4">
-            <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
+            Quay lại
           </a>
         </div>
       </div>
@@ -194,13 +110,13 @@
 
     {% if first_setup %}
     <div class="alert alert-info border-0 shadow-sm rounded-4 config-setup-note">
-      <div>Biểu mẫu vừa quét xong. Quản trị cần hoàn tất 2 bước: thiết lập nhập liệu và chọn loại báo cáo.</div>
+      <div>Biểu mẫu vừa quét xong. Hoàn tất thiết lập nhập liệu và loại báo cáo.</div>
       <div class="config-inline-actions">
         <a href="{{ url_for('reporting_bp.field_settings', template_id=template.id, first_setup=1) }}" class="btn btn-primary rounded-pill px-4">
-          <i class="fa-solid fa-sliders me-2"></i>Thiết lập nhập
+          Thiết lập nhập
         </a>
         <a href="{{ url_for('reporting_bp.preview_template', template_id=template.id) }}" class="btn btn-outline-primary rounded-pill px-4">
-          <i class="fa-regular fa-eye me-2"></i>Xem biểu mẫu
+          Xem biểu mẫu
         </a>
       </div>
     </div>
@@ -208,35 +124,6 @@
 
     <section class="reporting-panel">
       <div class="reporting-panel-body config-shell">
-        <div class="config-summary">
-          <div class="config-summary-card">
-            <span class="config-summary-label">Loại báo cáo</span>
-            <div class="config-summary-value">
-              {% if not is_configured %}
-              Chưa cấu hình
-              {% elif rt == 'daily' %}
-              Hàng ngày
-              {% elif rt == 'adhoc' %}
-              Đột xuất
-              {% elif freq == 'monthly' %}
-              Định kỳ tháng
-              {% elif freq == 'quarterly' %}
-              Định kỳ quý
-              {% elif freq == 'semiannual' %}
-              Định kỳ 6 tháng
-              {% elif freq == 'yearly' %}
-              Định kỳ năm
-              {% else %}
-              Định kỳ
-              {% endif %}
-            </div>
-          </div>
-          <div class="config-summary-card">
-            <span class="config-summary-label">Thiết lập hạn nộp</span>
-            <div class="config-summary-value">{{ schedule_summary }}</div>
-          </div>
-        </div>
-
         <form method="POST" id="templateConfigForm" class="config-form">
           <input type="hidden" name="action" value="save_config">
 
@@ -334,14 +221,10 @@
             </div>
           </div>
 
-          <div class="config-note">
-            Hệ thống không còn cơ chế mở kỳ báo cáo thủ công. Đơn vị vào thẳng biểu mẫu, hệ thống tự xác định hôm nay, tháng này, quý này, 6 tháng này hoặc năm nay để ghi nhận và đánh giá đúng hạn, quá hạn, chưa báo cáo.
-          </div>
-
           <div class="reporting-sticky-actions">
             <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-secondary rounded-pill px-4">Hủy</a>
             <button type="submit" class="btn btn-primary rounded-pill px-4">
-              <i class="fa-solid fa-floppy-disk me-2"></i>Lưu cấu hình
+              Lưu cấu hình
             </button>
           </div>
         </form>
