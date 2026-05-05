@@ -4,6 +4,68 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/reporting-modern.css') }}?v=20260426">
+<style>
+  .report-view-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    color: #475569;
+    font-size: 0.92rem;
+  }
+  .report-view-sections {
+    display: grid;
+    gap: 14px;
+  }
+  .report-view-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .report-view-table th,
+  .report-view-table td {
+    padding: 10px 12px;
+    border-top: 1px solid rgba(148, 163, 184, 0.25);
+    vertical-align: top;
+  }
+  .report-view-table tr:first-child th,
+  .report-view-table tr:first-child td {
+    border-top: none;
+  }
+  .report-view-table th {
+    width: 42%;
+    font-weight: 600;
+    color: #334155;
+  }
+  .report-view-table td {
+    color: #0f172a;
+  }
+  [data-theme="dark"] .report-view-meta {
+    color: #cbd5e1;
+  }
+  [data-theme="dark"] .report-view-table th,
+  [data-theme="dark"] .report-view-table td {
+    border-top-color: rgba(148, 163, 184, 0.18);
+  }
+  [data-theme="dark"] .report-view-table th {
+    color: #e2e8f0;
+  }
+  [data-theme="dark"] .report-view-table td {
+    color: #f8fafc;
+  }
+  @media (max-width: 767px) {
+    .report-view-meta {
+      display: grid;
+      gap: 4px;
+    }
+    .report-view-table th,
+    .report-view-table td {
+      display: block;
+      width: 100%;
+    }
+    .report-view-table td {
+      padding-top: 0;
+    }
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -11,25 +73,22 @@
   <div class="reporting-shell">
     <div class="reporting-hero">
       <div>
-        <div class="reporting-chip mb-3">
-          <i class="fa-solid fa-file-circle-check"></i>
-          <span>Xem báo cáo</span>
-        </div>
         <h3>{{ report_data.schema.template_name }}</h3>
+        <div class="report-view-meta">
+          <span>{{ instance.org_unit }}</span>
+          {% if report_context %}<span>{{ report_context.name }}</span>{% endif %}
+          <span>{{ 'Đã nộp' if instance.status == 'submitted' else ('Đã khóa' if instance.status == 'locked' else 'Nháp') }}</span>
+        </div>
       </div>
       <div class="reporting-hero-actions">
-        <span class="reporting-pill">
-          <i class="fa-solid fa-circle-info"></i>
-          {{ 'Đã nộp' if instance.status == 'submitted' else ('Đã khóa' if instance.status == 'locked' else 'Nháp') }}
-        </span>
         <button type="button" class="btn btn-light rounded-pill px-4" onclick="window.print()">
-          <i class="fa-solid fa-print me-2"></i>In
+          In
         </button>
         <button type="button" class="btn btn-outline-secondary rounded-pill px-4" onclick="window.history.back()">
-          <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
+          Quay lại
         </button>
         <a href="{{ url_for('reporting_bp.export_report', instance_id=instance.id) }}" class="btn btn-success rounded-pill px-4">
-          <i class="fa-solid fa-download me-2"></i>Tải Excel
+          Tải Excel
         </a>
       </div>
     </div>
@@ -106,29 +165,23 @@
       </div>
     </div>
     {% else %}
-    <div class="reporting-panel">
-      <div class="reporting-panel-body">
+    <div class="reporting-panel report-view-sections">
+      <div class="reporting-panel-body report-view-sections">
         {% for section_name, fields in report_data.schema.sections.items() %}
         <section class="reporting-section mb-4">
           <div class="reporting-section-title">
-            <div>
-              <h5 class="mb-1">{{ section_name }}</h5>
-            </div>
+            <h5 class="mb-0">{{ section_name }}</h5>
           </div>
-          <div class="reporting-form-grid">
+          <table class="report-view-table">
             {% for field in fields %}
             {% if not field.hidden %}
-            <div class="reporting-field">
-              <label>{{ field.name }}</label>
-              <input type="text"
-                   class="form-control reporting-field-readonly{% if field.type == 'number' %} text-end{% endif %}"
-                   value="{{ report_data['values'].get(field.code, {}).get('display_value', report_data['values'].get(field.code, {}).get('value', '')) }}"
-                   style="{% if field.type == 'number' %}text-align:right;font-variant-numeric:tabular-nums;{% endif %}"
-                   readonly>
-            </div>
+            <tr>
+              <th>{{ field.name }}</th>
+              <td{% if field.type == 'number' %} class="text-end"{% endif %}>{{ report_data['values'].get(field.code, {}).get('display_value', report_data['values'].get(field.code, {}).get('value', '')) }}</td>
+            </tr>
             {% endif %}
             {% endfor %}
-          </div>
+          </table>
         </section>
         {% endfor %}
       </div>

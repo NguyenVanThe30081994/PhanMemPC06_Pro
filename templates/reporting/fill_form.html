@@ -161,6 +161,7 @@ function saveDraft() {
     .then(data => {
         hideLoading();
         if (data.success) {
+            updateReadOnlyFields(data.values || {});
             showAlert('success', 'Đã lưu nháp thành công.');
         } else {
             showAlert('danger', 'Lỗi: ' + data.message);
@@ -222,6 +223,14 @@ function calculateFields() {
     if (isReadonly) return;
     clearTimeout(window.autoSaveTimer);
     window.autoSaveTimer = setTimeout(() => saveDraft(), 1500);
+}
+
+function updateReadOnlyFields(values) {
+    Object.entries(values || {}).forEach(([fieldCode, payload]) => {
+        const input = document.getElementById(`field_${fieldCode}`);
+        if (!input || !input.readOnly) return;
+        input.value = payload.display_value ?? payload.value ?? '';
+    });
 }
 
 function showAlert(type, message) {

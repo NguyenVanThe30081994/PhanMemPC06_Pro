@@ -34,6 +34,7 @@ class _SafeFormulaEvaluator(ast.NodeVisitor):
         'min': min,
         'max': max,
         'abs': abs,
+        'safe_div': lambda numerator, denominator: None if denominator in (None, 0) else numerator / denominator,
     }
 
     def __init__(self, values):
@@ -48,9 +49,7 @@ class _SafeFormulaEvaluator(ast.NodeVisitor):
         raise ValueError('Unsupported constant type')
 
     def visit_Name(self, node):
-        if node.id not in self.values:
-            raise ValueError(f'Unknown field code: {node.id}')
-        return self.values[node.id]
+        return self.values.get(node.id, 0)
 
     def visit_BinOp(self, node):
         operator = self._bin_ops.get(type(node.op))
@@ -91,6 +90,19 @@ class FormEngine:
         return bool(field and (field.field_type == 'number' or field.data_type in ('integer', 'decimal')))
 
     @staticmethod
+    def _field_validation(field):
+        if not field or not field.validation_rules_json:
+            return {}
+        try:
+            return json.loads(field.validation_rules_json)
+        except Exception:
+            return {}
+
+    @staticmethod
+    def _field_display_format(field):
+        return FormEngine._field_validation(field).get('excel_number_format')
+
+    @staticmethod
     def _coerce_numeric(raw_value):
         if raw_value in (None, ''):
             raise ValueError('Empty numeric value')
@@ -103,7 +115,7 @@ class FormEngine:
         if field and FormEngine._is_numeric_field(field):
             try:
                 numeric = FormEngine._coerce_numeric(raw_value)
-                return format_excel_number(numeric, None)
+                return format_excel_number(numeric, FormEngine._field_display_format(field))
             except Exception:
                 return str(raw_value)
         return str(raw_value)
@@ -588,20 +600,33 @@ class FormEngine:
                     field_code=field.field_code
                 ).first()
                 
-                normalized_result = format_excel_number(float(result), None)
-                if fv:
-                    fv.value = normalized_result
-                    fv.value_type = 'decimal'
+                if result in (None, ''):
+                    if fv:
+                        fv.value = None
+                        fv.value_type = 'decimal'
+                    else:
+                        fv = ReportFieldValue(
+                            instance_id=instance_id,
+                            field_code=field.field_code,
+                            value=None,
+                            value_type='decimal'
+                        )
+                        db.session.add(fv)
+                    values[field.field_code] = 0
                 else:
-                    fv = ReportFieldValue(
-                        instance_id=instance_id,
-                        field_code=field.field_code,
-                        value=normalized_result,
-                        value_type='decimal'
-                    )
-                    db.session.add(fv)
-
-                values[field.field_code] = self._coerce_numeric(result)
+                    normalized_result = format_excel_number(float(result), None)
+                    if fv:
+                        fv.value = normalized_result
+                        fv.value_type = 'decimal'
+                    else:
+                        fv = ReportFieldValue(
+                            instance_id=instance_id,
+                            field_code=field.field_code,
+                            value=normalized_result,
+                            value_type='decimal'
+                        )
+                        db.session.add(fv)
+                    values[field.field_code] = self._coerce_numeric(result)
                 
             except Exception as e:
                 print(f"Error calculating {field.field_code}: {e}")

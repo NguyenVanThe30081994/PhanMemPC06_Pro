@@ -574,6 +574,165 @@ def _detect_column_formula_mode(worksheet, detail_rows, col_letter):
     return 'literal_only'
 
 
+def _split_excel_function_args(raw_args):
+    args = []
+    current = []
+    depth = 0
+    in_string = False
+    quote_char = ''
+    for char in str(raw_args or ''):
+        if char in {'"', "'"}:
+            if in_string and char == quote_char:
+                in_string = False
+                quote_char = ''
+            elif not in_string:
+                in_string = True
+                quote_char = char
+            current.append(char)
+            continue
+        if in_string:
+            current.append(char)
+            continue
+        if char == '(':
+            depth += 1
+            current.append(char)
+            continue
+        if char == ')':
+            depth = max(0, depth - 1)
+            current.append(char)
+            continue
+        if char == ',' and depth == 0:
+            args.append(''.join(current).strip())
+            current = []
+            continue
+        current.append(char)
+    tail = ''.join(current).strip()
+    if tail:
+        args.append(tail)
+    return args
+
+
+def _translate_excel_ref_token(token, current_row, column_field_map):
+    token = str(token or '').strip()
+    if not token:
+        return None
+
+    range_match = re.fullmatch(r'\$?([A-Z]{1,3})\$?(\d+):\$?([A-Z]{1,3})\$?(\d+)', token, re.I)
+    if range_match:
+        start_col, start_row, end_col, end_row = range_match.groups()
+        start_row = int(start_row)
+        end_row = int(end_row)
+        if start_row != current_row or end_row != current_row:
+            return None
+        start_idx = column_index_from_string(start_col.upper())
+        end_idx = column_index_from_string(end_col.upper())
+        if start_idx > end_idx:
+            start_idx, end_idx = end_idx, start_idx
+        codes = []
+        for idx in range(start_idx, end_idx + 1):
+            field_code = column_field_map.get(get_column_letter(idx))
+            if not field_code:
+                return None
+            codes.append(field_code)
+        if not codes:
+            return None
+        return '(' + ' + '.join(codes) + ')'
+
+    cell_match = re.fullmatch(r'\$?([A-Z]{1,3})\$?(\d+)', token, re.I)
+    if cell_match:
+        col_letter, row_number = cell_match.groups()
+        if int(row_number) != current_row:
+            return None
+        return column_field_map.get(col_letter.upper())
+
+    return None
+
+
+def _translate_excel_expression(expression, current_row, column_field_map):
+    expr = str(expression or '').strip()
+    if not expr:
+        return None
+
+    outer_match = re.fullmatch(r'([A-Z]+)\((.*)\)', expr, re.I)
+    if outer_match:
+        func_name = outer_match.group(1).upper()
+        raw_args = outer_match.group(2)
+        args = _split_excel_function_args(raw_args)
+
+        if func_name == 'SUM':
+            translated_parts = []
+            for arg in args:
+                translated = _translate_excel_expression(arg, current_row, column_field_map)
+                if translated is None:
+                    translated = _translate_excel_ref_token(arg, current_row, column_field_map)
+                if translated is None:
+                    return None
+                translated_parts.append(translated)
+            return '(' + ' + '.join(translated_parts) + ')' if translated_parts else '0'
+
+        if func_name == 'IFERROR' and len(args) == 2:
+            primary = args[0].strip()
+            fallback = args[1].strip()
+            division_match = re.fullmatch(r'(.+?)\s*/\s*(.+)', primary)
+            if division_match:
+                numerator = _translate_excel_expression(division_match.group(1), current_row, column_field_map)
+                denominator = _translate_excel_expression(division_match.group(2), current_row, column_field_map)
+                if numerator and denominator and fallback in {'""', "''", '0', '0.0'}:
+                    return f'safe_div({numerator}, {denominator})'
+            return None
+
+        if func_name in {'ROUND', 'MIN', 'MAX', 'ABS'}:
+            translated_args = []
+            for arg in args:
+                translated = _translate_excel_expression(arg, current_row, column_field_map)
+                if translated is None:
+                    translated = _translate_excel_ref_token(arg, current_row, column_field_map)
+                if translated is None:
+                    if re.fullmatch(r'-?\d+(\.\d+)?', arg):
+                        translated = arg
+                    else:
+                        return None
+                translated_args.append(translated)
+            return f"{func_name.lower()}({', '.join(translated_args)})"
+
+    expr = expr.replace('^', '**')
+    if '&' in expr:
+        return None
+
+    cell_ref_pattern = re.compile(r'(?<![A-Z0-9_])(\$?[A-Z]{1,3}\$?\d+)(?![A-Z0-9_])', re.I)
+
+    def _replace_cell_ref(match):
+        translated = _translate_excel_ref_token(match.group(1), current_row, column_field_map)
+        if not translated:
+            raise ValueError('Unsupported cross-row or unknown cell reference')
+        return translated
+
+    try:
+        translated = cell_ref_pattern.sub(_replace_cell_ref, expr)
+    except ValueError:
+        return None
+
+    if not re.fullmatch(r"[A-Za-z0-9_().,+\-*/%\s]+", translated):
+        return None
+    return translated
+
+
+def _derive_draft_formula(worksheet, detail_rows, col_letter, column_field_map):
+    for row_idx in detail_rows:
+        cell = worksheet[f'{col_letter}{row_idx}']
+        raw_value = cell.value
+        if not (isinstance(raw_value, str) and raw_value.startswith('=')) and cell.data_type != 'f':
+            continue
+        formula_text = str(raw_value or '').strip()
+        if not formula_text.startswith('='):
+            formula_text = f'={formula_text}'
+        translated = _translate_excel_expression(formula_text[1:], row_idx, column_field_map)
+        return formula_text, translated, cell.number_format
+    sample_row = detail_rows[0] if detail_rows else None
+    sample_format = worksheet[f'{col_letter}{sample_row}'].number_format if sample_row else None
+    return None, None, sample_format
+
+
 def _draft_fields_from_structure(excel_blob, structure):
     workbook = load_workbook(BytesIO(excel_blob), data_only=False)
     worksheet = workbook.active
@@ -634,19 +793,42 @@ def _draft_fields_from_structure(excel_blob, structure):
         is_numeric = col_letter in structure.get('numeric_columns', [])
         formula_mode = _detect_column_formula_mode(worksheet, detail_rows, col_letter)
         drafts.append({
+            'column_letter': col_letter,
             'field_code': field_code,
             'field_name': field_name,
             'field_type': 'number' if is_numeric else 'text',
             'data_type': 'number' if is_numeric else 'string',
             'is_calculated': formula_mode == 'formula_only',
             'is_readonly': formula_mode == 'formula_only',
+            'calculation_formula': None,
             'display_order': order,
             'section': section,
             'excel_cell_ref': col_letter,
             'header_path': parts,
             'formula_mode': formula_mode,
+            'validation_rules': {},
         })
         order += 1
+
+    column_field_map = {
+        item['column_letter']: item['field_code']
+        for item in drafts
+    }
+    for item in drafts:
+        sample_formula, calculation_formula, number_format = _derive_draft_formula(
+            worksheet,
+            detail_rows,
+            item['column_letter'],
+            column_field_map
+        )
+        validation_rules = item.get('validation_rules') or {}
+        if number_format and str(number_format).strip():
+            validation_rules['excel_number_format'] = str(number_format).strip()
+        if sample_formula:
+            validation_rules['excel_formula'] = sample_formula
+            validation_rules['formula_supported'] = bool(calculation_formula)
+            item['calculation_formula'] = calculation_formula
+        item['validation_rules'] = validation_rules
 
     return drafts
 
@@ -665,9 +847,11 @@ def _rebuild_fields_from_structure(version, excel_blob, structure):
                 is_required=False,
                 is_readonly=item['is_readonly'],
                 is_calculated=item['is_calculated'],
+                calculation_formula=item.get('calculation_formula'),
                 display_order=item['display_order'],
                 section=item['section'],
-                excel_cell_ref=item['excel_cell_ref']
+                excel_cell_ref=item['excel_cell_ref'],
+                validation_rules_json=json.dumps(item.get('validation_rules') or {}, ensure_ascii=False)
             )
             for item in drafts
         ])
@@ -1124,8 +1308,9 @@ def view_report(instance_id):
 
     _refresh_report_calculations(instance)
     report_data = form_engine.get_report_data(instance.id)
+    report_context = form_engine.get_reporting_context(instance.template) if instance.template.report_type else None
     excel_context = None
-    if instance.template.excel_template_blob:
+    if request.args.get('layout') == 'excel' and instance.template.excel_template_blob:
         try:
             excel_context = _build_excel_like_rows(instance)
         except Exception as exc:
@@ -1134,7 +1319,8 @@ def view_report(instance_id):
     return render_template('reporting/view_report.html',
                           report_data=report_data,
                           instance=instance,
-                          excel_context=excel_context)
+                          excel_context=excel_context,
+                          report_context=report_context)
 
 
 @reporting_bp.route('/report/<int:instance_id>/export')
@@ -1848,10 +2034,13 @@ def api_save_draft(instance_id):
         
         # Calculate fields
         form_engine.calculate_fields(instance_id)
+        refreshed = form_engine.get_report_data(instance_id)
         
         log_action(user_id, session.get('fullname', 'Unknown'), 'Lưu nháp báo cáo', 'Reporting', f'Report ID: {instance_id}')
-        
-        return jsonify(result)
+
+        payload = dict(result)
+        payload['values'] = refreshed.get('values', {})
+        return jsonify(payload)
     except PermissionError as e:
         return jsonify({'success': False, 'message': str(e)}), 403
     except Exception as e:
