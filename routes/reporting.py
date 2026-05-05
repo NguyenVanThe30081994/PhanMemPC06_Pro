@@ -225,6 +225,158 @@ def _save_directive_file(file_storage, template_code):
     return original_name, storage_path
 
 
+def _template_range_defaults(version):
+    defaults = {
+        "header_start_row": 1,
+        "header_end_row": 2,
+        "unit_start_row": 3,
+        "unit_end_row": 20,
+        "total_start_row": 21,
+        "total_end_row": 21,
+        "start_column": "A",
+        "end_column": "Z",
+    }
+    if not version:
+        return defaults
+    metadata = json.loads(version.metadata_json or "{}")
+    first_sheet = (metadata.get("sheets") or [{}])[0]
+    defaults.update(
+        {
+            "header_start_row": first_sheet.get("header_start_row") or defaults["header_start_row"],
+            "header_end_row": first_sheet.get("header_end_row") or defaults["header_end_row"],
+            "unit_start_row": first_sheet.get("unit_start_row") or first_sheet.get("data_start_row") or defaults["unit_start_row"],
+            "unit_end_row": first_sheet.get("unit_end_row") or first_sheet.get("data_end_row") or defaults["unit_end_row"],
+            "total_start_row": first_sheet.get("total_start_row") or defaults["total_start_row"],
+            "total_end_row": first_sheet.get("total_end_row") or defaults["total_end_row"],
+            "start_column": first_sheet.get("start_column") or defaults["start_column"],
+            "end_column": first_sheet.get("end_column") or defaults["end_column"],
+        }
+    )
+    return defaults
+
+
+def _build_parse_options(form, defaults=None):
+    defaults = defaults or {}
+    header_start_row = _parse_positive_int(form.get("header_start_row"), defaults.get("header_start_row", 1))
+    header_end_row = _parse_positive_int(form.get("header_end_row"), max(header_start_row, defaults.get("header_end_row", 2)))
+    if header_end_row < header_start_row:
+        header_end_row = header_start_row
+    unit_start_row = _parse_positive_int(form.get("unit_start_row"), max(header_end_row + 1, defaults.get("unit_start_row", 3)))
+    unit_end_row = _parse_positive_int(form.get("unit_end_row"), max(unit_start_row, defaults.get("unit_end_row", unit_start_row)))
+    if unit_end_row < unit_start_row:
+        unit_end_row = unit_start_row
+    total_start_row = _parse_positive_int(form.get("total_start_row"), max(unit_end_row + 1, defaults.get("total_start_row", unit_end_row + 1)))
+    total_end_row = _parse_positive_int(form.get("total_end_row"), max(total_start_row, defaults.get("total_end_row", total_start_row)))
+    if total_end_row < total_start_row:
+        total_end_row = total_start_row
+    start_column = (form.get("start_column") or defaults.get("start_column") or "A").strip().upper()
+    end_column = (form.get("end_column") or defaults.get("end_column") or "Z").strip().upper()
+    return {
+        "header_start_row": header_start_row,
+        "header_end_row": header_end_row,
+        "header_rows": max(1, header_end_row - header_start_row + 1),
+        "data_start_row": unit_start_row,
+        "data_end_row": unit_end_row,
+        "total_start_row": total_start_row,
+        "total_end_row": total_end_row,
+        "start_column": start_column,
+        "end_column": end_column,
+    }
+
+
+def _apply_version_structure(version, source_path, source_filename, parse_options, notes=""):
+    metadata = parse_workbook(
+        source_path,
+        header_rows=parse_options["header_rows"],
+        data_start_row=parse_options["data_start_row"],
+        header_start_row=parse_options["header_start_row"],
+        header_end_row=parse_options["header_end_row"],
+        data_end_row=parse_options["data_end_row"],
+        total_start_row=parse_options["total_start_row"],
+        total_end_row=parse_options["total_end_row"],
+        start_column=parse_options["start_column"],
+        end_column=parse_options["end_column"],
+    )
+
+    version.source_filename = source_filename
+    version.source_path = source_path
+    version.metadata_json = json.dumps(metadata, ensure_ascii=False)
+    version.notes = notes
+
+    ReportTemplateField.query.filter_by(version_id=version.id).delete(synchronize_session=False)
+    ReportTemplateSheet.query.filter_by(version_id=version.id).delete(synchronize_session=False)
+
+    for sheet in metadata.get("sheets", []):
+        db.session.add(
+            ReportTemplateSheet(
+                version_id=version.id,
+                sheet_name=sheet["sheet_name"],
+                order_index=sheet["order_index"],
+                header_start_row=sheet.get("header_start_row") or sheet.get("min_row") or 1,
+                header_end_row=sheet.get("header_end_row") or ((sheet.get("header_start_row") or 1) + max(int(sheet.get("header_rows") or 1) - 1, 0)),
+                header_rows=sheet["header_rows"],
+                data_start_row=sheet["data_start_row"],
+                data_end_row=sheet["data_end_row"],
+                unit_key_column="A",
+                can_input=True,
+                visible_in_preview=True,
+                summary_json=json.dumps(
+                    {
+                        "fields": len(sheet.get("fields", [])),
+                        "input_cells": len(sheet.get("input_cells", [])),
+                        "unit_start_row": sheet.get("unit_start_row"),
+                        "unit_end_row": sheet.get("unit_end_row"),
+                        "total_start_row": sheet.get("total_start_row"),
+                        "total_end_row": sheet.get("total_end_row"),
+                        "start_column": sheet.get("start_column"),
+                        "end_column": sheet.get("end_column"),
+                    },
+                    ensure_ascii=False,
+                ),
+            )
+        )
+        for field in sheet.get("fields", []):
+            db.session.add(
+                ReportTemplateField(
+                    version_id=version.id,
+                    sheet_name=sheet["sheet_name"],
+                    field_code=field["field_code"],
+                    field_name=field["field_name"],
+                    display_name=field["field_name"],
+                    column_index=field["column_index"],
+                    column_letter=field["column_letter"],
+                    data_type=field["data_type"],
+                    input_mode=field["input_mode"],
+                    is_required=field["is_required"],
+                    is_visible=field["is_visible"],
+                    is_editable=field["is_editable"],
+                    default_value=field["default_value"],
+                    validation_rule=field["validation_rule"],
+                    dictionary_source=field["dictionary_source"],
+                    formula_expression=field["formula_expression"],
+                    aggregation_type=field["aggregation_type"],
+                    display_order=field["display_order"],
+                    path_code=field["path_code"],
+                )
+            )
+    return metadata
+
+
+def _preview_workbook(file_path):
+    return load_workbook(file_path, data_only=True)
+
+
+def _purge_cycle(cycle):
+    instances = ReportInstance.query.filter_by(cycle_id=cycle.id).all()
+    for instance in instances:
+        submissions = ReportSubmission.query.filter_by(instance_id=instance.id).all()
+        for submission in submissions:
+            _purge_submission(submission)
+        db.session.delete(instance)
+    ReportExportJob.query.filter_by(cycle_id=cycle.id).delete(synchronize_session=False)
+    db.session.delete(cycle)
+
+
 def _scope_unit_ids(cycle):
     try:
         data = json.loads(cycle.scope_json or "[]")
@@ -855,21 +1007,7 @@ def upload_template():
     code = normalize_code(name or file.filename.rsplit(".", 1)[0]) or f"template_{datetime.now().strftime('%Y%m%d%H%M%S')}"
     description = (request.form.get("description") or "").strip()
     professional_unit = (request.form.get("professional_unit") or "").strip()
-    header_start_row = _parse_positive_int(request.form.get("header_start_row"), 1)
-    header_end_row = _parse_positive_int(request.form.get("header_end_row"), max(header_start_row, 2))
-    if header_end_row < header_start_row:
-        header_end_row = header_start_row
-    header_rows = max(1, header_end_row - header_start_row + 1)
-    data_start_row = _parse_positive_int(request.form.get("unit_start_row"), max(header_end_row + 1, 3))
-    data_end_row = _parse_positive_int(request.form.get("unit_end_row"), data_start_row)
-    if data_end_row < data_start_row:
-        data_end_row = data_start_row
-    total_start_row = _parse_positive_int(request.form.get("total_start_row"), data_end_row + 1)
-    total_end_row = _parse_positive_int(request.form.get("total_end_row"), total_start_row)
-    if total_end_row < total_start_row:
-        total_end_row = total_start_row
-    start_column = (request.form.get("start_column") or "A").strip().upper()
-    end_column = (request.form.get("end_column") or "").strip().upper()
+    parse_options = _build_parse_options(request.form)
     notes = description
 
     template = ReportTemplate.query.filter_by(code=code).first()
@@ -902,19 +1040,6 @@ def upload_template():
     filename = safe_filename(f"{code}_v{version_no}_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx")
     storage_path = os.path.join(current_app.root_path, "report_templates", filename)
     file.save(storage_path)
-
-    metadata = parse_workbook(
-        storage_path,
-        header_rows=header_rows,
-        data_start_row=data_start_row,
-        header_start_row=header_start_row,
-        header_end_row=header_end_row,
-        data_end_row=data_end_row,
-        total_start_row=total_start_row,
-        total_end_row=total_end_row,
-        start_column=start_column,
-        end_column=end_column,
-    )
     for version in ReportTemplateVersion.query.filter_by(template_id=template.id).all():
         version.is_current = False
 
@@ -923,63 +1048,20 @@ def upload_template():
         version_no=version_no,
         source_filename=secure_filename(file.filename),
         source_path=storage_path,
-        metadata_json=json.dumps(metadata, ensure_ascii=False),
+        metadata_json="{}",
         notes=notes,
         is_current=True,
     )
     db.session.add(version)
     db.session.flush()
 
-    for sheet in metadata.get("sheets", []):
-        db.session.add(
-            ReportTemplateSheet(
-                version_id=version.id,
-                sheet_name=sheet["sheet_name"],
-                order_index=sheet["order_index"],
-                header_start_row=sheet.get("header_start_row") or sheet.get("min_row") or 1,
-                header_end_row=sheet.get("header_end_row") or ((sheet.get("header_start_row") or 1) + max(int(sheet.get("header_rows") or 1) - 1, 0)),
-                header_rows=sheet["header_rows"],
-                data_start_row=sheet["data_start_row"],
-                data_end_row=sheet["data_end_row"],
-                unit_key_column="A",
-                can_input=True,
-                visible_in_preview=True,
-                summary_json=json.dumps({
-                    "fields": len(sheet.get("fields", [])),
-                    "input_cells": len(sheet.get("input_cells", [])),
-                    "unit_start_row": sheet.get("unit_start_row"),
-                    "unit_end_row": sheet.get("unit_end_row"),
-                    "total_start_row": sheet.get("total_start_row"),
-                    "total_end_row": sheet.get("total_end_row"),
-                    "start_column": sheet.get("start_column"),
-                    "end_column": sheet.get("end_column"),
-                }, ensure_ascii=False),
-            )
-        )
-        for field in sheet.get("fields", []):
-            db.session.add(
-                ReportTemplateField(
-                    version_id=version.id,
-                    sheet_name=sheet["sheet_name"],
-                    field_code=field["field_code"],
-                    field_name=field["field_name"],
-                    display_name=field["field_name"],
-                    column_index=field["column_index"],
-                    column_letter=field["column_letter"],
-                    data_type=field["data_type"],
-                    input_mode=field["input_mode"],
-                    is_required=field["is_required"],
-                    is_visible=field["is_visible"],
-                    is_editable=field["is_editable"],
-                    default_value=field["default_value"],
-                    validation_rule=field["validation_rule"],
-                    dictionary_source=field["dictionary_source"],
-                    formula_expression=field["formula_expression"],
-                    aggregation_type=field["aggregation_type"],
-                    display_order=field["display_order"],
-                    path_code=field["path_code"],
-                )
-            )
+    metadata = _apply_version_structure(
+        version,
+        storage_path,
+        secure_filename(file.filename),
+        parse_options,
+        notes=notes,
+    )
 
     db.session.commit()
     _audit("upload_template", "report_template", template.id, name)
@@ -995,17 +1077,11 @@ def template_detail(template_id):
     template = db.session.get(ReportTemplate, template_id)
     if not template:
         return "Not Found", 404
-    versions = ReportTemplateVersion.query.filter_by(template_id=template.id).order_by(ReportTemplateVersion.version_no.desc()).all()
     current_version = _template_version(template)
-    version_usage = {version.id: _version_usage_count(version.id) for version in versions}
-    report_types = ReportType.query.order_by(ReportType.name.asc()).all()
-    professional_units = _professional_unit_options()
-    sheets = []
     fields = []
     field_rows = []
     header_level_count = 1
     if current_version:
-        sheets = ReportTemplateSheet.query.filter_by(version_id=current_version.id).order_by(ReportTemplateSheet.order_index.asc()).all()
         fields = ReportTemplateField.query.filter_by(version_id=current_version.id).order_by(ReportTemplateField.sheet_name.asc(), ReportTemplateField.display_order.asc()).all()
         for field in fields:
             raw_levels = [part.strip() for part in str(field.path_code or field.field_name or "").split(" > ") if part.strip()]
@@ -1021,21 +1097,112 @@ def template_detail(template_id):
                 "field": field,
                 "levels": raw_levels,
             })
-    metadata = json.loads(current_version.metadata_json or "{}") if current_version else {}
     return render_template(
         "reporting_template_detail.html",
         template=template,
-        report_types=report_types,
-        professional_units=professional_units,
-        versions=versions,
         current_version=current_version,
-        version_usage=version_usage,
-        sheets=sheets,
         fields=fields,
         field_rows=field_rows,
         header_level_count=header_level_count,
-        metadata=metadata,
     )
+
+
+@reporting_bp.route("/admin/reports/templates/<int:template_id>/settings")
+def template_settings(template_id):
+    if not _is_admin():
+        return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
+    template = db.session.get(ReportTemplate, template_id)
+    if not template:
+        return "Not Found", 404
+    current_version = _template_version(template)
+    return render_template(
+        "reporting_template_settings.html",
+        template=template,
+        current_version=current_version,
+        report_types=ReportType.query.order_by(ReportType.name.asc()).all(),
+        professional_units=_professional_unit_options(),
+        range_defaults=_template_range_defaults(current_version),
+    )
+
+
+@reporting_bp.route("/admin/reports/templates/<int:template_id>/settings", methods=["POST"])
+def save_template_settings(template_id):
+    if not _is_admin():
+        return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
+    template = db.session.get(ReportTemplate, template_id)
+    if not template:
+        return "Not Found", 404
+    version = _template_version(template)
+    if not version:
+        flash("Mẫu này chưa có file cấu hình.", "warning")
+        return redirect(url_for("reporting_bp.admin_dashboard"))
+
+    report_type_id = int(request.form.get("report_type_id") or 0)
+    report_type = db.session.get(ReportType, report_type_id)
+    if not report_type:
+        flash("Bạn cần chọn loại báo cáo.", "danger")
+        return redirect(url_for("reporting_bp.template_settings", template_id=template.id))
+
+    professional_unit = (request.form.get("professional_unit") or "").strip()
+    if not professional_unit:
+        flash("Bạn cần chọn đội nghiệp vụ.", "danger")
+        return redirect(url_for("reporting_bp.template_settings", template_id=template.id))
+
+    template.description = (request.form.get("description") or "").strip()
+    template.report_type_id = report_type.id
+    template.professional_unit = professional_unit
+
+    directive_file = request.files.get("directive_file")
+    directive_filename, directive_path = _save_directive_file(directive_file, template.code or template.name or "report")
+    if directive_filename and directive_path:
+        if template.directive_path and os.path.exists(template.directive_path):
+            try:
+                os.remove(template.directive_path)
+            except Exception:
+                pass
+        template.directive_filename = directive_filename
+        template.directive_path = directive_path
+
+    old_source_path = version.source_path
+    new_upload = request.files.get("template_file")
+    source_path = version.source_path
+    source_filename = version.source_filename
+    if new_upload and new_upload.filename:
+        if not new_upload.filename.lower().endswith(".xlsx"):
+            flash("Chỉ nhận file .xlsx", "danger")
+            return redirect(url_for("reporting_bp.template_settings", template_id=template.id))
+        filename = safe_filename(
+            f"{template.code or normalize_code(template.name) or 'report'}_current_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+        )
+        source_path = os.path.join(current_app.root_path, "report_templates", filename)
+        new_upload.save(source_path)
+        source_filename = secure_filename(new_upload.filename)
+
+    defaults = _template_range_defaults(version)
+    parse_options = _build_parse_options(request.form, defaults=defaults)
+    _apply_version_structure(
+        version,
+        source_path,
+        source_filename,
+        parse_options,
+        notes=template.description or "",
+    )
+
+    if source_path != old_source_path and old_source_path and os.path.exists(old_source_path):
+        try:
+            os.remove(old_source_path)
+        except Exception:
+            pass
+
+    template.status = "active"
+    db.session.commit()
+    _sync_units_from_users()
+    active_cycle = _ensure_active_cycle_for_template(template, version, report_type)
+    _audit("save_template_settings", "report_template", template.id, template.name)
+    flash("Đã lưu cấu hình biểu mẫu.", "success")
+    return redirect(url_for("reporting_bp.admin_cycle_detail", cycle_id=active_cycle.id))
 
 
 @reporting_bp.route("/admin/reports/templates/<int:template_id>/save-config", methods=["POST"])
@@ -1049,16 +1216,6 @@ def save_template_config(template_id):
     version = _template_version(template)
     if not version:
         flash("Mẫu này chưa có file cấu hình.", "warning")
-        return redirect(url_for("reporting_bp.template_detail", template_id=template_id))
-
-    report_type_id = int(request.form.get("report_type_id") or 0)
-    report_type = db.session.get(ReportType, report_type_id)
-    if not report_type:
-        flash("Bạn cần chọn loại báo cáo.", "danger")
-        return redirect(url_for("reporting_bp.template_detail", template_id=template_id))
-    professional_unit = (request.form.get("professional_unit") or "").strip()
-    if not professional_unit:
-        flash("Bạn cần chọn đội nghiệp vụ.", "danger")
         return redirect(url_for("reporting_bp.template_detail", template_id=template_id))
 
     fields = ReportTemplateField.query.filter_by(version_id=version.id).order_by(ReportTemplateField.sheet_name.asc(), ReportTemplateField.display_order.asc()).all()
@@ -1076,25 +1233,10 @@ def save_template_config(template_id):
         field.is_visible = _form_checked(f"field_{field.id}_visible")
         field.is_editable = field.is_visible and _form_checked(f"field_{field.id}_editable")
 
-    template.report_type_id = report_type.id
-    template.professional_unit = professional_unit
-    directive_file = request.files.get("directive_file")
-    directive_filename, directive_path = _save_directive_file(directive_file, template.code or template.name or "report")
-    if directive_filename and directive_path:
-        if template.directive_path and os.path.exists(template.directive_path):
-            try:
-                os.remove(template.directive_path)
-            except Exception:
-                pass
-        template.directive_filename = directive_filename
-        template.directive_path = directive_path
-    template.status = "active"
     db.session.commit()
-    _sync_units_from_users()
-    active_cycle = _ensure_active_cycle_for_template(template, version, report_type)
     _audit("save_template_config", "report_template", template.id, template.name)
-    flash("Đã lưu biểu mẫu. Đơn vị có thể bắt đầu báo cáo.", "success")
-    return redirect(url_for("reporting_bp.admin_cycle_detail", cycle_id=active_cycle.id))
+    flash("Đã lưu cấu hình trường dữ liệu.", "success")
+    return redirect(url_for("reporting_bp.template_detail", template_id=template.id))
 
 
 @reporting_bp.route("/admin/reports/templates/<int:template_id>/fields/<int:field_id>/display-name", methods=["POST"])
@@ -1156,7 +1298,7 @@ def admin_template_preview(template_id):
         flash("Biểu mẫu này chưa có file để xem.", "warning")
         return redirect(url_for("reporting_bp.template_detail", template_id=template.id))
     metadata = json.loads(template_version.metadata_json or "{}")
-    workbook = load_workbook(template_version.source_path, data_only=False)
+    workbook = _preview_workbook(template_version.source_path)
     preview_sheets = []
     for sheet_meta in metadata.get("sheets", []):
         ws = workbook[sheet_meta["sheet_name"]]
@@ -1185,7 +1327,20 @@ def admin_template_preview(template_id):
         template=template,
         template_version=template_version,
         preview_sheets=preview_sheets,
+        download_url=url_for("reporting_bp.download_template_source", template_id=template.id),
     )
+
+
+@reporting_bp.route("/admin/reports/templates/<int:template_id>/download")
+def download_template_source(template_id):
+    if not _is_admin():
+        return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
+    template = db.session.get(ReportTemplate, template_id)
+    version = _template_version(template) if template else None
+    if not version or not version.source_path or not os.path.exists(version.source_path):
+        return "Not Found", 404
+    return send_file(version.source_path, as_attachment=True, download_name=version.source_filename or os.path.basename(version.source_path))
 
 
 @reporting_bp.route("/admin/reports/templates/<int:template_id>/directive")
@@ -1258,9 +1413,11 @@ def delete_template(template_id):
 
     versions = ReportTemplateVersion.query.filter_by(template_id=template.id).all()
     version_ids = [version.id for version in versions]
-    if version_ids and ReportCycle.query.filter(ReportCycle.template_version_id.in_(version_ids)).count():
-        flash("Không thể xóa mẫu này vì đã có báo cáo sử dụng.", "warning")
-        return redirect(url_for("reporting_bp.template_detail", template_id=template_id))
+    if version_ids:
+        cycles = ReportCycle.query.filter(ReportCycle.template_version_id.in_(version_ids)).all()
+        for cycle in cycles:
+            _purge_cycle(cycle)
+    ReportingPeriod.query.filter_by(template_id=template.id).delete(synchronize_session=False)
 
     for version in versions:
         if version.source_path and os.path.exists(version.source_path):
@@ -1413,14 +1570,7 @@ def delete_cycle(cycle_id):
     if not cycle:
         return "Not Found", 404
     cycle_name = cycle.name
-    instances = ReportInstance.query.filter_by(cycle_id=cycle.id).all()
-    for instance in instances:
-        submissions = ReportSubmission.query.filter_by(instance_id=instance.id).all()
-        for submission in submissions:
-            _purge_submission(submission)
-        db.session.delete(instance)
-    ReportExportJob.query.filter_by(cycle_id=cycle.id).delete(synchronize_session=False)
-    db.session.delete(cycle)
+    _purge_cycle(cycle)
     db.session.commit()
     _audit("delete_cycle", "report_cycle", cycle_id, cycle_name)
     flash("Đã xóa báo cáo.", "success")
@@ -1695,7 +1845,7 @@ def cycle_preview(cycle_id):
     report_type = context["report_type"]
     latest_submission = context["latest_submission"]
     metadata = json.loads(template_version.metadata_json or "{}")
-    workbook = load_workbook(template_version.source_path, data_only=False)
+    workbook = _preview_workbook(template_version.source_path)
     existing_values = _submission_cell_values(latest_submission.id) if latest_submission else {}
     preview_sheets = []
     for sheet_meta in metadata.get("sheets", []):
@@ -1727,6 +1877,7 @@ def cycle_preview(cycle_id):
         preview_sheets=preview_sheets,
         current_unit=unit,
         is_admin=_is_admin(),
+        download_url=url_for("reporting_bp.download_submission", submission_id=latest_submission.id) if latest_submission else "",
     )
 
 

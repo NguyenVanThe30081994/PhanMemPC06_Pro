@@ -123,8 +123,11 @@
                                         <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.admin_template_preview', template_id=template.id) }}" title="Xem">
                                             <i class="fa-solid fa-eye"></i>
                                         </a>
-                                        <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.template_detail', template_id=template.id) }}" title="Sửa cấu hình">
+                                        <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.template_detail', template_id=template.id) }}" title="Trường dữ liệu">
                                             <i class="fa-solid fa-pen-to-square"></i>
+                                        </a>
+                                        <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.template_settings', template_id=template.id) }}" title="Cấu hình">
+                                            <i class="fa-solid fa-gear"></i>
                                         </a>
                                         <form method="POST" action="{{ url_for('reporting_bp.delete_template', template_id=template.id) }}" onsubmit="return confirm('Xóa biểu mẫu này?')">
                                             <button class="btn btn-light border btn-sm text-danger" type="submit" title="Xóa">

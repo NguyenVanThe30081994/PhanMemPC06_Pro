@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="pc06-page-shell">
+    <section class="pc06-hero-card">
+        <div class="pc06-hero-grid compact">
+            <div>
+                <div class="pc06-page-kicker">
+                    <i class="fa-solid fa-gear"></i>
+                    Cấu hình biểu mẫu
+                </div>
+                <h1 class="pc06-page-title">{{ template.name }}</h1>
+                <div class="text-muted">{% if current_version %}{{ current_version.source_filename }}{% else %}Chưa có file mẫu{% endif %}</div>
+            </div>
+            <div class="pc06-action-cluster">
+                <a href="{{ url_for('reporting_bp.admin_dashboard') }}" class="btn btn-bdhvs light">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    Quay lại
+                </a>
+                <a href="{{ url_for('reporting_bp.template_detail', template_id=template.id) }}" class="btn btn-bdhvs light">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    Trường dữ liệu
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="pc06-panel">
+        <form method="POST" action="{{ url_for('reporting_bp.save_template_settings', template_id=template.id) }}" enctype="multipart/form-data">
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <div class="pc06-form-panel h-100">
+                        <div class="pc06-form-section">
+                            <label class="form-label fw-bold">Tên biểu mẫu</label>
+                            <input type="text" class="form-control" value="{{ template.name }}" disabled>
+                        </div>
+                        <div class="pc06-form-section">
+                            <label class="form-label fw-bold">Đội nghiệp vụ</label>
+                            {% if professional_units %}
+                            <select name="professional_unit" class="form-select" required>
+                                <option value="">Chọn đội nghiệp vụ</option>
+                                {% for item in professional_units %}
+                                <option value="{{ item.name }}" {% if template.professional_unit == item.name %}selected{% endif %}>{{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <input type="text" name="professional_unit" class="form-control" value="{{ template.professional_unit or '' }}" required>
+                            {% endif %}
+                        </div>
+                        <div class="pc06-form-section">
+                            <label class="form-label fw-bold">Loại báo cáo</label>
+                            <select name="report_type_id" class="form-select" required>
+                                <option value="">Chọn loại báo cáo</option>
+                                {% for item in report_types %}
+                                <option value="{{ item.id }}" {% if template.report_type_id == item.id %}selected{% endif %}>{{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="pc06-form-section">
+                            <label class="form-label fw-bold">Văn bản chỉ đạo</label>
+                            <input type="file" name="directive_file" class="form-control">
+                            {% if template.directive_filename %}
+                            <div class="small mt-2">
+                                <a href="{{ url_for('reporting_bp.download_template_directive', template_id=template.id) }}">{{ template.directive_filename }}</a>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="pc06-form-section mb-0">
+                            <label class="form-label fw-bold">Thay file biểu mẫu</label>
+                            <input type="file" name="template_file" class="form-control" accept=".xlsx">
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="pc06-form-panel h-100">
+                        <h2 class="h6 fw-bold mb-3">Phạm vi dữ liệu</h2>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Header từ dòng</label>
+                                <input type="number" name="header_start_row" class="form-control" value="{{ range_defaults.header_start_row }}" min="1">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Header đến dòng</label>
+                                <input type="number" name="header_end_row" class="form-control" value="{{ range_defaults.header_end_row }}" min="1">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Đơn vị từ dòng</label>
+                                <input type="number" name="unit_start_row" class="form-control" value="{{ range_defaults.unit_start_row }}" min="1">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Đơn vị đến dòng</label>
+                                <input type="number" name="unit_end_row" class="form-control" value="{{ range_defaults.unit_end_row }}" min="1">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Tổng từ dòng</label>
+                                <input type="number" name="total_start_row" class="form-control" value="{{ range_defaults.total_start_row }}" min="1">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Tổng đến dòng</label>
+                                <input type="number" name="total_end_row" class="form-control" value="{{ range_defaults.total_end_row }}" min="1">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Cột từ</label>
+                                <input type="text" name="start_column" class="form-control text-uppercase" value="{{ range_defaults.start_column }}" maxlength="4">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Cột đến</label>
+                                <input type="text" name="end_column" class="form-control text-uppercase" value="{{ range_defaults.end_column }}" maxlength="4">
+                            </div>
+                        </div>
+
+                        <div class="pc06-form-section mt-4 mb-0">
+                            <label class="form-label fw-bold">Ghi chú</label>
+                            <textarea name="description" class="form-control" rows="3">{{ template.description or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end mt-4">
+                <button class="btn btn-bdhvs primary" type="submit">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    Lưu
+                </button>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}
