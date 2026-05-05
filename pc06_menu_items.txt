@@ -16,7 +16,6 @@
                 </div>
                 
                 <a href="/contacts" class="nav-link-top {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">Danh bạ</a>
-                <a href="{{ url_for('reporting_bp.index') }}" class="nav-link-top {% if request.path.startswith('/reporting') %}active{% endif %}">Báo cáo</a>
                 <a href="{{ url_for('shortlink_bp.manage_links') }}" class="nav-link-top {% if request.path.startswith('/links') %}active{% endif %}">QR & Link</a>
                 <a href="/ai" class="nav-link-top {% if request.path.startswith('/ai') %}active{% endif %}">AI Trợ lý</a>
                 

@@ -202,9 +202,4 @@
         bottom: 86px !important;
     }
 
-    .reporting-page .reporting-shell {
-        padding: 14px;
-        border-radius: 18px;
-        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
-    }
 }

@@ -102,18 +102,11 @@ def _build_grouped_rows(raw_counts, ordered_items=None, fallback_label='Chưa ph
     rows = [row for row in rows if row['count'] > 0]
     return rows
 
-
-def _remove_row_by_name(rows, excluded_names):
-    excluded = {name.strip().lower() for name in excluded_names if name and name.strip()}
-    return [row for row in rows if row.get('name', '').strip().lower() not in excluded]
-
 @admin_bp.route('/admin')
 def index():
     try:
         if not session.get('uid'): 
             return redirect(url_for('auth_bp.login'))
-
-        from models_reporting import FormTemplate
 
         task_domain_items = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
         contact_group_items = get_module_field_items('contacts', 'contact_group') or get_category_items('Nhóm danh bạ')
@@ -128,16 +121,6 @@ def index():
             func.count(Task.id)
         ).group_by(Task.domain).all()
 
-        report_raw_counts = db.session.query(
-            FormTemplate.department,
-            func.count(FormTemplate.id)
-        ).filter(
-            FormTemplate.is_active.is_(True),
-            FormTemplate.department.isnot(None),
-            func.trim(FormTemplate.department) != '',
-            func.lower(func.trim(FormTemplate.department)) != 'chưa phân đội'
-        ).group_by(FormTemplate.department).all()
-
         document_raw_counts = db.session.query(
             DocumentLib.category,
             func.count(DocumentLib.id)
@@ -149,10 +132,8 @@ def index():
         ).group_by(Contact.contact_group).all()
 
         task_dashboard = _build_grouped_rows(task_raw_counts, task_domain_items, fallback_label='Chưa phân đội')
-        report_dashboard = _build_grouped_rows(report_raw_counts, task_domain_items, fallback_label='Chưa phân đội')
         document_dashboard = _build_grouped_rows(document_raw_counts, document_field_items, fallback_label='Chưa phân lĩnh vực')
         contact_dashboard = _build_grouped_rows(contact_raw_counts, contact_group_items, fallback_label='Chưa phân nhóm')
-        report_dashboard = _remove_row_by_name(report_dashboard, {'Chưa phân đội'})
 
         dashboard_cards = [
             {
@@ -165,17 +146,6 @@ def index():
                 'rows': task_dashboard,
                 'total': sum(row['count'] for row in task_dashboard),
                 'empty_text': 'Chưa có công việc nào.'
-            },
-            {
-                'title': 'Báo cáo',
-                'row_label': 'Đội nghiệp vụ',
-                'count_label': 'Số biểu mẫu',
-                'icon': 'fa-solid fa-file-excel',
-                'accent_class': 'success',
-                'link': '/reporting',
-                'rows': report_dashboard,
-                'total': sum(row['count'] for row in report_dashboard),
-                'empty_text': 'Chưa có biểu mẫu báo cáo.'
             },
             {
                 'title': 'Thông tin tài liệu',
@@ -1030,6 +1000,6 @@ def fix_db_manually():
         
         conn.close()
         msg = "<br>".join(results)
-        return f"<h3>KẾT QUẢ SỬA LỖI DATABASE:</h3>{msg}<br><br><a href='/reporting'>Quay lại Reporting</a>"
+        return f"<h3>KẾT QUẢ SỬA LỖI DATABASE:</h3>{msg}<br><br><a href='/admin'>Quay lại Tổng quan</a>"
     except Exception as e:
         return f"<h3>LỖI NGHIÊM TRỌNG:</h3>{str(e)}"

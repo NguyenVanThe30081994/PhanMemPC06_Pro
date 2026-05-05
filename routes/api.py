@@ -29,27 +29,7 @@ def mark_all_read():
 
 @api_bp.route('/api/performance-stats')
 def get_perf_stats():
-    # Dynamic ranking logic based on report count per unit
-    from models_reporting import ReportInstance
-
-    raw = db.session.query(
-        ReportInstance.org_unit,
-        db.func.count(ReportInstance.id)
-    ).filter_by(status='submitted').group_by(ReportInstance.org_unit).all()
-
-    units = {}
-    for org_unit, count in raw:
-        ua = org_unit or "Khác"
-        units[ua] = count
-    
-    # Normalize scores for the UI progress bar (max 100)
-    max_val = max(units.values()) if units else 1
-    ranking = sorted([
-        {'name': k, 'score': (v / max_val) * 100 if max_val > 0 else 0} 
-        for k, v in units.items()
-    ], key=lambda x: x['score'], reverse=True)
-    
-    return jsonify({'full_list': ranking})
+    return jsonify({'full_list': []})
 
 
 # ==================== CATEGORY API ====================

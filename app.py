@@ -176,56 +176,9 @@ def check_rate_limit():
 
 db.init_app(app)
 
-# Import reporting models before db.create_all() so the reporting schema is
-# included during normal startup, not only when a separate migration script runs.
-import models_reporting  # noqa: F401
-
-def auto_migrate_reporting_columns(database_path):
-    """Tự động bổ sung các cột mới cho hệ thống Reporting nếu chưa tồn tại."""
-    import sqlite3
-    try:
-        conn = sqlite3.connect(database_path)
-        cursor = conn.cursor()
-        
-        # Danh sách cột cần bổ sung: (table, column_name, column_def)
-        migrations = [
-            ('form_template', 'report_type', "VARCHAR(20) DEFAULT 'adhoc'"),
-            ('form_template', 'frequency', "VARCHAR(20)"),
-            ('form_template', 'deadline_rule', "VARCHAR(50)"),
-            ('reporting_period', 'template_id', "INTEGER"),
-            ('reporting_period', 'is_adhoc', "BOOLEAN DEFAULT 0"),
-            ('form_template', 'department', "VARCHAR(100)"),
-            ('report_instance', 'input_source', "VARCHAR(50) DEFAULT 'WEB_FORM'"),
-            ('report_instance', 'last_saved_at', "DATETIME"),
-            ('report_instance', 'last_saved_by', "INTEGER"),
-        ]
-        
-        for table, col, definition in migrations:
-            # Check tồn tại của bảng
-            cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table}'")
-            if not cursor.fetchone():
-                continue  # Bảng chưa tồn tại, sẽ được tạo bởi db.create_all sau
-            
-            # Check tồn tại của cột
-            cursor.execute(f"PRAGMA table_info({table})")
-            existing_cols = [row[1] for row in cursor.fetchall()]
-            if col not in existing_cols:
-                try:
-                    cursor.execute(f"ALTER TABLE {table} ADD COLUMN {col} {definition};")
-                    print(f"[AUTO-MIGRATE] Added column {table}.{col}")
-                except Exception as e:
-                    print(f"[AUTO-MIGRATE] Skipped {table}.{col}: {e}")
-        
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print(f"[AUTO-MIGRATE] Error: {e}")
-
 with app.app_context():
     try: 
         init_db(app)
-        # Auto-migrate cho hệ thống reporting 
-        auto_migrate_reporting_columns(db_path)
     except Exception as e: 
         print(f"Startup DB Error: {e}")
 
@@ -239,11 +192,9 @@ from routes.shortlink import shortlink_bp
 from routes.excel_builder import excel_builder_bp
 from routes.zalo import zalo_bp
 from routes.ai_assistant import ai_bp
-from routes.reporting import reporting_bp
 from routes.health import health_bp
 
 app.register_blueprint(auth_bp)
-app.register_blueprint(reporting_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(portal_bp)
 app.register_blueprint(tasks_bp)

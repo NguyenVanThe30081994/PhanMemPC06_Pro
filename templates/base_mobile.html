@@ -279,10 +279,6 @@
             <i class="fa-solid fa-list-check"></i>
             <span>NHIỆM VỤ</span>
         </a>
-        <a href="/reporting" class="nav-item {% if request.path.startswith('/reporting') %}active{% endif %}">
-            <i class="fa-solid fa-layer-group"></i>
-            <span>BÁO CÁO</span>
-        </a>
         <a href="/ranking" class="nav-item {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">
             <i class="fa-solid fa-ranking-star"></i>
             <span>XẾP HẠNG</span>
@@ -343,19 +339,12 @@
                 </div>
             </div>
             
-            <!-- Data & Reports Dropdown -->
             <div class="mb-2">
-                <button class="nav-dropdown w-100" type="button" data-bs-toggle="collapse" data-bs-target="#dataMenu">
-                    <i class="fa-solid fa-database me-2"></i>Dữ liệu & Báo cáo <i class="fa-solid fa-chevron-down ms-auto small"></i>
-                </button>
-                <div class="collapse" id="dataMenu">
-                    <div class="nav-links">
-                        <a href="{{ url_for('reporting_bp.index') }}" class="nav-link-sidebar {% if request.path.startswith('/reporting') %}active{% endif %}">Báo cáo</a>
-                        <a href="/library" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">Thư viện Tài liệu</a>
-                        <a href="/contacts" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">Danh bạ Đơn vị</a>
-                        <a href="/ai" class="nav-link-sidebar {% if request.endpoint == 'ai_bp.index' %}active{% endif %}"><i class="fa-solid fa-robot me-1"></i>Hỗ trợ thủ tục</a>
-                        <a href="/links" class="nav-link-sidebar {% if request.endpoint == 'shortlink_bp.manage_links' %}active{% endif %}">QR & Link</a>
-                    </div>
+                <div class="nav-links">
+                    <a href="/library" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">Thư viện Tài liệu</a>
+                    <a href="/contacts" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">Danh bạ Đơn vị</a>
+                    <a href="/ai" class="nav-link-sidebar {% if request.endpoint == 'ai_bp.index' %}active{% endif %}"><i class="fa-solid fa-robot me-1"></i>Hỗ trợ thủ tục</a>
+                    <a href="/links" class="nav-link-sidebar {% if request.endpoint == 'shortlink_bp.manage_links' %}active{% endif %}">QR & Link</a>
                 </div>
             </div>
             

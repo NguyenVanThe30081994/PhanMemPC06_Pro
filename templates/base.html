@@ -643,11 +643,6 @@
                     class="nav-link-top {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">Danh
                     bạ</a>{% endif %}
 
-                {% if perms.get('p_input_lead') or perms.get('p_input_exec') or perms.get('p_stat_lead') or perms.get('p_stat_exec') or perms.get('p_form_lead') or session.get('is_admin') %}
-                <a href="{{ url_for('reporting_bp.index') }}"
-                    class="nav-link-top {% if request.path.startswith('/reporting') %}active{% endif %}">Báo cáo</a>
-                {% endif %}
-
                 <a href="{{ url_for('shortlink_bp.manage_links') }}" class="nav-link-top {% if request.path.startswith('/links') %}active{% endif %}">QR & Link</a>
 
                 <a href="/ai" class="nav-link-top {% if request.path.startswith('/ai') %}active{% endif %}">
@@ -855,21 +850,6 @@
                     <i class="fa-solid fa-address-book me-3 opacity-75"></i>Danh bạ
                 </a>
                 {% endif %}
-
-                <!-- Group: Dữ liệu và Báo cáo -->
-                <a href="#mobileDataReportCollapse"
-                    class="list-group-item py-3 px-4 d-flex justify-content-between align-items-center"
-                    data-bs-toggle="collapse">
-                    <span><i class="fa-solid fa-chart-line me-3 opacity-75"></i>Dữ liệu & Báo cáo</span>
-                    <i class="fa-solid fa-chevron-down small opacity-50 transition-transform"></i>
-                </a>
-                <div class="collapse" id="mobileDataReportCollapse">
-                    {% if perms.get('p_input_lead') or perms.get('p_input_exec') or perms.get('p_stat_lead') or perms.get('p_stat_exec') or perms.get('p_form_lead') or session.get('is_admin') %}
-                    <a href="{{ url_for('reporting_bp.index') }}" class="list-group-item py-2 ps-5">
-                        <i class="fa-solid fa-caret-right me-2 small opacity-50"></i>Báo cáo
-                    </a>
-                    {% endif %}
-                </div>
 
                 <a href="{{ url_for('shortlink_bp.manage_links') }}" class="list-group-item py-3 px-4">
                     <i class="fa-solid fa-qrcode me-3 opacity-75"></i>Tiện ích QR & Link
