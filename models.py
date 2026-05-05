@@ -262,6 +262,7 @@ class ReportTemplate(db.Model):
     description = db.Column(db.Text)
     report_type_id = db.Column(db.Integer, index=True)
     professional_unit = db.Column(db.String(255), index=True)
+    assignment_scope_json = db.Column(db.Text)
     directive_filename = db.Column(db.String(255))
     directive_path = db.Column(db.String(500))
     status = db.Column(db.String(50), default='draft')

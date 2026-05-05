@@ -10,6 +10,7 @@ from sqlalchemy import or_
 from werkzeug.utils import secure_filename
 
 from models import (
+    AppRole,
     db,
     ReportAuditLog,
     ReportCycle,
@@ -192,6 +193,128 @@ def _professional_unit_options():
 
 def _template_professional_unit(template):
     return (getattr(template, "professional_unit", None) or "").strip() or "Chưa phân đội"
+
+
+def _unit_group_options():
+    return get_module_field_items("contacts", "unit_name") or get_category_items("Đơn vị")
+
+
+def _empty_scope_payload():
+    return {
+        "mode": "all",
+        "unit_ids": [],
+        "role_ids": [],
+        "unit_groups": [],
+    }
+
+
+def _parse_scope_payload(raw_value):
+    payload = _empty_scope_payload()
+    if not raw_value:
+        return payload
+    try:
+        data = json.loads(raw_value)
+    except Exception:
+        data = []
+
+    if isinstance(data, list):
+        payload["unit_ids"] = sorted({int(v) for v in data if str(v).isdigit()})
+        if payload["unit_ids"]:
+            payload["mode"] = "targeted"
+        return payload
+
+    if not isinstance(data, dict):
+        return payload
+
+    payload["unit_ids"] = sorted({int(v) for v in data.get("unit_ids", []) if str(v).isdigit()})
+    payload["role_ids"] = sorted({int(v) for v in data.get("role_ids", []) if str(v).isdigit()})
+    payload["unit_groups"] = sorted(
+        {
+            str(v).strip()
+            for v in data.get("unit_groups", [])
+            if str(v).strip()
+        }
+    )
+    mode = (data.get("mode") or "").strip().lower()
+    payload["mode"] = "targeted" if (payload["unit_ids"] or payload["role_ids"] or payload["unit_groups"]) else "all"
+    if mode == "all" and not (payload["unit_ids"] or payload["role_ids"] or payload["unit_groups"]):
+        payload["mode"] = "all"
+    return payload
+
+
+def _scope_payload_from_form(form):
+    payload = _empty_scope_payload()
+    payload["unit_ids"] = sorted({int(v) for v in form.getlist("unit_ids") if str(v).isdigit()})
+    payload["role_ids"] = sorted({int(v) for v in form.getlist("role_ids") if str(v).isdigit()})
+    payload["unit_groups"] = sorted({str(v).strip() for v in form.getlist("unit_groups") if str(v).strip()})
+    if payload["unit_ids"] or payload["role_ids"] or payload["unit_groups"]:
+        payload["mode"] = "targeted"
+    return payload
+
+
+def _find_report_unit_for_identity(all_units, unit_name, unit_key):
+    key = normalize_code(unit_key)
+    if key:
+        for unit in all_units:
+            if normalize_code(unit.code) == key:
+                return unit
+    name = (unit_name or "").strip()
+    if name:
+        for unit in all_units:
+            if is_unit_match(unit.name, name):
+                return unit
+    return None
+
+
+def _unit_matches_group(unit, group_name):
+    group_value = (group_name or "").strip()
+    if not group_value:
+        return False
+    if is_unit_match(unit.name, group_value) or is_unit_match(unit.code, group_value):
+        return True
+    normalized_group = normalize_code(group_value)
+    normalized_name = normalize_code(unit.name)
+    normalized_code = normalize_code(unit.code)
+    if not normalized_group:
+        return False
+    return (
+        normalized_name == normalized_group
+        or normalized_code == normalized_group
+        or normalized_name.startswith(f"{normalized_group}_")
+        or normalized_code.startswith(f"{normalized_group}_")
+    )
+
+
+def _resolve_scope_units(scope_payload):
+    all_units = ReportUnit.query.filter_by(is_active=True).order_by(ReportUnit.name.asc()).all()
+    has_explicit_scope = bool(
+        scope_payload.get("unit_ids") or scope_payload.get("role_ids") or scope_payload.get("unit_groups")
+    )
+    if scope_payload.get("mode") == "all" and not has_explicit_scope:
+        return all_units
+
+    selected_ids = set(int(v) for v in scope_payload.get("unit_ids", []) if str(v).isdigit())
+
+    role_ids = [int(v) for v in scope_payload.get("role_ids", []) if str(v).isdigit()]
+    if role_ids:
+        users = User.query.filter(User.role_id.in_(role_ids), User.is_active.is_(True)).all()
+        for user in users:
+            unit_name, unit_key = _preferred_unit_identity(user)
+            matched_unit = _find_report_unit_for_identity(all_units, unit_name, unit_key)
+            if matched_unit:
+                selected_ids.add(matched_unit.id)
+
+    unit_groups = [group for group in scope_payload.get("unit_groups", []) if str(group).strip()]
+    if unit_groups:
+        for unit in all_units:
+            if any(_unit_matches_group(unit, group_name) for group_name in unit_groups):
+                selected_ids.add(unit.id)
+
+    if not selected_ids and not has_explicit_scope:
+        return all_units
+    if not selected_ids:
+        return []
+    return [unit for unit in all_units if unit.id in selected_ids]
 
 
 def _template_current_cycle(template):
@@ -378,11 +501,7 @@ def _purge_cycle(cycle):
 
 
 def _scope_unit_ids(cycle):
-    try:
-        data = json.loads(cycle.scope_json or "[]")
-        return {int(v) for v in data if str(v).isdigit()}
-    except Exception:
-        return set()
+    return {unit.id for unit in _resolve_scope_units(_parse_scope_payload(cycle.scope_json))}
 
 
 def _cycle_accessible(cycle, unit_id, is_admin=False):
@@ -390,8 +509,14 @@ def _cycle_accessible(cycle, unit_id, is_admin=False):
         return True
     if not unit_id:
         return False
-    scope = _scope_unit_ids(cycle)
-    return not scope or unit_id in scope
+    scope_payload = _parse_scope_payload(cycle.scope_json)
+    has_explicit_scope = bool(
+        scope_payload.get("unit_ids") or scope_payload.get("role_ids") or scope_payload.get("unit_groups")
+    )
+    scope = {unit.id for unit in _resolve_scope_units(scope_payload)}
+    if not has_explicit_scope:
+        return True
+    return unit_id in scope
 
 
 def _get_cycle_instance(cycle, unit, user):
@@ -592,11 +717,7 @@ def _sheet_header_range(sheet_or_meta):
 
 
 def _cycle_units(cycle):
-    scope_ids = list(_scope_unit_ids(cycle))
-    query = ReportUnit.query.filter_by(is_active=True).order_by(ReportUnit.name.asc())
-    if scope_ids:
-        return query.filter(ReportUnit.id.in_(scope_ids)).all()
-    return query.all()
+    return _resolve_scope_units(_parse_scope_payload(cycle.scope_json))
 
 
 def _resolve_cycle_unit(cycle):
@@ -650,7 +771,10 @@ def _submission_timeliness(cycle, submission, report_type=None):
         return "Đã lưu"
     report_code = report_type.code if report_type else ""
     if report_code == "daily":
-        report_day = (cycle.open_at or cycle.due_at or cycle.created_at or submitted_at).date()
+        if cycle:
+            report_day = (cycle.open_at or cycle.due_at or cycle.created_at or submitted_at).date()
+        else:
+            report_day = submitted_at.date()
         return "Đúng ngày" if submitted_at.date() == report_day else "Quá ngày"
     if cycle and cycle.due_at:
         return "Đúng hạn" if submitted_at <= cycle.due_at else "Quá hạn"
@@ -721,7 +845,7 @@ def _build_cycle_name(template, report_type):
 
 
 def _ensure_cycle_instances(cycle):
-    unit_ids = [unit.id for unit in ReportUnit.query.filter_by(is_active=True).order_by(ReportUnit.name.asc()).all()]
+    unit_ids = [unit.id for unit in _cycle_units(cycle)]
     if not unit_ids:
         return
     existing_unit_ids = {instance.report_unit_id for instance in ReportInstance.query.filter_by(cycle_id=cycle.id).all()}
@@ -755,7 +879,127 @@ def _ensure_cycle_instances(cycle):
         )
 
 
+def _submission_status_label(submission):
+    if not submission:
+        return ""
+    if submission.status == "submitted":
+        return "Đã gửi báo cáo"
+    if submission.status == "draft":
+        return "Lưu nháp"
+    return submission.status or ""
+
+
+def _build_submission_summary(submission, template_version, workbook=None, field_lookup=None, sheet_fields=None, limit=8):
+    if not submission or not template_version:
+        return {"text": "", "count": 0}
+
+    if workbook is None:
+        workbook = load_workbook(template_version.source_path, data_only=False)
+
+    if field_lookup is None or sheet_fields is None:
+        fields = ReportTemplateField.query.filter_by(version_id=template_version.id).order_by(ReportTemplateField.display_order.asc()).all()
+        field_lookup = {(field.sheet_name, field.field_code): field for field in fields}
+        sheet_fields = {}
+        for field in fields:
+            sheet_fields.setdefault(field.sheet_name, []).append(field)
+
+    existing_values = _submission_cell_values(submission.id)
+    value_rows = (
+        ReportSubmissionValue.query.filter_by(submission_id=submission.id)
+        .order_by(ReportSubmissionValue.id.asc())
+        .all()
+    )
+    if not value_rows:
+        return {"text": "", "count": 0}
+
+    row_title_cache = {}
+    summary_entries = []
+    for value_row in value_rows:
+        value_text = (value_row.value_text or "").strip()
+        if not value_text and value_row.value_number is None:
+            continue
+        cell_address = (value_row.cell_address or "").strip().upper()
+        row_digits = "".join(ch for ch in cell_address if ch.isdigit())
+        row_index = int(row_digits) if row_digits.isdigit() else 0
+        sheet_name = value_row.sheet_name
+        field = field_lookup.get((sheet_name, value_row.field_code))
+        field_label = _field_display_name(field) if field else (value_row.field_code or cell_address)
+        row_title = ""
+        if row_index and sheet_name in workbook.sheetnames:
+            cache_key = (sheet_name, row_index)
+            if cache_key not in row_title_cache:
+                row_title_cache[cache_key] = _row_context_label(
+                    workbook[sheet_name],
+                    sheet_fields.get(sheet_name, []),
+                    existing_values,
+                    sheet_name,
+                    row_index,
+                )
+            row_title = row_title_cache[cache_key]
+        label = f"{row_title} - {field_label}" if row_title else field_label
+        summary_entries.append(f"{label}: {value_text or value_row.value_number}")
+
+    if not summary_entries:
+        return {"text": "", "count": 0}
+
+    visible_entries = summary_entries[:limit]
+    text = "; ".join(visible_entries)
+    if len(summary_entries) > limit:
+        text += f"; ... (+{len(summary_entries) - limit})"
+    return {"text": text, "count": len(summary_entries)}
+
+
+def _history_rows_for_submissions(submissions, template_version, report_type, include_unit=False, include_actor=False, cycle=None):
+    if not submissions or not template_version:
+        return []
+
+    workbook = load_workbook(template_version.source_path, data_only=False)
+    fields = (
+        ReportTemplateField.query.filter_by(version_id=template_version.id)
+        .order_by(ReportTemplateField.display_order.asc())
+        .all()
+    )
+    field_lookup = {(field.sheet_name, field.field_code): field for field in fields}
+    sheet_fields = {}
+    for field in fields:
+        sheet_fields.setdefault(field.sheet_name, []).append(field)
+
+    rows = []
+    user_ids = {submission.submitted_by for submission in submissions if submission.submitted_by}
+    user_map = {user.id: user for user in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
+    instance_ids = {submission.instance_id for submission in submissions if submission.instance_id}
+    instance_map = {instance.id: instance for instance in ReportInstance.query.filter(ReportInstance.id.in_(instance_ids)).all()} if instance_ids else {}
+    unit_ids = {instance.report_unit_id for instance in instance_map.values() if instance.report_unit_id}
+    unit_map = {unit.id: unit for unit in ReportUnit.query.filter(ReportUnit.id.in_(unit_ids)).all()} if unit_ids else {}
+
+    for submission in submissions:
+        summary = _build_submission_summary(
+            submission,
+            template_version,
+            workbook=workbook,
+            field_lookup=field_lookup,
+            sheet_fields=sheet_fields,
+        )
+        row = {
+            "submission": submission,
+            "submitted_at": submission.submitted_at or submission.created_at,
+            "content_text": summary["text"],
+            "content_count": summary["count"],
+            "status_label": _submission_status_label(submission),
+            "timeliness": _submission_timeliness(cycle, submission, report_type=report_type),
+        }
+        if include_actor:
+            row["actor"] = user_map.get(submission.submitted_by)
+        if include_unit:
+            instance = instance_map.get(submission.instance_id)
+            row["unit"] = unit_map.get(instance.report_unit_id) if instance and instance.report_unit_id else None
+            row["instance"] = instance
+        rows.append(row)
+    return rows
+
+
 def _ensure_active_cycle_for_template(template, version, report_type):
+    scope_json = template.assignment_scope_json or json.dumps(_empty_scope_payload(), ensure_ascii=False)
     version_ids = _template_version_ids(template.id)
     open_cycles = ReportCycle.query.filter(
         ReportCycle.template_version_id.in_(version_ids),
@@ -789,7 +1033,7 @@ def _ensure_active_cycle_for_template(template, version, report_type):
             due_at=due_at,
             auto_lock_at=None,
             status="open",
-            scope_json=json.dumps([], ensure_ascii=False),
+            scope_json=scope_json,
             is_locked=False,
             note="",
         )
@@ -798,6 +1042,7 @@ def _ensure_active_cycle_for_template(template, version, report_type):
     else:
         selected_cycle.template_version_id = version.id
         selected_cycle.report_type_id = report_type.id
+        selected_cycle.scope_json = scope_json
         if report_type and report_type.code == "daily":
             selected_cycle.open_at = _start_of_day(datetime.now().date())
             selected_cycle.due_at = _end_of_day(datetime.now().date())
@@ -1062,7 +1307,13 @@ def upload_template():
 
     template = ReportTemplate.query.filter_by(code=code).first()
     if not template:
-        template = ReportTemplate(code=code, name=name, description=description, status="draft")
+        template = ReportTemplate(
+            code=code,
+            name=name,
+            description=description,
+            status="draft",
+            assignment_scope_json=json.dumps(_empty_scope_payload(), ensure_ascii=False),
+        )
         db.session.add(template)
         db.session.flush()
     else:
@@ -1172,6 +1423,10 @@ def template_settings(template_id):
         current_version=current_version,
         report_types=ReportType.query.order_by(ReportType.name.asc()).all(),
         professional_units=_professional_unit_options(),
+        roles=AppRole.query.order_by(AppRole.name.asc()).all(),
+        units=ReportUnit.query.filter_by(is_active=True).order_by(ReportUnit.name.asc()).all(),
+        unit_groups=_unit_group_options(),
+        scope_payload=_parse_scope_payload(template.assignment_scope_json),
         range_defaults=_template_range_defaults(current_version),
     )
 
@@ -1203,6 +1458,7 @@ def save_template_settings(template_id):
     template.description = (request.form.get("description") or "").strip()
     template.report_type_id = report_type.id
     template.professional_unit = professional_unit
+    template.assignment_scope_json = json.dumps(_scope_payload_from_form(request.form), ensure_ascii=False)
 
     directive_file = request.files.get("directive_file")
     directive_filename, directive_path = _save_directive_file(directive_file, template.code or template.name or "report")
@@ -1512,42 +1768,70 @@ def admin_cycle_detail(cycle_id):
     template = db.session.get(ReportTemplate, template_version.template_id) if template_version else None
     report_type = _report_type(cycle)
     scoped_units = _cycle_units(cycle)
-    unit_map = {unit.id: unit for unit in scoped_units}
-    instances = ReportInstance.query.filter_by(cycle_id=cycle.id).order_by(ReportInstance.report_unit_id.asc()).all()
-    assigned_user_ids = [instance.assigned_user_id for instance in instances if instance.assigned_user_id]
-    user_map = {}
-    if assigned_user_ids:
-        user_map = {user.id: user for user in User.query.filter(User.id.in_(assigned_user_ids)).all()}
-    instance_rows = []
+    instance_list = ReportInstance.query.filter_by(cycle_id=cycle.id).order_by(ReportInstance.report_unit_id.asc()).all()
+    instance_map = {instance.report_unit_id: instance for instance in instance_list if instance.report_unit_id}
+
+    unit_rows = []
+    latest_submissions = []
     submission_total = 0
     submitted_total = 0
-    for instance in instances:
-        latest_submission = _latest_submission(instance.id)
-        submission_count = ReportSubmission.query.filter_by(instance_id=instance.id).count()
+    on_time_total = 0
+    late_total = 0
+    for unit in scoped_units:
+        instance = instance_map.get(unit.id)
+        latest_submission = _latest_submission(instance.id) if instance else None
+        submission_count = ReportSubmission.query.filter_by(instance_id=instance.id).count() if instance else 0
         submission_total += submission_count
-        if instance.status == "submitted":
+        timeliness = _submission_timeliness(cycle, latest_submission, report_type=report_type)
+        if latest_submission and instance and instance.status == "submitted":
             submitted_total += 1
-        instance_rows.append({
-            "instance": instance,
-            "unit": unit_map.get(instance.report_unit_id) or db.session.get(ReportUnit, instance.report_unit_id),
-            "assigned_user": user_map.get(instance.assigned_user_id),
-            "latest_submission": latest_submission,
-            "submission_count": submission_count,
-            "timeliness": _submission_timeliness(cycle, latest_submission, report_type=report_type),
-        })
+        if latest_submission:
+            latest_submissions.append(latest_submission)
+            if timeliness in {"Đúng ngày", "Đúng hạn", "Đã báo cáo"}:
+                on_time_total += 1
+            elif timeliness in {"Quá ngày", "Quá hạn"}:
+                late_total += 1
+        unit_rows.append(
+            {
+                "unit": unit,
+                "instance": instance,
+                "latest_submission": latest_submission,
+                "submission_count": submission_count,
+                "timeliness": timeliness,
+            }
+        )
+
+    instance_ids = [row["instance"].id for row in unit_rows if row["instance"]]
+    submissions = (
+        ReportSubmission.query.filter(ReportSubmission.instance_id.in_(instance_ids))
+        .order_by(ReportSubmission.created_at.desc(), ReportSubmission.id.desc())
+        .all()
+        if instance_ids
+        else []
+    )
+    history_rows = _history_rows_for_submissions(
+        submissions,
+        template_version,
+        report_type,
+        include_unit=True,
+        include_actor=True,
+        cycle=cycle,
+    )
     return render_template(
         "reporting_cycle_detail.html",
         cycle=cycle,
         template=template,
         template_version=template_version,
         report_type=report_type,
-        report_types=ReportType.query.order_by(ReportType.name.asc()).all(),
-        schedule_text=_report_schedule_text(cycle, report_type=report_type),
         scoped_units=scoped_units,
         scope_count=len(scoped_units),
-        instance_rows=instance_rows,
+        scope_payload=_parse_scope_payload(cycle.scope_json),
+        unit_rows=unit_rows,
+        history_rows=history_rows,
         submission_total=submission_total,
         submitted_total=submitted_total,
+        on_time_total=on_time_total,
+        late_total=late_total,
     )
 
 
@@ -1663,9 +1947,12 @@ def create_cycle():
         flash("Loại báo cáo không hợp lệ.", "danger")
         return redirect(url_for("reporting_bp.admin_dashboard"))
 
-    unit_ids = [int(v) for v in request.form.getlist("unit_ids") if str(v).isdigit()]
-    if not unit_ids:
-        unit_ids = [u.id for u in ReportUnit.query.filter_by(is_active=True).all()]
+    template_version = db.session.get(ReportTemplateVersion, template_version_id)
+    template = db.session.get(ReportTemplate, template_version.template_id) if template_version else None
+    scope_payload = _scope_payload_from_form(request.form)
+    if not (scope_payload["unit_ids"] or scope_payload["role_ids"] or scope_payload["unit_groups"]) and template:
+        scope_payload = _parse_scope_payload(template.assignment_scope_json)
+    unit_ids = [unit.id for unit in _resolve_scope_units(scope_payload)]
 
     if report_type.code == "daily":
         report_date = _parse_date(request.form.get("report_date")) or datetime.now().date()
@@ -1676,7 +1963,6 @@ def create_cycle():
         open_at = datetime.now()
         due_at = _end_of_day(due_date) if due_date else None
 
-    template_version = db.session.get(ReportTemplateVersion, template_version_id)
     cycle = ReportCycle(
         template_version_id=template_version_id,
         report_type_id=report_type_id,
@@ -1686,7 +1972,7 @@ def create_cycle():
         due_at=due_at,
         auto_lock_at=None,
         status="open",
-        scope_json=json.dumps(unit_ids, ensure_ascii=False),
+        scope_json=json.dumps(scope_payload, ensure_ascii=False),
         is_locked=False,
         note=(request.form.get("note") or "").strip(),
     )
@@ -1930,6 +2216,14 @@ def cycle_history(cycle_id):
     context = _resolve_cycle_context(cycle_id)
     if not context:
         return "Not Found", 404
+    history_rows = _history_rows_for_submissions(
+        context["submission_history"],
+        context["template_version"],
+        context["report_type"],
+        include_unit=False,
+        include_actor=False,
+        cycle=context["cycle"],
+    )
     return render_template(
         "report_cycle_history.html",
         cycle=context["cycle"],
@@ -1937,7 +2231,7 @@ def cycle_history(cycle_id):
         report_type=context["report_type"],
         current_unit=context["unit"],
         latest_submission=context["latest_submission"],
-        submission_history=context["submission_history"],
+        history_rows=history_rows,
         is_admin=_is_admin(),
     )
 

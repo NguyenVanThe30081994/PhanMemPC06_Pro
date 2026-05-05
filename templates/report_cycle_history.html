@@ -14,25 +14,32 @@
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body p-4">
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
+            <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Phiên bản</th>
-                        <th>Trạng thái</th>
-                        <th>Thời điểm</th>
-                        <th>Ghi chú</th>
+                        <th style="width: 180px;">Thời điểm nhập</th>
+                        <th>Nội dung nhập</th>
+                        <th style="width: 180px;">Trạng thái lưu</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for submission in submission_history %}
+                    {% for row in history_rows %}
                     <tr>
-                        <td>#{{ submission.version_no }}</td>
-                        <td>{{ submission.status }}</td>
-                        <td>{{ submission.created_at.strftime('%d/%m/%Y %H:%M') if submission.created_at else '' }}</td>
-                        <td>{{ submission.note or '' }}</td>
+                        <td>{{ row.submitted_at.strftime('%d/%m/%Y %H:%M') if row.submitted_at else '' }}</td>
+                        <td>
+                            {% if row.content_text %}
+                            <div class="small lh-base">{{ row.content_text }}</div>
+                            {% else %}
+                            <span class="text-muted">Không có thay đổi dữ liệu.</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ row.status_label }}</div>
+                            <div class="small text-muted">{{ row.timeliness }}</div>
+                        </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="4" class="text-muted text-center py-4">Chưa có lịch sử chỉnh sửa.</td></tr>
+                    <tr><td colspan="3" class="text-muted text-center py-4">Chưa có lịch sử nhập liệu.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

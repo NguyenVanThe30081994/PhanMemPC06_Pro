@@ -278,6 +278,7 @@ def apply_migrations(app):
         ("report_template", "description", "TEXT"),
         ("report_template", "report_type_id", "INTEGER"),
         ("report_template", "professional_unit", "VARCHAR(255)"),
+        ("report_template", "assignment_scope_json", "TEXT"),
         ("report_template", "directive_filename", "VARCHAR(255)"),
         ("report_template", "directive_path", "VARCHAR(500)"),
         ("report_template", "status", "VARCHAR(50) DEFAULT 'draft'"),

@@ -73,6 +73,39 @@
                 </div>
                 <div class="col-lg-6">
                     <div class="pc06-form-panel h-100">
+                        <h2 class="h6 fw-bold mb-3">Phạm vi giao báo cáo</h2>
+                        <div class="small text-muted mb-3">Để trống cả 3 mục nếu muốn giao cho toàn bộ đơn vị.</div>
+                        <div class="pc06-form-section">
+                            <label class="form-label fw-bold">Đơn vị cụ thể</label>
+                            <select name="unit_ids" class="form-select" multiple size="6">
+                                {% for unit in units %}
+                                <option value="{{ unit.id }}" {% if unit.id in scope_payload.unit_ids %}selected{% endif %}>{{ unit.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="pc06-form-section">
+                            <label class="form-label fw-bold">Nhóm vai trò</label>
+                            <select name="role_ids" class="form-select" multiple size="5">
+                                {% for role in roles %}
+                                <option value="{{ role.id }}" {% if role.id in scope_payload.role_ids %}selected{% endif %}>{{ role.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="pc06-form-section">
+                            <label class="form-label fw-bold">Nhóm đơn vị</label>
+                            <select name="unit_groups" class="form-select" multiple size="5">
+                                {% for item in unit_groups %}
+                                <option value="{{ item.name }}" {% if item.name in scope_payload.unit_groups %}selected{% endif %}>{{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4 mt-1">
+                <div class="col-lg-12">
+                    <div class="pc06-form-panel h-100">
                         <h2 class="h6 fw-bold mb-3">Phạm vi dữ liệu</h2>
                         <div class="row g-3">
                             <div class="col-md-6">
