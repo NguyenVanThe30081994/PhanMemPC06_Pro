@@ -486,6 +486,7 @@ class FormEngine:
             period_id=period_id,
             user_id=user_id,
             org_unit=org_unit,
+            input_source='WEB_FORM',
             status='draft'
         )
         db.session.add(instance)
@@ -592,6 +593,9 @@ class FormEngine:
                 'id': instance.id,
                 'status': instance.status,
                 'org_unit': instance.org_unit,
+                'input_source': instance.input_source,
+                'last_saved_at': instance.last_saved_at.isoformat() if instance.last_saved_at else None,
+                'last_saved_by': instance.last_saved_by,
                 'period_id': instance.period_id,
                 'created_at': instance.created_at.isoformat(),
                 'updated_at': instance.updated_at.isoformat(),
@@ -656,7 +660,12 @@ class FormEngine:
                     new_value=stored_value
                 )
         
-        instance.updated_at = datetime.now()
+        now = datetime.now()
+        instance.updated_at = now
+        instance.last_saved_at = now
+        instance.last_saved_by = user_id
+        if not instance.input_source:
+            instance.input_source = 'WEB_FORM'
         db.session.commit()
         
         return {'success': True, 'message': 'Đã lưu nháp'}
@@ -799,7 +808,10 @@ class FormEngine:
         
         # Update status
         instance.status = 'submitted'
-        instance.submitted_at = datetime.now()
+        now = datetime.now()
+        instance.submitted_at = now
+        instance.last_saved_at = now
+        instance.last_saved_by = user_id
         
         # Audit log
         self._log_audit(

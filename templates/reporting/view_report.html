@@ -78,6 +78,7 @@
           <span>{{ instance.org_unit }}</span>
           {% if report_context %}<span>{{ report_context.name }}</span>{% endif %}
           <span>{{ 'Đã nộp' if instance.status == 'submitted' else ('Đã khóa' if instance.status == 'locked' else 'Nháp') }}</span>
+          <span>Lưu cuối: {{ instance.last_saved_at.strftime('%d/%m/%Y %H:%M') if instance.last_saved_at else 'Chưa có' }}</span>
         </div>
       </div>
       <div class="reporting-hero-actions">

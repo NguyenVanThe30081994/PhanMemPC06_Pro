@@ -195,6 +195,9 @@ def auto_migrate_reporting_columns(database_path):
             ('reporting_period', 'template_id', "INTEGER"),
             ('reporting_period', 'is_adhoc', "BOOLEAN DEFAULT 0"),
             ('form_template', 'department', "VARCHAR(100)"),
+            ('report_instance', 'input_source', "VARCHAR(50) DEFAULT 'WEB_FORM'"),
+            ('report_instance', 'last_saved_at', "DATETIME"),
+            ('report_instance', 'last_saved_by', "INTEGER"),
         ]
         
         for table, col, definition in migrations:

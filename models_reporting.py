@@ -254,7 +254,10 @@ class ReportInstance(db.Model):
     period_id = db.Column(db.Integer, db.ForeignKey('reporting_period.id'), nullable=False)
     user_id = db.Column(db.Integer, nullable=False)  # Người tạo/nhập
     org_unit = db.Column(db.String(100), nullable=False, index=True)  # Đơn vị báo cáo
+    input_source = db.Column(db.String(50), default='WEB_FORM', index=True)  # WEB_FORM, EXCEL_IMPORT, API_IMPORT
     status = db.Column(db.String(20), default='draft', index=True)  # draft, submitted, locked
+    last_saved_at = db.Column(db.DateTime)
+    last_saved_by = db.Column(db.Integer)
     submitted_at = db.Column(db.DateTime)
     locked_at = db.Column(db.DateTime)
     locked_by = db.Column(db.Integer)  # User ID của người khóa
