@@ -5,10 +5,14 @@
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
             <h1 class="h3 fw-bold mb-1">{{ cycle.name }}</h1>
-            <p class="text-muted mb-0">{{ template.name }} • {% if current_unit %}{{ current_unit.name }}{% else %}Không có đơn vị{% endif %}</p>
+            <p class="text-muted mb-0">
+                {{ template.name }}
+                {% if report_type %} • {{ report_type.name }}{% endif %}
+                • {% if current_unit %}{{ current_unit.name }}{% else %}Không có đơn vị{% endif %}
+            </p>
         </div>
         <div class="d-flex gap-2">
-            <a href="{{ url_for('reporting_bp.user_dashboard') }}" class="btn btn-light rounded-pill px-4">Quay lại</a>
+            <a href="{% if is_admin %}{{ url_for('reporting_bp.admin_cycle_detail', cycle_id=cycle.id) }}{% else %}{{ url_for('reporting_bp.user_dashboard') }}{% endif %}" class="btn btn-light rounded-pill px-4">Quay lại</a>
             {% if latest_submission and latest_submission.file_path %}
             <a href="{{ url_for('reporting_bp.download_submission', submission_id=latest_submission.id) }}" class="btn btn-outline-secondary rounded-pill px-4">Tải file</a>
             {% endif %}
@@ -18,44 +22,116 @@
 
 <form id="reportForm" method="POST">
     <input type="hidden" name="payload_json" id="payloadJson">
+    {% if is_admin and current_unit %}
+    <input type="hidden" name="unit_id" value="{{ current_unit.id }}">
+    {% endif %}
     <div class="card border-0 shadow-sm rounded-4 mb-4">
         <div class="card-body p-4">
             <div class="row g-3">
                 <div class="col-md-3"><div class="p-3 bg-light rounded-3"><div class="small text-muted">Trạng thái</div><div class="fw-bold">{{ cycle.status }}</div></div></div>
-                <div class="col-md-3"><div class="p-3 bg-light rounded-3"><div class="small text-muted">Phiên bản</div><div class="fw-bold">#{{ template_version.version_no }}</div></div></div>
-                <div class="col-md-3"><div class="p-3 bg-light rounded-3"><div class="small text-muted">Đơn vị</div><div class="fw-bold">{{ current_unit.name if current_unit else 'Chưa xác định' }}</div></div></div>
-                <div class="col-md-3"><div class="p-3 bg-light rounded-3"><div class="small text-muted">Bản lưu</div><div class="fw-bold">#{{ latest_submission.version_no if latest_submission else 0 }}</div></div></div>
+                <div class="col-md-3"><div class="p-3 bg-light rounded-3"><div class="small text-muted">Bản lưu mới nhất</div><div class="fw-bold">#{{ latest_submission.version_no if latest_submission else 0 }}</div></div></div>
+                <div class="col-md-3"><div class="p-3 bg-light rounded-3"><div class="small text-muted">Đánh giá</div><div class="fw-bold">{{ latest_timeliness }}</div></div></div>
+                <div class="col-md-3"><div class="p-3 bg-light rounded-3"><div class="small text-muted">Số lần chỉnh sửa</div><div class="fw-bold">{{ submission_history|length }}</div></div></div>
+                {% if is_admin %}
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Đơn vị đang xem</label>
+                    <select class="form-select" onchange="window.location=this.value">
+                        {% for unit in available_units %}
+                        <option value="{{ url_for('reporting_bp.cycle_workspace', cycle_id=cycle.id, unit_id=unit.id) }}" {% if current_unit and unit.id == current_unit.id %}selected{% endif %}>{{ unit.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="{% if is_admin %}col-md-6{% else %}col-12{% endif %}">
+                    <label class="form-label fw-bold">Ghi chú</label>
+                    <textarea id="noteBox" class="form-control" rows="2">{% if latest_submission %}{{ latest_submission.note or '' }}{% endif %}</textarea>
+                </div>
             </div>
-            <div class="mt-3">
-                <label class="form-label fw-bold">Ghi chú</label>
-                <textarea id="noteBox" class="form-control" rows="2" placeholder="Ghi chú nội bộ nếu có">{% if latest_submission %}{{ latest_submission.note or '' }}{% endif %}</textarea>
+            <div class="d-flex gap-2 mt-3 flex-wrap">
+                <button type="button" class="btn btn-outline-primary rounded-pill px-4" onclick="submitReport('{{ url_for('reporting_bp.save_cycle', cycle_id=cycle.id) }}')">Lưu nháp</button>
+                {% if editable %}
+                <button type="button" class="btn btn-primary rounded-pill px-4" onclick="submitReport('{{ url_for('reporting_bp.submit_cycle', cycle_id=cycle.id) }}')">Gửi / cập nhật báo cáo</button>
+                {% endif %}
             </div>
         </div>
     </div>
-
-    <div class="d-flex gap-2 mb-3">
-        <button type="button" class="btn btn-outline-primary rounded-pill px-4" onclick="submitReport('{{ url_for('reporting_bp.save_cycle', cycle_id=cycle.id) }}')">Lưu nháp</button>
-        {% if editable %}
-        <button type="button" class="btn btn-primary rounded-pill px-4" onclick="submitReport('{{ url_for('reporting_bp.submit_cycle', cycle_id=cycle.id) }}')">Gửi báo cáo</button>
-        {% endif %}
-    </div>
 </form>
+
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-4">
+        <h5 class="fw-bold mb-3">Lịch sử chỉnh sửa</h5>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Phiên bản</th>
+                        <th>Trạng thái</th>
+                        <th>Thời điểm</th>
+                        <th>Ghi chú</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for submission in submission_history %}
+                    <tr>
+                        <td>#{{ submission.version_no }}</td>
+                        <td>{{ submission.status }}</td>
+                        <td>{{ submission.created_at.strftime('%d/%m/%Y %H:%M') if submission.created_at else '' }}</td>
+                        <td>{{ submission.note or '' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="text-muted text-center py-4">Chưa có lịch sử chỉnh sửa.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
 {% for sheet in sheet_views %}
 <section class="card border-0 shadow-sm rounded-4 mb-4 report-sheet-panel" data-sheet="{{ sheet.sheet_name }}">
     <div class="card-header bg-white border-bottom py-3 px-4">
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
             <div>
                 <h5 class="mb-1 fw-bold">{{ sheet.sheet_name }}</h5>
-                <div class="text-muted small">{{ sheet.field_count }} trường • {{ sheet.input_count }} ô nhập</div>
+                <div class="text-muted small">{{ sheet.input_fields|length }} cột đang hiển thị cho đơn vị nhập</div>
+            </div>
+            <div class="small text-muted text-end">
+                Header {{ sheet.config.header_start_row }}-{{ sheet.config.header_end_row }}<br>
+                Dòng đơn vị {{ sheet.config.unit_start_row }}-{{ sheet.config.unit_end_row }}<br>
+                Cột {{ sheet.config.start_column }}-{{ sheet.config.end_column }}
             </div>
         </div>
     </div>
     <div class="card-body p-0">
-        <div class="table-responsive" style="max-height: 70vh; overflow:auto;">
-            <table class="table table-bordered mb-0 align-middle report-sheet-table">
+        <div class="table-responsive">
+            <table class="table table-bordered mb-0 align-middle">
+                <thead>
+                    {% for level_index in sheet.header_levels %}
+                    <tr>
+                        {% if loop.first %}<th rowspan="{{ sheet.header_levels|length }}">Dòng</th>{% endif %}
+                        {% for header in sheet.field_headers %}
+                        <th>{{ header.levels[level_index] }}</th>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </thead>
                 <tbody>
-                    {{ sheet.html|safe }}
+                    {% for row in sheet.rows %}
+                    <tr>
+                        <td class="text-muted small">{{ row.excel_row }}</td>
+                        {% for cell in row.cells %}
+                        <td data-cell="{{ cell.cell_address }}" data-field-code="{{ cell.field_code }}" data-field-label="{{ cell.field_label }}">
+                            {% if cell.editable %}
+                            <input type="text" class="form-control form-control-sm report-input" data-cell="{{ cell.cell_address }}" value="{{ cell.value }}">
+                            {% else %}
+                            {{ cell.value }}
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="{{ sheet.field_headers|length + 1 }}" class="text-muted text-center py-4">Không có dòng dữ liệu nào trong phạm vi cấu hình.</td></tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
@@ -69,8 +145,8 @@ function collectPayload() {
     document.querySelectorAll('.report-sheet-panel').forEach(panel => {
         const sheetName = panel.dataset.sheet;
         const cells = {};
-        panel.querySelectorAll('td.report-input[data-cell]').forEach(td => {
-            cells[td.dataset.cell] = (td.innerText || '').trim();
+        panel.querySelectorAll('input.report-input[data-cell]').forEach(input => {
+            cells[input.dataset.cell] = (input.value || '').trim();
         });
         sheets[sheetName] = cells;
     });

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+            <h1 class="h3 fw-bold mb-1">{{ cycle.name }}</h1>
+            <p class="text-muted mb-0">
+                {{ template.name if template else 'Không có mẫu' }}
+                {% if report_type %} • {{ report_type.name }}{% endif %}
+                • {{ scope_count }} đơn vị áp dụng
+                {% if schedule_text %} • {{ schedule_text }}{% endif %}
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('reporting_bp.admin_dashboard') }}" class="btn btn-light rounded-pill px-4">Quay lại</a>
+            {% if instance_rows and instance_rows[0].unit %}
+            <a href="{{ url_for('reporting_bp.cycle_workspace', cycle_id=cycle.id, unit_id=instance_rows[0].unit.id) }}" class="btn btn-outline-primary rounded-pill px-4">Mở nhập liệu</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3">Tổng quan</h5>
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="p-3 bg-light rounded-3 h-100">
+                            <div class="small text-muted">Trạng thái</div>
+                            <div class="fw-bold">{{ cycle.status }}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 bg-light rounded-3 h-100">
+                            <div class="small text-muted">Khóa dữ liệu</div>
+                            <div class="fw-bold">{{ 'Có' if cycle.is_locked else 'Không' }}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 bg-light rounded-3 h-100">
+                            <div class="small text-muted">Đơn vị đã nộp</div>
+                            <div class="fw-bold">{{ submitted_total }}/{{ instance_rows|length }}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 bg-light rounded-3 h-100">
+                            <div class="small text-muted">Bản nộp</div>
+                            <div class="fw-bold">{{ submission_total }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="small text-muted mt-3">Phiên bản mẫu: #{{ template_version.version_no if template_version else 0 }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3">Chỉnh sửa báo cáo</h5>
+                <form method="POST" action="{{ url_for('reporting_bp.update_cycle', cycle_id=cycle.id) }}">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Tên báo cáo</label>
+                            <input type="text" name="name" class="form-control" value="{{ cycle.name }}" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Loại báo cáo</label>
+                            <select name="report_type_id" class="form-select">
+                                {% for item in report_types %}
+                                <option value="{{ item.id }}" {% if report_type and item.id == report_type.id %}selected{% endif %}>{{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Khóa dữ liệu</label>
+                            <input type="text" class="form-control" value="{{ 'Đã đóng' if cycle.is_locked else 'Đang mở' }}" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Ngày báo cáo</label>
+                            <input type="date" name="report_date" class="form-control" value="{{ cycle.open_at.strftime('%Y-%m-%d') if cycle.open_at else '' }}">
+                            <div class="small text-muted mt-1">Dùng cho báo cáo hằng ngày.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Hạn báo cáo</label>
+                            <input type="date" name="due_date" class="form-control" value="{{ cycle.due_at.strftime('%Y-%m-%d') if cycle.due_at else '' }}">
+                            <div class="small text-muted mt-1">Dùng cho báo cáo định kỳ hoặc đột xuất.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Ghi chú</label>
+                            <textarea name="note" class="form-control" rows="3">{{ cycle.note or '' }}</textarea>
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <button class="btn btn-primary rounded-pill px-4" type="submit">Lưu thay đổi</button>
+                    </div>
+                </form>
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <form method="POST" action="{{ url_for('reporting_bp.close_cycle', cycle_id=cycle.id) }}" onsubmit="return confirm('Đóng báo cáo này? Sau khi đóng, đơn vị sẽ không sửa tiếp được.')">
+                        <button class="btn btn-outline-warning rounded-pill px-4" type="submit">Đóng báo cáo</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('reporting_bp.delete_cycle', cycle_id=cycle.id) }}" onsubmit="return confirm('Xóa toàn bộ báo cáo này?')">
+                        <button class="btn btn-outline-danger rounded-pill px-4" type="submit">Xóa báo cáo</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div>
+                <h5 class="fw-bold mb-1">Đơn vị và bản nộp</h5>
+                <div class="text-muted small">Quản trị có thể xem, nhập liệu hộ, tải file hoặc xóa bản nộp ngay tại đây.</div>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Đơn vị</th>
+                        <th>Người phụ trách</th>
+                        <th>Trạng thái</th>
+                        <th>Bản nộp mới nhất</th>
+                        <th class="text-end">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in instance_rows %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold">{{ row.unit.name if row.unit else 'Không xác định' }}</div>
+                            <div class="small text-muted">{{ row.submission_count }} lần lưu/nộp</div>
+                        </td>
+                        <td>{{ row.assigned_user.fullname if row.assigned_user else 'Chưa gán' }}</td>
+                        <td>{{ row.instance.status }}</td>
+                        <td>
+                            {% if row.latest_submission %}
+                            <div class="fw-bold">#{{ row.latest_submission.version_no }} • {{ row.latest_submission.status }}</div>
+                            <div class="small text-muted">
+                                {{ row.latest_submission.created_at.strftime('%d/%m/%Y %H:%M') if row.latest_submission.created_at else '' }}
+                                • {{ row.timeliness }}
+                            </div>
+                            {% else %}
+                            <span class="text-muted">Chưa có dữ liệu</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="d-flex justify-content-end flex-wrap gap-2">
+                                {% if row.unit %}
+                                <a href="{{ url_for('reporting_bp.cycle_workspace', cycle_id=cycle.id, unit_id=row.unit.id) }}" class="btn btn-sm btn-outline-primary rounded-pill">Xem / sửa</a>
+                                {% endif %}
+                                {% if row.latest_submission and row.latest_submission.file_path %}
+                                <a href="{{ url_for('reporting_bp.download_submission', submission_id=row.latest_submission.id) }}" class="btn btn-sm btn-outline-secondary rounded-pill">Tải file</a>
+                                {% endif %}
+                                {% if row.latest_submission %}
+                                <form method="POST" action="{{ url_for('reporting_bp.delete_submission', submission_id=row.latest_submission.id) }}" onsubmit="return confirm('Xóa bản nộp mới nhất của đơn vị này?')">
+                                    <button class="btn btn-sm btn-outline-danger rounded-pill" type="submit">Xóa bản nộp</button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-muted text-center py-4">Chưa có đơn vị nào trong báo cáo này.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

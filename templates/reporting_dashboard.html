@@ -5,7 +5,13 @@
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
             <h1 class="h3 fw-bold mb-1">Báo cáo Excel</h1>
-            <p class="text-muted mb-0">Quản lý mẫu, kỳ và đơn vị nhập liệu trên một luồng cấu hình mới.</p>
+            <p class="text-muted mb-0">
+                {% if is_admin %}
+                Thiết lập biểu mẫu xong là đơn vị có thể vào báo cáo và quản trị xem kết quả.
+                {% else %}
+                Chọn báo cáo đang mở để nhập liệu hoặc cập nhật kết quả.
+                {% endif %}
+            </p>
         </div>
         {% if is_admin %}
         <form method="POST" action="{{ url_for('reporting_bp.sync_units') }}">
@@ -17,106 +23,92 @@
 
 {% if is_admin %}
 <div class="row g-4 mb-4">
-    <div class="col-lg-5">
+    <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <h5 class="fw-bold mb-3">Tải mẫu Excel</h5>
+                <h5 class="fw-bold mb-3">Thiết lập biểu mẫu</h5>
+                <div class="small text-muted mb-3">Nhập thông tin, tải file lên, sau đó sang bước cấu hình trường dữ liệu và lưu biểu mẫu.</div>
                 <form method="POST" action="{{ url_for('reporting_bp.upload_template') }}" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Mã mẫu</label>
-                        <input type="text" name="code" class="form-control" placeholder="VD: bao_cao_tong_hop">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Tên mẫu</label>
-                        <input type="text" name="name" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">File .xlsx</label>
-                        <input type="file" name="template_file" class="form-control" accept=".xlsx" required>
-                    </div>
                     <div class="row g-3">
-                        <div class="col-6">
-                            <label class="form-label fw-bold">Header rows</label>
-                            <input type="number" name="header_rows" class="form-control" value="2" min="1">
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Tên biểu mẫu</label>
+                            <input type="text" name="name" class="form-control" required>
                         </div>
-                        <div class="col-6">
-                            <label class="form-label fw-bold">Dòng dữ liệu</label>
-                            <input type="number" name="data_start_row" class="form-control" value="3" min="1">
+                        <div class="col-12">
+                            <label class="form-label fw-bold">File biểu mẫu Excel</label>
+                            <input type="file" name="template_file" class="form-control" accept=".xlsx" required>
                         </div>
                     </div>
-                    <div class="mt-3">
-                        <label class="form-label fw-bold">Mô tả</label>
-                        <textarea name="description" class="form-control" rows="3"></textarea>
-                    </div>
+                    <details class="border rounded-3 p-3 mt-3">
+                        <summary class="fw-bold">Thiết lập nhận dạng dữ liệu</summary>
+                        <div class="row g-3 mt-1">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Header từ dòng</label>
+                                <input type="number" name="header_start_row" class="form-control" value="1" min="1">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Header đến dòng</label>
+                                <input type="number" name="header_end_row" class="form-control" value="2" min="1">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Đơn vị từ dòng</label>
+                                <input type="number" name="unit_start_row" class="form-control" value="3" min="1">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Đơn vị đến dòng</label>
+                                <input type="number" name="unit_end_row" class="form-control" value="20" min="1">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Tổng từ dòng</label>
+                                <input type="number" name="total_start_row" class="form-control" value="21" min="1">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Tổng đến dòng</label>
+                                <input type="number" name="total_end_row" class="form-control" value="21" min="1">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Cột từ</label>
+                                <input type="text" name="start_column" class="form-control text-uppercase" value="A" maxlength="4">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Cột đến</label>
+                                <input type="text" name="end_column" class="form-control text-uppercase" value="Z" maxlength="4">
+                            </div>
+                        </div>
+                    </details>
                     <div class="mt-3">
                         <label class="form-label fw-bold">Ghi chú</label>
-                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                        <textarea name="description" class="form-control" rows="2"></textarea>
                     </div>
-                    <button class="btn btn-primary rounded-pill px-4 mt-3" type="submit">Tạo phiên bản mới</button>
+                    <button class="btn btn-primary rounded-pill px-4 mt-3" type="submit">Tải file và tiếp tục cấu hình</button>
                 </form>
             </div>
         </div>
     </div>
-    <div class="col-lg-7">
+    <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <h5 class="fw-bold mb-3">Mở kỳ báo cáo</h5>
-                <form method="POST" action="{{ url_for('reporting_bp.create_cycle') }}">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Tên kỳ</label>
-                            <input type="text" name="name" class="form-control" placeholder="Kỳ báo cáo tháng 05/2026" required>
+                <h5 class="fw-bold mb-3">Biểu mẫu đã lưu</h5>
+                <div class="list-group list-group-flush">
+                    {% for template in templates %}
+                    {% set current_version = current_versions.get(template.id) %}
+                    <a href="{{ url_for('reporting_bp.template_detail', template_id=template.id) }}" class="list-group-item list-group-item-action rounded-3 mb-2 border">
+                        <div class="fw-bold">{{ template.name }}</div>
+                        <div class="small text-muted">
+                            {% if current_version %}
+                            Đang dùng file bản {{ current_version.version_no }}
+                            {% else %}
+                            Chưa có file
+                            {% endif %}
+                            {% if template.report_type_id %}
+                            • Đã chọn loại báo cáo
+                            {% endif %}
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Phiên bản mẫu</label>
-                            <select name="template_version_id" class="form-select" required>
-                                <option value="">Chọn phiên bản</option>
-                                {% for version in versions %}
-                                <option value="{{ version.id }}">#{{ version.version_no }} - {{ version.source_filename }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Loại báo cáo</label>
-                            <select name="report_type_id" class="form-select" required>
-                                <option value="">Chọn loại</option>
-                                {% for rt in report_types %}
-                                <option value="{{ rt.id }}">{{ rt.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Hạn nộp</label>
-                            <input type="datetime-local" name="due_at" class="form-control">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Mở lúc</label>
-                            <input type="datetime-local" name="open_at" class="form-control">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Đóng lúc</label>
-                            <input type="datetime-local" name="close_at" class="form-control">
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label fw-bold">Đơn vị áp dụng</label>
-                            <div class="row g-2">
-                                {% for unit in units %}
-                                <div class="col-md-4 col-6">
-                                    <label class="form-check border rounded-3 p-2">
-                                        <input class="form-check-input me-2" type="checkbox" name="unit_ids" value="{{ unit.id }}" checked>
-                                        <span class="form-check-label small">{{ unit.name }}</span>
-                                    </label>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label fw-bold">Ghi chú</label>
-                            <textarea name="note" class="form-control" rows="2"></textarea>
-                        </div>
-                    </div>
-                    <button class="btn btn-success rounded-pill px-4 mt-3" type="submit">Mở kỳ</button>
-                </form>
+                    </a>
+                    {% else %}
+                    <div class="text-muted">Chưa có biểu mẫu nào.</div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </div>
@@ -124,53 +116,64 @@
 {% endif %}
 
 <div class="row g-4">
-    <div class="col-lg-7">
+    <div class="{% if is_admin %}col-lg-8{% else %}col-lg-8{% endif %}">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <h5 class="fw-bold mb-3">{% if is_admin %}Mẫu báo cáo{% else %}Kỳ báo cáo khả dụng{% endif %}</h5>
+                <h5 class="fw-bold mb-3">{% if is_admin %}Đơn vị báo cáo và kết quả{% else %}Báo cáo đang mở{% endif %}</h5>
                 <div class="list-group list-group-flush">
                     {% for cycle in cycles %}
-                    <a class="list-group-item list-group-item-action rounded-3 mb-2 border" href="{{ url_for('reporting_bp.cycle_workspace', cycle_id=cycle.id) }}">
-                        <div class="d-flex justify-content-between align-items-center">
+                    {% set instance = instance_map.get(cycle.id) if instance_map is defined else None %}
+                    <div class="list-group-item rounded-3 mb-2 border">
+                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
                             <div>
                                 <div class="fw-bold">{{ cycle.name }}</div>
-                                <div class="text-muted small">Trạng thái: {{ cycle.status }}{% if cycle.due_at %} • Hạn: {{ cycle.due_at.strftime('%d/%m/%Y %H:%M') }}{% endif %}</div>
+                                <div class="small text-muted">
+                                    {{ cycle.status }}
+                                    {% if instance %}
+                                    • Trạng thái của bạn: {{ instance.status }}
+                                    {% endif %}
+                                </div>
                             </div>
-                            <span class="badge bg-primary rounded-pill">Mở</span>
+                            <div class="d-flex gap-2">
+                                {% if is_admin %}
+                                <a class="btn btn-sm btn-outline-primary rounded-pill" href="{{ url_for('reporting_bp.admin_cycle_detail', cycle_id=cycle.id) }}">Xem kết quả</a>
+                                {% else %}
+                                <a class="btn btn-sm btn-primary rounded-pill" href="{{ url_for('reporting_bp.cycle_workspace', cycle_id=cycle.id) }}">Vào báo cáo</a>
+                                {% endif %}
+                            </div>
                         </div>
-                    </a>
+                    </div>
                     {% else %}
-                    <div class="text-muted">Chưa có kỳ báo cáo nào.</div>
+                    <div class="text-muted">Chưa có báo cáo nào.</div>
                     {% endfor %}
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-lg-5">
+    <div class="{% if is_admin %}col-lg-4{% else %}col-lg-4{% endif %}">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <h5 class="fw-bold mb-3">{% if is_admin %}Mẫu đã tạo{% else %}Đơn vị của bạn{% endif %}</h5>
+                <h5 class="fw-bold mb-3">{% if is_admin %}Đơn vị đã đồng bộ{% else %}Đơn vị hiện tại{% endif %}</h5>
                 {% if is_admin %}
                 <div class="list-group list-group-flush">
-                    {% for template in templates %}
-                    <a href="{{ url_for('reporting_bp.template_detail', template_id=template.id) }}" class="list-group-item list-group-item-action rounded-3 mb-2 border">
-                        <div class="fw-bold">{{ template.name }}</div>
-                        <div class="small text-muted">{{ template.code }} • Phiên bản hiện hành: #{{ current_versions[template.id].version_no if current_versions.get(template.id) else 0 }}</div>
-                    </a>
+                    {% for unit in units %}
+                    <div class="list-group-item rounded-3 mb-2 border">
+                        <div class="fw-bold">{{ unit.name }}</div>
+                    </div>
                     {% else %}
-                    <div class="text-muted">Chưa có mẫu nào.</div>
+                    <div class="text-muted">Chưa có đơn vị nào.</div>
                     {% endfor %}
                 </div>
                 {% else %}
                 <div class="p-3 bg-light rounded-4 mb-3">
-                    <div class="small text-muted">Đơn vị hiện tại</div>
+                    <div class="small text-muted">Đơn vị</div>
                     <div class="fw-bold">{{ current_unit.name if current_unit else 'Chưa xác định' }}</div>
                 </div>
-                <div class="small text-muted mb-2">Bản ghi gần đây</div>
+                <div class="small text-muted mb-2">Lịch sử gần đây</div>
                 <div class="list-group list-group-flush">
                     {% for instance in instances %}
                     <div class="list-group-item rounded-3 mb-2 border">
-                        <div class="fw-bold">Kỳ #{{ instance.cycle_id }}</div>
+                        <div class="fw-bold">Báo cáo #{{ instance.cycle_id }}</div>
                         <div class="small text-muted">Trạng thái: {{ instance.status }}</div>
                     </div>
                     {% else %}

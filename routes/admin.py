@@ -39,6 +39,44 @@ AI_PROVIDER_DEFAULTS = {
 }
 
 
+def _looks_like_org_unit(value):
+    text = (value or '').strip().lower()
+    if not text:
+        return False
+    markers = [
+        'cong an',
+        'ubnd',
+        'doi ',
+        'đội ',
+        'phong ',
+        'phòng ',
+        'ban ',
+        'xa ',
+        'xã ',
+        'phuong ',
+        'phường ',
+        'thi tran',
+        'thị trấn',
+        'quan ',
+        'huyen ',
+    ]
+    return any(marker in text for marker in markers)
+
+
+def _resolve_user_unit_value(fullname, unit, username=''):
+    unit = (unit or '').strip()
+    fullname = (fullname or '').strip()
+    unit_key = extract_unit_key(unit) if unit else ''
+    if unit and unit_key and unit_key not in {'xa', 'phuong', 'huyen', 'quan', 'tp', 'thi', 'tran'}:
+        return unit, unit_key
+    if fullname and _looks_like_org_unit(fullname):
+        fullname_key = extract_unit_key(fullname)
+        if fullname_key and fullname_key not in {'xa', 'phuong', 'huyen', 'quan', 'tp', 'thi', 'tran'}:
+            return fullname, fullname_key
+    resolved = unit or fullname or username
+    return resolved, extract_unit_key(resolved)
+
+
 def _get_admin_perms():
     role_id = session.get('role_id')
     role = db.session.get(AppRole, role_id) if role_id else None
@@ -257,7 +295,7 @@ def roles():
                 unit = request.form.get('unit', 'Chưa xác định')
                 role_id = request.form.get('role_id')
                 password = request.form.get('password', '')
-                unit_key = extract_unit_key(unit or fullname or username)
+                unit, unit_key = _resolve_user_unit_value(fullname, unit, username)
                 
                 if not role_id:
                     flash('Thiếu thông tin bắt buộc!', 'danger')
@@ -277,8 +315,13 @@ def roles():
                 if u:
                     u.username = request.form.get('username')
                     u.fullname = request.form.get('fullname')
-                    u.unit_area = request.form.get('unit')
-                    u.unit_key = extract_unit_key(u.unit_area or u.fullname or u.username)
+                    resolved_unit, resolved_key = _resolve_user_unit_value(
+                        u.fullname,
+                        request.form.get('unit'),
+                        u.username
+                    )
+                    u.unit_area = resolved_unit
+                    u.unit_key = resolved_key
                     u.role_id = request.form.get('role_id')
                     pwd = request.form.get('password')
                     if pwd and pwd.strip() and pwd != '******':

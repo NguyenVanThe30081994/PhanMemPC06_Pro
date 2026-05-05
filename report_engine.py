@@ -8,7 +8,7 @@ from datetime import date, datetime
 
 import openpyxl
 from openpyxl.styles import PatternFill
-from openpyxl.utils import get_column_letter
+from openpyxl.utils import column_index_from_string, get_column_letter
 from openpyxl.utils.cell import range_boundaries
 
 
@@ -162,21 +162,106 @@ def _anchor_value(ws, r, c, anchor_by_coord):
     return ws.cell(row=ar, column=ac).value
 
 
-def parse_workbook(file_path, header_rows=2, data_start_row=3):
+def _resolve_header_range(min_row, max_row, header_rows=2, header_start_row=None, header_end_row=None):
+    start_row = int(header_start_row or min_row or 1)
+    if header_end_row:
+        end_row = int(header_end_row)
+    else:
+        end_row = start_row + max(int(header_rows or 1), 1) - 1
+    if end_row < start_row:
+        end_row = start_row
+    if max_row < start_row:
+        start_row = max_row
+    if max_row < end_row:
+        end_row = max_row
+    return max(1, start_row), max(1, end_row)
+
+
+def _resolve_column_range(min_col, max_col, start_column=None, end_column=None):
+    start_col = min_col
+    end_col = max_col
+    if start_column:
+        try:
+            start_col = column_index_from_string(str(start_column).strip().upper())
+        except Exception:
+            start_col = min_col
+    if end_column:
+        try:
+            end_col = column_index_from_string(str(end_column).strip().upper())
+        except Exception:
+            end_col = max_col
+    start_col = max(min_col, start_col)
+    end_col = min(max_col, end_col)
+    if end_col < start_col:
+        end_col = start_col
+    return start_col, end_col
+
+
+def _suggest_hidden_field(field):
+    label = normalize_code(field.get("field_name") or field.get("path_code") or "")
+    if not label:
+        return False
+    hidden_markers = {
+        "stt",
+        "so_thu_tu",
+        "thu_tu",
+        "don_vi",
+        "ten_don_vi",
+        "ma_don_vi",
+    }
+    return any(marker in label for marker in hidden_markers)
+
+
+def parse_workbook(
+    file_path,
+    header_rows=2,
+    data_start_row=3,
+    header_start_row=None,
+    header_end_row=None,
+    data_end_row=None,
+    total_start_row=None,
+    total_end_row=None,
+    start_column=None,
+    end_column=None,
+):
     wb = _load_workbook(file_path)
     metadata = {"sheets": [], "parser_version": "1.0"}
 
     for order, ws in enumerate(wb.worksheets):
         min_col, min_row, max_col, max_row = _active_bounds(ws)
+        resolved_min_col, resolved_max_col = _resolve_column_range(
+            min_col,
+            max_col,
+            start_column=start_column,
+            end_column=end_column,
+        )
         spans, shadows, anchors = _merge_lookup(ws)
+        resolved_header_start, resolved_header_end = _resolve_header_range(
+            min_row,
+            max_row,
+            header_rows=header_rows,
+            header_start_row=header_start_row,
+            header_end_row=header_end_row,
+        )
+        resolved_data_start = max(1, int(data_start_row or (resolved_header_end + 1)))
+        resolved_data_end = min(max_row, int(data_end_row or max_row))
+        if resolved_data_end < resolved_data_start:
+            resolved_data_end = resolved_data_start
+        resolved_total_start = int(total_start_row or 0)
+        resolved_total_end = int(total_end_row or 0)
+        if resolved_total_start:
+            resolved_total_start = min(max_row, max(1, resolved_total_start))
+        if resolved_total_end:
+            resolved_total_end = min(max_row, max(resolved_total_start or 1, resolved_total_end))
+        display_end_row = max(resolved_header_end, resolved_data_end, resolved_total_end or 0)
         header_rows_meta = []
         field_lookup = {}
         fields = []
         used_codes = {}
 
-        for r in range(min_row, min(min_row + header_rows - 1, max_row) + 1):
+        for r in range(resolved_header_start, resolved_header_end + 1):
             row_meta = {"row": r, "cells": []}
-            for c in range(min_col, max_col + 1):
+            for c in range(resolved_min_col, resolved_max_col + 1):
                 if (r, c) in shadows:
                     continue
                 cell = ws.cell(row=r, column=c)
@@ -194,9 +279,9 @@ def parse_workbook(file_path, header_rows=2, data_start_row=3):
                 })
             header_rows_meta.append(row_meta)
 
-        for c in range(min_col, max_col + 1):
+        for c in range(resolved_min_col, resolved_max_col + 1):
             path_labels = []
-            for r in range(min_row, min(min_row + header_rows - 1, max_row) + 1):
+            for r in range(resolved_header_start, resolved_header_end + 1):
                 value = _anchor_value(ws, r, c, anchors)
                 if value is not None and str(value).strip():
                     path_labels.append(str(value).strip())
@@ -240,10 +325,10 @@ def parse_workbook(file_path, header_rows=2, data_start_row=3):
             field_lookup[c] = field_code
 
         input_cells = []
-        for r in range(data_start_row, max_row + 1):
+        for r in range(resolved_data_start, resolved_data_end + 1):
             if ws.row_dimensions[r].hidden:
                 continue
-            for c in range(min_col, max_col + 1):
+            for c in range(resolved_min_col, resolved_max_col + 1):
                 cell = ws.cell(row=r, column=c)
                 if is_input_cell(cell):
                     input_cells.append({
@@ -255,10 +340,10 @@ def parse_workbook(file_path, header_rows=2, data_start_row=3):
                     })
 
         if not input_cells:
-            for r in range(data_start_row, max_row + 1):
+            for r in range(resolved_data_start, resolved_data_end + 1):
                 if ws.row_dimensions[r].hidden:
                     continue
-                for c in range(min_col, max_col + 1):
+                for c in range(resolved_min_col, resolved_max_col + 1):
                     cell = ws.cell(row=r, column=c)
                     if (r, c) in shadows:
                         continue
@@ -271,19 +356,33 @@ def parse_workbook(file_path, header_rows=2, data_start_row=3):
                             "field_code": field_lookup.get(c),
                         })
 
+        editable_columns = {cell["column_index"] for cell in input_cells if cell.get("column_index")}
+        for field in fields:
+            is_input_column = field["column_index"] in editable_columns
+            field["is_visible"] = not _suggest_hidden_field(field)
+            field["is_editable"] = is_input_column
+
         metadata["sheets"].append({
             "sheet_name": ws.title,
             "order_index": order,
             "min_row": min_row,
-            "min_col": min_col,
-            "max_row": max_row,
-            "max_col": max_col,
-            "header_rows": header_rows,
-            "data_start_row": data_start_row,
-            "data_end_row": max_row,
+            "min_col": resolved_min_col,
+            "max_row": display_end_row,
+            "max_col": resolved_max_col,
+            "header_start_row": resolved_header_start,
+            "header_end_row": resolved_header_end,
+            "header_rows": max(0, resolved_header_end - resolved_header_start + 1),
+            "data_start_row": resolved_data_start,
+            "data_end_row": resolved_data_end,
+            "unit_start_row": resolved_data_start,
+            "unit_end_row": resolved_data_end,
+            "total_start_row": resolved_total_start,
+            "total_end_row": resolved_total_end,
+            "start_column": get_column_letter(resolved_min_col),
+            "end_column": get_column_letter(resolved_max_col),
             "merges": [str(m) for m in ws.merged_cells.ranges],
-            "hidden_rows": [idx for idx in range(min_row, max_row + 1) if ws.row_dimensions[idx].hidden],
-            "hidden_cols": [get_column_letter(i) for i in range(min_col, max_col + 1) if ws.column_dimensions[get_column_letter(i)].hidden],
+            "hidden_rows": [idx for idx in range(min_row, display_end_row + 1) if ws.row_dimensions[idx].hidden],
+            "hidden_cols": [get_column_letter(i) for i in range(resolved_min_col, resolved_max_col + 1) if ws.column_dimensions[get_column_letter(i)].hidden],
             "header_rows_meta": header_rows_meta,
             "fields": fields,
             "field_lookup": field_lookup,
@@ -293,10 +392,14 @@ def parse_workbook(file_path, header_rows=2, data_start_row=3):
     return metadata
 
 
-def render_sheet_html(ws, editable_values=None, field_lookup=None, editable=True):
+def render_sheet_html(ws, editable_values=None, field_lookup=None, editable=True, start_row=None, end_row=None, min_col=None, max_col=None):
     editable_values = editable_values or {}
     field_lookup = field_lookup or {}
-    min_col, min_row, max_col, max_row = _active_bounds(ws)
+    active_min_col, active_min_row, active_max_col, active_max_row = _active_bounds(ws)
+    min_col = max(active_min_col, min_col or active_min_col)
+    max_col = min(active_max_col, max_col or active_max_col)
+    min_row = max(active_min_row, start_row or active_min_row)
+    max_row = min(active_max_row, end_row or active_max_row)
     spans, shadows, anchors = _merge_lookup(ws)
     html_rows = []
 
@@ -323,11 +426,20 @@ def render_sheet_html(ws, editable_values=None, field_lookup=None, editable=True
             else:
                 display = str(value)
             css = _extract_styles(cell)
-            field_code = field_lookup.get(c, "")
+            field_meta = field_lookup.get(c, {})
+            if isinstance(field_meta, dict):
+                field_code = field_meta.get("code", "")
+                field_label = field_meta.get("label", "")
+            else:
+                field_code = field_meta or ""
+                field_label = ""
             is_input = editable and is_input_cell(cell)
             attrs = [f'data-cell="{coord}"']
             if field_code:
                 attrs.append(f'data-field-code="{field_code}"')
+            if field_label:
+                attrs.append(f'data-field-label="{html.escape(field_label, quote=True)}"')
+                attrs.append(f'title="{html.escape(field_label, quote=True)}"')
             if is_input:
                 attrs.append('contenteditable="true"')
                 attrs.append('spellcheck="false"')

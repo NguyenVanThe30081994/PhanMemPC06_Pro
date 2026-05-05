@@ -4,87 +4,147 @@
 <div class="page-header mb-4">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
-            <h1 class="h3 fw-bold mb-1">{{ template.name }}</h1>
-            <p class="text-muted mb-0">{{ template.code }} • {{ template.description or 'Không có mô tả' }}</p>
+            <h1 class="h3 fw-bold mb-1">Cấu hình biểu mẫu</h1>
+            <p class="text-muted mb-0">{{ template.name }}{% if template.description %} • {{ template.description }}{% endif %}</p>
         </div>
-        <a href="{{ url_for('reporting_bp.admin_dashboard') }}" class="btn btn-light rounded-pill px-4">Quay lại</a>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('reporting_bp.admin_dashboard') }}" class="btn btn-light rounded-pill px-4">Quay lại</a>
+            <form method="POST" action="{{ url_for('reporting_bp.delete_template', template_id=template.id) }}" onsubmit="return confirm('Xóa toàn bộ biểu mẫu này?')">
+                <button class="btn btn-outline-danger rounded-pill px-4" type="submit">Xóa biểu mẫu</button>
+            </form>
+        </div>
     </div>
 </div>
 
-<div class="row g-4 mb-4">
+<div class="row g-4">
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <h5 class="fw-bold mb-3">Phiên bản</h5>
+                <h5 class="fw-bold mb-3">Thông tin đang dùng</h5>
+                {% if current_version %}
+                <div class="row g-3 mb-4">
+                    <div class="col-12"><div class="p-3 bg-light rounded-3"><div class="small text-muted">Bản file đang cấu hình</div><div class="fw-bold">Bản {{ current_version.version_no }}</div><div class="small text-muted mt-1">{{ current_version.source_filename }}</div></div></div>
+                    <div class="col-6"><div class="p-3 bg-light rounded-3"><div class="small text-muted">Sheet</div><div class="fw-bold">{{ sheets|length }}</div></div></div>
+                    <div class="col-6"><div class="p-3 bg-light rounded-3"><div class="small text-muted">Trường dữ liệu</div><div class="fw-bold">{{ fields|length }}</div></div></div>
+                </div>
+                <h6 class="fw-bold mb-2">Các bản file đã lưu</h6>
                 <div class="list-group list-group-flush">
                     {% for version in versions %}
+                    {% set usage = version_usage.get(version.id, 0) %}
                     <div class="list-group-item rounded-3 mb-2 border">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <div class="fw-bold">#{{ version.version_no }}</div>
-                                <div class="small text-muted">{{ version.source_filename }}</div>
-                            </div>
-                            {% if version.is_current %}
-                            <span class="badge bg-success">Hiện hành</span>
-                            {% else %}
+                        <div class="fw-bold">Bản {{ version.version_no }}</div>
+                        <div class="small text-muted mb-2">{{ version.source_filename }}</div>
+                        <div class="small text-muted mb-3">
+                            {% if version.is_current %}Đang dùng{% else %}Chưa dùng{% endif %}
+                            {% if usage %} • Đã có {{ usage }} báo cáo sử dụng{% endif %}
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% if not version.is_current %}
                             <form method="POST" action="{{ url_for('reporting_bp.activate_version', template_id=template.id, version_id=version.id) }}">
-                                <button class="btn btn-sm btn-outline-primary rounded-pill" type="submit">Kích hoạt</button>
+                                <button class="btn btn-sm btn-outline-primary rounded-pill" type="submit">Dùng bản này</button>
                             </form>
                             {% endif %}
+                            <form method="POST" action="{{ url_for('reporting_bp.delete_version', template_id=template.id, version_id=version.id) }}" onsubmit="return confirm('Xóa bản file này?')">
+                                <button class="btn btn-sm btn-outline-danger rounded-pill" type="submit" {% if usage %}disabled{% endif %}>Xóa bản này</button>
+                            </form>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
+                {% else %}
+                <div class="text-muted">Chưa có file mẫu.</div>
+                {% endif %}
             </div>
         </div>
     </div>
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4">
-                <h5 class="fw-bold mb-3">Tổng quan mẫu</h5>
+                <h5 class="fw-bold mb-3">Hoàn tất thiết lập</h5>
                 {% if current_version %}
-                <div class="row g-3 mb-4">
-                    <div class="col-md-4"><div class="p-3 bg-light rounded-3"><div class="small text-muted">Sheet</div><div class="fw-bold">{{ sheets|length }}</div></div></div>
-                    <div class="col-md-4"><div class="p-3 bg-light rounded-3"><div class="small text-muted">Field</div><div class="fw-bold">{{ fields|length }}</div></div></div>
-                    <div class="col-md-4"><div class="p-3 bg-light rounded-3"><div class="small text-muted">Phiên bản</div><div class="fw-bold">#{{ current_version.version_no }}</div></div></div>
-                </div>
-                <h6 class="fw-bold mb-2">Sheet</h6>
-                <div class="table-responsive mb-4">
-                    <table class="table table-sm align-middle">
-                        <thead><tr><th>Tên sheet</th><th>Header</th><th>Dòng dữ liệu</th><th>Input</th></tr></thead>
-                        <tbody>
-                            {% for sheet in sheets %}
-                            <tr>
-                                <td>{{ sheet.sheet_name }}</td>
-                                <td>{{ sheet.header_rows }}</td>
-                                <td>{{ sheet.data_start_row }}</td>
-                                <td>{{ sheet.visible_in_preview and 'Có' or 'Không' }}</td>
-                            </tr>
+                <form method="POST" action="{{ url_for('reporting_bp.save_template_config', template_id=template.id) }}">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Loại báo cáo</label>
+                        <select name="report_type_id" class="form-select" required>
+                            <option value="">Chọn loại báo cáo</option>
+                            {% for item in report_types %}
+                            <option value="{{ item.id }}" {% if template.report_type_id == item.id %}selected{% endif %}>{{ item.name }}</option>
                             {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                <h6 class="fw-bold mb-2">Trường dữ liệu</h6>
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle">
-                        <thead><tr><th>Sheet</th><th>Mã</th><th>Tên</th><th>Cột</th><th>Kiểu</th></tr></thead>
-                        <tbody>
-                            {% for field in fields %}
-                            <tr>
-                                <td>{{ field.sheet_name }}</td>
-                                <td><code>{{ field.field_code }}</code></td>
-                                <td>{{ field.field_name }}</td>
-                                <td>{{ field.column_letter }}</td>
-                                <td>{{ field.data_type }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                <h6 class="fw-bold mb-2">Metadata</h6>
-                <pre class="bg-light p-3 rounded-3 small mb-0" style="white-space: pre-wrap;">{{ metadata | tojson(indent=2) }}</pre>
+                        </select>
+                        <div class="small text-muted mt-1">Không cần khai báo ngày giờ. Hệ thống tự xử lý theo loại báo cáo.</div>
+                    </div>
+
+                    <h6 class="fw-bold mb-2">Phạm vi đọc dữ liệu</h6>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Sheet</th>
+                                    <th>Header</th>
+                                    <th>Dòng đơn vị</th>
+                                    <th>Dòng tổng</th>
+                                    <th>Cột</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sheet in metadata.get('sheets', []) %}
+                                <tr>
+                                    <td>{{ sheet.get('sheet_name') }}</td>
+                                    <td>{{ sheet.get('header_start_row') or 1 }} - {{ sheet.get('header_end_row') or sheet.get('header_rows') }}</td>
+                                    <td>{{ sheet.get('unit_start_row') or sheet.get('data_start_row') }} - {{ sheet.get('unit_end_row') or sheet.get('data_end_row') }}</td>
+                                    <td>{% if sheet.get('total_start_row') %}{{ sheet.get('total_start_row') }} - {{ sheet.get('total_end_row') }}{% else %}Chưa khai báo{% endif %}</td>
+                                    <td>{{ sheet.get('start_column') or 'A' }} - {{ sheet.get('end_column') or '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h6 class="fw-bold mb-2">Cấu hình trường dữ liệu</h6>
+                    <div class="small text-muted mb-3">Hệ thống chỉ gợi ý ẩn các cột kiểu STT, đơn vị. Các cột còn lại quản trị tự bật hoặc tắt theo nhu cầu.</div>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Sheet</th>
+                                    {% for level_index in range(header_level_count) %}
+                                    <th>{% if loop.last %}Tên trường nhập{% else %}Nhóm {{ loop.index }}{% endif %}</th>
+                                    {% endfor %}
+                                    <th>Cột</th>
+                                    <th>Hiện</th>
+                                    <th>Nhập liệu</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in field_rows %}
+                                {% set field = row.field %}
+                                <tr>
+                                    <td>{{ field.sheet_name }}</td>
+                                    {% for level_index in range(header_level_count) %}
+                                    {% set value = row.levels[level_index] if level_index < row.levels|length else '' %}
+                                    <td><input type="text" name="field_{{ field.id }}_level_{{ loop.index }}" class="form-control form-control-sm" value="{{ value }}"></td>
+                                    {% endfor %}
+                                    <td>{{ field.column_letter }}</td>
+                                    <td class="text-center">
+                                        <input type="hidden" name="field_{{ field.id }}_visible" value="0">
+                                        <input type="checkbox" class="form-check-input" name="field_{{ field.id }}_visible" value="1" {% if field.is_visible %}checked{% endif %}>
+                                    </td>
+                                    <td class="text-center">
+                                        <input type="hidden" name="field_{{ field.id }}_editable" value="0">
+                                        <input type="checkbox" class="form-check-input" name="field_{{ field.id }}_editable" value="1" {% if field.is_editable %}checked{% endif %}>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-4">
+                        <button class="btn btn-primary rounded-pill px-4" type="submit">Lưu biểu mẫu</button>
+                    </div>
+                </form>
                 {% else %}
-                <div class="text-muted">Chưa có phiên bản nào.</div>
+                <div class="text-muted">Chưa có file mẫu để cấu hình.</div>
                 {% endif %}
             </div>
         </div>
