@@ -71,6 +71,56 @@
     color: #334155;
     white-space: nowrap;
   }
+  .setup-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .setup-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 700;
+  }
+  .setup-badge-success { background: #ecfdf5; color: #047857; }
+  .setup-badge-warning { background: #fff7ed; color: #c2410c; }
+  .setup-badge-danger { background: #fef2f2; color: #b91c1c; }
+  .setup-badge-secondary { background: #f1f5f9; color: #475569; }
+  .setup-formula {
+    display: grid;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: #64748b;
+  }
+  .setup-formula pre {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: #f8fafc;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.78rem;
+    overflow: auto;
+  }
+  .setup-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .setup-summary-card {
+    padding: 14px 16px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.96);
+  }
+  .setup-summary-card strong {
+    display: block;
+    font-size: 1.35rem;
+    line-height: 1.1;
+    margin-bottom: 4px;
+  }
   [data-theme="dark"] .setup-row {
     background: rgba(15, 23, 42, 0.84);
     border-color: rgba(148, 163, 184, 0.18);
@@ -83,6 +133,17 @@
   }
   [data-theme="dark"] .setup-count {
     color: #94a3b8;
+  }
+  [data-theme="dark"] .setup-summary-card {
+    background: rgba(15, 23, 42, 0.84);
+    border-color: rgba(148, 163, 184, 0.18);
+  }
+  [data-theme="dark"] .setup-formula {
+    color: #94a3b8;
+  }
+  [data-theme="dark"] .setup-formula pre {
+    background: #0f172a;
+    color: #e2e8f0;
   }
   @media (max-width: 767px) {
     .setup-actions {
@@ -105,6 +166,9 @@
     .setup-toggle-group {
       justify-content: flex-start;
       width: 100%;
+    }
+    .setup-summary-grid {
+      grid-template-columns: 1fr;
     }
   }
 </style>
@@ -176,6 +240,37 @@
       </div>
     </div>
     {% else %}
+    <section class="reporting-panel mb-4">
+      <div class="reporting-panel-header">
+        <h5 class="mb-0">Tình trạng công thức</h5>
+      </div>
+      <div class="reporting-panel-body">
+        {% if formula_summary.has_risk %}
+        <div class="alert alert-warning border-0 shadow-sm rounded-4">
+          Biểu mẫu hiện có {{ formula_summary.unsupported_total }} cột công thức web chưa dịch được và {{ formula_summary.mixed_total }} cột cần rà lại cấu trúc/mode nhập.
+        </div>
+        {% endif %}
+        <div class="setup-summary-grid">
+          <div class="setup-summary-card">
+            <strong>{{ formula_summary.supported_total }}</strong>
+            <div>Đã chạy web-native</div>
+          </div>
+          <div class="setup-summary-card">
+            <strong>{{ formula_summary.unsupported_total }}</strong>
+            <div>Chỉ bảo đảm trên Excel</div>
+          </div>
+          <div class="setup-summary-card">
+            <strong>{{ formula_summary.mixed_total }}</strong>
+            <div>Cột cần rà cấu trúc</div>
+          </div>
+          <div class="setup-summary-card">
+            <strong>{{ formula_summary.literal_total }}</strong>
+            <div>Cột nhập trực tiếp</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <form method="POST" class="setup-section">
       {% for section_name, fields in grouped_fields.items() %}
       <section class="reporting-panel">
@@ -187,9 +282,25 @@
 
           <div class="setup-list">
             {% for field in fields %}
+            {% set formula_info = field_status_map.get(field.field_code, {}) %}
             <article class="setup-row">
               <div class="setup-copy">
                 <h6 class="setup-name">{{ field.field_name }}</h6>
+                <div class="setup-badges">
+                  <span class="setup-badge setup-badge-{{ formula_info.get('badge_class', 'secondary') }}">{{ formula_info.get('status_label', 'Nhập trực tiếp') }}</span>
+                  {% if formula_info.get('number_format') %}
+                  <span class="setup-badge setup-badge-secondary">{{ formula_info.get('number_format') }}</span>
+                  {% endif %}
+                </div>
+                <div class="setup-formula">
+                  <div>{{ formula_info.get('status_note') }}</div>
+                  {% if formula_info.get('excel_formula') %}
+                  <pre>{{ formula_info.get('excel_formula') }}</pre>
+                  {% endif %}
+                  {% if formula_info.get('internal_formula') %}
+                  <pre>{{ formula_info.get('internal_formula') }}</pre>
+                  {% endif %}
+                </div>
               </div>
 
               <div class="setup-toggle-group">

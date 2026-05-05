@@ -733,6 +733,90 @@ def _derive_draft_formula(worksheet, detail_rows, col_letter, column_field_map):
     return None, None, sample_format
 
 
+def _formula_audit_from_draft(item):
+    validation_rules = item.get('validation_rules') or {}
+    formula_mode = validation_rules.get('formula_mode') or item.get('formula_mode') or 'literal_only'
+    excel_formula = validation_rules.get('excel_formula')
+    internal_formula = item.get('calculation_formula') or validation_rules.get('internal_formula')
+    number_format = validation_rules.get('excel_number_format')
+
+    audit = {
+        'formula_mode': formula_mode,
+        'excel_formula': excel_formula,
+        'internal_formula': internal_formula,
+        'number_format': number_format,
+        'status': 'literal',
+        'status_label': 'Nhập trực tiếp',
+        'status_note': 'Không phát hiện công thức Excel trong cột mẫu.',
+        'badge_class': 'secondary',
+    }
+
+    if formula_mode == 'mixed':
+        audit.update({
+            'status': 'mixed',
+            'status_label': 'Cần rà',
+            'status_note': 'Cột đang trộn giá trị tay và công thức trong file mẫu, cần xác nhận lại cách nhập.',
+            'badge_class': 'warning',
+        })
+        return audit
+
+    if formula_mode == 'formula_only':
+        if internal_formula:
+            audit.update({
+                'status': 'supported',
+                'status_label': 'Web-native',
+                'status_note': 'Công thức đã được dịch sang biểu thức nội bộ và có thể tính trên web.',
+                'badge_class': 'success',
+            })
+        else:
+            audit.update({
+                'status': 'unsupported',
+                'status_label': 'Chỉ Excel',
+                'status_note': 'Web chưa dịch được công thức này; bản Excel xuất ra vẫn giữ công thức gốc.',
+                'badge_class': 'danger',
+            })
+        return audit
+
+    if excel_formula:
+        audit.update({
+            'status': 'mixed',
+            'status_label': 'Cần rà',
+            'status_note': 'Có công thức mẫu nhưng cột không thuần công thức, cần kiểm tra lại metadata.',
+            'badge_class': 'warning',
+        })
+
+    return audit
+
+
+def _summarize_formula_audit(audits):
+    summary = {
+        'supported_total': 0,
+        'unsupported_total': 0,
+        'mixed_total': 0,
+        'literal_total': 0,
+        'formula_total': 0,
+        'has_risk': False,
+    }
+    for audit in audits:
+        status = audit.get('status') or 'literal'
+        if status == 'supported':
+            summary['supported_total'] += 1
+        elif status == 'unsupported':
+            summary['unsupported_total'] += 1
+        elif status == 'mixed':
+            summary['mixed_total'] += 1
+        else:
+            summary['literal_total'] += 1
+
+    summary['formula_total'] = (
+        summary['supported_total'] +
+        summary['unsupported_total'] +
+        summary['mixed_total']
+    )
+    summary['has_risk'] = summary['unsupported_total'] > 0 or summary['mixed_total'] > 0
+    return summary
+
+
 def _draft_fields_from_structure(excel_blob, structure):
     workbook = load_workbook(BytesIO(excel_blob), data_only=False)
     worksheet = workbook.active
@@ -822,13 +906,16 @@ def _draft_fields_from_structure(excel_blob, structure):
             column_field_map
         )
         validation_rules = item.get('validation_rules') or {}
+        validation_rules['formula_mode'] = item.get('formula_mode')
         if number_format and str(number_format).strip():
             validation_rules['excel_number_format'] = str(number_format).strip()
         if sample_formula:
             validation_rules['excel_formula'] = sample_formula
             validation_rules['formula_supported'] = bool(calculation_formula)
+            validation_rules['internal_formula'] = calculation_formula
             item['calculation_formula'] = calculation_formula
         item['validation_rules'] = validation_rules
+        item['formula_audit'] = _formula_audit_from_draft(item)
 
     return drafts
 
@@ -1103,6 +1190,9 @@ def template_upload():
             metadata, effective = _update_version_structure_metadata(version, detected, manual_override={})
             drafts = _rebuild_fields_from_structure(version, excel_blob, effective)
             metadata['scan_summary']['field_count'] = len(drafts)
+            metadata['scan_summary']['formula_summary'] = _summarize_formula_audit(
+                [item.get('formula_audit') or _formula_audit_from_draft(item) for item in drafts]
+            )
             if not drafts:
                 metadata['scan_summary']['status'] = 'empty'
                 metadata['scan_summary']['message'] = 'Không sinh được trường nào từ cấu trúc biểu mẫu.'
@@ -1174,7 +1264,7 @@ def fill_form_direct(template_id):
         org_unit=user_unit
     )
     _refresh_report_calculations(instance)
-    report_data = form_engine.get_report_data(instance.id)
+    report_data = form_engine.get_report_data(instance.id, refresh_calculations=False)
     version = submission_service.get_published_version(template_id)
     config = submission_service.ensure_version_config(instance.template, version)
     report_context = form_engine.get_reporting_context(template)
@@ -1307,7 +1397,7 @@ def view_report(instance_id):
         return redirect(url_for('reporting_bp.index'))
 
     _refresh_report_calculations(instance)
-    report_data = form_engine.get_report_data(instance.id)
+    report_data = form_engine.get_report_data(instance.id, refresh_calculations=False)
     report_context = form_engine.get_reporting_context(instance.template) if instance.template.report_type else None
     excel_context = None
     if request.args.get('layout') == 'excel' and instance.template.excel_template_blob:
@@ -1734,6 +1824,9 @@ def template_structure(template_id):
             if not drafts:
                 raise ValueError('Sau khi chỉnh cấu trúc, hệ thống không sinh được trường nào.')
             metadata['scan_summary']['field_count'] = len(drafts)
+            metadata['scan_summary']['formula_summary'] = _summarize_formula_audit(
+                [item.get('formula_audit') or _formula_audit_from_draft(item) for item in drafts]
+            )
             version.metadata_json = json.dumps(metadata, ensure_ascii=False)
             submission_service.ensure_version_config(template, version, force=True)
             db.session.commit()
@@ -1746,6 +1839,10 @@ def template_structure(template_id):
     effective_structure = _build_effective_structure(scan_result, manual_override)
     preview = _build_structure_preview(template.excel_template_blob, effective_structure)
     field_drafts = _draft_fields_from_structure(template.excel_template_blob, effective_structure)
+    formula_summary = _summarize_formula_audit([
+        item.get('formula_audit') or _formula_audit_from_draft(item)
+        for item in field_drafts
+    ])
 
     return render_template(
         'reporting/template_structure.html',
@@ -1754,6 +1851,7 @@ def template_structure(template_id):
         preview=preview,
         structure=effective_structure,
         field_drafts=field_drafts,
+        formula_summary=formula_summary,
         scan_summary=metadata.get('scan_summary', {}),
         first_setup=request.args.get('first_setup') == '1'
     )
@@ -1809,26 +1907,74 @@ def field_settings(template_id):
 
     # Simple flat grouping like MVP
     grouped_fields = {}
+    field_status_map = {}
     hidden_field_codes = set()
     metadata = json.loads(version.metadata_json) if version.metadata_json else {}
     scan_summary = metadata.get('scan_summary', {})
+    audits = []
     
     for field in fields:
         section_name = field.section or 'Thông tin chung'
         grouped_fields.setdefault(section_name, []).append(field)
 
         rules = json.loads(field.validation_rules_json) if field.validation_rules_json else {}
+        audit = {
+            'formula_mode': rules.get('formula_mode') or ('formula_only' if field.is_calculated else 'literal_only'),
+            'excel_formula': rules.get('excel_formula'),
+            'internal_formula': field.calculation_formula or rules.get('internal_formula'),
+            'number_format': rules.get('excel_number_format'),
+            'status': 'literal',
+            'status_label': 'Nhập trực tiếp',
+            'status_note': 'Không phát hiện công thức Excel trong cột mẫu.',
+            'badge_class': 'secondary',
+        }
+        if audit['formula_mode'] == 'mixed':
+            audit.update({
+                'status': 'mixed',
+                'status_label': 'Cần rà',
+                'status_note': 'Cột đang trộn giá trị tay và công thức trong file mẫu, cần xác nhận lại cách nhập.',
+                'badge_class': 'warning',
+            })
+        elif audit['formula_mode'] == 'formula_only':
+            if audit['internal_formula']:
+                audit.update({
+                    'status': 'supported',
+                    'status_label': 'Web-native',
+                    'status_note': 'Công thức đã được dịch sang biểu thức nội bộ và có thể tính trên web.',
+                    'badge_class': 'success',
+                })
+            else:
+                audit.update({
+                    'status': 'unsupported',
+                    'status_label': 'Chỉ Excel',
+                    'status_note': 'Web chưa dịch được công thức này; bản Excel xuất ra vẫn giữ công thức gốc.',
+                    'badge_class': 'danger',
+                })
+        elif audit['excel_formula']:
+            audit.update({
+                'status': 'mixed',
+                'status_label': 'Cần rà',
+                'status_note': 'Có công thức mẫu nhưng cột không thuần công thức, cần kiểm tra lại metadata.',
+                'badge_class': 'warning',
+            })
+        field_status_map[field.field_code] = audit
+        audits.append(audit)
+
         if rules.get('hidden'):
             hidden_field_codes.add(field.field_code)
+
+    formula_summary = scan_summary.get('formula_summary') or _summarize_formula_audit(audits)
 
     return render_template(
         'reporting/field_settings.html',
         template=template,
         version=version,
         grouped_fields=grouped_fields,
+        field_status_map=field_status_map,
         hidden_field_codes=hidden_field_codes,
         schedule_summary=_format_schedule_summary(template),
         total_fields=len(fields),
+        formula_summary=formula_summary,
         scan_summary=scan_summary,
         first_setup=request.args.get('first_setup') == '1'
     )
@@ -2010,7 +2156,7 @@ def api_get_report(instance_id):
         if denied:
             return denied
         _refresh_report_calculations(instance)
-        report_data = form_engine.get_report_data(instance_id)
+        report_data = form_engine.get_report_data(instance_id, refresh_calculations=False)
         return jsonify({'success': True, 'data': report_data})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -2034,7 +2180,7 @@ def api_save_draft(instance_id):
         
         # Calculate fields
         form_engine.calculate_fields(instance_id)
-        refreshed = form_engine.get_report_data(instance_id)
+        refreshed = form_engine.get_report_data(instance_id, refresh_calculations=False)
         
         log_action(user_id, session.get('fullname', 'Unknown'), 'Lưu nháp báo cáo', 'Reporting', f'Report ID: {instance_id}')
 

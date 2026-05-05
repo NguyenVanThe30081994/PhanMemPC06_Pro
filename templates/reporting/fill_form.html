@@ -84,6 +84,12 @@
 
     <section class="reporting-panel">
       <div class="reporting-panel-body report-direct-shell">
+        {% set formula_summary = report_data.schema.formula_summary or {} %}
+        {% if formula_summary.get('has_risk') %}
+        <div class="alert alert-warning border-0 shadow-sm rounded-4 mb-0">
+          Biểu mẫu còn {{ formula_summary.get('unsupported_total', 0) }} cột công thức web chưa dịch được và {{ formula_summary.get('mixed_total', 0) }} cột cần rà lại cấu trúc. Bản Excel xuất ra vẫn giữ công thức gốc để đối chiếu.
+        </div>
+        {% endif %}
         <form id="reportForm" class="report-direct-sections">
           {% for section_name, fields in report_data.schema.sections.items() %}
           <section class="reporting-panel">

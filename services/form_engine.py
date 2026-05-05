@@ -103,6 +103,93 @@ class FormEngine:
         return FormEngine._field_validation(field).get('excel_number_format')
 
     @staticmethod
+    def _formula_audit(field):
+        validation = FormEngine._field_validation(field)
+        formula_mode = validation.get('formula_mode') or ('formula_only' if getattr(field, 'is_calculated', False) else 'literal_only')
+        excel_formula = validation.get('excel_formula')
+        internal_formula = (field.calculation_formula or validation.get('internal_formula') or '').strip() or None
+
+        audit = {
+            'formula_mode': formula_mode,
+            'excel_formula': excel_formula,
+            'internal_formula': internal_formula,
+            'number_format': validation.get('excel_number_format'),
+            'status': 'literal',
+            'status_label': 'Nhập trực tiếp',
+            'status_note': 'Không phát hiện công thức Excel trong cột mẫu.',
+            'badge_class': 'secondary',
+        }
+
+        if formula_mode == 'mixed':
+            audit.update({
+                'status': 'mixed',
+                'status_label': 'Cần rà',
+                'status_note': 'Cột đang trộn giá trị tay và công thức trong file mẫu, cần xác nhận lại cách nhập.',
+                'badge_class': 'warning',
+            })
+            return audit
+
+        if formula_mode == 'formula_only':
+            if internal_formula:
+                audit.update({
+                    'status': 'supported',
+                    'status_label': 'Web-native',
+                    'status_note': 'Công thức đã được dịch sang biểu thức nội bộ và có thể tính trên web.',
+                    'badge_class': 'success',
+                })
+            else:
+                audit.update({
+                    'status': 'unsupported',
+                    'status_label': 'Chỉ Excel',
+                    'status_note': 'Web chưa dịch được công thức này; bản Excel xuất ra vẫn giữ công thức gốc.',
+                    'badge_class': 'danger',
+                })
+            return audit
+
+        if excel_formula:
+            audit.update({
+                'status': 'mixed',
+                'status_label': 'Cần rà',
+                'status_note': 'Có công thức mẫu nhưng cột không thuần công thức, cần kiểm tra lại metadata.',
+                'badge_class': 'warning',
+            })
+
+        return audit
+
+    @staticmethod
+    def _summarize_formula_audits(audits):
+        summary = {
+            'supported_total': 0,
+            'unsupported_total': 0,
+            'mixed_total': 0,
+            'literal_total': 0,
+            'formula_total': 0,
+            'has_risk': False,
+            'unsupported_fields': [],
+            'mixed_fields': [],
+        }
+        for audit in audits:
+            status = audit.get('status') or 'literal'
+            if status == 'supported':
+                summary['supported_total'] += 1
+            elif status == 'unsupported':
+                summary['unsupported_total'] += 1
+                summary['unsupported_fields'].append(audit)
+            elif status == 'mixed':
+                summary['mixed_total'] += 1
+                summary['mixed_fields'].append(audit)
+            else:
+                summary['literal_total'] += 1
+
+        summary['formula_total'] = (
+            summary['supported_total'] +
+            summary['unsupported_total'] +
+            summary['mixed_total']
+        )
+        summary['has_risk'] = summary['unsupported_total'] > 0 or summary['mixed_total'] > 0
+        return summary
+
+    @staticmethod
     def _coerce_numeric(raw_value):
         if raw_value in (None, ''):
             raise ValueError('Empty numeric value')
@@ -308,12 +395,20 @@ class FormEngine:
         
         # Group fields by section
         sections = {}
+        formula_audits = []
         for field in fields:
             section_name = field.section or 'default'
             if section_name not in sections:
                 sections[section_name] = []
             
             field_validation = json.loads(field.validation_rules_json) if field.validation_rules_json else {}
+            formula_audit = self._formula_audit(field)
+            formula_audit.update({
+                'field_code': field.field_code,
+                'field_name': field.field_name,
+                'section': section_name,
+            })
+            formula_audits.append(formula_audit)
             sections[section_name].append({
                 'code': field.field_code,
                 'name': field.field_name,
@@ -324,18 +419,21 @@ class FormEngine:
                 'calculated': field.is_calculated,
                 'hidden': bool(field_validation.get('hidden', False)),
                 'formula': field.calculation_formula,
+                'formula_audit': formula_audit,
                 'default_value': field.default_value,
                 'excel_cell': field.excel_cell_ref,
                 'help_text': field.help_text,
                 'validation': field_validation
             })
         
+        formula_summary = self._summarize_formula_audits(formula_audits)
         return {
             'version_id': version_id,
             'version_number': version.version_number,
             'template_id': version.template_id,
             'template_name': version.template.name,
             'metadata': metadata,
+            'formula_summary': formula_summary,
             'sections': sections
         }
     
@@ -451,7 +549,7 @@ class FormEngine:
         )
         return self.create_report_instance(template_id, period.id, user_id, org_unit)
     
-    def get_report_data(self, instance_id):
+    def get_report_data(self, instance_id, refresh_calculations=True):
         """
         Lấy dữ liệu báo cáo
         Returns: dict với instance info và field values
@@ -459,6 +557,9 @@ class FormEngine:
         instance = ReportInstance.query.get(instance_id)
         if not instance:
             raise ValueError(f"Report instance {instance_id} không tồn tại")
+
+        if refresh_calculations:
+            self.calculate_fields(instance_id)
         
         # Lấy schema
         schema = self.get_form_schema(instance.version_id)
@@ -518,6 +619,8 @@ class FormEngine:
         # Lưu từng field
         for field_code, value in data.items():
             field = field_map.get(field_code)
+            if field and (field.is_calculated or field.is_readonly):
+                continue
             stored_value, value_type = self._normalize_storage_value(value, field)
             # Tìm field value hiện tại
             fv = ReportFieldValue.query.filter_by(
@@ -656,6 +759,8 @@ class FormEngine:
         
         # Check required
         for field in required_fields:
+            if field.is_calculated or field.is_readonly:
+                continue
             if field.field_code not in values or not values[field.field_code]:
                 errors.append({
                     'field': field.field_code,

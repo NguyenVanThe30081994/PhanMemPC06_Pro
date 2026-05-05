@@ -27,8 +27,20 @@
   .structure-draft-list { display:grid; gap:10px; }
   .structure-draft-item { padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,.18); background:rgba(255,255,255,.96); }
   .structure-draft-path { color:#64748b; font-size:.83rem; }
+  .structure-badges { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .structure-badge { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-size:.74rem; font-weight:700; }
+  .structure-badge-success { background:#ecfdf5; color:#047857; }
+  .structure-badge-warning { background:#fff7ed; color:#c2410c; }
+  .structure-badge-danger { background:#fef2f2; color:#b91c1c; }
+  .structure-badge-secondary { background:#f1f5f9; color:#475569; }
+  .formula-summary-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px; }
+  .formula-summary-card { padding:14px 16px; border-radius:16px; border:1px solid rgba(148,163,184,.18); background:rgba(255,255,255,.96); }
+  .formula-summary-card strong { display:block; font-size:1.35rem; line-height:1.1; margin-bottom:4px; }
+  .formula-copy { display:grid; gap:6px; margin-top:10px; font-size:.83rem; }
+  .formula-code { margin:0; padding:10px 12px; border-radius:12px; background:#f8fafc; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:.8rem; overflow:auto; }
   [data-theme="dark"] .structure-preview-wrap,
   [data-theme="dark"] .structure-draft-item { background:rgba(15,23,42,.84); border-color:rgba(148,163,184,.18); }
+  [data-theme="dark"] .formula-summary-card { background:rgba(15,23,42,.84); border-color:rgba(148,163,184,.18); }
   [data-theme="dark"] .structure-preview th,
   [data-theme="dark"] .structure-preview td { border-color:#334155; }
   [data-theme="dark"] .structure-preview thead th { background:#172033; }
@@ -38,8 +50,10 @@
   [data-theme="dark"] .structure-preview tr.role-summary td { background:#2a1b10; }
   [data-theme="dark"] .structure-preview tr.role-data td { background:#0f1f18; }
   [data-theme="dark"] .structure-draft-path { color:#94a3b8; }
+  [data-theme="dark"] .formula-code { background:#0f172a; color:#e2e8f0; }
   @media (max-width: 1100px) {
     .structure-grid { grid-template-columns: 1fr; }
+    .formula-summary-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 767px) {
     .structure-form-grid { grid-template-columns: 1fr; }
@@ -47,6 +61,7 @@
     .structure-preview td {
       padding: 6px 8px;
     }
+    .formula-summary-grid { grid-template-columns:1fr; }
   }
 </style>
 {% endblock %}
@@ -72,6 +87,39 @@
     <div class="alert alert-info border-0 shadow-sm rounded-4">
       Sau khi quét tự động, xác nhận lại các dòng trước khi thiết lập nhập liệu.
     </div>
+    {% endif %}
+
+    {% if formula_summary %}
+    <section class="reporting-panel">
+      <div class="reporting-panel-header">
+        <h5 class="mb-0">Tình trạng công thức</h5>
+      </div>
+      <div class="reporting-panel-body">
+        {% if formula_summary.has_risk %}
+        <div class="alert alert-warning border-0 shadow-sm rounded-4">
+          Biểu mẫu hiện có {{ formula_summary.unsupported_total }} cột công thức web chưa dịch được và {{ formula_summary.mixed_total }} cột đang trộn công thức với giá trị tay.
+        </div>
+        {% endif %}
+        <div class="formula-summary-grid">
+          <div class="formula-summary-card">
+            <strong>{{ formula_summary.supported_total }}</strong>
+            <div>Đã chạy web-native</div>
+          </div>
+          <div class="formula-summary-card">
+            <strong>{{ formula_summary.unsupported_total }}</strong>
+            <div>Chỉ bảo đảm trên Excel</div>
+          </div>
+          <div class="formula-summary-card">
+            <strong>{{ formula_summary.mixed_total }}</strong>
+            <div>Cột cần rà cấu trúc</div>
+          </div>
+          <div class="formula-summary-card">
+            <strong>{{ formula_summary.literal_total }}</strong>
+            <div>Cột nhập trực tiếp</div>
+          </div>
+        </div>
+      </div>
+    </section>
     {% endif %}
 
     <div class="structure-grid">
@@ -168,6 +216,23 @@
               {{ 'Công thức' if field.is_calculated else ('Số' if field.field_type == 'number' else 'Văn bản') }} |
               {{ field.section }}
             </div>
+            {% if field.formula_audit %}
+            <div class="structure-badges">
+              <span class="structure-badge structure-badge-{{ field.formula_audit.badge_class }}">{{ field.formula_audit.status_label }}</span>
+              {% if field.formula_audit.number_format %}
+              <span class="structure-badge structure-badge-secondary">{{ field.formula_audit.number_format }}</span>
+              {% endif %}
+            </div>
+            <div class="formula-copy">
+              <div>{{ field.formula_audit.status_note }}</div>
+              {% if field.formula_audit.excel_formula %}
+              <pre class="formula-code">{{ field.formula_audit.excel_formula }}</pre>
+              {% endif %}
+              {% if field.formula_audit.internal_formula %}
+              <pre class="formula-code">{{ field.formula_audit.internal_formula }}</pre>
+              {% endif %}
+            </div>
+            {% endif %}
           </article>
           {% endfor %}
         </div>

@@ -43,7 +43,6 @@ Những công thức ngoài tập này cần:
 
 ## Lộ trình tiếp theo
 
-1. Thêm màn hình quản trị hiển thị rõ công thức nào đã dịch được, công thức nào chưa.
-2. Thêm renderer web-native dạng bảng nhiều cột cho các biểu mẫu có nhóm chỉ tiêu lớn.
-3. Bổ sung translator cho các công thức định dạng phổ biến hơn.
-4. Tách dần nhánh `report_submission_service` nếu không còn dùng luồng nộp Excel.
+1. Hoàn thiện renderer web-native dạng bảng nhiều cột cho các biểu mẫu có nhóm chỉ tiêu lớn.
+2. Bổ sung translator cho các công thức định dạng phổ biến hơn.
+3. Tách dần nhánh `report_submission_service` nếu không còn dùng luồng nộp Excel.
