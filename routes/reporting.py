@@ -513,6 +513,27 @@ def _field_levels(field):
     return parts
 
 
+def _row_context_label(ws, sheet_fields, existing_values, sheet_name, row_index):
+    preferred = []
+    fallback = []
+    for field in sheet_fields:
+        coord = f"{field.column_letter}{row_index}"
+        value = existing_values.get(sheet_name, {}).get(coord, ws[coord].value)
+        display_value = _cell_display_value(value)
+        if not display_value:
+            continue
+        label_code = normalize_code(_field_display_name(field))
+        if any(marker in label_code for marker in {"don_vi", "ten_don_vi", "ma_don_vi", "stt", "so_thu_tu"}):
+            preferred.append(display_value)
+        elif not field.is_editable:
+            fallback.append(display_value)
+    if preferred:
+        return " - ".join(preferred[:2])
+    if fallback:
+        return fallback[0]
+    return f"Dòng {row_index}"
+
+
 def _cell_display_value(value):
     if value is None:
         return ""
@@ -1740,61 +1761,37 @@ def cycle_workspace(cycle_id):
     for sheet_meta in metadata.get("sheets", []):
         ws = workbook[sheet_meta["sheet_name"]]
         sheet_fields = ReportTemplateField.query.filter_by(version_id=template_version.id, sheet_name=sheet_meta["sheet_name"]).order_by(ReportTemplateField.display_order.asc()).all()
-        visible_fields = [field for field in sheet_fields if field.is_visible]
-        if not visible_fields:
-            visible_fields = [field for field in sheet_fields if field.is_editable] or sheet_fields
-        start_row, header_end_row = _sheet_header_range(sheet_meta)
+        editable_fields = [field for field in sheet_fields if field.is_visible and field.is_editable]
+        if not editable_fields:
+            editable_fields = [field for field in sheet_fields if field.is_editable]
+        _, header_end_row = _sheet_header_range(sheet_meta)
         unit_start_row = int(sheet_meta.get("unit_start_row") or sheet_meta.get("data_start_row") or header_end_row + 1)
         unit_end_row = int(sheet_meta.get("unit_end_row") or sheet_meta.get("data_end_row") or unit_start_row)
-        max_levels = max([len(_field_levels(field)) for field in visible_fields], default=1)
-        field_headers = []
-        for field in visible_fields:
-            levels = _field_levels(field)
-            levels += [""] * (max_levels - len(levels))
-            field_headers.append({
-                "field": field,
-                "levels": levels,
-                "display_name": _field_display_name(field),
-            })
         row_entries = []
         for row_index in range(unit_start_row, unit_end_row + 1):
             if ws.row_dimensions[row_index].hidden:
                 continue
-            cells = []
-            has_any_value = False
-            for field in visible_fields:
+            inputs = []
+            for field in editable_fields:
                 coord = f"{field.column_letter}{row_index}"
                 value = existing_values.get(sheet_meta["sheet_name"], {}).get(coord, ws[coord].value)
-                display_value = _cell_display_value(value)
-                if display_value:
-                    has_any_value = True
-                cells.append({
+                inputs.append({
                     "cell_address": coord,
-                    "value": display_value,
-                    "editable": editable and field.is_editable,
+                    "value": _cell_display_value(value),
                     "field_code": field.field_code,
                     "field_label": _field_display_name(field),
+                    "field_path": " / ".join(_field_levels(field)[:-1]) if len(_field_levels(field)) > 1 else "",
                 })
-            if cells:
+            if inputs:
                 row_entries.append({
                     "excel_row": row_index,
-                    "cells": cells,
-                    "has_any_value": has_any_value,
+                    "title": _row_context_label(ws, sheet_fields, existing_values, sheet_meta["sheet_name"], row_index),
+                    "inputs": inputs,
                 })
         sheet_views.append({
             "sheet_name": sheet_meta["sheet_name"],
             "field_count": len(sheet_meta.get("fields", [])),
-            "input_count": len([field for field in visible_fields if field.is_editable]),
-            "input_fields": [
-                {
-                    "display_name": _field_display_name(field),
-                    "column_letter": field.column_letter,
-                }
-                for field in visible_fields
-                if field.is_visible
-            ],
-            "header_levels": list(range(max_levels)),
-            "field_headers": field_headers,
+            "input_count": len(editable_fields),
             "rows": row_entries,
             "config": {
                 "header_start_row": sheet_meta.get("header_start_row"),

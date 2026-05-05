@@ -1,83 +1,141 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header mb-4">
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
-        <div>
-            <h1 class="h3 fw-bold mb-1">{{ cycle.name }}</h1>
-            <p class="text-muted mb-0">{{ template.name }} • {{ current_unit.name if current_unit else 'Không có đơn vị' }}</p>
+<div class="pc06-page-shell">
+    <section class="pc06-hero-card">
+        <div class="pc06-hero-grid compact">
+            <div>
+                <div class="pc06-page-kicker">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    Nhập báo cáo
+                </div>
+                <h1 class="pc06-page-title">{{ cycle.name }}</h1>
+                <div class="text-muted">{{ template.name }} • {{ current_unit.name if current_unit else 'Không có đơn vị' }}</div>
+            </div>
+            <div class="pc06-action-cluster">
+                <a href="{{ url_for('reporting_bp.user_dashboard') if not is_admin else url_for('reporting_bp.admin_cycle_detail', cycle_id=cycle.id) }}" class="btn btn-bdhvs light">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    Quay lại
+                </a>
+                {% if latest_submission and latest_submission.file_path %}
+                <a href="{{ url_for('reporting_bp.download_submission', submission_id=latest_submission.id) }}" class="btn btn-bdhvs light">
+                    <i class="fa-solid fa-download"></i>
+                    Tải file
+                </a>
+                {% endif %}
+            </div>
         </div>
-        <div class="d-flex gap-2">
-            <a href="{{ url_for('reporting_bp.user_dashboard') if not is_admin else url_for('reporting_bp.admin_cycle_detail', cycle_id=cycle.id) }}" class="btn btn-light rounded-pill px-4">Quay lại</a>
-            {% if latest_submission and latest_submission.file_path %}
-            <a href="{{ url_for('reporting_bp.download_submission', submission_id=latest_submission.id) }}" class="btn btn-outline-secondary rounded-pill px-4">Tải file</a>
-            {% endif %}
-        </div>
-    </div>
+    </section>
+
+    <form id="reportForm" method="POST">
+        <input type="hidden" name="payload_json" id="payloadJson">
+        {% if is_admin and current_unit %}
+        <input type="hidden" name="unit_id" value="{{ current_unit.id }}">
+        {% endif %}
+
+        <section class="pc06-panel mb-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+                <div>
+                    <h2 class="h5 fw-bold mb-1">Nội dung nhập liệu</h2>
+                    <div class="text-muted small">Chỉ hiển thị các trường được cấu hình cho nhập liệu.</div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-bdhvs light" onclick="submitReport('{{ url_for('reporting_bp.save_cycle', cycle_id=cycle.id) }}')">Lưu</button>
+                    {% if editable %}
+                    <button type="button" class="btn btn-bdhvs primary" onclick="submitReport('{{ url_for('reporting_bp.submit_cycle', cycle_id=cycle.id) }}')">Gửi</button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="pc06-form-section mb-0">
+                <label class="form-label fw-bold">Ghi chú</label>
+                <textarea id="noteBox" class="form-control" rows="2">{% if latest_submission %}{{ latest_submission.note or '' }}{% endif %}</textarea>
+            </div>
+        </section>
+
+        {% for sheet in sheet_views %}
+        <section class="pc06-panel report-input-sheet report-sheet-panel" data-sheet="{{ sheet.sheet_name }}">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <h3 class="h6 fw-bold mb-0">{{ sheet.sheet_name }}</h3>
+                <span class="text-muted small">{{ sheet.rows|length }} dòng • {{ sheet.input_count }} trường nhập</span>
+            </div>
+
+            <div class="report-input-list">
+                {% for row in sheet.rows %}
+                <article class="report-input-row">
+                    <div class="report-input-row-head">
+                        <div class="report-input-row-title">{{ row.title }}</div>
+                        <div class="report-input-row-meta">Dòng {{ row.excel_row }}</div>
+                    </div>
+                    <div class="report-input-grid">
+                        {% for input in row.inputs %}
+                        <label class="report-input-field">
+                            <span class="report-input-label">{{ input.field_label }}</span>
+                            {% if input.field_path %}
+                            <small>{{ input.field_path }}</small>
+                            {% endif %}
+                            <input type="text" class="form-control report-input" data-cell="{{ input.cell_address }}" value="{{ input.value }}" {% if not editable %}readonly{% endif %}>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </article>
+                {% else %}
+                <div class="text-muted text-center py-4">Không có trường dữ liệu để nhập.</div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+    </form>
 </div>
 
-<form id="reportForm" method="POST">
-    <input type="hidden" name="payload_json" id="payloadJson">
-    {% if is_admin and current_unit %}
-    <input type="hidden" name="unit_id" value="{{ current_unit.id }}">
-    {% endif %}
-
-    <div class="d-flex gap-2 mb-3">
-        <button type="button" class="btn btn-outline-primary rounded-pill px-4" onclick="submitReport('{{ url_for('reporting_bp.save_cycle', cycle_id=cycle.id) }}')">Lưu</button>
-        {% if editable %}
-        <button type="button" class="btn btn-primary rounded-pill px-4" onclick="submitReport('{{ url_for('reporting_bp.submit_cycle', cycle_id=cycle.id) }}')">Gửi</button>
-        {% endif %}
-    </div>
-
-    <div class="card border-0 shadow-sm rounded-4 mb-4">
-        <div class="card-body p-4">
-            <label class="form-label fw-bold">Ghi chú</label>
-            <textarea id="noteBox" class="form-control" rows="2">{% if latest_submission %}{{ latest_submission.note or '' }}{% endif %}</textarea>
-        </div>
-    </div>
-</form>
-
-{% for sheet in sheet_views %}
-<section class="card border-0 shadow-sm rounded-4 mb-4 report-sheet-panel" data-sheet="{{ sheet.sheet_name }}">
-    <div class="card-header bg-white border-bottom py-3 px-4">
-        <h5 class="mb-0 fw-bold">{{ sheet.sheet_name }}</h5>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-bordered mb-0 align-middle">
-                <thead>
-                    {% for level_index in sheet.header_levels %}
-                    <tr>
-                        {% if loop.first %}<th rowspan="{{ sheet.header_levels|length }}">Dòng</th>{% endif %}
-                        {% for header in sheet.field_headers %}
-                        <th>{{ header.levels[level_index] }}</th>
-                        {% endfor %}
-                    </tr>
-                    {% endfor %}
-                </thead>
-                <tbody>
-                    {% for row in sheet.rows %}
-                    <tr>
-                        <td class="text-muted small">{{ row.excel_row }}</td>
-                        {% for cell in row.cells %}
-                        <td>
-                            {% if cell.editable %}
-                            <input type="text" class="form-control form-control-sm report-input" data-cell="{{ cell.cell_address }}" value="{{ cell.value }}">
-                            {% else %}
-                            {{ cell.value }}
-                            {% endif %}
-                        </td>
-                        {% endfor %}
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="{{ sheet.field_headers|length + 1 }}" class="text-muted text-center py-4">Không có trường dữ liệu để nhập.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</section>
-{% endfor %}
+<style>
+    .report-input-sheet { margin-bottom: 18px; }
+    .report-input-list { display: grid; gap: 16px; }
+    .report-input-row {
+        border: 1px solid rgba(148,163,184,0.16);
+        border-radius: 20px;
+        padding: 18px;
+        background: rgba(248,250,252,0.75);
+    }
+    .report-input-row-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+    .report-input-row-title {
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--text-main);
+    }
+    .report-input-row-meta {
+        font-size: 0.82rem;
+        color: var(--text-muted);
+    }
+    .report-input-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px;
+    }
+    .report-input-field {
+        display: grid;
+        gap: 6px;
+    }
+    .report-input-label {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--text-main);
+    }
+    .report-input-field small {
+        color: var(--text-muted);
+        line-height: 1.4;
+    }
+    [data-theme="dark"] .report-input-row {
+        background: rgba(15,23,42,0.45);
+        border-color: rgba(148,163,184,0.14);
+    }
+</style>
 
 <script>
 function collectPayload() {
