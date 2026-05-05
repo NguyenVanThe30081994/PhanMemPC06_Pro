@@ -10,7 +10,7 @@ except ImportError:
     def get_password_requirements():
         return "Ít nhất 8 ký tự, có chữ hoa, chữ thường, chữ số"
 
-import os, json, shutil, zipfile, io, sqlite3, subprocess
+import os, json, shutil, zipfile, io, subprocess
 try:
     import pandas as pd
     HAS_PANDAS = True
@@ -941,65 +941,3 @@ def module_categories():
 def delete_category_old(cat_type, cat_id):
     """Legacy route - chuyển hướng về module_categories"""
     return redirect(url_for('admin_bp.module_categories'))
-
-@admin_bp.route('/admin/fix-db')
-def fix_db_manually():
-    if not session.get('is_admin'): return "Unauthorized", 403
-    from flask import current_app
-    db_uri = current_app.config.get('SQLALCHEMY_DATABASE_URI', '')
-    db_path = db_uri.replace('sqlite:///', '')
-    
-    results = []
-    try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        # Danh sách các cột cần bổ sung (nếu thiếu)
-        migrations = [
-            ("report_config", "description", "TEXT"),
-            ("report_config", "is_daily", "BOOLEAN DEFAULT 0"),
-            ("report_config", "author_name", "VARCHAR(100)")
-        ]
-        
-        # Import security validators
-        try:
-            from security_utils.security_helpers import validate_table_name, validate_column_name, validate_column_type
-        except ImportError:
-            # Fallback validation
-            import re
-            def validate_table_name(t):
-                return bool(re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', t))
-            def validate_column_name(c):
-                return bool(re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', c))
-            def validate_column_type(ct):
-                allowed = {'INTEGER', 'TEXT', 'REAL', 'BLOB', 'BOOLEAN', 'VARCHAR(50)', 'VARCHAR(100)', 'VARCHAR(255)', 'DATE', 'DATETIME', 'FLOAT'}
-                return ct.upper() in allowed or 'VARCHAR' in ct.upper() or 'DEFAULT' in ct.upper()
-        
-        for table, col, col_type in migrations:
-            try:
-                # Validate inputs to prevent SQL injection
-                if not validate_table_name(table):
-                    results.append(f"❌ Invalid table name: {table}")
-                    continue
-                if not validate_column_name(col):
-                    results.append(f"❌ Invalid column name: {col}")
-                    continue
-                if not validate_column_type(col_type.split()[0]):
-                    results.append(f"❌ Invalid column type: {col_type}")
-                    continue
-                
-                cursor.execute(f"PRAGMA table_info({table})")
-                cols = [c[1] for c in cursor.fetchall()]
-                if col not in cols:
-                    cursor.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}")
-                    conn.commit()
-                    results.append(f"✅ Đã thêm cột {col} vào bảng {table}")
-                else:
-                    results.append(f"ℹ️ Cột {col} đã tồn tại trong bảng {table}")
-            except Exception as e:
-                results.append(f"❌ Lỗi tại bảng {table}, cột {col}: {str(e)}")
-        
-        conn.close()
-        msg = "<br>".join(results)
-        return f"<h3>KẾT QUẢ SỬA LỖI DATABASE:</h3>{msg}<br><br><a href='/admin'>Quay lại Tổng quan</a>"
-    except Exception as e:
-        return f"<h3>LỖI NGHIÊM TRỌNG:</h3>{str(e)}"

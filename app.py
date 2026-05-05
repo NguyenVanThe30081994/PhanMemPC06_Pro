@@ -189,8 +189,6 @@ from routes.tasks import tasks_bp
 from routes.ranking import ranking_bp
 from routes.api import api_bp
 from routes.shortlink import shortlink_bp
-from routes.excel_builder import excel_builder_bp
-from routes.zalo import zalo_bp
 from routes.ai_assistant import ai_bp
 from routes.health import health_bp
 
@@ -201,8 +199,6 @@ app.register_blueprint(tasks_bp)
 app.register_blueprint(ranking_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(shortlink_bp)
-app.register_blueprint(excel_builder_bp)
-app.register_blueprint(zalo_bp)
 app.register_blueprint(health_bp)
 app.register_blueprint(ai_bp)
 

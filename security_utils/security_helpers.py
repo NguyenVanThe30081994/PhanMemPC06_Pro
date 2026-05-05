@@ -75,10 +75,7 @@ def validate_table_name(table_name):
         'contact_role', 'document_lib', 'library_field', 'master_data',
         'news_category', 'news_doc', 'notification', 'professional_unit',
         'ranking_entry', 'ranking_indicator', 'ranking_unit',
-        'report_audit_v2', 'report_config', 'report_data',
-        'report_submission_v2', 'report_template_v2', 'report_value_v2',
-        'report_version_v2', 'short_link', 'system_log',
-        'zalo_config', 'zalo_message_log'
+        'short_link', 'system_log'
     }
     
     return table_name in allowed_tables

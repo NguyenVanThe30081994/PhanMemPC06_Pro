@@ -259,40 +259,6 @@ class RankingEntry(db.Model):
     indicator = db.relationship('RankingIndicator', backref='entries')
 
 
-# ==================== ZALO OA INTEGRATION ====================
-
-class ZaloConfig(db.Model):
-    """Cấu hình Zalo OA - tokens và template IDs"""
-    id = db.Column(db.Integer, primary_key=True)
-    app_id = db.Column(db.String(50), nullable=False)
-    secret_key = db.Column(db.String(100), nullable=False)
-    oa_id = db.Column(db.String(50))
-    oa_secret = db.Column(db.String(100))
-    access_token = db.Column(db.Text)
-    refresh_token = db.Column(db.Text)
-    token_expires_at = db.Column(db.DateTime)
-    template_deadline_warning = db.Column(db.String(50))
-    template_overdue = db.Column(db.String(50))
-    template_report_remind = db.Column(db.String(50))
-    is_active = db.Column(db.Boolean, default=True)
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-
-
-class ZaloMessageLog(db.Model):
-    """Log tin nhắn Zalo đã gửi"""
-    id = db.Column(db.Integer, primary_key=True)
-    recipient_phone = db.Column(db.String(20), nullable=False)
-    recipient_name = db.Column(db.String(100))
-    template_type = db.Column(db.String(30))
-    task_id = db.Column(db.Integer, nullable=True)
-    status = db.Column(db.String(20))
-    error_code = db.Column(db.String(20))
-    error_message = db.Column(db.Text)
-    zalo_message_id = db.Column(db.String(100))
-    created_at = db.Column(db.DateTime, default=datetime.now)
-
-
 class AIAssistantConfig(db.Model):
     """Cấu hình provider/model/key cho trợ lý AI."""
     id = db.Column(db.Integer, primary_key=True)

@@ -46,27 +46,6 @@ def add_indexes():
         ('idx_system_log_module', 'system_log', 'module'),
         ('idx_system_log_created', 'system_log', 'created_at DESC'),
         
-        # Report submission indexes
-        ('idx_report_submission_user', 'report_submission_v2', 'user_id'),
-        ('idx_report_submission_version', 'report_submission_v2', 'version_id'),
-        ('idx_report_submission_status', 'report_submission_v2', 'status'),
-        ('idx_report_submission_created', 'report_submission_v2', 'created_at DESC'),
-        
-        # Report value indexes
-        ('idx_report_value_submission', 'report_value_v2', 'submission_id'),
-        ('idx_report_value_cell', 'report_value_v2', 'cell_key'),
-        ('idx_report_value_composite', 'report_value_v2', 'submission_id, cell_key'),
-        
-        # Report audit indexes
-        ('idx_report_audit_submission', 'report_audit_v2', 'submission_id'),
-        ('idx_report_audit_user', 'report_audit_v2', 'user_id'),
-        ('idx_report_audit_changed', 'report_audit_v2', 'changed_at DESC'),
-        
-        # Zalo message log indexes
-        ('idx_zalo_log_created', 'zalo_message_log', 'created_at DESC'),
-        ('idx_zalo_log_status', 'zalo_message_log', 'status'),
-        ('idx_zalo_log_task', 'zalo_message_log', 'task_id'),
-        
         # Short link indexes
         ('idx_short_link_created_by', 'short_link', 'created_by'),
         ('idx_short_link_created_at', 'short_link', 'created_at DESC'),
