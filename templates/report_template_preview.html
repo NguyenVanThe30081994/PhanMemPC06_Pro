@@ -111,6 +111,8 @@
     @media print {
         html, body {
             background: #fff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
         }
         .pc06-hero-card,
         .btn,
@@ -153,6 +155,8 @@
             font-size: 9px !important;
             width: auto !important;
             table-layout: auto !important;
+            border-collapse: collapse !important;
+            border: 1.4px solid #000 !important;
         }
         .report-preview-table td {
             min-width: 0 !important;
@@ -162,6 +166,8 @@
             overflow: visible !important;
             text-overflow: clip !important;
             padding: 2px 4px !important;
+            border: 1px solid #000 !important;
+            color: #000 !important;
         }
     }
 </style>
