@@ -161,13 +161,13 @@
                 <h2 class="accordion-header" id="template-group-{{ loop.index }}">
                     <button class="accordion-button {% if not loop.first %}collapsed{% endif %} fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#template-group-body-{{ loop.index }}" aria-expanded="{{ 'true' if loop.first else 'false' }}">
                         {{ group.name }}
-                        <span class="ms-2 small text-muted">({{ group.items|length }})</span>
+                        <span class="ms-2 small text-muted">({{ group.entries|length }})</span>
                     </button>
                 </h2>
                 <div id="template-group-body-{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" data-bs-parent="#reportTemplateGroups">
                     <div class="accordion-body p-3">
                         <div class="list-group list-group-flush">
-                            {% for item in group.items %}
+                            {% for item in group.entries %}
                             {% set template = item.template %}
                             {% set current_version = item.current_version %}
                             {% set current_cycle = item.current_cycle %}
@@ -226,13 +226,13 @@
                 <h2 class="accordion-header" id="cycle-group-{{ loop.index }}">
                     <button class="accordion-button {% if not loop.first %}collapsed{% endif %} fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#cycle-group-body-{{ loop.index }}" aria-expanded="{{ 'true' if loop.first else 'false' }}">
                         {{ group.name }}
-                        <span class="ms-2 small text-muted">({{ group.items|length }})</span>
+                        <span class="ms-2 small text-muted">({{ group.entries|length }})</span>
                     </button>
                 </h2>
                 <div id="cycle-group-body-{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" data-bs-parent="#reportCycleGroups">
                     <div class="accordion-body p-3">
                         <div class="list-group list-group-flush">
-                            {% for item in group.items %}
+                            {% for item in group.entries %}
                             {% set cycle = item.cycle %}
                             {% set instance = instance_map.get(cycle.id) if instance_map is defined else None %}
                             <div class="list-group-item rounded-4 mb-2 border">

@@ -637,7 +637,7 @@ def _group_admin_templates(templates):
             }
         )
     return [
-        {"name": name, "items": groups[name]}
+        {"name": name, "entries": groups[name]}
         for name in sorted(groups.keys(), key=lambda value: (value == "Chưa phân đội", value.lower()))
     ]
 
@@ -656,7 +656,7 @@ def _group_cycles_by_professional_unit(cycles):
             }
         )
     return [
-        {"name": name, "items": groups[name]}
+        {"name": name, "entries": groups[name]}
         for name in sorted(groups.keys(), key=lambda value: (value == "Chưa phân đội", value.lower()))
     ]
 
