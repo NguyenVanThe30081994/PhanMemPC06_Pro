@@ -30,8 +30,8 @@
         <div class="reporting-stat-value">{{ active_templates }}</div>
       </div>
       <div class="reporting-stat-card">
-        <div class="reporting-stat-label">Kỳ đang mở</div>
-        <div class="reporting-stat-value">{{ active_periods }}</div>
+        <div class="reporting-stat-label">Biểu mẫu đã cấu hình</div>
+        <div class="reporting-stat-value">{{ configured_templates }}</div>
       </div>
       <div class="reporting-stat-card">
         <div class="reporting-stat-label">Báo cáo đã nộp</div>
@@ -112,8 +112,8 @@
           </div>
           <a href="{{ url_for('reporting_bp.index') }}" class="action-card text-decoration-none">
             <div class="action-icon"><i class="fa-solid fa-layer-group"></i></div>
-            <h6>Mở workspace biểu mẫu</h6>
-            <small>Đi vào từng biểu mẫu để cấu hình kỳ, xem preview và thống kê chi tiết.</small>
+            <h6>Mở danh sách biểu mẫu</h6>
+            <small>Truy cập nhanh các thao tác xem, sửa, cấu hình và báo cáo.</small>
           </a>
           <a href="{{ url_for('reporting_bp.history') }}" class="action-card text-decoration-none">
             <div class="action-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>

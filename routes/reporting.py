@@ -11,17 +11,21 @@ import re
 import unicodedata
 from io import BytesIO
 from openpyxl import load_workbook
-from openpyxl.utils import get_column_letter
+from openpyxl.utils import get_column_letter, column_index_from_string
 from excel_renderer import format_excel_number
-from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ReportInstance, ReportAuditLog
-from sqlalchemy import or_
+from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ReportInstance, ReportAuditLog, ReportFieldValue, ReportAttachment, ReportSubmission, ReportValidationError, ReportWorkflowHistory
+from sqlalchemy import or_, and_
 from services.form_engine import FormEngine
+from services.excel_formula_engine import ExcelFormulaEngine
+from services.excel_recalc_service import ExcelRecalcService
 from services.report_exporter import ReportExporter
+from services.report_submission_service import ReportSubmissionService
 from utils import log_action, render_auto_template as render_template
 from models import User
 
 reporting_bp = Blueprint('reporting_bp', __name__, url_prefix='/reporting')
 form_engine = FormEngine()
+submission_service = ReportSubmissionService()
 
 
 def _get_reporting_permissions():
@@ -72,13 +76,23 @@ def _load_authorized_report_instance(instance_id, write=False):
     return instance, None
 
 
-def _refresh_report_calculations(instance):
-    if not instance:
-        return
-    try:
-        form_engine.calculate_fields(instance.id)
-    except Exception as exc:
-        print(f"[REPORTING] Skipped recalculation for report {instance.id}: {exc}")
+def _load_authorized_submission(submission_id, write=False):
+    if not session.get('uid'):
+        return None, _report_access_denied('Unauthorized', 401)
+
+    submission = ReportSubmission.query.get(submission_id)
+    if not submission:
+        return None, _report_access_denied('Bản nộp báo cáo không tồn tại', 404)
+
+    _, is_admin, is_lead = _get_reporting_permissions()
+    current_unit = _current_reporting_unit()
+    if not (is_admin or is_lead) and (submission.reporting_unit or '') != current_unit:
+        return None, _report_access_denied('Bạn không có quyền truy cập báo cáo của đơn vị khác.')
+
+    if write and submission.status in {submission_service.STATUS_APPROVED, submission_service.STATUS_LOCKED, submission_service.STATUS_CANCELLED}:
+        return None, _report_access_denied('Báo cáo này không còn cho phép chỉnh sửa.')
+
+    return submission, None
 
 
 def _resolve_field_cell_ref(field, worksheet, target_row, exporter):
@@ -96,11 +110,17 @@ def _build_excel_like_rows(instance):
     if not instance.template.excel_template_blob:
         raise ValueError('Biểu mẫu chưa có file Excel gốc để hiển thị dạng bảng.')
 
-    wb_formula = load_workbook(BytesIO(instance.template.excel_template_blob), data_only=False)
-    wb_values = load_workbook(BytesIO(instance.template.excel_template_blob), data_only=True)
+    exporter = ReportExporter()
+    workbook_bytes = exporter.build_workbook_bytes(
+        instance.id,
+        protect_cells=False,
+        recalculate=ExcelRecalcService.is_available()
+    )
+    wb_formula = load_workbook(BytesIO(workbook_bytes), data_only=False)
+    wb_values = load_workbook(BytesIO(workbook_bytes), data_only=True)
     ws = wb_formula.active
     ws_values = wb_values[ws.title] if ws.title in wb_values.sheetnames else wb_values.active
-    exporter = ReportExporter()
+    evaluator = None if ExcelRecalcService.is_available() else ExcelFormulaEngine(wb_formula)
     target_row = exporter._find_target_row(ws, instance.org_unit)
 
     fields = FormField.query.filter_by(version_id=instance.version_id).order_by(FormField.display_order).all()
@@ -178,7 +198,7 @@ def _build_excel_like_rows(instance):
                 continue
 
             cell = ws.cell(row=r, column=c)
-            cell_value_obj = ws_values.cell(row=r, column=c)
+            value_cell = ws_values.cell(row=r, column=c)
             merge_info = merged_map.get((r, c), {'rowspan': 1, 'colspan': 1})
             font = cell.font
             fill = cell.fill
@@ -207,18 +227,23 @@ def _build_excel_like_rows(instance):
             if field and field.field_code in report_values:
                 raw_value = report_values.get(field.field_code)
             else:
-                raw_value = cell_value_obj.value
-
-            if raw_value is None and isinstance(cell.value, str) and cell.value.startswith('='):
-                display_value = ''
-            else:
-                display_source = raw_value
-                if field and display_source not in (None, '') and (field.field_type == 'number' or field.data_type in ('integer', 'decimal')):
+                if value_cell.value is not None:
+                    raw_value = value_cell.value
+                elif isinstance(cell.value, str) and cell.value.startswith('=') and evaluator:
                     try:
-                        display_source = float(str(display_source).replace(',', ''))
+                        raw_value = evaluator.evaluate_cell(ws, cell.coordinate)
                     except Exception:
-                        pass
-                display_value = format_excel_number(display_source, cell.number_format)
+                        raw_value = ''
+                else:
+                    raw_value = cell.value
+
+            display_source = raw_value
+            if field and display_source not in (None, '') and (field.field_type == 'number' or field.data_type in ('integer', 'decimal')):
+                try:
+                    display_source = float(str(display_source).replace(',', ''))
+                except Exception:
+                    pass
+            display_value = format_excel_number(display_source, cell.number_format)
 
             font_size = int(font.sz) if font and font.sz else 11
             h_align = (alignment.horizontal if alignment and alignment.horizontal else None)
@@ -269,16 +294,19 @@ def _build_excel_like_rows(instance):
         'col_letters': col_letters,
         'target_row': target_row,
         'unresolved_fields': unresolved_fields,
+        'recalc_mode': 'libreoffice' if ExcelRecalcService.is_available() else 'fallback',
     }
 
 
-def _parse_deadline_time(raw_value, fallback='17:00'):
-    raw = (raw_value or fallback or '17:00').strip()
+def _parse_deadline_time(raw_value, fallback=None):
+    raw = (raw_value or fallback or '').strip()
+    if not raw:
+        return None
     try:
         hour, minute = [int(part) for part in raw.split(':', 1)]
         return datetime.time(max(0, min(23, hour)), max(0, min(59, minute)))
     except Exception:
-        return datetime.time(17, 0)
+        return None
 
 
 def _safe_date_in_month(year, month, day):
@@ -297,118 +325,73 @@ def _parse_deadline_rule(template):
         except Exception:
             return {}
 
-    report_type = (template.report_type or 'adhoc').strip().lower()
+    report_type = (template.report_type or '').strip().lower()
     if report_type == 'daily' and ':' in rule_text:
         return {'time': rule_text}
 
     if report_type == 'periodic' and rule_text.isdigit():
-        return {'offset_days': int(rule_text), 'time': '17:00'}
+        return {'day': int(rule_text)}
 
     return {}
 
 
 def _format_schedule_summary(template):
-    report_type = (template.report_type or 'adhoc').strip().lower()
+    report_type = (template.report_type or '').strip().lower()
     frequency = (template.frequency or '').strip().lower()
     rule = _parse_deadline_rule(template)
 
+    if not report_type:
+        return "Chưa cấu hình loại báo cáo"
+
     if report_type == 'daily':
-        return f"Hàng ngày, hạn nộp {rule.get('time', '17:00')}"
+        return "Hàng ngày, hệ thống tự ghi nhận theo ngày hiện tại"
+
+    if report_type == 'adhoc':
+        deadline_raw = (rule.get('deadline') or '').strip()
+        if deadline_raw:
+            try:
+                deadline_dt = datetime.datetime.strptime(deadline_raw, '%Y-%m-%dT%H:%M')
+                return f"Đột xuất, hạn nộp {deadline_dt.strftime('%d/%m/%Y %H:%M')}"
+            except Exception:
+                pass
+        return "Đột xuất, chưa cấu hình mốc thời gian"
 
     if report_type == 'periodic':
-        if frequency == 'weekly':
-            weekday_map = {
-                0: 'Thứ hai', 1: 'Thứ ba', 2: 'Thứ tư', 3: 'Thứ năm',
-                4: 'Thứ sáu', 5: 'Thứ bảy', 6: 'Chủ nhật'
-            }
-            weekday = int(rule.get('weekday', 0))
-            return f"Hàng tuần, hạn nộp {weekday_map.get(weekday, 'Thứ hai')} {rule.get('time', '17:00')}"
         if frequency == 'monthly':
-            return f"Hàng tháng, hạn nộp ngày {rule.get('day', 5)} lúc {rule.get('time', '17:00')}"
+            day = rule.get('day')
+            return f"Định kỳ tháng, hạn trước hoặc bằng ngày {day} hằng tháng" if day else "Định kỳ tháng, chưa cấu hình ngày hạn"
         if frequency == 'quarterly':
-            return (
-                f"Hàng quý, hạn nộp tháng {rule.get('month', 1)} trong quý "
-                f"ngày {rule.get('day', 5)} lúc {rule.get('time', '17:00')}"
-            )
+            month = rule.get('month')
+            day = rule.get('day')
+            return f"Định kỳ quý, hạn trước hoặc bằng ngày {day} tháng thứ {month} của quý" if month and day else "Định kỳ quý, chưa cấu hình mốc hạn"
+        if frequency == 'semiannual':
+            month = rule.get('month')
+            day = rule.get('day')
+            return f"Định kỳ 6 tháng, hạn trước hoặc bằng ngày {day} tháng thứ {month} của kỳ 6 tháng" if month and day else "Định kỳ 6 tháng, chưa cấu hình mốc hạn"
         if frequency == 'yearly':
-            return (
-                f"Hàng năm, hạn nộp ngày {rule.get('day', 15)}/{rule.get('month', 1)} "
-                f"lúc {rule.get('time', '17:00')}"
-            )
-        if 'offset_days' in rule:
-            return f"Định kỳ, hạn nộp sau {rule['offset_days']} ngày"
-        return "Định kỳ, chưa cấu hình hạn nộp"
+            month = rule.get('month')
+            day = rule.get('day')
+            return f"Định kỳ năm, hạn trước hoặc bằng ngày {day}/{month} hằng năm" if month and day else "Định kỳ năm, chưa cấu hình mốc hạn"
+        return 'Định kỳ, chưa cấu hình loại chu kỳ'
 
-    return "Đột xuất, hạn nộp khai báo theo từng kỳ"
+    return "Chưa cấu hình loại báo cáo"
 
 
 def _format_report_type_label(template):
-    report_type = (template.report_type or 'adhoc').strip().lower()
+    report_type = (template.report_type or '').strip().lower()
+    if not report_type:
+        return 'Chưa cấu hình'
     if report_type == 'daily':
         return 'Hàng ngày'
     if report_type == 'periodic':
-        return 'Định kỳ'
+        labels = {
+            'monthly': 'Định kỳ tháng',
+            'quarterly': 'Định kỳ quý',
+            'semiannual': 'Định kỳ 6 tháng',
+            'yearly': 'Định kỳ năm',
+        }
+        return labels.get((template.frequency or '').strip().lower(), 'Định kỳ')
     return 'Đột xuất'
-
-
-def _compute_period_deadline(template, start_date, end_date, explicit_deadline=None):
-    report_type = (template.report_type or 'adhoc').strip().lower()
-    frequency = (template.frequency or '').strip().lower()
-    rule = _parse_deadline_rule(template)
-
-    if report_type == 'adhoc':
-        if explicit_deadline is None:
-            raise ValueError('Báo cáo đột xuất phải có hạn nộp cụ thể.')
-        return explicit_deadline
-
-    if report_type == 'daily':
-        return datetime.datetime.combine(end_date, _parse_deadline_time(rule.get('time')))
-
-    if report_type != 'periodic':
-        return None
-
-    time_value = _parse_deadline_time(rule.get('time'))
-
-    if 'offset_days' in rule:
-        target_date = end_date + datetime.timedelta(days=int(rule['offset_days']))
-        return datetime.datetime.combine(target_date, time_value)
-
-    if frequency == 'weekly':
-        weekday = max(0, min(6, int(rule.get('weekday', 0))))
-        days_ahead = (weekday - end_date.weekday()) % 7
-        if days_ahead == 0:
-            days_ahead = 7
-        target_date = end_date + datetime.timedelta(days=days_ahead)
-        return datetime.datetime.combine(target_date, time_value)
-
-    if frequency == 'monthly':
-        next_month = end_date.month + 1
-        target_year = end_date.year
-        if next_month > 12:
-            next_month = 1
-            target_year += 1
-        target_date = _safe_date_in_month(target_year, next_month, int(rule.get('day', 5)))
-        return datetime.datetime.combine(target_date, time_value)
-
-    if frequency == 'quarterly':
-        current_quarter = ((end_date.month - 1) // 3) + 1
-        next_quarter_start_month = current_quarter * 3 + 1
-        target_year = end_date.year
-        if next_quarter_start_month > 12:
-            next_quarter_start_month = 1
-            target_year += 1
-        month_in_quarter = max(1, min(3, int(rule.get('month', 1))))
-        target_month = next_quarter_start_month + month_in_quarter - 1
-        target_date = _safe_date_in_month(target_year, target_month, int(rule.get('day', 5)))
-        return datetime.datetime.combine(target_date, time_value)
-
-    if frequency == 'yearly':
-        target_year = end_date.year + 1
-        target_month = max(1, min(12, int(rule.get('month', 1))))
-        target_date = _safe_date_in_month(target_year, target_month, int(rule.get('day', 15)))
-        return datetime.datetime.combine(target_date, time_value)
-
-    return None
 
 
 def _slugify_field_code(text):
@@ -422,6 +405,266 @@ def _normalize_header_text(text):
     ascii_text = normalized.encode('ascii', 'ignore').decode('utf-8').upper()
     ascii_text = re.sub(r'[^A-Z0-9]+', ' ', ascii_text)
     return ' '.join(ascii_text.split())
+
+
+def _parse_row_list(raw_value):
+    if raw_value is None:
+        return []
+    numbers = []
+    for part in re.split(r'[\s,;]+', str(raw_value).strip()):
+        if not part:
+            continue
+        try:
+            numbers.append(int(part))
+        except ValueError:
+            continue
+    return sorted(set(num for num in numbers if num > 0))
+
+
+def _load_template_scan(excel_blob):
+    from pc06_excel_scanner import scan_excel_structure
+    return scan_excel_structure(excel_blob)
+
+
+def _build_effective_structure(scan_result, manual_override=None):
+    scan_result = dict(scan_result or {})
+    manual_override = manual_override or {}
+    structure = {
+        'sheet_name': scan_result.get('sheet_name'),
+        'used_range': scan_result.get('used_range'),
+        'columns': scan_result.get('columns', []),
+        'visible_columns': scan_result.get('visible_columns', scan_result.get('columns', [])),
+        'hidden_columns': scan_result.get('hidden_columns', []),
+        'merged_cells': scan_result.get('merged_cells', []),
+        'headers': scan_result.get('headers', {}),
+        'numeric_columns': scan_result.get('numeric_columns', []),
+        'formulas': scan_result.get('formulas', {}),
+        'title_rows': manual_override.get('title_rows', scan_result.get('title_rows', [])),
+        'header_rows': manual_override.get('header_rows', scan_result.get('header_rows', [])),
+        'helper_rows': manual_override.get('helper_rows', scan_result.get('helper_rows', [])),
+        'summary_rows': manual_override.get('summary_rows', scan_result.get('summary_rows', [])),
+        'data_start_row': int(manual_override.get('data_start_row') or scan_result.get('data_start_row') or 2),
+        'unit_column': (manual_override.get('unit_column') or scan_result.get('unit_column') or 'B').strip().upper(),
+    }
+    return structure
+
+
+def _update_version_structure_metadata(version, scan_result, manual_override=None):
+    metadata = json.loads(version.metadata_json) if version.metadata_json else {}
+    metadata['scan_result'] = scan_result or {}
+    metadata['manual_override'] = manual_override or {}
+    effective = _build_effective_structure(scan_result, manual_override)
+    metadata['effective_structure'] = effective
+    metadata['header_rows'] = max(effective.get('header_rows') or [1])
+    metadata['data_start_row'] = effective.get('data_start_row', 2)
+    metadata['scan_summary'] = {
+        'sheet_name': effective.get('sheet_name'),
+        'title_rows': effective.get('title_rows', []),
+        'header_rows': effective.get('header_rows', []),
+        'helper_rows': effective.get('helper_rows', []),
+        'summary_rows': effective.get('summary_rows', []),
+        'data_start_row': effective.get('data_start_row', 2),
+        'unit_column': effective.get('unit_column', 'B'),
+        'used_range': effective.get('used_range'),
+        'status': 'parsed'
+    }
+    version.metadata_json = json.dumps(metadata, ensure_ascii=False)
+    return metadata, effective
+
+
+def _get_structure_header_text(structure, row_number, col_letter):
+    c_idx = column_index_from_string(col_letter)
+    for m in structure.get('merged_cells', []):
+        m_r = m['row']
+        m_rs = m.get('rowspan', 1)
+        m_cs = column_index_from_string(m['col_start'])
+        m_ce = column_index_from_string(m['col_end'])
+        if m_r <= row_number < m_r + m_rs and m_cs <= c_idx <= m_ce:
+            return str(m['value']).strip() if m['value'] else ""
+
+    headers = structure.get('headers', {})
+    row_key = row_number if row_number in headers else str(row_number)
+    if row_key in headers and col_letter in headers[row_key]:
+        val = headers[row_key][col_letter]
+        return str(val).strip() if val else ""
+    return ""
+
+
+def _collect_detail_rows(worksheet, structure):
+    data_start_row = int(structure.get('data_start_row') or 2)
+    unit_col = structure.get('unit_column') or 'B'
+    unit_col_idx = column_index_from_string(unit_col)
+    detail_rows = []
+    for row_idx in range(data_start_row, min(data_start_row + 60, worksheet.max_row + 1)):
+        first_value = worksheet.cell(row=row_idx, column=1).value
+        unit_value = worksheet.cell(row=row_idx, column=unit_col_idx).value
+        unit_text = str(unit_value).strip().lower() if unit_value is not None else ''
+        if not unit_text:
+            continue
+        if 'đơn vị' == unit_text or 'tên đơn vị' in unit_text:
+            continue
+        if any(token in unit_text for token in ('toàn tỉnh', 'tổng', 'cộng')):
+            continue
+        if isinstance(first_value, (int, float)) and len(unit_text) >= 2:
+            detail_rows.append(row_idx)
+    if not detail_rows:
+        detail_rows = list(range(data_start_row, min(data_start_row + 24, worksheet.max_row + 1)))
+    return detail_rows
+
+
+def _detect_column_formula_mode(worksheet, detail_rows, col_letter):
+    col_idx = column_index_from_string(col_letter)
+    literal_found = False
+    formula_found = False
+
+    for row_idx in detail_rows[:24]:
+        cell = worksheet.cell(row=row_idx, column=col_idx)
+        cell_value = cell.value
+        if cell_value is None or str(cell_value).strip() == '':
+            continue
+        if isinstance(cell_value, str) and cell_value.startswith('='):
+            formula_found = True
+        elif cell.data_type == 'f':
+            formula_found = True
+        else:
+            literal_found = True
+        if literal_found and formula_found:
+            break
+
+    if formula_found and not literal_found:
+        return 'formula_only'
+    if formula_found:
+        return 'mixed'
+    return 'literal_only'
+
+
+def _draft_fields_from_structure(excel_blob, structure):
+    workbook = load_workbook(BytesIO(excel_blob), data_only=False)
+    worksheet = workbook.active
+    all_columns = structure.get('visible_columns', structure.get('columns', []))
+    hidden_columns = set(structure.get('hidden_columns', []))
+    header_rows = sorted(structure.get('header_rows', []))
+    detail_rows = _collect_detail_rows(worksheet, structure)
+
+    skip_columns = set()
+    skip_keywords = {
+        'STT', 'TT', 'SO TT', 'SO THU TU',
+        'DON VI', 'TEN DON VI', 'TEN DON VI HANH CHINH', 'DON VI HANH CHINH'
+    }
+    skip_fragments = ['DON VI', 'HANH CHINH', 'DIA PHUONG', 'DIA BAN']
+
+    for col_letter in all_columns:
+        if col_letter in hidden_columns:
+            continue
+        normalized_chain = [
+            _normalize_header_text(_get_structure_header_text(structure, row_idx, col_letter))
+            for row_idx in header_rows
+        ]
+        normalized_chain = [item for item in normalized_chain if item]
+        if any(item in skip_keywords for item in normalized_chain) or any(
+            any(fragment in item for fragment in skip_fragments) for item in normalized_chain
+        ):
+            skip_columns.add(col_letter)
+
+    drafts = []
+    seen_codes = set()
+    order = 1
+    for col_letter in all_columns:
+        if col_letter in hidden_columns or col_letter in skip_columns:
+            continue
+        parts = []
+        for row_idx in header_rows:
+            text = _get_structure_header_text(structure, row_idx, col_letter)
+            if not text:
+                continue
+            text_str = str(text).strip()
+            if text_str.startswith('='):
+                continue
+            if text_str and text_str not in parts:
+                parts.append(text_str)
+        if not parts:
+            continue
+
+        section = 'Thông tin chung' if len(parts) == 1 else ' / '.join(parts[:-1])
+        field_name = parts[0] if len(parts) == 1 else parts[-1]
+        field_code = _slugify_field_code(field_name) or f'col_{col_letter.lower()}'
+        original_code = field_code
+        counter = 1
+        while field_code in seen_codes:
+            field_code = f'{original_code}_{counter}'
+            counter += 1
+        seen_codes.add(field_code)
+
+        is_numeric = col_letter in structure.get('numeric_columns', [])
+        formula_mode = _detect_column_formula_mode(worksheet, detail_rows, col_letter)
+        drafts.append({
+            'field_code': field_code,
+            'field_name': field_name,
+            'field_type': 'number' if is_numeric else 'text',
+            'data_type': 'number' if is_numeric else 'string',
+            'is_calculated': formula_mode == 'formula_only',
+            'is_readonly': formula_mode == 'formula_only',
+            'display_order': order,
+            'section': section,
+            'excel_cell_ref': col_letter,
+            'header_path': parts,
+            'formula_mode': formula_mode,
+        })
+        order += 1
+
+    return drafts
+
+
+def _rebuild_fields_from_structure(version, excel_blob, structure):
+    FormField.query.filter_by(version_id=version.id).delete(synchronize_session=False)
+    drafts = _draft_fields_from_structure(excel_blob, structure)
+    if drafts:
+        db.session.add_all([
+            FormField(
+                version_id=version.id,
+                field_code=item['field_code'],
+                field_name=item['field_name'],
+                field_type=item['field_type'],
+                data_type=item['data_type'],
+                is_required=False,
+                is_readonly=item['is_readonly'],
+                is_calculated=item['is_calculated'],
+                display_order=item['display_order'],
+                section=item['section'],
+                excel_cell_ref=item['excel_cell_ref']
+            )
+            for item in drafts
+        ])
+    return drafts
+
+
+def _build_structure_preview(excel_blob, structure, max_rows=22, max_cols=12):
+    workbook = load_workbook(BytesIO(excel_blob), data_only=False)
+    worksheet = workbook.active
+    effective_max_row = min(worksheet.max_row or 1, max_rows)
+    effective_max_col = min(worksheet.max_column or 1, max_cols)
+    row_role_map = {}
+    for role_name in ('title', 'header', 'helper', 'summary'):
+        for row_idx in structure.get(f'{role_name}_rows', []):
+            row_role_map[row_idx] = role_name
+
+    preview_rows = []
+    for row_idx in range(1, effective_max_row + 1):
+        cells = []
+        for col_idx in range(1, effective_max_col + 1):
+            value = worksheet.cell(row=row_idx, column=col_idx).value
+            cells.append('' if value is None else str(value).replace('\n', ' '))
+        row_role = row_role_map.get(row_idx, 'data' if row_idx >= int(structure.get('data_start_row') or 2) else '')
+        preview_rows.append({
+            'row_index': row_idx,
+            'role': row_role,
+            'cells': cells
+        })
+    return {
+        'sheet_name': worksheet.title,
+        'col_letters': [get_column_letter(idx) for idx in range(1, effective_max_col + 1)],
+        'rows': preview_rows
+    }
 
 
 def _user_display_label(user, fallback=''):
@@ -470,10 +713,7 @@ def dashboard():
     # Thống kê biểu mẫu
     total_templates = FormTemplate.query.count()
     active_templates = FormTemplate.query.filter_by(is_active=True).count()
-
-    # Thống kê kỳ báo cáo
-    total_periods = ReportingPeriod.query.count()
-    active_periods = ReportingPeriod.query.filter_by(is_locked=False).count()
+    configured_templates = FormTemplate.query.filter(FormTemplate.report_type.isnot(None)).count()
 
     # Thống kê báo cáo đã nộp
     total_reports = ReportInstance.query.count()
@@ -500,8 +740,7 @@ def dashboard():
         'reporting/dashboard.html',
         total_templates=total_templates,
         active_templates=active_templates,
-        total_periods=total_periods,
-        active_periods=active_periods,
+        configured_templates=configured_templates,
         total_reports=total_reports,
         submitted_reports=submitted_reports,
         draft_reports=draft_reports,
@@ -511,45 +750,29 @@ def dashboard():
 
 @reporting_bp.route('/')
 def index():
-    """Trang chủ hệ thống báo cáo - chỉ hiển thị danh sách mẫu biểu"""
+    """Trang chủ hệ thống báo cáo - danh sách biểu mẫu tối giản theo vai trò."""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
 
-    from category_helpers import get_module_field_items, get_category_items
-
+    _, is_admin, is_lead = _get_reporting_permissions()
     templates = FormTemplate.query.filter_by(is_active=True).order_by(FormTemplate.name.asc()).all()
-    open_periods = ReportingPeriod.query.filter(
-        ReportingPeriod.template_id.isnot(None),
-        ReportingPeriod.is_locked.is_(False)
-    ).all()
-
-    department_items = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
-    fixed_department_names = [item.name for item in department_items if getattr(item, 'name', None)]
-
-    period_map = {}
-    for period in open_periods:
-        if not period.template_id:
-            continue
-        current = period_map.get(period.template_id)
-        period_deadline = period.deadline or datetime.datetime.max
-        current_deadline = (current.deadline if current and current.deadline else datetime.datetime.max)
-        if current is None or period_deadline < current_deadline:
-            period_map[period.template_id] = period
 
     template_entries = []
-    department_map = {}
-    visible_templates = []
     for template in templates:
         department_name = (template.department or '').strip()
         if not department_name or department_name.lower() == 'chưa phân đội':
             continue
 
-        current_period = period_map.get(template.id)
-        deadline_dt = current_period.deadline if current_period else None
+        try:
+            current_context = form_engine.get_reporting_context(template) if template.report_type else None
+        except Exception:
+            current_context = None
+
+        deadline_dt = current_context.get('deadline') if current_context else None
         deadline_label = deadline_dt.strftime('%d/%m/%Y %H:%M') if deadline_dt else _format_schedule_summary(template)
-        period_label = current_period.name if current_period else None
+        period_label = current_context.get('name') if current_context else None
         report_type_label = _format_report_type_label(template)
-        schedule_label = f"Hạn nộp {deadline_label}" if deadline_dt else deadline_label
+        schedule_label = _format_schedule_summary(template)
 
         entry = {
             'template': template,
@@ -561,48 +784,23 @@ def index():
             'report_type_label': report_type_label
         }
         template_entries.append(entry)
-        visible_templates.append(template)
 
-        bucket = department_map.setdefault(department_name, [])
-        bucket.append(entry)
-
-    department_dashboard = []
-    ordered_department_names = list(fixed_department_names)
-    for department_name in department_map.keys():
-        if department_name not in ordered_department_names and department_name != 'Chưa phân đội':
-            ordered_department_names.append(department_name)
-    for department_name in ordered_department_names:
-        entries = department_map.get(department_name, [])
-        sorted_entries = sorted(
-            entries,
-            key=lambda entry: (
-                entry['deadline_dt'] is None,
-                entry['deadline_dt'] or datetime.datetime.max,
-                entry['template'].name.lower()
-            )
+    template_entries = sorted(
+        template_entries,
+        key=lambda entry: (
+            entry['deadline_dt'] is None,
+            entry['deadline_dt'] or datetime.datetime.max,
+            entry['department_name'].lower(),
+            entry['template'].name.lower()
         )
-        department_dashboard.append({
-            'department_name': department_name,
-            'template_count': len(entries),
-            'entries': sorted_entries
-        })
-
-    department_hero_cards = [
-        {
-            'department_name': group['department_name'],
-            'template_count': group['template_count']
-        }
-        for group in department_dashboard
-    ][:5]
-    active_department_count = sum(1 for card in department_hero_cards if card['template_count'] > 0)
+    )
 
     return render_template(
         'reporting/index.html',
-        templates=visible_templates,
         template_entries=template_entries,
-        department_dashboard=department_dashboard,
-        department_hero_cards=department_hero_cards,
-        active_department_count=active_department_count
+        total_templates=len(template_entries),
+        is_reporting_admin=is_admin,
+        is_reporting_lead=is_lead
     )
 
 @reporting_bp.route('/template/upload', methods=['POST'])
@@ -646,6 +844,9 @@ def template_upload():
             code=code,
             name=template_name,
             department=department,
+            report_type=None,
+            frequency=None,
+            deadline_rule=None,
             excel_template_blob=excel_blob,
             is_active=True,
             created_by=session.get('uid')
@@ -658,7 +859,11 @@ def template_upload():
             'title': template_name,
             'header_rows': 1,
             'data_start_row': 2,
-            'sections': []
+            'sections': [],
+            'scan_summary': {
+                'field_count': 0,
+                'status': 'pending'
+            }
         }
         
         version = FormVersion(
@@ -672,169 +877,32 @@ def template_upload():
         db.session.add(version)
         db.session.flush()
 
-            # 3. Tự động parse các trường (FormField) từ Excel sử dụng thuật toán MVP
+        # 3. Tự động scan cấu trúc và sinh field nháp
         try:
-            from pc06_excel_scanner import scan_excel_structure
-            from openpyxl.utils import column_index_from_string
-
-            detected = scan_excel_structure(excel_blob)
-            
-            # Cập nhật metadata
-            header_rows_list = detected.get('header_rows', [1])
-            metadata['header_rows'] = max(header_rows_list) if header_rows_list else 1
-            metadata['data_start_row'] = detected.get('data_start_row', 2)
+            detected = _load_template_scan(excel_blob)
+            metadata, effective = _update_version_structure_metadata(version, detected, manual_override={})
+            drafts = _rebuild_fields_from_structure(version, excel_blob, effective)
+            metadata['scan_summary']['field_count'] = len(drafts)
+            if not drafts:
+                metadata['scan_summary']['status'] = 'empty'
+                metadata['scan_summary']['message'] = 'Không sinh được trường nào từ cấu trúc biểu mẫu.'
             version.metadata_json = json.dumps(metadata, ensure_ascii=False)
-            
-            # Helper function để lấy nội dung text cho 1 ô (xử lý gộp ô)
-            def get_header_text_for_cell(r, c_letter):
-                c_idx = column_index_from_string(c_letter)
-                for m in detected.get('merged_cells', []):
-                    m_r = m['row']
-                    m_rs = m.get('rowspan', 1)
-                    m_cs = column_index_from_string(m['col_start'])
-                    m_ce = column_index_from_string(m['col_end'])
-                    if m_r <= r < m_r + m_rs and m_cs <= c_idx <= m_ce:
-                        return str(m['value']).strip() if m['value'] else ""
-                
-                headers = detected.get('headers', {})
-                if r in headers and c_letter in headers[r]:
-                    val = headers[r][c_letter]
-                    return str(val).strip() if val else ""
-                return ""
 
-            # Tạo field với logic linh hoạt cho mọi biểu mẫu
-            fields = []
-            order = 1
-            all_columns = detected.get('visible_columns', detected.get('columns', []))
-            hidden_columns = set(detected.get('hidden_columns', []))
-            total_cols = detected.get('total_cols', len(all_columns))
-            
-            def is_title_row(row_number):
-                row_parts = []
-                dominant_merge = None
-                for m in detected.get('merged_cells', []):
-                    if m['row'] == row_number and m.get('colspan', 1) >= max(4, int(total_cols * 0.8)):
-                        dominant_merge = m
-                        break
-
-                for col_letter in all_columns:
-                    text = get_header_text_for_cell(row_number, col_letter)
-                    text_str = str(text).strip() if text else ""
-                    if text_str and text_str not in row_parts:
-                        row_parts.append(text_str)
-
-                return bool(dominant_merge and len(row_parts) <= 1)
-
-            # Lọc bỏ các dòng title tổng quát, giữ lại các hàng header nhóm/cột thực tế
-            real_header_rows = []
-            for r in sorted(detected.get('header_rows', [])):
-                if not is_title_row(r):
-                    real_header_rows.append(r)
-
-            if not real_header_rows:
-                real_header_rows = sorted(detected.get('header_rows', []))
-
-            # Tìm các cột cần BỎ QUA (STT, đơn vị, tên đơn vị...)
-            skip_columns = set()
-            skip_keywords = {
-                'STT', 'TT', 'SO TT', 'SO THU TU',
-                'DON VI', 'TEN DON VI', 'TEN DON VI HANH CHINH', 'DON VI HANH CHINH'
-            }
-            skip_fragments = ['DON VI', 'HANH CHINH', 'DIA PHUONG', 'DIA BAN']
-            
-            for col_letter in all_columns:
-                if col_letter in hidden_columns:
-                    continue
-                # Kiểm tra TẤT CẢ các dòng header
-                should_skip = False
-                for r in real_header_rows:
-                    normalized_text = _normalize_header_text(get_header_text_for_cell(r, col_letter))
-                    if normalized_text in skip_keywords or any(fragment in normalized_text for fragment in skip_fragments):
-                        should_skip = True
-                        break
-                if should_skip:
-                    skip_columns.add(col_letter)
-            
-            # Quét tất cả các cột (trừ cột skip)
-            for col_letter in all_columns:
-                if col_letter in hidden_columns:
-                    continue
-                if col_letter in skip_columns:
-                    continue
-                
-                parts = []
-                for r in real_header_rows:
-                    text = get_header_text_for_cell(r, col_letter)
-                    # Bỏ qua công thức và giá trị số
-                    if text:
-                        text_str = str(text).strip()
-                        # Bỏ qua nếu là công thức hoặc số
-                        if text_str.startswith('=') or (isinstance(text, (int, float))):
-                            continue
-                        if text_str and text_str not in parts:
-                            parts.append(text_str)
-                
-                # Nếu không có header hợp lệ thì bỏ qua
-                if not parts:
-                    continue
-
-                is_formula = col_letter in detected.get('formulas', {})
-                if is_formula:
-                    continue
-                
-                # Logic linh hoạt:
-                # - Nếu chỉ có 1 header: section = "Thông tin chung", field = header đó
-                # - Nếu có >= 2 headers: section = header gần cuối, field = header cuối
-                if len(parts) == 1:
-                    section = 'Thông tin chung'
-                    field_name = parts[0]
-                elif len(parts) >= 2:
-                    section = ' / '.join(parts[:-1])
-                    field_name = parts[-1]  # Dòng header cuối cùng
-                else:
-                    continue
-                    
-                field_code = _slugify_field_code(field_name) or f"col_{col_letter.lower()}"
-
-                # Tránh trùng lặp code
-                original_code = field_code
-                counter = 1
-                while any(f.field_code == field_code for f in fields):
-                    field_code = f"{original_code}_{counter}"
-                    counter += 1
-                    
-                # Phân tích kiểu dữ liệu từ MVP scanner
-                is_numeric = col_letter in detected.get('numeric_columns', [])
-                data_type = 'number' if is_numeric else 'string'
-
-                field = FormField(
-                    version_id=version.id,
-                    field_code=field_code,
-                    field_name=field_name,
-                    field_type='number' if is_numeric else 'text',
-                    data_type=data_type,
-                    is_required=False,
-                    display_order=order,
-                    section=section,
-                    excel_cell_ref=col_letter
-                )
-                    
-                fields.append(field)
-                order += 1
-
-            if fields:
-                db.session.add_all(fields)
-            
         except Exception as parse_e:
             import traceback
             traceback.print_exc()
             print(f"Lỗi parse excel fields: {parse_e}")
-            pass
+            current_metadata = json.loads(version.metadata_json) if version.metadata_json else metadata
+            current_metadata.setdefault('scan_summary', {})
+            current_metadata['scan_summary']['status'] = 'error'
+            current_metadata['scan_summary']['message'] = str(parse_e)
+            version.metadata_json = json.dumps(current_metadata, ensure_ascii=False)
 
+        submission_service.ensure_version_config(template, version, force=True)
         db.session.commit()
 
         flash(f'Tạo thành công biểu mẫu: {template_name}', 'success')
-        return redirect(url_for('reporting_bp.index'))
+        return redirect(url_for('reporting_bp.template_structure', template_id=template.id, first_setup=1))
 
     except Exception as e:
         db.session.rollback()
@@ -844,128 +912,166 @@ def template_upload():
 
 @reporting_bp.route('/template/<int:template_id>/workspace')
 def template_workspace(template_id):
-    """Không gian làm việc theo từng biểu mẫu"""
-    if not session.get('uid'):
-        return redirect(url_for('auth_bp.login'))
-
-    _, is_admin, is_lead = _get_reporting_permissions()
-    template = FormTemplate.query.get_or_404(template_id)
-    periods = ReportingPeriod.query.filter(
-        or_(ReportingPeriod.template_id == template_id, ReportingPeriod.template_id == None)
-    ).order_by(ReportingPeriod.start_date.desc()).all()
-
-    user_unit = session.get('unit_area', session.get('unit', ''))
-    report_query = ReportInstance.query.filter_by(template_id=template_id)
-    if not is_admin:
-        report_query = report_query.filter(ReportInstance.org_unit == user_unit)
-
-    reports = report_query.order_by(ReportInstance.updated_at.desc()).limit(20).all()
-    _attach_report_display_names(reports)
-    latest_report = reports[0] if reports else None
-
-    return render_template(
-        'reporting/template_workspace.html',
-        template=template,
-        periods=periods,
-        reports=reports,
-        latest_report=latest_report,
-        active_period_count=sum(1 for period in periods if not period.is_locked),
-        schedule_summary=_format_schedule_summary(template),
-        is_reporting_admin=is_admin,
-        is_reporting_lead=is_lead
-    )
+    """Legacy entrypoint: workspace view was removed in favor of the template list."""
+    flash('Không còn giao diện nội bộ biểu mẫu. Vui lòng thao tác trực tiếp từ danh sách biểu mẫu.', 'info')
+    return redirect(url_for('reporting_bp.index'))
 
 
 @reporting_bp.route('/form/<int:template_id>')
 def select_period(template_id):
-    """Chọn kỳ báo cáo"""
+    """Điểm vào báo cáo: chuyển thẳng sang form của chu kỳ hiện tại."""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
 
     if session.get('is_admin'):
         flash('Tài khoản quản trị không nhập liệu trực tiếp. Vui lòng dùng tài khoản đơn vị để nhập báo cáo.', 'warning')
         return redirect(url_for('reporting_bp.index'))
-    
+
+    return redirect(url_for('reporting_bp.fill_form_direct', template_id=template_id))
+
+
+@reporting_bp.route('/form/<int:template_id>/edit')
+def fill_form_direct(template_id):
+    """Trang nhập liệu trực tiếp trên phần mềm."""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    if session.get('is_admin'):
+        flash('Tài khoản quản trị không nhập liệu trực tiếp. Vui lòng dùng tài khoản đơn vị để nhập báo cáo.', 'warning')
+        return redirect(url_for('reporting_bp.index'))
+
+    user_id = session.get('uid')
+    user_unit = session.get('unit_area', session.get('unit', ''))
     template = FormTemplate.query.get_or_404(template_id)
-    periods = ReportingPeriod.query.filter(
-        or_(ReportingPeriod.template_id == template_id, ReportingPeriod.template_id == None),
-        ReportingPeriod.is_locked == False
-    ).order_by(ReportingPeriod.start_date.desc()).all()
-    
-    return render_template('reporting/select_period.html',
-                          template=template,
-                          periods=periods)
+    report_type = (template.report_type or '').strip().lower()
+    if report_type not in {'adhoc', 'daily', 'periodic'}:
+        flash('Biểu mẫu chưa được cấu hình loại báo cáo.', 'warning')
+        return redirect(url_for('reporting_bp.index'))
+
+    instance = form_engine.create_report_instance_for_context(
+        template_id=template_id,
+        user_id=user_id,
+        org_unit=user_unit
+    )
+    report_data = form_engine.get_report_data(instance.id)
+    version = submission_service.get_published_version(template_id)
+    config = submission_service.ensure_version_config(instance.template, version)
+    report_context = form_engine.get_reporting_context(template)
+
+    return render_template(
+        'reporting/fill_form.html',
+        report_data=report_data,
+        instance=instance,
+        template_id=template_id,
+        period=instance.period,
+        report_context=report_context,
+        template_config=config
+    )
 
 
 @reporting_bp.route('/form/<int:template_id>/period/<int:period_id>')
 def fill_form(template_id, period_id):
-    """Trang nhập liệu"""
-    if not session.get('uid'):
-        return redirect(url_for('auth_bp.login'))
-
-    if session.get('is_admin'):
-        flash('Tài khoản quản trị không nhập liệu trực tiếp. Vui lòng dùng tài khoản đơn vị để nhập báo cáo.', 'warning')
-        return redirect(url_for('reporting_bp.index'))
-    
-    user_id = session.get('uid')
-    user_unit = session.get('unit_area', session.get('unit', ''))
-    
-    # Tạo hoặc lấy report instance
-    instance = form_engine.create_report_instance(
-        template_id=template_id,
-        period_id=period_id,
-        user_id=user_id,
-        org_unit=user_unit
-    )
-    _refresh_report_calculations(instance)
-    
-    # Lấy dữ liệu
-    report_data = form_engine.get_report_data(instance.id)
-    
-    return render_template('reporting/fill_form.html',
-                          report_data=report_data,
-                          instance=instance,
-                          template_id=template_id)
+    """Legacy route: redirect sang form trực tiếp."""
+    return redirect(url_for('reporting_bp.fill_form_direct', template_id=template_id))
 
 
 @reporting_bp.route('/form/<int:template_id>/period/<int:period_id>/desktop')
 def fill_form_desktop(template_id, period_id):
-    """Desktop beta: mở báo cáo theo giao diện Excel-like"""
+    """Giao diện Excel-like chỉ dùng để xem báo cáo, không dùng nhập liệu."""
+    flash('Giao diện Excel-like chỉ còn dùng cho màn hình xem báo cáo.', 'info')
+    return redirect(url_for('reporting_bp.fill_form', template_id=template_id, period_id=period_id))
+
+
+@reporting_bp.route('/submission/<int:submission_id>')
+def view_submission(submission_id):
+    """Xem chi tiết một lần nộp báo cáo Excel."""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
 
-    if session.get('is_admin'):
-        flash('Tài khoản quản trị không nhập liệu trực tiếp. Vui lòng dùng tài khoản đơn vị để nhập báo cáo.', 'warning')
+    submission, denied = _load_authorized_submission(submission_id)
+    if denied:
+        flash('Bạn không có quyền xem báo cáo này.', 'danger')
         return redirect(url_for('reporting_bp.index'))
 
-    if g.get('is_mobile'):
-        return redirect(url_for('reporting_bp.fill_form', template_id=template_id, period_id=period_id))
-
-    user_id = session.get('uid')
-    user_unit = session.get('unit_area', session.get('unit', ''))
-    instance = form_engine.create_report_instance(
-        template_id=template_id,
-        period_id=period_id,
-        user_id=user_id,
-        org_unit=user_unit
-    )
-    _refresh_report_calculations(instance)
-    report_data = form_engine.get_report_data(instance.id)
-    if not instance.template.excel_template_blob:
-        flash('Biểu mẫu chưa có file Excel gốc để mở dạng bảng.', 'warning')
-        return redirect(url_for('reporting_bp.fill_form', template_id=template_id, period_id=period_id))
-
-    excel_context = _build_excel_like_rows(instance)
-    if excel_context['target_row'] is None and any(field.excel_cell_ref and re.match(r'^[A-Za-z]+$', str(field.excel_cell_ref).strip()) for field in FormField.query.filter_by(version_id=instance.version_id).all()):
-        flash('Không tìm thấy dòng đơn vị trong file Excel để gắn cột nhập liệu.', 'warning')
+    try:
+        detail = submission_service.get_submission_detail(submission_id)
+        preview_bytes = submission_service.read_submission_file_bytes(submission, prefer_processed=True)
+        preview_context = submission_service.build_preview_context(preview_bytes)
+    except Exception as exc:
+        flash(f'Không thể hiển thị chi tiết báo cáo: {exc}', 'danger')
+        return redirect(url_for('reporting_bp.index'))
 
     return render_template(
-        'reporting/desktop_spreadsheet_editor.html',
-        instance=instance,
-        report_data=report_data,
-        excel_context=excel_context,
-        template_id=template_id,
+        'reporting/submission_detail.html',
+        detail=detail,
+        preview_context=preview_context,
+        can_submit=submission.status in {submission_service.STATUS_DRAFT, submission_service.STATUS_RETURNED},
+        can_review=session.get('is_admin'),
+        can_approve=session.get('is_admin'),
     )
+
+
+@reporting_bp.route('/submission/<int:submission_id>/workflow/<action>', methods=['POST'])
+def submission_workflow(submission_id, action):
+    """Workflow cho lần nộp báo cáo."""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    submission, denied = _load_authorized_submission(submission_id, write=True)
+    if denied:
+        flash('Bạn không có quyền thao tác báo cáo này.', 'danger')
+        return redirect(url_for('reporting_bp.index'))
+
+    _, is_admin, is_lead = _get_reporting_permissions()
+    actor_id = session.get('uid')
+    comment = (request.form.get('comment') or '').strip() or None
+
+    if action != 'submit' and not (is_admin or is_lead):
+        flash('Bạn không có quyền thực hiện thao tác workflow này.', 'danger')
+        return redirect(url_for('reporting_bp.view_submission', submission_id=submission_id))
+
+    try:
+        submission_service.transition_submission(submission.id, action, actor_id, comment=comment)
+        flash('Đã cập nhật trạng thái báo cáo.', 'success')
+    except Exception as exc:
+        db.session.rollback()
+        flash(f'Lỗi workflow: {exc}', 'danger')
+    return redirect(url_for('reporting_bp.view_submission', submission_id=submission_id))
+
+
+@reporting_bp.route('/submission/<int:submission_id>/download/<kind>')
+def download_submission_file(submission_id, kind):
+    """Tải file gốc, file lỗi hoặc file đã xử lý."""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    submission, denied = _load_authorized_submission(submission_id)
+    if denied:
+        flash('Bạn không có quyền tải file này.', 'danger')
+        return redirect(url_for('reporting_bp.index'))
+
+    file_map = {
+        'original': submission.original_file_path,
+        'processed': submission.processed_file_path,
+        'error': submission.error_file_path,
+    }
+    file_path = file_map.get(kind)
+    if not file_path:
+        flash('Không có file tương ứng để tải xuống.', 'warning')
+        return redirect(url_for('reporting_bp.view_submission', submission_id=submission_id))
+
+    try:
+        file_bytes = BytesIO(open(file_path, 'rb').read())
+        file_bytes.seek(0)
+        safe_name = re.sub(r'[^A-Za-z0-9._-]+', '_', submission.original_filename or f'submission_{submission.id}.xlsx').strip('_') or f'submission_{submission.id}.xlsx'
+        prefix = {'original': 'original', 'processed': 'processed', 'error': 'errors'}.get(kind, kind)
+        response = make_response(file_bytes.getvalue())
+        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response.headers['Content-Disposition'] = f'attachment; filename="{prefix}_{safe_name}"'
+        return response
+    except Exception as exc:
+        flash(f'Lỗi tải file: {exc}', 'danger')
+        return redirect(url_for('reporting_bp.view_submission', submission_id=submission_id))
 
 
 @reporting_bp.route('/report/<int:instance_id>')
@@ -979,12 +1085,18 @@ def view_report(instance_id):
         flash('Bạn không có quyền xem báo cáo của đơn vị khác.', 'danger')
         return redirect(url_for('reporting_bp.index'))
 
-    _refresh_report_calculations(instance)
     report_data = form_engine.get_report_data(instance.id)
+    excel_context = None
+    if instance.template.excel_template_blob:
+        try:
+            excel_context = _build_excel_like_rows(instance)
+        except Exception as exc:
+            flash(f'Không thể dựng giao diện Excel từ biểu mẫu: {exc}', 'warning')
     
     return render_template('reporting/view_report.html',
                           report_data=report_data,
-                          instance=instance)
+                          instance=instance,
+                          excel_context=excel_context)
 
 
 @reporting_bp.route('/report/<int:instance_id>/export')
@@ -1002,7 +1114,6 @@ def export_report(instance_id):
             flash('Bạn không có quyền xuất báo cáo của đơn vị khác.', 'danger')
             return redirect(url_for('reporting_bp.index'))
 
-        _refresh_report_calculations(instance)
         output, filename = exporter.export_to_excel_bytes(instance.id)
         file_bytes = output.getvalue()
 
@@ -1027,24 +1138,15 @@ def template_statistics(template_id):
     _, is_admin, is_lead = _get_reporting_permissions()
     if not (is_admin or is_lead):
         flash('Bạn không có quyền truy cập chức năng này.', 'danger')
-        return redirect(url_for('reporting_bp.template_workspace', template_id=template_id))
+        return redirect(url_for('reporting_bp.index'))
 
     template = FormTemplate.query.get_or_404(template_id)
-    
-    # Lấy kỳ báo cáo gần nhất của biểu mẫu
-    period = ReportingPeriod.query.filter(
-        or_(ReportingPeriod.template_id == template_id, ReportingPeriod.template_id == None),
-        ReportingPeriod.is_locked == False
-    ).order_by(ReportingPeriod.start_date.desc()).first()
-    
-    if not period:
-        period = ReportingPeriod.query.filter(
-            or_(ReportingPeriod.template_id == template_id, ReportingPeriod.template_id == None)
-        ).order_by(ReportingPeriod.start_date.desc()).first()
-        
-    if not period:
-        flash('Chưa có kỳ báo cáo nào được tạo.', 'warning')
-        return redirect(url_for('reporting_bp.template_workspace', template_id=template_id))
+    if not template.report_type:
+        flash('Biểu mẫu chưa được cấu hình loại báo cáo.', 'warning')
+        return redirect(url_for('reporting_bp.index'))
+
+    period = form_engine.resolve_internal_period(template_id)
+    context = form_engine.get_reporting_context(template)
 
     # Lấy tất cả đơn vị
     from models import User
@@ -1066,45 +1168,48 @@ def template_statistics(template_id):
     
     stats_list = []
     now = datetime.datetime.now()
-    deadline_dt = period.deadline  # datetime
-    deadline_date = period.end_date # date fallback
+    deadline_dt = context.get('deadline')
+    report_type = (template.report_type or '').strip().lower()
     
     for unit in all_units:
         report = submitted_units_map.get(unit)
         if report:
-            is_late = False
-            if deadline_dt:
-                if report.updated_at > deadline_dt:
-                    is_late = True
-            elif deadline_date and report.updated_at.date() > deadline_date:
-                is_late = True
-            
+            submitted_at = report.submitted_at or report.updated_at
+            if report_type == 'daily':
+                status_group = 'Đã báo cáo'
+                status_detail = 'Đã báo cáo hôm nay'
+            else:
+                is_late = bool(deadline_dt and submitted_at and submitted_at > deadline_dt)
+                status_group = 'Đã nộp'
+                status_detail = 'Đã nộp (Quá hạn)' if is_late else 'Đã nộp (Đúng hạn)'
+
             stats_list.append({
                 'unit': unit,
-                'status_group': 'Đã nộp',
-                'status_detail': 'Đã nộp (Quá hạn)' if is_late else 'Đã nộp (Đúng hạn)',
+                'status_group': status_group,
+                'status_detail': status_detail,
                 'report_id': report.id,
-                'updated_at': report.updated_at
+                'updated_at': submitted_at
             })
         else:
-            is_late_now = False
-            if deadline_dt:
-                if now > deadline_dt:
-                    is_late_now = True
-            elif deadline_date and now.date() > deadline_date:
-                is_late_now = True
-                
+            if report_type == 'daily':
+                status_group = 'Chưa báo cáo'
+                status_detail = 'Chưa báo cáo hôm nay'
+            else:
+                is_late_now = bool(deadline_dt and now > deadline_dt)
+                status_group = 'Chưa nộp'
+                status_detail = 'Chưa nộp (Quá hạn)' if is_late_now else 'Chưa nộp'
+
             stats_list.append({
                 'unit': unit,
-                'status_group': 'Chưa nộp',
-                'status_detail': 'Chưa nộp (Quá hạn)' if is_late_now else 'Chưa nộp',
+                'status_group': status_group,
+                'status_detail': status_detail,
                 'report_id': None,
                 'updated_at': None
             })
             
     # Tính toán tổng quan
     total = len(stats_list)
-    submitted = sum(1 for s in stats_list if s['status_group'] == 'Đã nộp')
+    submitted = sum(1 for s in stats_list if s['status_group'] in {'Đã nộp', 'Đã báo cáo'})
     not_submitted = total - submitted
     on_time = sum(1 for s in stats_list if s['status_detail'] == 'Đã nộp (Đúng hạn)')
     late = sum(1 for s in stats_list if 'Quá hạn' in s['status_detail'])
@@ -1121,6 +1226,7 @@ def template_statistics(template_id):
     return render_template('reporting/template_statistics.html', 
                            template=template, 
                            period=period, 
+                           report_context=context,
                            stats_list=stats_list,
                            summary=summary,
                            schedule_summary=_format_schedule_summary(template))
@@ -1326,12 +1432,112 @@ def preview_template(template_id):
         return redirect(url_for('reporting_bp.index'))
 
 
+@reporting_bp.route('/template/<int:template_id>/download')
+def download_template(template_id):
+    """Tải file Excel mẫu gốc."""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    template = FormTemplate.query.get_or_404(template_id)
+    if not template.excel_template_blob:
+        flash('Biểu mẫu chưa có file Excel gốc để tải xuống.', 'warning')
+        return redirect(url_for('reporting_bp.index'))
+
+    safe_name = re.sub(r'[^A-Za-z0-9._-]+', '_', template.name or 'template').strip('_') or 'template'
+    filename = f"{safe_name}.xlsx"
+    file_bytes = bytes(template.excel_template_blob)
+    response = make_response(file_bytes)
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.headers['Content-Length'] = str(len(file_bytes))
+    return response
+
+
+@reporting_bp.route('/template/<int:template_id>/structure', methods=['GET', 'POST'])
+def template_structure(template_id):
+    """Thiết lập cấu trúc quét header trước khi thiết lập nhập liệu."""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    _, is_admin, is_lead = _get_reporting_permissions()
+    if not (is_admin or is_lead):
+        flash('Bạn không có quyền chỉnh cấu trúc biểu mẫu.', 'danger')
+        return redirect(url_for('reporting_bp.index'))
+
+    template = FormTemplate.query.get_or_404(template_id)
+    version = FormVersion.query.filter_by(
+        template_id=template_id,
+        is_published=True
+    ).order_by(FormVersion.created_at.desc()).first()
+    if not version or not template.excel_template_blob:
+        flash('Biểu mẫu chưa sẵn sàng để chỉnh cấu trúc.', 'warning')
+        return redirect(url_for('reporting_bp.index'))
+
+    metadata = json.loads(version.metadata_json) if version.metadata_json else {}
+    scan_result = metadata.get('scan_result') or _load_template_scan(template.excel_template_blob)
+    manual_override = metadata.get('manual_override') or {}
+
+    if request.method == 'POST':
+        try:
+            manual_override = {
+                'title_rows': _parse_row_list(request.form.get('title_rows')),
+                'header_rows': _parse_row_list(request.form.get('header_rows')),
+                'helper_rows': _parse_row_list(request.form.get('helper_rows')),
+                'summary_rows': _parse_row_list(request.form.get('summary_rows')),
+                'data_start_row': int(request.form.get('data_start_row') or 0),
+                'unit_column': (request.form.get('unit_column') or 'B').strip().upper(),
+            }
+
+            if not manual_override['header_rows']:
+                raise ValueError('Phải xác định ít nhất một dòng header.')
+            expected_header_span = list(range(min(manual_override['header_rows']), max(manual_override['header_rows']) + 1))
+            if manual_override['header_rows'] != expected_header_span:
+                raise ValueError('Các dòng header phải liền nhau.')
+            if manual_override['data_start_row'] <= max(manual_override['header_rows']):
+                raise ValueError('Dòng bắt đầu dữ liệu phải nằm sau toàn bộ header.')
+            if not re.match(r'^[A-Z]+$', manual_override['unit_column']):
+                raise ValueError('Cột đơn vị không hợp lệ.')
+            if set(manual_override['header_rows']) & set(manual_override['title_rows']):
+                raise ValueError('Một dòng không thể vừa là tiêu đề vừa là header.')
+            if set(manual_override['header_rows']) & set(manual_override['summary_rows']):
+                raise ValueError('Một dòng không thể vừa là header vừa là dòng tổng.')
+
+            metadata, effective = _update_version_structure_metadata(version, scan_result, manual_override)
+            drafts = _rebuild_fields_from_structure(version, template.excel_template_blob, effective)
+            if not drafts:
+                raise ValueError('Sau khi chỉnh cấu trúc, hệ thống không sinh được trường nào.')
+            metadata['scan_summary']['field_count'] = len(drafts)
+            version.metadata_json = json.dumps(metadata, ensure_ascii=False)
+            submission_service.ensure_version_config(template, version, force=True)
+            db.session.commit()
+            flash('Đã cập nhật cấu trúc header và sinh lại các trường.', 'success')
+            return redirect(url_for('reporting_bp.field_settings', template_id=template_id, first_setup=request.args.get('first_setup')))
+        except Exception as exc:
+            db.session.rollback()
+            flash(f'Lỗi lưu cấu trúc: {exc}', 'danger')
+
+    effective_structure = _build_effective_structure(scan_result, manual_override)
+    preview = _build_structure_preview(template.excel_template_blob, effective_structure)
+    field_drafts = _draft_fields_from_structure(template.excel_template_blob, effective_structure)
+
+    return render_template(
+        'reporting/template_structure.html',
+        template=template,
+        version=version,
+        preview=preview,
+        structure=effective_structure,
+        field_drafts=field_drafts,
+        scan_summary=metadata.get('scan_summary', {}),
+        first_setup=request.args.get('first_setup') == '1'
+    )
+
+
 @reporting_bp.route('/template/<int:template_id>/field-settings', methods=['GET', 'POST'])
 def field_settings(template_id):
     """Admin: Thiết lập cột được nhập liệu"""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
-    if not session.get('is_admin'):
+    _, is_admin, is_lead = _get_reporting_permissions()
+    if not (is_admin or is_lead):
         flash('Bạn không có quyền truy cập chức năng này.', 'danger')
         return redirect(url_for('reporting_bp.index'))
 
@@ -1376,6 +1582,8 @@ def field_settings(template_id):
     # Simple flat grouping like MVP
     grouped_fields = {}
     hidden_field_codes = set()
+    metadata = json.loads(version.metadata_json) if version.metadata_json else {}
+    scan_summary = metadata.get('scan_summary', {})
     
     for field in fields:
         section_name = field.section or 'Thông tin chung'
@@ -1391,75 +1599,79 @@ def field_settings(template_id):
         version=version,
         grouped_fields=grouped_fields,
         hidden_field_codes=hidden_field_codes,
-        schedule_summary=_format_schedule_summary(template)
+        schedule_summary=_format_schedule_summary(template),
+        total_fields=len(fields),
+        scan_summary=scan_summary,
+        first_setup=request.args.get('first_setup') == '1'
     )
 
 
 @reporting_bp.route('/template/<int:template_id>/config', methods=['GET', 'POST'])
 def template_config(template_id):
-    """Admin: cấu hình loại báo cáo và quy tắc hạn nộp."""
+    """Cấu hình loại báo cáo, hệ thống tự suy ra chu kỳ hiện tại."""
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
-    if not session.get('is_admin'):
+    _, is_admin, is_lead = _get_reporting_permissions()
+    if not (is_admin or is_lead):
         flash('Bạn không có quyền cấu hình biểu mẫu.', 'danger')
-        return redirect(url_for('reporting_bp.template_workspace', template_id=template_id))
+        return redirect(url_for('reporting_bp.index'))
 
     template = FormTemplate.query.get_or_404(template_id)
 
     if request.method == 'POST':
-        template_name = (request.form.get('name') or '').strip()
-        report_type = (request.form.get('report_type') or 'adhoc').strip().lower()
-        frequency = None
-        deadline_rule = None
-
         try:
+            template_name = (request.form.get('name') or '').strip()
+            report_type = (request.form.get('report_type') or '').strip().lower()
+            frequency = None
+            deadline_rule = None
+
             if not template_name:
                 raise ValueError('Tên báo cáo không được để trống.')
+            if report_type not in {'adhoc', 'daily', 'periodic'}:
+                raise ValueError('Quản trị phải chọn loại báo cáo trước khi lưu cấu hình.')
 
-            if report_type == 'daily':
-                deadline_rule = json.dumps(
-                    {'time': request.form.get('daily_time', '17:00')},
-                    ensure_ascii=False,
-                    separators=(',', ':')
-                )
+            if report_type == 'adhoc':
+                deadline_value = (request.form.get('adhoc_deadline') or '').strip()
+                if not deadline_value:
+                    raise ValueError('Báo cáo đột xuất phải có mốc thời gian cố định.')
+                try:
+                    datetime.datetime.strptime(deadline_value, '%Y-%m-%dT%H:%M')
+                except Exception:
+                    raise ValueError('Mốc thời gian của báo cáo đột xuất không hợp lệ.')
+                deadline_rule = json.dumps({'deadline': deadline_value}, ensure_ascii=False, separators=(',', ':'))
             elif report_type == 'periodic':
-                frequency = (request.form.get('frequency') or 'monthly').strip().lower()
-                time_value = request.form.get('periodic_time', '17:00')
-
-                if frequency == 'weekly':
-                    deadline_rule = json.dumps(
-                        {'weekday': int(request.form.get('weekly_weekday', 0)), 'time': time_value},
-                        ensure_ascii=False,
-                        separators=(',', ':')
-                    )
-                elif frequency == 'monthly':
-                    deadline_rule = json.dumps(
-                        {'day': int(request.form.get('monthly_day', 5)), 'time': time_value},
-                        ensure_ascii=False,
-                        separators=(',', ':')
-                    )
+                frequency = (request.form.get('frequency') or '').strip().lower()
+                if frequency not in {'monthly', 'quarterly', 'semiannual', 'yearly'}:
+                    raise ValueError('Phải chọn một loại định kỳ: tháng, quý, 6 tháng hoặc năm.')
+                if frequency == 'monthly':
+                    day = request.form.get('monthly_deadline_day', type=int)
+                    if not day or day < 1 or day > 31:
+                        raise ValueError('Báo cáo tháng phải có ngày hạn từ 1 đến 31.')
+                    deadline_rule = json.dumps({'day': day}, ensure_ascii=False, separators=(',', ':'))
                 elif frequency == 'quarterly':
-                    deadline_rule = json.dumps(
-                        {
-                            'month': int(request.form.get('quarterly_month', 1)),
-                            'day': int(request.form.get('quarterly_day', 5)),
-                            'time': time_value
-                        },
-                        ensure_ascii=False,
-                        separators=(',', ':')
-                    )
+                    month = request.form.get('quarterly_deadline_month', type=int)
+                    day = request.form.get('quarterly_deadline_day', type=int)
+                    if not month or month < 1 or month > 3:
+                        raise ValueError('Báo cáo quý phải chọn tháng thứ 1, 2 hoặc 3 của quý.')
+                    if not day or day < 1 or day > 31:
+                        raise ValueError('Báo cáo quý phải có ngày hạn từ 1 đến 31.')
+                    deadline_rule = json.dumps({'month': month, 'day': day}, ensure_ascii=False, separators=(',', ':'))
+                elif frequency == 'semiannual':
+                    month = request.form.get('semiannual_deadline_month', type=int)
+                    day = request.form.get('semiannual_deadline_day', type=int)
+                    if not month or month < 1 or month > 6:
+                        raise ValueError('Báo cáo 6 tháng phải chọn tháng thứ 1 đến 6 của chu kỳ.')
+                    if not day or day < 1 or day > 31:
+                        raise ValueError('Báo cáo 6 tháng phải có ngày hạn từ 1 đến 31.')
+                    deadline_rule = json.dumps({'month': month, 'day': day}, ensure_ascii=False, separators=(',', ':'))
                 elif frequency == 'yearly':
-                    deadline_rule = json.dumps(
-                        {
-                            'month': int(request.form.get('yearly_month', 1)),
-                            'day': int(request.form.get('yearly_day', 15)),
-                            'time': time_value
-                        },
-                        ensure_ascii=False,
-                        separators=(',', ':')
-                    )
-                else:
-                    raise ValueError('Tần suất báo cáo không hợp lệ.')
+                    month = request.form.get('yearly_deadline_month', type=int)
+                    day = request.form.get('yearly_deadline_day', type=int)
+                    if not month or month < 1 or month > 12:
+                        raise ValueError('Báo cáo năm phải chọn tháng hạn từ 1 đến 12.')
+                    if not day or day < 1 or day > 31:
+                        raise ValueError('Báo cáo năm phải có ngày hạn từ 1 đến 31.')
+                    deadline_rule = json.dumps({'month': month, 'day': day}, ensure_ascii=False, separators=(',', ':'))
 
             template.name = template_name
             template.report_type = report_type
@@ -1467,7 +1679,10 @@ def template_config(template_id):
             template.deadline_rule = deadline_rule
             db.session.commit()
             flash('Đã cập nhật cấu hình reporting.', 'success')
-            return redirect(url_for('reporting_bp.template_workspace', template_id=template_id))
+            return redirect(url_for('reporting_bp.template_config', template_id=template_id))
+        except PermissionError as exc:
+            db.session.rollback()
+            flash(str(exc), 'danger')
         except Exception as exc:
             db.session.rollback()
             flash(f'Lỗi lưu cấu hình: {exc}', 'danger')
@@ -1476,74 +1691,16 @@ def template_config(template_id):
         'reporting/template_config.html',
         template=template,
         schedule_summary=_format_schedule_summary(template),
-        deadline_config=_parse_deadline_rule(template)
+        deadline_config=_parse_deadline_rule(template),
+        is_reporting_admin=is_admin,
+        first_setup=request.args.get('first_setup') == '1'
     )
 
 
 @reporting_bp.route('/template/<int:template_id>/periods', methods=['GET', 'POST'])
 def template_periods(template_id):
-    """Admin: tạo và quản lý các kỳ báo cáo của biểu mẫu."""
-    if not session.get('uid'):
-        return redirect(url_for('auth_bp.login'))
-    if not session.get('is_admin'):
-        flash('Bạn không có quyền quản lý kỳ báo cáo.', 'danger')
-        return redirect(url_for('reporting_bp.template_workspace', template_id=template_id))
-
-    template = FormTemplate.query.get_or_404(template_id)
-    report_type = (template.report_type or 'adhoc').strip().lower()
-
-    if request.method == 'POST':
-        code = (request.form.get('code') or '').strip()
-        name = (request.form.get('name') or '').strip()
-
-        if ReportingPeriod.query.filter_by(code=code).first():
-            flash('Mã kỳ báo cáo đã tồn tại.', 'warning')
-            return redirect(url_for('reporting_bp.template_periods', template_id=template_id))
-
-        try:
-            start_date = datetime.datetime.strptime(request.form.get('start_date', ''), '%Y-%m-%d').date()
-            end_date = datetime.datetime.strptime(request.form.get('end_date', ''), '%Y-%m-%d').date()
-            if end_date < start_date:
-                raise ValueError('Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.')
-
-            explicit_deadline = None
-            if report_type == 'adhoc':
-                deadline_raw = request.form.get('deadline', '')
-                explicit_deadline = datetime.datetime.strptime(deadline_raw, '%Y-%m-%dT%H:%M')
-
-            deadline = _compute_period_deadline(template, start_date, end_date, explicit_deadline)
-            period_type = 'adhoc' if report_type == 'adhoc' else (template.frequency or report_type or 'custom')
-
-            period = ReportingPeriod(
-                template_id=template.id,
-                code=code,
-                name=name,
-                period_type=period_type,
-                is_adhoc=(report_type == 'adhoc'),
-                start_date=start_date,
-                end_date=end_date,
-                deadline=deadline,
-                is_locked=False,
-                created_by=session.get('uid')
-            )
-            db.session.add(period)
-            db.session.commit()
-            flash('Đã tạo kỳ báo cáo mới.', 'success')
-            return redirect(url_for('reporting_bp.template_periods', template_id=template_id))
-        except Exception as exc:
-            db.session.rollback()
-            flash(f'Không thể tạo kỳ báo cáo: {exc}', 'danger')
-
-    periods = ReportingPeriod.query.filter(
-        or_(ReportingPeriod.template_id == template.id, ReportingPeriod.template_id == None)
-    ).order_by(ReportingPeriod.start_date.desc()).all()
-    return render_template(
-        'reporting/template_periods.html',
-        template=template,
-        periods=periods,
-        schedule_summary=_format_schedule_summary(template),
-        deadline_config=_parse_deadline_rule(template)
-    )
+    """Legacy page: merged into template configuration."""
+    return redirect(url_for('reporting_bp.template_config', template_id=template_id))
 
 # ==================== API ENDPOINTS ====================
 
@@ -1624,7 +1781,6 @@ def api_get_report(instance_id):
         instance, denied = _load_authorized_report_instance(instance_id)
         if denied:
             return denied
-        _refresh_report_calculations(instance)
         report_data = form_engine.get_report_data(instance_id)
         return jsonify({'success': True, 'data': report_data})
     except Exception as e:
@@ -1708,7 +1864,6 @@ def api_export_report(instance_id):
         if denied:
             return denied
 
-        _refresh_report_calculations(instance)
         output, filename = exporter.export_to_excel_bytes(instance_id)
         file_bytes = output.getvalue()
 
@@ -1719,6 +1874,147 @@ def api_export_report(instance_id):
         return response
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@reporting_bp.route('/api/report-submissions/upload', methods=['POST'])
+def api_upload_report_submission():
+    """API upload báo cáo Excel theo phương án submission-centric."""
+    if not session.get('uid'):
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    if session.get('is_admin'):
+        return jsonify({'success': False, 'message': 'Tài khoản quản trị không nộp báo cáo trực tiếp'}), 403
+
+    template_id = request.form.get('template_id', type=int)
+    period_id = request.form.get('period_id', type=int)
+    excel_file = request.files.get('file')
+    if not template_id or not period_id or not excel_file:
+        return jsonify({'success': False, 'message': 'Thiếu template, chu kỳ dữ liệu hoặc file upload'}), 400
+
+    try:
+        submission = submission_service.create_submission(
+            template_id=template_id,
+            period_id=period_id,
+            user_id=session.get('uid'),
+            reporting_unit=_current_reporting_unit(),
+            uploaded_file=excel_file
+        )
+        return jsonify({
+            'success': True,
+            'submission_id': submission.id,
+            'status': submission.status,
+            'total_rows': submission.total_rows,
+            'valid_rows': submission.valid_rows,
+            'invalid_rows': submission.invalid_rows,
+            'warnings': submission.warning_count,
+        })
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(exc)}), 400
+
+
+@reporting_bp.route('/api/report-submissions/<int:submission_id>', methods=['GET'])
+def api_get_submission(submission_id):
+    """API lấy thông tin một lần nộp báo cáo."""
+    try:
+        submission, denied = _load_authorized_submission(submission_id)
+        if denied:
+            return denied
+        detail = submission_service.get_submission_detail(submission_id)
+        return jsonify({
+            'success': True,
+            'data': {
+                'submission': {
+                    'id': detail['submission'].id,
+                    'status': detail['submission'].status,
+                    'reporting_unit': detail['submission'].reporting_unit,
+                    'period_id': detail['submission'].period_id,
+                    'total_rows': detail['submission'].total_rows,
+                    'valid_rows': detail['submission'].valid_rows,
+                    'invalid_rows': detail['submission'].invalid_rows,
+                    'warning_count': detail['submission'].warning_count,
+                },
+                'errors': [
+                    {
+                        'sheet_name': err.sheet_name,
+                        'cell_address': err.cell_address,
+                        'error_code': err.error_code,
+                        'error_message': err.error_message,
+                        'severity': err.severity,
+                    } for err in detail['errors']
+                ],
+            }
+        })
+    except Exception as exc:
+        return jsonify({'success': False, 'message': str(exc)}), 500
+
+
+@reporting_bp.route('/api/report-submissions/<int:submission_id>/errors', methods=['GET'])
+def api_get_submission_errors(submission_id):
+    """API lấy danh sách lỗi import."""
+    try:
+        submission, denied = _load_authorized_submission(submission_id)
+        if denied:
+            return denied
+        errors = ReportValidationError.query.filter_by(submission_id=submission.id).all()
+        return jsonify({
+            'success': True,
+            'data': [
+                {
+                    'sheet_name': err.sheet_name,
+                    'section_code': err.section_code,
+                    'row_index': err.row_index,
+                    'column_index': err.column_index,
+                    'cell_address': err.cell_address,
+                    'field_code': err.field_code,
+                    'error_code': err.error_code,
+                    'error_message': err.error_message,
+                    'severity': err.severity,
+                } for err in errors
+            ]
+        })
+    except Exception as exc:
+        return jsonify({'success': False, 'message': str(exc)}), 500
+
+
+@reporting_bp.route('/api/report-submissions/<int:submission_id>/history', methods=['GET'])
+def api_get_submission_history(submission_id):
+    """API lấy lịch sử workflow."""
+    try:
+        submission, denied = _load_authorized_submission(submission_id)
+        if denied:
+            return denied
+        history = ReportWorkflowHistory.query.filter_by(submission_id=submission.id).order_by(
+            ReportWorkflowHistory.acted_at.desc()
+        ).all()
+        return jsonify({
+            'success': True,
+            'data': [
+                {
+                    'from_status': item.from_status,
+                    'to_status': item.to_status,
+                    'action': item.action,
+                    'comment': item.comment,
+                    'actor_id': item.actor_id,
+                    'acted_at': item.acted_at.isoformat() if item.acted_at else None,
+                } for item in history
+            ]
+        })
+    except Exception as exc:
+        return jsonify({'success': False, 'message': str(exc)}), 500
+
+
+@reporting_bp.route('/api/report-submissions/<int:submission_id>/submit', methods=['POST'])
+def api_submit_submission(submission_id):
+    """API gửi báo cáo đã upload."""
+    try:
+        submission, denied = _load_authorized_submission(submission_id, write=True)
+        if denied:
+            return denied
+        submission_service.transition_submission(submission.id, 'submit', session.get('uid'))
+        return jsonify({'success': True, 'message': 'Đã gửi báo cáo'})
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(exc)}), 400
 
 
 @reporting_bp.route('/template/<int:template_id>/delete', methods=['POST'])
@@ -1736,19 +2032,46 @@ def template_delete(template_id):
         return jsonify({'success': False, 'message': 'Không tìm thấy biểu mẫu'}), 404
 
     try:
-        versions = FormVersion.query.filter_by(template_id=template.id).all()
-        for v in versions:
-            FormField.query.filter_by(version_id=v.id).delete()
-            db.session.delete(v)
-            
-        periods = ReportingPeriod.query.filter_by(template_id=template.id).all()
-        for p in periods:
-            instances = ReportInstance.query.filter_by(period_id=p.id).all()
-            for instance in instances:
-                ReportAuditLog.query.filter_by(instance_id=instance.id).delete()
-                db.session.delete(instance)
-            db.session.delete(p)
-            
+        version_ids = [row.id for row in FormVersion.query.filter_by(template_id=template.id).all()]
+        instance_ids = [
+            row.id for row in ReportInstance.query.filter_by(template_id=template.id).all()
+        ]
+
+        field_value_ids = []
+        if instance_ids:
+            field_value_ids = [
+                row.id for row in ReportFieldValue.query.filter(ReportFieldValue.instance_id.in_(instance_ids)).all()
+            ]
+
+            attachments = ReportAttachment.query.filter(ReportAttachment.instance_id.in_(instance_ids)).all()
+            for attachment in attachments:
+                file_path = (attachment.file_path or '').strip()
+                if file_path:
+                    try:
+                        import os
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                    except Exception:
+                        pass
+
+            audit_filters = [
+                and_(ReportAuditLog.entity_type == 'report_instance', ReportAuditLog.entity_id.in_(instance_ids))
+            ]
+            if field_value_ids:
+                audit_filters.append(
+                    and_(ReportAuditLog.entity_type == 'field_value', ReportAuditLog.entity_id.in_(field_value_ids))
+                )
+            ReportAuditLog.query.filter(or_(*audit_filters)).delete(synchronize_session=False)
+            ReportAttachment.query.filter(ReportAttachment.instance_id.in_(instance_ids)).delete(synchronize_session=False)
+            ReportFieldValue.query.filter(ReportFieldValue.instance_id.in_(instance_ids)).delete(synchronize_session=False)
+            ReportInstance.query.filter(ReportInstance.id.in_(instance_ids)).delete(synchronize_session=False)
+
+        ReportingPeriod.query.filter_by(template_id=template.id).delete(synchronize_session=False)
+
+        if version_ids:
+            FormField.query.filter(FormField.version_id.in_(version_ids)).delete(synchronize_session=False)
+            FormVersion.query.filter(FormVersion.id.in_(version_ids)).delete(synchronize_session=False)
+
         db.session.delete(template)
         db.session.commit()
         

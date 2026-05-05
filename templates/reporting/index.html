@@ -5,245 +5,102 @@
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/reporting-modern.css') }}?v=20260426">
 <style>
-  .reporting-shell-bdhvs {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-  }
-  .reporting-hero-grid {
+  .reporting-list-head {
     display: grid;
-    grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 20px;
     align-items: start;
   }
-  .reporting-hero-note {
-    margin: 0;
-    color: rgba(226, 232, 240, 0.82);
-    max-width: 760px;
-  }
-  .reporting-summary-stack {
-    display: grid;
+  .pc06-action-cluster {
+    display: flex;
     gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
-  .reporting-summary-card {
-    padding: 14px 16px;
-    border-radius: 18px;
-    background: rgba(15, 23, 42, 0.18);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-  }
-  .reporting-summary-label {
-    display: block;
-    margin-bottom: 8px;
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: rgba(226, 232, 240, 0.72);
-  }
-  .reporting-summary-value {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #f8fafc;
-  }
-  .reporting-summary-value small {
-    font-size: 0.92rem;
-    color: rgba(226, 232, 240, 0.74);
-  }
-  .reporting-team-grid {
+  .reporting-list-shell {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-    margin-top: 10px;
+    gap: 18px;
   }
-  .reporting-team-tile {
-    padding: 10px 12px;
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+  .reporting-list-panel {
     display: grid;
-    gap: 4px;
-  }
-  .reporting-team-tile strong {
-    font-size: 0.84rem;
-    color: #fff;
-  }
-  .reporting-team-tile span {
-    font-size: 0.76rem;
-    color: rgba(226, 232, 240, 0.76);
-  }
-  .reporting-layout-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 24px;
-    align-items: start;
-  }
-  .reporting-section-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 18px;
-  }
-  .reporting-section-head h4,
-  .reporting-section-head h5 {
-    margin: 0;
-    font-weight: 700;
-    color: #0f172a;
-  }
-  .reporting-section-head p {
-    margin: 6px 0 0;
-    color: #64748b;
-  }
-  .reporting-template-stack,
-  .reporting-department-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-  .reporting-department-grid {
-    display: grid;
-    grid-template-columns: 1fr;
     gap: 14px;
   }
-  .reporting-department-card {
-    border-radius: 22px;
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%);
-    box-shadow: 0 18px 34px rgba(15, 23, 42, 0.08);
-    overflow: hidden;
-  }
-  .reporting-department-card[open] {
-    box-shadow: 0 22px 40px rgba(15, 23, 42, 0.12);
-  }
-  .reporting-department-summary {
-    list-style: none;
-    cursor: pointer;
+  .reporting-list-row {
     display: grid;
-    grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
-    align-items: center;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 16px;
-    padding: 18px 22px;
-  }
-  .reporting-department-summary::-webkit-details-marker {
-    display: none;
-  }
-  .reporting-department-title {
-    display: grid;
-    gap: 4px;
-  }
-  .reporting-department-title strong {
-    color: #0f172a;
-    font-size: 1rem;
-  }
-  .reporting-department-title span {
-    color: #64748b;
-    font-size: 0.82rem;
-  }
-  .reporting-department-select {
-    width: 100%;
-    min-height: 52px;
-    border-radius: 16px;
-    background: #eff6ff;
-    color: #1d4ed8;
-    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 0 18px;
-    flex-shrink: 0;
-    font-weight: 700;
-    border: 1px solid rgba(37, 99, 235, 0.12);
-    transition: background 0.2s ease, color 0.2s ease;
-  }
-  .reporting-department-select small {
-    font-size: 0.84rem;
-    font-weight: 600;
-    color: #64748b;
-  }
-  .reporting-department-card[open] .reporting-department-select {
-    background: #dbeafe;
-    color: #1e3a8a;
-  }
-  .reporting-department-card[open] .reporting-department-select i {
-    transform: rotate(180deg);
-  }
-  .reporting-department-body {
-    padding: 0 22px 18px;
-    display: grid;
-    gap: 10px;
-  }
-  .reporting-department-empty {
-    padding: 10px 0 2px;
-    color: #94a3b8;
-    font-size: 0.84rem;
-  }
-  .reporting-template-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
     padding: 16px 18px;
     border-radius: 18px;
     border: 1px solid rgba(148, 163, 184, 0.18);
-    background: rgba(255, 255, 255, 0.88);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.05);
   }
-  .reporting-template-copy {
+  .reporting-list-copy {
     display: grid;
-    gap: 6px;
+    gap: 4px;
     min-width: 0;
   }
-  .reporting-template-name {
-    display: inline-block;
+  .reporting-list-title {
+    margin: 0;
+    color: #0f172a;
     font-size: 1rem;
     font-weight: 700;
-    color: #0f172a;
-    text-decoration: none;
-    margin: 0;
   }
-  .reporting-template-name:hover {
-    color: #185adb;
-  }
-  .reporting-template-type {
-    color: #64748b;
-    font-size: 0.9rem;
-    font-weight: 600;
-  }
-  .reporting-template-actions {
+  .reporting-list-meta {
     display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    color: #64748b;
+    font-size: 0.86rem;
   }
-  .reporting-outline-btn {
-    min-width: 88px;
+  .reporting-list-meta span {
+    min-width: 0;
+  }
+  .reporting-icon-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .reporting-icon-btn {
+    width: 40px;
     height: 40px;
-    padding: 0 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(37, 99, 235, 0.14);
+    background: #eff6ff;
+    color: #1d4ed8;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    border-radius: 12px;
-    border: 1px solid rgba(37, 99, 235, 0.16);
-    background: #eff6ff;
-    color: #1d4ed8;
     text-decoration: none;
-    font-weight: 700;
     transition: all 0.2s ease;
   }
-  .reporting-outline-btn:hover {
+  .reporting-icon-btn:hover {
     background: #dbeafe;
     color: #1e3a8a;
   }
-  .reporting-delete-btn {
+  .reporting-icon-btn.delete {
     border-color: rgba(239, 68, 68, 0.16);
     background: #fff1f2;
     color: #dc2626;
   }
-  .reporting-delete-btn:hover {
+  .reporting-icon-btn.delete:hover {
     background: #ffe4e6;
     color: #b91c1c;
+  }
+  .reporting-icon-btn.report {
+    background: #ecfdf5;
+    border-color: rgba(16, 185, 129, 0.16);
+    color: #059669;
+  }
+  .reporting-icon-btn.report:hover {
+    background: #d1fae5;
+    color: #047857;
+  }
+  .reporting-icon-form {
+    margin: 0;
   }
   .reporting-empty-state {
     padding: 22px;
@@ -251,251 +108,164 @@
     background: #f8fafc;
     color: #64748b;
   }
-  [data-theme="dark"] .reporting-section-head h4,
-  [data-theme="dark"] .reporting-section-head h5,
-  [data-theme="dark"] .reporting-template-name {
-    color: #e2e8f0;
-  }
-  [data-theme="dark"] .reporting-section-head p {
-    color: #94a3b8;
-  }
-  [data-theme="dark"] .reporting-template-card,
+  [data-theme="dark"] .reporting-list-row,
   [data-theme="dark"] .reporting-empty-state {
     background: rgba(15, 23, 42, 0.84);
     border-color: rgba(148, 163, 184, 0.18);
     box-shadow: 0 18px 34px rgba(2, 6, 23, 0.34);
   }
-  [data-theme="dark"] .reporting-department-card {
-    background: rgba(15, 23, 42, 0.84);
-    border-color: rgba(148, 163, 184, 0.18);
-    box-shadow: 0 18px 34px rgba(2, 6, 23, 0.34);
-  }
-  [data-theme="dark"] .reporting-template-row {
-    background: rgba(15, 23, 42, 0.78);
-    border-color: rgba(148, 163, 184, 0.18);
-  }
-  [data-theme="dark"] .reporting-department-title strong {
+  [data-theme="dark"] .reporting-list-title {
     color: #e2e8f0;
   }
-  [data-theme="dark"] .reporting-department-title span {
+  [data-theme="dark"] .reporting-list-meta {
     color: #94a3b8;
   }
-  [data-theme="dark"] .reporting-department-select {
-    background: rgba(30, 64, 175, 0.22);
-    color: #bfdbfe;
-    border-color: rgba(96, 165, 250, 0.24);
-  }
-  [data-theme="dark"] .reporting-department-select small,
-  [data-theme="dark"] .reporting-template-type {
-    color: #94a3b8;
-  }
-  [data-theme="dark"] .reporting-outline-btn {
+  [data-theme="dark"] .reporting-icon-btn {
     background: rgba(30, 64, 175, 0.22);
     border-color: rgba(96, 165, 250, 0.24);
     color: #bfdbfe;
   }
-  [data-theme="dark"] .reporting-outline-btn:hover {
+  [data-theme="dark"] .reporting-icon-btn:hover {
     background: rgba(30, 64, 175, 0.36);
     color: #dbeafe;
   }
-  [data-theme="dark"] .reporting-delete-btn {
+  [data-theme="dark"] .reporting-icon-btn.delete {
     background: rgba(127, 29, 29, 0.28);
     border-color: rgba(248, 113, 113, 0.22);
     color: #fda4af;
   }
-  [data-theme="dark"] .reporting-delete-btn:hover {
+  [data-theme="dark"] .reporting-icon-btn.delete:hover {
     background: rgba(127, 29, 29, 0.42);
     color: #fecdd3;
   }
-  @media (max-width: 1199px) {
-    .reporting-hero-grid,
-    .reporting-layout-grid {
-      grid-template-columns: 1fr;
-    }
-    .reporting-department-summary {
-      grid-template-columns: 1fr;
-    }
+  [data-theme="dark"] .reporting-icon-btn.report {
+    background: rgba(6, 95, 70, 0.32);
+    border-color: rgba(52, 211, 153, 0.22);
+    color: #a7f3d0;
+  }
+  [data-theme="dark"] .reporting-icon-btn.report:hover {
+    background: rgba(6, 95, 70, 0.44);
+    color: #d1fae5;
   }
   @media (max-width: 767px) {
-    .reporting-section-head {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-    .reporting-hero-note,
-    .reporting-section-head p,
-    .reporting-department-title span,
-    .reporting-template-type,
-    .reporting-department-select small,
-    .reporting-empty-state {
-      color: var(--text-muted);
-    }
-    .reporting-summary-card,
-    .reporting-department-card,
-    .reporting-template-row,
-    .reporting-empty-state {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
-    }
-    .reporting-summary-label,
-    .reporting-summary-value small,
-    .reporting-team-tile span {
-      color: var(--text-muted);
-    }
-    .reporting-summary-value,
-    .reporting-summary-value small,
-    .reporting-team-tile strong,
-    .reporting-department-title strong,
-    .reporting-template-name {
-      color: var(--text-main);
-    }
-    .reporting-department-select {
-      background: var(--primary-light);
-      color: var(--primary);
-      border-color: rgba(37, 99, 235, 0.14);
-    }
-    html:not([data-theme="dark"]) .reporting-department-card[open] .reporting-department-select {
-      background: #dbeafe;
-      color: #1e3a8a;
-    }
-    .reporting-template-row {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-    .reporting-template-actions {
-      justify-content: flex-start;
-    }
-    .reporting-team-grid {
+    .reporting-list-head {
       grid-template-columns: 1fr;
+      gap: 14px;
+    }
+    .pc06-action-cluster {
+      width: 100%;
+      justify-content: stretch;
+    }
+    .pc06-action-cluster > .btn,
+    .pc06-action-cluster > a {
+      width: 100%;
+      text-align: center;
+    }
+    .reporting-list-row {
+      grid-template-columns: 1fr;
+      align-items: flex-start;
+    }
+    .reporting-list-meta {
+      display: grid;
+      gap: 4px;
+    }
+    .reporting-icon-actions {
+      justify-content: flex-start;
     }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="pc06-page-shell reporting-shell-bdhvs">
+<div class="pc06-page-shell reporting-list-shell">
   <section class="pc06-hero-card">
-    <div class="reporting-hero-grid">
+    <div class="reporting-list-head">
       <div>
-        <span class="pc06-page-kicker">Hệ thống báo cáo</span>
-        <h1 class="pc06-page-title">Biểu mẫu và nhập liệu báo cáo</h1>
-        <p class="reporting-hero-note">
-          Quản lý biểu mẫu, kỳ báo cáo và hạn nộp theo từng đội nghiệp vụ.
-        </p>
-        <div class="pc06-action-cluster mt-4">
-          {% if session.get('is_admin') %}
-          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#uploadModal">
-            <i class="fa-solid fa-upload me-2"></i>Tải biểu mẫu
-          </button>
-          <a href="{{ url_for('reporting_bp.dashboard') }}" class="btn btn-primary rounded-pill px-4">
-            <i class="fa-solid fa-chart-line me-2"></i>Tổng quan báo cáo
-          </a>
-          {% else %}
-          <a href="{{ url_for('reporting_bp.history') }}" class="btn btn-light rounded-pill px-4">
-            <i class="fa-solid fa-clock-rotate-left me-2"></i>Lịch sử nộp báo cáo
-          </a>
-          {% endif %}
-        </div>
+        <h1 class="pc06-page-title">Danh sách biểu mẫu báo cáo</h1>
       </div>
-      <div class="reporting-summary-stack">
-        <div class="reporting-summary-card">
-          <span class="reporting-summary-label">Biểu mẫu đang hoạt động</span>
-          <div class="reporting-summary-value">{{ templates|length }}<small>mẫu</small></div>
-        </div>
-        <div class="reporting-summary-card">
-          <span class="reporting-summary-label">Đội nghiệp vụ</span>
-          <div class="reporting-summary-value">{{ active_department_count }}<small>nhóm phụ trách</small></div>
-          <div class="reporting-team-grid">
-            {% for group in department_hero_cards %}
-            {% if group.department_name != 'Chưa phân đội' %}
-            <div class="reporting-team-tile">
-              <strong>{{ group.department_name }}</strong>
-              <span>{{ group.template_count }} biểu mẫu</span>
-            </div>
-            {% endif %}
-            {% endfor %}
-          </div>
-        </div>
+      <div class="pc06-action-cluster">
+        {% if is_reporting_admin %}
+        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#uploadModal">
+          Tải biểu mẫu
+        </button>
+        <a href="{{ url_for('reporting_bp.dashboard') }}" class="btn btn-primary rounded-pill px-4">
+          Tổng quan
+        </a>
+        {% else %}
+        <a href="{{ url_for('reporting_bp.history') }}" class="btn btn-light rounded-pill px-4">
+          Lịch sử
+        </a>
+        {% endif %}
       </div>
     </div>
   </section>
 
-  <div class="reporting-layout-grid">
-    <section class="pc06-panel">
-      <div class="reporting-section-head">
-        <div>
-          <h4>Biểu mẫu theo đội</h4>
-        </div>
-        <span class="pc06-soft-tag">
-          <i class="fa-solid fa-file-circle-check"></i>{{ template_entries|length }} biểu mẫu
-        </span>
-      </div>
+  <section class="pc06-panel reporting-list-panel">
+    <div class="reporting-section-head" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+      <h4 class="m-0">Biểu mẫu</h4>
+      <span class="pc06-soft-tag">{{ total_templates }} biểu mẫu</span>
+    </div>
 
-      {% if template_entries %}
-      <div class="reporting-department-grid">
-        {% set department_limit = namespace(count=0) %}
-        {% for group in department_dashboard %}
-          {% if group.department_name != 'Chưa phân đội' and department_limit.count < 5 %}
-          {% set department_limit.count = department_limit.count + 1 %}
-          <details class="reporting-department-card">
-            <summary class="reporting-department-summary">
-              <div class="reporting-department-title">
-                <strong>{{ group.department_name }}</strong>
-                <span>{{ group.template_count }} biểu mẫu</span>
-              </div>
-              <div class="reporting-department-select">
-                <span>Danh sách báo cáo</span>
-                <small>{{ group.template_count }} mục <i class="fa-solid fa-chevron-down ms-2"></i></small>
-              </div>
-            </summary>
-            <div class="reporting-department-body">
-              {% if group.entries %}
-                {% for entry in group.entries %}
-                <article class="reporting-template-row">
-                  <div class="reporting-template-copy">
-                    <a
-                      href="{{ url_for('reporting_bp.template_workspace', template_id=entry.template.id) }}"
-                      class="reporting-template-name"
-                      id="open_template_{{ entry.template.id }}">
-                      {{ entry.template.name }}
-                    </a>
-                    <div class="reporting-template-type">Loại báo cáo: {{ entry.report_type_label }}</div>
-                  </div>
-                  <div class="reporting-template-actions">
-                    <a
-                      href="{{ url_for('reporting_bp.template_workspace', template_id=entry.template.id) }}"
-                      class="reporting-outline-btn"
-                      title="Sửa báo cáo">
-                      <i class="fa-solid fa-pen"></i>Sửa
-                    </a>
-                    {% if session.get('is_admin') %}
-                    <form action="{{ url_for('reporting_bp.template_delete', template_id=entry.template.id) }}" method="POST" onsubmit="return confirm('Xóa biểu mẫu này và toàn bộ dữ liệu liên quan?');" class="m-0">
-                      <button type="submit" class="reporting-outline-btn reporting-delete-btn" title="Xóa báo cáo">
-                        <i class="fa-solid fa-trash"></i>Xóa
-                      </button>
-                    </form>
-                    {% endif %}
-                  </div>
-                </article>
-                {% endfor %}
-              {% else %}
-              <div class="reporting-department-empty">Chưa có biểu mẫu.</div>
-              {% endif %}
-            </div>
-          </details>
+    {% if template_entries %}
+      {% for entry in template_entries %}
+      <article class="reporting-list-row">
+        <div class="reporting-list-copy">
+          <h2 class="reporting-list-title">{{ entry.template.name }}</h2>
+          <div class="reporting-list-meta">
+            <span>{{ entry.department_name }}</span>
+            <span>{{ entry.report_type_label }}</span>
+            {% if entry.period_label %}
+            <span>{{ entry.period_label }}</span>
+            {% endif %}
+            <span>{{ entry.schedule_label }}</span>
+          </div>
+        </div>
+
+        <div class="reporting-icon-actions">
+          {% if is_reporting_admin or is_reporting_lead %}
+          <a href="{{ url_for('reporting_bp.preview_template', template_id=entry.template.id) }}" class="reporting-icon-btn" title="Xem biểu mẫu">
+            <i class="fa-regular fa-eye"></i>
+          </a>
+          <a href="{{ url_for('reporting_bp.field_settings', template_id=entry.template.id) }}" class="reporting-icon-btn" title="Sửa biểu mẫu">
+            <i class="fa-solid fa-pen"></i>
+          </a>
+          {% if is_reporting_admin %}
+          <form action="{{ url_for('reporting_bp.template_delete', template_id=entry.template.id) }}" method="POST" class="reporting-icon-form" onsubmit="return confirm('Xóa biểu mẫu này và toàn bộ dữ liệu liên quan?');">
+            <button type="submit" class="reporting-icon-btn delete" title="Xóa biểu mẫu">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </form>
+          <a href="{{ url_for('reporting_bp.template_config', template_id=entry.template.id) }}" class="reporting-icon-btn" title="Cấu hình biểu mẫu">
+            <i class="fa-solid fa-sliders"></i>
+          </a>
+          {% else %}
+          <span class="reporting-icon-btn delete" title="Chỉ quản trị viên mới được xóa biểu mẫu" aria-hidden="true">
+            <i class="fa-solid fa-trash"></i>
+          </span>
+          <a href="{{ url_for('reporting_bp.template_config', template_id=entry.template.id) }}" class="reporting-icon-btn" title="Cấu hình biểu mẫu">
+            <i class="fa-solid fa-sliders"></i>
+          </a>
           {% endif %}
-        {% endfor %}
-      </div>
-      {% else %}
-      <div class="reporting-empty-state">
-        <i class="fa-solid fa-circle-info me-2"></i>Chưa phát sinh biểu mẫu.
-      </div>
-      {% endif %}
-    </section>
-  </div>
+          {% else %}
+          <a href="{{ url_for('reporting_bp.preview_template', template_id=entry.template.id) }}" class="reporting-icon-btn" title="Xem biểu mẫu">
+            <i class="fa-regular fa-eye"></i>
+          </a>
+          <a href="{{ url_for('reporting_bp.select_period', template_id=entry.template.id) }}" class="reporting-icon-btn report" title="Báo cáo">
+            <i class="fa-solid fa-pen-to-square"></i>
+          </a>
+          {% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    {% else %}
+    <div class="reporting-empty-state">
+      Chưa phát sinh biểu mẫu.
+    </div>
+    {% endif %}
+  </section>
 </div>
 
-{% if session.get('is_admin') %}
+{% if is_reporting_admin %}
 <div class="modal fade" id="uploadModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -527,9 +297,9 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Dong</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
           <button type="submit" class="btn btn-primary">
-            <i class="fa-solid fa-upload me-2"></i>Tải lên
+            Tải lên
           </button>
         </div>
       </form>

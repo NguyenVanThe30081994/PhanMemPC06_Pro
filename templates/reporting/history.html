@@ -11,15 +11,11 @@
   <div class="reporting-shell">
     <div class="reporting-hero">
       <div>
-        <div class="reporting-chip mb-3">
-          <i class="fa-solid fa-clock-rotate-left"></i>
-          <span>Lịch sử & Audit trail</span>
-        </div>
         <h3>{% if template %}{{ template.name }}{% else %}Lịch sử reporting{% endif %}</h3>
       </div>
       <div class="reporting-hero-actions">
-        <a href="{{ url_for('reporting_bp.template_workspace', template_id=template.id) if template else url_for('reporting_bp.index') }}" class="btn btn-outline-secondary rounded-pill px-4">
-          <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
+        <a href="{{ url_for('reporting_bp.index') }}" class="btn btn-outline-secondary rounded-pill px-4">
+          Quay lại
         </a>
       </div>
     </div>
@@ -42,7 +38,7 @@
               <table class="table align-middle" id="historyReportsTable">
                 <thead>
                   <tr>
-                    <th>Kỳ báo cáo</th>
+                    <th>Chu kỳ ghi nhận</th>
                     <th>Đơn vị</th>
                     <th>Trạng thái</th>
                     <th>Cập nhật</th>
@@ -58,7 +54,7 @@
                     <td>{{ report.updated_at.strftime('%d/%m/%Y %H:%M') }}</td>
                     <td class="d-flex flex-wrap gap-2">
                       {% if not session.get('is_admin') and report.status == 'draft' %}
-                      <a href="{{ url_for('reporting_bp.fill_form', template_id=template.id, period_id=report.period_id) }}" class="btn btn-sm btn-primary rounded-pill">Tiếp tục nhập</a>
+                      <a href="{{ url_for('reporting_bp.fill_form_direct', template_id=template.id) }}" class="btn btn-sm btn-primary rounded-pill">Tiếp tục nhập</a>
                       {% endif %}
                       <a href="{{ url_for('reporting_bp.view_report', instance_id=report.id) }}" class="btn btn-sm btn-outline-info rounded-pill">Xem</a>
                       <a href="{{ url_for('reporting_bp.export_report', instance_id=report.id) }}" class="btn btn-sm btn-outline-success rounded-pill">Xuất</a>

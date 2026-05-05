@@ -1,98 +1,136 @@
 {% extends "base_mobile.html" if g.is_mobile else "base.html" %}
 
-{% block title %}{{ report_data.schema.template_name }} - Nhập liệu{% endblock %}
+{% block title %}{{ report_data.schema.template_name }} - Báo cáo{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/reporting-modern.css') }}?v=20260426">
+<style>
+  .report-direct-shell {
+    display: grid;
+    gap: 14px;
+  }
+  .report-direct-meta {
+    color: #475569;
+    font-size: 0.9rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+  }
+  .report-direct-meta span {
+    min-width: 0;
+  }
+  .report-direct-sections {
+    display: grid;
+    gap: 14px;
+  }
+  .report-direct-section-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: baseline;
+    margin-bottom: 12px;
+  }
+  .report-direct-section-head h5 {
+    margin: 0;
+  }
+  .report-direct-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 18px;
+  }
+  [data-theme="dark"] .report-direct-meta { color: #cbd5e1; }
+  @media (max-width: 991px) {
+    .report-direct-meta {
+      display: grid;
+      gap: 4px;
+    }
+    .report-direct-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="reporting-page">
-  <div class="reporting-shell">
+  <div class="reporting-shell report-direct-shell">
     <div class="reporting-hero">
       <div>
-        <div class="reporting-chip mb-3">
-          <i class="fa-solid fa-pen-to-square"></i>
-          <span>Nhập liệu báo cáo</span>
-        </div>
         <h3>{{ report_data.schema.template_name }}</h3>
+        <div class="report-direct-meta">
+          <span>{{ instance.org_unit }}</span>
+          <span>{{ report_context.name if report_context else period.name }}</span>
+          <span>{{ report_data.schema.version_number }}</span>
+          <span>{{ instance.status|upper }}</span>
+        </div>
       </div>
       <div class="reporting-hero-actions">
-        <span class="reporting-pill">
-          <i class="fa-solid fa-clock"></i>
-          Cập nhật {{ instance.updated_at.strftime('%d/%m/%Y %H:%M') }}
-        </span>
-        {% if not g.is_mobile %}
-        <a href="{{ url_for('reporting_bp.fill_form_desktop', template_id=report_data.schema.template_id, period_id=instance.period_id) }}" class="btn btn-outline-dark rounded-pill px-4">
-          <i class="fa-solid fa-table-cells-large me-2"></i>Bảng tính Excel-like
+        <a href="{{ url_for('reporting_bp.preview_template', template_id=template_id) }}" class="btn btn-outline-primary rounded-pill px-4">
+          Xem mẫu
         </a>
-        {% endif %}
         <button type="button" class="btn btn-outline-secondary rounded-pill px-4" onclick="window.history.back()">
-          <i class="fa-solid fa-arrow-left me-2"></i>Quay lại
+          Quay lại
         </button>
         {% if instance.status == 'draft' %}
         <button type="button" class="btn btn-primary rounded-pill px-4" onclick="saveDraft()">
-          <i class="fa-solid fa-floppy-disk me-2"></i>Lưu nháp
+          Lưu nháp
         </button>
         <button type="button" class="btn btn-success rounded-pill px-4" onclick="submitReport()">
-          <i class="fa-solid fa-paper-plane me-2"></i>Nộp báo cáo
+          Nộp báo cáo
         </button>
         {% endif %}
       </div>
     </div>
 
-    <div class="reporting-panel">
-      <div class="reporting-panel-body">
-        <form id="reportForm">
+    <section class="reporting-panel">
+      <div class="reporting-panel-body report-direct-shell">
+        <form id="reportForm" class="report-direct-sections">
           {% for section_name, fields in report_data.schema.sections.items() %}
-          <section class="reporting-section mb-4">
-            <div class="reporting-section-title">
-              <div>
-                <h5 class="mb-1">{{ section_name }}</h5>
+          <section class="reporting-panel">
+            <div class="reporting-panel-body">
+              <div class="report-direct-section-head">
+                <h5>{{ section_name }}</h5>
               </div>
-            </div>
 
-            <div class="reporting-form-grid">
-              {% for field in fields %}
-              {% if not field.hidden %}
-              <div class="reporting-field">
-                <label for="field_{{ field.code }}">
-                  {{ field.name }}
-                  {% if field.required %}<span class="text-danger">*</span>{% endif %}
-                  {% if field.help_text %}
-                  <i class="fa-regular fa-circle-question text-muted ms-1" data-bs-toggle="tooltip" title="{{ field.help_text }}"></i>
+              <div class="report-direct-grid">
+                {% for field in fields %}
+                {% if not field.hidden %}
+                <div class="reporting-field">
+                  <label for="field_{{ field.code }}">
+                    {{ field.name }}
+                    {% if field.required %}<span class="text-danger">*</span>{% endif %}
+                  </label>
+
+                  {% if field.readonly or field.calculated %}
+                  <input type="text"
+                         class="form-control reporting-field-readonly"
+                         id="field_{{ field.code }}"
+                         name="{{ field.code }}"
+                         value="{{ report_data['values'].get(field.code, {}).get('display_value', report_data['values'].get(field.code, {}).get('value', '')) }}"
+                         {% if field.type == 'number' %}style="text-align:right;font-variant-numeric:tabular-nums;"{% endif %}
+                         readonly>
+                  {% else %}
+                  <input type="text"
+                         class="form-control{% if field.type == 'number' %} text-end{% endif %}"
+                         id="field_{{ field.code }}"
+                         name="{{ field.code }}"
+                         value="{{ report_data['values'].get(field.code, {}).get('display_value', report_data['values'].get(field.code, {}).get('value', '')) }}"
+                         {% if field.required %}required{% endif %}
+                         {% if field.type == 'number' %}inputmode="decimal" style="text-align:right;font-variant-numeric:tabular-nums;"{% endif %}
+                         onchange="calculateFields()">
                   {% endif %}
-                </label>
-
-                {% if field.readonly or field.calculated %}
-                <input type="text"
-                       class="form-control reporting-field-readonly"
-                       id="field_{{ field.code }}"
-                       name="{{ field.code }}"
-                       value="{{ report_data['values'].get(field.code, {}).get('display_value', report_data['values'].get(field.code, {}).get('value', '')) }}"
-                       style="{% if field.type == 'number' %}text-align:right;font-variant-numeric:tabular-nums;{% endif %}"
-                       readonly>
-                {% else %}
-                <input type="text"
-                       class="form-control{% if field.type == 'number' %} text-end{% endif %}"
-                       id="field_{{ field.code }}"
-                       name="{{ field.code }}"
-                       value="{{ report_data['values'].get(field.code, {}).get('display_value', report_data['values'].get(field.code, {}).get('value', '')) }}"
-                       {% if field.required %}required{% endif %}
-                       {% if field.type == 'number' %}inputmode="decimal" style="text-align:right;font-variant-numeric:tabular-nums;"{% endif %}
-                       onchange="calculateFields()">
+                </div>
                 {% endif %}
+                {% endfor %}
               </div>
-              {% endif %}
-              {% endfor %}
             </div>
           </section>
           {% endfor %}
         </form>
 
-        <div id="alertContainer" class="mt-3"></div>
+        <div id="alertContainer"></div>
       </div>
-    </div>
+    </section>
   </div>
 </div>
 {% endblock %}
@@ -124,7 +162,6 @@ function saveDraft() {
         hideLoading();
         if (data.success) {
             showAlert('success', 'Đã lưu nháp thành công.');
-            setTimeout(() => location.reload(), 900);
         } else {
             showAlert('danger', 'Lỗi: ' + data.message);
         }
@@ -138,13 +175,12 @@ function saveDraft() {
 function submitReport() {
     if (isReadonly) return;
 
-    if (!confirm('Bạn có chắc muốn nộp báo cáo? Sau khi nộp sẽ không thể chỉnh sửa.')) {
+    if (!confirm('Bạn có chắc muốn nộp báo cáo?')) {
         return;
     }
 
     const formData = new FormData(document.getElementById('reportForm'));
     const values = {};
-
     for (const [key, value] of formData.entries()) {
         values[key] = value;
     }
@@ -158,9 +194,7 @@ function submitReport() {
     })
     .then(response => response.json())
     .then(data => {
-        if (!data.success) {
-            throw new Error(data.message);
-        }
+        if (!data.success) throw new Error(data.message);
         return fetch(`/reporting/api/reports/${instanceId}/submit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
@@ -173,13 +207,9 @@ function submitReport() {
             showAlert('success', 'Đã nộp báo cáo thành công.');
             setTimeout(() => {
                 window.location.href = '/reporting';
-            }, 1200);
+            }, 1000);
         } else {
-            let errorMarkup = 'Lỗi: ' + data.message;
-            if (data.errors && data.errors.length) {
-                errorMarkup += '<ul class="mb-0 mt-2">' + data.errors.map(err => `<li>${err.message}</li>`).join('') + '</ul>';
-            }
-            showAlert('danger', errorMarkup);
+            showAlert('danger', data.message || 'Không thể nộp báo cáo.');
         }
     })
     .catch(error => {
@@ -191,9 +221,7 @@ function submitReport() {
 function calculateFields() {
     if (isReadonly) return;
     clearTimeout(window.autoSaveTimer);
-    window.autoSaveTimer = setTimeout(() => {
-        saveDraft();
-    }, 2000);
+    window.autoSaveTimer = setTimeout(() => saveDraft(), 1500);
 }
 
 function showAlert(type, message) {
@@ -217,12 +245,5 @@ function hideLoading() {
     const loading = document.getElementById('loadingAlert');
     if (loading) loading.remove();
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function(tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-});
 </script>
 {% endblock %}

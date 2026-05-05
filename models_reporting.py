@@ -47,7 +47,7 @@ class FormTemplate(db.Model):
     category = db.Column(db.String(100))  # Phân loại: thống kê, tài chính, nhân sự, đất đai...
     
     # --- Cấu hình kỳ nộp báo cáo ---
-    report_type = db.Column(db.String(20), default='adhoc')  # daily, periodic, adhoc
+    report_type = db.Column(db.String(20))  # daily, periodic, adhoc
     frequency = db.Column(db.String(20))  # weekly, monthly, quarterly, yearly (dùng cho loại periodic)
     deadline_rule = db.Column(db.String(50))  # VD: "16:30" cho daily, "5" cho monthly (ngày mùng 5)
     # --------------------------------
@@ -81,6 +81,117 @@ class FormVersion(db.Model):
     
     def __repr__(self):
         return f'<FormVersion {self.version_number} of Template {self.template_id}>'
+
+
+class ReportSubmission(db.Model):
+    """Một lần nộp báo cáo theo file Excel."""
+    __tablename__ = 'report_submission'
+
+    id = db.Column(db.Integer, primary_key=True)
+    template_id = db.Column(db.Integer, db.ForeignKey('form_template.id'), nullable=False, index=True)
+    template_version_id = db.Column(db.Integer, db.ForeignKey('form_version.id'), nullable=False, index=True)
+    period_id = db.Column(db.Integer, db.ForeignKey('reporting_period.id'), nullable=False, index=True)
+    report_period = db.Column(db.String(50), nullable=False, index=True)
+    reporting_unit = db.Column(db.String(255), nullable=False, index=True)
+    submitted_by = db.Column(db.Integer, nullable=False)
+    submitted_at = db.Column(db.DateTime)
+    status = db.Column(db.String(50), nullable=False, default='DRAFT', index=True)
+    original_filename = db.Column(db.String(255))
+    original_file_path = db.Column(db.String(500))
+    processed_file_path = db.Column(db.String(500))
+    error_file_path = db.Column(db.String(500))
+    total_rows = db.Column(db.Integer, default=0)
+    valid_rows = db.Column(db.Integer, default=0)
+    invalid_rows = db.Column(db.Integer, default=0)
+    warning_count = db.Column(db.Integer, default=0)
+    metadata_json = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
+
+    template = db.relationship('FormTemplate', backref='submissions')
+    version = db.relationship('FormVersion', backref='submissions')
+    period = db.relationship('ReportingPeriod', backref='submissions')
+
+    def __repr__(self):
+        return f'<ReportSubmission {self.id}: {self.reporting_unit} - {self.status}>'
+
+
+class ReportDataRow(db.Model):
+    """Dữ liệu hàng sau khi parse từ Excel."""
+    __tablename__ = 'report_data_row'
+
+    id = db.Column(db.Integer, primary_key=True)
+    submission_id = db.Column(db.Integer, db.ForeignKey('report_submission.id'), nullable=False, index=True)
+    sheet_code = db.Column(db.String(100))
+    section_code = db.Column(db.String(100))
+    row_index = db.Column(db.Integer)
+    status = db.Column(db.String(50), default='VALID')
+    metadata_json = db.Column(db.Text)
+
+    submission = db.relationship('ReportSubmission', backref='data_rows')
+
+    def __repr__(self):
+        return f'<ReportDataRow {self.id} sub={self.submission_id} row={self.row_index}>'
+
+
+class ReportDataCell(db.Model):
+    """Giá trị ô đã chuẩn hóa từ file báo cáo."""
+    __tablename__ = 'report_data_cell'
+
+    id = db.Column(db.Integer, primary_key=True)
+    row_id = db.Column(db.Integer, db.ForeignKey('report_data_row.id'), nullable=False, index=True)
+    field_code = db.Column(db.String(100), nullable=False, index=True)
+    excel_address = db.Column(db.String(50))
+    raw_value = db.Column(db.Text)
+    normalized_value = db.Column(db.Text)
+    value_type = db.Column(db.String(50))
+    formula_text = db.Column(db.Text)
+
+    row = db.relationship('ReportDataRow', backref='cells')
+
+    def __repr__(self):
+        return f'<ReportDataCell {self.field_code}@{self.excel_address}>'
+
+
+class ReportValidationError(db.Model):
+    """Lỗi và cảnh báo khi import báo cáo Excel."""
+    __tablename__ = 'report_validation_error'
+
+    id = db.Column(db.Integer, primary_key=True)
+    submission_id = db.Column(db.Integer, db.ForeignKey('report_submission.id'), nullable=False, index=True)
+    sheet_name = db.Column(db.String(255))
+    section_code = db.Column(db.String(100))
+    row_index = db.Column(db.Integer)
+    column_index = db.Column(db.Integer)
+    cell_address = db.Column(db.String(50))
+    field_code = db.Column(db.String(100))
+    error_code = db.Column(db.String(100))
+    error_message = db.Column(db.Text, nullable=False)
+    severity = db.Column(db.String(50), nullable=False, default='ERROR')
+
+    submission = db.relationship('ReportSubmission', backref='validation_errors')
+
+    def __repr__(self):
+        return f'<ReportValidationError {self.error_code} sub={self.submission_id}>'
+
+
+class ReportWorkflowHistory(db.Model):
+    """Lịch sử workflow của một lần nộp báo cáo."""
+    __tablename__ = 'report_workflow_history'
+
+    id = db.Column(db.Integer, primary_key=True)
+    submission_id = db.Column(db.Integer, db.ForeignKey('report_submission.id'), nullable=False, index=True)
+    from_status = db.Column(db.String(50))
+    to_status = db.Column(db.String(50))
+    action = db.Column(db.String(100), nullable=False)
+    comment = db.Column(db.Text)
+    actor_id = db.Column(db.Integer, nullable=False)
+    acted_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    submission = db.relationship('ReportSubmission', backref='workflow_history')
+
+    def __repr__(self):
+        return f'<ReportWorkflowHistory {self.action} sub={self.submission_id}>'
 
 
 class FormField(db.Model):

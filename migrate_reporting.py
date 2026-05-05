@@ -12,7 +12,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app import app
-from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ValidationRule, ReportInstance, ReportFieldValue, ReportAuditLog, ReportAttachment
+from models_reporting import db, ReportingPeriod, FormTemplate, FormVersion, FormField, ValidationRule, ReportInstance, ReportFieldValue, ReportAuditLog, ReportAttachment, ReportSubmission, ReportDataRow, ReportDataCell, ReportValidationError, ReportWorkflowHistory
 
 def create_reporting_tables():
     """Tạo tất cả bảng cho reporting system"""
@@ -26,7 +26,9 @@ def create_reporting_tables():
             from models_reporting import (
                 ReportingPeriod, FormTemplate, FormVersion, FormField,
                 ValidationRule, ReportInstance, ReportFieldValue,
-                ReportAuditLog, ReportAttachment
+                ReportAuditLog, ReportAttachment, ReportSubmission,
+                ReportDataRow, ReportDataCell, ReportValidationError,
+                ReportWorkflowHistory
             )
             
             # Tạo tất cả bảng
@@ -43,6 +45,10 @@ def create_reporting_tables():
             print("   - report_field_value (Giá trị trường)")
             print("   - report_audit_log (Audit trail)")
             print("   - report_attachment (File đính kèm)")
+            print("   - report_submission (Lần nộp báo cáo)")
+            print("   - report_data_row / report_data_cell (Dữ liệu chuẩn hóa)")
+            print("   - report_validation_error (Lỗi kiểm tra)")
+            print("   - report_workflow_history (Lịch sử workflow)")
             
             print("\n✨ Migration hoàn thành!")
             print("\nBước tiếp theo:")

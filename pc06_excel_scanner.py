@@ -26,6 +26,133 @@ def _is_numeric_like(value):
     return isinstance(value, (int, float))
 
 
+def _normalized_text(value):
+    if _is_blank(value):
+        return ''
+    return ' '.join(str(value).replace('\n', ' ').split()).strip().lower()
+
+
+def _row_profile(ws, row, min_col, max_col):
+    entries = []
+    for col in range(min_col, max_col + 1):
+        cell = ws.cell(row, col)
+        entries.append((col, cell.value, cell.data_type))
+    values = [value for _, value, _ in entries]
+    non_empty = [value for _, value, _ in entries if not _is_blank(value)]
+    text_like = [value for _, value, _ in entries if not _is_blank(value) and _is_text_like(value)]
+    numeric_like = [value for _, value, _ in entries if not _is_blank(value) and _is_numeric_like(value)]
+    formula_like = [
+        value for _, value, data_type in entries
+        if not _is_blank(value) and (data_type == 'f' or _is_formula_text(value))
+    ]
+    normalized = [_normalized_text(value) for _, value, _ in entries if _normalized_text(value)]
+    return {
+        'values': values,
+        'non_empty': non_empty,
+        'text_like_count': len(text_like),
+        'numeric_like_count': len(numeric_like),
+        'formula_like_count': len(formula_like),
+        'normalized_texts': normalized,
+        'non_empty_count': len(non_empty),
+    }
+
+
+def _looks_like_detail_row(ws, row, min_col, max_col):
+    first_value = ws.cell(row, min_col).value
+    second_value = ws.cell(row, min_col + 1).value if min_col + 1 <= max_col else None
+    second_text = _normalized_text(second_value)
+    if not _is_numeric_like(first_value):
+        return False
+    if not _is_text_like(second_value):
+        return False
+    if not second_text or second_text in {'tên đơn vị', 'đơn vị'}:
+        return False
+    if any(token in second_text for token in ('toàn tỉnh', 'tổng', 'cộng')):
+        return False
+
+    numeric_or_formula = 0
+    for col in range(min_col + 2, max_col + 1):
+        cell = ws.cell(row, col)
+        value = cell.value
+        if _is_numeric_like(value) or cell.data_type == 'f' or _is_formula_text(value):
+            numeric_or_formula += 1
+    return numeric_or_formula >= 1
+
+
+def _looks_like_numbering_row(ws, row, min_col, max_col):
+    profile = _row_profile(ws, row, min_col, max_col)
+    if profile['non_empty_count'] < 3:
+        return False
+    if profile['formula_like_count'] > 0 or profile['text_like_count'] > 0:
+        return False
+    seq = []
+    for col in range(min_col, max_col + 1):
+        value = ws.cell(row, col).value
+        if _is_numeric_like(value):
+            try:
+                seq.append(int(value))
+            except Exception:
+                return False
+    if len(seq) < 3:
+        return False
+    return seq == list(range(seq[0], seq[0] + len(seq)))
+
+
+def _looks_like_summary_row(ws, row, min_col, max_col):
+    profile = _row_profile(ws, row, min_col, max_col)
+    if profile['non_empty_count'] == 0:
+        return False
+    first_text = _normalized_text(ws.cell(row, min_col).value)
+    second_text = _normalized_text(ws.cell(row, min_col + 1).value if min_col + 1 <= max_col else None)
+    leading_text = ' '.join([part for part in (first_text, second_text) if part])
+    if profile['formula_like_count'] >= 1 and not _looks_like_detail_row(ws, row, min_col, max_col):
+        return True
+    texts = ' '.join(profile['normalized_texts'])
+    if any(token in leading_text for token in ('toàn tỉnh', 'tổng', 'cộng')):
+        return True
+    return any(token in texts for token in ('toàn tỉnh', 'tổng', 'cộng'))
+
+
+def _max_merge_span_for_row(merged_ranges, row):
+    max_span = 1
+    for merged in merged_ranges:
+        if merged['row'] <= row < merged['row'] + merged.get('rowspan', 1):
+            max_span = max(max_span, merged.get('colspan', 1))
+    return max_span
+
+
+def _looks_like_title_row(ws, row, min_col, max_col, merged_ranges, used_width):
+    profile = _row_profile(ws, row, min_col, max_col)
+    if profile['non_empty_count'] == 0:
+        return False
+    if profile['numeric_like_count'] > 0 and profile['text_like_count'] == 0:
+        return False
+    max_merge = _max_merge_span_for_row(merged_ranges, row)
+    if max_merge >= max(4, int(used_width * 0.6)) and profile['text_like_count'] <= 2:
+        return True
+    if max_merge >= max(4, int(used_width * 0.25)) and profile['text_like_count'] == 1 and profile['non_empty_count'] == 1:
+        return True
+    if profile['text_like_count'] == 1 and profile['non_empty_count'] == 1 and len(profile['normalized_texts'][0]) >= 20:
+        return True
+    return False
+
+
+def _looks_like_header_row(ws, row, min_col, max_col, merged_ranges, used_width):
+    profile = _row_profile(ws, row, min_col, max_col)
+    if profile['non_empty_count'] == 0:
+        return False
+    if _looks_like_numbering_row(ws, row, min_col, max_col):
+        return False
+    if _looks_like_summary_row(ws, row, min_col, max_col):
+        return False
+    max_merge = _max_merge_span_for_row(merged_ranges, row)
+    if profile['text_like_count'] >= 2:
+        return True
+    if max_merge >= 2 and profile['text_like_count'] >= 1 and max_merge < max(4, int(used_width * 0.6)):
+        return True
+    return False
+
+
 def _load_workbook_utf8(buffer, **kwargs):
     """Load workbook with UTF-8 encoding support"""
     kwargs.setdefault('read_only', False)
@@ -107,7 +234,10 @@ def scan_excel_structure(excel_blob):
         'visible_columns': [],
         'hidden_rows': hidden_rows,
         'hidden_columns': hidden_columns,
+        'title_rows': [],
         'header_rows': [],
+        'helper_rows': [],
+        'summary_rows': [],
         'data_start_row': 4,  # Default
         'headers': {},  # {row: {col: value}}
         'merged_cells': [],
@@ -135,74 +265,113 @@ def scan_excel_structure(excel_blob):
             'value': ws.cell(min_row, min_col).value
         })
     
-    merged_by_row = {}
-    for merged in result['merged_cells']:
-        merged_by_row.setdefault(merged['row'], []).append(merged)
-
-    # Detect header rows with relaxed heuristics:
-    # - keep rows containing labels/merged section headers
-    # - stop at the first row that clearly looks like data
-    header_candidates = []
-    detected_data_row = None
-    scan_limit = min(used_max_row, used_min_row + 39)
-    for row in range(used_min_row, scan_limit + 1):
+    # Detect table structure by first finding detail data rows, then walk upward
+    detected_detail_row = None
+    for row in range(used_min_row, min(used_max_row, used_min_row + 79) + 1):
         if ws.row_dimensions[row].hidden:
             continue
-        row_values = [ws.cell(row, col).value for col in range(used_min_col, used_max_col + 1)]
-        non_empty = [value for value in row_values if not _is_blank(value)]
-        if not non_empty:
-            continue
-
-        text_like_count = sum(1 for value in non_empty if _is_text_like(value))
-        numeric_like_count = sum(1 for value in non_empty if _is_numeric_like(value))
-        formula_like_count = sum(1 for value in non_empty if _is_formula_text(value))
-        merged_headers = merged_by_row.get(row, [])
-        dominant_merge = any(m.get('colspan', 1) >= max(3, int(used_width * 0.45)) for m in merged_headers)
-        first_cell = ws.cell(row, used_min_col).value
-        numeric_ratio = numeric_like_count / max(1, len(non_empty))
-
-        looks_like_data = (
-            numeric_like_count >= 2
-            and numeric_ratio >= 0.35
-            and text_like_count <= max(2, len(non_empty) // 3)
-        ) or (
-            header_candidates
-            and _is_numeric_like(first_cell)
-            and numeric_like_count >= 2
-            and text_like_count <= 2
-            and formula_like_count <= 2
-        ) or (
-            header_candidates
-            and (numeric_like_count > 0 or formula_like_count > 0)
-            and text_like_count <= max(1, len(non_empty) // 2)
-        )
-
-        if header_candidates and looks_like_data:
-            detected_data_row = row
+        if _looks_like_detail_row(ws, row, used_min_col, used_max_col):
+            detected_detail_row = row
             break
 
-        if text_like_count > 0 or dominant_merge:
-            header_candidates.append(row)
-            continue
+    header_rows = []
+    helper_rows = []
+    summary_rows = []
+    title_rows = []
 
-        if header_candidates and numeric_like_count > 0:
-            detected_data_row = row
-            break
+    if detected_detail_row:
+        result['data_start_row'] = detected_detail_row
+        blank_streak = 0
+        for row in range(detected_detail_row - 1, used_min_row - 1, -1):
+            if ws.row_dimensions[row].hidden:
+                continue
+            if all(_is_blank(ws.cell(row, col).value) for col in range(used_min_col, used_max_col + 1)):
+                blank_streak += 1
+                if header_rows and blank_streak >= 1:
+                    break
+                continue
 
-    result['header_rows'] = header_candidates
-    if detected_data_row:
-        result['data_start_row'] = detected_data_row
-    elif header_candidates:
-        cursor = max(header_candidates) + 1
-        while cursor <= used_max_row:
-            row_values = [ws.cell(cursor, col).value for col in range(used_min_col, used_max_col + 1)]
-            if any(not _is_blank(value) for value in row_values):
-                result['data_start_row'] = cursor
+            if _looks_like_summary_row(ws, row, used_min_col, used_max_col):
+                summary_rows.append(row)
+                continue
+            if _looks_like_numbering_row(ws, row, used_min_col, used_max_col):
+                helper_rows.append(row)
+                continue
+            if _looks_like_header_row(ws, row, used_min_col, used_max_col, result['merged_cells'], used_width):
+                header_rows.append(row)
+                blank_streak = 0
+                continue
+            if header_rows:
                 break
-            cursor += 1
+
+        header_rows = sorted(header_rows)
+        helper_rows = sorted(helper_rows)
+        summary_rows = sorted(summary_rows)
+
+        for row in range(used_min_row, (min(header_rows) - 1) if header_rows else detected_detail_row):
+            if ws.row_dimensions[row].hidden:
+                continue
+            if all(_is_blank(ws.cell(row, col).value) for col in range(used_min_col, used_max_col + 1)):
+                continue
+            if _looks_like_title_row(ws, row, used_min_col, used_max_col, result['merged_cells'], used_width):
+                title_rows.append(row)
+    else:
+        # Fallback for files where the detail row is not recognizable.
+        header_candidates = []
+        detected_data_row = None
+        scan_limit = min(used_max_row, used_min_row + 39)
+        for row in range(used_min_row, scan_limit + 1):
+            if ws.row_dimensions[row].hidden:
+                continue
+            profile = _row_profile(ws, row, used_min_col, used_max_col)
+            if not profile['non_empty_count']:
+                continue
+
+            text_like_count = profile['text_like_count']
+            numeric_like_count = profile['numeric_like_count']
+            formula_like_count = profile['formula_like_count']
+            max_merge = _max_merge_span_for_row(result['merged_cells'], row)
+            first_cell = ws.cell(row, used_min_col).value
+            numeric_ratio = numeric_like_count / max(1, profile['non_empty_count'])
+
+            looks_like_data = (
+                numeric_like_count >= 2
+                and numeric_ratio >= 0.35
+                and text_like_count <= max(2, profile['non_empty_count'] // 3)
+            ) or (
+                header_candidates
+                and _is_numeric_like(first_cell)
+                and numeric_like_count >= 2
+                and text_like_count <= 2
+                and formula_like_count <= 2
+            ) or (
+                header_candidates
+                and (numeric_like_count > 0 or formula_like_count > 0)
+                and text_like_count <= max(1, profile['non_empty_count'] // 2)
+            )
+
+            if header_candidates and looks_like_data:
+                detected_data_row = row
+                break
+
+            if text_like_count > 0 or max_merge >= max(3, int(used_width * 0.45)):
+                header_candidates.append(row)
+                continue
+
+            if header_candidates and numeric_like_count > 0:
+                detected_data_row = row
+                break
+
+        header_rows = header_candidates
+        result['data_start_row'] = detected_data_row or result['data_start_row']
+
+    result['title_rows'] = title_rows
+    result['header_rows'] = header_rows
+    result['helper_rows'] = helper_rows
+    result['summary_rows'] = summary_rows
 
     # Scan headers - use raw value directly, don't convert
-    for row in header_candidates:
+    for row in result['header_rows']:
         if ws.row_dimensions[row].hidden:
             continue
         result['headers'][row] = {}
