@@ -30,7 +30,7 @@ from models import (
 )
 from category_helpers import get_category_items, get_module_field_items
 from report_engine import normalize_code, parse_workbook, render_sheet_html, safe_filename, write_workbook_copy
-from utils import apply_migrations, extract_unit_key, log_action, render_auto_template as render_template
+from utils import apply_migrations, extract_unit_key, is_unit_match, log_action, render_auto_template as render_template
 
 reporting_bp = Blueprint("reporting_bp", __name__)
 
@@ -532,6 +532,35 @@ def _row_context_label(ws, sheet_fields, existing_values, sheet_name, row_index)
     if fallback:
         return fallback[0]
     return f"Dòng {row_index}"
+
+
+def _row_matches_unit(ws, sheet_fields, existing_values, sheet_name, row_index, unit):
+    if not unit:
+        return False
+    unit_name = (getattr(unit, "name", None) or "").strip()
+    unit_code = (getattr(unit, "code", None) or "").strip()
+    if not unit_name and not unit_code:
+        return False
+
+    candidates = []
+    for field in sheet_fields:
+        coord = f"{field.column_letter}{row_index}"
+        value = existing_values.get(sheet_name, {}).get(coord, ws[coord].value)
+        display_value = _cell_display_value(value)
+        if not display_value:
+            continue
+        label_code = normalize_code(_field_display_name(field))
+        if any(marker in label_code for marker in {"don_vi", "ten_don_vi", "ma_don_vi", "stt", "so_thu_tu"}):
+            candidates.append(display_value)
+        elif not field.is_editable:
+            candidates.append(display_value)
+
+    for candidate in candidates:
+        if unit_name and is_unit_match(candidate, unit_name):
+            return True
+        if unit_code and is_unit_match(candidate, unit_code):
+            return True
+    return False
 
 
 def _cell_display_value(value):
@@ -1770,6 +1799,15 @@ def cycle_workspace(cycle_id):
         row_entries = []
         for row_index in range(unit_start_row, unit_end_row + 1):
             if ws.row_dimensions[row_index].hidden:
+                continue
+            if not _is_admin() and unit and not _row_matches_unit(
+                ws,
+                sheet_fields,
+                existing_values,
+                sheet_meta["sheet_name"],
+                row_index,
+                unit,
+            ):
                 continue
             inputs = []
             for field in editable_fields:
