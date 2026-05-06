@@ -57,13 +57,13 @@
                 {% if n.filename %}
                 <a href="/dl_file/{{ n.filename }}" class="news-inline-link">
                     <i class="fa-solid fa-paperclip"></i>
-                    {{ n.filename }}
+                    <span>{{ n.filename }}</span>
                 </a>
                 {% else %}
                 <span class="news-empty-attach">Không có đính kèm</span>
                 {% endif %}
                 <button
-                    class="btn btn-bdhvs light"
+                    class="btn btn-bdhvs primary news-view-btn"
                     onclick='Swal.fire({title: {{ n.title|tojson }}, text: {{ (n.content|default("", true)|replace("\n", " "))|tojson }}, icon: "info"})'>
                     <i class="fa-solid fa-eye"></i>
                     Xem
@@ -132,7 +132,9 @@
     .news-date, .news-empty-attach { font-size: 0.78rem; color: var(--text-muted); }
     .news-card-bdhvs h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-main); line-height: 1.5; }
     .news-card-bdhvs p { margin: 0; color: var(--text-muted); line-height: 1.7; font-size: 0.9rem; }
-    .news-inline-link { display: inline-flex; align-items: center; gap: 8px; color: var(--primary); text-decoration: none; font-size: 0.84rem; font-weight: 700; min-width: 0; }
+    .news-inline-link { display: inline-flex; align-items: center; gap: 8px; color: var(--primary); text-decoration: none; font-size: 0.84rem; font-weight: 700; min-width: 0; flex: 1 1 auto; overflow: hidden; }
+    .news-inline-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .news-view-btn { flex-shrink: 0; padding-inline: 16px; min-width: 92px; justify-content: center; }
     [data-theme="dark"] .news-card-bdhvs { background: rgba(30,41,59,0.92); border-color: rgba(148,163,184,0.14); }
     @media (max-width: 1320px) { .news-grid-bdhvs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
     @media (max-width: 1080px) { .news-grid-bdhvs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

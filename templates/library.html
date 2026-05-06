@@ -45,17 +45,31 @@
         {% for item in items %}
         <article class="library-card-bdhvs library-item" data-category="{{ item.category|lower }}" data-search="{{ (item.title ~ ' ' ~ (item.description or '') ~ ' ' ~ (item.category or ''))|lower }}">
             <div class="library-card-head">
-                <div class="library-file-icon"><i class="fa-solid fa-file-pdf"></i></div>
-                <span class="pc06-soft-tag neutral">{{ item.category }}</span>
+                <span class="pc06-soft-tag">
+                    <i class="fa-solid fa-layer-group"></i>
+                    {{ item.category }}
+                </span>
+                <span class="library-date">{{ item.uploaded_at.strftime('%d/%m/%Y') }}</span>
             </div>
             <h3>{{ item.title }}</h3>
-            <p>{{ item.description or 'Không có mô tả chi tiết cho tài liệu này.' }}</p>
+            <p>{{ item.description[:180] if item.description else 'Không có mô tả chi tiết cho tài liệu này.' }}{{ '...' if item.description and item.description|length > 180 else '' }}</p>
             <div class="library-card-foot">
-                <span class="news-date">{{ item.uploaded_at.strftime('%d/%m/%Y') }}</span>
-                <a href="/dl_file/{{ item.filename }}" class="btn btn-bdhvs primary">
+                {% if item.filename %}
+                <a href="/dl_file/{{ item.filename }}" class="library-inline-link">
+                    <i class="fa-solid fa-paperclip"></i>
+                    {{ item.filename }}
+                </a>
+                <a href="/dl_file/{{ item.filename }}" class="btn btn-bdhvs light">
                     <i class="fa-solid fa-download"></i>
                     Tải về
                 </a>
+                {% else %}
+                <span class="library-empty-attach">Không có đính kèm</span>
+                <span class="btn btn-bdhvs light disabled" aria-disabled="true">
+                    <i class="fa-solid fa-download"></i>
+                    Tải về
+                </span>
+                {% endif %}
             </div>
         </article>
         {% else %}
@@ -117,9 +131,10 @@
     .library-grid-bdhvs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
     .library-card-bdhvs { padding: 20px; border-radius: 24px; background: rgba(255,255,255,0.96); border: 1px solid rgba(148,163,184,0.16); box-shadow: 0 18px 40px rgba(15,23,42,0.06); display: grid; gap: 14px; }
     .library-card-head, .library-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .library-file-icon { width: 46px; height: 46px; border-radius: 16px; background: #dbeafe; color: #1d4ed8; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+    .library-date, .library-empty-attach { font-size: 0.78rem; color: var(--text-muted); }
     .library-card-bdhvs h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-main); line-height: 1.5; }
     .library-card-bdhvs p { margin: 0; color: var(--text-muted); line-height: 1.7; font-size: 0.9rem; }
+    .library-inline-link { display: inline-flex; align-items: center; gap: 8px; color: var(--primary); text-decoration: none; font-size: 0.84rem; font-weight: 700; min-width: 0; }
     [data-theme="dark"] .library-card-bdhvs { background: rgba(30,41,59,0.92); border-color: rgba(148,163,184,0.14); }
     @media (max-width: 1320px) { .library-grid-bdhvs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
     @media (max-width: 1080px) { .library-grid-bdhvs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
