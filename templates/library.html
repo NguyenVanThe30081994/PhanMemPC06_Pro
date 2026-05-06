@@ -1,87 +1,325 @@
 {% extends "base.html" %}
 
+{% block extra_head %}
+<style>
+    .pc06-library-workspace {
+        display: grid;
+        grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+        gap: 22px;
+        align-items: start;
+    }
+
+    .pc06-library-sidebar,
+    .pc06-library-board {
+        display: grid;
+        gap: 18px;
+    }
+
+    .pc06-library-field-panel,
+    .pc06-library-board-panel {
+        padding: 20px;
+    }
+
+    .pc06-library-field-head,
+    .pc06-library-board-head {
+        margin-bottom: 16px;
+    }
+
+    .pc06-library-field-head h2,
+    .pc06-library-board-head h2 {
+        margin: 0;
+        font-size: 1.08rem;
+        font-weight: 800;
+        color: var(--text-main, #0f172a);
+    }
+
+    .pc06-library-sidebar-search {
+        margin-bottom: 16px;
+    }
+
+    .pc06-library-field-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .pc06-library-field-chip {
+        width: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(248, 250, 252, 0.92);
+        border-radius: 18px;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        text-align: left;
+        transition: all 0.2s ease;
+        color: var(--text-main, #0f172a);
+        box-shadow: none;
+    }
+
+    .pc06-library-field-chip strong {
+        display: block;
+        font-size: 0.94rem;
+        font-weight: 800;
+    }
+
+    .pc06-library-field-chip span {
+        min-width: 38px;
+        height: 38px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(37, 99, 235, 0.08);
+        color: #1d4ed8;
+        font-weight: 900;
+        flex-shrink: 0;
+    }
+
+    .pc06-library-field-chip.active {
+        border-color: rgba(37, 99, 235, 0.32);
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(37, 99, 235, 0.92));
+        box-shadow: 0 18px 34px rgba(37, 99, 235, 0.14);
+    }
+
+    .pc06-library-field-chip.active strong,
+    .pc06-library-field-chip.active span {
+        color: #fff;
+    }
+
+    .pc06-library-field-chip.active span {
+        background: rgba(255, 255, 255, 0.18);
+    }
+
+    .pc06-library-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .pc06-library-card {
+        padding: 20px;
+        border-radius: 26px;
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+        display: grid;
+        gap: 16px;
+    }
+
+    [data-theme="dark"] .pc06-library-card {
+        background: rgba(30, 41, 59, 0.92);
+        border-color: rgba(148, 163, 184, 0.14);
+    }
+
+    .pc06-library-card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .pc06-library-card-head .pc06-soft-tag {
+        min-width: 0;
+        max-width: calc(100% - 106px);
+        white-space: nowrap;
+    }
+
+    .pc06-library-date {
+        font-size: 0.8rem;
+        color: var(--text-muted, #64748b);
+        white-space: nowrap;
+        flex-shrink: 0;
+        line-height: 1.45;
+        padding-top: 4px;
+    }
+
+    .pc06-library-title {
+        margin: 0;
+        font-size: 1.02rem;
+        line-height: 1.5;
+        font-weight: 800;
+        color: var(--text-main, #0f172a);
+    }
+
+    .pc06-library-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    .pc06-library-file-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--primary);
+        text-decoration: none;
+        font-size: 0.84rem;
+        font-weight: 700;
+        min-width: 0;
+        flex: 1 1 auto;
+        overflow: hidden;
+    }
+
+    .pc06-library-file-link span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+        display: block;
+    }
+
+    .pc06-library-empty-file {
+        font-size: 0.8rem;
+        color: var(--text-muted, #64748b);
+    }
+
+    .pc06-library-download-btn {
+        flex-shrink: 0;
+        min-width: 96px;
+        justify-content: center;
+    }
+
+    .pc06-library-empty-panel {
+        padding: 0;
+    }
+
+    .pc06-library-title-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    @media (max-width: 1320px) {
+        .pc06-library-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 1080px) {
+        .pc06-library-workspace {
+            grid-template-columns: 1fr;
+        }
+
+        .pc06-library-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="pc06-page-shell">
-    <section class="pc06-hero-card with-toolbar">
+    <section class="pc06-hero-card">
         <div class="pc06-hero-grid compact">
             <div>
-                <h1 class="pc06-page-title">Thư viện</h1>
-                <div class="pc06-hero-inline-band">
-                    <div class="pc06-hero-toolbar pc06-hero-toolbar-inline">
-                        <div class="pc06-toolbar-row compact-filters">
-                            <div class="pc06-select-control search-grow">
-                                <span>Tìm kiếm</span>
-                                <label class="pc06-search-control">
-                                    <i class="fa-solid fa-magnifying-glass"></i>
-                                    <input type="text" id="librarySearch" placeholder="Tìm tên tài liệu hoặc mô tả">
-                                </label>
-                            </div>
-                            <label class="pc06-select-control compact">
-                                <span>Lĩnh vực</span>
-                                <select id="libraryCategoryFilter" class="form-select">
-                                    <option value="ALL">Tất cả lĩnh vực</option>
-                                    {% for cat in categories %}
-                                    <option value="{{ cat.name|lower }}">{{ cat.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </label>
-                            <span class="pc06-toolbar-count" id="libraryResultCount">{{ items|length }} tài liệu</span>
-                            {% if perms.get('p_lib_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
-                            <div class="pc06-toolbar-actions">
-                                <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLibraryModal">
-                                    <i class="fa-solid fa-upload"></i>
-                                    Tải tài liệu lên
-                                </button>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
+                <div class="pc06-library-title-row">
+                    <h1 class="pc06-page-title">Thư viện</h1>
+                    {% if perms.get('p_lib_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
+                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLibraryModal">
+                        <i class="fa-solid fa-upload"></i>
+                        Tải tài liệu lên
+                    </button>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="library-grid-bdhvs">
-        {% for item in items %}
-        <article class="library-card-bdhvs library-item" data-category="{{ item.category|lower }}" data-search="{{ (item.title ~ ' ' ~ (item.description or '') ~ ' ' ~ (item.category or ''))|lower }}">
-            <div class="library-card-head">
-                <span class="pc06-soft-tag">
-                    <i class="fa-solid fa-layer-group"></i>
-                    {{ item.category }}
-                </span>
-                <span class="library-date">{{ item.uploaded_at.strftime('%d/%m/%Y') }}</span>
-            </div>
-            <h3>{{ item.title }}</h3>
-            <p>{{ item.description[:180] if item.description else 'Không có mô tả chi tiết cho tài liệu này.' }}{{ '...' if item.description and item.description|length > 180 else '' }}</p>
-            <div class="library-card-foot">
-                {% if item.filename %}
-                <a href="/dl_file/{{ item.filename }}" class="library-inline-link">
-                    <i class="fa-solid fa-paperclip"></i>
-                    {{ item.filename }}
-                </a>
-                <a href="/dl_file/{{ item.filename }}" class="btn btn-bdhvs light">
-                    <i class="fa-solid fa-download"></i>
-                    Tải về
-                </a>
+    <div class="pc06-library-workspace">
+        <aside class="pc06-library-sidebar">
+            <section class="pc06-panel pc06-library-field-panel">
+                <div class="pc06-library-field-head">
+                    <h2>Lĩnh vực</h2>
+                </div>
+                <div class="pc06-library-sidebar-search">
+                    <label class="pc06-search-control">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="librarySearch" placeholder="Tìm theo tên tài liệu">
+                    </label>
+                </div>
+                <div class="pc06-library-field-list">
+                    <button type="button" class="pc06-library-field-chip active" data-category-filter="ALL">
+                        <strong>Tất cả lĩnh vực</strong>
+                        <span>{{ items|length }}</span>
+                    </button>
+                    {% for cat in categories %}
+                    {% set counter = namespace(total=0) %}
+                    {% for item in items %}
+                    {% if (item.category or '') == cat.name %}
+                    {% set counter.total = counter.total + 1 %}
+                    {% endif %}
+                    {% endfor %}
+                    <button type="button" class="pc06-library-field-chip" data-category-filter="{{ cat.name|lower }}">
+                        <strong>{{ cat.name }}</strong>
+                        <span>{{ counter.total }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+            </section>
+        </aside>
+
+        <div class="pc06-library-board">
+            <section class="pc06-panel pc06-library-board-panel">
+                <div class="pc06-library-board-head">
+                    <h2 id="librarySelectedCategory">Tất cả lĩnh vực</h2>
+                </div>
+                {% if items %}
+                <section class="pc06-library-grid" id="libraryGrid">
+                    {% for item in items %}
+                    <article class="pc06-library-card library-item" data-category="{{ (item.category or '')|lower }}" data-search="{{ (item.title ~ ' ' ~ (item.category or ''))|lower }}">
+                        <div class="pc06-library-card-head">
+                            <span class="pc06-soft-tag">
+                                <i class="fa-solid fa-layer-group"></i>
+                                {{ item.category }}
+                            </span>
+                            <span class="pc06-library-date">{{ item.uploaded_at.strftime('%d/%m/%Y') }}</span>
+                        </div>
+                        <h3 class="pc06-library-title">{{ item.title }}</h3>
+                        <div class="pc06-library-footer">
+                            {% if item.filename %}
+                            <a href="/dl_file/{{ item.filename }}" class="pc06-library-file-link">
+                                <i class="fa-solid fa-paperclip"></i>
+                                <span title="{{ item.filename }}">{{ item.filename }}</span>
+                            </a>
+                            <a href="/dl_file/{{ item.filename }}" class="btn btn-bdhvs primary pc06-library-download-btn">
+                                <i class="fa-solid fa-download"></i>
+                                Tải về
+                            </a>
+                            {% else %}
+                            <span class="pc06-library-empty-file">Không có đính kèm</span>
+                            <span class="btn btn-bdhvs light disabled pc06-library-download-btn" aria-disabled="true">
+                                <i class="fa-solid fa-download"></i>
+                                Tải về
+                            </span>
+                            {% endif %}
+                        </div>
+                    </article>
+                    {% endfor %}
+                </section>
+
+                <section class="pc06-panel pc06-empty-panel pc06-library-empty-panel d-none" id="libraryNoResults">
+                    <div class="pc06-empty-state">
+                        <div class="pc06-empty-icon"><i class="fa-solid fa-book-open"></i></div>
+                        <h3>Chưa có tài liệu</h3>
+                    </div>
+                </section>
                 {% else %}
-                <span class="library-empty-attach">Không có đính kèm</span>
-                <span class="btn btn-bdhvs light disabled" aria-disabled="true">
-                    <i class="fa-solid fa-download"></i>
-                    Tải về
-                </span>
+                <section class="pc06-panel pc06-empty-panel pc06-library-empty-panel">
+                    <div class="pc06-empty-state">
+                        <div class="pc06-empty-icon"><i class="fa-solid fa-book-open"></i></div>
+                        <h3>Chưa có tài liệu</h3>
+                    </div>
+                </section>
                 {% endif %}
-            </div>
-        </article>
-        {% else %}
-        <section class="pc06-panel pc06-empty-panel">
-            <div class="pc06-empty-state">
-                <div class="pc06-empty-icon"><i class="fa-solid fa-book-open"></i></div>
-                <h3>Thư viện đang trống</h3>
-                <p>Chưa phát sinh tài liệu.</p>
-            </div>
-        </section>
-        {% endfor %}
-    </section>
+            </section>
+        </div>
+    </div>
 </div>
 
 <div class="modal fade" id="addLibraryModal" tabindex="-1">
@@ -126,20 +364,6 @@
         </div>
     </div>
 </div>
-
-<style>
-    .library-grid-bdhvs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
-    .library-card-bdhvs { padding: 20px; border-radius: 24px; background: rgba(255,255,255,0.96); border: 1px solid rgba(148,163,184,0.16); box-shadow: 0 18px 40px rgba(15,23,42,0.06); display: grid; gap: 14px; }
-    .library-card-head, .library-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .library-date, .library-empty-attach { font-size: 0.78rem; color: var(--text-muted); }
-    .library-card-bdhvs h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-main); line-height: 1.5; }
-    .library-card-bdhvs p { margin: 0; color: var(--text-muted); line-height: 1.7; font-size: 0.9rem; }
-    .library-inline-link { display: inline-flex; align-items: center; gap: 8px; color: var(--primary); text-decoration: none; font-size: 0.84rem; font-weight: 700; min-width: 0; }
-    [data-theme="dark"] .library-card-bdhvs { background: rgba(30,41,59,0.92); border-color: rgba(148,163,184,0.14); }
-    @media (max-width: 1320px) { .library-grid-bdhvs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-    @media (max-width: 1080px) { .library-grid-bdhvs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    @media (max-width: 768px) { .library-grid-bdhvs { grid-template-columns: 1fr; } }
-</style>
 {% endblock %}
 
 {% block scripts %}
@@ -160,8 +384,11 @@
             item.style.display = isVisible ? '' : 'none';
             if (isVisible) visibleCount += 1;
         });
-        const countNode = document.getElementById('libraryResultCount');
-        if (countNode) countNode.textContent = `${visibleCount} tài liệu`;
+
+        const emptyNode = document.getElementById('libraryNoResults');
+        if (emptyNode) {
+            emptyNode.classList.toggle('d-none', visibleCount !== 0);
+        }
     }
 
     document.getElementById('librarySearch')?.addEventListener('input', (event) => {
@@ -169,9 +396,15 @@
         applyLibraryFilters();
     });
 
-    document.getElementById('libraryCategoryFilter')?.addEventListener('change', (event) => {
-        libraryFilters.category = event.target.value;
-        applyLibraryFilters();
+    document.querySelectorAll('[data-category-filter]').forEach((button) => {
+        button.addEventListener('click', () => {
+            libraryFilters.category = button.dataset.categoryFilter || 'ALL';
+            document.querySelectorAll('[data-category-filter]').forEach((item) => item.classList.toggle('active', item === button));
+            const selected = button.querySelector('strong')?.textContent?.trim() || 'Tất cả lĩnh vực';
+            const titleNode = document.getElementById('librarySelectedCategory');
+            if (titleNode) titleNode.textContent = selected;
+            applyLibraryFilters();
+        });
     });
 
     applyLibraryFilters();

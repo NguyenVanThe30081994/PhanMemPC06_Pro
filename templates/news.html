@@ -1,85 +1,327 @@
 {% extends "base.html" %}
 
+{% block extra_head %}
+<style>
+    .pc06-news-workspace {
+        display: grid;
+        grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+        gap: 22px;
+        align-items: start;
+    }
+
+    .pc06-news-sidebar,
+    .pc06-news-board {
+        display: grid;
+        gap: 18px;
+    }
+
+    .pc06-news-field-panel,
+    .pc06-news-board-panel {
+        padding: 20px;
+    }
+
+    .pc06-news-field-head,
+    .pc06-news-board-head {
+        margin-bottom: 16px;
+    }
+
+    .pc06-news-field-head h2,
+    .pc06-news-board-head h2 {
+        margin: 0;
+        font-size: 1.08rem;
+        font-weight: 800;
+        color: var(--text-main, #0f172a);
+    }
+
+    .pc06-news-sidebar-search {
+        margin-bottom: 16px;
+    }
+
+    .pc06-news-field-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .pc06-news-field-chip {
+        width: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(248, 250, 252, 0.92);
+        border-radius: 18px;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        text-align: left;
+        transition: all 0.2s ease;
+        color: var(--text-main, #0f172a);
+        box-shadow: none;
+    }
+
+    .pc06-news-field-chip strong {
+        display: block;
+        font-size: 0.94rem;
+        font-weight: 800;
+    }
+
+    .pc06-news-field-chip span {
+        min-width: 38px;
+        height: 38px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(37, 99, 235, 0.08);
+        color: #1d4ed8;
+        font-weight: 900;
+        flex-shrink: 0;
+    }
+
+    .pc06-news-field-chip.active {
+        border-color: rgba(37, 99, 235, 0.32);
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(37, 99, 235, 0.92));
+        box-shadow: 0 18px 34px rgba(37, 99, 235, 0.14);
+    }
+
+    .pc06-news-field-chip.active strong,
+    .pc06-news-field-chip.active span {
+        color: #fff;
+    }
+
+    .pc06-news-field-chip.active span {
+        background: rgba(255, 255, 255, 0.18);
+    }
+
+    .pc06-news-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .pc06-news-card {
+        padding: 20px;
+        border-radius: 26px;
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+        display: grid;
+        gap: 16px;
+    }
+
+    [data-theme="dark"] .pc06-news-card {
+        background: rgba(30, 41, 59, 0.92);
+        border-color: rgba(148, 163, 184, 0.14);
+    }
+
+    .pc06-news-card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .pc06-news-card-head .pc06-soft-tag {
+        min-width: 0;
+        max-width: calc(100% - 106px);
+    }
+
+    .pc06-news-card-head .pc06-soft-tag span,
+    .pc06-news-card-head .pc06-soft-tag {
+        white-space: nowrap;
+    }
+
+    .pc06-news-date {
+        font-size: 0.8rem;
+        color: var(--text-muted, #64748b);
+        white-space: nowrap;
+        flex-shrink: 0;
+        line-height: 1.45;
+        padding-top: 4px;
+    }
+
+    .pc06-news-title {
+        margin: 0;
+        font-size: 1.02rem;
+        line-height: 1.5;
+        font-weight: 800;
+        color: var(--text-main, #0f172a);
+    }
+
+    .pc06-news-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    .pc06-news-file-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--primary);
+        text-decoration: none;
+        font-size: 0.84rem;
+        font-weight: 700;
+        min-width: 0;
+        flex: 1 1 auto;
+        overflow: hidden;
+    }
+
+    .pc06-news-file-link span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+        display: block;
+    }
+
+    .pc06-news-empty-file {
+        font-size: 0.8rem;
+        color: var(--text-muted, #64748b);
+    }
+
+    .pc06-news-view-btn {
+        flex-shrink: 0;
+        min-width: 88px;
+        justify-content: center;
+    }
+
+    .pc06-news-empty-panel {
+        padding: 0;
+    }
+
+    .pc06-news-title-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    @media (max-width: 1320px) {
+        .pc06-news-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 1080px) {
+        .pc06-news-workspace {
+            grid-template-columns: 1fr;
+        }
+
+        .pc06-news-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="pc06-page-shell">
-    <section class="pc06-hero-card with-toolbar">
+    <section class="pc06-hero-card">
         <div class="pc06-hero-grid compact">
             <div>
-                <h1 class="pc06-page-title">Bảng tin</h1>
-                <div class="pc06-hero-inline-band">
-                    <div class="pc06-hero-toolbar pc06-hero-toolbar-inline">
-                        <div class="pc06-toolbar-row compact-filters">
-                            <div class="pc06-select-control search-grow">
-                                <span>Tìm kiếm</span>
-                                <label class="pc06-search-control">
-                                    <i class="fa-solid fa-magnifying-glass"></i>
-                                    <input type="text" id="newsSearch" placeholder="Tìm tiêu đề hoặc nội dung bản tin">
-                                </label>
-                            </div>
-                            <label class="pc06-select-control compact">
-                                <span>Lĩnh vực</span>
-                                <select id="newsCategoryFilter" class="form-select">
-                                    <option value="ALL">Tất cả lĩnh vực</option>
-                                    {% for unit in pro_units %}
-                                    <option value="{{ unit.name|lower }}">{{ unit.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </label>
-                            <span class="pc06-toolbar-count" id="newsResultCount">{{ news_list|length }} tin</span>
-                            {% if perms.get('p_news_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
-                            <div class="pc06-toolbar-actions">
-                                <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addNewsModal">
-                                    <i class="fa-solid fa-plus"></i>
-                                    Đăng tin mới
-                                </button>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
+                <div class="pc06-news-title-row">
+                    <h1 class="pc06-page-title">Bảng tin</h1>
+                    {% if perms.get('p_news_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
+                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addNewsModal">
+                        <i class="fa-solid fa-plus"></i>
+                        Đăng tin mới
+                    </button>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="news-grid-bdhvs">
-        {% for n in news_list %}
-        <article class="news-card-bdhvs news-item" data-category="{{ n.category|lower }}" data-search="{{ (n.title ~ ' ' ~ (n.content or '') ~ ' ' ~ (n.category or ''))|lower }}">
-            <div class="news-card-head">
-                <span class="pc06-soft-tag">
-                    <i class="fa-solid fa-layer-group"></i>
-                    {{ n.category }}
-                </span>
-                <span class="news-date">{{ n.uploaded_at.strftime('%d/%m/%Y') }}</span>
-            </div>
-            <h3>{{ n.title }}</h3>
-            <p>{{ n.content[:180] if n.content else 'Không có nội dung mô tả.' }}{{ '...' if n.content and n.content|length > 180 else '' }}</p>
-            <div class="news-card-foot">
-                {% if n.filename %}
-                <a href="/dl_file/{{ n.filename }}" class="news-inline-link">
-                    <i class="fa-solid fa-paperclip"></i>
-                    <span>{{ n.filename }}</span>
-                </a>
+    <div class="pc06-news-workspace">
+        <aside class="pc06-news-sidebar">
+            <section class="pc06-panel pc06-news-field-panel">
+                <div class="pc06-news-field-head">
+                    <h2>Lĩnh vực</h2>
+                </div>
+                <div class="pc06-news-sidebar-search">
+                    <label class="pc06-search-control">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="newsSearch" placeholder="Tìm theo tiêu đề bản tin">
+                    </label>
+                </div>
+                <div class="pc06-news-field-list">
+                    <button type="button" class="pc06-news-field-chip active" data-category-filter="ALL">
+                        <strong>Tất cả lĩnh vực</strong>
+                        <span>{{ news_list|length }}</span>
+                    </button>
+                    {% for unit in pro_units %}
+                    {% set counter = namespace(total=0) %}
+                    {% for item in news_list %}
+                    {% if (item.category or '') == unit.name %}
+                    {% set counter.total = counter.total + 1 %}
+                    {% endif %}
+                    {% endfor %}
+                    <button type="button" class="pc06-news-field-chip" data-category-filter="{{ unit.name|lower }}">
+                        <strong>{{ unit.name }}</strong>
+                        <span>{{ counter.total }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+            </section>
+        </aside>
+
+        <div class="pc06-news-board">
+            <section class="pc06-panel pc06-news-board-panel">
+                <div class="pc06-news-board-head">
+                    <h2 id="newsSelectedCategory">Tất cả lĩnh vực</h2>
+                </div>
+                {% if news_list %}
+                <section class="pc06-news-grid" id="newsGrid">
+                    {% for n in news_list %}
+                    <article class="pc06-news-card news-item" data-category="{{ (n.category or '')|lower }}" data-search="{{ (n.title ~ ' ' ~ (n.category or ''))|lower }}">
+                        <div class="pc06-news-card-head">
+                            <span class="pc06-soft-tag">
+                                <i class="fa-solid fa-layer-group"></i>
+                                {{ n.category }}
+                            </span>
+                            <span class="pc06-news-date">{{ n.uploaded_at.strftime('%d/%m/%Y') }}</span>
+                        </div>
+                        <h3 class="pc06-news-title">{{ n.title }}</h3>
+                        <div class="pc06-news-footer">
+                            {% if n.filename %}
+                            <a href="/dl_file/{{ n.filename }}" class="pc06-news-file-link">
+                                <i class="fa-solid fa-paperclip"></i>
+                                <span title="{{ n.filename }}">{{ n.filename }}</span>
+                            </a>
+                            {% else %}
+                            <span class="pc06-news-empty-file">Không có đính kèm</span>
+                            {% endif %}
+                            <button
+                                class="btn btn-bdhvs primary pc06-news-view-btn"
+                                onclick='Swal.fire({title: {{ n.title|tojson }}, text: {{ (n.content|default("", true)|replace("\n", " "))|tojson }}, icon: "info"})'>
+                                <i class="fa-solid fa-eye"></i>
+                                Xem
+                            </button>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </section>
+
+                <section class="pc06-panel pc06-empty-panel pc06-news-empty-panel d-none" id="newsNoResults">
+                    <div class="pc06-empty-state">
+                        <div class="pc06-empty-icon"><i class="fa-solid fa-newspaper"></i></div>
+                        <h3>Chưa có bản tin</h3>
+                    </div>
+                </section>
                 {% else %}
-                <span class="news-empty-attach">Không có đính kèm</span>
+                <section class="pc06-panel pc06-empty-panel pc06-news-empty-panel">
+                    <div class="pc06-empty-state">
+                        <div class="pc06-empty-icon"><i class="fa-solid fa-newspaper"></i></div>
+                        <h3>Chưa có bản tin</h3>
+                    </div>
+                </section>
                 {% endif %}
-                <button
-                    class="btn btn-bdhvs primary news-view-btn"
-                    onclick='Swal.fire({title: {{ n.title|tojson }}, text: {{ (n.content|default("", true)|replace("\n", " "))|tojson }}, icon: "info"})'>
-                    <i class="fa-solid fa-eye"></i>
-                    Xem
-                </button>
-            </div>
-        </article>
-        {% else %}
-        <section class="pc06-panel pc06-empty-panel">
-            <div class="pc06-empty-state">
-                <div class="pc06-empty-icon"><i class="fa-solid fa-newspaper"></i></div>
-                <h3>Chưa có bản tin nào</h3>
-                <p>Chưa phát sinh bản tin.</p>
-            </div>
-        </section>
-        {% endfor %}
-    </section>
+            </section>
+        </div>
+    </div>
 </div>
 
 <div class="modal fade" id="addNewsModal" tabindex="-1">
@@ -124,22 +366,6 @@
         </div>
     </div>
 </div>
-
-<style>
-    .news-grid-bdhvs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
-    .news-card-bdhvs { padding: 20px; border-radius: 24px; background: rgba(255,255,255,0.96); border: 1px solid rgba(148,163,184,0.16); box-shadow: 0 18px 40px rgba(15,23,42,0.06); display: grid; gap: 14px; }
-    .news-card-head, .news-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .news-date, .news-empty-attach { font-size: 0.78rem; color: var(--text-muted); }
-    .news-card-bdhvs h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-main); line-height: 1.5; }
-    .news-card-bdhvs p { margin: 0; color: var(--text-muted); line-height: 1.7; font-size: 0.9rem; }
-    .news-inline-link { display: inline-flex; align-items: center; gap: 8px; color: var(--primary); text-decoration: none; font-size: 0.84rem; font-weight: 700; min-width: 0; flex: 1 1 auto; overflow: hidden; }
-    .news-inline-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .news-view-btn { flex-shrink: 0; padding-inline: 16px; min-width: 92px; justify-content: center; }
-    [data-theme="dark"] .news-card-bdhvs { background: rgba(30,41,59,0.92); border-color: rgba(148,163,184,0.14); }
-    @media (max-width: 1320px) { .news-grid-bdhvs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-    @media (max-width: 1080px) { .news-grid-bdhvs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    @media (max-width: 768px) { .news-grid-bdhvs { grid-template-columns: 1fr; } }
-</style>
 {% endblock %}
 
 {% block scripts %}
@@ -160,8 +386,11 @@
             item.style.display = isVisible ? '' : 'none';
             if (isVisible) visibleCount += 1;
         });
-        const countNode = document.getElementById('newsResultCount');
-        if (countNode) countNode.textContent = `${visibleCount} tin`;
+
+        const emptyNode = document.getElementById('newsNoResults');
+        if (emptyNode) {
+            emptyNode.classList.toggle('d-none', visibleCount !== 0);
+        }
     }
 
     document.getElementById('newsSearch')?.addEventListener('input', (event) => {
@@ -169,9 +398,15 @@
         applyNewsFilters();
     });
 
-    document.getElementById('newsCategoryFilter')?.addEventListener('change', (event) => {
-        newsFilters.category = event.target.value;
-        applyNewsFilters();
+    document.querySelectorAll('[data-category-filter]').forEach((button) => {
+        button.addEventListener('click', () => {
+            newsFilters.category = button.dataset.categoryFilter || 'ALL';
+            document.querySelectorAll('[data-category-filter]').forEach((item) => item.classList.toggle('active', item === button));
+            const selected = button.querySelector('strong')?.textContent?.trim() || 'Tất cả lĩnh vực';
+            const titleNode = document.getElementById('newsSelectedCategory');
+            if (titleNode) titleNode.textContent = selected;
+            applyNewsFilters();
+        });
     });
 
     applyNewsFilters();

@@ -16,7 +16,8 @@ portal_bp = Blueprint('portal_bp', __name__)
 
 CONTACT_IMPORT_HEADER_ALIASES = {
     'name': {'ho ten', 'ten', 'ten lien he', 'ho va ten'},
-    'phone': {'so dien thoai', 'sdt', 'so dt', 'dien thoai'}
+    'phone': {'so dien thoai', 'sdt', 'so dt', 'dien thoai'},
+    'unit_name': {'don vi', 'ten don vi', 'co quan', 'phong ban', 'don vi cong tac', 'unit'}
 }
 
 
@@ -75,12 +76,14 @@ def _load_contacts_from_excel(file_storage, has_header=True):
     if has_header:
         name_col = _find_import_column(df.columns, 'name')
         phone_col = _find_import_column(df.columns, 'phone')
+        unit_col = _find_import_column(df.columns, 'unit_name')
         if not name_col or not phone_col:
             raise ValueError('Khi có tiêu đề, file phải có đúng 2 cột nhận diện được: "Họ tên" và "Số điện thoại".')
     else:
         if len(df.columns) < 2:
             raise ValueError('Khi không có tiêu đề, file phải có ít nhất 2 cột: cột A là Họ tên, cột B là Số điện thoại.')
         name_col, phone_col = df.columns[0], df.columns[1]
+        unit_col = df.columns[2] if len(df.columns) >= 3 else None
 
     contacts = []
     skipped_empty = 0
@@ -89,6 +92,7 @@ def _load_contacts_from_excel(file_storage, has_header=True):
     for idx, row in df.iterrows():
         name = _clean_import_text(row.get(name_col, ''))
         phone = _normalize_import_phone(row.get(phone_col, ''))
+        unit_name = _clean_import_text(row.get(unit_col, '')) if unit_col is not None else ''
         excel_row = idx + (2 if has_header else 1)
 
         if not name and not phone:
@@ -103,7 +107,8 @@ def _load_contacts_from_excel(file_storage, has_header=True):
             'idx': len(contacts),
             'excel_row': int(excel_row),
             'name': name,
-            'phone': phone
+            'phone': phone,
+            'unit_name': unit_name
         })
 
     if not contacts:
@@ -469,7 +474,7 @@ def contact_import():
             for row in parsed['rows']:
                 db.session.add(Contact(
                     contact_group=global_group,
-                    unit_name=user_unit,
+                    unit_name=(row.get('unit_name') or user_unit or '').strip(),
                     name=row['name'],
                     phone=row['phone'],
                     role=global_role

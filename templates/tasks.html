@@ -39,6 +39,7 @@
         margin: 0;
         font-size: 0.84rem;
         color: var(--text-muted, #64748b);
+        display: none;
     }
 
     .pc06-field-list {
@@ -126,6 +127,7 @@
         margin: 0;
         color: var(--text-muted, #64748b);
         font-size: 0.84rem;
+        display: none;
     }
 
     .pc06-task-compact-grid {
@@ -400,13 +402,11 @@
             <section class="pc06-panel pc06-field-panel">
                 <div class="pc06-field-panel-head">
                     <h2>Lĩnh vực</h2>
-                    <p>Chọn lĩnh vực để lọc nhanh danh sách công việc.</p>
                 </div>
                 <div class="pc06-field-list">
                     <button type="button" class="pc06-field-chip active" data-field-filter="ALL">
                         <div>
                             <strong>Tất cả lĩnh vực</strong>
-                            <small>Hiển thị toàn bộ công việc hiện có</small>
                         </div>
                         <span>{{ tasks|length }}</span>
                     </button>
@@ -414,7 +414,6 @@
                     <button type="button" class="pc06-field-chip" data-field-filter="{{ item.name|lower }}">
                         <div>
                             <strong>{{ item.name }}</strong>
-                            <small>Danh sách công việc thuộc lĩnh vực này</small>
                         </div>
                         <span>{{ field_counts.get(item.name, 0) }}</span>
                     </button>
@@ -423,7 +422,6 @@
                     <button type="button" class="pc06-field-chip" data-field-filter="__uncategorized__">
                         <div>
                             <strong>Chưa phân lĩnh vực</strong>
-                            <small>Cần bổ sung để chuẩn hóa giao việc</small>
                         </div>
                         <span>{{ uncategorized_count }}</span>
                     </button>
@@ -437,20 +435,17 @@
                 <div class="pc06-task-filter-head">
                     <div>
                         <h2 id="taskSelectedField">Tất cả lĩnh vực</h2>
-                        <p>Danh sách công việc được lọc theo lĩnh vực, đội nghiệp vụ và trạng thái.</p>
                     </div>
                     <span class="pc06-toolbar-count" id="taskResultCount">{{ tasks|length }} việc</span>
                 </div>
                 <div class="pc06-toolbar-row compact-filters">
                     <div class="pc06-select-control search-grow">
-                        <span>Tìm kiếm</span>
                         <label class="pc06-search-control">
                             <i class="fa-solid fa-magnifying-glass"></i>
                             <input type="text" id="taskSearch" placeholder="Tìm theo tên công việc, mô tả, đội hoặc lĩnh vực">
                         </label>
                     </div>
                     <label class="pc06-select-control compact">
-                        <span>Đội nghiệp vụ</span>
                         <select id="taskUnitFilter" class="form-select">
                             <option value="ALL">Tất cả đội</option>
                             {% for unit in pro_units %}
@@ -459,7 +454,6 @@
                         </select>
                     </label>
                     <label class="pc06-select-control compact">
-                        <span>Trạng thái</span>
                         <select id="taskStatusFilter" class="form-select">
                             <option value="ALL">Tất cả trạng thái</option>
                             <option value="chưa tiếp nhận">Chưa tiếp nhận</option>
@@ -532,16 +526,14 @@
             <section class="pc06-panel pc06-empty-panel d-none" id="taskNoResults">
                 <div class="pc06-empty-state">
                     <div class="pc06-empty-icon"><i class="fa-solid fa-list-check"></i></div>
-                    <h3>Không có công việc phù hợp</h3>
-                    <p>Bộ lọc hiện tại chưa có công việc nào khớp. Hãy đổi lĩnh vực hoặc điều kiện tìm kiếm.</p>
+                    <h3>Chưa giao việc</h3>
                 </div>
             </section>
             {% else %}
             <section class="pc06-panel pc06-empty-panel">
                 <div class="pc06-empty-state">
                     <div class="pc06-empty-icon"><i class="fa-solid fa-list-check"></i></div>
-                    <h3>Chưa có công việc nào</h3>
-                    <p>Hệ thống hiện chưa có đầu việc phù hợp với quyền truy cập hoặc bộ lọc hiện tại.</p>
+                    <h3>Chưa giao việc</h3>
                 </div>
             </section>
             {% endif %}

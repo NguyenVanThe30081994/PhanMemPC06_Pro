@@ -1,131 +1,280 @@
 {% extends "base.html" %}
 
+{% block extra_head %}
+<style>
+    .pc06-contacts-workspace {
+        display: grid;
+        grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+        gap: 22px;
+        align-items: start;
+    }
+
+    .pc06-contacts-sidebar,
+    .pc06-contacts-board {
+        display: grid;
+        gap: 18px;
+    }
+
+    .pc06-contacts-group-panel,
+    .pc06-contacts-board-panel {
+        padding: 20px;
+    }
+
+    .pc06-contacts-group-head,
+    .pc06-contacts-board-head {
+        margin-bottom: 16px;
+    }
+
+    .pc06-contacts-group-head h2,
+    .pc06-contacts-board-head h2 {
+        margin: 0;
+        font-size: 1.08rem;
+        font-weight: 800;
+        color: var(--text-main, #0f172a);
+    }
+
+    .pc06-contacts-group-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .pc06-contacts-group-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(248, 250, 252, 0.92);
+        color: var(--text-main, #0f172a);
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .pc06-contacts-group-card strong {
+        display: block;
+        font-size: 0.94rem;
+        font-weight: 800;
+    }
+
+    .pc06-contacts-group-card span {
+        min-width: 38px;
+        height: 38px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(37, 99, 235, 0.08);
+        color: #1d4ed8;
+        font-weight: 900;
+        flex-shrink: 0;
+    }
+
+    .pc06-contacts-group-card.active {
+        border-color: rgba(37, 99, 235, 0.32);
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(37, 99, 235, 0.92));
+        box-shadow: 0 18px 34px rgba(37, 99, 235, 0.14);
+    }
+
+    .pc06-contacts-group-card.active strong,
+    .pc06-contacts-group-card.active span {
+        color: #fff;
+    }
+
+    .pc06-contacts-group-card.active span {
+        background: rgba(255, 255, 255, 0.18);
+    }
+
+    .pc06-contacts-title-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .pc06-contacts-board-tools {
+        display: grid;
+        gap: 16px;
+    }
+
+    .pc06-contacts-bulk-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .pc06-contact-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #2563eb, #3b82f6);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        flex-shrink: 0;
+    }
+
+    @media (max-width: 1080px) {
+        .pc06-contacts-workspace {
+            grid-template-columns: 1fr;
+        }
+
+        .pc06-contacts-bulk-bar {
+            align-items: flex-start;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="pc06-page-shell">
-    <section class="pc06-hero-card with-toolbar">
+    <section class="pc06-hero-card">
         <div class="pc06-hero-grid compact">
             <div>
-                <h1 class="pc06-page-title">Danh bạ</h1>
-                <div class="pc06-hero-inline-band">
-                    <div class="pc06-hero-toolbar pc06-hero-toolbar-inline">
-                        <div class="pc06-toolbar-row compact-filters">
-                            <div class="pc06-select-control search-grow">
-                                <span>Tìm kiếm</span>
-                                <label class="pc06-search-control">
-                                    <i class="fa-solid fa-magnifying-glass"></i>
-                                    <input type="text" id="contactSearch" placeholder="Tìm tên, số điện thoại hoặc đơn vị..." onkeyup="filterContactsInTable()">
-                                </label>
-                            </div>
-                            <label class="pc06-select-control compact wide">
-                                <span>Nhóm</span>
-                                <select id="contactGroupFilter" class="form-select" onchange="window.location.href=this.value">
-                                    <option value="{{ url_for('portal_bp.contacts') }}" {% if not current_group %}selected{% endif %}>Tất cả nhóm ({{ total_contact_count }})</option>
-                                    {% for cat in groups %}
-                                    <option value="{{ url_for('portal_bp.contacts', group=cat.name) }}" {% if current_group == cat.name %}selected{% endif %}>{{ cat.name }} ({{ group_contact_counts.get(cat.name, 0) }})</option>
-                                    {% endfor %}
-                                </select>
-                            </label>
-                            <span class="pc06-toolbar-count" id="contactVisibleCount">{{ contacts|length }} liên hệ</span>
-                            {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
-                            <div class="pc06-toolbar-actions">
-                                <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importContactModal">
-                                    <i class="fa-solid fa-file-excel"></i>
-                                    Nhập Excel
-                                </button>
-                                <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addContactModal">
-                                    <i class="fa-solid fa-plus"></i>
-                                    Thêm liên hệ
-                                </button>
-                            </div>
-                            {% endif %}
-                        </div>
+                <div class="pc06-contacts-title-row">
+                    <h1 class="pc06-page-title">Danh bạ</h1>
+                    {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
+                    <div class="pc06-action-cluster">
+                        <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importContactModal">
+                            <i class="fa-solid fa-file-excel"></i>
+                            Nhập Excel
+                        </button>
+                        <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addContactModal">
+                            <i class="fa-solid fa-plus"></i>
+                            Thêm liên hệ
+                        </button>
                     </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="pc06-panel">
-        {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
-        <div class="contact-bulk-bar mb-3">
-            <button type="button" class="btn btn-bdhvs light" onclick="toggleAllContacts()">
-                <i class="fa-solid fa-check-double"></i>
-                Chọn tất cả
-            </button>
-            <button type="button" class="btn btn-bdhvs light text-danger" id="bulkDeleteBtn" onclick="submitBulkDelete()" disabled>
-                <i class="fa-solid fa-trash-can"></i>
-                Xóa đã chọn
-            </button>
-            <span class="small text-muted" id="bulkSelectionText">Chưa chọn liên hệ nào</span>
-        </div>
-        {% endif %}
-
-        <div class="table-responsive mt-3">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="pill-thead">
-                    <tr>
-                        {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
-                        <th class="ps-4" style="width: 54px;">
-                            <input type="checkbox" class="form-check-input" id="contactCheckAll" onchange="handleCheckAllChange()">
-                        </th>
-                        {% endif %}
-                        <th class="ps-4">Tên liên hệ</th>
-                        <th>Chức vụ</th>
-                        <th>Số điện thoại</th>
-                        <th>Đơn vị</th>
-                        <th class="pe-4 text-end">Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody id="contactTable">
-                    {% if contacts %}
-                    {% for c in contacts %}
-                    <tr class="contact-row" data-category="{{ c.contact_group }}">
-                        {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
-                        <td class="ps-4">
-                            <input type="checkbox" class="form-check-input contact-row-check" value="{{ c.id }}" onchange="updateBulkSelectionState()">
-                        </td>
-                        {% endif %}
-                        <td class="ps-4 py-3">
-                            <div class="d-flex align-items-center gap-3">
-                                <div class="contact-avatar">{{ c.name[:1].upper() }}</div>
-                                <div>
-                                    <div class="fw-bold text-dark">{{ c.name }}</div>
-                                    <div class="tiny text-muted d-lg-none">{{ c.role or 'Thành viên' }}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>
-                            <div class="fw-bold text-dark">{{ c.role or 'Chưa cập nhật' }}</div>
-                        </td>
-                        <td class="fw-bold text-primary">{{ c.phone }}</td>
-                        <td class="small text-muted">{{ c.unit_name or '-' }}</td>
-                        <td class="pe-4 text-end">
-                            <div class="d-flex justify-content-end gap-2">
-                                <a href="tel:{{ c.phone }}" class="btn btn-light btn-circle btn-circle-sm border shadow-sm">
-                                    <i class="fa-solid fa-phone text-success tiny"></i>
-                                </a>
-                                {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
-                                <form method="POST" action="{{ url_for('portal_bp.contact_delete', cid=c.id) }}" class="d-inline m-0" onsubmit="return confirm('Xóa liên hệ này?')">
-                                    <button type="submit" class="btn btn-light btn-circle btn-circle-sm border shadow-sm text-danger">
-                                        <i class="fa-solid fa-trash tiny"></i>
-                                    </button>
-                                </form>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
+    <div class="pc06-contacts-workspace">
+        <aside class="pc06-contacts-sidebar">
+            <section class="pc06-panel pc06-contacts-group-panel">
+                <div class="pc06-contacts-group-head">
+                    <h2>Nhóm danh bạ</h2>
+                </div>
+                <div class="pc06-contacts-group-list">
+                    <a href="{{ url_for('portal_bp.contacts') }}" class="pc06-contacts-group-card {% if not current_group %}active{% endif %}">
+                        <strong>Tất cả nhóm</strong>
+                        <span>{{ total_contact_count }}</span>
+                    </a>
+                    {% for cat in groups %}
+                    <a href="{{ url_for('portal_bp.contacts', group=cat.name) }}" class="pc06-contacts-group-card {% if current_group == cat.name %}active{% endif %}">
+                        <strong>{{ cat.name }}</strong>
+                        <span>{{ group_contact_counts.get(cat.name, 0) }}</span>
+                    </a>
                     {% endfor %}
-                    {% else %}
-                    <tr>
-                        <td colspan="{% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}6{% else %}5{% endif %}" class="py-5 text-center text-muted">
-                            Không có liên hệ nào trong nhóm đang chọn.
-                        </td>
-                    </tr>
-                    {% endif %}
-                </tbody>
-            </table>
+                </div>
+            </section>
+        </aside>
+
+        <div class="pc06-contacts-board">
+            <section class="pc06-panel pc06-contacts-board-panel">
+                <div class="pc06-contacts-board-head">
+                    <h2>{{ current_group or 'Tất cả nhóm' }}</h2>
+                </div>
+
+                <div class="pc06-contacts-board-tools">
+                    <label class="pc06-search-control">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="contactSearch" placeholder="Tìm tên, số điện thoại hoặc đơn vị..." onkeyup="filterContactsInTable()">
+                    </label>
+
+                    <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+                        <span class="pc06-toolbar-count" id="contactVisibleCount">{{ contacts|length }} liên hệ</span>
+                        {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
+                        <div class="pc06-contacts-bulk-bar">
+                            <button type="button" class="btn btn-bdhvs light" onclick="toggleAllContacts()">
+                                <i class="fa-solid fa-check-double"></i>
+                                Chọn tất cả
+                            </button>
+                            <button type="button" class="btn btn-bdhvs light text-danger" id="bulkDeleteBtn" onclick="submitBulkDelete()" disabled>
+                                <i class="fa-solid fa-trash-can"></i>
+                                Xóa đã chọn
+                            </button>
+                            <span class="small text-muted" id="bulkSelectionText">Chưa chọn liên hệ nào</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if contacts %}
+                <div class="table-responsive mt-3">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="pill-thead">
+                            <tr>
+                                {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
+                                <th class="ps-4" style="width: 54px;">
+                                    <input type="checkbox" class="form-check-input" id="contactCheckAll" onchange="handleCheckAllChange()">
+                                </th>
+                                {% endif %}
+                                <th class="ps-4">Tên liên hệ</th>
+                                <th>Chức vụ</th>
+                                <th>Số điện thoại</th>
+                                <th>Đơn vị</th>
+                                <th class="pe-4 text-end">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contactTable">
+                            {% for c in contacts %}
+                            <tr class="contact-row" data-category="{{ c.contact_group }}">
+                                {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
+                                <td class="ps-4">
+                                    <input type="checkbox" class="form-check-input contact-row-check" value="{{ c.id }}" onchange="updateBulkSelectionState()">
+                                </td>
+                                {% endif %}
+                                <td class="ps-4 py-3">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="pc06-contact-avatar">{{ c.name[:1].upper() }}</div>
+                                        <div>
+                                            <div class="fw-bold text-dark">{{ c.name }}</div>
+                                            <div class="tiny text-muted d-lg-none">{{ c.role or 'Thành viên' }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="fw-bold text-dark">{{ c.role or 'Chưa cập nhật' }}</div>
+                                </td>
+                                <td class="fw-bold text-primary">{{ c.phone }}</td>
+                                <td class="small text-muted">{{ c.unit_name or '-' }}</td>
+                                <td class="pe-4 text-end">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        <a href="tel:{{ c.phone }}" class="btn btn-light btn-circle btn-circle-sm border shadow-sm">
+                                            <i class="fa-solid fa-phone text-success tiny"></i>
+                                        </a>
+                                        {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
+                                        <form method="POST" action="{{ url_for('portal_bp.contact_delete', cid=c.id) }}" class="d-inline m-0" onsubmit="return confirm('Xóa liên hệ này?')">
+                                            <button type="submit" class="btn btn-light btn-circle btn-circle-sm border shadow-sm text-danger">
+                                                <i class="fa-solid fa-trash tiny"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <section class="pc06-empty-panel">
+                    <div class="pc06-empty-state">
+                        <div class="pc06-empty-icon"><i class="fa-solid fa-address-book"></i></div>
+                        <h3>Chưa có liên hệ</h3>
+                    </div>
+                </section>
+                {% endif %}
+            </section>
         </div>
-    </section>
+    </div>
 </div>
 
 {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
@@ -169,7 +318,20 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="col-12">
+                        {% if perms.get('p_contact_lead') or is_admin %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Đơn vị</label>
+                            <div data-category-picker data-module="contacts" data-field="unit_name" data-placeholder="Chọn đơn vị" data-storage-key="modal.contacts.unit">
+                                <select name="unit_name" class="form-select" data-category-target>
+                                    <option value="" disabled selected>Chọn đơn vị</option>
+                                    {% for unit in unit_items %}<option value="{{ unit.name }}">{{ unit.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        {% else %}
+                        <input type="hidden" name="unit_name" value="{{ session.get('unit_area', '') }}">
+                        {% endif %}
+                        <div class="col-md-6">
                             <label class="form-label fw-bold">Số điện thoại</label>
                             <input type="tel" name="phone" class="form-control" placeholder="0xxx.xxx.xxx" pattern="0[0-9]{9}" maxlength="10" title="Số điện thoại gồm 10 số, bắt đầu bằng số 0" required>
                             <div class="form-text text-muted">10 số, bắt đầu bằng số 0. Ví dụ: 0912345678</div>
@@ -199,7 +361,7 @@
                 </div>
                 <div class="modal-body p-4">
                     <div class="alert alert-info small mb-4">
-                        File Excel chỉ cần 2 cột dữ liệu: <b>Họ tên</b> và <b>Số điện thoại</b>. Nhóm danh bạ và chức vụ sẽ lấy theo lựa chọn bên dưới.
+                        File Excel cần có 2 cột bắt buộc: <b>Họ tên</b> và <b>Số điện thoại</b>. Có thể bổ sung thêm cột <b>Đơn vị</b>; nếu thiếu, hệ thống sẽ dùng đơn vị của tài khoản đang nhập.
                     </div>
 
                     <div class="row g-3">
@@ -231,7 +393,7 @@
                                 <label class="form-check-label fw-bold small" for="hasHeaderCheck">Dòng đầu tiên là tiêu đề</label>
                             </div>
                             <div class="small text-muted mt-2">
-                                Nếu bật tùy chọn này, file phải có tiêu đề cột là <b>Họ tên</b> và <b>Số điện thoại</b> ở dòng đầu. Nếu tắt, hệ thống sẽ đọc ngay từ dòng 1 với quy ước: <b>cột A = Họ tên</b>, <b>cột B = Số điện thoại</b>.
+                                Nếu bật tùy chọn này, file nên có tiêu đề cột là <b>Họ tên</b>, <b>Số điện thoại</b> và tùy chọn <b>Đơn vị</b>. Nếu tắt, hệ thống sẽ đọc theo quy ước: <b>cột A = Họ tên</b>, <b>cột B = Số điện thoại</b>, <b>cột C = Đơn vị</b> nếu có.
                             </div>
                         </div>
                     </div>
@@ -239,9 +401,9 @@
                     <div class="mt-4 p-3 bg-light rounded border small">
                         <div class="fw-bold text-dark mb-2">Mẫu dữ liệu hợp lệ</div>
                         <div class="text-muted">Có tiêu đề:</div>
-                        <div class="font-monospace small">Họ tên | Số điện thoại</div>
-                        <div class="font-monospace small">Nguyễn Văn A | 0912345678</div>
-                        <div class="font-monospace small">Trần Thị B | 0987654321</div>
+                        <div class="font-monospace small">Họ tên | Số điện thoại | Đơn vị</div>
+                        <div class="font-monospace small">Nguyễn Văn A | 0912345678 | Công an xã An Tường</div>
+                        <div class="font-monospace small">Trần Thị B | 0987654321 | Phòng PC06</div>
                     </div>
 
                     <div id="previewArea" class="d-none mt-4">
@@ -256,6 +418,7 @@
                                         <th width="90">Dòng Excel</th>
                                         <th>Họ tên</th>
                                         <th>SĐT</th>
+                                        <th>Đơn vị</th>
                                     </tr>
                                 </thead>
                                 <tbody id="previewTableBody"></tbody>
@@ -274,7 +437,9 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
     let previewData = [];
 
@@ -416,6 +581,7 @@
                 <td class="small text-muted">${item.excel_row}</td>
                 <td class="fw-medium">${item.name || '<em class="text-muted">-</em>'}</td>
                 <td>${item.phone || '<em class="text-muted">-</em>'}</td>
+                <td>${item.unit_name || '<em class="text-muted">Sẽ dùng đơn vị người nhập</em>'}</td>
             `;
             tbody.appendChild(tr);
         });
@@ -438,10 +604,4 @@
     updateBulkSelectionState();
     filterContactsInTable();
 </script>
-
-<style>
-    .contact-bulk-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .contact-avatar { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #3b82f6); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; }
-    @media (max-width: 1080px) { .contact-bulk-bar { align-items: flex-start; } }
-</style>
 {% endblock %}
