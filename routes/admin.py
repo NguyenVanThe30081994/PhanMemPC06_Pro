@@ -110,7 +110,7 @@ def _normalize_group_label(value, fallback='Chưa phân loại'):
     return value or fallback
 
 
-def _build_grouped_rows(raw_counts, ordered_items=None, fallback_label='Chưa phân loại'):
+def _build_grouped_rows(raw_counts, ordered_items=None, fallback_label='Chưa phân loại', include_zero=False):
     count_map = {}
     for name, count in raw_counts:
         label = _normalize_group_label(name, fallback_label)
@@ -131,13 +131,14 @@ def _build_grouped_rows(raw_counts, ordered_items=None, fallback_label='Chưa ph
         (
             {'name': name, 'count': count}
             for name, count in count_map.items()
-            if name not in seen
+            if name not in seen and (include_zero or count > 0)
         ),
         key=lambda row: (-row['count'], row['name'].lower())
     )
     rows.extend(extras)
 
-    rows = [row for row in rows if row['count'] > 0]
+    if not include_zero:
+        rows = [row for row in rows if row['count'] > 0]
     return rows
 
 @admin_bp.route('/admin')
@@ -156,8 +157,6 @@ def index():
             or get_category_items('Lĩnh vực')
             or get_category_items('Loại tài liệu')
         )
-        report_domain_items = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
-
         # Filter out 5 Đội nghiệp vụ manually since it's hardcoded constraint
         fixed_report_teams = [{'name': f'Đội {i}'} for i in range(1, 6)]
 
@@ -185,12 +184,32 @@ def index():
             ReportTemplate, ReportTemplateVersion.template_id == ReportTemplate.id
         ).group_by(ReportTemplate.professional_unit).all()
 
-        task_dashboard = _build_grouped_rows(task_raw_counts, task_domain_items, fallback_label='Chưa phân đội')
-        document_dashboard = _build_grouped_rows(document_raw_counts, document_field_items, fallback_label='Chưa phân lĩnh vực')
-        contact_dashboard = _build_grouped_rows(contact_raw_counts, contact_group_items, fallback_label='Chưa phân nhóm')
+        task_dashboard = _build_grouped_rows(
+            task_raw_counts,
+            task_domain_items,
+            fallback_label='Chưa phân đội',
+            include_zero=True,
+        )
+        document_dashboard = _build_grouped_rows(
+            document_raw_counts,
+            document_field_items,
+            fallback_label='Chưa phân lĩnh vực',
+            include_zero=True,
+        )
+        contact_dashboard = _build_grouped_rows(
+            contact_raw_counts,
+            contact_group_items,
+            fallback_label='Chưa phân nhóm',
+            include_zero=True,
+        )
         
         # Build report dashboard using exactly Đội 1 -> Đội 5
-        report_dashboard = _build_grouped_rows(report_raw_counts, fixed_report_teams, fallback_label='Chưa phân đội')
+        report_dashboard = _build_grouped_rows(
+            report_raw_counts,
+            fixed_report_teams,
+            fallback_label='Chưa phân đội',
+            include_zero=True,
+        )
 
         # Ensure that only Đội 1 to Đội 5 and the fallback (if any exist) are present? 
         # The instruction says "Cố định sẽ có 05 đội nghiệp vụ Đội 1 -> Đội 5"

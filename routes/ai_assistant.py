@@ -5,6 +5,7 @@ import requests
 import re
 import unicodedata
 import time
+import html
 from datetime import datetime, timedelta
 from utils import render_auto_template as render_template
 from models import AIAssistantConfig
@@ -121,11 +122,18 @@ LEGAL_DOC_TYPE_MAP = {
 }
 
 OFFICIAL_LEGAL_SEARCH_API = 'https://genai.aiservice.vn/congbaosearch/search'
+OFFICIAL_LEGAL_PORTAL_URL = 'https://vanban.chinhphu.vn/he-thong-van-ban'
+OFFICIAL_LEGAL_PORTAL_RECENT_URL = 'https://vanban.chinhphu.vn/he-thong-van-ban?classid=0&mode=1&maxresults=100'
 GOV_NEWS_CACHE = {
     'fetched_at': 0.0,
     'articles': None,
 }
 GOV_NEWS_CACHE_TTL = 15 * 60
+OFFICIAL_LEGAL_PORTAL_CACHE = {
+    'fetched_at': 0.0,
+    'documents': None,
+}
+OFFICIAL_LEGAL_PORTAL_CACHE_TTL = 10 * 60
 
 
 def _get_ai_config():
@@ -205,15 +213,23 @@ def _build_time_answer(query):
 def _is_specific_legal_reference_query(query):
     normalized = _normalize_query_text(query)
     has_keyword = any(keyword in normalized for keyword in LEGAL_REFERENCE_KEYWORDS)
-    if not has_keyword:
-        return False
+    has_van_ban_marker = 'van ban' in normalized
 
     has_reference_number = bool(re.search(r'\bso\s*\d{1,4}\b', normalized))
     has_number_year = bool(re.search(r'\b\d{1,4}\s*(/|-)\s*(19|20)\d{2}\b', normalized))
     has_named_number_year = bool(re.search(r'\b\d{1,4}\b.*\b(19|20)\d{2}\b', normalized))
     has_year_phrase = bool(re.search(r'\bnam\s*(19|20)\d{2}\b', normalized))
     has_bare_number = bool(re.search(r'\b\d{1,4}\b', normalized))
-    return has_number_year or has_reference_number or (has_year_phrase and has_bare_number) or has_named_number_year
+    has_doc_symbol = bool(re.search(r'\b\d{1,4}(?:/[a-z0-9\-]+){1,4}\b', normalized))
+    has_issue_date = bool(re.search(r'\b\d{1,2}/\d{1,2}/(19|20)\d{2}\b', normalized))
+
+    if has_keyword:
+        return has_number_year or has_reference_number or (has_year_phrase and has_bare_number) or has_named_number_year or has_doc_symbol
+
+    if has_van_ban_marker and (has_doc_symbol or has_issue_date or has_number_year or has_named_number_year):
+        return True
+
+    return False
 
 
 def _extract_legal_doc_type(query):
@@ -255,6 +271,192 @@ def _build_legal_search_payload(query):
     return payload
 
 
+def _extract_issue_year(query):
+    text = str(query or '')
+    match = re.search(r'\b(19|20)\d{2}\b', text)
+    return match.group(0) if match else '0'
+
+
+def _extract_doc_symbol_candidates(query):
+    text = str(query or '')
+    candidates = []
+
+    for match in re.finditer(r'\b\d{1,4}(?:/[A-Za-z0-9Đđ\-]+){1,5}\b', text):
+        symbol = re.sub(r'\s+', '', match.group(0).strip(' .,;:()[]{}'))
+        if symbol and symbol not in candidates:
+            candidates.append(symbol)
+
+    number, year = _extract_legal_reference_number_year(query)
+    if number and year:
+        compact = f'{number}/{year}'
+        if compact not in candidates:
+            candidates.append(compact)
+
+    return candidates[:5]
+
+
+def _extract_issue_date(query):
+    match = re.search(r'\b(\d{1,2}/\d{1,2}/(19|20)\d{2})\b', str(query or ''))
+    return match.group(1) if match else ''
+
+
+def _extract_portal_hidden_fields(html_text):
+    field_names = (
+        '__VIEWSTATE',
+        '__VIEWSTATEGENERATOR',
+        '__EVENTVALIDATION',
+        'ctrl_191017_163$hidSiteId',
+        'ctrl_191017_163$hidIsSearch',
+        'ctrl_191017_163$hiIsTrangTTG',
+    )
+    payload = {}
+    for field_name in field_names:
+        pattern = rf'name="{re.escape(field_name)}"[^>]*value="([^"]*)"'
+        match = re.search(pattern, html_text)
+        if match:
+            payload[field_name] = html.unescape(match.group(1))
+    return payload
+
+
+def _extract_portal_documents(html_text):
+    table_match = re.search(
+        r'<table class="table search-result".*?id="ctrl_191017_163_grvDocument".*?>(.*?)</table>',
+        html_text,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if not table_match:
+        return []
+
+    rows_html = table_match.group(1)
+    row_matches = re.findall(r'<tr>(.*?)</tr>', rows_html, re.IGNORECASE | re.DOTALL)
+    documents = []
+
+    for row_html in row_matches:
+        if 'scope="col"' in row_html:
+            continue
+
+        doc_match = re.search(
+            r"href='/?\?pageid=27160&docid=(\d+)&classid=(\d+)'.*?"
+            r'<span class="code">(.*?)</span>.*?'
+            r'<span class="issue-v2">(.*?)</span>.*?'
+            r'<span class="substract">(.*?)</span>',
+            row_html,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if not doc_match:
+            continue
+
+        attachment_match = re.search(
+            r'<div class="bl-doc-file"><a href="([^"]+)"',
+            row_html,
+            re.IGNORECASE | re.DOTALL,
+        )
+        document = {
+            'id_van_ban': doc_match.group(1).strip(),
+            'classid': doc_match.group(2).strip(),
+            'so_ky_hieu': html.unescape(re.sub(r'<[^>]+>', '', doc_match.group(3))).strip(),
+            'ngay_ban_hanh': doc_match.group(4).strip(),
+            'tieu_de': html.unescape(re.sub(r'<[^>]+>', ' ', doc_match.group(5))).strip(),
+            'trich_yeu': html.unescape(re.sub(r'<[^>]+>', ' ', doc_match.group(5))).strip(),
+            'portal_url': f"https://vanban.chinhphu.vn/?pageid=27160&docid={doc_match.group(1).strip()}&classid={doc_match.group(2).strip()}",
+            'source': 'vanban.chinhphu.vn',
+        }
+        if attachment_match:
+            document['attachment_url'] = attachment_match.group(1).strip()
+        documents.append(document)
+
+    return documents
+
+
+def _fetch_official_portal_recent_documents(limit=100):
+    now = time.monotonic()
+    cached_documents = OFFICIAL_LEGAL_PORTAL_CACHE.get('documents') or []
+    cached_at = float(OFFICIAL_LEGAL_PORTAL_CACHE.get('fetched_at') or 0.0)
+    if cached_documents and (now - cached_at) < OFFICIAL_LEGAL_PORTAL_CACHE_TTL:
+        return cached_documents[:limit]
+
+    response = requests.get(
+        OFFICIAL_LEGAL_PORTAL_RECENT_URL,
+        headers={
+            'User-Agent': 'Mozilla/5.0',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'vi-VN,vi;q=0.9',
+        },
+        timeout=15,
+    )
+    response.raise_for_status()
+    documents = _extract_portal_documents(response.text)
+    if documents:
+        OFFICIAL_LEGAL_PORTAL_CACHE['documents'] = documents
+        OFFICIAL_LEGAL_PORTAL_CACHE['fetched_at'] = now
+    return documents[:limit]
+
+
+def _search_official_portal_documents(query, limit=10):
+    search_candidates = _extract_doc_symbol_candidates(query)
+    search_candidates.append(query.strip())
+    year_value = _extract_issue_year(query)
+
+    session = requests.Session()
+    base_response = session.get(
+        OFFICIAL_LEGAL_PORTAL_RECENT_URL,
+        headers={
+            'User-Agent': 'Mozilla/5.0',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'vi-VN,vi;q=0.9',
+        },
+        timeout=15,
+    )
+    base_response.raise_for_status()
+    hidden_fields = _extract_portal_hidden_fields(base_response.text)
+    if not hidden_fields:
+        return []
+
+    results = []
+    seen_ids = set()
+    for candidate in search_candidates:
+        candidate = (candidate or '').strip()
+        if not candidate:
+            continue
+
+        form_data = {
+            '__EVENTTARGET': '',
+            '__EVENTARGUMENT': '',
+            '__VIEWSTATE': hidden_fields.get('__VIEWSTATE', ''),
+            '__VIEWSTATEGENERATOR': hidden_fields.get('__VIEWSTATEGENERATOR', ''),
+            '__EVENTVALIDATION': hidden_fields.get('__EVENTVALIDATION', ''),
+            'ctrl_191017_163$drdDocCategory': '0',
+            'ctrl_191017_163$drdDocOrg': '0',
+            'ctrl_191017_163$drdDocYear': year_value,
+            'ctrl_191017_163$txtSearchKeyword': candidate,
+            'ctrl_191017_163$drdRecordPerPage': str(limit),
+            'ctrl_191017_163$btnSearch': 'Tìm kiếm',
+            'ctrl_191017_163$hidSiteId': hidden_fields.get('ctrl_191017_163$hidSiteId', '4'),
+            'ctrl_191017_163$hidIsSearch': hidden_fields.get('ctrl_191017_163$hidIsSearch', '0'),
+            'ctrl_191017_163$hiIsTrangTTG': hidden_fields.get('ctrl_191017_163$hiIsTrangTTG', 'thutuongpage'),
+        }
+
+        response = session.post(
+            OFFICIAL_LEGAL_PORTAL_RECENT_URL,
+            data=form_data,
+            headers={
+                'User-Agent': 'Mozilla/5.0',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Referer': OFFICIAL_LEGAL_PORTAL_RECENT_URL,
+            },
+            timeout=15,
+        )
+        response.raise_for_status()
+
+        for item in _extract_portal_documents(response.text):
+            doc_id = item.get('id_van_ban')
+            if doc_id and doc_id not in seen_ids:
+                seen_ids.add(doc_id)
+                results.append(item)
+
+    return results
+
+
 def _fetch_official_legal_documents(query):
     payload = _build_legal_search_payload(query)
     response = requests.post(
@@ -287,6 +489,8 @@ def _score_legal_document_match(doc, query):
     normalized_summary = _normalize_query_text(doc.get('trich_yeu', ''))
     doc_type = _extract_legal_doc_type(query)
     query_number, query_year = _extract_legal_reference_number_year(query)
+    query_issue_date = _normalize_query_text(_extract_issue_date(query))
+    normalized_issued_at = _normalize_query_text(doc.get('ngay_ban_hanh', ''))
 
     score = 0
     if doc_type and _normalize_query_text(doc.get('loai_van_ban', '')) == _normalize_query_text(doc_type):
@@ -301,6 +505,17 @@ def _score_legal_document_match(doc, query):
         score += 5
     elif query_year and query_year in normalized_title:
         score += 2
+
+    if query_issue_date and query_issue_date in normalized_issued_at:
+        score += 6
+
+    for symbol_candidate in _extract_doc_symbol_candidates(query):
+        normalized_candidate = _normalize_query_text(symbol_candidate)
+        if normalized_candidate and normalized_candidate == normalized_symbol:
+            score += 8
+            break
+        if normalized_candidate and normalized_candidate in normalized_symbol:
+            score += 5
 
     combined_text = f"{normalized_symbol} {normalized_title} {normalized_summary}"
     if normalized_query and normalized_query in combined_text:
@@ -323,6 +538,9 @@ def _select_best_legal_document(docs, query):
 
 
 def _build_official_legal_url(doc):
+    portal_url = (doc.get('portal_url') or '').strip()
+    if portal_url:
+        return portal_url
     title = doc.get('tieu_de') or doc.get('so_ky_hieu') or 'van-ban'
     slug = _slugify_vietnamese(title)
     doc_id = doc.get('id_van_ban')
@@ -338,6 +556,8 @@ def _format_legal_date(date_str):
     if not date_str:
         return ''
     try:
+        if re.fullmatch(r'\d{2}/\d{2}/\d{4}', str(date_str).strip()):
+            return str(date_str).strip()
         dt = datetime.fromisoformat(str(date_str).replace('Z', '+00:00'))
         return dt.strftime('%d/%m/%Y')
     except Exception:
@@ -387,6 +607,9 @@ def _build_official_legal_answer(query, doc):
     lines.append("Đây là thông tin xác minh ban đầu từ nguồn công báo/chính phủ; nếu cần phân tích chi tiết từng điểm sửa đổi, cần đọc toàn văn bản gốc.")
     if source_url:
         lines.append(f"Nguồn tra cứu: {source_url}")
+    attachment_url = (doc.get('attachment_url') or '').strip()
+    if attachment_url:
+        lines.append(f"Tệp đính kèm: {attachment_url}")
     return '\n'.join(lines)
 
 
@@ -849,6 +1072,23 @@ def chat():
         })
 
     if _is_specific_legal_reference_query(query):
+        try:
+            portal_docs = _fetch_official_portal_recent_documents(limit=100)
+            best_portal_doc = _select_best_legal_document(portal_docs, query)
+            if not best_portal_doc:
+                portal_docs = _search_official_portal_documents(query, limit=50)
+                best_portal_doc = _select_best_legal_document(portal_docs, query)
+
+            if best_portal_doc:
+                return jsonify({
+                    'success': True,
+                    'answer': _build_official_legal_answer(query, best_portal_doc),
+                    'type': 'legal_verified',
+                    'source': 'official_legal_portal'
+                })
+        except Exception as exc:
+            print(f"Official legal portal lookup error: {exc}")
+
         try:
             legal_docs = _fetch_official_legal_documents(query)
             best_doc = _select_best_legal_document(legal_docs, query)
