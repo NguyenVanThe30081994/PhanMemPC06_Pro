@@ -242,15 +242,24 @@ def _extract_legal_doc_type(query):
 
 def _extract_legal_reference_number_year(query):
     normalized = _normalize_query_text(query)
-    match = re.search(r'\b(\d{1,4})\s*(?:/|-|\s+nam\s+)(19|20)\d{2}\b', normalized)
+    symbol_candidates = _extract_doc_symbol_candidates(query)
+    if symbol_candidates:
+        first_symbol = symbol_candidates[0]
+        number_match = re.match(r'^\s*(\d{1,4})\b', first_symbol)
+        year_match = re.search(r'/(19|20)\d{2}\b', first_symbol)
+        if number_match:
+            return number_match.group(1), year_match.group(0).lstrip('/') if year_match else ''
+
+    match = re.search(r'(?<![\d/])(\d{1,4})\s*(?:/|-|\s+nam\s+)(19|20)\d{2}\b', normalized)
     if match:
         number = match.group(1)
         year_match = re.search(r'(19|20)\d{2}', match.group(0))
         if year_match:
             return number, year_match.group(0)
 
+    normalized_without_dates = re.sub(r'\b\d{1,2}/\d{1,2}/(19|20)\d{2}\b', ' ', normalized)
     year_match = re.search(r'\b(19|20)\d{2}\b', normalized)
-    number_match = re.search(r'\b(\d{1,4})\b', normalized)
+    number_match = re.search(r'\b(\d{1,4})\b', normalized_without_dates)
     if number_match and year_match:
         return number_match.group(1), year_match.group(0)
     return '', ''
@@ -283,21 +292,25 @@ def _extract_doc_symbol_candidates(query):
 
     for match in re.finditer(r'\b\d{1,4}(?:/[A-Za-z0-9Đđ\-]+){1,5}\b', text):
         symbol = re.sub(r'\s+', '', match.group(0).strip(' .,;:()[]{}'))
+        if re.fullmatch(r'\d{1,2}/\d{1,2}/(19|20)\d{2}', symbol):
+            continue
         if symbol and symbol not in candidates:
             candidates.append(symbol)
-
-    number, year = _extract_legal_reference_number_year(query)
-    if number and year:
-        compact = f'{number}/{year}'
-        if compact not in candidates:
-            candidates.append(compact)
 
     return candidates[:5]
 
 
 def _extract_issue_date(query):
     match = re.search(r'\b(\d{1,2}/\d{1,2}/(19|20)\d{2})\b', str(query or ''))
-    return match.group(1) if match else ''
+    if not match:
+        return ''
+    try:
+        return datetime.strptime(match.group(1), '%d/%m/%Y').strftime('%d/%m/%Y')
+    except ValueError:
+        parts = match.group(1).split('/')
+        if len(parts) == 3:
+            return f"{int(parts[0]):02d}/{int(parts[1]):02d}/{parts[2]}"
+    return match.group(1)
 
 
 def _extract_portal_hidden_fields(html_text):
@@ -529,6 +542,32 @@ def _score_legal_document_match(doc, query):
 def _select_best_legal_document(docs, query):
     if not docs:
         return None
+
+    symbol_candidates = {
+        _normalize_query_text(symbol)
+        for symbol in _extract_doc_symbol_candidates(query)
+        if symbol
+    }
+    if symbol_candidates:
+        exact_symbol_matches = [
+            doc for doc in docs
+            if _normalize_query_text(doc.get('so_ky_hieu', '')) in symbol_candidates
+        ]
+        if exact_symbol_matches:
+            query_issue_date = _normalize_query_text(_extract_issue_date(query))
+            if query_issue_date:
+                dated_matches = [
+                    doc for doc in exact_symbol_matches
+                    if _normalize_query_text(doc.get('ngay_ban_hanh', '')) == query_issue_date
+                ]
+                if dated_matches:
+                    exact_symbol_matches = dated_matches
+            ranked_exact_matches = sorted(
+                exact_symbol_matches,
+                key=lambda doc: _score_legal_document_match(doc, query),
+                reverse=True,
+            )
+            return ranked_exact_matches[0]
 
     ranked = sorted(docs, key=lambda doc: _score_legal_document_match(doc, query), reverse=True)
     best = ranked[0]

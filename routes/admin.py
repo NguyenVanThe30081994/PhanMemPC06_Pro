@@ -226,9 +226,10 @@ def index():
                 'count': report_dashboard_map.get(team_name, 0)
             })
         
-        # Add 'Chưa phân đội' or any other if it has count > 0
+        # Dashboard báo cáo chỉ hiển thị các đội nghiệp vụ cố định.
+        # Các bản ghi test chưa gán đội không đưa vào thẻ tổng quan này.
         for row in report_dashboard:
-            if row['name'] not in [f'Đội {i}' for i in range(1, 6)]:
+            if row['name'].startswith('Đội ') and row['name'] not in [f'Đội {i}' for i in range(1, 6)]:
                 fixed_report_dashboard.append(row)
 
         dashboard_cards = [
