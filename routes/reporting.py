@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 import json
 import os
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 
 from openpyxl import load_workbook
 from openpyxl.utils import column_index_from_string
 from flask import Blueprint, current_app, flash, jsonify, redirect, request, session, send_file, url_for
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from werkzeug.utils import secure_filename
 
 from models import (
@@ -615,6 +615,14 @@ def _start_of_day(value):
 
 def _end_of_day(value):
     return datetime.combine(value, time(23, 59, 59))
+
+
+def _next_day_start(value):
+    return _start_of_day(value + timedelta(days=1))
+
+
+def _submission_time_expr():
+    return func.coalesce(ReportSubmission.submitted_at, ReportSubmission.created_at)
 
 
 def _parse_positive_int(value, default=1):
@@ -1806,24 +1814,33 @@ def admin_cycle_detail(cycle_id):
     not_reported_total = 0
     on_time_total = 0
     late_total = 0
+    filter_start = _start_of_day(filter_date) if is_daily and filter_date else None
+    filter_end = _next_day_start(filter_date) if is_daily and filter_date else None
 
     for unit in scoped_units:
         instance = instance_map.get(unit.id)
 
-        # For daily reports: find the latest submission ON or BEFORE the filter date
+        # For daily reports: find the latest submission within the selected report date.
         # For other reports: use the latest submission
         if is_daily and filter_date and instance:
+            submission_time = _submission_time_expr()
             latest_submission = (
                 ReportSubmission.query.filter(
                     ReportSubmission.instance_id == instance.id,
-                    ReportSubmission.submitted_at >= _start_of_day(filter_date),
-                    ReportSubmission.submitted_at <= _end_of_day(filter_date),
+                    submission_time >= filter_start,
+                    submission_time < filter_end,
                 )
                 .order_by(ReportSubmission.version_no.desc(), ReportSubmission.created_at.desc())
                 .first()
             )
-            # Count total submissions across ALL days (not filtered)
-            submission_count = ReportSubmission.query.filter_by(instance_id=instance.id).count()
+            submission_count = (
+                ReportSubmission.query.filter(
+                    ReportSubmission.instance_id == instance.id,
+                    submission_time >= filter_start,
+                    submission_time < filter_end,
+                )
+                .count()
+            )
         elif instance:
             latest_submission = _latest_submission(instance.id)
             submission_count = ReportSubmission.query.filter_by(instance_id=instance.id).count()
@@ -1865,7 +1882,17 @@ def admin_cycle_detail(cycle_id):
 
     instance_ids = [row["instance"].id for row in unit_rows if row["instance"]]
     submissions = (
-        ReportSubmission.query.filter(ReportSubmission.instance_id.in_(instance_ids))
+        ReportSubmission.query.filter(
+            ReportSubmission.instance_id.in_(instance_ids),
+            *(
+                [
+                    _submission_time_expr() >= filter_start,
+                    _submission_time_expr() < filter_end,
+                ]
+                if is_daily and filter_start and filter_end
+                else []
+            ),
+        )
         .order_by(ReportSubmission.created_at.desc(), ReportSubmission.id.desc())
         .all()
         if instance_ids

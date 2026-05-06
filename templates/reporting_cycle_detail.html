@@ -14,9 +14,6 @@
         <div class="d-flex gap-2 flex-wrap">
             <a href="{{ url_for('reporting_bp.admin_dashboard') }}" class="btn btn-light rounded-pill px-4">Quay lại</a>
             <a href="{{ url_for('reporting_bp.template_settings', template_id=template.id) }}" class="btn btn-outline-secondary rounded-pill px-4">Cấu hình</a>
-            {% if unit_rows and unit_rows[0].unit %}
-            <a href="{{ url_for('reporting_bp.cycle_workspace', cycle_id=cycle.id, unit_id=unit_rows[0].unit.id) }}" class="btn btn-outline-primary rounded-pill px-4">Mở nhập liệu</a>
-            {% endif %}
         </div>
     </div>
 </div>
@@ -152,9 +149,17 @@
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                     <div>
                         <h5 class="fw-bold mb-1">Lịch sử nhập của các đơn vị</h5>
-                        <div class="text-muted small">Hiển thị toàn bộ các lần lưu hoặc gửi báo cáo của những đơn vị được giao.</div>
+                        <div class="text-muted small">
+                            {% if is_daily %}
+                            Hiển thị các lần lưu hoặc gửi báo cáo trong ngày {{ filter_date_str }}.
+                            {% else %}
+                            Hiển thị toàn bộ các lần lưu hoặc gửi báo cáo của những đơn vị được giao.
+                            {% endif %}
+                        </div>
                     </div>
-                    <div class="small text-muted">{{ submission_total }} lần lưu/gửi</div>
+                    <div class="small text-muted">
+                        {{ submission_total }} lần lưu/gửi{% if is_daily %} trong ngày{% endif %}
+                    </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table align-middle">
@@ -217,7 +222,7 @@
                 <thead>
                     <tr>
                         <th>Đơn vị</th>
-                        <th>Số lần lưu/gửi</th>
+                        <th>Số lần lưu/gửi{% if is_daily %} trong ngày{% endif %}</th>
                         <th>Bản mới nhất</th>
                         <th>Trạng thái</th>
                     </tr>

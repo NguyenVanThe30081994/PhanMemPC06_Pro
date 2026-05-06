@@ -171,9 +171,11 @@
                                         <p>{% if instance %}{{ instance.status }}{% else %}{{ cycle.status }}{% endif %}</p>
                                     </div>
                                     <div class="report-template-actions">
+                                        {% if not is_admin %}
                                         <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.cycle_workspace', cycle_id=cycle.id) }}" title="Nhập">
                                             <i class="fa-solid fa-pen-to-square"></i>
                                         </a>
+                                        {% endif %}
                                         <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.cycle_preview', cycle_id=cycle.id) }}" title="Xem">
                                             <i class="fa-solid fa-eye"></i>
                                         </a>
