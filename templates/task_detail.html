@@ -17,6 +17,12 @@
                     Ngày tạo: <strong>{{ task.created_at.strftime('%d/%m/%Y %H:%M') }}</strong>
                 </p>
                 <div class="pc06-task-tags mt-3">
+                    {% if task.category %}
+                    <span class="pc06-soft-tag neutral">
+                        <i class="fa-solid fa-layer-group"></i>
+                        {{ task.category }}
+                    </span>
+                    {% endif %}
                     <span class="pc06-soft-tag">
                         <i class="fa-solid fa-users"></i>
                         {{ task.domain or 'Chưa phân đơn vị' }}
@@ -206,6 +212,7 @@
                     </div>
                 </div>
                 <div class="pc06-info-list">
+                    <div class="pc06-info-item"><span>Lĩnh vực</span><strong>{{ task.category or 'Chưa phân lĩnh vực' }}</strong></div>
                     <div class="pc06-info-item"><span>Đơn vị nghiệp vụ</span><strong>{{ task.domain or 'Chưa phân đơn vị' }}</strong></div>
                     <div class="pc06-info-item"><span>Loại công việc</span><strong>{{ task.task_type or 'Công việc thường xuyên' }}</strong></div>
                     <div class="pc06-info-item"><span>Mức ưu tiên</span><strong>{{ task.priority or 'Trung bình' }}</strong></div>
@@ -272,6 +279,15 @@
                         <div class="col-12">
                             <label class="form-label fw-bold">Tiêu đề công việc</label>
                             <input type="text" name="title" class="form-control form-control-lg" value="{{ task.title }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Lĩnh vực</label>
+                            <select name="category" class="form-select form-select-lg">
+                                <option value="">Chọn lĩnh vực</option>
+                                {% for item in task_fields %}
+                                <option value="{{ item.name }}" {% if item.name == task.category %}selected{% endif %}>{{ item.name }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Đơn vị nghiệp vụ</label>

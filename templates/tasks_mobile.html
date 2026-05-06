@@ -1,6 +1,6 @@
 {% extends "base_mobile.html" %}
 
-{% block title %}Công việc PC06{% endblock %}
+{% block title %}Công việc{% endblock %}
 
 {% block head %}
 <style>
@@ -35,13 +35,10 @@
     .mobile-task-copy h3 { margin: 0 0 6px; font-size: 1rem; font-weight: 800; color: var(--text-main); }
     .mobile-task-copy p { margin: 0; color: var(--text-muted); font-size: 0.82rem; }
     .mobile-task-progress { padding: 8px 12px; border-radius: 999px; background: rgba(37, 99, 235, 0.08); color: #1d4ed8; font-size: 0.78rem; font-weight: 800; }
-    .mobile-task-snippet { color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; margin-bottom: 14px; }
     .mobile-task-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
     .mobile-task-meta div { padding: 12px; border-radius: 14px; background: var(--bg-body); }
     .mobile-task-meta span { display: block; font-size: 0.76rem; color: var(--text-muted); }
     .mobile-task-meta strong { display: block; margin-top: 5px; font-size: 0.92rem; color: var(--text-main); }
-    .mobile-task-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-    .mobile-soft-tag { padding: 8px 10px; border-radius: 999px; font-size: 0.74rem; font-weight: 700; background: #eff6ff; color: #1d4ed8; }
     .mobile-status { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; font-size: 0.76rem; font-weight: 800; margin-bottom: 14px; }
     .mobile-status.todo { background: #fef3c7; color: #92400e; }
     .mobile-status.doing { background: #dbeafe; color: #1d4ed8; }
@@ -59,7 +56,7 @@
         <i class="fa-solid fa-shield-halved"></i>
         Điều hành công việc
     </div>
-    <h1>Công việc PC06</h1>
+    <h1>Công việc</h1>
     <p>Theo dõi giao việc, tiếp nhận và báo cáo kết quả trên giao diện di động thống nhất.</p>
     <div class="mobile-task-stats">
         <div class="mobile-task-stat"><span>Tổng việc</span><strong>{{ stats.total }}</strong></div>
@@ -72,7 +69,7 @@
 <section class="mobile-filter-card">
     <label class="mobile-search">
         <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" id="mobileTaskSearch" placeholder="Tìm công việc hoặc đơn vị">
+        <input type="text" id="mobileTaskSearch" placeholder="Tìm công việc, đội hoặc lĩnh vực">
     </label>
 
     <div class="mobile-chip-row mb-2">
@@ -83,9 +80,9 @@
     </div>
 
     <div class="mobile-chip-row">
-        <button type="button" class="mobile-chip active" data-filter-type="unit" data-filter-value="ALL">Tất cả đơn vị</button>
-        {% for unit in pro_units %}
-        <button type="button" class="mobile-chip" data-filter-type="unit" data-filter-value="{{ unit.name|lower }}">{{ unit.name }}</button>
+        <button type="button" class="mobile-chip active" data-filter-type="field" data-filter-value="ALL">Tất cả lĩnh vực</button>
+        {% for item in task_fields %}
+        <button type="button" class="mobile-chip" data-filter-type="field" data-filter-value="{{ item.name|lower }}">{{ item.name }}</button>
         {% endfor %}
     </div>
 </section>
@@ -94,29 +91,19 @@
     {% for t in tasks %}
     {% set status_text = t.display_status or 'Chưa tiếp nhận' %}
     {% set status_key = status_text|lower %}
-    <article class="mobile-task-card mobile-task-row" data-status="{{ status_key }}" data-unit="{{ (t.domain or 'Không xác định')|lower }}" data-search="{{ (t.title ~ ' ' ~ (t.content or '') ~ ' ' ~ (t.domain or ''))|lower }}">
+    <article class="mobile-task-card mobile-task-row" data-status="{{ status_key }}" data-field="{{ (t.category or '__uncategorized__')|lower }}" data-search="{{ (t.title ~ ' ' ~ (t.content or '') ~ ' ' ~ (t.domain or '') ~ ' ' ~ (t.category or ''))|lower }}">
         <div class="mobile-task-card-head">
             <div class="mobile-task-icon"><i class="fa-solid fa-clipboard-list"></i></div>
             <div class="mobile-task-copy">
                 <h3>{{ t.title }}</h3>
-                <p>{{ t.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                <p>{{ t.domain or 'Chưa phân đội' }}</p>
             </div>
             <span class="mobile-task-progress">{{ t.progress_percent }}%</span>
         </div>
 
-        <div class="mobile-task-tags">
-            <span class="mobile-soft-tag">{{ t.domain or 'Chưa phân đơn vị' }}</span>
-            {% if t.priority %}<span class="mobile-soft-tag" style="background:#fee2e2;color:#b91c1c;">{{ t.priority }}</span>{% endif %}
-            {% if t.task_type %}<span class="mobile-soft-tag" style="background:#f1f5f9;color:#475569;">{{ t.task_type }}</span>{% endif %}
-        </div>
-
-        <div class="mobile-task-snippet">
-            {{ t.content[:120] if t.content else 'Công việc chưa có mô tả chi tiết.' }}{{ '...' if t.content and t.content|length > 120 else '' }}
-        </div>
-
         <div class="mobile-task-meta">
+            <div><span>Tiến độ thực hiện</span><strong>{{ t.progress_percent }}%</strong></div>
             <div><span>Hạn xử lý</span><strong{% if t.is_overdue %} class="text-danger"{% endif %}>{{ t.deadline.strftime('%d/%m/%Y') if t.deadline else 'Chưa có' }}</strong></div>
-            <div><span>Người nhận</span><strong>{{ t.assignee_count or 0 }} người</strong></div>
         </div>
 
         <div class="mobile-status {% if 'hoàn thành' in status_key %}done{% elif 'đang thực hiện' in status_key %}doing{% elif 'chưa tiếp nhận' in status_key %}todo{% else %}neutral{% endif %}">
@@ -160,8 +147,7 @@
             <form method="POST" enctype="multipart/form-data">
                 <div class="modal-header border-0">
                     <div>
-                        <h5 class="modal-title fw-bold mb-1">Giao công việc mới</h5>
-                        <p class="mb-0 text-muted small">Biểu mẫu rút gọn cho thiết bị di động.</p>
+                        <h5 class="modal-title fw-bold mb-1">Giao việc</h5>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -169,6 +155,13 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Tiêu đề</label>
                         <input type="text" name="title" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Lĩnh vực</label>
+                        <select name="category" class="form-select" required>
+                            <option value="" disabled selected>Chọn lĩnh vực</option>
+                            {% for item in task_fields %}<option value="{{ item.name }}">{{ item.name }}</option>{% endfor %}
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Đơn vị nghiệp vụ</label>
@@ -241,17 +234,17 @@
 
 {% block scripts %}
 <script>
-    const mobileTaskFilters = { status: 'ALL', unit: 'ALL', query: '' };
+    const mobileTaskFilters = { status: 'ALL', field: 'ALL', query: '' };
 
     function applyMobileTaskFilters() {
         document.querySelectorAll('.mobile-task-row').forEach((card) => {
             const status = card.dataset.status || '';
-            const unit = card.dataset.unit || '';
+            const field = card.dataset.field || '';
             const search = card.dataset.search || '';
             const statusMatch = mobileTaskFilters.status === 'ALL' || status.includes(mobileTaskFilters.status);
-            const unitMatch = mobileTaskFilters.unit === 'ALL' || unit === mobileTaskFilters.unit;
+            const fieldMatch = mobileTaskFilters.field === 'ALL' || field === mobileTaskFilters.field;
             const searchMatch = !mobileTaskFilters.query || search.includes(mobileTaskFilters.query);
-            card.style.display = statusMatch && unitMatch && searchMatch ? '' : 'none';
+            card.style.display = statusMatch && fieldMatch && searchMatch ? '' : 'none';
         });
     }
 

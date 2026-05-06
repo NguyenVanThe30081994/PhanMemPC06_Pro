@@ -133,6 +133,7 @@ class User(db.Model):
 
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    category = db.Column(db.String(100))
     domain = db.Column(db.String(100)) 
     title = db.Column(db.String(255))
     content = db.Column(db.Text)

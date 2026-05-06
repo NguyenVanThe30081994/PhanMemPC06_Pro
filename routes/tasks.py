@@ -238,6 +238,13 @@ def _can_edit_task(task):
     return bool(session.get("is_admin")) or task.author_id == session.get("uid")
 
 
+def _ensure_task_schema():
+    try:
+        apply_migrations(current_app)
+    except Exception as migration_error:
+        current_app.logger.warning(f"TASKS migration safeguard failed: {migration_error}")
+
+
 def _decorate_task(task, current_uid, is_lead):
     assignments = task.assignments or []
     normalized_statuses = [_normalize_status(a.status) for a in assignments]
@@ -301,16 +308,15 @@ def tasks():
     if not session.get("uid"):
         return redirect(url_for("auth_bp.login"))
 
-    try:
-        apply_migrations(current_app)
-    except Exception as migration_error:
-        current_app.logger.warning(f"TASKS migration safeguard failed: {migration_error}")
+    _ensure_task_schema()
 
     pro_units = get_module_field_items("tasks", "domain") or get_category_items("Đội nghiệp vụ")
+    task_fields = get_module_field_items("news", "category") or get_category_items("Lĩnh vực")
     task_types = get_module_field_items("tasks", "task_type") or get_category_items("Loại công việc")
     priority_items = get_module_field_items("tasks", "priority") or get_category_items("Mức độ ưu tiên")
     status_items = get_module_field_items("tasks", "initial_status") or get_category_items("Trạng thái công việc")
     current_domain = request.args.get("domain", "ALL")
+    current_field = request.args.get("field", "ALL")
     now_dt = datetime.now()
 
     perms = _current_perms()
@@ -322,6 +328,7 @@ def tasks():
 
     if request.method == "POST" and is_lead:
         title = (request.form.get("title") or "").strip()
+        category = (request.form.get("category") or "").strip()
         domain = (request.form.get("unit_name") or request.form.get("domain") or "").strip()
         content = (request.form.get("description") or request.form.get("content") or "").strip()
         priority = request.form.get("priority") or "Trung bình"
@@ -329,6 +336,10 @@ def tasks():
 
         if not title:
             flash("Tiêu đề công việc không được để trống.", "danger")
+            return redirect(url_for("tasks_bp.tasks"))
+
+        if task_fields and not category:
+            flash("Cần chọn lĩnh vực công việc.", "danger")
             return redirect(url_for("tasks_bp.tasks"))
 
         assignees, error_message = _resolve_assignees(request.form, domain)
@@ -343,6 +354,7 @@ def tasks():
             attachment.save(os.path.join(current_app.root_path, "task_files", attachment_name))
 
         new_task = Task(
+            category=category,
             domain=domain,
             title=title,
             content=content,
@@ -390,6 +402,8 @@ def tasks():
         return redirect(url_for("tasks_bp.tasks"))
 
     query = Task.query.options(joinedload(Task.assignments))
+    if current_field != "ALL":
+        query = query.filter_by(category=current_field)
     if current_domain != "ALL":
         query = query.filter_by(domain=current_domain)
 
@@ -406,6 +420,8 @@ def tasks():
     total_count = len(all_tasks)
     overdue_count = 0
     completed_count = 0
+    field_counts = {item.name: 0 for item in task_fields if getattr(item, "name", "").strip()}
+    uncategorized_count = 0
 
     for task in all_tasks:
         task_metrics = _decorate_task(task, session["uid"], is_lead)
@@ -413,6 +429,12 @@ def tasks():
             overdue_count += 1
         if task_metrics["display_status"] == COMPLETED_STATUS:
             completed_count += 1
+        if task.category and task.category in field_counts:
+            field_counts[task.category] += 1
+        elif task.category:
+            field_counts[task.category] = field_counts.get(task.category, 0) + 1
+        else:
+            uncategorized_count += 1
 
     return render_template(
         "tasks.html",
@@ -420,10 +442,14 @@ def tasks():
         users=active_users,
         roles=roles,
         pro_units=pro_units,
+        task_fields=task_fields,
+        field_counts=field_counts,
+        uncategorized_count=uncategorized_count,
         task_types=task_types,
         priority_items=priority_items,
         status_items=status_items,
         current_domain=current_domain,
+        current_field=current_field,
         now_dt=now_dt,
         is_lead=is_lead,
         is_admin=is_admin,
@@ -441,11 +467,14 @@ def task_detail(tid):
     if not session.get("uid"):
         return redirect(url_for("auth_bp.login"))
 
+    _ensure_task_schema()
+
     task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
     if not task:
         return "Not Found", 404
 
     pro_units = get_module_field_items("tasks", "domain") or get_category_items("Đội nghiệp vụ")
+    task_fields = get_module_field_items("news", "category") or get_category_items("Lĩnh vực")
     task_types = get_module_field_items("tasks", "task_type") or get_category_items("Loại công việc")
     priority_items = get_module_field_items("tasks", "priority") or get_category_items("Mức độ ưu tiên")
     active_users = User.query.filter_by(is_active=True).order_by(User.unit_area.asc(), User.fullname.asc()).all()
@@ -487,6 +516,7 @@ def task_detail(tid):
         comments=comments,
         assigns=assigns,
         pro_units=pro_units,
+        task_fields=task_fields,
         task_types=task_types,
         priority_items=priority_items,
         users=active_users,
@@ -505,6 +535,8 @@ def edit_task(tid):
     if not session.get("uid"):
         return redirect(url_for("auth_bp.login"))
 
+    _ensure_task_schema()
+
     task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
     if not task:
         return "Not Found", 404
@@ -514,6 +546,7 @@ def edit_task(tid):
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
     title = (request.form.get("title") or "").strip()
+    category = (request.form.get("category") or task.category or "").strip()
     domain = (request.form.get("domain") or "").strip()
     content = (request.form.get("content") or "").strip()
     priority = (request.form.get("priority") or "Trung bình").strip()
@@ -524,6 +557,7 @@ def edit_task(tid):
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
     task.title = title
+    task.category = category
     task.domain = domain
     task.content = content
     task.priority = priority
@@ -586,6 +620,8 @@ def update_task_status(tid):
     if not session.get("uid"):
         return redirect(url_for("auth_bp.login"))
 
+    _ensure_task_schema()
+
     action = request.form.get("action")
     assign = TaskAssignment.query.filter_by(task_id=tid, user_id=session["uid"]).first()
 
@@ -605,6 +641,8 @@ def update_task_status(tid):
 def submit_task_report(tid):
     if not session.get("uid"):
         return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
 
     report_content = (request.form.get("report_content") or "").strip()
     mark_completed = request.form.get("mark_completed")

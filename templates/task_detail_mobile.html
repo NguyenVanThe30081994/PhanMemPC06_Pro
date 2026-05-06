@@ -51,7 +51,7 @@
     <div class="detail-mobile-stats">
         <div class="detail-mobile-stat"><span>Tiến độ</span><strong>{{ progress_percent }}%</strong></div>
         <div class="detail-mobile-stat"><span>Trạng thái</span><strong style="font-size:0.95rem;">{{ display_status }}</strong></div>
-        <div class="detail-mobile-stat"><span>Đơn vị</span><strong style="font-size:0.95rem;">{{ task.domain or 'Chưa phân' }}</strong></div>
+        <div class="detail-mobile-stat"><span>Lĩnh vực</span><strong style="font-size:0.95rem;">{{ task.category or 'Chưa phân' }}</strong></div>
         <div class="detail-mobile-stat"><span>Hạn xử lý</span><strong style="font-size:0.95rem;">{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa có' }}</strong></div>
     </div>
 </section>
@@ -72,6 +72,15 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Tiêu đề</label>
                         <input type="text" name="title" class="form-control" value="{{ task.title }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Lĩnh vực</label>
+                        <select name="category" class="form-select">
+                            <option value="">Chọn lĩnh vực</option>
+                            {% for item in task_fields %}
+                            <option value="{{ item.name }}" {% if item.name == task.category %}selected{% endif %}>{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Đơn vị nghiệp vụ</label>

@@ -1,8 +1,363 @@
 {% extends "base.html" %}
 
+{% block head %}
+<style>
+    .pc06-task-workspace {
+        display: grid;
+        grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+        gap: 22px;
+        align-items: start;
+    }
+
+    .pc06-task-sidebar,
+    .pc06-task-board {
+        display: grid;
+        gap: 18px;
+    }
+
+    .pc06-task-sidebar .pc06-panel,
+    .pc06-task-board .pc06-panel {
+        align-self: start;
+    }
+
+    .pc06-field-panel {
+        padding: 20px;
+    }
+
+    .pc06-field-panel-head {
+        margin-bottom: 16px;
+    }
+
+    .pc06-field-panel-head h2 {
+        margin: 0 0 6px;
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: var(--text-main, #0f172a);
+    }
+
+    .pc06-field-panel-head p {
+        margin: 0;
+        font-size: 0.84rem;
+        color: var(--text-muted, #64748b);
+    }
+
+    .pc06-field-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .pc06-field-chip {
+        width: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(248, 250, 252, 0.92);
+        border-radius: 18px;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        text-align: left;
+        transition: all 0.2s ease;
+        color: var(--text-main, #0f172a);
+    }
+
+    .pc06-field-chip strong {
+        display: block;
+        font-size: 0.92rem;
+        font-weight: 800;
+    }
+
+    .pc06-field-chip small {
+        display: block;
+        margin-top: 3px;
+        font-size: 0.76rem;
+        color: var(--text-muted, #64748b);
+    }
+
+    .pc06-field-chip span {
+        min-width: 38px;
+        height: 38px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(37, 99, 235, 0.08);
+        color: #1d4ed8;
+        font-weight: 900;
+        flex-shrink: 0;
+    }
+
+    .pc06-field-chip.active {
+        border-color: rgba(37, 99, 235, 0.32);
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(37, 99, 235, 0.92));
+        box-shadow: 0 18px 34px rgba(37, 99, 235, 0.14);
+    }
+
+    .pc06-field-chip.active strong,
+    .pc06-field-chip.active small {
+        color: #fff;
+    }
+
+    .pc06-field-chip.active span {
+        background: rgba(255, 255, 255, 0.18);
+        color: #fff;
+    }
+
+    .pc06-task-filter-panel {
+        padding: 20px;
+    }
+
+    .pc06-task-filter-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+        margin-bottom: 14px;
+    }
+
+    .pc06-task-filter-head h2 {
+        margin: 0 0 6px;
+        font-size: 1.08rem;
+        font-weight: 800;
+        color: var(--text-main, #0f172a);
+    }
+
+    .pc06-task-filter-head p {
+        margin: 0;
+        color: var(--text-muted, #64748b);
+        font-size: 0.84rem;
+    }
+
+    .pc06-task-compact-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .pc06-task-compact-card {
+        padding: 20px;
+        border-radius: 26px;
+        background: var(--bg-surface, #fff);
+        border: 1px solid rgba(226, 232, 240, 0.96);
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.06);
+        display: grid;
+        gap: 16px;
+    }
+
+    .pc06-task-title-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .pc06-task-title-row h3 {
+        margin: 0;
+        font-size: 1.02rem;
+        line-height: 1.45;
+        font-weight: 800;
+        color: var(--text-main, #0f172a);
+    }
+
+    .pc06-task-progress-pill {
+        min-width: 62px;
+        height: 42px;
+        padding: 0 14px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #1d4ed8;
+        color: #fff;
+        font-size: 0.86rem;
+        font-weight: 900;
+        flex-shrink: 0;
+    }
+
+    .pc06-task-compact-meta {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .pc06-task-compact-meta div {
+        padding: 14px;
+        border-radius: 18px;
+        background: rgba(248, 250, 252, 0.96);
+        border: 1px solid rgba(226, 232, 240, 0.92);
+    }
+
+    .pc06-task-compact-meta span {
+        display: block;
+        color: var(--text-muted, #64748b);
+        font-size: 0.76rem;
+        margin-bottom: 6px;
+    }
+
+    .pc06-task-compact-meta strong {
+        display: block;
+        color: var(--text-main, #0f172a);
+        font-size: 0.95rem;
+        line-height: 1.45;
+        word-break: break-word;
+    }
+
+    .pc06-task-compact-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .pc06-task-compact-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .pc06-user-picker {
+        position: relative;
+    }
+
+    .pc06-user-picker-trigger {
+        width: 100%;
+        min-height: 56px;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.26);
+        background: #fff;
+        padding: 0 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        color: var(--text-main, #0f172a);
+        font-weight: 600;
+    }
+
+    .pc06-user-picker-trigger small {
+        display: block;
+        margin-top: 2px;
+        font-size: 0.78rem;
+        color: var(--text-muted, #64748b);
+        font-weight: 500;
+    }
+
+    .pc06-user-picker-panel {
+        position: absolute;
+        top: calc(100% + 10px);
+        left: 0;
+        right: 0;
+        z-index: 30;
+        display: none;
+        padding: 14px;
+        border-radius: 22px;
+        border: 1px solid rgba(226, 232, 240, 0.96);
+        background: #fff;
+        box-shadow: 0 24px 54px rgba(15, 23, 42, 0.14);
+    }
+
+    .pc06-user-picker.is-open .pc06-user-picker-panel {
+        display: grid;
+        gap: 12px;
+    }
+
+    .pc06-user-search {
+        width: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 14px;
+        padding: 12px 14px;
+        outline: none;
+    }
+
+    .pc06-user-option-list {
+        max-height: 280px;
+        overflow-y: auto;
+        display: grid;
+        gap: 8px;
+        padding-right: 4px;
+    }
+
+    .pc06-user-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: rgba(248, 250, 252, 0.92);
+        border: 1px solid rgba(226, 232, 240, 0.84);
+        cursor: pointer;
+    }
+
+    .pc06-user-option strong {
+        display: block;
+        font-size: 0.9rem;
+        color: var(--text-main, #0f172a);
+    }
+
+    .pc06-user-option small {
+        display: block;
+        margin-top: 3px;
+        font-size: 0.76rem;
+        color: var(--text-muted, #64748b);
+    }
+
+    .pc06-user-option input {
+        margin-top: 3px;
+        flex-shrink: 0;
+    }
+
+    .pc06-user-picker-empty {
+        display: none;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: rgba(248, 250, 252, 0.92);
+        color: var(--text-muted, #64748b);
+        font-size: 0.82rem;
+    }
+
+    .pc06-user-picker-empty.active {
+        display: block;
+    }
+
+    @media (max-width: 1320px) {
+        .pc06-task-compact-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 1080px) {
+        .pc06-task-workspace {
+            grid-template-columns: 1fr;
+        }
+
+        .pc06-task-compact-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .pc06-task-filter-head {
+            flex-direction: column;
+        }
+
+        .pc06-task-compact-meta {
+            grid-template-columns: 1fr;
+        }
+
+        .pc06-user-picker-panel {
+            position: static;
+            margin-top: 12px;
+            box-shadow: none;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="pc06-page-shell">
-    <section class="pc06-hero-card with-toolbar">
+    <section class="pc06-hero-card">
         <div class="pc06-hero-grid">
             <div>
                 <h1 class="pc06-page-title">Công việc</h1>
@@ -38,20 +393,66 @@
                 </div>
             </div>
         </div>
-        <div class="pc06-hero-toolbar-grid compact">
-            <div class="pc06-hero-toolbar">
+    </section>
+
+    <div class="pc06-task-workspace">
+        <aside class="pc06-task-sidebar">
+            <section class="pc06-panel pc06-field-panel">
+                <div class="pc06-field-panel-head">
+                    <h2>Lĩnh vực</h2>
+                    <p>Chọn lĩnh vực để lọc nhanh danh sách công việc.</p>
+                </div>
+                <div class="pc06-field-list">
+                    <button type="button" class="pc06-field-chip active" data-field-filter="ALL">
+                        <div>
+                            <strong>Tất cả lĩnh vực</strong>
+                            <small>Hiển thị toàn bộ công việc hiện có</small>
+                        </div>
+                        <span>{{ tasks|length }}</span>
+                    </button>
+                    {% for item in task_fields %}
+                    <button type="button" class="pc06-field-chip" data-field-filter="{{ item.name|lower }}">
+                        <div>
+                            <strong>{{ item.name }}</strong>
+                            <small>Danh sách công việc thuộc lĩnh vực này</small>
+                        </div>
+                        <span>{{ field_counts.get(item.name, 0) }}</span>
+                    </button>
+                    {% endfor %}
+                    {% if uncategorized_count %}
+                    <button type="button" class="pc06-field-chip" data-field-filter="__uncategorized__">
+                        <div>
+                            <strong>Chưa phân lĩnh vực</strong>
+                            <small>Cần bổ sung để chuẩn hóa giao việc</small>
+                        </div>
+                        <span>{{ uncategorized_count }}</span>
+                    </button>
+                    {% endif %}
+                </div>
+            </section>
+        </aside>
+
+        <div class="pc06-task-board">
+            <section class="pc06-panel pc06-task-filter-panel">
+                <div class="pc06-task-filter-head">
+                    <div>
+                        <h2 id="taskSelectedField">Tất cả lĩnh vực</h2>
+                        <p>Danh sách công việc được lọc theo lĩnh vực, đội nghiệp vụ và trạng thái.</p>
+                    </div>
+                    <span class="pc06-toolbar-count" id="taskResultCount">{{ tasks|length }} việc</span>
+                </div>
                 <div class="pc06-toolbar-row compact-filters">
                     <div class="pc06-select-control search-grow">
                         <span>Tìm kiếm</span>
                         <label class="pc06-search-control">
                             <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="taskSearch" placeholder="Tìm theo tên công việc, nội dung hoặc đơn vị">
+                            <input type="text" id="taskSearch" placeholder="Tìm theo tên công việc, mô tả, đội hoặc lĩnh vực">
                         </label>
                     </div>
                     <label class="pc06-select-control compact">
-                        <span>Đơn vị</span>
+                        <span>Đội nghiệp vụ</span>
                         <select id="taskUnitFilter" class="form-select">
-                            <option value="ALL">Tất cả đơn vị</option>
+                            <option value="ALL">Tất cả đội</option>
                             {% for unit in pro_units %}
                             <option value="{{ unit.name|lower }}">{{ unit.name }}</option>
                             {% endfor %}
@@ -66,107 +467,86 @@
                             <option value="hoàn thành">Hoàn thành</option>
                         </select>
                     </label>
-                    <span class="pc06-toolbar-count" id="taskResultCount">{{ tasks|length }} việc</span>
                 </div>
-            </div>
+            </section>
+
+            {% if tasks %}
+            <section class="pc06-task-compact-grid" id="taskGrid">
+                {% for t in tasks %}
+                {% set status_text = t.display_status or 'Chưa tiếp nhận' %}
+                {% set status_key = status_text|lower %}
+                <article
+                    class="pc06-task-compact-card task-row"
+                    data-field="{{ (t.category or '__uncategorized__')|lower }}"
+                    data-unit="{{ (t.domain or 'Không xác định')|lower }}"
+                    data-status="{{ status_key }}"
+                    data-search="{{ (t.title ~ ' ' ~ (t.content or '') ~ ' ' ~ (t.domain or '') ~ ' ' ~ (t.category or ''))|lower }}"
+                >
+                    <div class="pc06-task-title-row">
+                        <h3>{{ t.title }}</h3>
+                        <span class="pc06-task-progress-pill">{{ t.progress_percent }}%</span>
+                    </div>
+
+                    <div class="pc06-task-compact-meta">
+                        <div>
+                            <span>Đội nghiệp vụ</span>
+                            <strong>{{ t.domain or 'Chưa phân đội' }}</strong>
+                        </div>
+                        <div>
+                            <span>Tiến độ thực hiện</span>
+                            <strong>{{ t.progress_percent }}%</strong>
+                        </div>
+                        <div>
+                            <span>Thời hạn</span>
+                            <strong class="{% if t.is_overdue %}text-danger{% endif %}">
+                                {{ t.deadline.strftime('%d/%m/%Y') if t.deadline else 'Chưa xác định' }}
+                            </strong>
+                        </div>
+                    </div>
+
+                    <div class="pc06-task-compact-footer">
+                        <span class="pc06-status-badge {% if 'hoàn thành' in status_key %}done{% elif 'đang thực hiện' in status_key %}doing{% elif 'chưa tiếp nhận' in status_key %}todo{% else %}neutral{% endif %}">
+                            {{ status_text }}
+                        </span>
+
+                        <div class="pc06-task-compact-actions">
+                            {% if t.current_user_status in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+                            <form action="{{ url_for('tasks_bp.update_task_status', tid=t.id) }}" method="POST">
+                                <input type="hidden" name="action" value="accept">
+                                <button type="submit" class="btn btn-bdhvs light">
+                                    <i class="fa-solid fa-hand-point-right"></i>
+                                    Tiếp nhận
+                                </button>
+                            </form>
+                            {% endif %}
+                            <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}" class="btn btn-bdhvs primary">
+                                <i class="fa-solid fa-arrow-right"></i>
+                                Chi tiết
+                            </a>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </section>
+
+            <section class="pc06-panel pc06-empty-panel d-none" id="taskNoResults">
+                <div class="pc06-empty-state">
+                    <div class="pc06-empty-icon"><i class="fa-solid fa-list-check"></i></div>
+                    <h3>Không có công việc phù hợp</h3>
+                    <p>Bộ lọc hiện tại chưa có công việc nào khớp. Hãy đổi lĩnh vực hoặc điều kiện tìm kiếm.</p>
+                </div>
+            </section>
+            {% else %}
+            <section class="pc06-panel pc06-empty-panel">
+                <div class="pc06-empty-state">
+                    <div class="pc06-empty-icon"><i class="fa-solid fa-list-check"></i></div>
+                    <h3>Chưa có công việc nào</h3>
+                    <p>Hệ thống hiện chưa có đầu việc phù hợp với quyền truy cập hoặc bộ lọc hiện tại.</p>
+                </div>
+            </section>
+            {% endif %}
         </div>
-    </section>
-
-    {% if tasks %}
-    <section class="pc06-task-grid" id="taskGrid">
-        {% for t in tasks %}
-        {% set status_text = t.display_status or 'Chưa tiếp nhận' %}
-        {% set status_key = status_text|lower %}
-        <article
-            class="pc06-task-card task-row"
-            data-unit="{{ (t.domain or 'Không xác định')|lower }}"
-            data-status="{{ status_key }}"
-            data-search="{{ (t.title ~ ' ' ~ (t.content or '') ~ ' ' ~ (t.domain or ''))|lower }}"
-        >
-            <div class="pc06-task-card-head">
-                <div class="pc06-task-card-icon">
-                    <i class="fa-solid fa-clipboard-list"></i>
-                </div>
-                <div class="pc06-task-head-copy">
-                    <h3>{{ t.title }}</h3>
-                    <p>{{ t.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
-                </div>
-                <span class="pc06-progress-pill">{{ t.progress_percent }}%</span>
-            </div>
-
-            <div class="pc06-task-tags">
-                <span class="pc06-soft-tag">
-                    <i class="fa-solid fa-users"></i>
-                    {{ t.domain or 'Chưa phân đơn vị' }}
-                </span>
-                {% if t.task_type %}
-                <span class="pc06-soft-tag neutral">
-                    <i class="fa-solid fa-tag"></i>
-                    {{ t.task_type }}
-                </span>
-                {% endif %}
-                {% if t.priority %}
-                <span class="pc06-soft-tag danger">
-                    <i class="fa-solid fa-flag"></i>
-                    {{ t.priority }}
-                </span>
-                {% endif %}
-            </div>
-
-            <p class="pc06-task-snippet">
-                {{ t.content[:180] if t.content else 'Công việc chưa có mô tả chi tiết.' }}{{ '...' if t.content and t.content|length > 180 else '' }}
-            </p>
-
-            <div class="pc06-task-meta">
-                <div>
-                    <span>Thời hạn</span>
-                    <strong class="{% if t.is_overdue %}text-danger{% endif %}">
-                        {{ t.deadline.strftime('%d/%m/%Y') if t.deadline else 'Chưa xác định' }}
-                    </strong>
-                </div>
-                <div>
-                    <span>Phân công</span>
-                    <strong>{{ t.assignee_count or 0 }} người</strong>
-                </div>
-                <div>
-                    <span>Đã hoàn tất</span>
-                    <strong>{{ t.completed_assignments or 0 }}</strong>
-                </div>
-            </div>
-
-            <div class="pc06-task-footer">
-                <span class="pc06-status-badge {% if 'hoàn thành' in status_key %}done{% elif 'đang thực hiện' in status_key %}doing{% elif 'chưa tiếp nhận' in status_key %}todo{% else %}neutral{% endif %}">
-                    {{ status_text }}
-                </span>
-
-                <div class="pc06-card-actions">
-                    {% if t.current_user_status in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
-                    <form action="{{ url_for('tasks_bp.update_task_status', tid=t.id) }}" method="POST">
-                        <input type="hidden" name="action" value="accept">
-                        <button type="submit" class="btn btn-bdhvs light">
-                            <i class="fa-solid fa-hand-point-right"></i>
-                            Tiếp nhận
-                        </button>
-                    </form>
-                    {% endif %}
-                    <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}" class="btn btn-bdhvs primary">
-                        <i class="fa-solid fa-arrow-right"></i>
-                        Chi tiết
-                    </a>
-                </div>
-            </div>
-        </article>
-        {% endfor %}
-    </section>
-    {% else %}
-    <section class="pc06-panel pc06-empty-panel">
-        <div class="pc06-empty-state">
-            <div class="pc06-empty-icon"><i class="fa-solid fa-list-check"></i></div>
-            <h3>Chưa có công việc nào</h3>
-            <p>Hệ thống hiện chưa có đầu việc phù hợp với quyền truy cập hoặc bộ lọc hiện tại.</p>
-        </div>
-    </section>
-    {% endif %}
+    </div>
 </div>
 
 {% if is_lead or is_admin %}
@@ -176,12 +556,7 @@
             <form method="POST" enctype="multipart/form-data">
                 <div class="modal-header border-0 pc06-modal-head">
                     <div>
-                        <div class="pc06-page-kicker mb-2">
-                            <i class="fa-solid fa-layer-group"></i>
-                            Khởi tạo đầu việc
-                        </div>
-                        <h5 class="modal-title fw-bold mb-1">Giao việc theo chuẩn BDHVS</h5>
-                        <p class="mb-0 text-white-50">Chọn đơn vị, cách giao và mốc hạn xử lý ngay trong một biểu mẫu thống nhất.</p>
+                        <h5 class="modal-title fw-bold mb-0">Giao việc</h5>
                     </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
@@ -196,6 +571,19 @@
                                 </div>
 
                                 <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="pc06-form-section">
+                                            <label class="form-label fw-bold">Lĩnh vực</label>
+                                            <div data-category-picker data-module="news" data-field="category" data-placeholder="Chọn lĩnh vực" data-storage-key="modal.tasks.category">
+                                                <select name="category" class="form-select form-select-lg" required data-category-target>
+                                                    <option value="" disabled selected>Chọn lĩnh vực</option>
+                                                    {% for item in task_fields %}
+                                                    <option value="{{ item.name }}">{{ item.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div class="col-md-6">
                                         <div class="pc06-form-section">
                                             <label class="form-label fw-bold">Đội nghiệp vụ</label>
@@ -290,7 +678,7 @@
 
                                 <div class="pc06-form-section">
                                     <label class="form-label fw-bold">Nội dung công việc</label>
-                                    <textarea name="description" rows="6" class="form-control" placeholder="Mô tả rõ yêu cầu, đầu ra mong muốn và mốc kiểm soát"></textarea>
+                                    <textarea name="description" rows="6" class="form-control" placeholder="Mô tả ngắn gọn yêu cầu và kết quả cần đạt"></textarea>
                                 </div>
 
                                 <div class="pc06-form-section mb-0">
@@ -304,14 +692,14 @@
                             <div class="pc06-form-panel">
                                 <div class="pc06-side-title">
                                     <h6>Luồng giao việc</h6>
-                                    <p>Chọn đúng phương thức để backend giao việc nhất quán với giao diện.</p>
+                                    <p>Chọn đúng hình thức để hệ thống phân công đúng người nhận việc.</p>
                                 </div>
 
                                 <div class="pc06-segmented" id="assignmentModes">
                                     <label class="pc06-radio-card active">
                                         <input type="radio" name="assign_type" value="unit" checked>
                                         <span class="pc06-radio-title">Theo đơn vị</span>
-                                        <small>Tự động giao cho toàn bộ cán bộ đang hoạt động của đơn vị đã chọn.</small>
+                                        <small>Giao cho toàn bộ cán bộ đang hoạt động của đội nghiệp vụ đã chọn.</small>
                                     </label>
                                     <label class="pc06-radio-card">
                                         <input type="radio" name="assign_type" value="role">
@@ -321,7 +709,7 @@
                                     <label class="pc06-radio-card">
                                         <input type="radio" name="assign_type" value="user">
                                         <span class="pc06-radio-title">Theo cá nhân</span>
-                                        <small>Chọn một hoặc nhiều cán bộ nhận việc cụ thể.</small>
+                                        <small>Chọn một hoặc nhiều cán bộ cụ thể bằng danh sách tích chọn.</small>
                                     </label>
                                 </div>
 
@@ -337,16 +725,34 @@
 
                                 <div class="pc06-form-section d-none" id="userAssignmentPanel">
                                     <label class="form-label fw-bold">Cán bộ nhận việc</label>
-                                    <select name="target_users" class="form-select" size="10" multiple>
-                                        {% for user in users %}
-                                        <option value="{{ user.id }}">{{ user.fullname }}{% if user.unit_area %} - {{ user.unit_area }}{% endif %}</option>
-                                        {% endfor %}
-                                    </select>
-                                    <div class="form-text">Giữ `Ctrl` hoặc `Cmd` để chọn nhiều cán bộ.</div>
+                                    <div class="pc06-user-picker" data-user-picker>
+                                        <button type="button" class="pc06-user-picker-trigger" data-user-picker-trigger>
+                                            <div>
+                                                <strong data-user-picker-label>Chọn cán bộ</strong>
+                                                <small>Tìm kiếm và tích chọn một hoặc nhiều cá nhân</small>
+                                            </div>
+                                            <i class="fa-solid fa-chevron-down"></i>
+                                        </button>
+                                        <div class="pc06-user-picker-panel">
+                                            <input type="text" class="pc06-user-search" placeholder="Tìm theo họ tên hoặc đơn vị" data-user-picker-search>
+                                            <div class="pc06-user-option-list" data-user-picker-options>
+                                                {% for user in users %}
+                                                <label class="pc06-user-option" data-user-picker-option data-search="{{ (user.fullname ~ ' ' ~ (user.unit_area or ''))|lower }}">
+                                                    <input type="checkbox" name="target_users" value="{{ user.id }}">
+                                                    <div>
+                                                        <strong>{{ user.fullname }}</strong>
+                                                        <small>{{ user.unit_area or 'Chưa có đơn vị' }}</small>
+                                                    </div>
+                                                </label>
+                                                {% endfor %}
+                                            </div>
+                                            <div class="pc06-user-picker-empty" data-user-picker-empty>Không tìm thấy cán bộ phù hợp.</div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="pc06-mode-help">
-                                    Đơn vị được chọn sẽ xác định phạm vi chuyên môn của công việc cho mọi hình thức giao việc.
+                                    Đội nghiệp vụ và lĩnh vực được chọn sẽ là chuẩn phân loại chung cho danh sách công việc sau khi giao.
                                 </div>
                             </div>
                         </div>
@@ -370,6 +776,7 @@
 {% block scripts %}
 <script>
     const taskFilters = {
+        field: 'ALL',
         unit: 'ALL',
         status: 'ALL',
         query: ''
@@ -378,18 +785,24 @@
     function applyTaskFilters() {
         let visibleCount = 0;
         document.querySelectorAll('.task-row').forEach((row) => {
+            const field = row.dataset.field || '';
             const unit = row.dataset.unit || '';
             const status = row.dataset.status || '';
             const search = row.dataset.search || '';
+            const fieldMatch = taskFilters.field === 'ALL' || field === taskFilters.field;
             const unitMatch = taskFilters.unit === 'ALL' || unit === taskFilters.unit;
             const statusMatch = taskFilters.status === 'ALL' || status.includes(taskFilters.status);
             const searchMatch = !taskFilters.query || search.includes(taskFilters.query);
-            const isVisible = unitMatch && statusMatch && searchMatch;
+            const isVisible = fieldMatch && unitMatch && statusMatch && searchMatch;
             row.style.display = isVisible ? '' : 'none';
             if (isVisible) visibleCount += 1;
         });
+
         const countNode = document.getElementById('taskResultCount');
         if (countNode) countNode.textContent = `${visibleCount} việc`;
+
+        const emptyNode = document.getElementById('taskNoResults');
+        if (emptyNode) emptyNode.classList.toggle('d-none', visibleCount !== 0);
     }
 
     document.getElementById('taskSearch')?.addEventListener('input', (event) => {
@@ -405,6 +818,17 @@
     document.getElementById('taskStatusFilter')?.addEventListener('change', (event) => {
         taskFilters.status = event.target.value;
         applyTaskFilters();
+    });
+
+    document.querySelectorAll('[data-field-filter]').forEach((button) => {
+        button.addEventListener('click', () => {
+            taskFilters.field = button.dataset.fieldFilter || 'ALL';
+            document.querySelectorAll('[data-field-filter]').forEach((item) => item.classList.toggle('active', item === button));
+            const label = button.querySelector('strong')?.textContent?.trim() || 'Tất cả lĩnh vực';
+            const selectedFieldNode = document.getElementById('taskSelectedField');
+            if (selectedFieldNode) selectedFieldNode.textContent = label;
+            applyTaskFilters();
+        });
     });
 
     applyTaskFilters();
@@ -434,11 +858,69 @@
         document.getElementById('userAssignmentPanel')?.classList.toggle('d-none', selected !== 'user');
     }
 
+    function initUserPickers() {
+        document.querySelectorAll('[data-user-picker]').forEach((picker) => {
+            const trigger = picker.querySelector('[data-user-picker-trigger]');
+            const label = picker.querySelector('[data-user-picker-label]');
+            const searchInput = picker.querySelector('[data-user-picker-search]');
+            const options = Array.from(picker.querySelectorAll('[data-user-picker-option]'));
+            const emptyNode = picker.querySelector('[data-user-picker-empty]');
+
+            const updateLabel = () => {
+                const checked = options.filter((option) => option.querySelector('input')?.checked);
+                if (!label) return;
+                if (!checked.length) {
+                    label.textContent = 'Chọn cán bộ';
+                    return;
+                }
+                if (checked.length === 1) {
+                    label.textContent = checked[0].querySelector('strong')?.textContent?.trim() || '1 cán bộ';
+                    return;
+                }
+                label.textContent = `${checked.length} cán bộ đã chọn`;
+            };
+
+            const applySearch = () => {
+                const keyword = searchInput?.value?.trim().toLowerCase() || '';
+                let visible = 0;
+                options.forEach((option) => {
+                    const haystack = option.dataset.search || '';
+                    const match = !keyword || haystack.includes(keyword);
+                    option.style.display = match ? '' : 'none';
+                    if (match) visible += 1;
+                });
+                emptyNode?.classList.toggle('active', visible === 0);
+            };
+
+            trigger?.addEventListener('click', () => {
+                picker.classList.toggle('is-open');
+                if (picker.classList.contains('is-open')) {
+                    searchInput?.focus();
+                }
+            });
+
+            searchInput?.addEventListener('input', applySearch);
+            options.forEach((option) => {
+                option.querySelector('input')?.addEventListener('change', updateLabel);
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!picker.contains(event.target)) {
+                    picker.classList.remove('is-open');
+                }
+            });
+
+            updateLabel();
+            applySearch();
+        });
+    }
+
     document.querySelectorAll('input[name="assign_type"]').forEach((radio) => {
         radio.addEventListener('change', syncAssignmentMode);
     });
 
     toggleDeadlineFields();
     syncAssignmentMode();
+    initUserPickers();
 </script>
 {% endblock %}
