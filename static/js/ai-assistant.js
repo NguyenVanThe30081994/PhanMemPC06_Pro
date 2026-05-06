@@ -5,6 +5,51 @@
     return div.innerHTML;
   }
 
+  function sanitizeUrl(rawUrl) {
+    try {
+      const url = String(rawUrl || '').trim();
+      if (!url) return '';
+      const parsed = new URL(url, window.location.origin);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return '';
+      }
+      return parsed.href;
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function trimTrailingPunctuation(url) {
+    return String(url || '').replace(/[),.;:!?]+$/, '');
+  }
+
+  function formatInline(text) {
+    const source = String(text || '');
+    const pattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<]+)/g;
+    let html = '';
+    let lastIndex = 0;
+    let match;
+
+    while ((match = pattern.exec(source)) !== null) {
+      html += escapeHtml(source.slice(lastIndex, match.index));
+
+      const label = match[1] || '';
+      const rawUrl = match[2] || trimTrailingPunctuation(match[3] || '');
+      const safeUrl = sanitizeUrl(rawUrl);
+      if (safeUrl) {
+        const linkText = label || rawUrl;
+        html += `<a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(linkText)}</a>`;
+      } else {
+        html += escapeHtml(match[0]);
+      }
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    html += escapeHtml(source.slice(lastIndex));
+    return html;
+  }
+
   function formatMessage(text) {
     const source = String(text || '').replace(/\r\n/g, '\n').trim();
     if (!source) {
@@ -25,7 +70,7 @@
           html += '<ul>';
           listOpen = true;
         }
-        html += '<li>' + escapeHtml(bulletMatch[1]) + '</li>';
+        html += '<li>' + formatInline(bulletMatch[1]) + '</li>';
         continue;
       }
 
@@ -34,7 +79,7 @@
         listOpen = false;
       }
 
-      html += '<p>' + escapeHtml(line) + '</p>';
+      html += '<p>' + formatInline(line) + '</p>';
     }
 
     if (listOpen) {

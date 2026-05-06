@@ -7,6 +7,7 @@ import unicodedata
 import time
 import html
 from datetime import datetime, timedelta
+from urllib.parse import quote
 from utils import render_auto_template as render_template
 from models import AIAssistantConfig
 
@@ -124,6 +125,10 @@ LEGAL_DOC_TYPE_MAP = {
 OFFICIAL_LEGAL_SEARCH_API = 'https://genai.aiservice.vn/congbaosearch/search'
 OFFICIAL_LEGAL_PORTAL_URL = 'https://vanban.chinhphu.vn/he-thong-van-ban'
 OFFICIAL_LEGAL_PORTAL_RECENT_URL = 'https://vanban.chinhphu.vn/he-thong-van-ban?classid=0&mode=1&maxresults=100'
+LEGAL_LIBRARY_SEARCH_URL = 'https://thuvienphapluat.vn/page/tim-van-ban.aspx?area=0&keyword='
+LUAT_VIETNAM_SEARCH_URL = 'https://luatvietnam.vn/van-ban/tim-van-ban.html'
+OFFICIAL_PROCEDURE_PORTAL_URL = 'https://dichvucong.gov.vn'
+OFFICIAL_PROCEDURE_TYPEAHEAD_URL = 'https://dichvucong.gov.vn/jsp/procedure-typehead.jsp'
 GOV_NEWS_CACHE = {
     'fetched_at': 0.0,
     'articles': None,
@@ -134,6 +139,37 @@ OFFICIAL_LEGAL_PORTAL_CACHE = {
     'documents': None,
 }
 OFFICIAL_LEGAL_PORTAL_CACHE_TTL = 10 * 60
+OFFICIAL_PROCEDURE_CACHE_TTL = 15 * 60
+OFFICIAL_PROCEDURE_SUGGESTION_CACHE = {}
+OFFICIAL_PROCEDURE_DETAIL_CACHE = {}
+
+PROCEDURE_QUERY_MARKERS = [
+    'thu tuc',
+    'thu tuc hanh chinh',
+    'trinh tu',
+    'ho so',
+    'giay to',
+    'thanh phan ho so',
+    'cach thuc thuc hien',
+    'nop o dau',
+    'lam o dau',
+    'thoi han giai quyet',
+    'phi',
+    'le phi',
+]
+
+PROCEDURE_SEARCH_HINTS = {
+    'tam tru': ['Đăng ký tạm trú'],
+    'thuong tru': ['Đăng ký thường trú'],
+    'khai sinh': ['Đăng ký khai sinh'],
+    'khai tu': ['Đăng ký khai tử'],
+    'ly lich tu phap': ['Cấp Phiếu lý lịch tư pháp theo yêu cầu của cá nhân'],
+    'phieu ly lich tu phap': ['Cấp Phiếu lý lịch tư pháp theo yêu cầu của cá nhân'],
+    'ho chieu': ['Cấp hộ chiếu phổ thông ở trong nước'],
+    'xuat nhap canh': ['Cấp hộ chiếu phổ thông ở trong nước'],
+    'can cuoc': ['Cấp thẻ căn cước cho người từ đủ 14 tuổi trở lên'],
+    'cccd': ['Cấp thẻ căn cước cho người từ đủ 14 tuổi trở lên'],
+}
 
 
 def _get_ai_config():
@@ -149,6 +185,52 @@ def _normalize_query_text(value):
     text = text.replace('đ', 'd').replace('Đ', 'D')
     text = re.sub(r'\s+', ' ', text).strip().lower()
     return text
+
+
+def _get_ttl_cached_value(cache_store, cache_key, ttl):
+    entry = cache_store.get(cache_key)
+    if not entry:
+        return None
+    if (time.monotonic() - float(entry.get('fetched_at') or 0.0)) >= ttl:
+        cache_store.pop(cache_key, None)
+        return None
+    return entry.get('data')
+
+
+def _set_ttl_cached_value(cache_store, cache_key, data):
+    cache_store[cache_key] = {
+        'fetched_at': time.monotonic(),
+        'data': data,
+    }
+
+
+def _clean_html_text(fragment):
+    text = html.unescape(str(fragment or ''))
+    replacements = (
+        (r'(?i)<br\s*/?>', '\n'),
+        (r'(?i)</p>', '\n'),
+        (r'(?i)</div>', '\n'),
+        (r'(?i)</tr>', '\n'),
+        (r'(?i)</td>', ' | '),
+        (r'(?i)<li[^>]*>', '- '),
+        (r'(?i)</li>', '\n'),
+    )
+    for pattern, replacement in replacements:
+        text = re.sub(pattern, replacement, text)
+    text = re.sub(r'<[^>]+>', ' ', text)
+    text = text.replace('\xa0', ' ')
+    text = re.sub(r'[ \t]+\n', '\n', text)
+    text = re.sub(r'\n[ \t]+', '\n', text)
+    text = re.sub(r'[ \t]{2,}', ' ', text)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip(' |\n ')
+
+
+def _truncate_text(text, limit=320):
+    value = re.sub(r'\s+', ' ', str(text or '')).strip()
+    if len(value) <= limit:
+        return value
+    return value[: limit - 1].rstrip(' ,.;:') + '…'
 
 
 def _format_vi_datetime(dt):
@@ -612,6 +694,25 @@ def _humanize_vietnamese_label(value):
     return text
 
 
+def _build_legal_library_search_url(query, doc=None):
+    keyword = ''
+    if isinstance(doc, dict):
+        keyword = (doc.get('so_ky_hieu') or '').strip()
+    if not keyword:
+        keyword = query.strip()
+    return LEGAL_LIBRARY_SEARCH_URL + quote(keyword)
+
+
+def _build_luat_vietnam_reference_url():
+    return LUAT_VIETNAM_SEARCH_URL
+
+
+def _build_external_legal_reference_lines(query, doc=None):
+    return [
+        f"Nguồn tham khảo thêm: [Thư viện Pháp luật]({_build_legal_library_search_url(query, doc)}), [LuatVietnam]({_build_luat_vietnam_reference_url()})",
+    ]
+
+
 def _build_official_legal_answer(query, doc):
     symbol = doc.get('so_ky_hieu') or 'Không rõ số ký hiệu'
     title = doc.get('tieu_de') or doc.get('trich_yeu') or 'Chưa có tiêu đề'
@@ -645,10 +746,11 @@ def _build_official_legal_answer(query, doc):
 
     lines.append("Đây là thông tin xác minh ban đầu từ nguồn công báo/chính phủ; nếu cần phân tích chi tiết từng điểm sửa đổi, cần đọc toàn văn bản gốc.")
     if source_url:
-        lines.append(f"Nguồn tra cứu: {source_url}")
+        lines.append(f"Nguồn tra cứu: [Cổng văn bản Chính phủ]({source_url})")
     attachment_url = (doc.get('attachment_url') or '').strip()
     if attachment_url:
-        lines.append(f"Tệp đính kèm: {attachment_url}")
+        lines.append(f"Tệp đính kèm: [Tải file gốc]({attachment_url})")
+    lines.extend(_build_external_legal_reference_lines(query, doc))
     return '\n'.join(lines)
 
 
@@ -657,8 +759,360 @@ def _build_legal_reference_safety_answer(query):
         f"Chưa có kết quả xác minh từ nguồn tra cứu văn bản pháp luật chính thức đối với yêu cầu "
         f"\"{query.strip()}\".\n\n"
         f"Hệ thống không kết luận văn bản có tồn tại, không tồn tại hoặc đã có hiệu lực khi chưa tra cứu nguồn chính thức.\n\n"
-        f"Đề nghị đối chiếu tại Cơ sở dữ liệu quốc gia về văn bản pháp luật, Cổng Thông tin điện tử Chính phủ hoặc Bộ Tư pháp."
+        f"Đề nghị đối chiếu tại [Cổng văn bản Chính phủ]({OFFICIAL_LEGAL_PORTAL_URL}), "
+        f"[Thư viện Pháp luật]({_build_legal_library_search_url(query)}) hoặc "
+        f"[LuatVietnam]({_build_luat_vietnam_reference_url()})."
     )
+
+
+def _is_procedure_query(query):
+    normalized = _normalize_query_text(query)
+    if any(marker in normalized for marker in PROCEDURE_QUERY_MARKERS):
+        return True
+
+    for topic, data in TTHC_KNOWLEDGE.items():
+        if _normalize_query_text(topic) in normalized:
+            return True
+        if any(_normalize_query_text(keyword) in normalized for keyword in data.get('keywords') or []):
+            return True
+
+    return False
+
+
+def _strip_procedure_query_noise(query):
+    cleaned = str(query or '').strip()
+    cleaned = re.sub(r'[?？！]+', '', cleaned)
+    patterns = [
+        r'\b(cần chuẩn bị gì|cần giấy tờ gì|cần hồ sơ gì|hồ sơ gồm những gì|hồ sơ gồm gì|thành phần hồ sơ gồm gì).*$',
+        r'\b(nộp ở đâu|làm ở đâu|liên hệ ở đâu|cơ quan nào giải quyết).*$',
+        r'\b(thời hạn bao lâu|giải quyết bao lâu|mất bao lâu|bao lâu có kết quả).*$',
+        r'\b(trình tự thực hiện|trình tự|thủ tục như thế nào|thủ tục ra sao).*$',
+        r'\b(phí bao nhiêu|lệ phí bao nhiêu|mức phí|mức lệ phí).*$',
+    ]
+    for pattern in patterns:
+        cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'^(xin hỏi|cho hỏi|tôi muốn hỏi|tôi cần hỏi|tra cứu)\s+', '', cleaned, flags=re.IGNORECASE)
+    return cleaned.strip(' .,:;-')
+
+
+def _extract_procedure_search_candidates(query):
+    normalized = _normalize_query_text(query)
+    candidates = []
+    seen = set()
+
+    def add_candidate(value):
+        label = str(value or '').strip()
+        if len(label) < 3:
+            return
+        normalized_label = _normalize_query_text(label)
+        if normalized_label in seen:
+            return
+        seen.add(normalized_label)
+        candidates.append(label)
+
+    for hint, titles in PROCEDURE_SEARCH_HINTS.items():
+        if hint in normalized:
+            for title in titles:
+                add_candidate(title)
+
+    add_candidate(_strip_procedure_query_noise(query))
+    add_candidate(query.strip())
+    return candidates[:6]
+
+
+def _build_official_procedure_search_url(query):
+    keyword = re.sub(r'[&/\\#,+()$~%\'":*?<>{}^]', ' ', query).strip()
+    return (
+        f"{OFFICIAL_PROCEDURE_PORTAL_URL}/p/home/dvc-ket-qua-thu-tuc.html"
+        f"?originKey={quote(query.strip())}&tukhoa={quote(keyword)}&tinh_thanh="
+    )
+
+
+def _build_official_procedure_detail_url(item):
+    ma_thu_tuc = (item.get('ma_thu_tuc') or '').strip()
+    if not ma_thu_tuc:
+        return ''
+
+    if str(item.get('isnganhdoc') or '') == '1':
+        page_name = 'dvc-chi-tiet-thu-tuc-nganh-doc.html'
+    elif str(item.get('isdungchung') or '') == '1':
+        page_name = 'dvc-chi-tiet-thu-tuc-dung-chung.html'
+    else:
+        page_name = 'dvc-chi-tiet-thu-tuc-hanh-chinh.html'
+
+    return f"{OFFICIAL_PROCEDURE_PORTAL_URL}/p/home/{page_name}?ma_thu_tuc={quote(ma_thu_tuc)}"
+
+
+def _score_official_procedure_item(item, query):
+    title = _normalize_query_text(item.get('ten_thu_tuc', ''))
+    normalized_query = _normalize_query_text(query)
+    score = 0
+
+    if not title:
+        return score
+
+    if title == normalized_query:
+        score += 20
+    elif title in normalized_query:
+        score += 14
+    elif normalized_query in title:
+        score += 8
+
+    title_tokens = {token for token in title.split() if len(token) > 2}
+    query_tokens = {token for token in normalized_query.split() if len(token) > 2}
+    score += len(title_tokens & query_tokens)
+
+    for hint, titles in PROCEDURE_SEARCH_HINTS.items():
+        if hint in normalized_query and any(title == _normalize_query_text(item_title) for item_title in titles):
+            score += 10
+
+    return score
+
+
+def _search_official_procedure_suggestions(search_text):
+    candidate = str(search_text or '').strip()
+    if not candidate:
+        return []
+
+    cache_key = _normalize_query_text(candidate)
+    cached = _get_ttl_cached_value(OFFICIAL_PROCEDURE_SUGGESTION_CACHE, cache_key, OFFICIAL_PROCEDURE_CACHE_TTL)
+    if cached is not None:
+        return cached
+
+    response = requests.get(
+        OFFICIAL_PROCEDURE_TYPEAHEAD_URL,
+        params={'keyword': f'al:"{candidate}"~5'},
+        headers={
+            'User-Agent': 'Mozilla/5.0',
+            'Accept': 'application/json,text/plain,*/*',
+            'Accept-Language': 'vi-VN,vi;q=0.9',
+        },
+        timeout=15,
+    )
+    response.raise_for_status()
+    suggestions = response.json() if response.text.strip().startswith('[') else []
+    if not isinstance(suggestions, list):
+        suggestions = []
+    _set_ttl_cached_value(OFFICIAL_PROCEDURE_SUGGESTION_CACHE, cache_key, suggestions)
+    return suggestions
+
+
+def _extract_procedure_heading_sections(html_text):
+    matches = list(re.finditer(r'<h2 class="main-title-sub">(.*?)</h2>', html_text, re.IGNORECASE | re.DOTALL))
+    sections = {}
+    for index, match in enumerate(matches):
+        title = _clean_html_text(match.group(1))
+        start = match.end()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(html_text)
+        sections[title] = html_text[start:end]
+    return sections
+
+
+def _extract_procedure_methods(section_html):
+    table_match = re.search(r'<table class="table-result-tthc table-result".*?<tbody>(.*?)</tbody>', section_html, re.IGNORECASE | re.DOTALL)
+    if not table_match:
+        return []
+
+    methods = []
+    for row_html in re.findall(r'<tr>(.*?)</tr>', table_match.group(1), re.IGNORECASE | re.DOTALL):
+        cells = re.findall(r'<td[^>]*>(.*?)</td>', row_html, re.IGNORECASE | re.DOTALL)
+        if len(cells) < 4:
+            continue
+        methods.append({
+            'method': _clean_html_text(cells[0]),
+            'duration': _clean_html_text(cells[1]),
+            'fee': re.sub(r'\s*Xem chi tiết', '', _clean_html_text(cells[2]), flags=re.IGNORECASE).replace('\n', '; ').strip(' ;'),
+            'description': _clean_html_text(cells[3]),
+        })
+    return methods
+
+
+def _extract_procedure_documents(section_html):
+    documents = []
+    forms = []
+
+    for row_html in re.findall(r'<tr>(.*?)</tr>', section_html, re.IGNORECASE | re.DOTALL):
+        cells = re.findall(r'<td[^>]*>(.*?)</td>', row_html, re.IGNORECASE | re.DOTALL)
+        if len(cells) < 3:
+            continue
+
+        document_name = re.sub(r'^-\s*', '', _clean_html_text(cells[0]))
+        if _normalize_query_text(document_name).startswith('luu y'):
+            continue
+        form_match = re.search(r'<a[^>]+href="([^"]+)"[^>]*>(.*?)</a>', cells[1], re.IGNORECASE | re.DOTALL)
+        form_url = ''
+        form_label = ''
+        if form_match:
+            form_url = html.unescape(form_match.group(1)).strip()
+            form_label = _clean_html_text(form_match.group(2))
+            if form_url.endswith('ma='):
+                form_url = ''
+        quantity = _clean_html_text(cells[2])
+
+        if document_name:
+            documents.append({
+                'name': document_name,
+                'quantity': quantity,
+            })
+        if form_url:
+            forms.append({
+                'label': form_label or 'Biểu mẫu',
+                'url': form_url,
+            })
+
+    unique_forms = []
+    seen_urls = set()
+    for item in forms:
+        if item['url'] in seen_urls:
+            continue
+        seen_urls.add(item['url'])
+        unique_forms.append(item)
+
+    return documents, unique_forms
+
+
+def _extract_procedure_steps(section_html):
+    text = _clean_html_text(section_html)
+    steps = []
+    for part in re.split(r'(?=Bước\s*\d+:)', text):
+        cleaned = part.strip()
+        if cleaned:
+            steps.append(_truncate_text(cleaned, 260))
+    return steps
+
+
+def _fetch_official_procedure_detail(item):
+    detail_url = _build_official_procedure_detail_url(item)
+    if not detail_url:
+        return None
+
+    cache_key = detail_url
+    cached = _get_ttl_cached_value(OFFICIAL_PROCEDURE_DETAIL_CACHE, cache_key, OFFICIAL_PROCEDURE_CACHE_TTL)
+    if cached is not None:
+        return cached
+
+    response = requests.get(
+        detail_url,
+        headers={
+            'User-Agent': 'Mozilla/5.0',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'vi-VN,vi;q=0.9',
+        },
+        timeout=15,
+    )
+    response.raise_for_status()
+    html_text = response.text
+
+    title_matches = re.findall(r'<h1 class="main-title -none"[^>]*>(.*?)</h1>', html_text, re.IGNORECASE | re.DOTALL)
+    title = ''
+    for title_html in title_matches:
+        candidate = _clean_html_text(title_html)
+        if candidate:
+            title = candidate
+    sections = _extract_procedure_heading_sections(html_text)
+    methods = _extract_procedure_methods(sections.get('Cách thức thực hiện', ''))
+    documents, forms = _extract_procedure_documents(sections.get('Thành phần hồ sơ', ''))
+    steps = _extract_procedure_steps(sections.get('Trình tự thực hiện', ''))
+    agency_section = sections.get('Cơ quan thực hiện', '')
+    agency_match = re.search(r'<div class="article">(.*?)</div>', agency_section, re.IGNORECASE | re.DOTALL)
+    agency = _clean_html_text(agency_match.group(1) if agency_match else agency_section)
+    requirements_section = sections.get('Yêu cầu, điều kiện thực hiện', '')
+    requirements_match = re.search(r'<div class="article">(.*?)</div>', requirements_section, re.IGNORECASE | re.DOTALL)
+    requirements = _clean_html_text(requirements_match.group(1) if requirements_match else requirements_section)
+    online_match = re.search(r'redirectlocal="([^"]+)"', html_text, re.IGNORECASE)
+    online_url = html.unescape(online_match.group(1)).strip() if online_match else ''
+
+    detail = {
+        'title': title or item.get('ten_thu_tuc') or '',
+        'detail_url': detail_url,
+        'search_url': _build_official_procedure_search_url(item.get('ten_thu_tuc') or item.get('ma_thu_tuc') or ''),
+        'online_url': online_url,
+        'methods': methods,
+        'documents': documents,
+        'forms': forms,
+        'steps': steps,
+        'agency': agency,
+        'requirements': requirements,
+        'publisher': item.get('co_quan_cong_bo') or '',
+        'ma_thu_tuc': item.get('ma_thu_tuc') or '',
+    }
+    _set_ttl_cached_value(OFFICIAL_PROCEDURE_DETAIL_CACHE, cache_key, detail)
+    return detail
+
+
+def _lookup_official_procedure(query):
+    ranked = []
+    seen_ids = set()
+    for candidate in _extract_procedure_search_candidates(query):
+        for item in _search_official_procedure_suggestions(candidate):
+            ma_thu_tuc = str(item.get('ma_thu_tuc') or '').strip()
+            if not ma_thu_tuc or ma_thu_tuc in seen_ids:
+                continue
+            seen_ids.add(ma_thu_tuc)
+            ranked.append((item, _score_official_procedure_item(item, query)))
+
+    if not ranked:
+        return None
+
+    ranked.sort(key=lambda entry: entry[1], reverse=True)
+    best_item, best_score = ranked[0]
+    if best_score < 5:
+        return None
+    return _fetch_official_procedure_detail(best_item)
+
+
+def _build_official_procedure_answer(query, procedure):
+    lines = [
+        "Có. Hệ thống đã đối chiếu được thủ tục phù hợp từ Cổng Dịch vụ công quốc gia.",
+        f"- Thủ tục: {procedure.get('title') or 'Chưa xác định'}",
+    ]
+
+    if procedure.get('agency'):
+        lines.append(f"- Cơ quan thực hiện: {_truncate_text(procedure['agency'], 220)}")
+    if procedure.get('publisher'):
+        lines.append(f"- Cơ quan công bố: {_truncate_text(procedure['publisher'], 220)}")
+
+    if procedure.get('steps'):
+        lines.append("- Trình tự chính:")
+        for step in procedure['steps'][:3]:
+            lines.append(f"- {step}")
+
+    if procedure.get('methods'):
+        lines.append("- Cách thức thực hiện:")
+        for method in procedure['methods'][:2]:
+            method_line = f"  {method.get('method') or 'Không rõ hình thức'}"
+            if method.get('duration'):
+                method_line += f" | Thời hạn: {method['duration']}"
+            if method.get('fee'):
+                method_line += f" | Phí/lệ phí: {method['fee']}"
+            lines.append('- ' + method_line.strip())
+
+    if procedure.get('documents'):
+        lines.append("- Hồ sơ chính:")
+        for document in procedure['documents'][:3]:
+            doc_line = f"  {_truncate_text(document.get('name') or 'Không rõ giấy tờ', 240)}"
+            if document.get('quantity'):
+                doc_line += f" ({document['quantity']})"
+            lines.append('- ' + doc_line.strip())
+
+    requirements = (procedure.get('requirements') or '').strip()
+    if requirements and _normalize_query_text(requirements) not in {'khong', 'không'}:
+        lines.append(f"- Yêu cầu/điều kiện: {_truncate_text(requirements, 320)}")
+
+    if procedure.get('detail_url'):
+        lines.append(f"Nguồn tra cứu: [Chi tiết thủ tục]({procedure['detail_url']})")
+    if procedure.get('online_url'):
+        lines.append(f"Nộp trực tuyến: [Mở cổng nộp hồ sơ]({procedure['online_url']})")
+    if procedure.get('forms'):
+        form_links = ', '.join(
+            f"[{form.get('label') or 'Biểu mẫu'}]({form.get('url')})"
+            for form in procedure['forms'][:3]
+            if form.get('url')
+        )
+        if form_links:
+            lines.append(f"Biểu mẫu: {form_links}")
+    lines.append(f"Tra cứu thêm: [Kết quả tìm kiếm trên Cổng DVCQG]({_build_official_procedure_search_url(query)})")
+    return '\n'.join(lines)
 
 
 def _get_system_prompt(query=None, config=None):
@@ -681,6 +1135,12 @@ def _get_system_prompt(query=None, config=None):
             "Đây là câu hỏi về văn bản pháp luật cụ thể. Nếu chưa có kết quả tra cứu từ nguồn chính thức được cung cấp trong ngữ cảnh, "
             "tuyệt đối không được kết luận văn bản có tồn tại hay không tồn tại, không được suy đoán năm ban hành hay hiệu lực. "
             "Phải nói rõ là chưa xác minh được từ nguồn chính thức."
+        )
+
+    if query and _is_procedure_query(query):
+        additions.append(
+            "Đây là câu hỏi về thủ tục hành chính. Nếu chưa có dữ liệu chính thức từ Cổng Dịch vụ công quốc gia hoặc cơ quan có thẩm quyền, "
+            "không được tự bịa thành phần hồ sơ, thời hạn, lệ phí hoặc nơi nộp; phải nói rõ là chưa xác minh được từ nguồn chính thức."
         )
 
     return f"{base_prompt.strip()}\n\nQuy tắc thời gian và an toàn bổ sung:\n- " + "\n- ".join(additions)
@@ -1146,6 +1606,19 @@ def chat():
             'answer': _build_legal_reference_safety_answer(query),
             'type': 'legal_safe_guard'
         })
+
+    if _is_procedure_query(query):
+        try:
+            best_procedure = _lookup_official_procedure(query)
+            if best_procedure:
+                return jsonify({
+                    'success': True,
+                    'answer': _build_official_procedure_answer(query, best_procedure),
+                    'type': 'procedure_verified',
+                    'source': 'national_public_service_portal'
+                })
+        except Exception as exc:
+            print(f"Official procedure lookup error: {exc}")
 
     runtime = _get_provider_runtime()
     ai_result, provider_errors = call_ai_provider(query)

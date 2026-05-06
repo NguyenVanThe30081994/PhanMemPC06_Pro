@@ -294,6 +294,17 @@
     padding-left: 18px;
 }
 
+.assistant-bubble a {
+    color: #1d4ed8;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+[data-theme="dark"] .assistant-bubble a {
+    color: #93c5fd;
+}
+
 .assistant-typing {
     display: none;
     margin: 0 20px 14px;
