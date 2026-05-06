@@ -149,7 +149,6 @@
     .pc06-task-title-row {
         display: flex;
         align-items: flex-start;
-        justify-content: space-between;
         gap: 12px;
     }
 
@@ -161,24 +160,9 @@
         color: var(--text-main, #0f172a);
     }
 
-    .pc06-task-progress-pill {
-        min-width: 62px;
-        height: 42px;
-        padding: 0 14px;
-        border-radius: 999px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: #1d4ed8;
-        color: #fff;
-        font-size: 0.86rem;
-        font-weight: 900;
-        flex-shrink: 0;
-    }
-
     .pc06-task-compact-meta {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 12px;
     }
 
@@ -189,19 +173,18 @@
         border: 1px solid rgba(226, 232, 240, 0.92);
     }
 
-    .pc06-task-compact-meta span {
-        display: block;
-        color: var(--text-muted, #64748b);
-        font-size: 0.76rem;
-        margin-bottom: 6px;
-    }
-
     .pc06-task-compact-meta strong {
         display: block;
         color: var(--text-main, #0f172a);
         font-size: 0.95rem;
         line-height: 1.45;
         word-break: break-word;
+    }
+
+    .pc06-task-deadline-inline {
+        color: var(--text-muted, #64748b);
+        font-size: 0.86rem;
+        line-height: 1.5;
     }
 
     .pc06-task-compact-footer {
@@ -469,40 +452,32 @@
                 {% for t in tasks %}
                 {% set status_text = t.display_status or 'Chưa tiếp nhận' %}
                 {% set status_key = status_text|lower %}
-                <article
-                    class="pc06-task-compact-card task-row"
+                    <article
+                        class="pc06-task-compact-card task-row"
                     data-field="{{ (t.category or '__uncategorized__')|lower }}"
                     data-unit="{{ (t.domain or 'Không xác định')|lower }}"
                     data-status="{{ status_key }}"
                     data-search="{{ (t.title ~ ' ' ~ (t.content or '') ~ ' ' ~ (t.domain or '') ~ ' ' ~ (t.category or ''))|lower }}"
-                >
-                    <div class="pc06-task-title-row">
-                        <h3>{{ t.title }}</h3>
-                        <span class="pc06-task-progress-pill">{{ t.progress_percent }}%</span>
-                    </div>
+                    >
+                        <div class="pc06-task-title-row">
+                            <h3>{{ t.title }}</h3>
+                        </div>
 
-                    <div class="pc06-task-compact-meta">
-                        <div>
-                            <span>Đội nghiệp vụ</span>
-                            <strong>{{ t.domain or 'Chưa phân đội' }}</strong>
+                        <div class="pc06-task-compact-meta">
+                            <div>
+                                <strong>{{ t.domain or 'Chưa phân đội' }}</strong>
+                            </div>
+                            <div>
+                                <strong class="pc06-task-deadline-inline {% if t.is_overdue %}text-danger{% endif %}">
+                                    {{ t.deadline.strftime('%d/%m/%Y') if t.deadline else 'Chưa xác định' }}
+                                </strong>
+                            </div>
                         </div>
-                        <div>
-                            <span>Tiến độ thực hiện</span>
-                            <strong>{{ t.progress_percent }}%</strong>
-                        </div>
-                        <div>
-                            <span>Thời hạn</span>
-                            <strong class="{% if t.is_overdue %}text-danger{% endif %}">
-                                {{ t.deadline.strftime('%d/%m/%Y') if t.deadline else 'Chưa xác định' }}
-                            </strong>
-                        </div>
-                    </div>
 
                     <div class="pc06-task-compact-footer">
                         <span class="pc06-status-badge {% if 'hoàn thành' in status_key %}done{% elif 'đang thực hiện' in status_key %}doing{% elif 'chưa tiếp nhận' in status_key %}todo{% else %}neutral{% endif %}">
                             {{ status_text }}
                         </span>
-
                         <div class="pc06-task-compact-actions">
                             {% if t.current_user_status in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
                             <form action="{{ url_for('tasks_bp.update_task_status', tid=t.id) }}" method="POST">

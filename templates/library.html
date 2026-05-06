@@ -56,12 +56,18 @@
         transition: all 0.2s ease;
         color: var(--text-main, #0f172a);
         box-shadow: none;
+        min-width: 0;
     }
 
     .pc06-library-field-chip strong {
         display: block;
         font-size: 0.94rem;
         font-weight: 800;
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .pc06-library-field-chip span {
@@ -106,6 +112,8 @@
         box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
         display: grid;
         gap: 16px;
+        align-content: start;
+        min-width: 0;
     }
 
     [data-theme="dark"] .pc06-library-card {
@@ -118,12 +126,32 @@
         align-items: flex-start;
         justify-content: space-between;
         gap: 12px;
+        min-width: 0;
     }
 
     .pc06-library-card-head .pc06-soft-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
         min-width: 0;
         max-width: calc(100% - 106px);
+        overflow: hidden;
+    }
+
+    .pc06-library-card-head .pc06-soft-tag i {
+        flex-shrink: 0;
+    }
+
+    .pc06-library-card-head .pc06-soft-tag span,
+    .pc06-library-card-head .pc06-soft-tag {
         white-space: nowrap;
+    }
+
+    .pc06-library-card-head .pc06-soft-tag span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+        display: block;
     }
 
     .pc06-library-date {
@@ -141,6 +169,7 @@
         line-height: 1.5;
         font-weight: 800;
         color: var(--text-main, #0f172a);
+        min-width: 0;
     }
 
     .pc06-library-footer {
@@ -274,9 +303,9 @@
                     {% for item in items %}
                     <article class="pc06-library-card library-item" data-category="{{ (item.category or '')|lower }}" data-search="{{ (item.title ~ ' ' ~ (item.category or ''))|lower }}">
                         <div class="pc06-library-card-head">
-                            <span class="pc06-soft-tag">
+                            <span class="pc06-soft-tag" title="{{ item.category or 'Chưa phân lĩnh vực' }}">
                                 <i class="fa-solid fa-layer-group"></i>
-                                {{ item.category }}
+                                <span>{{ item.category or 'Chưa phân lĩnh vực' }}</span>
                             </span>
                             <span class="pc06-library-date">{{ item.uploaded_at.strftime('%d/%m/%Y') }}</span>
                         </div>
