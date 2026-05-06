@@ -17,12 +17,6 @@
                     <i class="fa-solid fa-arrow-left"></i>
                     Quay lại
                 </a>
-                {% if latest_submission and latest_submission.file_path %}
-                <a href="{{ url_for('reporting_bp.download_submission', submission_id=latest_submission.id) }}" class="btn btn-bdhvs light">
-                    <i class="fa-solid fa-download"></i>
-                    Tải file
-                </a>
-                {% endif %}
             </div>
         </div>
     </section>
@@ -33,31 +27,13 @@
         <input type="hidden" name="unit_id" value="{{ current_unit.id }}">
         {% endif %}
 
-        <section class="pc06-panel mb-4">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
-                <div>
-                    <h2 class="h5 fw-bold mb-1">Nội dung nhập liệu</h2>
-                    <div class="text-muted small">Chỉ hiển thị các trường được cấu hình cho nhập liệu.</div>
-                </div>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-bdhvs light" onclick="submitReport('{{ url_for('reporting_bp.save_cycle', cycle_id=cycle.id) }}')">Lưu</button>
-                    {% if editable %}
-                    <button type="button" class="btn btn-bdhvs primary" onclick="submitReport('{{ url_for('reporting_bp.submit_cycle', cycle_id=cycle.id) }}')">Gửi</button>
-                    {% endif %}
-                </div>
-            </div>
-
-            <div class="pc06-form-section mb-0">
-                <label class="form-label fw-bold">Ghi chú</label>
-                <textarea id="noteBox" class="form-control" rows="2">{% if latest_submission %}{{ latest_submission.note or '' }}{% endif %}</textarea>
-            </div>
-        </section>
-
         {% for sheet in sheet_views %}
         <section class="pc06-panel report-input-sheet report-sheet-panel" data-sheet="{{ sheet.sheet_name }}">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                 <h3 class="h6 fw-bold mb-0">{{ sheet.sheet_name }}</h3>
-                <span class="text-muted small">{{ sheet.rows|length }} dòng • {{ sheet.input_count }} trường nhập</span>
+                {% if editable %}
+                <button type="button" class="btn btn-bdhvs primary" onclick="submitReport('{{ url_for('reporting_bp.submit_cycle', cycle_id=cycle.id) }}')">GỬI BÁO CÁO</button>
+                {% endif %}
             </div>
 
             <div class="report-input-list">
@@ -149,7 +125,7 @@ function collectPayload() {
         sheets[sheetName] = cells;
     });
     return {
-        note: document.getElementById('noteBox').value || '',
+        note: '',
         sheets: sheets
     };
 }

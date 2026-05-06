@@ -2240,6 +2240,11 @@ def user_dashboard():
     if unit:
         instances = ReportInstance.query.filter_by(report_unit_id=unit.id).order_by(ReportInstance.opened_at.desc()).all()
     instance_map = {instance.cycle_id: instance for instance in instances}
+    latest_submission_map = {
+        instance.cycle_id: _latest_submission(instance.id)
+        for instance in instances
+        if instance and instance.id
+    }
 
     return render_template(
         "reporting_dashboard.html",
@@ -2256,6 +2261,7 @@ def user_dashboard():
         current_user=user,
         instances=instances,
         instance_map=instance_map,
+        latest_submission_map=latest_submission_map,
     )
 
 

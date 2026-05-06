@@ -10,29 +10,23 @@
                     Báo cáo Excel
                 </div>
                 <h1 class="pc06-page-title">{% if is_admin %}Thiết lập và quản lý báo cáo{% else %}Báo cáo đơn vị{% endif %}</h1>
-                <div class="pc06-hero-inline-band">
-                    <div class="text-muted">
-                        {% if is_admin %}
-                        Thiết lập biểu mẫu, theo dõi kết quả và quản lý toàn bộ báo cáo theo đội nghiệp vụ.
-                        {% else %}
-                        {{ current_unit.name if current_unit else 'Chưa xác định đơn vị' }}
-                        {% endif %}
-                    </div>
-                    {% if is_admin %}
-                    <div class="pc06-action-cluster">
-                        <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#createReportTemplateModal">
-                            <i class="fa-solid fa-plus"></i>
-                            Thiết lập mẫu
+                {% if not is_admin %}
+                <div class="text-muted">{{ current_unit.name if current_unit else 'Chưa xác định đơn vị' }}</div>
+                {% endif %}
+                {% if is_admin %}
+                <div class="pc06-hero-toolbar">
+                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#createReportTemplateModal">
+                        <i class="fa-solid fa-plus"></i>
+                        Thiết lập mẫu
+                    </button>
+                    <form method="POST" action="{{ url_for('reporting_bp.sync_units') }}">
+                        <button class="btn btn-bdhvs light" type="submit">
+                            <i class="fa-solid fa-rotate"></i>
+                            Đồng bộ đơn vị
                         </button>
-                        <form method="POST" action="{{ url_for('reporting_bp.sync_units') }}">
-                            <button class="btn btn-bdhvs light" type="submit">
-                                <i class="fa-solid fa-rotate"></i>
-                                Đồng bộ đơn vị
-                            </button>
-                        </form>
-                    </div>
-                    {% endif %}
+                    </form>
                 </div>
+                {% endif %}
             </div>
             <div class="pc06-stat-strip">
                 {% if is_admin %}
@@ -75,7 +69,6 @@
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
                 <div>
                     <h2 class="h5 fw-bold mb-1">{% if is_admin %}Báo cáo theo đội nghiệp vụ{% else %}Danh sách báo cáo{% endif %}</h2>
-                    <div class="text-muted small">{% if is_admin %}Chọn đội để xem các biểu mẫu đang quản lý.{% else %}Chọn đội để mở biểu mẫu cần nhập, xem hoặc xem lịch sử.{% endif %}</div>
                 </div>
             </div>
 
@@ -165,6 +158,7 @@
                                 {% for item in group.entries %}
                                 {% set cycle = item.cycle %}
                                 {% set instance = instance_map.get(cycle.id) if instance_map is defined else None %}
+                                {% set latest_submission = latest_submission_map.get(cycle.id) if latest_submission_map is defined else None %}
                                 <article class="report-template-row">
                                     <div class="report-template-copy">
                                         <h3>{{ cycle.name }}</h3>
@@ -182,6 +176,11 @@
                                         <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.cycle_history', cycle_id=cycle.id) }}" title="Lịch sử">
                                             <i class="fa-solid fa-clock-rotate-left"></i>
                                         </a>
+                                        {% if latest_submission and latest_submission.file_path %}
+                                        <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.download_submission', submission_id=latest_submission.id) }}" title="Tải file">
+                                            <i class="fa-solid fa-download"></i>
+                                        </a>
+                                        {% endif %}
                                     </div>
                                 </article>
                                 {% endfor %}
@@ -201,6 +200,34 @@
         </div>
     </section>
 </div>
+
+<style>
+    .pc06-hero-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+    }
+
+    .pc06-stat-strip {
+        justify-content: flex-end;
+        align-self: flex-start;
+    }
+
+    .pc06-metric-card {
+        min-width: 118px;
+        padding: 12px 14px;
+        border-radius: 14px;
+    }
+
+    .pc06-metric-card span {
+        font-size: 0.75rem;
+    }
+
+    .pc06-metric-card strong {
+        font-size: 1.2rem;
+    }
+</style>
 
 {% if is_admin %}
 <div class="modal fade" id="createReportTemplateModal" tabindex="-1" aria-hidden="true">
