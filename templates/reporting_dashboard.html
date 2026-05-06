@@ -2,15 +2,12 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    <section class="pc06-hero-card with-toolbar">
-        <div class="pc06-hero-grid compact reporting-hero-grid">
+    <section class="pc06-hero-card">
+        <div class="pc06-hero-grid">
             <div>
-                <h1 class="pc06-page-title">Báo cáo tổng hợp</h1>
-                {% if not is_admin %}
-                <div class="text-muted">{{ current_unit.name if current_unit else 'Chưa xác định đơn vị' }}</div>
-                {% endif %}
+                <h1 class="pc06-page-title">Báo cáo</h1>
                 {% if is_admin %}
-                <div class="pc06-hero-toolbar">
+                <div class="pc06-action-cluster">
                     <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#createReportTemplateModal">
                         <i class="fa-solid fa-plus"></i>
                         Thiết lập mẫu
@@ -24,7 +21,7 @@
                 </div>
                 {% endif %}
             </div>
-            <div class="pc06-stat-strip reporting-hero-stats">
+            <div class="pc06-stat-strip">
                 {% if is_admin %}
                 <div class="pc06-metric-card">
                     <span>Biểu mẫu</span>
@@ -196,54 +193,6 @@
         </div>
     </section>
 </div>
-
-<style>
-    .pc06-hero-toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 14px;
-    }
-
-    .reporting-hero-grid {
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: start;
-    }
-
-    .reporting-hero-stats {
-        grid-auto-flow: column;
-        grid-auto-columns: minmax(118px, 1fr);
-        justify-content: flex-end;
-        align-self: flex-start;
-        width: min(100%, 620px);
-    }
-
-    .pc06-metric-card {
-        min-width: 118px;
-        padding: 12px 14px;
-        border-radius: 14px;
-    }
-
-    .pc06-metric-card span {
-        font-size: 0.75rem;
-    }
-
-    .pc06-metric-card strong {
-        font-size: 1.2rem;
-    }
-
-    @media (max-width: 1080px) {
-        .reporting-hero-grid {
-            grid-template-columns: minmax(0, 1fr);
-        }
-
-        .reporting-hero-stats {
-            grid-auto-flow: row;
-            grid-auto-columns: auto;
-            width: 100%;
-        }
-    }
-</style>
 
 {% if is_admin %}
 <div class="modal fade" id="createReportTemplateModal" tabindex="-1" aria-hidden="true">
