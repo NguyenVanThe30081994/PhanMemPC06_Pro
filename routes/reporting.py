@@ -551,6 +551,50 @@ def _latest_submission(instance_id):
     )
 
 
+def _latest_submission_for_date(instance_id, report_date):
+    submission_time = _submission_time_expr()
+    return (
+        ReportSubmission.query.filter(
+            ReportSubmission.instance_id == instance_id,
+            submission_time >= _start_of_day(report_date),
+            submission_time < _next_day_start(report_date),
+        )
+        .order_by(ReportSubmission.version_no.desc(), ReportSubmission.created_at.desc())
+        .first()
+    )
+
+
+def _latest_submission_through_date(instance_id, report_date):
+    submission_time = _submission_time_expr()
+    return (
+        ReportSubmission.query.filter(
+            ReportSubmission.instance_id == instance_id,
+            submission_time < _next_day_start(report_date),
+        )
+        .order_by(ReportSubmission.version_no.desc(), ReportSubmission.created_at.desc())
+        .first()
+    )
+
+
+def _submission_history(instance_id, report_date=None):
+    query = ReportSubmission.query.filter_by(instance_id=instance_id)
+    if report_date:
+        submission_time = _submission_time_expr()
+        query = query.filter(
+            submission_time >= _start_of_day(report_date),
+            submission_time < _next_day_start(report_date),
+        )
+    return query.order_by(ReportSubmission.version_no.desc(), ReportSubmission.created_at.desc()).all()
+
+
+def _merged_submission_cell_values(submissions):
+    values = {}
+    for submission in submissions:
+        for sheet_name, cells in _submission_cell_values(submission.id).items():
+            values.setdefault(sheet_name, {}).update(cells)
+    return values
+
+
 def _submission_cell_values(submission_id):
     values = {}
     rows = (
@@ -2261,8 +2305,25 @@ def cycle_preview(cycle_id):
     template = context["template"]
     report_type = context["report_type"]
     latest_submission = context["latest_submission"]
+    report_date = context["report_date"]
     metadata = json.loads(template_version.metadata_json or "{}")
-    existing_values = _submission_cell_values(latest_submission.id) if latest_submission else {}
+    admin_all_units = _is_admin() and not request.args.get("unit_id")
+    if admin_all_units:
+        instances = ReportInstance.query.filter_by(cycle_id=cycle.id).order_by(ReportInstance.report_unit_id.asc()).all()
+        latest_submissions = []
+        for instance in instances:
+            submission = (
+                _latest_submission_through_date(instance.id, report_date)
+                if report_date
+                else _latest_submission(instance.id)
+            )
+            if submission:
+                latest_submissions.append(submission)
+        existing_values = _merged_submission_cell_values(latest_submissions)
+        latest_submission = latest_submissions[0] if latest_submissions else None
+        unit = None
+    else:
+        existing_values = _submission_cell_values(latest_submission.id) if latest_submission else {}
     workbook, formula_values = build_preview_workbook(template_version.source_path, existing_values)
     preview_sheets = []
     for sheet_meta in metadata.get("sheets", []):
@@ -2293,11 +2354,17 @@ def cycle_preview(cycle_id):
         cycle=cycle,
         template=template,
         report_type=report_type,
+        report_date=report_date,
+        report_date_str=report_date.strftime("%d/%m/%Y") if report_date else "",
         latest_submission=latest_submission,
         preview_sheets=preview_sheets,
         current_unit=unit,
         is_admin=_is_admin(),
-        download_url=url_for("reporting_bp.download_submission", submission_id=latest_submission.id) if latest_submission else "",
+        download_url=(
+            url_for("reporting_bp.download_submission", submission_id=latest_submission.id)
+            if latest_submission and not admin_all_units
+            else ""
+        ),
     )
 
 
@@ -2356,8 +2423,11 @@ def _resolve_cycle_context(cycle_id):
     template_version = db.session.get(ReportTemplateVersion, cycle.template_version_id)
     template = db.session.get(ReportTemplate, template_version.template_id)
     report_type = _report_type(cycle)
-    latest_submission = _latest_submission(instance.id)
-    submission_history = ReportSubmission.query.filter_by(instance_id=instance.id).order_by(ReportSubmission.version_no.desc(), ReportSubmission.created_at.desc()).all()
+    report_date = None
+    if report_type and report_type.code == "daily":
+        report_date = _parse_date(request.args.get("report_date", "")) or date.today()
+    latest_submission = _latest_submission_through_date(instance.id, report_date) if report_date else _latest_submission(instance.id)
+    submission_history = _submission_history(instance.id, report_date=report_date)
     return {
         "cycle": cycle,
         "unit": unit,
@@ -2366,6 +2436,7 @@ def _resolve_cycle_context(cycle_id):
         "template_version": template_version,
         "template": template,
         "report_type": report_type,
+        "report_date": report_date,
         "latest_submission": latest_submission,
         "submission_history": submission_history,
     }

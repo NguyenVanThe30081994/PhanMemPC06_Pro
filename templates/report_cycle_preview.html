@@ -10,10 +10,19 @@
                     Xem báo cáo
                 </div>
                 <h1 class="pc06-page-title">{{ cycle.name }}</h1>
-                <div class="text-muted">{{ template.name }} • {{ current_unit.name if current_unit else 'Không có đơn vị' }}</div>
+                <div class="text-muted">
+                    {{ template.name }} • {{ current_unit.name if current_unit else 'Toàn bộ đơn vị' }}
+                    {% if report_date_str %}
+                    • Ngày {{ report_date_str }}{% if report_type and report_type.code == 'daily' %} (cộng dồn đến hết ngày){% endif %}
+                    {% endif %}
+                </div>
             </div>
             <div class="pc06-action-cluster">
+                {% if is_admin and report_date %}
+                <a href="{{ url_for('reporting_bp.admin_cycle_detail', cycle_id=cycle.id, report_date=report_date.strftime('%Y-%m-%d')) }}" class="btn btn-bdhvs light">
+                {% else %}
                 <a href="{{ url_for('reporting_bp.user_dashboard') if not is_admin else url_for('reporting_bp.admin_cycle_detail', cycle_id=cycle.id) }}" class="btn btn-bdhvs light">
+                {% endif %}
                     <i class="fa-solid fa-arrow-left"></i>
                     Quay lại
                 </a>

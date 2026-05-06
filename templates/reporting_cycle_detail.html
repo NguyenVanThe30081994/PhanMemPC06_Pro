@@ -14,6 +14,10 @@
         <div class="d-flex gap-2 flex-wrap">
             <a href="{{ url_for('reporting_bp.admin_dashboard') }}" class="btn btn-light rounded-pill px-4">Quay lại</a>
             <a href="{{ url_for('reporting_bp.template_settings', template_id=template.id) }}" class="btn btn-outline-secondary rounded-pill px-4">Cấu hình</a>
+            <a
+                href="{{ url_for('reporting_bp.cycle_preview', cycle_id=cycle.id, report_date=filter_date.strftime('%Y-%m-%d')) if is_daily and filter_date else url_for('reporting_bp.cycle_preview', cycle_id=cycle.id) }}"
+                class="btn btn-outline-primary rounded-pill px-4"
+            >Xem báo cáo</a>
         </div>
     </div>
 </div>
