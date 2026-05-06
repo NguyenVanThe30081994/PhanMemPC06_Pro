@@ -36,14 +36,14 @@
                             <thead>
                                 <tr>
                                     <th>{{ card.row_label or 'Nhóm' }}</th>
-                                    <th class="text-end">{{ card.count_label or 'Số lượng' }}</th>
+                                    <th>{{ card.count_label or 'Số lượng' }}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for row in card.rows %}
                                 <tr>
                                     <td>{{ row.name }}</td>
-                                    <td class="text-end">{{ row.count }}</td>
+                                    <td>{{ row.count }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -78,11 +78,13 @@
     .overview-card-title h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-main); }
     .overview-card-badge { min-width: 44px; height: 44px; padding: 0 12px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.95rem; background: rgba(248, 250, 252, 0.84); border: 1px solid rgba(148, 163, 184, 0.16); color: var(--text-main); flex-shrink: 0; }
     .overview-card-body { min-height: 0; }
-    .overview-table-wrap { border-radius: 16px; overflow: hidden; border: 1px solid rgba(148, 163, 184, 0.12); background: rgba(248, 250, 252, 0.84); }
-    .overview-table { width: 100%; border-collapse: collapse; }
+    .overview-table-wrap { border-radius: 16px; overflow-x: auto; overflow-y: hidden; border: 1px solid rgba(148, 163, 184, 0.12); background: rgba(248, 250, 252, 0.84); -webkit-overflow-scrolling: touch; }
+    .overview-table { width: 100%; min-width: 100%; border-collapse: collapse; table-layout: auto; }
     .overview-table th,
-    .overview-table td { padding: 12px 14px; font-size: 0.88rem; }
-    .overview-table thead th { background: rgba(255, 255, 255, 0.82); color: var(--text-muted); font-weight: 800; border-bottom: 1px solid rgba(148, 163, 184, 0.14); }
+    .overview-table td { padding: 12px 14px; font-size: 0.88rem; vertical-align: top; }
+    .overview-table thead th { background: rgba(255, 255, 255, 0.82); color: var(--text-muted); font-weight: 800; border-bottom: 1px solid rgba(148, 163, 184, 0.14); line-height: 1.35; text-align: left; }
+    .overview-table thead th:last-child,
+    .overview-table tbody td:last-child { width: 1%; min-width: 112px; white-space: nowrap; text-align: right; }
     .overview-table tbody td { color: var(--text-main); font-weight: 700; border-bottom: 1px solid rgba(148, 163, 184, 0.1); }
     .overview-table tbody tr:last-child td { border-bottom: 0; }
     .overview-empty { min-height: 180px; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--text-muted); font-weight: 700; border: 1px dashed rgba(148, 163, 184, 0.28); border-radius: 20px; background: rgba(248, 250, 252, 0.78); }
@@ -103,6 +105,10 @@
     @media (max-width: 991.98px) {
         .overview-grid-bdhvs { grid-template-columns: 1fr; }
         .overview-card-body { min-height: 0; }
+        .overview-table th,
+        .overview-table td { padding: 11px 12px; font-size: 0.84rem; }
+        .overview-table thead th:last-child,
+        .overview-table tbody td:last-child { min-width: 96px; }
     }
 </style>
 {% endblock %}
