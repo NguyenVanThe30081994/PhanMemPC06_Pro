@@ -587,6 +587,77 @@ def _submission_history(instance_id, report_date=None):
     return query.order_by(ReportSubmission.version_no.desc(), ReportSubmission.created_at.desc()).all()
 
 
+def _submissions_through_date(instance_id, report_date):
+    submission_time = _submission_time_expr()
+    return (
+        ReportSubmission.query.filter(
+            ReportSubmission.instance_id == instance_id,
+            submission_time < _next_day_start(report_date),
+        )
+        .order_by(ReportSubmission.version_no.asc(), ReportSubmission.created_at.asc(), ReportSubmission.id.asc())
+        .all()
+    )
+
+
+def _daily_snapshot_submissions_through_date(instance_id, report_date):
+    latest_by_day = {}
+    for submission in _submissions_through_date(instance_id, report_date):
+        submission_time = submission.submitted_at or submission.created_at
+        if not submission_time:
+            continue
+        latest_by_day[submission_time.date()] = submission
+    return [latest_by_day[day] for day in sorted(latest_by_day.keys())]
+
+
+def _parse_numeric_value(raw_value):
+    if raw_value is None:
+        return None
+    text = str(raw_value).strip()
+    if not text:
+        return None
+    normalized = text.replace(",", "")
+    try:
+        return float(normalized)
+    except Exception:
+        return None
+
+
+def _cumulative_submission_cell_values(submissions, template_version_id):
+    if not submissions or not template_version_id:
+        return {}
+
+    fields = ReportTemplateField.query.filter_by(version_id=template_version_id).all()
+    field_map = {(field.sheet_name, field.column_letter.upper()): field for field in fields}
+    numeric_types = {"number", "float", "decimal", "int", "integer"}
+    values = {}
+    numeric_totals = {}
+
+    for submission in submissions:
+        rows = (
+            ReportSubmissionCell.query.filter_by(submission_id=submission.id)
+            .order_by(ReportSubmissionCell.id.asc())
+            .all()
+        )
+        for row in rows:
+            cell_address = (row.cell_address or "").strip().upper()
+            if not cell_address:
+                continue
+            col_letters = "".join(ch for ch in cell_address if ch.isalpha()).upper()
+            field = field_map.get((row.sheet_name, col_letters))
+            sheet_values = values.setdefault(row.sheet_name, {})
+            if field and (field.data_type or "").lower() in numeric_types:
+                parsed = _parse_numeric_value(row.raw_value)
+                if parsed is None:
+                    continue
+                total = numeric_totals.get((row.sheet_name, cell_address), 0.0) + parsed
+                numeric_totals[(row.sheet_name, cell_address)] = total
+                sheet_values[cell_address] = int(total) if float(total).is_integer() else total
+            else:
+                sheet_values[cell_address] = row.raw_value or ""
+
+    return values
+
+
 def _merged_submission_cell_values(submissions):
     values = {}
     for submission in submissions:
@@ -2208,7 +2279,12 @@ def cycle_workspace(cycle_id):
     editable = not cycle.is_locked and cycle.status != "closed"
     metadata = json.loads(template_version.metadata_json or "{}")
     workbook = load_workbook(template_version.source_path, data_only=False)
-    latest_submission = context["latest_submission"]
+    report_date = context["report_date"]
+    latest_submission = (
+        _latest_submission_for_date(instance.id, report_date)
+        if report_type and report_type.code == "daily" and report_date
+        else context["latest_submission"]
+    )
     submission_history = context["submission_history"]
     existing_values = _submission_cell_values(latest_submission.id) if latest_submission else {}
     available_units = _cycle_units(cycle) if _is_admin() else []
@@ -2281,6 +2357,7 @@ def cycle_workspace(cycle_id):
         latest_submission=latest_submission,
         latest_timeliness=_submission_timeliness(cycle, latest_submission, report_type=report_type),
         submission_history=submission_history,
+        report_date=report_date,
         current_unit=unit,
         is_admin=_is_admin(),
         available_units=available_units,
@@ -2308,20 +2385,33 @@ def cycle_preview(cycle_id):
     report_date = context["report_date"]
     metadata = json.loads(template_version.metadata_json or "{}")
     admin_all_units = _is_admin() and not request.args.get("unit_id")
+    is_daily_cumulative = bool(report_type and report_type.code == "daily" and report_date)
     if admin_all_units:
         instances = ReportInstance.query.filter_by(cycle_id=cycle.id).order_by(ReportInstance.report_unit_id.asc()).all()
-        latest_submissions = []
-        for instance in instances:
-            submission = (
-                _latest_submission_through_date(instance.id, report_date)
-                if report_date
-                else _latest_submission(instance.id)
-            )
-            if submission:
-                latest_submissions.append(submission)
-        existing_values = _merged_submission_cell_values(latest_submissions)
-        latest_submission = latest_submissions[0] if latest_submissions else None
+        if is_daily_cumulative:
+            existing_values = {}
+            latest_submissions = []
+            for instance in instances:
+                submissions = _daily_snapshot_submissions_through_date(instance.id, report_date)
+                if submissions:
+                    latest_submissions.append(submissions[-1])
+                    unit_values = _cumulative_submission_cell_values(submissions, template_version.id)
+                    for sheet_name, cells in unit_values.items():
+                        existing_values.setdefault(sheet_name, {}).update(cells)
+            latest_submission = latest_submissions[0] if latest_submissions else None
+        else:
+            latest_submissions = []
+            for instance in instances:
+                submission = _latest_submission(instance.id)
+                if submission:
+                    latest_submissions.append(submission)
+            existing_values = _merged_submission_cell_values(latest_submissions)
+            latest_submission = latest_submissions[0] if latest_submissions else None
         unit = None
+    elif is_daily_cumulative:
+        submissions = _daily_snapshot_submissions_through_date(context["instance"].id, report_date)
+        existing_values = _cumulative_submission_cell_values(submissions, template_version.id)
+        latest_submission = submissions[-1] if submissions else None
     else:
         existing_values = _submission_cell_values(latest_submission.id) if latest_submission else {}
     workbook, formula_values = build_preview_workbook(template_version.source_path, existing_values)
@@ -2362,7 +2452,7 @@ def cycle_preview(cycle_id):
         is_admin=_is_admin(),
         download_url=(
             url_for("reporting_bp.download_submission", submission_id=latest_submission.id)
-            if latest_submission and not admin_all_units
+            if latest_submission and not admin_all_units and not is_daily_cumulative
             else ""
         ),
     )
