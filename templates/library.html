@@ -5,20 +5,8 @@
     <section class="pc06-hero-card with-toolbar">
         <div class="pc06-hero-grid compact">
             <div>
-                <div class="pc06-page-kicker">
-                    <i class="fa-solid fa-book-bookmark"></i>
-                    Thư viện
-                </div>
                 <h1 class="pc06-page-title">Thư viện</h1>
                 <div class="pc06-hero-inline-band">
-                    {% if perms.get('p_lib_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
-                    <div class="pc06-action-cluster">
-                        <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLibraryModal">
-                            <i class="fa-solid fa-upload"></i>
-                            Tải tài liệu lên
-                        </button>
-                    </div>
-                    {% endif %}
                     <div class="pc06-hero-toolbar pc06-hero-toolbar-inline">
                         <div class="pc06-toolbar-row compact-filters">
                             <div class="pc06-select-control search-grow">
@@ -38,6 +26,14 @@
                                 </select>
                             </label>
                             <span class="pc06-toolbar-count" id="libraryResultCount">{{ items|length }} tài liệu</span>
+                            {% if perms.get('p_lib_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
+                            <div class="pc06-toolbar-actions">
+                                <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLibraryModal">
+                                    <i class="fa-solid fa-upload"></i>
+                                    Tải tài liệu lên
+                                </button>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

@@ -615,14 +615,12 @@
 
                 <a href="{{ url_for('shortlink_bp.manage_links') }}" class="nav-link-top {% if request.path.startswith('/links') %}active{% endif %}">QR & Link</a>
 
-                <a href="/ai" class="nav-link-top {% if request.path.startswith('/ai') %}active{% endif %}">
-                    <i class="fa-solid fa-robot me-1"></i>Hỗ trợ thủ tục
-                </a>
+                <a href="/ai" class="nav-link-top {% if request.path.startswith('/ai') %}active{% endif %}">Trợ lý AI</a>
 
                 {% if perms.get('p_form_lead') or perms.get('p_input_lead') or perms.get('p_input_exec') or is_admin %}
                 <a href="{{ '/admin/reports' if is_admin or perms.get('p_form_lead') else '/reports' }}"
                     class="nav-link-top {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">
-                    Báo cáo Excel
+                    Báo cáo
                 </a>
                 {% endif %}
 
@@ -651,12 +649,6 @@
                         <li>
                             <hr class="dropdown-divider opacity-10 mx-2">
                         </li>
-                        {% if perms.get('p_form_lead') or perms.get('p_input_lead') or perms.get('p_input_exec') or is_admin %}
-                        <li><a class="dropdown-item py-2 rounded-3" href="{{ '/admin/reports' if is_admin or perms.get('p_form_lead') else '/reports' }}"> Báo cáo Excel</a></li>
-                        <li>
-                            <hr class="dropdown-divider opacity-10 mx-2">
-                        </li>
-                        {% endif %}
                         <li><a class="dropdown-item py-2 rounded-3" href="/admin/system/update"> Cập nhật bản vá</a>
                         </li>
                         <li>

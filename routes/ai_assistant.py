@@ -823,7 +823,7 @@ def index():
 
     return render_template(
         'ai_assistant.html',
-        title='Hỗ trợ thủ tục',
+        title='Trợ lý AI',
         news=news,
         suggested_topics=SUGGESTED_TOPICS,
         assistant_runtime=runtime,

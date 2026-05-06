@@ -343,7 +343,7 @@
                 <div class="nav-links">
                     <a href="/library" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">Thư viện Tài liệu</a>
                     <a href="/contacts" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">Danh bạ Đơn vị</a>
-                    <a href="/ai" class="nav-link-sidebar {% if request.endpoint == 'ai_bp.index' %}active{% endif %}"><i class="fa-solid fa-robot me-1"></i>Hỗ trợ thủ tục</a>
+                    <a href="/ai" class="nav-link-sidebar {% if request.endpoint == 'ai_bp.index' %}active{% endif %}">Trợ lý AI</a>
                     <a href="/links" class="nav-link-sidebar {% if request.endpoint == 'shortlink_bp.manage_links' %}active{% endif %}">QR & Link</a>
                 </div>
             </div>
@@ -360,7 +360,7 @@
                         <a href="/admin/module-categories" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">Thiết lập Danh mục</a>
                         <a href="/admin/ai-settings" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.ai_settings' %}active{% endif %}">Cấu hình dịch vụ AI</a>
                         {% if session.get('is_admin') or perms.get('p_form_lead') or perms.get('p_input_lead') or perms.get('p_input_exec') %}
-                        <a href="{{ '/admin/reports' if session.get('is_admin') or perms.get('p_form_lead') else '/reports' }}" class="nav-link-sidebar {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">Báo cáo Excel</a>
+                        <a href="{{ '/admin/reports' if session.get('is_admin') or perms.get('p_form_lead') else '/reports' }}" class="nav-link-sidebar {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">Báo cáo</a>
                         {% endif %}
                         <a href="/logs" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">Nhật ký Hệ thống</a>
                         <a href="/admin/system/update" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">Cập nhật Hệ thống</a>
@@ -372,7 +372,7 @@
                         {% endif %}
                         {% endif %}
                         {% if not (session.get('is_admin') or perms.get('p_sys_lead')) and (perms.get('p_form_lead') or perms.get('p_input_lead') or perms.get('p_input_exec')) %}
-                        <a href="/reports" class="nav-link-sidebar {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">Báo cáo Excel</a>
+                        <a href="/reports" class="nav-link-sidebar {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">Báo cáo</a>
                         {% endif %}
                     </div>
                 </div>

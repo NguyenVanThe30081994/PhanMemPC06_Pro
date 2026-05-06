@@ -511,6 +511,10 @@
     line-height: 1.12;
 }
 
+.pc06-hero-card .pc06-page-title:first-child {
+    margin-top: 0;
+}
+
 .pc06-page-lead {
     max-width: 760px;
     margin: 0;
@@ -612,6 +616,14 @@
 
 .pc06-toolbar-row.compact-filters {
     align-items: end;
+}
+
+.pc06-toolbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-left: auto;
+    justify-content: flex-end;
 }
 
 .pc06-toolbar-note {
@@ -1463,6 +1475,12 @@ a.pc06-chip {
 
     .pc06-toolbar-row.compact-filters {
         align-items: stretch;
+    }
+
+    .pc06-toolbar-actions {
+        width: 100%;
+        margin-left: 0;
+        justify-content: flex-start;
     }
 
     .pc06-toolbar-note {

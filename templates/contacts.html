@@ -5,24 +5,8 @@
     <section class="pc06-hero-card with-toolbar">
         <div class="pc06-hero-grid compact">
             <div>
-                <div class="pc06-page-kicker">
-                    <i class="fa-solid fa-address-book"></i>
-                    Danh bạ
-                </div>
                 <h1 class="pc06-page-title">Danh bạ</h1>
                 <div class="pc06-hero-inline-band">
-                    {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
-                    <div class="pc06-action-cluster">
-                        <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importContactModal">
-                            <i class="fa-solid fa-file-excel"></i>
-                            Nhập Excel
-                        </button>
-                        <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addContactModal">
-                            <i class="fa-solid fa-plus"></i>
-                            Thêm liên hệ
-                        </button>
-                    </div>
-                    {% endif %}
                     <div class="pc06-hero-toolbar pc06-hero-toolbar-inline">
                         <div class="pc06-toolbar-row compact-filters">
                             <div class="pc06-select-control search-grow">
@@ -42,6 +26,18 @@
                                 </select>
                             </label>
                             <span class="pc06-toolbar-count" id="contactVisibleCount">{{ contacts|length }} liên hệ</span>
+                            {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
+                            <div class="pc06-toolbar-actions">
+                                <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importContactModal">
+                                    <i class="fa-solid fa-file-excel"></i>
+                                    Nhập Excel
+                                </button>
+                                <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addContactModal">
+                                    <i class="fa-solid fa-plus"></i>
+                                    Thêm liên hệ
+                                </button>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
