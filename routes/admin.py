@@ -1002,6 +1002,28 @@ def module_categories():
                 db.session.commit()
                 flash(f'Đã xóa thành phần: {name}', 'info')
 
+        elif action == 'rename_item':
+            item_id = request.form.get('item_id')
+            item_name = request.form.get('item_name', '').strip()
+            item = CategoryItem.query.get(item_id)
+            if not item:
+                flash('Không tìm thấy thành phần cần sửa.', 'warning')
+            elif not item_name:
+                flash('Tên thành phần không được để trống.', 'warning')
+            else:
+                duplicate = CategoryItem.query.filter(
+                    CategoryItem.group_id == item.group_id,
+                    func.lower(CategoryItem.name) == item_name.lower(),
+                    CategoryItem.id != item.id,
+                ).first()
+                if duplicate:
+                    flash(f'Tên thành phần "{item_name}" đã tồn tại trong danh mục này.', 'warning')
+                else:
+                    old_name = item.name
+                    item.name = item_name
+                    db.session.commit()
+                    flash(f'Đã đổi tên thành phần: {old_name} -> {item_name}', 'success')
+
         elif action == 'save_binding':
             module_id = request.form.get('module_id')
             field_code = request.form.get('field_code', '').strip()

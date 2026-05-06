@@ -3,7 +3,7 @@
 {% block title %}Trợ lý AI{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/ai-assistant.css') }}?v=20260506a">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ai-assistant.css') }}?v=20260506b">
 {% endblock %}
 
 {% block content %}
@@ -12,5 +12,5 @@
 
 {% block scripts %}
 {{ super() if super is defined else '' }}
-<script src="{{ url_for('static', filename='js/ai-assistant.js') }}?v=20260506a"></script>
+<script src="{{ url_for('static', filename='js/ai-assistant.js') }}?v=20260506b"></script>
 {% endblock %}

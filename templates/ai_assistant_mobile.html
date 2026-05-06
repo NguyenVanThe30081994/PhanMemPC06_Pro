@@ -3,7 +3,7 @@
 {% block title %}Trợ lý AI{% endblock %}
 
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/ai-assistant.css') }}?v=20260506a">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ai-assistant.css') }}?v=20260506b">
 <style>
     .assistant-page .pc06-hero-card {
         background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%);
@@ -39,17 +39,6 @@
         color: #fff;
         border-color: rgba(255, 255, 255, 0.14);
     }
-    .assistant-page .assistant-hero-scope {
-        background: rgba(255, 255, 255, 0.12);
-        border-color: rgba(255, 255, 255, 0.14);
-    }
-    .assistant-page .assistant-hero-scope-label,
-    .assistant-page .assistant-hero-scope small {
-        color: rgba(226, 232, 240, 0.84);
-    }
-    .assistant-page .assistant-hero-scope strong {
-        color: #fff;
-    }
     @media (max-width: 767px) {
         .assistant-page .pc06-hero-card {
             padding: 18px;
@@ -66,5 +55,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/ai-assistant.js') }}?v=20260506a"></script>
+<script src="{{ url_for('static', filename='js/ai-assistant.js') }}?v=20260506b"></script>
 {% endblock %}

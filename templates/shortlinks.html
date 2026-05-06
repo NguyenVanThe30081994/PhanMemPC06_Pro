@@ -36,9 +36,7 @@
         <div class="pc06-panel-head">
             <div>
                 <h2>Danh sách liên kết</h2>
-                <p>Theo dõi đường dẫn gốc, mã rút gọn, mã QR và lượt truy cập.</p>
             </div>
-            <span class="pc06-status-badge neutral">{{ links|length }} liên kết</span>
         </div>
 
         {% if links %}
@@ -114,12 +112,11 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 pc06-modal-shell">
             <form method="POST" action="{{ url_for('shortlink_bp.add_link') }}">
-                <div class="modal-header border-0 pc06-modal-head">
-                    <div>
-                        <div class="pc06-page-kicker mb-2"><i class="fa-solid fa-link"></i>Thiết lập liên kết</div>
-                        <h5 class="modal-title fw-bold mb-1">Tạo liên kết rút gọn</h5>
+                <div class="modal-header border-0 pc06-modal-head shortlink-modal-head">
+                    <div class="text-center w-100">
+                        <h5 class="modal-title fw-bold mb-0">Tạo liên kết rút gọn</h5>
                     </div>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close shortlink-modal-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="pc06-form-section">
@@ -134,6 +131,26 @@
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Ghi chú</label>
                             <input type="text" name="info" class="form-control" placeholder="Thông tin bổ sung">
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Lĩnh vực</label>
+                            <select name="category" class="form-select">
+                                <option value="">Chọn lĩnh vực</option>
+                                {% for item in link_categories %}
+                                <option value="{{ item.name }}">{{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Đội nghiệp vụ</label>
+                            <select name="domain" class="form-select">
+                                <option value="">Chọn đội nghiệp vụ</option>
+                                {% for unit in pro_units %}
+                                <option value="{{ unit.name }}">{{ unit.name }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                     </div>
                     <div class="pc06-form-section mb-0 mt-3">
@@ -161,6 +178,23 @@
     .shortlink-table-wrap .table td,
     .shortlink-table-wrap .table th {
         vertical-align: middle;
+    }
+
+    .shortlink-modal-head {
+        position: relative;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .shortlink-modal-close {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        opacity: 1;
+        padding: 12px;
+        border-radius: 999px;
+        background-color: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
     }
 </style>
 <script>

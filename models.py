@@ -225,6 +225,8 @@ class ShortLink(db.Model):
     original_url = db.Column(db.Text, nullable=False)
     custom_name = db.Column(db.String(100))
     info = db.Column(db.Text)
+    category = db.Column(db.String(100))
+    domain = db.Column(db.String(100))
     clicks = db.Column(db.Integer, default=0)
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
     created_at = db.Column(db.DateTime, default=datetime.now)

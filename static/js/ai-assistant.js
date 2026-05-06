@@ -102,6 +102,18 @@
     const newsContainer = root.querySelector('[data-news-container]');
     const newsButton = root.querySelector('[data-news-refresh]');
 
+    root.querySelectorAll('[data-collapse-trigger]').forEach((button) => {
+      button.addEventListener('click', function () {
+        const panelId = this.getAttribute('aria-controls');
+        if (!panelId) return;
+        const panel = root.querySelector(`#${panelId}`);
+        if (!panel) return;
+        const expanded = this.getAttribute('aria-expanded') === 'true';
+        this.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+        panel.hidden = expanded;
+      });
+    });
+
     function scrollToBottom() {
       if (messagesEl) {
         messagesEl.scrollTop = messagesEl.scrollHeight;

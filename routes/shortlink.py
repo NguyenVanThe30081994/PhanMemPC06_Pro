@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort, send_file
-from utils import render_auto_template
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort, send_file, current_app
+from utils import render_auto_template, apply_migrations
 from models import db, ShortLink, User
+from category_helpers import get_category_items, get_module_field_items
 import qrcode
 from io import BytesIO
 import random
@@ -9,6 +10,13 @@ import string
 import datetime
 
 shortlink_bp = Blueprint('shortlink_bp', __name__)
+
+
+def _ensure_shortlink_schema():
+    try:
+        apply_migrations(current_app)
+    except Exception as migration_error:
+        current_app.logger.warning(f"SHORTLINK migration safeguard failed: {migration_error}")
 
 def generate_short_code(length=6):
     """Generate unique short code - optimized with batch check"""
@@ -36,25 +44,38 @@ def generate_short_code(length=6):
 def manage_links():
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
-    
+    _ensure_shortlink_schema()
+
     # Optional logic: only show links created by the user, or all if admin
     is_admin = session.get('is_admin', False)
     if is_admin:
         links = ShortLink.query.order_by(ShortLink.created_at.desc()).all()
     else:
         links = ShortLink.query.filter_by(created_by=session['uid']).order_by(ShortLink.created_at.desc()).all()
-        
-    return render_auto_template('shortlinks.html', links=links, is_admin=is_admin)
+
+    link_categories = get_module_field_items('news', 'category') or get_category_items('Lĩnh vực')
+    pro_units = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
+
+    return render_auto_template(
+        'shortlinks.html',
+        links=links,
+        is_admin=is_admin,
+        link_categories=link_categories,
+        pro_units=pro_units,
+    )
 
 @shortlink_bp.route('/links/add', methods=['POST'])
 def add_link():
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
-        
+    _ensure_shortlink_schema()
+
     original_url = request.form.get('original_url', '').strip()
     custom_code = request.form.get('custom_code', '').strip()
     custom_name = request.form.get('custom_name', '').strip()
     info = request.form.get('info', '').strip()
+    category = request.form.get('category', '').strip()
+    domain = request.form.get('domain', '').strip()
     
     if not original_url:
         flash('Vui lòng nhập đường dẫn gốc!', 'danger')
@@ -78,6 +99,8 @@ def add_link():
         original_url=original_url,
         custom_name=custom_name,
         info=info,
+        category=category,
+        domain=domain,
         created_by=session['uid']
     )
     

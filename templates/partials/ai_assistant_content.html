@@ -18,11 +18,6 @@
           <i class="fa-solid fa-shield-halved"></i>
           Phục vụ nội bộ
         </span>
-        <div class="assistant-hero-scope">
-          <span class="assistant-hero-scope-label">Phạm vi xử lý</span>
-          <strong>Thủ tục hành chính</strong>
-          <small>Tra cứu hồ sơ, nơi tiếp nhận và thời gian làm việc cơ bản.</small>
-        </div>
       </div>
     </div>
   </section>
@@ -73,10 +68,14 @@
     </section>
 
     <div class="assistant-side-stack">
-      <section class="assistant-side-card">
-        <div class="assistant-card-body">
-          <h5 class="assistant-side-title">Mẫu tra cứu</h5>
-          <p class="assistant-side-note mb-3">Chọn nội dung mẫu để gửi nhanh vào phiên tra cứu.</p>
+      <section class="assistant-side-card assistant-collapsible-card">
+        <div class="assistant-side-card-head">
+          <h5 class="assistant-side-title mb-0">Mẫu tra cứu</h5>
+          <button type="button" class="assistant-collapse-btn" data-collapse-trigger aria-expanded="false" aria-controls="assistantTopicsPanel">
+            <i class="fa-solid fa-chevron-down"></i>
+          </button>
+        </div>
+        <div class="assistant-card-body assistant-collapse-panel" id="assistantTopicsPanel" data-collapse-panel hidden>
           <div class="assistant-topic-grid">
             {% for topic in suggested_topics %}
             <div class="assistant-topic-card" data-ask-question="{{ topic.prompt }}">
@@ -89,18 +88,19 @@
         </div>
       </section>
 
-      <section class="assistant-side-card">
-        <div class="assistant-card-body">
-          <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
-            <div>
-              <h5 class="assistant-side-title mb-1">Tin điều hành</h5>
-              <p class="assistant-side-note mb-0">Nguồn tham khảo: Cổng thông tin điện tử tỉnh Tuyên Quang.</p>
-            </div>
-            <a href="https://tuyenquang.gov.vn" target="_blank" class="assistant-chip text-decoration-none">
+      <section class="assistant-side-card assistant-collapsible-card">
+        <div class="assistant-side-card-head">
+          <h5 class="assistant-side-title mb-0">Tin điều hành</h5>
+          <div class="assistant-side-tools">
+            <a href="https://tuyenquang.gov.vn" target="_blank" class="assistant-icon-link text-decoration-none" title="Mở nguồn">
               <i class="fa-solid fa-arrow-up-right-from-square"></i>
-              <span>Mở nguồn</span>
             </a>
+            <button type="button" class="assistant-collapse-btn" data-collapse-trigger aria-expanded="false" aria-controls="assistantNewsPanel">
+              <i class="fa-solid fa-chevron-down"></i>
+            </button>
           </div>
+        </div>
+        <div class="assistant-card-body assistant-collapse-panel" id="assistantNewsPanel" data-collapse-panel hidden>
           <div class="assistant-news-list" data-news-container>
             {% for article in news %}
             <a href="{{ article.link }}" target="_blank" class="assistant-news-item">

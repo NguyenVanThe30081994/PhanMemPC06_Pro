@@ -254,6 +254,8 @@ def apply_migrations(app):
         ("task", "initial_status", "VARCHAR(50) DEFAULT 'Chưa bắt đầu'"),
         ("task", "category", "VARCHAR(100)"),
         ("task", "created_at", "DATETIME"),
+        ("short_link", "category", "VARCHAR(100)"),
+        ("short_link", "domain", "VARCHAR(100)"),
         ("task_comment", "assignee_id", "INTEGER DEFAULT 0"),
         ("system_log", "module", "VARCHAR(100)"),
         ("category_group", "code", "VARCHAR(100)"),

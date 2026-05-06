@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
+{% set report_groups = template_groups if is_admin else cycle_groups %}
 <div class="pc06-page-shell">
     <section class="pc06-hero-card">
         <div class="pc06-hero-grid">
@@ -57,27 +58,123 @@
         </div>
     </section>
 
-    <section class="pc06-panel">
-        <div class="report-groups-shell">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
-                <div>
-                    <h2 class="h5 fw-bold mb-1">{% if is_admin %}Báo cáo theo đội nghiệp vụ{% else %}Danh sách báo cáo{% endif %}</h2>
+    <div class="reporting-workspace">
+        <aside class="reporting-sidebar">
+            <section class="pc06-panel reporting-team-panel">
+                <div class="reporting-team-head">
+                    <h2>Đội nghiệp vụ</h2>
                 </div>
-            </div>
+                <div class="reporting-team-list">
+                    <button type="button" class="reporting-team-chip active" data-report-group-filter="ALL">
+                        <strong>Tất cả đội nghiệp vụ</strong>
+                        <span>{{ cycles|length if not is_admin else templates|length }}</span>
+                    </button>
+                    {% for group in report_groups %}
+                    <button type="button" class="reporting-team-chip" data-report-group-filter="{{ group.name|lower }}">
+                        <strong>{{ group.name }}</strong>
+                        <span>{{ group.entries|length }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+            </section>
+        </aside>
 
-            {% if is_admin %}
-            <div class="accordion" id="reportTemplateGroups">
-                {% for group in template_groups %}
-                <div class="accordion-item report-group-item">
-                    <h2 class="accordion-header" id="template-group-{{ loop.index }}">
-                        <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#template-group-body-{{ loop.index }}" aria-expanded="{{ 'true' if loop.first else 'false' }}">
-                            <span class="report-group-title">{{ group.name }}</span>
-                            <span class="report-group-count">{{ group.entries|length }}</span>
-                        </button>
-                    </h2>
-                    <div id="template-group-body-{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" data-bs-parent="#reportTemplateGroups">
-                        <div class="accordion-body">
-                            <div class="report-template-list">
+        <div class="reporting-board">
+            <section class="pc06-panel reporting-board-panel">
+                <div class="reporting-board-head">
+                    <h2 id="reportingSelectedGroup">Tất cả đội nghiệp vụ</h2>
+                </div>
+
+                {% if report_groups %}
+                <div class="reporting-group-stack" id="reportingGroupStack">
+                    <section class="report-group-section" data-report-group="all">
+                        <div class="report-template-list">
+                            {% if is_admin %}
+                                {% for group in report_groups %}
+                                    {% for item in group.entries %}
+                                    {% set template = item.template %}
+                                    {% set current_version = item.current_version %}
+                                    {% set current_cycle = item.current_cycle %}
+                                    <article class="report-template-row">
+                                        <div class="report-template-copy">
+                                            <h3>{{ template.name }}</h3>
+                                            <p>
+                                                {% if current_version %}
+                                                Bản {{ current_version.version_no }}
+                                                {% else %}
+                                                Chưa có file
+                                                {% endif %}
+                                                {% if template.directive_filename %}
+                                                • {{ template.directive_filename }}
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                        <div class="report-template-actions">
+                                            {% if current_cycle %}
+                                            <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.admin_cycle_detail', cycle_id=current_cycle.id) }}" title="Lịch sử toàn bộ đơn vị">
+                                                <i class="fa-solid fa-clock-rotate-left"></i>
+                                            </a>
+                                            {% else %}
+                                            <button class="btn btn-light border btn-sm" type="button" disabled title="Chưa có báo cáo">
+                                                <i class="fa-solid fa-clock-rotate-left"></i>
+                                            </button>
+                                            {% endif %}
+                                            <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.admin_template_preview', template_id=template.id) }}" title="Xem">
+                                                <i class="fa-solid fa-eye"></i>
+                                            </a>
+                                            <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.template_detail', template_id=template.id) }}" title="Trường dữ liệu">
+                                                <i class="fa-solid fa-pen-to-square"></i>
+                                            </a>
+                                            <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.template_settings', template_id=template.id) }}" title="Cấu hình">
+                                                <i class="fa-solid fa-gear"></i>
+                                            </a>
+                                            <form method="POST" action="{{ url_for('reporting_bp.delete_template', template_id=template.id) }}" onsubmit="return confirm('Xóa biểu mẫu này?')">
+                                                <button class="btn btn-light border btn-sm text-danger" type="submit" title="Xóa">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </article>
+                                    {% endfor %}
+                                {% endfor %}
+                            {% else %}
+                                {% for group in report_groups %}
+                                    {% for item in group.entries %}
+                                    {% set cycle = item.cycle %}
+                                    {% set instance = instance_map.get(cycle.id) if instance_map is defined else None %}
+                                    {% set latest_submission = latest_submission_map.get(cycle.id) if latest_submission_map is defined else None %}
+                                    <article class="report-template-row">
+                                        <div class="report-template-copy">
+                                            <h3>{{ cycle.name }}</h3>
+                                            <p>{% if instance %}{{ instance.status }}{% else %}{{ cycle.status }}{% endif %}</p>
+                                        </div>
+                                        <div class="report-template-actions">
+                                            <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.cycle_workspace', cycle_id=cycle.id) }}" title="Nhập">
+                                                <i class="fa-solid fa-pen-to-square"></i>
+                                            </a>
+                                            <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.cycle_preview', cycle_id=cycle.id) }}" title="Xem">
+                                                <i class="fa-solid fa-eye"></i>
+                                            </a>
+                                            <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.cycle_history', cycle_id=cycle.id) }}" title="Lịch sử">
+                                                <i class="fa-solid fa-clock-rotate-left"></i>
+                                            </a>
+                                            {% if latest_submission and latest_submission.file_path %}
+                                            <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.download_submission', submission_id=latest_submission.id) }}" title="Tải file">
+                                                <i class="fa-solid fa-download"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </article>
+                                    {% endfor %}
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </section>
+
+                    {% for group in report_groups %}
+                    <section class="report-group-section d-none" data-report-group="{{ group.name|lower }}">
+                        <div class="report-template-list">
+                            {% if is_admin %}
                                 {% for item in group.entries %}
                                 {% set template = item.template %}
                                 {% set current_version = item.current_version %}
@@ -123,31 +220,7 @@
                                     </div>
                                 </article>
                                 {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% else %}
-                <div class="pc06-empty-state py-5">
-                    <div class="pc06-empty-icon"><i class="fa-solid fa-table-list"></i></div>
-                    <h3>Chưa có biểu mẫu nào</h3>
-                    <p>Hãy dùng nút thiết lập mẫu để tạo biểu mẫu đầu tiên.</p>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="accordion" id="reportCycleGroups">
-                {% for group in cycle_groups %}
-                <div class="accordion-item report-group-item">
-                    <h2 class="accordion-header" id="cycle-group-{{ loop.index }}">
-                        <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#cycle-group-body-{{ loop.index }}" aria-expanded="{{ 'true' if loop.first else 'false' }}">
-                            <span class="report-group-title">{{ group.name }}</span>
-                            <span class="report-group-count">{{ group.entries|length }}</span>
-                        </button>
-                    </h2>
-                    <div id="cycle-group-body-{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" data-bs-parent="#reportCycleGroups">
-                        <div class="accordion-body">
-                            <div class="report-template-list">
+                            {% else %}
                                 {% for item in group.entries %}
                                 {% set cycle = item.cycle %}
                                 {% set instance = instance_map.get(cycle.id) if instance_map is defined else None %}
@@ -158,11 +231,9 @@
                                         <p>{% if instance %}{{ instance.status }}{% else %}{{ cycle.status }}{% endif %}</p>
                                     </div>
                                     <div class="report-template-actions">
-                                        {% if not is_admin %}
                                         <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.cycle_workspace', cycle_id=cycle.id) }}" title="Nhập">
                                             <i class="fa-solid fa-pen-to-square"></i>
                                         </a>
-                                        {% endif %}
                                         <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.cycle_preview', cycle_id=cycle.id) }}" title="Xem">
                                             <i class="fa-solid fa-eye"></i>
                                         </a>
@@ -177,21 +248,21 @@
                                     </div>
                                 </article>
                                 {% endfor %}
-                            </div>
+                            {% endif %}
                         </div>
-                    </div>
+                    </section>
+                    {% endfor %}
                 </div>
                 {% else %}
                 <div class="pc06-empty-state py-5">
                     <div class="pc06-empty-icon"><i class="fa-solid fa-file-circle-xmark"></i></div>
-                    <h3>Chưa có báo cáo nào</h3>
-                    <p>Hiện chưa có biểu mẫu đang mở cho đơn vị.</p>
+                    <h3>{{ 'Chưa có biểu mẫu nào' if is_admin else 'Chưa có báo cáo nào' }}</h3>
+                    <p>{{ 'Hãy dùng nút thiết lập mẫu để tạo biểu mẫu đầu tiên.' if is_admin else 'Hiện chưa có biểu mẫu đang mở cho đơn vị.' }}</p>
                 </div>
-                {% endfor %}
-            </div>
-            {% endif %}
+                {% endif %}
+            </section>
         </div>
-    </section>
+    </div>
 </div>
 
 {% if is_admin %}
@@ -315,41 +386,83 @@
 {% endif %}
 
 <style>
-    .report-groups-shell { display: grid; gap: 18px; }
-    .report-group-item {
-        border: 1px solid rgba(148,163,184,0.16);
-        border-radius: 24px;
-        overflow: hidden;
-        background: rgba(255,255,255,0.96);
-        box-shadow: 0 18px 40px rgba(15,23,42,0.06);
-        margin-bottom: 14px;
+    .reporting-workspace {
+        display: grid;
+        grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+        gap: 22px;
+        align-items: start;
     }
-    .report-group-item .accordion-button {
-        background: transparent;
-        box-shadow: none;
-        padding: 18px 22px;
+    .reporting-sidebar,
+    .reporting-board {
+        display: grid;
+        gap: 18px;
+    }
+    .reporting-team-panel,
+    .reporting-board-panel {
+        padding: 20px;
+    }
+    .reporting-team-head,
+    .reporting-board-head {
+        margin-bottom: 16px;
+    }
+    .reporting-team-head h2,
+    .reporting-board-head h2 {
+        margin: 0;
+        font-size: 1.08rem;
         font-weight: 800;
+        color: var(--text-main, #0f172a);
+    }
+    .reporting-team-list {
+        display: grid;
+        gap: 10px;
+    }
+    .reporting-team-chip {
+        width: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(248, 250, 252, 0.92);
+        border-radius: 18px;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         gap: 12px;
+        text-align: left;
+        transition: all 0.2s ease;
+        color: var(--text-main, #0f172a);
     }
-    .report-group-item .accordion-button:not(.collapsed) {
-        background: rgba(37,99,235,0.05);
-        color: var(--text-main);
+    .reporting-team-chip strong {
+        display: block;
+        min-width: 0;
+        flex: 1 1 auto;
+        font-size: 0.94rem;
+        font-weight: 800;
     }
-    .report-group-item .accordion-body { padding: 18px 22px 22px; }
-    .report-group-title { flex: 1; }
-    .report-group-count {
+    .reporting-team-chip span {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-width: 34px;
-        height: 34px;
-        padding: 0 10px;
+        min-width: 38px;
+        height: 38px;
         border-radius: 999px;
-        background: rgba(37,99,235,0.1);
-        color: var(--primary);
-        font-size: 0.84rem;
-        font-weight: 800;
+        background: rgba(37, 99, 235, 0.08);
+        color: #1d4ed8;
+        font-weight: 900;
+        flex-shrink: 0;
     }
+    .reporting-team-chip.active {
+        border-color: rgba(37, 99, 235, 0.32);
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(37, 99, 235, 0.92));
+        box-shadow: 0 18px 34px rgba(37, 99, 235, 0.14);
+    }
+    .reporting-team-chip.active strong,
+    .reporting-team-chip.active span {
+        color: #fff;
+    }
+    .reporting-team-chip.active span {
+        background: rgba(255, 255, 255, 0.18);
+    }
+    .reporting-group-stack { display: grid; gap: 14px; }
+    .report-group-section { display: grid; gap: 12px; }
     .report-template-list { display: grid; gap: 12px; }
     .report-template-row {
         display: flex;
@@ -381,13 +494,14 @@
         flex-shrink: 0;
     }
     .report-template-actions form { margin: 0; }
-    [data-theme="dark"] .report-group-item {
-        background: rgba(30,41,59,0.92);
-        border-color: rgba(148,163,184,0.14);
-    }
     [data-theme="dark"] .report-template-row {
         background: rgba(15,23,42,0.45);
         border-color: rgba(148,163,184,0.14);
+    }
+    @media (max-width: 1080px) {
+        .reporting-workspace {
+            grid-template-columns: 1fr;
+        }
     }
     @media (max-width: 768px) {
         .report-template-row {
@@ -400,4 +514,32 @@
         }
     }
 </style>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const chips = document.querySelectorAll('[data-report-group-filter]');
+        const sections = document.querySelectorAll('[data-report-group]');
+        const titleNode = document.getElementById('reportingSelectedGroup');
+
+        function applyReportGroupFilter(value, label) {
+            sections.forEach((section) => {
+                section.classList.toggle('d-none', section.dataset.reportGroup !== value);
+            });
+            if (titleNode) {
+                titleNode.textContent = label;
+            }
+        }
+
+        chips.forEach((chip) => {
+            chip.addEventListener('click', function () {
+                const value = this.dataset.reportGroupFilter || 'all';
+                const normalized = value === 'ALL' ? 'all' : value;
+                const label = this.querySelector('strong')?.textContent?.trim() || 'Tất cả đội nghiệp vụ';
+                chips.forEach((item) => item.classList.toggle('active', item === this));
+                applyReportGroupFilter(normalized, label);
+            });
+        });
+
+        applyReportGroupFilter('all', 'Tất cả đội nghiệp vụ');
+    });
+</script>
 {% endblock %}

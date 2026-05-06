@@ -27,122 +27,148 @@
         </div>
     </section>
 
-    <section class="pc06-panel">
-        <div class="pc06-panel-head">
-            <div>
-                <h2>Nhóm danh mục</h2>
-                <p>Quản lý thành phần, import Excel và liên kết theo từng phân hệ.</p>
-            </div>
-        </div>
-        <div class="category-grid-bdhvs">
-            {% for g in groups %}
-            <article class="category-group-card">
-                <div class="category-group-head">
-                    <div>
-                        <h3>{{ g.name }}</h3>
-                    </div>
-                    <span class="pc06-soft-tag neutral">{{ g.items|length }} mục</span>
+    <div class="system-module-workspace">
+        <aside class="system-module-sidebar">
+            <section class="pc06-panel system-filter-panel">
+                <div class="system-filter-head">
+                    <h2>Nhóm danh mục</h2>
                 </div>
-                <div class="category-group-items">
-                    {% if g.items %}
-                    <form method="POST" class="category-item-picker">
-                        <input type="hidden" name="action" value="delete_item">
-                        <div class="category-item-picker-row">
-                            <select name="item_id" class="form-select" required>
-                                {% for item in g.items %}
-                                <option value="{{ item.id }}">{{ item.name }}</option>
-                                {% endfor %}
-                            </select>
-                            <button type="submit" class="btn btn-light text-danger border">Xóa</button>
-                        </div>
-                    </form>
-                    {% else %}
-                    <div class="text-muted small">Chưa phát sinh thành phần.</div>
-                    {% endif %}
-                </div>
-                <div class="category-group-actions">
-                    <form method="POST" class="flex-grow-1">
-                        <input type="hidden" name="action" value="add_item">
-                        <input type="hidden" name="group_id" value="{{ g.id }}">
-                        <div class="input-group">
-                            <input type="text" name="item_name" class="form-control" placeholder="Thêm thành phần" required>
-                            <button type="submit" class="btn btn-success"><i class="fa-solid fa-plus"></i></button>
-                        </div>
-                    </form>
-                    <form method="POST" enctype="multipart/form-data" class="m-0">
-                        <input type="hidden" name="action" value="import_items_excel">
-                        <input type="hidden" name="group_id" value="{{ g.id }}">
-                        <input type="file" name="items_excel" id="excel-import-{{ g.id }}" class="d-none" accept=".xlsx,.xls" onchange="this.form.submit()">
-                        <button type="button" class="btn btn-light btn-circle btn-circle-sm border shadow-sm" onclick="document.getElementById('excel-import-{{ g.id }}').click()" title="Import Excel">
-                            <i class="fa-solid fa-paperclip tiny"></i>
-                        </button>
-                    </form>
-                </div>
-            </article>
-            {% endfor %}
-        </div>
-    </section>
-
-    <section class="pc06-panel">
-        <div class="pc06-panel-head">
-            <div>
-                <h2>Liên kết field theo chức năng</h2>
-                <p>Thiết lập mapping giữa field nghiệp vụ và nhóm danh mục tương ứng.</p>
-            </div>
-        </div>
-        <div class="binding-grid-bdhvs">
-            {% for module in modules %}
-            <section class="binding-module-card">
-                <div class="binding-module-head">
-                    <div>
-                        <h3>{{ module.name }}</h3>
-                        <p>Code: {{ module.code }}</p>
-                    </div>
-                    <span class="pc06-soft-tag neutral">{{ module_fields.get(module.code, [])|length }} field</span>
-                </div>
-                <div class="binding-module-list">
-                    {% for field in module_fields.get(module.code, []) %}
-                    {% set binding = binding_map.get((module.id, field.code)) %}
-                    <form method="POST" class="binding-form-card">
-                        <input type="hidden" name="action" value="save_binding">
-                        <input type="hidden" name="module_id" value="{{ module.id }}">
-                        <input type="hidden" name="field_code" value="{{ field.code }}">
-                        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-                            <div>
-                                <strong>{{ field.label }}</strong>
-                                <div class="tiny text-muted mt-1">{{ field.code }}</div>
-                            </div>
-                            <span class="pc06-status-badge {% if binding %}done{% else %}neutral{% endif %}">{{ 'Đã bind' if binding else 'Chưa bind' }}</span>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold">Nhãn field</label>
-                            <input type="text" name="field_label" class="form-control" value="{{ binding.field_label if binding else field.label }}">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold">Nhóm danh mục</label>
-                            <select name="group_id" class="form-select" required>
-                                <option value="" disabled {% if not binding %}selected{% endif %}>Chọn nhóm danh mục</option>
-                                {% for g in groups %}
-                                <option value="{{ g.id }}" {% if binding and binding.group_id == g.id %}selected{% endif %}>{{ g.name }}{% if g.code %} ({{ g.code }}){% endif %}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="is_required" id="required_{{ module.id }}_{{ loop.index }}" {% if binding and binding.is_required %}checked{% endif %}>
-                                <label class="form-check-label small" for="required_{{ module.id }}_{{ loop.index }}">Bắt buộc nhập</label>
-                            </div>
-                            <button type="submit" class="btn btn-bdhvs primary btn-sm">Lưu binding</button>
-                        </div>
-                    </form>
-                    {% else %}
-                    <div class="text-muted small">Chưa khai báo field cấu hình cho phân hệ này.</div>
+                <div class="system-filter-list">
+                    <button type="button" class="system-filter-chip active" data-category-group-filter="ALL">
+                        <strong>Tất cả danh mục</strong>
+                        <span>{{ groups|length }}</span>
+                    </button>
+                    {% for g in groups %}
+                    <button type="button" class="system-filter-chip" data-category-group-filter="{{ g.id }}">
+                        <strong>{{ g.name }}</strong>
+                        <span>{{ g.items|length }}</span>
+                    </button>
                     {% endfor %}
                 </div>
             </section>
-            {% endfor %}
+        </aside>
+
+        <div class="system-module-board">
+            <section class="pc06-panel">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2 id="categorySelectedTitle">Tất cả danh mục</h2>
+                    </div>
+                </div>
+                <div class="category-grid-bdhvs">
+                    {% for g in groups %}
+                    <article class="category-group-card category-group-section" data-category-group="{{ g.id }}">
+                        <div class="category-group-head">
+                            <div>
+                                <h3>{{ g.name }}</h3>
+                            </div>
+                            <span class="pc06-soft-tag neutral">{{ g.items|length }} mục</span>
+                        </div>
+                        <div class="category-group-items">
+                            {% if g.items %}
+                            {% for item in g.items %}
+                            <div class="category-item-manage-row">
+                                <form method="POST" class="category-item-edit-form">
+                                    <input type="hidden" name="action" value="rename_item">
+                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                    <input type="text" name="item_name" class="form-control" value="{{ item.name }}" required>
+                                    <button type="submit" class="btn btn-light border text-primary">Sửa</button>
+                                </form>
+                                <form method="POST" class="m-0">
+                                    <input type="hidden" name="action" value="delete_item">
+                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                    <button type="submit" class="btn btn-light text-danger border">Xóa</button>
+                                </form>
+                            </div>
+                            {% endfor %}
+                            {% else %}
+                            <div class="text-muted small">Chưa phát sinh thành phần.</div>
+                            {% endif %}
+                        </div>
+                        <div class="category-group-actions">
+                            <form method="POST" class="flex-grow-1">
+                                <input type="hidden" name="action" value="add_item">
+                                <input type="hidden" name="group_id" value="{{ g.id }}">
+                                <div class="input-group">
+                                    <input type="text" name="item_name" class="form-control" placeholder="Thêm thành phần" required>
+                                    <button type="submit" class="btn btn-success"><i class="fa-solid fa-plus"></i></button>
+                                </div>
+                            </form>
+                            <form method="POST" enctype="multipart/form-data" class="m-0">
+                                <input type="hidden" name="action" value="import_items_excel">
+                                <input type="hidden" name="group_id" value="{{ g.id }}">
+                                <input type="file" name="items_excel" id="excel-import-{{ g.id }}" class="d-none" accept=".xlsx,.xls" onchange="this.form.submit()">
+                                <button type="button" class="btn btn-light btn-circle btn-circle-sm border shadow-sm" onclick="document.getElementById('excel-import-{{ g.id }}').click()" title="Import Excel">
+                                    <i class="fa-solid fa-paperclip tiny"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="pc06-panel">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>Liên kết field theo chức năng</h2>
+                    </div>
+                </div>
+                <div class="binding-grid-bdhvs">
+                    {% for module in modules %}
+                    <section class="binding-module-card">
+                        <div class="binding-module-head">
+                            <div>
+                                <h3>{{ module.name }}</h3>
+                                <p>Code: {{ module.code }}</p>
+                            </div>
+                            <span class="pc06-soft-tag neutral">{{ module_fields.get(module.code, [])|length }} field</span>
+                        </div>
+                        <div class="binding-module-list">
+                            {% for field in module_fields.get(module.code, []) %}
+                            {% set binding = binding_map.get((module.id, field.code)) %}
+                            <form method="POST" class="binding-form-card">
+                                <input type="hidden" name="action" value="save_binding">
+                                <input type="hidden" name="module_id" value="{{ module.id }}">
+                                <input type="hidden" name="field_code" value="{{ field.code }}">
+                                <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                                    <div>
+                                        <strong>{{ field.label }}</strong>
+                                        <div class="tiny text-muted mt-1">{{ field.code }}</div>
+                                    </div>
+                                    <span class="pc06-status-badge {% if binding %}done{% else %}neutral{% endif %}">{{ 'Đã bind' if binding else 'Chưa bind' }}</span>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold">Nhãn field</label>
+                                    <input type="text" name="field_label" class="form-control" value="{{ binding.field_label if binding else field.label }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold">Nhóm danh mục</label>
+                                    <select name="group_id" class="form-select" required>
+                                        <option value="" disabled {% if not binding %}selected{% endif %}>Chọn nhóm danh mục</option>
+                                        {% for g in groups %}
+                                        <option value="{{ g.id }}" {% if binding and binding.group_id == g.id %}selected{% endif %}>{{ g.name }}{% if g.code %} ({{ g.code }}){% endif %}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="is_required" id="required_{{ module.id }}_{{ loop.index }}" {% if binding and binding.is_required %}checked{% endif %}>
+                                        <label class="form-check-label small" for="required_{{ module.id }}_{{ loop.index }}">Bắt buộc nhập</label>
+                                    </div>
+                                    <button type="submit" class="btn btn-bdhvs primary btn-sm">Lưu binding</button>
+                                </div>
+                            </form>
+                            {% else %}
+                            <div class="text-muted small">Chưa khai báo field cấu hình cho phân hệ này.</div>
+                            {% endfor %}
+                        </div>
+                    </section>
+                    {% endfor %}
+                </div>
+            </section>
         </div>
-    </section>
+    </div>
 </div>
 
 <div class="modal fade" id="addGroupModal" tabindex="-1">
@@ -211,6 +237,67 @@
 </div>
 
 <style>
+    .system-module-workspace {
+        display: grid;
+        grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+        gap: 22px;
+        align-items: start;
+    }
+    .system-module-sidebar,
+    .system-module-board {
+        display: grid;
+        gap: 18px;
+    }
+    .system-filter-panel { padding: 20px; }
+    .system-filter-head { margin-bottom: 16px; }
+    .system-filter-head h2 {
+        margin: 0;
+        font-size: 1.08rem;
+        font-weight: 800;
+        color: var(--text-main, #0f172a);
+    }
+    .system-filter-list { display: grid; gap: 10px; }
+    .system-filter-chip {
+        width: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(248, 250, 252, 0.92);
+        border-radius: 18px;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        text-align: left;
+        color: var(--text-main, #0f172a);
+        transition: all 0.2s ease;
+    }
+    .system-filter-chip strong {
+        display: block;
+        min-width: 0;
+        flex: 1 1 auto;
+        font-size: 0.94rem;
+        font-weight: 800;
+    }
+    .system-filter-chip span {
+        min-width: 38px;
+        height: 38px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(37, 99, 235, 0.08);
+        color: #1d4ed8;
+        font-weight: 900;
+        flex-shrink: 0;
+    }
+    .system-filter-chip.active {
+        border-color: rgba(37, 99, 235, 0.32);
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(37, 99, 235, 0.92));
+        box-shadow: 0 18px 34px rgba(37, 99, 235, 0.14);
+    }
+    .system-filter-chip.active strong,
+    .system-filter-chip.active span { color: #fff; }
+    .system-filter-chip.active span { background: rgba(255, 255, 255, 0.18); }
     .category-grid-bdhvs, .binding-grid-bdhvs { display: grid; gap: 18px; }
     .category-grid-bdhvs { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
     .binding-grid-bdhvs { grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
@@ -222,12 +309,46 @@
     .category-item-picker { display: grid; gap: 8px; }
     .category-item-picker-row { display: flex; gap: 10px; align-items: center; }
     .category-item-picker-row .form-select { min-width: 0; }
+    .category-item-manage-row { display: flex; gap: 10px; align-items: center; }
+    .category-item-edit-form { display: flex; gap: 10px; align-items: center; flex: 1 1 auto; min-width: 0; }
+    .category-item-edit-form .form-control { min-width: 0; }
     .category-group-actions { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
     .binding-form-card { padding: 16px; border-radius: 18px; background: #f8fafc; border: 1px solid rgba(148,163,184,0.14); }
     [data-theme="dark"] .category-group-card, [data-theme="dark"] .binding-module-card { background: rgba(15,23,42,0.84); border-color: rgba(148,163,184,0.18); box-shadow: 0 18px 40px rgba(2,6,23,0.32); }
     [data-theme="dark"] .binding-form-card { background: rgba(30,41,59,0.92); }
+    @media (max-width: 1080px) {
+        .system-module-workspace { grid-template-columns: 1fr; }
+    }
     @media (max-width: 768px) {
         .category-item-picker-row { flex-direction: column; align-items: stretch; }
+        .category-item-manage-row, .category-item-edit-form { flex-direction: column; align-items: stretch; }
     }
 </style>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const chips = document.querySelectorAll('[data-category-group-filter]');
+        const sections = document.querySelectorAll('[data-category-group]');
+        const titleNode = document.getElementById('categorySelectedTitle');
+
+        function applyCategoryGroupFilter(value, label) {
+            sections.forEach((section) => {
+                section.classList.toggle('d-none', value !== 'ALL' && section.dataset.categoryGroup !== value);
+            });
+            if (titleNode) {
+                titleNode.textContent = label;
+            }
+        }
+
+        chips.forEach((chip) => {
+            chip.addEventListener('click', function () {
+                const value = this.dataset.categoryGroupFilter || 'ALL';
+                const label = this.querySelector('strong')?.textContent?.trim() || 'Tất cả danh mục';
+                chips.forEach((item) => item.classList.toggle('active', item === this));
+                applyCategoryGroupFilter(value, label);
+            });
+        });
+
+        applyCategoryGroupFilter('ALL', 'Tất cả danh mục');
+    });
+</script>
 {% endblock %}

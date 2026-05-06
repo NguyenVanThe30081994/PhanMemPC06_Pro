@@ -100,6 +100,8 @@
                     <div class="mb-3"><label class="form-label small fw-bold">Đường dẫn gốc</label><input type="url" name="original_url" class="form-control" placeholder="https://..." required></div>
                     <div class="mb-3"><label class="form-label small fw-bold">Tên hiển thị</label><input type="text" name="custom_name" class="form-control"></div>
                     <div class="mb-3"><label class="form-label small fw-bold">Ghi chú</label><input type="text" name="info" class="form-control"></div>
+                    <div class="mb-3"><label class="form-label small fw-bold">Lĩnh vực</label><select name="category" class="form-select"><option value="">Chọn lĩnh vực</option>{% for item in link_categories %}<option value="{{ item.name }}">{{ item.name }}</option>{% endfor %}</select></div>
+                    <div class="mb-3"><label class="form-label small fw-bold">Đội nghiệp vụ</label><select name="domain" class="form-select"><option value="">Chọn đội nghiệp vụ</option>{% for unit in pro_units %}<option value="{{ unit.name }}">{{ unit.name }}</option>{% endfor %}</select></div>
                     <div class="mb-1">
                         <label class="form-label small fw-bold">Mã rút gọn</label>
                         <div class="input-group">

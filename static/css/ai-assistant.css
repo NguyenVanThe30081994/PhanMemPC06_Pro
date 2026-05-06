@@ -31,16 +31,15 @@
 }
 
 .assistant-hero-card {
-    display: flex;
-    flex-direction: column;
-    gap: 22px;
+    padding-top: 18px;
+    padding-bottom: 18px;
 }
 
 .assistant-hero-layout {
     display: flex;
     justify-content: space-between;
-    gap: 24px;
-    align-items: flex-start;
+    gap: 18px;
+    align-items: center;
 }
 
 .assistant-shell {
@@ -96,7 +95,7 @@
     gap: 12px;
     align-items: center;
     justify-content: flex-end;
-    max-width: 420px;
+    max-width: 360px;
 }
 
 .assistant-chip,
@@ -116,33 +115,6 @@
 [data-theme="dark"] .assistant-chip,
 [data-theme="dark"] .assistant-pill {
     background: rgba(15, 23, 42, 0.72);
-}
-
-.assistant-hero-scope {
-    width: 100%;
-    padding: 14px 16px;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    display: grid;
-    gap: 4px;
-}
-
-.assistant-hero-scope-label {
-    font-size: 0.78rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: rgba(226, 232, 240, 0.72);
-}
-
-.assistant-hero-scope strong {
-    font-size: 1.05rem;
-    color: #fff;
-}
-
-.assistant-hero-scope small {
-    color: rgba(226, 232, 240, 0.8);
-    line-height: 1.5;
 }
 
 .assistant-grid {
@@ -443,6 +415,56 @@
     font-weight: 800;
 }
 
+.assistant-side-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 22px;
+}
+
+.assistant-side-tools {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.assistant-collapse-btn,
+.assistant-icon-link {
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    border: 1px solid var(--assistant-border);
+    background: rgba(255, 255, 255, 0.84);
+    color: var(--assistant-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+[data-theme="dark"] .assistant-collapse-btn,
+[data-theme="dark"] .assistant-icon-link {
+    background: rgba(15, 23, 42, 0.88);
+    color: var(--assistant-text);
+}
+
+.assistant-collapse-btn i {
+    transition: transform 0.2s ease;
+}
+
+.assistant-collapse-btn[aria-expanded="true"] i {
+    transform: rotate(180deg);
+}
+
+.assistant-collapse-panel[hidden] {
+    display: none !important;
+}
+
+.assistant-collapsible-card .assistant-card-body {
+    padding-top: 0;
+}
+
 .assistant-side-note {
     margin: 0;
     color: var(--assistant-muted);
@@ -577,6 +599,7 @@
 
     .assistant-hero-layout {
         flex-direction: column;
+        align-items: flex-start;
     }
 }
 
@@ -593,6 +616,7 @@
 
     .assistant-hero-actions {
         justify-content: flex-start;
+        max-width: none;
     }
 
     .assistant-chat-body {
