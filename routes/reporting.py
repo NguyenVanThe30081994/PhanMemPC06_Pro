@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import os
-from datetime import datetime, time
+from datetime import date, datetime, time
 
 from openpyxl import load_workbook
 from openpyxl.utils import column_index_from_string
@@ -772,10 +772,10 @@ def _submission_timeliness(cycle, submission, report_type=None):
     report_code = report_type.code if report_type else ""
     if report_code == "daily":
         if cycle:
-            report_day = (cycle.open_at or cycle.due_at or cycle.created_at or submitted_at).date()
+            report_day = (cycle.open_at or cycle.created_at or submitted_at).date()
         else:
             report_day = submitted_at.date()
-        return "Đúng ngày" if submitted_at.date() == report_day else "Quá ngày"
+        return "Đúng ngày" if submitted_at.date() == report_day else f"Báo cáo ngày {submitted_at.strftime('%d/%m/%Y')}"
     if cycle and cycle.due_at:
         return "Đúng hạn" if submitted_at <= cycle.due_at else "Quá hạn"
     return "Đã báo cáo"
@@ -1767,30 +1767,92 @@ def admin_cycle_detail(cycle_id):
     template_version = db.session.get(ReportTemplateVersion, cycle.template_version_id)
     template = db.session.get(ReportTemplate, template_version.template_id) if template_version else None
     report_type = _report_type(cycle)
+    is_daily = report_type and report_type.code == "daily"
     scoped_units = _cycle_units(cycle)
     instance_list = ReportInstance.query.filter_by(cycle_id=cycle.id).order_by(ReportInstance.report_unit_id.asc()).all()
     instance_map = {instance.report_unit_id: instance for instance in instance_list if instance.report_unit_id}
+
+    # --- Date filter for daily reports ---
+    report_date_str = request.args.get("report_date", "")
+    filter_date = _parse_date(report_date_str) if report_date_str else None
+    if is_daily and not filter_date:
+        filter_date = date.today()
+
+    # --- Build available dates list (for daily reports) ---
+    available_dates = []
+    if is_daily:
+        all_submission_dates = set()
+        all_instances = ReportInstance.query.filter_by(cycle_id=cycle.id).all()
+        for inst in all_instances:
+            subs = ReportSubmission.query.filter_by(instance_id=inst.id).all()
+            for s in subs:
+                dt = s.submitted_at or s.created_at
+                if dt:
+                    all_submission_dates.add(dt.date())
+            # Also include the cycle open_at date
+            if inst.opened_at:
+                all_submission_dates.add(inst.opened_at.date())
+        # Include the cycle's open date and today
+        if cycle.open_at:
+            all_submission_dates.add(cycle.open_at.date())
+        all_submission_dates.add(date.today())
+        available_dates = sorted(all_submission_dates, reverse=True)
 
     unit_rows = []
     latest_submissions = []
     submission_total = 0
     submitted_total = 0
+    reported_total = 0
+    not_reported_total = 0
     on_time_total = 0
     late_total = 0
+
     for unit in scoped_units:
         instance = instance_map.get(unit.id)
-        latest_submission = _latest_submission(instance.id) if instance else None
-        submission_count = ReportSubmission.query.filter_by(instance_id=instance.id).count() if instance else 0
+
+        # For daily reports: find the latest submission ON or BEFORE the filter date
+        # For other reports: use the latest submission
+        if is_daily and filter_date and instance:
+            latest_submission = (
+                ReportSubmission.query.filter(
+                    ReportSubmission.instance_id == instance.id,
+                    ReportSubmission.submitted_at >= _start_of_day(filter_date),
+                    ReportSubmission.submitted_at <= _end_of_day(filter_date),
+                )
+                .order_by(ReportSubmission.version_no.desc(), ReportSubmission.created_at.desc())
+                .first()
+            )
+            # Count total submissions across ALL days (not filtered)
+            submission_count = ReportSubmission.query.filter_by(instance_id=instance.id).count()
+        elif instance:
+            latest_submission = _latest_submission(instance.id)
+            submission_count = ReportSubmission.query.filter_by(instance_id=instance.id).count()
+        else:
+            latest_submission = None
+            submission_count = 0
+
         submission_total += submission_count
         timeliness = _submission_timeliness(cycle, latest_submission, report_type=report_type)
-        if latest_submission and instance and instance.status == "submitted":
-            submitted_total += 1
-        if latest_submission:
-            latest_submissions.append(latest_submission)
-            if timeliness in {"Đúng ngày", "Đúng hạn", "Đã báo cáo"}:
+
+        # For daily reports: check if submitted for the filtered date
+        if is_daily:
+            if latest_submission:
+                if latest_submission.status == "submitted":
+                    reported_total += 1
+                latest_submissions.append(latest_submission)
                 on_time_total += 1
-            elif timeliness in {"Quá ngày", "Quá hạn"}:
-                late_total += 1
+            else:
+                not_reported_total += 1
+        else:
+            if latest_submission and instance and instance.status == "submitted":
+                submitted_total += 1
+            if latest_submission:
+                latest_submissions.append(latest_submission)
+                if timeliness in {"Đúng ngày", "Đúng hạn", "Đã báo cáo"}:
+                    on_time_total += 1
+                elif timeliness in {"Quá ngày", "Quá hạn"}:
+                    late_total += 1
+
         unit_rows.append(
             {
                 "unit": unit,
@@ -1823,6 +1885,7 @@ def admin_cycle_detail(cycle_id):
         template=template,
         template_version=template_version,
         report_type=report_type,
+        is_daily=is_daily,
         scoped_units=scoped_units,
         scope_count=len(scoped_units),
         scope_payload=_parse_scope_payload(cycle.scope_json),
@@ -1830,8 +1893,14 @@ def admin_cycle_detail(cycle_id):
         history_rows=history_rows,
         submission_total=submission_total,
         submitted_total=submitted_total,
+        reported_total=reported_total,
+        not_reported_total=not_reported_total,
         on_time_total=on_time_total,
         late_total=late_total,
+        filter_date=filter_date,
+        filter_date_str=filter_date.strftime("%d/%m/%Y") if filter_date else "",
+        available_dates=available_dates,
+        today=date.today(),
     )
 
 
