@@ -229,43 +229,108 @@
         }
         .theme-toggle:active { transform: scale(0.9); }
         
-        .nav-link-sidebar {
-            display: flex;
-            align-items: center;
-            padding: 12px 16px;
-            border-radius: 12px;
-            color: var(--text-main);
-            text-decoration: none;
-            font-weight: 600;
-            margin-bottom: 4px;
-            transition: all 0.2s;
+        .sidebar-profile {
+            background:
+                linear-gradient(135deg, rgba(37, 99, 235, 0.16), rgba(37, 99, 235, 0.04)),
+                var(--bg-body);
+            border: 1px solid rgba(37, 99, 235, 0.14);
+            border-radius: 18px;
+            padding: 14px;
         }
-        .nav-link-sidebar:active { background: var(--primary-light); color: var(--primary); }
-        .nav-link-sidebar i { width: 24px; font-size: 18px; margin-right: 12px; opacity: 0.7; }
-        .nav-link-sidebar.active { background: var(--primary); color: white; }
-        .nav-link-sidebar.active i { opacity: 1; }
-        .nav-link-sidebar.text-danger:active { background: #fee2e2; color: #dc2626; }
-        
-        /* Dropdown Menu Styles */
-        .nav-dropdown {
+
+        .sidebar-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
-            padding: 14px 16px;
-            border-radius: 12px;
-            background: var(--bg-surface);
+            justify-content: center;
+            background: var(--primary);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
+        }
+
+        .sidebar-section {
+            background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.72);
             border: 1px solid var(--border);
-            color: var(--text-main);
-            font-weight: 700;
-            font-size: 15px;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.2s;
+            border-radius: 20px;
+            padding: 10px;
+            margin-bottom: 12px;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
         }
-        .nav-dropdown:hover { background: var(--primary-light); color: var(--primary); }
-        .nav-dropdown.open { background: var(--primary); color: white; border-color: var(--primary); }
-        
-        /* Dropdown Content */
-        .collapse { padding-left: 8px; border-left: 2px solid var(--border); margin: 8px 0; }
+
+        .sidebar-section-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px 10px;
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .sidebar-nav-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sidebar-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            color: var(--text-main);
+            text-decoration: none;
+            font-weight: 700;
+            transition: background 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s;
+        }
+
+        .sidebar-nav-link:hover,
+        .sidebar-nav-link:active {
+            background: var(--primary-light);
+            color: var(--primary);
+            transform: translateX(2px);
+        }
+
+        .sidebar-nav-link.active {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: #fff;
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.2);
+        }
+
+        .sidebar-nav-link.text-danger:hover,
+        .sidebar-nav-link.text-danger:active {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .sidebar-nav-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(148, 163, 184, 0.12);
+            color: inherit;
+            flex-shrink: 0;
+        }
+
+        .sidebar-nav-link.active .sidebar-nav-icon {
+            background: rgba(255, 255, 255, 0.16);
+        }
+
+        .sidebar-nav-text {
+            min-width: 0;
+            line-height: 1.2;
+        }
     </style>
     {% block head %}{% endblock %}
     {% block extra_head %}{% endblock %}
@@ -333,81 +398,137 @@
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
             </div>
             
-            <div class="user-profile-section w-100 p-2 rounded-3" style="background: var(--bg-body);">
-                <div class="text-truncate">
-                    <div class="fw-bold" style="color: var(--text-main);">{{ session.get('fullname', 'Cán bộ') }}</div>
-                    <div class="tiny opacity-75" style="color: var(--text-muted); font-size: 11px;">{{ session.get('role_name', 'Thành viên') }} · {{ session.get('unit', 'PC06') }}</div>
+            <div class="sidebar-profile w-100">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="sidebar-avatar">{{ session.get('fullname', 'CB')[:2].upper() }}</div>
+                    <div class="text-truncate">
+                        <div class="fw-bold text-truncate" style="color: var(--text-main);">{{ session.get('fullname', 'Cán bộ') }}</div>
+                        <div class="tiny opacity-75 text-truncate" style="color: var(--text-muted); font-size: 11px;">{{ session.get('role_name', 'Thành viên') }}</div>
+                        <div class="tiny opacity-75 text-truncate" style="color: var(--text-muted); font-size: 11px;">{{ session.get('unit', 'PC06') }}</div>
+                    </div>
                 </div>
             </div>
         </div>
         
         <div class="offcanvas-body p-3 pt-0">
             {% set can_access_reports = session.get('is_admin') or perms.get('p_form_lead') or perms.get('p_input_lead') or perms.get('p_input_exec') %}
-            <!-- Main Dropdown -->
-            <div class="mb-2">
-                <button class="nav-dropdown w-100" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu">
-                    <i class="fa-solid fa-house me-2"></i>Menu Chính <i class="fa-solid fa-chevron-down ms-auto small"></i>
-                </button>
-                <div class="collapse" id="mainMenu">
-                    <div class="nav-links">
-                        <a href="/admin" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">Tổng quan</a>
-                        <a href="/tasks" class="nav-link-sidebar {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">Nhiệm vụ</a>
-                        <a href="/ranking" class="nav-link-sidebar {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">Xếp hạng</a>
-                        <a href="/news" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.news' %}active{% endif %}">Bảng tin</a>
-                    </div>
+            <div class="sidebar-section">
+                <div class="sidebar-section-label">
+                    <i class="fa-solid fa-compass"></i>
+                    <span>Điều hướng</span>
                 </div>
-            </div>
-            
-            <div class="mb-2">
-                {% if can_access_reports %}
-                <div class="tiny fw-bold text-uppercase px-1 mb-2" style="color: var(--text-muted); letter-spacing: 0.08em;">Báo cáo</div>
-                <div class="nav-links mb-2">
-                    <a href="{{ '/admin/reports' if session.get('is_admin') or perms.get('p_form_lead') else '/reports' }}" class="nav-link-sidebar {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">
-                        <i class="fa-solid fa-chart-column me-2"></i>Báo cáo
+                <div class="sidebar-nav-list">
+                    <a href="/admin" class="sidebar-nav-link {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-house"></i></span>
+                        <span class="sidebar-nav-text">Tổng quan</span>
                     </a>
-                </div>
-                {% endif %}
-                <div class="tiny fw-bold text-uppercase px-1 mb-2" style="color: var(--text-muted); letter-spacing: 0.08em;">Tiện ích</div>
-                <div class="nav-links">
-                    <a href="/library" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">Thư viện Tài liệu</a>
-                    <a href="/contacts" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">Danh bạ Đơn vị</a>
-                    <a href="/ai" class="nav-link-sidebar {% if request.endpoint == 'ai_bp.index' %}active{% endif %}">Trợ lý AI</a>
-                    <a href="/links" class="nav-link-sidebar {% if request.endpoint == 'shortlink_bp.manage_links' %}active{% endif %}">QR & Link</a>
-                </div>
-            </div>
-            
-            <!-- System Dropdown -->
-            <div class="mb-2">
-                <button class="nav-dropdown w-100" type="button" data-bs-toggle="collapse" data-bs-target="#sysMenu">
-                    <i class="fa-solid fa-gear me-2"></i>Hệ thống & Quản trị <i class="fa-solid fa-chevron-down ms-auto small"></i>
-                </button>
-                <div class="collapse" id="sysMenu">
-                    <div class="nav-links">
-                        {% if session.get('is_admin') or perms.get('p_user_lead') or perms.get('p_sys_lead') %}
-                        {% if session.get('is_admin') or perms.get('p_sys_lead') %}
-                        <a href="/admin/module-categories" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">Thiết lập Danh mục</a>
-                        <a href="/admin/ai-settings" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.ai_settings' %}active{% endif %}">Cấu hình dịch vụ AI</a>
-                        <a href="/logs" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">Nhật ký Hệ thống</a>
-                        <a href="/admin/system/update" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">Cập nhật Hệ thống</a>
-                        <a href="/admin/db-tool" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.db_tool' %}active{% endif %}">Công cụ Database</a>
-                        <hr class="mx-3 opacity-10">
-                        {% endif %}
-                        {% if session.get('is_admin') or perms.get('p_user_lead') %}
-                        <a href="/roles" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">Tài khoản & Vai trò</a>
-                        {% endif %}
-                        {% endif %}
-                    </div>
+                    <a href="/tasks" class="sidebar-nav-link {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-list-check"></i></span>
+                        <span class="sidebar-nav-text">Nhiệm vụ</span>
+                    </a>
+                    <a href="/ranking" class="sidebar-nav-link {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-ranking-star"></i></span>
+                        <span class="sidebar-nav-text">Xếp hạng</span>
+                    </a>
+                    <a href="/news" class="sidebar-nav-link {% if request.endpoint == 'portal_bp.news' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-newspaper"></i></span>
+                        <span class="sidebar-nav-text">Bảng tin</span>
+                    </a>
                 </div>
             </div>
 
-            <div class="mb-2 pt-2 border-top">
-                <div class="tiny fw-bold text-uppercase px-1 mb-2" style="color: var(--text-muted); letter-spacing: 0.08em;">Tài khoản</div>
-                <div class="nav-links">
-                    <a href="/password" class="nav-link-sidebar {% if request.endpoint == 'auth_bp.change_password' %}active{% endif %}">
-                        <i class="fa-solid fa-key me-2"></i>Đổi mật khẩu
+            {% if can_access_reports %}
+            <div class="sidebar-section">
+                <div class="sidebar-section-label">
+                    <i class="fa-solid fa-chart-column"></i>
+                    <span>Báo cáo</span>
+                </div>
+                <div class="sidebar-nav-list">
+                    <a href="{{ '/admin/reports' if session.get('is_admin') or perms.get('p_form_lead') else '/reports' }}" class="sidebar-nav-link {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-chart-line"></i></span>
+                        <span class="sidebar-nav-text">Trung tâm báo cáo</span>
                     </a>
-                    <a href="/logout" class="nav-link-sidebar text-danger">
-                        <i class="fa-solid fa-right-from-bracket me-2"></i>Đăng xuất
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-label">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <span>Tiện ích</span>
+                </div>
+                <div class="sidebar-nav-list">
+                    <a href="/library" class="sidebar-nav-link {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-book-open"></i></span>
+                        <span class="sidebar-nav-text">Thư viện tài liệu</span>
+                    </a>
+                    <a href="/contacts" class="sidebar-nav-link {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-address-book"></i></span>
+                        <span class="sidebar-nav-text">Danh bạ đơn vị</span>
+                    </a>
+                    <a href="/ai" class="sidebar-nav-link {% if request.endpoint == 'ai_bp.index' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-robot"></i></span>
+                        <span class="sidebar-nav-text">Trợ lý AI</span>
+                    </a>
+                    <a href="/links" class="sidebar-nav-link {% if request.endpoint == 'shortlink_bp.manage_links' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-qrcode"></i></span>
+                        <span class="sidebar-nav-text">QR & Link</span>
+                    </a>
+                </div>
+            </div>
+
+            {% if session.get('is_admin') or perms.get('p_user_lead') or perms.get('p_sys_lead') %}
+            <div class="sidebar-section">
+                <div class="sidebar-section-label">
+                    <i class="fa-solid fa-gears"></i>
+                    <span>Quản trị</span>
+                </div>
+                <div class="sidebar-nav-list">
+                    {% if session.get('is_admin') or perms.get('p_user_lead') %}
+                    <a href="/roles" class="sidebar-nav-link {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-user-shield"></i></span>
+                        <span class="sidebar-nav-text">Tài khoản & Vai trò</span>
+                    </a>
+                    {% endif %}
+                    {% if session.get('is_admin') or perms.get('p_sys_lead') %}
+                    <a href="/admin/module-categories" class="sidebar-nav-link {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-table-cells-large"></i></span>
+                        <span class="sidebar-nav-text">Thiết lập danh mục</span>
+                    </a>
+                    <a href="/admin/ai-settings" class="sidebar-nav-link {% if request.endpoint == 'admin_bp.ai_settings' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-sliders"></i></span>
+                        <span class="sidebar-nav-text">Cấu hình AI</span>
+                    </a>
+                    <a href="/logs" class="sidebar-nav-link {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                        <span class="sidebar-nav-text">Nhật ký hệ thống</span>
+                    </a>
+                    <a href="/admin/system/update" class="sidebar-nav-link {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-cloud-arrow-down"></i></span>
+                        <span class="sidebar-nav-text">Cập nhật hệ thống</span>
+                    </a>
+                    <a href="/admin/db-tool" class="sidebar-nav-link {% if request.endpoint == 'admin_bp.db_tool' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-database"></i></span>
+                        <span class="sidebar-nav-text">Công cụ Database</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="sidebar-section mb-0">
+                <div class="sidebar-section-label">
+                    <i class="fa-solid fa-user"></i>
+                    <span>Tài khoản</span>
+                </div>
+                <div class="sidebar-nav-list">
+                    <a href="/password" class="sidebar-nav-link {% if request.endpoint == 'auth_bp.change_password' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-key"></i></span>
+                        <span class="sidebar-nav-text">Đổi mật khẩu</span>
+                    </a>
+                    <a href="/logout" class="sidebar-nav-link text-danger">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-right-from-bracket"></i></span>
+                        <span class="sidebar-nav-text">Đăng xuất</span>
                     </a>
                 </div>
             </div>
@@ -478,29 +599,6 @@
             // Save scroll before navigating away
             sidebar.addEventListener('click', function(e) {
                 sessionStorage.setItem('sidebarScroll', sidebar.scrollTop);
-            });
-            
-            // Accordion: Close other dropdowns when one opens
-            document.querySelectorAll('.nav-dropdown').forEach(btn => {
-                btn.addEventListener('click', function(e) {
-                    const targetId = this.getAttribute('data-bs-target');
-                    const targetCollapse = document.querySelector(targetId);
-                    if (!targetCollapse.classList.contains('show')) {
-                        // This one is opening - close all others
-                        document.querySelectorAll('.collapse.show').forEach(collapse => {
-                            if ('#' + collapse.id !== targetId) {
-                                collapse.classList.remove('show');
-                            }
-                        });
-                        // Remove .open from all buttons first
-                        document.querySelectorAll('.nav-dropdown').forEach(b => b.classList.remove('open'));
-                        // Add .open to this button
-                        this.classList.add('open');
-                    } else {
-                        // This one is closing - remove .open
-                        this.classList.remove('open');
-                    }
-                });
             });
         }
     </script>

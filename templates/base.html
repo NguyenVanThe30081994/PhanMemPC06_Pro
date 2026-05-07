@@ -479,37 +479,113 @@
             background: rgba(15, 23, 42, 0.85) !important;
         }
 
-        .mobile-sidebar .list-group-item {
-            background: transparent !important;
-            border: none !important;
-            margin: 4px 12px;
-            border-radius: 12px !important;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            color: var(--text-main);
+        .mobile-sidebar .mobile-nav-profile {
+            background:
+                linear-gradient(135deg, rgba(var(--primary-rgb), 0.14), rgba(var(--primary-rgb), 0.05)),
+                rgba(255, 255, 255, 0.68);
+            border: 1px solid rgba(var(--primary-rgb), 0.14);
+            border-radius: 20px;
+            padding: 16px;
+            margin: 0 16px 8px;
+        }
+
+        [data-theme="dark"] .mobile-sidebar .mobile-nav-profile {
+            background:
+                linear-gradient(135deg, rgba(var(--primary-rgb), 0.18), rgba(var(--primary-rgb), 0.06)),
+                rgba(15, 23, 42, 0.55);
+        }
+
+        .mobile-sidebar .mobile-nav-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--primary), #3b82f6);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            box-shadow: 0 10px 24px rgba(37, 99, 235, 0.2);
         }
 
-        .mobile-sidebar .list-group-item:hover {
-            background: rgba(var(--primary-rgb, 37, 99, 235), 0.08) !important;
-            transform: translateX(5px);
+        .mobile-sidebar .mobile-nav-section {
+            background: rgba(255, 255, 255, 0.62);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: 20px;
+            padding: 10px;
+            margin: 0 16px 12px;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+        }
+
+        [data-theme="dark"] .mobile-sidebar .mobile-nav-section {
+            background: rgba(15, 23, 42, 0.52);
+        }
+
+        .mobile-sidebar .mobile-nav-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px 10px;
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .mobile-sidebar .mobile-nav-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .mobile-sidebar .mobile-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            color: var(--text-main);
+            font-weight: 700;
+            text-decoration: none;
+            transition: background 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s;
+        }
+
+        .mobile-sidebar .mobile-nav-link:hover,
+        .mobile-sidebar .mobile-nav-link:active {
+            background: rgba(var(--primary-rgb, 37, 99, 235), 0.08);
             color: var(--primary);
+            transform: translateX(2px);
         }
 
-        .mobile-sidebar .list-group-item.active {
-            background: linear-gradient(135deg, var(--primary), #3b82f6) !important;
-            color: #fff !important;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
-            transform: translateX(5px);
+        .mobile-sidebar .mobile-nav-link.active {
+            background: linear-gradient(135deg, var(--primary), #3b82f6);
+            color: #fff;
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.24);
         }
 
-        .mobile-sidebar .collapse .list-group-item {
-            font-size: 0.9rem;
-            opacity: 0.85;
-            padding-left: 3rem !important;
-            /* Visual hierarchy without misalignment of icons */
-            margin-left: 12px;
-            margin-right: 12px;
+        .mobile-sidebar .mobile-nav-link.text-danger:hover,
+        .mobile-sidebar .mobile-nav-link.text-danger:active {
+            background: rgba(239, 68, 68, 0.12);
+            color: #dc2626;
+        }
+
+        .mobile-sidebar .mobile-nav-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(148, 163, 184, 0.14);
+            color: inherit;
+            flex-shrink: 0;
+        }
+
+        .mobile-sidebar .mobile-nav-link.active .mobile-nav-icon {
+            background: rgba(255, 255, 255, 0.16);
         }
 
         .sidebar-unit-info {
@@ -736,6 +812,7 @@
 
     <div class="offcanvas offcanvas-start border-0 shadow-lg mobile-sidebar d-lg-none" tabindex="-1" id="mobileMenu"
         style="width: 300px;">
+        {% set can_access_reports = perms.get('p_form_lead') or perms.get('p_input_lead') or perms.get('p_input_exec') or is_admin %}
         <div class="offcanvas-header p-4 d-flex flex-column align-items-start">
             <div class="d-flex justify-content-between w-100 align-items-center mb-3">
                 <h5 class="offcanvas-title fw-bold text-primary d-flex align-items-center gap-2">
@@ -744,114 +821,158 @@
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
             </div>
 
-            <div class="sidebar-unit-info w-100">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <div class="small text-muted">Đơn vị:</div>
-                    <a href="#mobileAccountCollapse" class="text-primary text-decoration-none tiny fw-bold"
-                        data-bs-toggle="collapse">
-                        <i class="fa-solid fa-user-gear ms-1"></i>
-                    </a>
-                </div>
-                <div class="fw-bold text-dark mb-1">{{ session.get('unit', 'Phòng Cảnh sát QLHC về TTXH') }}</div>
-
-                <div class="collapse mt-2" id="mobileAccountCollapse">
-                    <div class="card card-body p-2 border-0 bg-white shadow-sm rounded-3">
-                        <div class="d-flex align-items-center gap-3 mb-2 p-1">
-                            <div class="btn-circle btn-circle-sm bg-primary text-white tiny fw-bold">{{
-                                session.get('fullname', 'AD')[:2].upper() }}</div>
-                            <div>
-                                <div class="tiny fw-bold text-dark">{{ session.get('fullname', 'User') }}</div>
-                                <div class="tiny text-muted">{{ session.get('role_name', 'Thành viên') }}</div>
-                            </div>
-                        </div>
-                        <a href="/password"
-                            class="list-group-item list-group-item-action py-2 px-3 border-0 rounded-2 small">
-                            <i class="fa-solid fa-key me-2 opacity-50"></i>Đổi mật khẩu
-                        </a>
-                        <a href="/logout"
-                            class="list-group-item list-group-item-action py-2 px-3 border-0 rounded-2 small text-danger">
-                            <i class="fa-solid fa-right-from-bracket me-2 opacity-50"></i>Đăng xuất
-                        </a>
+            <div class="mobile-nav-profile w-100">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="mobile-nav-avatar">{{ session.get('fullname', 'CB')[:2].upper() }}</div>
+                    <div style="min-width: 0;">
+                        <div class="fw-bold text-dark text-truncate">{{ session.get('fullname', 'User') }}</div>
+                        <div class="tiny text-muted text-truncate">{{ session.get('role_name', 'Thành viên') }}</div>
+                        <div class="tiny text-muted text-truncate">{{ session.get('unit', 'Phòng Cảnh sát QLHC về TTXH') }}</div>
                     </div>
                 </div>
-
             </div>
         </div>
 
-        <div class="offcanvas-body p-0">
-            <div class="list-group">
-                <a href="/admin"
-                    class="list-group-item py-3 px-4 {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">
-                    <i class="fa-solid fa-house-chimney me-3 opacity-75"></i>Tổng quan
-                </a>
+        <div class="offcanvas-body p-0 pb-3">
+            <div class="mobile-nav-section">
+                <div class="mobile-nav-label">
+                    <i class="fa-solid fa-compass"></i>
+                    <span>Điều hướng</span>
+                </div>
+                <div class="mobile-nav-list">
+                    <a href="/admin"
+                        class="mobile-nav-link {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-house"></i></span>
+                        <span>Tổng quan</span>
+                    </a>
 
-                {% if perms.get('p_task_lead') or perms.get('p_task_exec') %}
-                <a href="/tasks"
-                    class="list-group-item py-3 px-4 {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">
-                    <i class="fa-solid fa-list-check me-3 opacity-75"></i>Công việc
-                </a>
-                {% endif %}
+                    {% if perms.get('p_task_lead') or perms.get('p_task_exec') %}
+                    <a href="/tasks"
+                        class="mobile-nav-link {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-list-check"></i></span>
+                        <span>Công việc</span>
+                    </a>
+                    {% endif %}
 
-                <a href="/ranking"
-                    class="list-group-item py-3 px-4 {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">
-                    <i class="fa-solid fa-ranking-star me-3 opacity-75"></i>Xếp hạng
-                </a>
+                    <a href="/ranking"
+                        class="mobile-nav-link {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-ranking-star"></i></span>
+                        <span>Xếp hạng</span>
+                    </a>
 
-                <!-- Group: Bảng tin và Thư viện -->
-                <a href="#mobileNewsLibCollapse"
-                    class="list-group-item py-3 px-4 d-flex justify-content-between align-items-center"
-                    data-bs-toggle="collapse">
-                    <span><i class="fa-solid fa-newspaper me-3 opacity-75"></i>Bảng tin & Thư viện</span>
-                    <i class="fa-solid fa-chevron-down small opacity-50 transition-transform"></i>
-                </a>
-                <div class="collapse" id="mobileNewsLibCollapse">
                     {% if perms.get('p_news_lead') or perms.get('p_news_exec') %}
                     <a href="/news"
-                        class="list-group-item py-2 ps-5 {% if request.endpoint == 'portal_bp.news' %}active{% endif %}">
-                        <i class="fa-solid fa-caret-right me-2 small opacity-50"></i>Bảng tin
+                        class="mobile-nav-link {% if request.endpoint == 'portal_bp.news' %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-newspaper"></i></span>
+                        <span>Bảng tin</span>
                     </a>
                     {% endif %}
+                </div>
+            </div>
+
+            {% if can_access_reports %}
+            <div class="mobile-nav-section">
+                <div class="mobile-nav-label">
+                    <i class="fa-solid fa-chart-column"></i>
+                    <span>Báo cáo</span>
+                </div>
+                <div class="mobile-nav-list">
+                    <a href="{{ '/admin/reports' if is_admin or perms.get('p_form_lead') else '/reports' }}"
+                        class="mobile-nav-link {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-chart-line"></i></span>
+                        <span>Trung tâm báo cáo</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="mobile-nav-section">
+                <div class="mobile-nav-label">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <span>Tiện ích</span>
+                </div>
+                <div class="mobile-nav-list">
                     {% if perms.get('p_lib_lead') or perms.get('p_lib_exec') %}
                     <a href="/library"
-                        class="list-group-item py-2 ps-5 {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">
-                        <i class="fa-solid fa-caret-right me-2 small opacity-50"></i>Thư viện
+                        class="mobile-nav-link {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-book-open"></i></span>
+                        <span>Thư viện tài liệu</span>
+                    </a>
+                    {% endif %}
+                    {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') %}
+                    <a href="/contacts"
+                        class="mobile-nav-link {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-address-book"></i></span>
+                        <span>Danh bạ đơn vị</span>
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('shortlink_bp.manage_links') }}"
+                        class="mobile-nav-link {% if request.endpoint == 'shortlink_bp.manage_links' %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-qrcode"></i></span>
+                        <span>QR & Link</span>
+                    </a>
+                    <a href="/ai"
+                        class="mobile-nav-link {% if request.path.startswith('/ai') %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-robot"></i></span>
+                        <span>Trợ lý AI</span>
+                    </a>
+                </div>
+            </div>
+
+            {% if perms.get('p_user_lead') or perms.get('p_sys_lead') %}
+            <div class="mobile-nav-section">
+                <div class="mobile-nav-label">
+                    <i class="fa-solid fa-gears"></i>
+                    <span>Quản trị</span>
+                </div>
+                <div class="mobile-nav-list">
+                    {% if perms.get('p_user_lead') %}
+                    <a href="/roles" class="mobile-nav-link {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-user-shield"></i></span>
+                        <span>Tài khoản & Vai trò</span>
+                    </a>
+                    {% endif %}
+                    {% if perms.get('p_sys_lead') %}
+                    <a href="/admin/module-categories" class="mobile-nav-link {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-table-cells-large"></i></span>
+                        <span>Thiết lập danh mục</span>
+                    </a>
+                    <a href="/admin/ai-settings" class="mobile-nav-link {% if request.endpoint == 'admin_bp.ai_settings' %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-sliders"></i></span>
+                        <span>Cấu hình dịch vụ AI</span>
+                    </a>
+                    <a href="/logs" class="mobile-nav-link {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                        <span>Nhật ký hoạt động</span>
+                    </a>
+                    <a href="/admin/system/update" class="mobile-nav-link {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-cloud-arrow-down"></i></span>
+                        <span>Cập nhật bản vá</span>
+                    </a>
+                    <a href="/admin/db-tool" class="mobile-nav-link {% if request.endpoint == 'admin_bp.db_tool' %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-database"></i></span>
+                        <span>Công cụ Database</span>
                     </a>
                     {% endif %}
                 </div>
+            </div>
+            {% endif %}
 
-                {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') %}
-                <a href="/contacts"
-                    class="list-group-item py-3 px-4 {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">
-                    <i class="fa-solid fa-address-book me-3 opacity-75"></i>Danh bạ
-                </a>
-                {% endif %}
-
-                <a href="{{ url_for('shortlink_bp.manage_links') }}" class="list-group-item py-3 px-4">
-                    <i class="fa-solid fa-qrcode me-3 opacity-75"></i>Tiện ích QR & Link
-                </a>
-                
-
-                <!-- Group: Hệ thống -->
-                {% if perms.get('p_user_lead') or perms.get('p_sys_lead') %}
-                <a href="#mobileSystemCollapse"
-                    class="list-group-item py-3 px-4 d-flex justify-content-between align-items-center text-primary fw-bold"
-                    data-bs-toggle="collapse">
-                    <span><i class="fa-solid fa-gears me-3 opacity-75"></i>Quản trị hệ thống</span>
-                    <i class="fa-solid fa-chevron-down small opacity-50 transition-transform"></i>
-                </a>
-                <div class="collapse" id="mobileSystemCollapse">
-                    {% if perms.get('p_user_lead') %}
-                    <a href="/roles" class="list-group-item py-2 ps-5 italic">Tài khoản & Vai trò</a>
-                    {% endif %}
-                    {% if perms.get('p_sys_lead') %}
-                    <a href="/admin/module-categories" class="list-group-item py-2 ps-5">Thiết lập danh mục</a>
-                    <a href="/admin/ai-settings" class="list-group-item py-2 ps-5">Cấu hình dịch vụ AI</a>
-                    <a href="/logs" class="list-group-item py-2 ps-5">Nhật ký hoạt động</a>
-                    <a href="/admin/system/update" class="list-group-item py-2 ps-5 text-primary">Cập nhật bản vá</a>
-                    <a href="/admin/db-tool" class="list-group-item py-2 ps-5 text-danger">Công cụ Database</a>
-                    {% endif %}
+            <div class="mobile-nav-section mb-0">
+                <div class="mobile-nav-label">
+                    <i class="fa-solid fa-user"></i>
+                    <span>Tài khoản</span>
                 </div>
-                {% endif %}
+                <div class="mobile-nav-list">
+                    <a href="/password" class="mobile-nav-link {% if request.endpoint == 'auth_bp.change_password' %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-key"></i></span>
+                        <span>Đổi mật khẩu</span>
+                    </a>
+                    <a href="/logout" class="mobile-nav-link text-danger">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-right-from-bracket"></i></span>
+                        <span>Đăng xuất</span>
+                    </a>
+                </div>
             </div>
         </div>
 
