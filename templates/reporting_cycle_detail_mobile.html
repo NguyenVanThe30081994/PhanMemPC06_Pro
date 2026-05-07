@@ -1,0 +1,123 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}Chi tiết báo cáo{% endblock %}
+
+{% block head %}
+<style>
+    .report-admin-mobile-hero { background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff; padding: 20px; border-radius: 24px; margin-bottom: 16px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18); }
+    .report-admin-mobile-hero a { color: #fff; text-decoration: none; }
+    .report-admin-mobile-hero h1 { margin: 10px 0 8px; font-size: 1.32rem; font-weight: 800; }
+    .report-admin-mobile-hero p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.88rem; }
+    .report-admin-mobile-toolbar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+    .report-admin-mobile-toolbar .btn { min-height: 50px; border-radius: 16px; }
+    .report-admin-mobile-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); padding: 16px; margin-bottom: 16px; }
+    .report-admin-mobile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .report-admin-mobile-grid div { padding: 12px; border-radius: 14px; background: var(--bg-body); }
+    .report-admin-mobile-grid span { display: block; font-size: 0.76rem; color: var(--text-muted); }
+    .report-admin-mobile-grid strong { display: block; margin-top: 5px; font-size: 0.95rem; color: var(--text-main); }
+    .report-admin-mobile-list { display: grid; gap: 12px; }
+    .report-admin-mobile-item { padding: 14px; border-radius: 16px; background: var(--bg-body); }
+    .report-admin-mobile-item h3 { margin: 0 0 6px; font-size: 0.95rem; font-weight: 800; color: var(--text-main); }
+    .report-admin-mobile-item p { margin: 0; color: var(--text-muted); font-size: 0.82rem; line-height: 1.5; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="report-admin-mobile-hero">
+    <div class="d-flex justify-content-between align-items-start gap-3">
+        <div>
+            <h1>{{ cycle.name }}</h1>
+            <p>
+                {{ template.name if template else 'Không có mẫu' }}
+                {% if report_type %} • {{ report_type.name }}{% endif %}
+                • {{ scope_count }} đơn vị
+            </p>
+        </div>
+        <a href="{{ url_for('reporting_bp.admin_dashboard') }}" aria-label="Quay lại" title="Quay lại"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay lại</span></a>
+    </div>
+    <div class="report-admin-mobile-toolbar">
+        <a class="btn btn-light border" href="{{ url_for('reporting_bp.cycle_preview', cycle_id=cycle.id, report_date=filter_date.strftime('%Y-%m-%d')) if is_daily and filter_date else url_for('reporting_bp.cycle_preview', cycle_id=cycle.id) }}" aria-label="Xem báo cáo" title="Xem báo cáo"><i class="fa-solid fa-eye"></i><span class="visually-hidden">Xem báo cáo</span></a>
+        <form method="POST" action="{{ url_for('reporting_bp.close_cycle', cycle_id=cycle.id) }}" onsubmit="return confirm('Đóng báo cáo này?')" class="m-0">
+            <button class="btn btn-light border w-100" type="submit" aria-label="Đóng báo cáo" title="Đóng báo cáo"><i class="fa-solid fa-lock"></i><span class="visually-hidden">Đóng báo cáo</span></button>
+        </form>
+        <form method="POST" action="{{ url_for('reporting_bp.delete_cycle', cycle_id=cycle.id) }}" onsubmit="return confirm('Xóa toàn bộ báo cáo này?')" class="m-0">
+            <button class="btn btn-light border w-100 text-danger" type="submit" aria-label="Xóa báo cáo" title="Xóa báo cáo"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Xóa báo cáo</span></button>
+        </form>
+        {% if is_daily %}
+        <form method="GET" class="m-0">
+            <input type="hidden" name="report_date" value="{{ (available_dates[0].strftime('%Y-%m-%d')) if available_dates else (today.strftime('%Y-%m-%d')) }}">
+            <button class="btn btn-light border w-100" type="submit" aria-label="Làm mới ngày" title="Làm mới ngày"><i class="fa-solid fa-calendar-day"></i><span class="visually-hidden">Làm mới ngày</span></button>
+        </form>
+        {% else %}
+        <button class="btn btn-light border" type="button" disabled aria-label="Thông tin báo cáo" title="Thông tin báo cáo"><i class="fa-solid fa-circle-info"></i><span class="visually-hidden">Thông tin báo cáo</span></button>
+        {% endif %}
+    </div>
+</section>
+
+{% if is_daily %}
+<section class="report-admin-mobile-card">
+    <form method="GET">
+        <label class="form-label fw-bold small">Ngày báo cáo</label>
+        <select name="report_date" class="form-select" onchange="this.form.submit()">
+            {% for d in available_dates %}
+            <option value="{{ d.strftime('%Y-%m-%d') }}" {% if filter_date and d == filter_date %}selected{% endif %}>{{ d.strftime('%d/%m/%Y') }}</option>
+            {% endfor %}
+        </select>
+    </form>
+</section>
+{% endif %}
+
+<section class="report-admin-mobile-card">
+    <div class="report-admin-mobile-grid">
+        {% if is_daily %}
+        <div><span>Đã báo cáo</span><strong>{{ reported_total }}</strong></div>
+        <div><span>Chưa báo cáo</span><strong>{{ not_reported_total }}</strong></div>
+        {% else %}
+        <div><span>Đã nộp</span><strong>{{ submitted_total }}</strong></div>
+        <div><span>Đúng hạn</span><strong>{{ on_time_total }}</strong></div>
+        {% endif %}
+        <div><span>Số lần lưu/gửi</span><strong>{{ submission_total }}</strong></div>
+        <div><span>Trạng thái</span><strong>{{ 'Đã khóa' if cycle.is_locked or cycle.status == 'closed' else 'Đang mở' }}</strong></div>
+    </div>
+</section>
+
+<section class="report-admin-mobile-card">
+    <h2 class="h6 fw-bold mb-3">Lịch sử nhập liệu</h2>
+    <div class="report-admin-mobile-list">
+        {% for row in history_rows %}
+        <article class="report-admin-mobile-item">
+            <h3>{{ row.unit.name if row.unit else 'Không xác định' }} • {{ row.actor.fullname if row.actor else 'Không xác định' }}</h3>
+            <p>{{ row.submitted_at.strftime('%d/%m/%Y %H:%M') if row.submitted_at else '' }} • {{ row.status_label }} • {{ row.timeliness }}</p>
+            {% if row.content_text %}
+            <div class="small mt-2" style="white-space: pre-line; color: var(--text-main);">{{ row.content_text }}</div>
+            {% else %}
+            <div class="small mt-2 text-muted">Không có thay đổi dữ liệu.</div>
+            {% endif %}
+        </article>
+        {% else %}
+        <div class="text-muted small">Chưa có lịch sử nhập liệu.</div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="report-admin-mobile-card">
+    <h2 class="h6 fw-bold mb-3">Tình trạng từng đơn vị</h2>
+    <div class="report-admin-mobile-list">
+        {% for row in unit_rows %}
+        <article class="report-admin-mobile-item">
+            <h3>{{ row.unit.name if row.unit else 'Không xác định' }}</h3>
+            <p>{{ row.submission_count }} lần lưu/gửi • {{ row.latest_submission.created_at.strftime('%d/%m/%Y %H:%M') if row.latest_submission and row.latest_submission.created_at else ('Chưa báo cáo ngày ' + filter_date_str if is_daily else 'Chưa có dữ liệu') }}</p>
+            <div class="small mt-2" style="color: var(--text-main);">
+                {% if row.latest_submission %}
+                {{ 'Đã gửi báo cáo' if row.instance and row.instance.status == 'submitted' else 'Lưu nháp' }} • {{ row.timeliness }}
+                {% else %}
+                {{ 'Chưa báo cáo' if is_daily else 'Chưa nộp' }}
+                {% endif %}
+            </div>
+        </article>
+        {% else %}
+        <div class="text-muted small">Chưa có đơn vị nào trong báo cáo này.</div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

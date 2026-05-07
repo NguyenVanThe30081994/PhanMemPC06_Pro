@@ -1,0 +1,88 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}Xem biểu mẫu{% endblock %}
+
+{% block head %}
+<style>
+    .report-template-preview-mobile-hero { background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff; padding: 20px; border-radius: 24px; margin-bottom: 16px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18); }
+    .report-template-preview-mobile-hero a { color: #fff; text-decoration: none; }
+    .report-template-preview-mobile-hero h1 { margin: 10px 0 8px; font-size: 1.3rem; font-weight: 800; }
+    .report-template-preview-mobile-hero p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.88rem; }
+    .report-template-preview-mobile-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+    .report-template-preview-mobile-actions .btn { min-height: 50px; border-radius: 16px; }
+    .report-template-preview-mobile-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); overflow: hidden; margin-bottom: 16px; }
+    .report-template-preview-mobile-head { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+    .report-template-preview-mobile-head h2 { margin: 0; font-size: 0.98rem; font-weight: 800; color: var(--text-main); }
+    .report-template-preview-mobile-stage { overflow: auto; padding: 12px; background: #fff; }
+    .report-template-preview-mobile-fit { transform-origin: top left; width: max-content; }
+    .report-preview-table { border-collapse: collapse; background: #fff; color: #1f2937; font-size: 12px; line-height: 1.35; }
+    .report-preview-table td { min-width: 50px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="report-template-preview-mobile-hero">
+    <div class="d-flex justify-content-between align-items-start gap-3">
+        <div>
+            <h1>{{ template.name }}</h1>
+            <p>{% if template.professional_unit %}{{ template.professional_unit }} • {% endif %}{% if template_version %}{{ template_version.source_filename }}{% endif %}</p>
+        </div>
+        <a href="{{ url_for('reporting_bp.admin_dashboard') }}" aria-label="Quay lại" title="Quay lại"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay lại</span></a>
+    </div>
+    <div class="report-template-preview-mobile-actions">
+        <button type="button" class="btn btn-light border" onclick="togglePreviewFullscreen()" aria-label="Toàn màn hình" title="Toàn màn hình"><i class="fa-solid fa-expand"></i><span class="visually-hidden">Toàn màn hình</span></button>
+        <button type="button" class="btn btn-light border" onclick="window.print()" aria-label="In biểu mẫu" title="In biểu mẫu"><i class="fa-solid fa-print"></i><span class="visually-hidden">In biểu mẫu</span></button>
+        <a href="{{ download_url }}" class="btn btn-light border" aria-label="Tải về" title="Tải về"><i class="fa-solid fa-download"></i><span class="visually-hidden">Tải về</span></a>
+        <a href="{{ url_for('reporting_bp.admin_dashboard') }}" class="btn btn-light border" aria-label="Danh sách báo cáo" title="Danh sách báo cáo"><i class="fa-solid fa-list"></i><span class="visually-hidden">Danh sách báo cáo</span></a>
+    </div>
+</section>
+
+<section id="reportPreviewSurface">
+    {% for sheet in preview_sheets %}
+    <article class="report-template-preview-mobile-card">
+        <div class="report-template-preview-mobile-head">
+            <h2>{{ sheet.sheet_name }}</h2>
+        </div>
+        <div class="report-template-preview-mobile-stage js-preview-stage">
+            <div class="report-template-preview-mobile-fit js-preview-fit">
+                <table class="report-preview-table">
+                    <tbody>{{ sheet.html|safe }}</tbody>
+                </table>
+            </div>
+        </div>
+    </article>
+    {% endfor %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function fitPreviewTables() {
+    document.querySelectorAll('.js-preview-stage').forEach((stage) => {
+        const fit = stage.querySelector('.js-preview-fit');
+        const table = fit ? fit.querySelector('table') : null;
+        if (!fit || !table) return;
+        fit.style.transform = 'none';
+        fit.style.height = 'auto';
+        const availableWidth = Math.max(stage.clientWidth - 8, 280);
+        const tableWidth = Math.max(table.scrollWidth, 1);
+        const scale = Math.min(1, availableWidth / tableWidth);
+        fit.style.transform = `scale(${scale})`;
+        fit.style.height = `${table.scrollHeight * scale}px`;
+    });
+}
+
+function togglePreviewFullscreen() {
+    const surface = document.getElementById('reportPreviewSurface');
+    if (!document.fullscreenElement) {
+        surface.requestFullscreen?.().then(() => setTimeout(fitPreviewTables, 120));
+    } else {
+        document.exitFullscreen?.().then(() => setTimeout(fitPreviewTables, 120));
+    }
+}
+
+window.addEventListener('load', fitPreviewTables);
+window.addEventListener('resize', fitPreviewTables);
+document.addEventListener('fullscreenchange', fitPreviewTables);
+</script>
+{% endblock %}

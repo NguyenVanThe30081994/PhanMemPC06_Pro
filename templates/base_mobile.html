@@ -342,6 +342,7 @@
         </div>
         
         <div class="offcanvas-body p-3 pt-0">
+            {% set can_access_reports = session.get('is_admin') or perms.get('p_form_lead') or perms.get('p_input_lead') or perms.get('p_input_exec') %}
             <!-- Main Dropdown -->
             <div class="mb-2">
                 <button class="nav-dropdown w-100" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu">
@@ -358,6 +359,15 @@
             </div>
             
             <div class="mb-2">
+                {% if can_access_reports %}
+                <div class="tiny fw-bold text-uppercase px-1 mb-2" style="color: var(--text-muted); letter-spacing: 0.08em;">Báo cáo</div>
+                <div class="nav-links mb-2">
+                    <a href="{{ '/admin/reports' if session.get('is_admin') or perms.get('p_form_lead') else '/reports' }}" class="nav-link-sidebar {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">
+                        <i class="fa-solid fa-chart-column me-2"></i>Báo cáo
+                    </a>
+                </div>
+                {% endif %}
+                <div class="tiny fw-bold text-uppercase px-1 mb-2" style="color: var(--text-muted); letter-spacing: 0.08em;">Tiện ích</div>
                 <div class="nav-links">
                     <a href="/library" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">Thư viện Tài liệu</a>
                     <a href="/contacts" class="nav-link-sidebar {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">Danh bạ Đơn vị</a>
@@ -377,9 +387,6 @@
                         {% if session.get('is_admin') or perms.get('p_sys_lead') %}
                         <a href="/admin/module-categories" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">Thiết lập Danh mục</a>
                         <a href="/admin/ai-settings" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.ai_settings' %}active{% endif %}">Cấu hình dịch vụ AI</a>
-                        {% if session.get('is_admin') or perms.get('p_form_lead') or perms.get('p_input_lead') or perms.get('p_input_exec') %}
-                        <a href="{{ '/admin/reports' if session.get('is_admin') or perms.get('p_form_lead') else '/reports' }}" class="nav-link-sidebar {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">Báo cáo</a>
-                        {% endif %}
                         <a href="/logs" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">Nhật ký Hệ thống</a>
                         <a href="/admin/system/update" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">Cập nhật Hệ thống</a>
                         <a href="/admin/db-tool" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.db_tool' %}active{% endif %}">Công cụ Database</a>
@@ -388,9 +395,6 @@
                         {% if session.get('is_admin') or perms.get('p_user_lead') %}
                         <a href="/roles" class="nav-link-sidebar {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">Tài khoản & Vai trò</a>
                         {% endif %}
-                        {% endif %}
-                        {% if not (session.get('is_admin') or perms.get('p_sys_lead')) and (perms.get('p_form_lead') or perms.get('p_input_lead') or perms.get('p_input_exec')) %}
-                        <a href="/reports" class="nav-link-sidebar {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">Báo cáo</a>
                         {% endif %}
                     </div>
                 </div>

@@ -1,0 +1,128 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}Nhập báo cáo{% endblock %}
+
+{% block head %}
+<style>
+    .report-form-mobile-hero { background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff; padding: 20px; border-radius: 24px; margin-bottom: 16px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18); }
+    .report-form-mobile-hero a { color: #fff; text-decoration: none; }
+    .report-form-mobile-hero h1 { margin: 10px 0 8px; font-size: 1.35rem; font-weight: 800; letter-spacing: -0.03em; }
+    .report-form-mobile-hero p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.9rem; }
+    .report-form-mobile-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
+    .report-form-mobile-info,
+    .report-form-mobile-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); }
+    .report-form-mobile-info { padding: 16px; margin-bottom: 16px; }
+    .report-form-mobile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .report-form-mobile-grid div { padding: 12px; border-radius: 14px; background: var(--bg-body); }
+    .report-form-mobile-grid span { display: block; font-size: 0.76rem; color: var(--text-muted); }
+    .report-form-mobile-grid strong { display: block; margin-top: 5px; font-size: 0.92rem; color: var(--text-main); }
+    .report-form-mobile-sheet { display: grid; gap: 14px; }
+    .report-form-mobile-card { padding: 16px; margin-bottom: 16px; }
+    .report-form-mobile-card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .report-form-mobile-card-head h2 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-main); }
+    .report-form-mobile-row { padding: 14px; border-radius: 16px; background: var(--bg-body); display: grid; gap: 12px; }
+    .report-form-mobile-row-title { font-size: 0.92rem; font-weight: 800; color: var(--text-main); }
+    .report-form-mobile-row-meta { font-size: 0.76rem; color: var(--text-muted); }
+    .report-form-mobile-inputs { display: grid; gap: 12px; }
+    .report-form-mobile-inputs label { display: grid; gap: 6px; }
+    .report-form-mobile-inputs span { font-size: 0.84rem; font-weight: 700; color: var(--text-main); }
+    .report-form-mobile-inputs small { color: var(--text-muted); }
+    .report-form-mobile-toolbar { position: sticky; bottom: calc(var(--nav-height) + var(--safe-bottom) + 10px); z-index: 12; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
+    .report-form-mobile-toolbar .btn { min-height: 50px; border-radius: 16px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="report-form-mobile-hero">
+    <div class="report-form-mobile-kicker">
+        <i class="fa-solid fa-pen-to-square"></i>
+        Nhập báo cáo
+    </div>
+    <div class="d-flex justify-content-between align-items-start gap-3 mt-2">
+        <div>
+            <h1>{{ cycle.name }}</h1>
+            <p>{{ template.name }} • {{ current_unit.name if current_unit else 'Không có đơn vị' }}</p>
+        </div>
+        <a href="{{ url_for('reporting_bp.user_dashboard') if not is_admin else url_for('reporting_bp.admin_cycle_detail', cycle_id=cycle.id) }}" aria-label="Quay lại" title="Quay lại"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay lại</span></a>
+    </div>
+</section>
+
+<section class="report-form-mobile-info">
+    <div class="report-form-mobile-grid">
+        <div><span>Lịch báo cáo</span><strong>{{ schedule_text }}</strong></div>
+        <div><span>Trạng thái</span><strong>{{ 'Đang nhập' if editable else 'Đã khóa' }}</strong></div>
+        <div><span>Bản mới nhất</span><strong>{{ latest_submission.created_at.strftime('%d/%m/%Y %H:%M') if latest_submission and latest_submission.created_at else 'Chưa có' }}</strong></div>
+        <div><span>Đánh giá</span><strong>{{ latest_timeliness or 'Chưa có' }}</strong></div>
+    </div>
+</section>
+
+<form id="reportForm" method="POST">
+    <input type="hidden" name="payload_json" id="payloadJson">
+    {% if is_admin and current_unit %}
+    <input type="hidden" name="unit_id" value="{{ current_unit.id }}">
+    {% endif %}
+
+    {% for sheet in sheet_views %}
+    <section class="report-form-mobile-card report-sheet-panel" data-sheet="{{ sheet.sheet_name }}">
+        <div class="report-form-mobile-card-head">
+            <h2>{{ sheet.sheet_name }}</h2>
+            <span class="pc06-soft-tag neutral">{{ sheet.rows|length }} dòng</span>
+        </div>
+        <div class="report-form-mobile-sheet">
+            {% for row in sheet.rows %}
+            <article class="report-form-mobile-row">
+                <div>
+                    <div class="report-form-mobile-row-title">{{ row.title }}</div>
+                    <div class="report-form-mobile-row-meta">Dòng {{ row.excel_row }}</div>
+                </div>
+                <div class="report-form-mobile-inputs">
+                    {% for input in row.inputs %}
+                    <label>
+                        <span>{{ input.field_label }}</span>
+                        {% if input.field_path %}
+                        <small>{{ input.field_path }}</small>
+                        {% endif %}
+                        <input type="text" class="form-control report-input" data-cell="{{ input.cell_address }}" value="{{ input.value }}" {% if not editable %}readonly{% endif %}>
+                    </label>
+                    {% endfor %}
+                </div>
+            </article>
+            {% else %}
+            <div class="text-muted text-center py-4">Không có trường dữ liệu để nhập.</div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+</form>
+
+<div class="report-form-mobile-toolbar">
+    <a class="btn btn-light border" href="{{ url_for('reporting_bp.cycle_history', cycle_id=cycle.id) }}" aria-label="Lịch sử" title="Lịch sử"><i class="fa-solid fa-clock-rotate-left"></i><span class="visually-hidden">Lịch sử</span></a>
+    <a class="btn btn-light border" href="{{ url_for('reporting_bp.cycle_preview', cycle_id=cycle.id) }}" aria-label="Xem báo cáo" title="Xem báo cáo"><i class="fa-solid fa-eye"></i><span class="visually-hidden">Xem báo cáo</span></a>
+    <button type="button" class="btn btn-light border" {% if not editable %}disabled{% endif %} onclick="submitReport('{{ url_for('reporting_bp.save_cycle', cycle_id=cycle.id) }}')" aria-label="Lưu nháp" title="Lưu nháp"><i class="fa-solid fa-floppy-disk"></i><span class="visually-hidden">Lưu nháp</span></button>
+    <button type="button" class="btn btn-primary" {% if not editable %}disabled{% endif %} onclick="submitReport('{{ url_for('reporting_bp.submit_cycle', cycle_id=cycle.id) }}')" aria-label="Gửi báo cáo" title="Gửi báo cáo"><i class="fa-solid fa-paper-plane"></i><span class="visually-hidden">Gửi báo cáo</span></button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function collectPayload() {
+    const sheets = {};
+    document.querySelectorAll('.report-sheet-panel').forEach((panel) => {
+        const sheetName = panel.dataset.sheet;
+        const cells = {};
+        panel.querySelectorAll('input.report-input[data-cell]').forEach((input) => {
+            cells[input.dataset.cell] = (input.value || '').trim();
+        });
+        sheets[sheetName] = cells;
+    });
+    return { note: '', sheets: sheets };
+}
+
+function submitReport(actionUrl) {
+    document.getElementById('payloadJson').value = JSON.stringify(collectPayload());
+    const form = document.getElementById('reportForm');
+    form.action = actionUrl;
+    form.submit();
+}
+</script>
+{% endblock %}

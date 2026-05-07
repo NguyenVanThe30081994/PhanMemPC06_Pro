@@ -1,0 +1,250 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}Báo cáo{% endblock %}
+
+{% block head %}
+<style>
+    .report-mobile-hero { background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff; padding: 20px; border-radius: 24px; margin-bottom: 16px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18); }
+    .report-mobile-hero h1 { margin: 10px 0 8px; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; }
+    .report-mobile-hero p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.9rem; }
+    .report-mobile-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
+    .report-mobile-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+    .report-mobile-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+    .report-mobile-stat { padding: 12px; border-radius: 16px; background: rgba(255,255,255,0.12); }
+    .report-mobile-stat span { display: block; font-size: 0.74rem; color: rgba(255,255,255,0.72); }
+    .report-mobile-stat strong { display: block; margin-top: 5px; font-size: 1.15rem; font-weight: 800; }
+    .report-mobile-filter,
+    .report-mobile-card,
+    .report-mobile-empty { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); }
+    .report-mobile-filter { padding: 16px; margin-bottom: 16px; }
+    .report-mobile-chip-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+    .report-mobile-chip-row::-webkit-scrollbar { display: none; }
+    .report-mobile-chip { border: 1px solid var(--border); background: var(--bg-body); color: var(--text-muted); padding: 10px 14px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
+    .report-mobile-chip.active { background: linear-gradient(135deg, #2563eb, #1d4ed8); border-color: transparent; color: #fff; }
+    .report-mobile-list { display: grid; gap: 14px; }
+    .report-mobile-card { padding: 16px; }
+    .report-mobile-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+    .report-mobile-card-copy { min-width: 0; flex: 1; }
+    .report-mobile-card-copy h3 { margin: 0 0 6px; font-size: 1rem; font-weight: 800; color: var(--text-main); }
+    .report-mobile-card-copy p { margin: 0; color: var(--text-muted); font-size: 0.83rem; line-height: 1.5; }
+    .report-mobile-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 38px; height: 38px; padding: 0 12px; border-radius: 999px; background: rgba(37,99,235,0.08); color: #1d4ed8; font-size: 0.78rem; font-weight: 800; }
+    .report-mobile-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .report-mobile-meta div { padding: 12px; border-radius: 14px; background: var(--bg-body); }
+    .report-mobile-meta span { display: block; font-size: 0.76rem; color: var(--text-muted); }
+    .report-mobile-meta strong { display: block; margin-top: 5px; font-size: 0.9rem; color: var(--text-main); }
+    .report-mobile-actions-row { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+    .report-mobile-actions-row .btn { min-width: 42px; }
+    .report-mobile-empty { padding: 28px 20px; text-align: center; color: var(--text-muted); }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set report_groups = template_groups if is_admin else cycle_groups %}
+<section class="report-mobile-hero">
+    <div class="report-mobile-kicker">
+        <i class="fa-solid fa-chart-column"></i>
+        Trung tâm báo cáo
+    </div>
+    <h1>Báo cáo</h1>
+    <p>{{ 'Quản lý biểu mẫu, chu kỳ và đơn vị báo cáo trên giao diện di động thống nhất.' if is_admin else 'Theo dõi, nhập và xem lại các biểu mẫu báo cáo của đơn vị trên giao diện mobile.' }}</p>
+    {% if is_admin %}
+    <div class="report-mobile-actions">
+        <button class="btn btn-mobile" type="button" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#createReportTemplateModal" aria-label="Thiết lập mẫu" title="Thiết lập mẫu"><i class="fa-solid fa-plus"></i><span class="visually-hidden">Thiết lập mẫu</span></button>
+        <form method="POST" action="{{ url_for('reporting_bp.sync_units') }}">
+            <button class="btn btn-mobile btn-mobile-primary" type="submit" aria-label="Đồng bộ đơn vị" title="Đồng bộ đơn vị"><i class="fa-solid fa-rotate"></i><span class="visually-hidden">Đồng bộ đơn vị</span></button>
+        </form>
+    </div>
+    {% endif %}
+    <div class="report-mobile-stats">
+        {% if is_admin %}
+        <div class="report-mobile-stat"><span>Biểu mẫu</span><strong>{{ templates|length }}</strong></div>
+        <div class="report-mobile-stat"><span>Đội nghiệp vụ</span><strong>{{ template_groups|length }}</strong></div>
+        <div class="report-mobile-stat"><span>Báo cáo mở</span><strong>{{ cycles|length }}</strong></div>
+        <div class="report-mobile-stat"><span>Đơn vị</span><strong>{{ units|length }}</strong></div>
+        {% else %}
+        <div class="report-mobile-stat"><span>Đội nghiệp vụ</span><strong>{{ cycle_groups|length }}</strong></div>
+        <div class="report-mobile-stat"><span>Báo cáo mở</span><strong>{{ cycles|length }}</strong></div>
+        <div class="report-mobile-stat"><span>Bản ghi</span><strong>{{ instances|length if instances is defined else 0 }}</strong></div>
+        <div class="report-mobile-stat"><span>Đơn vị</span><strong>{{ current_unit.name if current_unit else 'Chưa gắn' }}</strong></div>
+        {% endif %}
+    </div>
+</section>
+
+<section class="report-mobile-filter">
+    <div class="report-mobile-chip-row">
+        <button type="button" class="report-mobile-chip active" data-report-filter="ALL">Tất cả</button>
+        {% for group in report_groups %}
+        <button type="button" class="report-mobile-chip" data-report-filter="{{ group.name|lower }}">{{ group.name }}</button>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="report-mobile-list">
+    {% if report_groups %}
+        {% if is_admin %}
+            {% for group in report_groups %}
+                {% for item in group.entries %}
+                {% set template = item.template %}
+                {% set current_version = item.current_version %}
+                {% set current_cycle = item.current_cycle %}
+                <article class="report-mobile-card report-mobile-row" data-report-group="{{ group.name|lower }}">
+                    <div class="report-mobile-card-head">
+                        <div class="report-mobile-card-copy">
+                            <h3>{{ template.name }}</h3>
+                            <p>
+                                {{ group.name }}
+                                {% if current_version %} • Bản {{ current_version.version_no }}{% endif %}
+                                {% if template.directive_filename %} • {{ template.directive_filename }}{% endif %}
+                            </p>
+                        </div>
+                        <span class="report-mobile-badge">{{ 'Mở' if current_cycle else 'Nháp' }}</span>
+                    </div>
+                    <div class="report-mobile-meta">
+                        <div>
+                            <span>Đội nghiệp vụ</span>
+                            <strong>{{ template.professional_unit or group.name }}</strong>
+                        </div>
+                        <div>
+                            <span>Chu kỳ hiện tại</span>
+                            <strong>{{ current_cycle.name if current_cycle else 'Chưa mở' }}</strong>
+                        </div>
+                    </div>
+                    <div class="report-mobile-actions-row">
+                        {% if current_cycle %}
+                        <a class="btn btn-sm btn-outline-primary rounded-pill" href="{{ url_for('reporting_bp.admin_cycle_detail', cycle_id=current_cycle.id) }}" aria-label="Chi tiết báo cáo" title="Chi tiết báo cáo"><i class="fa-solid fa-chart-line"></i><span class="visually-hidden">Chi tiết báo cáo</span></a>
+                        {% endif %}
+                        <a class="btn btn-sm btn-outline-secondary rounded-pill" href="{{ url_for('reporting_bp.admin_template_preview', template_id=template.id) }}" aria-label="Xem biểu mẫu" title="Xem biểu mẫu"><i class="fa-solid fa-eye"></i><span class="visually-hidden">Xem biểu mẫu</span></a>
+                        <form method="POST" action="{{ url_for('reporting_bp.delete_template', template_id=template.id) }}" class="m-0" onsubmit="return confirm('Xóa biểu mẫu này?')">
+                            <button class="btn btn-sm btn-outline-danger rounded-pill" type="submit" aria-label="Xóa biểu mẫu" title="Xóa biểu mẫu"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Xóa biểu mẫu</span></button>
+                        </form>
+                    </div>
+                </article>
+                {% endfor %}
+            {% endfor %}
+        {% else %}
+            {% for group in report_groups %}
+                {% for item in group.entries %}
+                {% set cycle = item.cycle %}
+                {% set instance = instance_map.get(cycle.id) if instance_map is defined else None %}
+                {% set latest_submission = latest_submission_map.get(cycle.id) if latest_submission_map is defined else None %}
+                <article class="report-mobile-card report-mobile-row" data-report-group="{{ group.name|lower }}">
+                    <div class="report-mobile-card-head">
+                        <div class="report-mobile-card-copy">
+                            <h3>{{ cycle.name }}</h3>
+                            <p>{{ group.name }} • {{ instance.status if instance else cycle.status }}</p>
+                        </div>
+                        <span class="report-mobile-badge">{{ 'Khóa' if cycle.is_locked or cycle.status == 'closed' else 'Mở' }}</span>
+                    </div>
+                    <div class="report-mobile-meta">
+                        <div>
+                            <span>Loại báo cáo</span>
+                            <strong>{{ cycle.name }}</strong>
+                        </div>
+                        <div>
+                            <span>Bản mới nhất</span>
+                            <strong>{{ latest_submission.created_at.strftime('%d/%m/%Y %H:%M') if latest_submission and latest_submission.created_at else 'Chưa có' }}</strong>
+                        </div>
+                    </div>
+                    <div class="report-mobile-actions-row">
+                        <a class="btn btn-sm btn-outline-primary rounded-pill" href="{{ url_for('reporting_bp.cycle_workspace', cycle_id=cycle.id) }}" aria-label="Nhập báo cáo" title="Nhập báo cáo"><i class="fa-solid fa-pen-to-square"></i><span class="visually-hidden">Nhập báo cáo</span></a>
+                        <a class="btn btn-sm btn-outline-secondary rounded-pill" href="{{ url_for('reporting_bp.cycle_preview', cycle_id=cycle.id) }}" aria-label="Xem báo cáo" title="Xem báo cáo"><i class="fa-solid fa-eye"></i><span class="visually-hidden">Xem báo cáo</span></a>
+                        <a class="btn btn-sm btn-outline-dark rounded-pill" href="{{ url_for('reporting_bp.cycle_history', cycle_id=cycle.id) }}" aria-label="Lịch sử báo cáo" title="Lịch sử báo cáo"><i class="fa-solid fa-clock-rotate-left"></i><span class="visually-hidden">Lịch sử báo cáo</span></a>
+                        {% if latest_submission and latest_submission.file_path %}
+                        <a class="btn btn-sm btn-outline-success rounded-pill" href="{{ url_for('reporting_bp.download_submission', submission_id=latest_submission.id) }}" aria-label="Tải file báo cáo" title="Tải file báo cáo"><i class="fa-solid fa-download"></i><span class="visually-hidden">Tải file báo cáo</span></a>
+                        {% endif %}
+                    </div>
+                </article>
+                {% endfor %}
+            {% endfor %}
+        {% endif %}
+    {% else %}
+    <div class="report-mobile-empty">
+        <i class="fa-solid fa-file-circle-xmark fs-2 mb-3"></i>
+        <div>{{ 'Chưa có biểu mẫu nào.' if is_admin else 'Hiện chưa có báo cáo nào cho đơn vị.' }}</div>
+    </div>
+    {% endif %}
+</section>
+
+{% if is_admin %}
+<div class="modal fade" id="createReportTemplateModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4">
+            <form method="POST" action="{{ url_for('reporting_bp.upload_template') }}" enctype="multipart/form-data">
+                <div class="modal-header border-0">
+                    <div>
+                        <h5 class="modal-title fw-bold mb-1">Thiết lập mẫu</h5>
+                        <p class="mb-0 text-muted small">Tạo biểu mẫu và vùng nhận dạng cơ bản ngay trên di động.</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Tên biểu mẫu</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">File Excel</label>
+                        <input type="file" name="template_file" class="form-control" accept=".xlsx" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Đội nghiệp vụ</label>
+                        {% if professional_units %}
+                        <select name="professional_unit" class="form-select">
+                            <option value="">Chọn đội nghiệp vụ</option>
+                            {% for item in professional_units %}
+                            <option value="{{ item.name }}">{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                        {% else %}
+                        <input type="text" name="professional_unit" class="form-control" placeholder="Nhập đội nghiệp vụ">
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Văn bản chỉ đạo</label>
+                        <input type="file" name="directive_file" class="form-control">
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6"><label class="form-label fw-bold small">Header từ</label><input type="number" name="header_start_row" class="form-control" value="1" min="1"></div>
+                        <div class="col-6"><label class="form-label fw-bold small">Header đến</label><input type="number" name="header_end_row" class="form-control" value="2" min="1"></div>
+                        <div class="col-6"><label class="form-label fw-bold small">Đơn vị từ</label><input type="number" name="unit_start_row" class="form-control" value="3" min="1"></div>
+                        <div class="col-6"><label class="form-label fw-bold small">Đơn vị đến</label><input type="number" name="unit_end_row" class="form-control" value="20" min="1"></div>
+                        <div class="col-6"><label class="form-label fw-bold small">Tổng từ</label><input type="number" name="total_start_row" class="form-control" value="21" min="1"></div>
+                        <div class="col-6"><label class="form-label fw-bold small">Tổng đến</label><input type="number" name="total_end_row" class="form-control" value="21" min="1"></div>
+                        <div class="col-6"><label class="form-label fw-bold small">Cột từ</label><input type="text" name="start_column" class="form-control text-uppercase" value="A"></div>
+                        <div class="col-6"><label class="form-label fw-bold small">Cột đến</label><input type="text" name="end_column" class="form-control text-uppercase" value="Z"></div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label fw-bold small">Ghi chú</label>
+                        <textarea name="description" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal" aria-label="Đóng" title="Đóng"><i class="fa-solid fa-xmark"></i><span class="visually-hidden">Đóng</span></button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4" aria-label="Tạo biểu mẫu" title="Tạo biểu mẫu"><i class="fa-solid fa-arrow-right"></i><span class="visually-hidden">Tạo biểu mẫu</span></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const reportMobileState = { group: 'ALL' };
+    function applyReportMobileFilter() {
+        document.querySelectorAll('.report-mobile-row').forEach((card) => {
+            const group = card.dataset.reportGroup || '';
+            const visible = reportMobileState.group === 'ALL' || group === reportMobileState.group;
+            card.style.display = visible ? '' : 'none';
+        });
+    }
+    document.querySelectorAll('[data-report-filter]').forEach((chip) => {
+        chip.addEventListener('click', () => {
+            reportMobileState.group = chip.dataset.reportFilter || 'ALL';
+            document.querySelectorAll('[data-report-filter]').forEach((item) => item.classList.toggle('active', item === chip));
+            applyReportMobileFilter();
+        });
+    });
+</script>
+{% endblock %}
