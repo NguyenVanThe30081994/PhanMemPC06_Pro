@@ -58,6 +58,9 @@
 
 <form id="reportForm" method="POST">
     <input type="hidden" name="payload_json" id="payloadJson">
+    {% if report_date %}
+    <input type="hidden" name="report_date" value="{{ report_date.strftime('%Y-%m-%d') }}">
+    {% endif %}
     {% if is_admin and current_unit %}
     <input type="hidden" name="unit_id" value="{{ current_unit.id }}">
     {% endif %}
@@ -96,8 +99,8 @@
 </form>
 
 <div class="report-form-mobile-toolbar">
-    <a class="btn btn-light border" href="{{ url_for('reporting_bp.cycle_history', cycle_id=cycle.id) }}" aria-label="Lịch sử" title="Lịch sử"><i class="fa-solid fa-clock-rotate-left"></i><span class="visually-hidden">Lịch sử</span></a>
-    <a class="btn btn-light border" href="{{ url_for('reporting_bp.cycle_preview', cycle_id=cycle.id) }}" aria-label="Xem báo cáo" title="Xem báo cáo"><i class="fa-solid fa-eye"></i><span class="visually-hidden">Xem báo cáo</span></a>
+    <a class="btn btn-light border" href="{{ url_for('reporting_bp.cycle_history', cycle_id=cycle.id, report_date=report_date.strftime('%Y-%m-%d')) if report_date else url_for('reporting_bp.cycle_history', cycle_id=cycle.id) }}" aria-label="Lịch sử" title="Lịch sử"><i class="fa-solid fa-clock-rotate-left"></i><span class="visually-hidden">Lịch sử</span></a>
+    <a class="btn btn-light border" href="{{ url_for('reporting_bp.cycle_preview', cycle_id=cycle.id, report_date=report_date.strftime('%Y-%m-%d')) if report_date else url_for('reporting_bp.cycle_preview', cycle_id=cycle.id) }}" aria-label="Xem báo cáo" title="Xem báo cáo"><i class="fa-solid fa-eye"></i><span class="visually-hidden">Xem báo cáo</span></a>
     <button type="button" class="btn btn-light border" {% if not editable %}disabled{% endif %} onclick="submitReport('{{ url_for('reporting_bp.save_cycle', cycle_id=cycle.id) }}')" aria-label="Lưu nháp" title="Lưu nháp"><i class="fa-solid fa-floppy-disk"></i><span class="visually-hidden">Lưu nháp</span></button>
     <button type="button" class="btn btn-primary" {% if not editable %}disabled{% endif %} onclick="submitReport('{{ url_for('reporting_bp.submit_cycle', cycle_id=cycle.id) }}')" aria-label="Gửi báo cáo" title="Gửi báo cáo"><i class="fa-solid fa-paper-plane"></i><span class="visually-hidden">Gửi báo cáo</span></button>
 </div>

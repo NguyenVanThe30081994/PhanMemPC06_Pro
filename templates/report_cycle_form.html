@@ -19,6 +19,9 @@
 
     <form id="reportForm" method="POST">
         <input type="hidden" name="payload_json" id="payloadJson">
+        {% if report_date %}
+        <input type="hidden" name="report_date" value="{{ report_date.strftime('%Y-%m-%d') }}">
+        {% endif %}
         {% if is_admin and current_unit %}
         <input type="hidden" name="unit_id" value="{{ current_unit.id }}">
         {% endif %}
@@ -27,9 +30,13 @@
         <section class="pc06-panel report-input-sheet report-sheet-panel" data-sheet="{{ sheet.sheet_name }}">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                 <h3 class="h6 fw-bold mb-0">{{ sheet.sheet_name }}</h3>
-                {% if editable %}
-                <button type="button" class="btn btn-bdhvs primary" onclick="submitReport('{{ url_for('reporting_bp.submit_cycle', cycle_id=cycle.id) }}')">GỬI BÁO CÁO</button>
-                {% endif %}
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="{{ url_for('reporting_bp.cycle_history', cycle_id=cycle.id, report_date=report_date.strftime('%Y-%m-%d')) if report_date else url_for('reporting_bp.cycle_history', cycle_id=cycle.id) }}" class="btn btn-bdhvs light">LỊCH SỬ</a>
+                    <a href="{{ url_for('reporting_bp.cycle_preview', cycle_id=cycle.id, report_date=report_date.strftime('%Y-%m-%d')) if report_date else url_for('reporting_bp.cycle_preview', cycle_id=cycle.id) }}" class="btn btn-bdhvs light">XEM BÁO CÁO</a>
+                    {% if editable %}
+                    <button type="button" class="btn btn-bdhvs primary" onclick="submitReport('{{ url_for('reporting_bp.submit_cycle', cycle_id=cycle.id) }}')">GỬI BÁO CÁO</button>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="report-input-list">
