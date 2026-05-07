@@ -671,9 +671,17 @@ def _cumulative_submission_cell_values(submissions, template_version_id):
             col_letters = "".join(ch for ch in cell_address if ch.isalpha()).upper()
             field = field_map.get((row.sheet_name, col_letters))
             sheet_values = values.setdefault(row.sheet_name, {})
-            if field and (field.data_type or "").lower() in numeric_types:
-                parsed = _parse_numeric_value(row.raw_value)
+            parsed = _parse_numeric_value(row.raw_value)
+            field_label_code = normalize_code(_field_display_name(field)) if field else ""
+            is_identity_like = any(
+                marker in field_label_code
+                for marker in {"don_vi", "ten_don_vi", "ma_don_vi", "stt", "so_thu_tu", "ma_so", "ky_hieu"}
+            )
+            is_numeric_field = bool(field and (field.data_type or "").lower() in numeric_types)
+            is_editable_numeric_input = bool(field and field.is_editable and parsed is not None and not is_identity_like)
+            if is_numeric_field or is_editable_numeric_input:
                 if parsed is None:
+                    sheet_values[cell_address] = row.raw_value or ""
                     continue
                 total = numeric_totals.get((row.sheet_name, cell_address), 0.0) + parsed
                 numeric_totals[(row.sheet_name, cell_address)] = total
