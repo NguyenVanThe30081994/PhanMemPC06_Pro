@@ -223,6 +223,63 @@
         gap: 16px;
         flex-wrap: wrap;
     }
+    .pc06-legal-source-note {
+        margin: 8px 0 0;
+        font-size: 0.82rem;
+        color: var(--text-muted, #64748b);
+    }
+    .pc06-legal-toolbar {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+    }
+    .pc06-legal-toolbar form {
+        display: flex;
+        align-items: end;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .pc06-legal-toolbar .form-label {
+        margin-bottom: 6px;
+        font-size: 0.84rem;
+        font-weight: 700;
+    }
+    .pc06-legal-card {
+        border-style: dashed;
+    }
+    .pc06-legal-card .pc06-library-download-btn {
+        min-width: 112px;
+    }
+    .pc06-bca-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .pc06-bca-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.06);
+        color: var(--text-muted, #64748b);
+        font-size: 0.76rem;
+        font-weight: 700;
+    }
+    .pc06-bca-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .pc06-bca-actions .btn {
+        min-width: 110px;
+        justify-content: center;
+    }
 
     @media (max-width: 1320px) {
         .pc06-library-grid {
@@ -275,18 +332,12 @@
                 <div class="pc06-library-field-list">
                     <button type="button" class="pc06-library-field-chip active" data-category-filter="ALL">
                         <strong>Tất cả lĩnh vực</strong>
-                        <span>{{ items|length }}</span>
+                        <span>{{ doc_cards|length }}</span>
                     </button>
-                    {% for cat in categories %}
-                    {% set counter = namespace(total=0) %}
-                    {% for item in items %}
-                    {% if (item.category or '') == cat.name %}
-                    {% set counter.total = counter.total + 1 %}
-                    {% endif %}
-                    {% endfor %}
-                    <button type="button" class="pc06-library-field-chip" data-category-filter="{{ cat.name|lower }}">
-                        <strong>{{ cat.name }}</strong>
-                        <span>{{ counter.total }}</span>
+                    {% for item in library_filters %}
+                    <button type="button" class="pc06-library-field-chip" data-category-filter="{{ item.filter_value }}">
+                        <strong>{{ item.name }}</strong>
+                        <span>{{ item.count }}</span>
                     </button>
                     {% endfor %}
                 </div>
@@ -298,25 +349,26 @@
                 <div class="pc06-library-board-head">
                     <h2 id="librarySelectedCategory">Tất cả lĩnh vực</h2>
                 </div>
-                {% if items %}
+                {% if doc_cards %}
                 <section class="pc06-library-grid" id="libraryGrid">
-                    {% for item in items %}
-                    <article class="pc06-library-card library-item" data-category="{{ (item.category or '')|lower }}" data-search="{{ (item.title ~ ' ' ~ (item.category or ''))|lower }}">
+                    {% for item in doc_cards %}
+                    {% set doc = item.record %}
+                    <article class="pc06-library-card library-item" data-category="{{ item.category_filter }}" data-search="{{ (doc.title ~ ' ' ~ item.category_display)|lower }}">
                         <div class="pc06-library-card-head">
-                            <span class="pc06-soft-tag" title="{{ item.category or 'Chưa phân lĩnh vực' }}">
+                            <span class="pc06-soft-tag" title="{{ item.category_display }}">
                                 <i class="fa-solid fa-layer-group"></i>
-                                <span>{{ item.category or 'Chưa phân lĩnh vực' }}</span>
+                                <span>{{ item.category_display }}</span>
                             </span>
-                            <span class="pc06-library-date">{{ item.uploaded_at.strftime('%d/%m/%Y') }}</span>
+                            <span class="pc06-library-date">{{ doc.uploaded_at.strftime('%d/%m/%Y') }}</span>
                         </div>
-                        <h3 class="pc06-library-title">{{ item.title }}</h3>
+                        <h3 class="pc06-library-title">{{ doc.title }}</h3>
                         <div class="pc06-library-footer">
-                            {% if item.filename %}
-                            <a href="/dl_file/{{ item.filename }}" class="pc06-library-file-link">
+                            {% if doc.filename %}
+                            <a href="/dl_file/{{ doc.filename }}" class="pc06-library-file-link">
                                 <i class="fa-solid fa-paperclip"></i>
-                                <span title="{{ item.filename }}">{{ item.filename }}</span>
+                                <span title="{{ doc.filename }}">{{ doc.filename }}</span>
                             </a>
-                            <a href="/dl_file/{{ item.filename }}" class="btn btn-bdhvs primary pc06-library-download-btn">
+                            <a href="/dl_file/{{ doc.filename }}" class="btn btn-bdhvs primary pc06-library-download-btn">
                                 <i class="fa-solid fa-download"></i>
                                 Tải về
                             </a>
@@ -347,6 +399,136 @@
                 </section>
                 {% endif %}
             </section>
+
+            <section class="pc06-panel pc06-library-board-panel">
+                <div class="pc06-library-board-head">
+                    <h2>Văn bản quy phạm pháp luật</h2>
+                    <p class="pc06-legal-source-note">Nguồn: <a href="{{ legal_source_url }}" target="_blank" rel="noopener noreferrer">vanban.chinhphu.vn</a></p>
+                </div>
+                <div class="pc06-legal-toolbar">
+                    <form method="GET">
+                        {% if selected_bca_doc_group %}<input type="hidden" name="bca_doc_group" value="{{ selected_bca_doc_group }}">{% endif %}
+                        {% if selected_bca_type_id %}<input type="hidden" name="bca_type_id" value="{{ selected_bca_type_id }}">{% endif %}
+                        {% if selected_bca_effective_id %}<input type="hidden" name="bca_effective_id" value="{{ selected_bca_effective_id }}">{% endif %}
+                        <div>
+                            <label class="form-label">Lĩnh vực nguồn</label>
+                            <select name="legal_field" class="form-select" onchange="this.form.submit()">
+                                {% for field in legal_field_options %}
+                                <option value="{{ field.id }}" {% if field.id == selected_legal_field %}selected{% endif %}>{{ field.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                {% if legal_error %}
+                <div class="alert alert-warning mb-0">{{ legal_error }}</div>
+                {% elif legal_docs %}
+                <section class="pc06-library-grid">
+                    {% for doc in legal_docs %}
+                    <article class="pc06-library-card pc06-legal-card">
+                        <div class="pc06-library-card-head">
+                            <span class="pc06-soft-tag" title="{{ selected_legal_field_name or 'Văn bản quy phạm pháp luật' }}">
+                                <i class="fa-solid fa-scale-balanced"></i>
+                                <span>{{ selected_legal_field_name or 'Văn bản quy phạm pháp luật' }}</span>
+                            </span>
+                            <span class="pc06-library-date">{{ doc.issued_at }}</span>
+                        </div>
+                        <h3 class="pc06-library-title">{{ doc.title }}</h3>
+                        <div class="pc06-library-footer">
+                            <span class="pc06-library-empty-file">{{ doc.code }}</span>
+                            <a href="{{ doc.url }}" class="btn btn-bdhvs primary pc06-library-download-btn" target="_blank" rel="noopener noreferrer">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                Mở nguồn
+                            </a>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </section>
+                {% else %}
+                <div class="pc06-empty-state py-4">
+                    <div class="pc06-empty-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+                    <h3>Chưa tải được văn bản</h3>
+                </div>
+                {% endif %}
+            </section>
+
+            <section class="pc06-panel pc06-library-board-panel">
+                <div class="pc06-library-board-head">
+                    <h2>Hệ thống văn bản Bộ Công an</h2>
+                    <p class="pc06-legal-source-note">Nguồn: <a href="{{ bca_source_url }}" target="_blank" rel="noopener noreferrer">vanban.bocongan.gov.vn</a></p>
+                </div>
+                <div class="pc06-legal-toolbar">
+                    <form method="GET">
+                        {% if selected_legal_field %}<input type="hidden" name="legal_field" value="{{ selected_legal_field }}">{% endif %}
+                        <div>
+                            <label class="form-label">Nhóm văn bản</label>
+                            <select name="bca_doc_group" class="form-select" onchange="this.form.submit()">
+                                {% for item in bca_doc_groups %}
+                                <option value="{{ item.id }}" {% if item.id == selected_bca_doc_group %}selected{% endif %}>{{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Loại văn bản</label>
+                            <select name="bca_type_id" class="form-select" onchange="this.form.submit()">
+                                <option value="">Tất cả loại văn bản</option>
+                                {% for item in bca_document_types %}
+                                <option value="{{ item.id }}" {% if item.id|string == selected_bca_type_id|string %}selected{% endif %}>{{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Hiệu lực</label>
+                            <select name="bca_effective_id" class="form-select" onchange="this.form.submit()">
+                                <option value="">Tất cả trạng thái</option>
+                                {% for item in bca_effective_statuses %}
+                                <option value="{{ item.id }}" {% if item.id|string == selected_bca_effective_id|string %}selected{% endif %}>{{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                {% if bca_error %}
+                <div class="alert alert-warning mb-0">{{ bca_error }}</div>
+                {% elif bca_docs %}
+                <section class="pc06-library-grid">
+                    {% for doc in bca_docs %}
+                    <article class="pc06-library-card pc06-legal-card">
+                        <div class="pc06-library-card-head">
+                            <span class="pc06-soft-tag" title="{{ selected_bca_doc_group_name or 'Hệ thống văn bản Bộ Công an' }}">
+                                <i class="fa-solid fa-building-shield"></i>
+                                <span>{{ selected_bca_doc_group_name or 'Hệ thống văn bản Bộ Công an' }}</span>
+                            </span>
+                            <span class="pc06-library-date">{{ doc.issued_at or doc.effective_at }}</span>
+                        </div>
+                        <h3 class="pc06-library-title">{{ doc.title }}</h3>
+                        <div class="pc06-bca-meta">
+                            {% if doc.code %}<span><i class="fa-solid fa-hashtag"></i>{{ doc.code }}</span>{% endif %}
+                            {% if doc.document_type %}<span><i class="fa-solid fa-file-lines"></i>{{ doc.document_type }}</span>{% endif %}
+                            {% if doc.issuing_agency %}<span><i class="fa-solid fa-landmark"></i>{{ doc.issuing_agency }}</span>{% endif %}
+                        </div>
+                        <div class="pc06-bca-actions">
+                            {% if doc.file_url %}
+                            <a href="{{ doc.file_url }}" class="btn btn-bdhvs primary" target="_blank" rel="noopener noreferrer">
+                                <i class="fa-solid fa-download"></i>
+                                Tải file
+                            </a>
+                            {% endif %}
+                            <a href="{{ doc.source_url }}" class="btn btn-bdhvs light" target="_blank" rel="noopener noreferrer">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                Mở nguồn
+                            </a>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </section>
+                {% else %}
+                <div class="pc06-empty-state py-4">
+                    <div class="pc06-empty-icon"><i class="fa-solid fa-building-shield"></i></div>
+                    <h3>Chưa tải được văn bản Bộ Công an</h3>
+                </div>
+                {% endif %}
+            </section>
         </div>
     </div>
 </div>
@@ -372,7 +554,7 @@
                         <div data-category-picker data-module="library" data-field="category" data-placeholder="Chọn lĩnh vực" data-storage-key="modal.library.category">
                             <select name="category" class="form-select" required data-category-target>
                                 <option value="" disabled selected>Chọn lĩnh vực</option>
-                                {% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
+                                {% for c in category_options %}<option value="{{ c.value }}">{{ c.name }}</option>{% endfor %}
                             </select>
                         </div>
                     </div>

@@ -1,4 +1,20 @@
 {% extends "base.html" %}
+{% macro render_cycle_copy(title, report_type_label, status_info, progress_info=None) -%}
+<div class="report-template-copy">
+    <h3>{{ title }}</h3>
+    <div class="report-template-meta">
+        {% if report_type_label %}
+        <span class="pc06-soft-tag neutral">{{ report_type_label }}</span>
+        {% endif %}
+        {% if status_info %}
+        <span class="pc06-soft-tag {{ 'done' if status_info.done else 'neutral' }}">{{ status_info.label }}</span>
+        {% endif %}
+        {% if progress_info and progress_info.total %}
+        <span class="pc06-soft-tag neutral">Tiến độ {{ progress_info.reported }}/{{ progress_info.total }} đơn vị</span>
+        {% endif %}
+    </div>
+</div>
+{%- endmacro %}
 
 {% block content %}
 {% set report_groups = template_groups if is_admin else cycle_groups %}
@@ -95,20 +111,15 @@
                                     {% set template = item.template %}
                                     {% set current_version = item.current_version %}
                                     {% set current_cycle = item.current_cycle %}
+                                    {% set cycle_status = cycle_status_map.get(current_cycle.id) if current_cycle and cycle_status_map is defined else {'label': 'Chưa mở báo cáo', 'done': false} %}
+                                    {% set cycle_progress = cycle_progress_map.get(current_cycle.id) if current_cycle and cycle_progress_map is defined else none %}
                                     <article class="report-template-row">
-                                        <div class="report-template-copy">
-                                            <h3>{{ template.name }}</h3>
-                                            <p>
-                                                {% if current_version %}
-                                                Bản {{ current_version.version_no }}
-                                                {% else %}
-                                                Chưa có file
-                                                {% endif %}
-                                                {% if template.directive_filename %}
-                                                • {{ template.directive_filename }}
-                                                {% endif %}
-                                            </p>
-                                        </div>
+                                        {{ render_cycle_copy(
+                                            template.name,
+                                            item.report_type.name if item.report_type else '',
+                                            cycle_status,
+                                            cycle_progress if can_view_cycle_progress else none
+                                        ) }}
                                         <div class="report-template-actions">
                                             {% if current_cycle %}
                                             <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.admin_cycle_detail', cycle_id=current_cycle.id) }}" title="Lịch sử toàn bộ đơn vị">
@@ -141,13 +152,18 @@
                                 {% for group in report_groups %}
                                     {% for item in group.entries %}
                                     {% set cycle = item.cycle %}
+                                    {% set template = item.template %}
                                     {% set instance = instance_map.get(cycle.id) if instance_map is defined else None %}
                                     {% set latest_submission = latest_submission_map.get(cycle.id) if latest_submission_map is defined else None %}
+                                    {% set cycle_status = cycle_status_map.get(cycle.id) if cycle_status_map is defined else none %}
+                                    {% set cycle_progress = cycle_progress_map.get(cycle.id) if cycle_progress_map is defined else none %}
                                     <article class="report-template-row">
-                                        <div class="report-template-copy">
-                                            <h3>{{ cycle.name }}</h3>
-                                            <p>{% if instance %}{{ instance.status }}{% else %}{{ cycle.status }}{% endif %}</p>
-                                        </div>
+                                        {{ render_cycle_copy(
+                                            template.name if template else cycle.name,
+                                            item.report_type.name if item.report_type else '',
+                                            cycle_status,
+                                            cycle_progress if can_view_cycle_progress else none
+                                        ) }}
                                         <div class="report-template-actions">
                                             <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.cycle_workspace', cycle_id=cycle.id) }}" title="Nhập">
                                                 <i class="fa-solid fa-pen-to-square"></i>
@@ -179,20 +195,15 @@
                                 {% set template = item.template %}
                                 {% set current_version = item.current_version %}
                                 {% set current_cycle = item.current_cycle %}
+                                {% set cycle_status = cycle_status_map.get(current_cycle.id) if current_cycle and cycle_status_map is defined else {'label': 'Chưa mở báo cáo', 'done': false} %}
+                                {% set cycle_progress = cycle_progress_map.get(current_cycle.id) if current_cycle and cycle_progress_map is defined else none %}
                                 <article class="report-template-row">
-                                    <div class="report-template-copy">
-                                        <h3>{{ template.name }}</h3>
-                                        <p>
-                                            {% if current_version %}
-                                            Bản {{ current_version.version_no }}
-                                            {% else %}
-                                            Chưa có file
-                                            {% endif %}
-                                            {% if template.directive_filename %}
-                                            • {{ template.directive_filename }}
-                                            {% endif %}
-                                        </p>
-                                    </div>
+                                    {{ render_cycle_copy(
+                                        template.name,
+                                        item.report_type.name if item.report_type else '',
+                                        cycle_status,
+                                        cycle_progress if can_view_cycle_progress else none
+                                    ) }}
                                     <div class="report-template-actions">
                                         {% if current_cycle %}
                                         <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.admin_cycle_detail', cycle_id=current_cycle.id) }}" title="Lịch sử toàn bộ đơn vị">
@@ -223,13 +234,18 @@
                             {% else %}
                                 {% for item in group.entries %}
                                 {% set cycle = item.cycle %}
+                                {% set template = item.template %}
                                 {% set instance = instance_map.get(cycle.id) if instance_map is defined else None %}
                                 {% set latest_submission = latest_submission_map.get(cycle.id) if latest_submission_map is defined else None %}
+                                {% set cycle_status = cycle_status_map.get(cycle.id) if cycle_status_map is defined else none %}
+                                {% set cycle_progress = cycle_progress_map.get(cycle.id) if cycle_progress_map is defined else none %}
                                 <article class="report-template-row">
-                                    <div class="report-template-copy">
-                                        <h3>{{ cycle.name }}</h3>
-                                        <p>{% if instance %}{{ instance.status }}{% else %}{{ cycle.status }}{% endif %}</p>
-                                    </div>
+                                    {{ render_cycle_copy(
+                                        template.name if template else cycle.name,
+                                        item.report_type.name if item.report_type else '',
+                                        cycle_status,
+                                        cycle_progress if can_view_cycle_progress else none
+                                    ) }}
                                     <div class="report-template-actions">
                                         <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.cycle_workspace', cycle_id=cycle.id) }}" title="Nhập">
                                             <i class="fa-solid fa-pen-to-square"></i>
@@ -481,11 +497,11 @@
         font-weight: 800;
         color: var(--text-main);
     }
-    .report-template-copy p {
-        margin: 0;
-        color: var(--text-muted);
-        font-size: 0.88rem;
-        line-height: 1.6;
+    .report-template-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
     }
     .report-template-actions {
         display: flex;

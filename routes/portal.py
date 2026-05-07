@@ -2,10 +2,12 @@
 from flask import Blueprint, request, session, redirect, url_for, flash, current_app
 import os, pandas as pd, io, json, re, unicodedata
 from werkzeug.utils import secure_filename
-from datetime import datetime
+from datetime import datetime, timedelta
+from html import unescape
 from models import db, NewsDoc, DocumentLib, Contact, CategoryItem, AppRole
 from category_helpers import get_category_items, get_module_field_items, get_bound_group, get_category_group, slugify_code
 from utils import log_action, push_global_notif, render_auto_template as render_template
+import requests
 try:
     from security_utils.file_validator import validate_file_upload
 except ImportError:
@@ -13,6 +15,25 @@ except ImportError:
         return True, "OK", f.filename
 
 portal_bp = Blueprint('portal_bp', __name__)
+
+LEGAL_DOCS_SOURCE_URL = 'https://vanban.chinhphu.vn/he-thong-van-ban?classid=1&mode=1'
+LEGAL_DOCS_DEFAULT_FIELD_ID = '2'
+LEGAL_DOCS_CACHE_TTL = timedelta(minutes=30)
+_LEGAL_DOCS_CACHE = {
+    'fields': {'expires_at': None, 'items': []},
+    'docs': {},
+}
+
+BCA_DOCS_SOURCE_URL = 'https://vanban.bocongan.gov.vn/'
+BCA_DOCS_API_BASE = 'https://api-portal.bocongan.gov.vn/backend-portal'
+BCA_DOCS_DEFAULT_GROUP = 'LAW'
+BCA_DOCS_DEFAULT_ORG_ID = '11'
+_BCA_DOCS_CACHE = {
+    'doc_groups': {'expires_at': None, 'items': []},
+    'document_types': {'expires_at': None, 'items': []},
+    'effective_status': {'expires_at': None, 'items': []},
+    'documents': {},
+}
 
 CONTACT_IMPORT_HEADER_ALIASES = {
     'name': {'ho ten', 'ten', 'ten lien he', 'ho va ten'},
@@ -63,6 +84,325 @@ def _find_import_column(columns, field_name):
 
 def _get_current_user_unit():
     return session.get('unit_area') or session.get('unit') or 'N/A'
+
+
+def _module_category_options(module_code, field_code, *fallback_names):
+    items = get_module_field_items(module_code, field_code)
+    if not items:
+        items = get_category_items(*fallback_names)
+    results = []
+    for item in items:
+        value = (item.code or slugify_code(item.name) or item.name or '').strip()
+        if not value:
+            continue
+        results.append({
+            'value': value,
+            'name': (item.name or '').strip() or value,
+            'slug': slugify_code(item.name or value),
+        })
+    return results
+
+
+def _category_resolver(category_options):
+    mapping = {}
+    for item in category_options:
+        keys = {
+            (item.get('value') or '').strip().lower(),
+            (item.get('name') or '').strip().lower(),
+            slugify_code(item.get('value') or ''),
+            slugify_code(item.get('name') or ''),
+        }
+        for key in keys:
+            if key:
+                mapping[key] = item
+    return mapping
+
+
+def _resolve_category_display(value, category_options, fallback_label='Chưa phân lĩnh vực'):
+    raw_value = (value or '').strip()
+    if not raw_value:
+        return {
+            'raw_value': '',
+            'display_name': fallback_label,
+            'filter_value': '__uncategorized__',
+            'option': None,
+        }
+    resolver = _category_resolver(category_options)
+    item = resolver.get(raw_value.lower()) or resolver.get(slugify_code(raw_value))
+    if item:
+        return {
+            'raw_value': raw_value,
+            'display_name': item['name'],
+            'filter_value': item['slug'] or slugify_code(item['name']) or '__uncategorized__',
+            'option': item,
+        }
+    return {
+        'raw_value': raw_value,
+        'display_name': raw_value,
+        'filter_value': slugify_code(raw_value) or '__uncategorized__',
+        'option': None,
+    }
+
+
+def _decorate_records_with_category(records, category_options, fallback_label='Chưa phân lĩnh vực'):
+    decorated = []
+    for record in records:
+        category_info = _resolve_category_display(getattr(record, 'category', ''), category_options, fallback_label=fallback_label)
+        decorated.append({
+            'record': record,
+            'category_display': category_info['display_name'],
+            'category_filter': category_info['filter_value'],
+            'category_raw': category_info['raw_value'],
+            'category_option': category_info['option'],
+        })
+    return decorated
+
+
+def _category_filter_counts(items, category_options):
+    counts = {item['slug']: 0 for item in category_options if item.get('slug')}
+    uncategorized_total = 0
+    for item in items:
+        filter_value = item.get('category_filter') or '__uncategorized__'
+        if filter_value in counts:
+            counts[filter_value] += 1
+        else:
+            uncategorized_total += 1
+    filters = []
+    for option in category_options:
+        filters.append({
+            'name': option['name'],
+            'filter_value': option['slug'] or '__uncategorized__',
+            'count': counts.get(option['slug'], 0),
+        })
+    if uncategorized_total:
+        filters.append({
+            'name': 'Chưa phân lĩnh vực',
+            'filter_value': '__uncategorized__',
+            'count': uncategorized_total,
+        })
+    return filters
+
+
+def _parse_iso_datetime(value):
+    raw_value = (value or '').strip()
+    if not raw_value:
+        return None
+    try:
+        return datetime.fromisoformat(raw_value.replace('Z', '+00:00'))
+    except ValueError:
+        return None
+
+
+def _format_display_date(value):
+    parsed = _parse_iso_datetime(value)
+    return parsed.strftime('%d/%m/%Y') if parsed else ''
+
+
+def _extract_legal_hidden_inputs(html):
+    return dict(re.findall(r'<input[^>]+type="hidden"[^>]+name="([^"]+)"[^>]+value="([^"]*)"', html, re.I))
+
+
+def _parse_legal_field_options(html):
+    match = re.search(
+        r'<select name="ctrl_191017_163\$drdDocCategory"[^>]*>(.*?)</select>',
+        html,
+        re.S | re.I,
+    )
+    if not match:
+        return []
+    options = []
+    for value, label in re.findall(r'<option[^>]+value="([^"]*)"[^>]*>(.*?)</option>', match.group(1), re.S | re.I):
+        clean_label = re.sub(r'\s+', ' ', unescape(label or '')).strip()
+        clean_value = (value or '').strip()
+        if not clean_value or clean_value == '0' or not clean_label:
+            continue
+        options.append({
+            'id': clean_value,
+            'name': clean_label,
+            'slug': slugify_code(clean_label),
+        })
+    return options
+
+
+def _parse_legal_documents(html):
+    match = re.search(
+        r'<table[^>]+id="ctrl_191017_163_grvDocument"[^>]*>(.*?)</table>',
+        html,
+        re.S | re.I,
+    )
+    if not match:
+        return []
+    rows = re.findall(r'<tr>(.*?)</tr>', match.group(1), re.S | re.I)
+    documents = []
+    for row_html in rows[1:]:
+        code_match = re.search(r'<span class="code">(.*?)</span>', row_html, re.S | re.I)
+        date_match = re.search(r'<span class="issued-date">(.*?)</span>', row_html, re.S | re.I)
+        title_match = re.search(r'<span class="substract">(.*?)</span>', row_html, re.S | re.I)
+        link_match = re.search(r"<a href='([^']*docid[^']*)'>", row_html, re.S | re.I)
+        if not (code_match and title_match and link_match):
+            continue
+        href = link_match.group(1).strip()
+        documents.append({
+            'code': re.sub(r'\s+', ' ', unescape(code_match.group(1))).strip(),
+            'issued_at': re.sub(r'\s+', ' ', unescape(date_match.group(1) if date_match else '')).strip(),
+            'title': re.sub(r'\s+', ' ', unescape(title_match.group(1))).strip(),
+            'url': requests.compat.urljoin('https://vanban.chinhphu.vn/', href),
+        })
+    return documents
+
+
+def _legal_field_options(force_refresh=False):
+    now = datetime.now()
+    cache_entry = _LEGAL_DOCS_CACHE['fields']
+    if not force_refresh and cache_entry['expires_at'] and cache_entry['expires_at'] > now and cache_entry['items']:
+        return cache_entry['items']
+    response = requests.get(LEGAL_DOCS_SOURCE_URL, timeout=20)
+    response.raise_for_status()
+    items = _parse_legal_field_options(response.text)
+    _LEGAL_DOCS_CACHE['fields'] = {
+        'expires_at': now + LEGAL_DOCS_CACHE_TTL,
+        'items': items,
+    }
+    return items
+
+
+def _legal_documents_by_field(field_id, limit=6, force_refresh=False):
+    field_key = str(field_id or '').strip() or LEGAL_DOCS_DEFAULT_FIELD_ID
+    now = datetime.now()
+    cache_entry = _LEGAL_DOCS_CACHE['docs'].get(field_key)
+    if not force_refresh and cache_entry and cache_entry['expires_at'] > now:
+        return cache_entry['items'][:limit]
+
+    session_client = requests.Session()
+    initial = session_client.get(LEGAL_DOCS_SOURCE_URL, timeout=20)
+    initial.raise_for_status()
+    hidden_inputs = _extract_legal_hidden_inputs(initial.text)
+    payload = {key: value for key, value in hidden_inputs.items() if key.startswith('__')}
+    payload.update({
+        'ctrl_191017_163$drdDocCategory': field_key,
+        'ctrl_191017_163$drdDocOrg': '0',
+        'ctrl_191017_163$txtSearchKeyword': '',
+        'ctrl_191017_163$btnSearch': 'Tìm kiếm',
+    })
+    response = session_client.post(LEGAL_DOCS_SOURCE_URL, data=payload, timeout=20)
+    response.raise_for_status()
+    items = _parse_legal_documents(response.text)
+    _LEGAL_DOCS_CACHE['docs'][field_key] = {
+        'expires_at': now + LEGAL_DOCS_CACHE_TTL,
+        'items': items,
+    }
+    return items[:limit]
+
+
+def _bca_api_get(path, params=None):
+    response = requests.get(
+        f"{BCA_DOCS_API_BASE}{path}",
+        params=params or {},
+        timeout=20,
+    )
+    response.raise_for_status()
+    payload = response.json() or {}
+    return payload.get('data')
+
+
+def _bca_cached_options(cache_key, path, params=None, force_refresh=False):
+    now = datetime.now()
+    cache_entry = _BCA_DOCS_CACHE[cache_key]
+    if not force_refresh and cache_entry['expires_at'] and cache_entry['expires_at'] > now and cache_entry['items']:
+        return cache_entry['items']
+    items = _bca_api_get(path, params=params) or []
+    _BCA_DOCS_CACHE[cache_key] = {
+        'expires_at': now + LEGAL_DOCS_CACHE_TTL,
+        'items': items,
+    }
+    return items
+
+
+def _bca_document_groups(force_refresh=False):
+    return _bca_cached_options('doc_groups', '/document/doc-group', force_refresh=force_refresh)
+
+
+def _bca_document_types(force_refresh=False):
+    return _bca_cached_options('document_types', '/document-type', force_refresh=force_refresh)
+
+
+def _bca_effective_statuses(force_refresh=False):
+    return _bca_cached_options('effective_status', '/effective-status', force_refresh=force_refresh)
+
+
+def _bca_document_source_url(slug, doc_group):
+    if not slug:
+        return BCA_DOCS_SOURCE_URL
+    path = 'van-ban-chi-dao-dieu-hanh' if doc_group == 'DIRECTIVE' else 'co-so-du-lieu-van-ban'
+    return f"{BCA_DOCS_SOURCE_URL.rstrip('/')}/{path}/{slug}?tab=attributes"
+
+
+def _bca_documents(doc_group='LAW', org_id=BCA_DOCS_DEFAULT_ORG_ID, type_id='', effective_id='', limit=6, force_refresh=False):
+    group_value = (doc_group or BCA_DOCS_DEFAULT_GROUP).strip().upper() or BCA_DOCS_DEFAULT_GROUP
+    org_value = (org_id or BCA_DOCS_DEFAULT_ORG_ID).strip() or BCA_DOCS_DEFAULT_ORG_ID
+    type_value = (type_id or '').strip()
+    effective_value = (effective_id or '').strip()
+    cache_key = '|'.join([group_value, org_value, type_value, effective_value, str(limit)])
+    now = datetime.now()
+    cache_entry = _BCA_DOCS_CACHE['documents'].get(cache_key)
+    if not force_refresh and cache_entry and cache_entry['expires_at'] > now:
+        return cache_entry['items'][:limit]
+
+    params = {
+        'page': 0,
+        'size': max(limit, 6),
+        'docGroup': group_value,
+        'orgId': org_value,
+    }
+    if type_value:
+        params['typeId'] = type_value
+    if effective_value:
+        params['effectiveId'] = effective_value
+
+    data = _bca_api_get('/document', params=params) or {}
+    documents = []
+    for item in data.get('content') or []:
+        attached_files = item.get('attachedFiles') or []
+        primary_attachment = attached_files[0] if attached_files else {}
+        documents.append({
+            'id': item.get('id'),
+            'code': (item.get('documentCode') or '').strip(),
+            'title': re.sub(r'\s+', ' ', item.get('title') or '').strip(),
+            'issued_at': _format_display_date(item.get('issueDate')),
+            'effective_at': _format_display_date(item.get('effectiveDate')),
+            'document_type': (item.get('documentType') or '').strip(),
+            'issuing_agency': (item.get('issuingAgency') or '').strip(),
+            'doc_group': group_value,
+            'file_url': primary_attachment.get('url') or '',
+            'file_name': (primary_attachment.get('filename') or '').strip(),
+            'source_url': _bca_document_source_url(item.get('slug'), group_value),
+        })
+
+    _BCA_DOCS_CACHE['documents'][cache_key] = {
+        'expires_at': now + LEGAL_DOCS_CACHE_TTL,
+        'items': documents,
+    }
+    return documents[:limit]
+
+
+def _resolve_selected_option(options, selected_id, fallback_id='', allow_empty=False):
+    normalized_selected = str(selected_id or '').strip()
+    normalized_fallback = str(fallback_id or '').strip()
+    available_ids = {str(item.get('id') or '').strip() for item in options}
+    if allow_empty and not normalized_selected:
+        chosen_id = ''
+    elif normalized_selected and normalized_selected in available_ids:
+        chosen_id = normalized_selected
+    elif normalized_fallback and normalized_fallback in available_ids:
+        chosen_id = normalized_fallback
+    else:
+        chosen_id = '' if allow_empty else (str(options[0].get('id') or '').strip() if options else '')
+    chosen_label = ''
+    for item in options:
+        if str(item.get('id') or '').strip() == chosen_id:
+            chosen_label = (item.get('name') or '').strip()
+            break
+    return chosen_id, chosen_label
 
 
 def _load_contacts_from_excel(file_storage, has_header=True):
@@ -154,15 +494,20 @@ def news():
         return redirect(url_for('portal_bp.news'))
     now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
 
-    news_category_items = get_module_field_items('news', 'category')
+    news_category_items = _module_category_options('news', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
     if not news_category_items:
-        news_category_items = get_category_items('Lĩnh vực', 'Đội nghiệp vụ')
-    pro_units = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
+        news_category_items = _module_category_options('tasks', 'domain', 'Đội nghiệp vụ')
+    news_records = NewsDoc.query.order_by(NewsDoc.uploaded_at.desc()).all()
+    decorated_news = _decorate_records_with_category(news_records, news_category_items)
+    news_filters = _category_filter_counts(decorated_news, news_category_items)
 
     return render_template('news.html',
-                          news_list=NewsDoc.query.order_by(NewsDoc.uploaded_at.desc()).all(),
+                          news_list=news_records,
+                          news_cards=decorated_news,
+                          category_filters=news_filters,
+                          category_options=news_category_items,
                           cats=news_category_items,
-                          pro_units=news_category_items or pro_units,
+                          pro_units=news_category_items,
                           now_str=now_str)
 
 @portal_bp.route('/notifications')
@@ -200,11 +545,100 @@ def library():
             flash('Đã tải lên tài liệu!', 'success')
         return redirect(url_for('portal_bp.library'))
     
-    library_category_items = get_module_field_items('library', 'category')
-    if not library_category_items:
-        library_category_items = get_category_items('Lĩnh vực', 'Loại tài liệu')
+    library_category_items = _module_category_options('library', 'category', 'Lĩnh vực', 'Loại tài liệu')
+    docs = DocumentLib.query.order_by(DocumentLib.uploaded_at.desc()).all()
+    decorated_docs = _decorate_records_with_category(docs, library_category_items)
+    library_filters = _category_filter_counts(decorated_docs, library_category_items)
 
-    return render_template('library.html', docs=DocumentLib.query.all(), cats=library_category_items, categories=library_category_items, items=DocumentLib.query.all())
+    legal_field_options = []
+    legal_docs = []
+    legal_error = ''
+    selected_legal_field = (request.args.get('legal_field') or '').strip()
+    try:
+        legal_field_options = _legal_field_options()
+        available_ids = {item['id'] for item in legal_field_options}
+        if not selected_legal_field or selected_legal_field not in available_ids:
+            selected_legal_field = LEGAL_DOCS_DEFAULT_FIELD_ID if LEGAL_DOCS_DEFAULT_FIELD_ID in available_ids else (legal_field_options[0]['id'] if legal_field_options else '')
+        if selected_legal_field:
+            legal_docs = _legal_documents_by_field(selected_legal_field, limit=6)
+    except Exception:
+        legal_error = 'Không thể tải dữ liệu văn bản quy phạm pháp luật từ nguồn ngoài ở thời điểm này.'
+
+    selected_legal_field_name = ''
+    for item in legal_field_options:
+        if item['id'] == selected_legal_field:
+            selected_legal_field_name = item['name']
+            break
+
+    bca_doc_groups = []
+    bca_document_types = []
+    bca_effective_statuses = []
+    bca_docs = []
+    bca_error = ''
+    selected_bca_doc_group = (request.args.get('bca_doc_group') or '').strip().upper()
+    selected_bca_type_id = (request.args.get('bca_type_id') or '').strip()
+    selected_bca_effective_id = (request.args.get('bca_effective_id') or '').strip()
+    selected_bca_doc_group_name = ''
+    selected_bca_type_name = ''
+    selected_bca_effective_name = ''
+    try:
+        bca_doc_groups = _bca_document_groups()
+        bca_document_types = _bca_document_types()
+        bca_effective_statuses = _bca_effective_statuses()
+        selected_bca_doc_group, selected_bca_doc_group_name = _resolve_selected_option(
+            bca_doc_groups,
+            selected_bca_doc_group,
+            fallback_id=BCA_DOCS_DEFAULT_GROUP,
+        )
+        selected_bca_type_id, selected_bca_type_name = _resolve_selected_option(
+            bca_document_types,
+            selected_bca_type_id,
+            fallback_id='',
+            allow_empty=True,
+        )
+        selected_bca_effective_id, selected_bca_effective_name = _resolve_selected_option(
+            bca_effective_statuses,
+            selected_bca_effective_id,
+            fallback_id='',
+            allow_empty=True,
+        )
+        bca_docs = _bca_documents(
+            doc_group=selected_bca_doc_group,
+            type_id=selected_bca_type_id,
+            effective_id=selected_bca_effective_id,
+            limit=6,
+        )
+    except Exception:
+        bca_error = 'Không thể tải hệ thống văn bản Bộ Công an ở thời điểm này.'
+
+    return render_template(
+        'library.html',
+        docs=docs,
+        doc_cards=decorated_docs,
+        library_filters=library_filters,
+        category_options=library_category_items,
+        cats=library_category_items,
+        categories=library_category_items,
+        items=docs,
+        legal_field_options=legal_field_options,
+        selected_legal_field=selected_legal_field,
+        selected_legal_field_name=selected_legal_field_name,
+        legal_docs=legal_docs,
+        legal_error=legal_error,
+        legal_source_url=LEGAL_DOCS_SOURCE_URL,
+        bca_doc_groups=bca_doc_groups,
+        bca_document_types=bca_document_types,
+        bca_effective_statuses=bca_effective_statuses,
+        bca_docs=bca_docs,
+        bca_error=bca_error,
+        bca_source_url=BCA_DOCS_SOURCE_URL,
+        selected_bca_doc_group=selected_bca_doc_group,
+        selected_bca_doc_group_name=selected_bca_doc_group_name,
+        selected_bca_type_id=selected_bca_type_id,
+        selected_bca_type_name=selected_bca_type_name,
+        selected_bca_effective_id=selected_bca_effective_id,
+        selected_bca_effective_name=selected_bca_effective_name,
+    )
 
 @portal_bp.route('/contacts')
 def contacts():

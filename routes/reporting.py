@@ -44,6 +44,14 @@ def _is_admin():
     return bool(session.get("is_admin"))
 
 
+def _is_pc06_role(user):
+    if not user or not getattr(user, "role_id", None):
+        return False
+    role = getattr(user, "role", None) or db.session.get(AppRole, user.role_id)
+    role_name = normalize_code(getattr(role, "name", ""))
+    return "pc06" in role_name
+
+
 def _require_login():
     return bool(session.get("uid"))
 
@@ -1341,6 +1349,41 @@ def _submission_status_label(submission):
     return submission.status or ""
 
 
+def _dashboard_cycle_progress(cycle, report_type=None, report_date=None):
+    if not cycle:
+        return {"reported": 0, "total": 0}
+    report_type = report_type or _report_type(cycle)
+    report_date = report_date or date.today()
+    instances = ReportInstance.query.filter_by(cycle_id=cycle.id).order_by(ReportInstance.id.asc()).all()
+    total_units = len(instances) or len(_cycle_units(cycle))
+    reported = 0
+    for instance in instances:
+        if report_type and report_type.code == "daily":
+            if _latest_submission_for_date(instance.id, report_date):
+                reported += 1
+        else:
+            if _latest_submission(instance.id):
+                reported += 1
+    return {"reported": reported, "total": total_units}
+
+
+def _dashboard_cycle_status(cycle, instance=None, report_type=None, report_date=None, progress=None):
+    report_type = report_type or _report_type(cycle)
+    report_date = report_date or date.today()
+    is_daily = bool(report_type and report_type.code == "daily")
+    if instance:
+        submission = _latest_submission_for_date(instance.id, report_date) if is_daily else _latest_submission(instance.id)
+        if is_daily:
+            return {"label": "Hôm nay đã báo cáo" if submission else "Hôm nay chưa báo cáo", "done": bool(submission)}
+        return {"label": "Đã báo cáo" if submission else "Chưa báo cáo", "done": bool(submission)}
+
+    progress = progress or _dashboard_cycle_progress(cycle, report_type=report_type, report_date=report_date)
+    has_any_report = bool(progress["reported"])
+    if is_daily:
+        return {"label": "Hôm nay đã có báo cáo" if has_any_report else "Hôm nay chưa báo cáo", "done": has_any_report}
+    return {"label": "Đã có báo cáo" if has_any_report else "Chưa báo cáo", "done": has_any_report}
+
+
 def _build_submission_summary(submission, template_version, workbook=None, field_lookup=None, sheet_fields=None, limit=8):
     if not submission or not template_version:
         return {"text": "", "count": 0}
@@ -1733,6 +1776,19 @@ def admin_dashboard():
         template.id: (db.session.get(ReportType, template.report_type_id) if template.report_type_id else None)
         for template in templates
     }
+    cycle_status_map = {}
+    cycle_progress_map = {}
+    for cycle in cycles:
+        report_type = _report_type(cycle)
+        progress = _dashboard_cycle_progress(cycle, report_type=report_type, report_date=date.today())
+        cycle_progress_map[cycle.id] = progress
+        cycle_status_map[cycle.id] = _dashboard_cycle_status(
+            cycle,
+            instance=None,
+            report_type=report_type,
+            report_date=date.today(),
+            progress=progress,
+        )
 
     return render_template(
         "reporting_dashboard.html",
@@ -1746,6 +1802,9 @@ def admin_dashboard():
         recent_submissions=recent_submissions,
         current_versions=current_versions,
         template_report_types=template_report_types,
+        cycle_status_map=cycle_status_map,
+        cycle_progress_map=cycle_progress_map,
+        can_view_cycle_progress=True,
         is_admin=True,
     )
 
@@ -2568,6 +2627,8 @@ def user_dashboard():
     user = db.session.get(User, session.get("uid"))
     unit = _current_user_report_unit()
     is_admin = _is_admin()
+    can_view_cycle_progress = is_admin or _is_pc06_role(user)
+    dashboard_report_date = date.today()
     cycles = ReportCycle.query.order_by(ReportCycle.created_at.desc()).all()
     accessible_cycles = [cycle for cycle in cycles if _cycle_accessible(cycle, unit.id if unit else None, is_admin)]
     instances = []
@@ -2583,6 +2644,19 @@ def user_dashboard():
         cycle.id: _report_type(cycle)
         for cycle in accessible_cycles
     }
+    cycle_progress_map = {}
+    cycle_status_map = {}
+    for cycle in accessible_cycles:
+        report_type = cycle_report_types.get(cycle.id)
+        progress = _dashboard_cycle_progress(cycle, report_type=report_type, report_date=dashboard_report_date)
+        cycle_progress_map[cycle.id] = progress
+        cycle_status_map[cycle.id] = _dashboard_cycle_status(
+            cycle,
+            instance=instance_map.get(cycle.id),
+            report_type=report_type,
+            report_date=dashboard_report_date,
+            progress=progress,
+        )
 
     return render_template(
         "reporting_dashboard.html",
@@ -2601,6 +2675,9 @@ def user_dashboard():
         instance_map=instance_map,
         latest_submission_map=latest_submission_map,
         cycle_report_types=cycle_report_types,
+        cycle_progress_map=cycle_progress_map,
+        cycle_status_map=cycle_status_map,
+        can_view_cycle_progress=can_view_cycle_progress,
     )
 
 

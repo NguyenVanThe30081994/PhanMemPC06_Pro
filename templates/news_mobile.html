@@ -40,17 +40,18 @@
     </label>
     <div class="mobile-chip-row">
         <button type="button" class="mobile-chip active" data-filter-type="category" data-filter-value="ALL">Tất cả</button>
-        {% for unit in pro_units %}
-        <button type="button" class="mobile-chip" data-filter-type="category" data-filter-value="{{ unit.name|lower }}">{{ unit.name }}</button>
+        {% for item in category_filters %}
+        <button type="button" class="mobile-chip" data-filter-type="category" data-filter-value="{{ item.filter_value }}">{{ item.name }}</button>
         {% endfor %}
     </div>
 </section>
 
 <section class="mobile-news-list">
-    {% for n in news_list %}
-    <article class="mobile-news-card mobile-news-item" data-category="{{ n.category|lower }}" data-search="{{ (n.title ~ ' ' ~ (n.content or '') ~ ' ' ~ (n.category or ''))|lower }}">
+    {% for item in news_cards %}
+    {% set n = item.record %}
+    <article class="mobile-news-card mobile-news-item" data-category="{{ item.category_filter }}" data-search="{{ (n.title ~ ' ' ~ (n.content or '') ~ ' ' ~ item.category_display)|lower }}">
         <div class="mobile-news-meta">
-            <span class="pc06-soft-tag">{{ n.category }}</span>
+            <span class="pc06-soft-tag">{{ item.category_display }}</span>
             <span>{{ n.uploaded_at.strftime('%d/%m/%Y') }}</span>
         </div>
         <h3>{{ n.title }}</h3>
@@ -92,7 +93,7 @@
                         <div data-category-picker data-module="news" data-field="category" data-placeholder="Chọn danh mục" data-storage-key="mobile.news.category">
                             <select name="category" class="form-select" required data-category-target>
                                 <option value="" disabled selected>Chọn danh mục</option>
-                                {% for u in pro_units %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
+                                {% for u in category_options %}<option value="{{ u.value }}">{{ u.name }}</option>{% endfor %}
                             </select>
                         </div>
                     </div>

@@ -250,18 +250,12 @@
                 <div class="pc06-news-field-list">
                     <button type="button" class="pc06-news-field-chip active" data-category-filter="ALL">
                         <strong>Tất cả lĩnh vực</strong>
-                        <span>{{ news_list|length }}</span>
+                        <span>{{ news_cards|length }}</span>
                     </button>
-                    {% for unit in pro_units %}
-                    {% set counter = namespace(total=0) %}
-                    {% for item in news_list %}
-                    {% if (item.category or '') == unit.name %}
-                    {% set counter.total = counter.total + 1 %}
-                    {% endif %}
-                    {% endfor %}
-                    <button type="button" class="pc06-news-field-chip" data-category-filter="{{ unit.name|lower }}">
-                        <strong>{{ unit.name }}</strong>
-                        <span>{{ counter.total }}</span>
+                    {% for item in category_filters %}
+                    <button type="button" class="pc06-news-field-chip" data-category-filter="{{ item.filter_value }}">
+                        <strong>{{ item.name }}</strong>
+                        <span>{{ item.count }}</span>
                     </button>
                     {% endfor %}
                 </div>
@@ -273,14 +267,15 @@
                 <div class="pc06-news-board-head">
                     <h2 id="newsSelectedCategory">Tất cả lĩnh vực</h2>
                 </div>
-                {% if news_list %}
+                {% if news_cards %}
                 <section class="pc06-news-grid" id="newsGrid">
-                    {% for n in news_list %}
-                    <article class="pc06-news-card news-item" data-category="{{ (n.category or '')|lower }}" data-search="{{ (n.title ~ ' ' ~ (n.category or ''))|lower }}">
+                    {% for item in news_cards %}
+                    {% set n = item.record %}
+                    <article class="pc06-news-card news-item" data-category="{{ item.category_filter }}" data-search="{{ (n.title ~ ' ' ~ (n.content or '') ~ ' ' ~ item.category_display)|lower }}">
                         <div class="pc06-news-card-head">
                             <span class="pc06-soft-tag">
                                 <i class="fa-solid fa-layer-group"></i>
-                                {{ n.category }}
+                                {{ item.category_display }}
                             </span>
                             <span class="pc06-news-date">{{ n.uploaded_at.strftime('%d/%m/%Y') }}</span>
                         </div>
@@ -345,7 +340,7 @@
                         <div data-category-picker data-module="news" data-field="category" data-placeholder="Chọn danh mục" data-storage-key="modal.news.category">
                             <select name="category" class="form-select" required data-category-target>
                                 <option value="" disabled selected>Chọn danh mục</option>
-                                {% for u in pro_units %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
+                                {% for u in category_options %}<option value="{{ u.value }}">{{ u.name }}</option>{% endfor %}
                             </select>
                         </div>
                     </div>
