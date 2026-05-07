@@ -10,6 +10,11 @@
     .mobile-category-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
     .mobile-category-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
     .mobile-category-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); padding: 16px; margin-bottom: 14px; }
+    .mobile-category-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .mobile-category-summary-copy { min-width: 0; }
+    .mobile-category-summary-toggle { width: 42px; height: 42px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 42px; }
+    .mobile-category-details { display: none; margin-top: 14px; }
+    .mobile-category-details.is-open { display: block; }
     .mobile-category-item-row { padding: 10px 0; border-bottom: 1px solid rgba(148, 163, 184, 0.16); }
     .mobile-category-item-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .mobile-category-item-name { font-size: 0.95rem; font-weight: 600; color: var(--text-main); min-width: 0; }
@@ -35,62 +40,70 @@
 
 {% for g in groups %}
 <section class="mobile-category-card">
-    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-        <div>
+    <div class="mobile-category-summary">
+        <div class="mobile-category-summary-copy">
             <h6 class="fw-bold mb-1">{{ g.name }}</h6>
             <div class="tiny text-muted">Code: {{ g.code or 'Chưa đặt' }}</div>
         </div>
-        <span class="pc06-soft-tag neutral">{{ g.items|length }} mục</span>
-    </div>
-    <div class="d-flex flex-wrap gap-2 mb-3">
-        {% if g.module_links %}
-            {% for link in g.module_links %}<span class="pc06-soft-tag">{{ link.module.name }}</span>{% endfor %}
-        {% else %}
-            <span class="text-muted small">Chưa liên kết phân hệ</span>
-        {% endif %}
-    </div>
-    <div class="mb-3">
-        {% for item in g.items %}
-        <div class="mobile-category-item-row">
-            <div class="mobile-category-item-head">
-                <div class="mobile-category-item-name text-truncate">{{ item.name }}</div>
-                <button type="button" class="btn btn-light border mobile-category-item-toggle" data-item-toggle="category-item-{{ item.id }}" aria-label="Mở thao tác" title="Mở thao tác">
-                    <i class="fa-solid fa-ellipsis"></i>
-                    <span class="visually-hidden">Mở thao tác</span>
-                </button>
-            </div>
-            <div class="mobile-category-item-panel" id="category-item-{{ item.id }}">
-                <form method="POST" class="mobile-category-item-form">
-                    <input type="hidden" name="action" value="rename_item">
-                    <input type="hidden" name="item_id" value="{{ item.id }}">
-                    <input type="text" name="item_name" class="form-control form-control-sm" value="{{ item.name }}" required>
-                    <button type="submit" class="btn btn-light border text-primary mobile-category-item-icon-btn" aria-label="Lưu mục" title="Lưu mục"><i class="fa-solid fa-pen"></i><span class="visually-hidden">Lưu mục</span></button>
-                </form>
-                <form method="POST" class="mobile-category-item-form mt-2">
-                    <input type="hidden" name="action" value="delete_item">
-                    <input type="hidden" name="item_id" value="{{ item.id }}">
-                    <button type="submit" class="btn btn-light border text-danger mobile-category-item-icon-btn" aria-label="Xóa mục" title="Xóa mục"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Xóa mục</span></button>
-                </form>
-            </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="pc06-soft-tag neutral">{{ g.items|length }} mục</span>
+            <button type="button" class="btn btn-light border mobile-category-summary-toggle" data-group-toggle="category-group-{{ g.id }}" aria-label="Mở thành phần" title="Mở thành phần">
+                <i class="fa-solid fa-chevron-down"></i>
+                <span class="visually-hidden">Mở thành phần</span>
+            </button>
         </div>
-        {% else %}
-        <div class="text-muted small">Chưa phát sinh thành phần.</div>
-        {% endfor %}
     </div>
-    <form method="POST" class="mb-3">
-        <input type="hidden" name="action" value="add_item">
-        <input type="hidden" name="group_id" value="{{ g.id }}">
-        <div class="input-group">
-            <input type="text" name="item_name" class="form-control" placeholder="Thêm thành phần" required>
-            <button type="submit" class="btn btn-success"><i class="fa-solid fa-plus"></i></button>
+    <div class="mobile-category-details" id="category-group-{{ g.id }}">
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            {% if g.module_links %}
+                {% for link in g.module_links %}<span class="pc06-soft-tag">{{ link.module.name }}</span>{% endfor %}
+            {% else %}
+                <span class="text-muted small">Chưa liên kết phân hệ</span>
+            {% endif %}
         </div>
-    </form>
-    <form method="POST" enctype="multipart/form-data">
-        <input type="hidden" name="action" value="import_items_excel">
-        <input type="hidden" name="group_id" value="{{ g.id }}">
-        <input type="file" name="items_excel" id="excel-import-{{ g.id }}" class="d-none" accept=".xlsx,.xls" onchange="this.form.submit()">
-        <button type="button" class="btn btn-light rounded-pill border w-100" onclick="document.getElementById('excel-import-{{ g.id }}').click()" aria-label="Import Excel" title="Import Excel"><i class="fa-solid fa-file-excel"></i><span class="visually-hidden">Import Excel</span></button>
-    </form>
+        <div class="mb-3">
+            {% for item in g.items %}
+            <div class="mobile-category-item-row">
+                <div class="mobile-category-item-head">
+                    <div class="mobile-category-item-name text-truncate">{{ item.name }}</div>
+                    <button type="button" class="btn btn-light border mobile-category-item-toggle" data-item-toggle="category-item-{{ item.id }}" aria-label="Mở thao tác" title="Mở thao tác">
+                        <i class="fa-solid fa-ellipsis"></i>
+                        <span class="visually-hidden">Mở thao tác</span>
+                    </button>
+                </div>
+                <div class="mobile-category-item-panel" id="category-item-{{ item.id }}">
+                    <form method="POST" class="mobile-category-item-form">
+                        <input type="hidden" name="action" value="rename_item">
+                        <input type="hidden" name="item_id" value="{{ item.id }}">
+                        <input type="text" name="item_name" class="form-control form-control-sm" value="{{ item.name }}" required>
+                        <button type="submit" class="btn btn-light border text-primary mobile-category-item-icon-btn" aria-label="Lưu mục" title="Lưu mục"><i class="fa-solid fa-pen"></i><span class="visually-hidden">Lưu mục</span></button>
+                    </form>
+                    <form method="POST" class="mobile-category-item-form mt-2">
+                        <input type="hidden" name="action" value="delete_item">
+                        <input type="hidden" name="item_id" value="{{ item.id }}">
+                        <button type="submit" class="btn btn-light border text-danger mobile-category-item-icon-btn" aria-label="Xóa mục" title="Xóa mục"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Xóa mục</span></button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-muted small">Chưa phát sinh thành phần.</div>
+            {% endfor %}
+        </div>
+        <form method="POST" class="mb-3">
+            <input type="hidden" name="action" value="add_item">
+            <input type="hidden" name="group_id" value="{{ g.id }}">
+            <div class="input-group">
+                <input type="text" name="item_name" class="form-control" placeholder="Thêm thành phần" required>
+                <button type="submit" class="btn btn-success"><i class="fa-solid fa-plus"></i></button>
+            </div>
+        </form>
+        <form method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="import_items_excel">
+            <input type="hidden" name="group_id" value="{{ g.id }}">
+            <input type="file" name="items_excel" id="excel-import-{{ g.id }}" class="d-none" accept=".xlsx,.xls" onchange="this.form.submit()">
+            <button type="button" class="btn btn-light rounded-pill border w-100" onclick="document.getElementById('excel-import-{{ g.id }}').click()" aria-label="Import Excel" title="Import Excel"><i class="fa-solid fa-file-excel"></i><span class="visually-hidden">Import Excel</span></button>
+        </form>
+    </div>
 </section>
 {% endfor %}
 
@@ -178,6 +191,28 @@ document.querySelectorAll('[data-item-toggle]').forEach((button) => {
             if (item !== panel) item.classList.remove('is-open');
         });
         panel.classList.toggle('is-open', !isOpen);
+    });
+});
+
+document.querySelectorAll('[data-group-toggle]').forEach((button) => {
+    button.addEventListener('click', () => {
+        const targetId = button.dataset.groupToggle;
+        const panel = targetId ? document.getElementById(targetId) : null;
+        const icon = button.querySelector('i');
+        if (!panel) return;
+        const isOpen = panel.classList.contains('is-open');
+        document.querySelectorAll('.mobile-category-details.is-open').forEach((item) => {
+            if (item !== panel) item.classList.remove('is-open');
+        });
+        document.querySelectorAll('[data-group-toggle] i.fa-solid').forEach((item) => {
+            item.classList.remove('fa-chevron-up');
+            item.classList.add('fa-chevron-down');
+        });
+        panel.classList.toggle('is-open', !isOpen);
+        if (icon) {
+            icon.classList.toggle('fa-chevron-up', !isOpen);
+            icon.classList.toggle('fa-chevron-down', isOpen);
+        }
     });
 });
 </script>

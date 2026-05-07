@@ -839,6 +839,54 @@ def _sheet_header_range(sheet_or_meta):
     return start_row, end_row
 
 
+def _preferred_sticky_column(sheet_meta, ws, editable_values=None):
+    editable_values = editable_values or {}
+    fields = sheet_meta.get("fields") or []
+
+    def _field_label(field):
+        return normalize_code(
+            field.get("field_name")
+            or field.get("path_code")
+            or field.get("field_code")
+            or ""
+        )
+
+    for field in fields:
+        label_code = _field_label(field)
+        if any(marker in label_code for marker in {"don_vi", "ten_don_vi", "ma_don_vi"}):
+            return int(field.get("column_index") or 0) or None
+
+    unit_start_row = int(sheet_meta.get("unit_start_row") or sheet_meta.get("data_start_row") or 1)
+    unit_end_row = int(sheet_meta.get("unit_end_row") or sheet_meta.get("data_end_row") or unit_start_row)
+    start_col = column_index_from_string(sheet_meta.get("start_column") or "A")
+    end_col = column_index_from_string(sheet_meta.get("end_column") or sheet_meta.get("start_column") or "A")
+
+    for col_idx in range(start_col, end_col + 1):
+        header_code = ""
+        for field in fields:
+            if int(field.get("column_index") or 0) == col_idx:
+                header_code = _field_label(field)
+                break
+        if any(marker in header_code for marker in {"stt", "so_thu_tu", "thu_tu"}):
+            continue
+        text_hits = 0
+        numeric_like = 0
+        for row_idx in range(unit_start_row, unit_end_row + 1):
+            cell = ws.cell(row=row_idx, column=col_idx)
+            value = editable_values.get(cell.coordinate, cell.value)
+            display = _cell_display_value(value)
+            if not display:
+                continue
+            if display.isdigit():
+                numeric_like += 1
+                continue
+            text_hits += 1
+        if text_hits > 0 and text_hits >= numeric_like:
+            return col_idx
+
+    return start_col
+
+
 def _cycle_units(cycle):
     return _resolve_scope_units(_parse_scope_payload(cycle.scope_json))
 
@@ -1743,6 +1791,7 @@ def admin_template_preview(template_id):
         total_end_row = int(sheet_meta.get("total_end_row") or 0)
         start_col = column_index_from_string(sheet_meta.get("start_column") or "A")
         end_col = column_index_from_string(sheet_meta.get("end_column") or sheet_meta.get("start_column") or "A")
+        sticky_col = _preferred_sticky_column(sheet_meta, ws, formula_values.get(sheet_meta["sheet_name"], {}))
         preview_sheets.append(
             {
                 "sheet_name": sheet_meta["sheet_name"],
@@ -1756,7 +1805,7 @@ def admin_template_preview(template_id):
                     min_col=start_col,
                     max_col=end_col,
                     header_end_row=header_end_row,
-                    sticky_first_col=start_col,
+                    sticky_first_col=sticky_col,
                 ),
             }
         )
@@ -2443,14 +2492,16 @@ def cycle_preview(cycle_id):
         total_end_row = int(sheet_meta.get("total_end_row") or 0)
         start_col = column_index_from_string(sheet_meta.get("start_column") or "A")
         end_col = column_index_from_string(sheet_meta.get("end_column") or sheet_meta.get("start_column") or "A")
+        sheet_values = {
+            **existing_values.get(sheet_meta["sheet_name"], {}),
+            **formula_values.get(sheet_meta["sheet_name"], {}),
+        }
+        sticky_col = _preferred_sticky_column(sheet_meta, ws, sheet_values)
         preview_sheets.append({
             "sheet_name": sheet_meta["sheet_name"],
             "html": render_sheet_html(
                 ws,
-                editable_values={
-                    **existing_values.get(sheet_meta["sheet_name"], {}),
-                    **formula_values.get(sheet_meta["sheet_name"], {}),
-                },
+                editable_values=sheet_values,
                 field_lookup={},
                 editable=False,
                 start_row=start_row,
@@ -2458,7 +2509,7 @@ def cycle_preview(cycle_id):
                 min_col=start_col,
                 max_col=end_col,
                 header_end_row=header_end_row,
-                sticky_first_col=start_col,
+                sticky_first_col=sticky_col,
             ),
         })
     return render_template(

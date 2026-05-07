@@ -13,7 +13,16 @@
     .report-preview-mobile-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); overflow: hidden; margin-bottom: 16px; }
     .report-preview-mobile-head { padding: 14px 16px; border-bottom: 1px solid var(--border); }
     .report-preview-mobile-head h2 { margin: 0; font-size: 0.98rem; font-weight: 800; color: var(--text-main); }
-    .report-preview-mobile-stage { overflow: auto; padding: 12px; background: #fff; -webkit-overflow-scrolling: touch; }
+    .report-preview-mobile-stage {
+        position: relative;
+        overflow: auto;
+        padding: 12px;
+        background: #fff;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        touch-action: pan-x pan-y;
+        max-height: min(68vh, 560px);
+    }
     .report-preview-table { border-collapse: collapse; background: #fff; color: #1f2937; font-size: 12px; line-height: 1.35; }
     .report-preview-table td { min-width: 50px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
     .report-preview-table .report-cell { background: #fff; }
