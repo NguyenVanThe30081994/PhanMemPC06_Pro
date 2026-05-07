@@ -86,7 +86,7 @@
                 {% for item in group.entries %}
                 {% set template = item.template %}
                 {% set current_version = item.current_version %}
-                {% set current_cycle = item.current_cycle %}
+                {% set report_type = item.report_type or (template_report_types.get(template.id) if template_report_types is defined else None) %}
                 <article class="report-mobile-card report-mobile-row" data-report-group="{{ group.name|lower }}">
                     <div class="report-mobile-card-head">
                         <div class="report-mobile-card-copy">
@@ -97,7 +97,7 @@
                                 {% if template.directive_filename %} • {{ template.directive_filename }}{% endif %}
                             </p>
                         </div>
-                        <span class="report-mobile-badge">{{ 'Mở' if current_cycle else 'Nháp' }}</span>
+                        <span class="report-mobile-badge">{{ report_type.name if report_type else 'Chưa chọn' }}</span>
                     </div>
                     <div class="report-mobile-meta">
                         <div>
@@ -105,13 +105,13 @@
                             <strong>{{ template.professional_unit or group.name }}</strong>
                         </div>
                         <div>
-                            <span>Chu kỳ hiện tại</span>
-                            <strong>{{ current_cycle.name if current_cycle else 'Chưa mở' }}</strong>
+                            <span>Loại báo cáo</span>
+                            <strong>{{ report_type.name if report_type else 'Chưa cấu hình' }}</strong>
                         </div>
                     </div>
                     <div class="report-mobile-actions-row">
-                        {% if current_cycle %}
-                        <a class="btn btn-sm btn-outline-primary rounded-pill" href="{{ url_for('reporting_bp.admin_cycle_detail', cycle_id=current_cycle.id) }}" aria-label="Chi tiết báo cáo" title="Chi tiết báo cáo"><i class="fa-solid fa-chart-line"></i><span class="visually-hidden">Chi tiết báo cáo</span></a>
+                        {% if item.current_cycle %}
+                        <a class="btn btn-sm btn-outline-primary rounded-pill" href="{{ url_for('reporting_bp.admin_cycle_detail', cycle_id=item.current_cycle.id) }}" aria-label="Chi tiết báo cáo" title="Chi tiết báo cáo"><i class="fa-solid fa-chart-line"></i><span class="visually-hidden">Chi tiết báo cáo</span></a>
                         {% endif %}
                         <a class="btn btn-sm btn-outline-secondary rounded-pill" href="{{ url_for('reporting_bp.admin_template_preview', template_id=template.id) }}" aria-label="Xem biểu mẫu" title="Xem biểu mẫu"><i class="fa-solid fa-eye"></i><span class="visually-hidden">Xem biểu mẫu</span></a>
                         <form method="POST" action="{{ url_for('reporting_bp.delete_template', template_id=template.id) }}" class="m-0" onsubmit="return confirm('Xóa biểu mẫu này?')">
@@ -127,6 +127,7 @@
                 {% set cycle = item.cycle %}
                 {% set instance = instance_map.get(cycle.id) if instance_map is defined else None %}
                 {% set latest_submission = latest_submission_map.get(cycle.id) if latest_submission_map is defined else None %}
+                {% set report_type = item.report_type or (cycle_report_types.get(cycle.id) if cycle_report_types is defined else None) %}
                 <article class="report-mobile-card report-mobile-row" data-report-group="{{ group.name|lower }}">
                     <div class="report-mobile-card-head">
                         <div class="report-mobile-card-copy">
@@ -138,7 +139,7 @@
                     <div class="report-mobile-meta">
                         <div>
                             <span>Loại báo cáo</span>
-                            <strong>{{ cycle.name }}</strong>
+                            <strong>{{ report_type.name if report_type else 'Chưa cấu hình' }}</strong>
                         </div>
                         <div>
                             <span>Bản mới nhất</span>

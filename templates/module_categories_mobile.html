@@ -10,9 +10,15 @@
     .mobile-category-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
     .mobile-category-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
     .mobile-category-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); padding: 16px; margin-bottom: 14px; }
-    .mobile-category-item-row { display: grid; gap: 8px; padding: 10px 0; border-bottom: 1px solid rgba(148, 163, 184, 0.16); }
-    .mobile-category-item-actions { display: flex; gap: 8px; }
-    .mobile-category-item-actions .btn { flex: 1 1 0; }
+    .mobile-category-item-row { padding: 10px 0; border-bottom: 1px solid rgba(148, 163, 184, 0.16); }
+    .mobile-category-item-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .mobile-category-item-name { font-size: 0.95rem; font-weight: 600; color: var(--text-main); min-width: 0; }
+    .mobile-category-item-toggle { width: 38px; height: 38px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; }
+    .mobile-category-item-panel { display: none; margin-top: 10px; padding: 12px; border-radius: 16px; background: var(--bg-body); }
+    .mobile-category-item-panel.is-open { display: block; }
+    .mobile-category-item-form { display: flex; align-items: center; gap: 8px; }
+    .mobile-category-item-form .form-control { min-width: 0; }
+    .mobile-category-item-icon-btn { width: 38px; height: 38px; padding: 0; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 38px; }
 </style>
 {% endblock %}
 
@@ -46,21 +52,26 @@
     <div class="mb-3">
         {% for item in g.items %}
         <div class="mobile-category-item-row">
-            <form method="POST">
-                <input type="hidden" name="action" value="rename_item">
-                <input type="hidden" name="item_id" value="{{ item.id }}">
-                <input type="text" name="item_name" class="form-control form-control-sm" value="{{ item.name }}" required>
-                <div class="mobile-category-item-actions mt-2">
-                    <button type="submit" class="btn btn-light border text-primary btn-sm" aria-label="Sửa mục" title="Sửa mục"><i class="fa-solid fa-pen"></i><span class="visually-hidden">Sửa mục</span></button>
-                </div>
-            </form>
-            <form method="POST" class="m-0">
-                <input type="hidden" name="action" value="delete_item">
-                <input type="hidden" name="item_id" value="{{ item.id }}">
-                <div class="mobile-category-item-actions">
-                    <button type="submit" class="btn btn-light border text-danger btn-sm" aria-label="Xóa mục" title="Xóa mục"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Xóa mục</span></button>
-                </div>
-            </form>
+            <div class="mobile-category-item-head">
+                <div class="mobile-category-item-name text-truncate">{{ item.name }}</div>
+                <button type="button" class="btn btn-light border mobile-category-item-toggle" data-item-toggle="category-item-{{ item.id }}" aria-label="Mở thao tác" title="Mở thao tác">
+                    <i class="fa-solid fa-ellipsis"></i>
+                    <span class="visually-hidden">Mở thao tác</span>
+                </button>
+            </div>
+            <div class="mobile-category-item-panel" id="category-item-{{ item.id }}">
+                <form method="POST" class="mobile-category-item-form">
+                    <input type="hidden" name="action" value="rename_item">
+                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                    <input type="text" name="item_name" class="form-control form-control-sm" value="{{ item.name }}" required>
+                    <button type="submit" class="btn btn-light border text-primary mobile-category-item-icon-btn" aria-label="Lưu mục" title="Lưu mục"><i class="fa-solid fa-pen"></i><span class="visually-hidden">Lưu mục</span></button>
+                </form>
+                <form method="POST" class="mobile-category-item-form mt-2">
+                    <input type="hidden" name="action" value="delete_item">
+                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                    <button type="submit" class="btn btn-light border text-danger mobile-category-item-icon-btn" aria-label="Xóa mục" title="Xóa mục"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Xóa mục</span></button>
+                </form>
+            </div>
         </div>
         {% else %}
         <div class="text-muted small">Chưa phát sinh thành phần.</div>
@@ -153,4 +164,21 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-item-toggle]').forEach((button) => {
+    button.addEventListener('click', () => {
+        const targetId = button.dataset.itemToggle;
+        const panel = targetId ? document.getElementById(targetId) : null;
+        if (!panel) return;
+        const isOpen = panel.classList.contains('is-open');
+        document.querySelectorAll('.mobile-category-item-panel.is-open').forEach((item) => {
+            if (item !== panel) item.classList.remove('is-open');
+        });
+        panel.classList.toggle('is-open', !isOpen);
+    });
+});
+</script>
 {% endblock %}

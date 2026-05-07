@@ -557,7 +557,18 @@ def parse_workbook(
     return metadata
 
 
-def render_sheet_html(ws, editable_values=None, field_lookup=None, editable=True, start_row=None, end_row=None, min_col=None, max_col=None):
+def render_sheet_html(
+    ws,
+    editable_values=None,
+    field_lookup=None,
+    editable=True,
+    start_row=None,
+    end_row=None,
+    min_col=None,
+    max_col=None,
+    header_end_row=None,
+    sticky_first_col=None,
+):
     editable_values = editable_values or {}
     field_lookup = field_lookup or {}
     active_min_col, active_min_row, active_max_col, active_max_row = _active_bounds(ws)
@@ -609,6 +620,12 @@ def render_sheet_html(ws, editable_values=None, field_lookup=None, editable=True
                 attrs.append('contenteditable="true"')
                 attrs.append('spellcheck="false"')
             td_class = "report-cell"
+            is_header_cell = header_end_row is not None and r <= int(header_end_row)
+            is_first_col_cell = sticky_first_col is not None and c == int(sticky_first_col)
+            if is_header_cell:
+                td_class += " report-cell--header"
+            if is_first_col_cell:
+                td_class += " report-cell--first-col"
             if is_input:
                 td_class += " report-input"
             rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ""

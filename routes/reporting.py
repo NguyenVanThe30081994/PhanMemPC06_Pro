@@ -1204,6 +1204,7 @@ def _group_admin_templates(templates):
                 "template": template,
                 "current_version": _template_version(template),
                 "current_cycle": _template_current_cycle(template),
+                "report_type": db.session.get(ReportType, template.report_type_id) if template.report_type_id else None,
             }
         )
     return [
@@ -1223,6 +1224,7 @@ def _group_cycles_by_professional_unit(cycles):
                 "cycle": cycle,
                 "template": template,
                 "template_version": template_version,
+                "report_type": _report_type(cycle),
             }
         )
     return [
@@ -1394,6 +1396,10 @@ def admin_dashboard():
     for template in templates:
         current_version = _template_version(template)
         current_versions[template.id] = current_version
+    template_report_types = {
+        template.id: (db.session.get(ReportType, template.report_type_id) if template.report_type_id else None)
+        for template in templates
+    }
 
     return render_template(
         "reporting_dashboard.html",
@@ -1406,6 +1412,7 @@ def admin_dashboard():
         professional_units=_professional_unit_options(),
         recent_submissions=recent_submissions,
         current_versions=current_versions,
+        template_report_types=template_report_types,
         is_admin=True,
     )
 
@@ -1748,6 +1755,8 @@ def admin_template_preview(template_id):
                     end_row=max(unit_end_row, total_end_row or 0),
                     min_col=start_col,
                     max_col=end_col,
+                    header_end_row=header_end_row,
+                    sticky_first_col=start_col,
                 ),
             }
         )
@@ -2245,6 +2254,10 @@ def user_dashboard():
         for instance in instances
         if instance and instance.id
     }
+    cycle_report_types = {
+        cycle.id: _report_type(cycle)
+        for cycle in accessible_cycles
+    }
 
     return render_template(
         "reporting_dashboard.html",
@@ -2262,6 +2275,7 @@ def user_dashboard():
         instances=instances,
         instance_map=instance_map,
         latest_submission_map=latest_submission_map,
+        cycle_report_types=cycle_report_types,
     )
 
 
@@ -2443,6 +2457,8 @@ def cycle_preview(cycle_id):
                 end_row=max(unit_end_row, total_end_row or 0),
                 min_col=start_col,
                 max_col=end_col,
+                header_end_row=header_end_row,
+                sticky_first_col=start_col,
             ),
         })
     return render_template(

@@ -44,6 +44,9 @@
     .mobile-status.doing { background: #dbeafe; color: #1d4ed8; }
     .mobile-status.done { background: #dcfce7; color: #166534; }
     .mobile-status.neutral { background: #e2e8f0; color: #334155; }
+    .mobile-task-footer { display: grid; gap: 10px; }
+    .mobile-task-status-row { display: flex; align-items: center; gap: 12px; }
+    .mobile-task-status-row .mobile-status { margin-bottom: 0; flex: 1; min-width: 0; }
     .mobile-task-actions { display: flex; align-items: stretch; gap: 10px; }
     .mobile-task-actions form { flex: 1; margin: 0; }
     .mobile-task-main-action { flex: 1; min-width: 0; }
@@ -55,7 +58,6 @@
         border-radius: 14px;
         flex: 0 0 50px;
     }
-    .mobile-task-action-spacer { flex: 1; min-width: 0; }
     .mobile-empty { padding: 28px 20px; text-align: center; color: var(--text-muted); }
     .mobile-fab { position: fixed; right: 18px; bottom: 92px; width: 58px; height: 58px; border: 0; border-radius: 18px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; box-shadow: 0 18px 30px rgba(37, 99, 235, 0.3); }
 </style>
@@ -117,31 +119,34 @@
             <div><span>Hạn xử lý</span><strong{% if t.is_overdue %} class="text-danger"{% endif %}>{{ t.deadline.strftime('%d/%m/%Y') if t.deadline else 'Chưa có' }}</strong></div>
         </div>
 
-        <div class="mobile-status {% if 'hoàn thành' in status_key %}done{% elif 'đang thực hiện' in status_key %}doing{% elif 'chưa tiếp nhận' in status_key %}todo{% else %}neutral{% endif %}">
-            {{ status_text }}
-        </div>
-
-        <div class="mobile-task-actions">
+        <div class="mobile-task-footer">
+            <div class="mobile-task-status-row">
+                <div class="mobile-status {% if 'hoàn thành' in status_key %}done{% elif 'đang thực hiện' in status_key %}doing{% elif 'chưa tiếp nhận' in status_key %}todo{% else %}neutral{% endif %}">
+                    {{ status_text }}
+                </div>
+                <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}" class="btn btn-mobile btn-mobile-primary mobile-task-icon-action" aria-label="Chi tiết" title="Chi tiết">
+                    <i class="fa-solid fa-arrow-right"></i>
+                    <span class="visually-hidden">Chi tiết</span>
+                </a>
+            </div>
             {% if t.current_user_status in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
-            <form action="{{ url_for('tasks_bp.update_task_status', tid=t.id) }}" method="POST">
-                <input type="hidden" name="action" value="accept">
-                <button type="submit" class="btn btn-mobile mobile-task-main-action" style="background:#e0f2fe;color:#0c4a6e;" aria-label="Tiếp nhận" title="Tiếp nhận">
-                    <i class="fa-solid fa-hand-point-right"></i>
-                    <span class="visually-hidden">Tiếp nhận</span>
-                </button>
-            </form>
+            <div class="mobile-task-actions">
+                <form action="{{ url_for('tasks_bp.update_task_status', tid=t.id) }}" method="POST">
+                    <input type="hidden" name="action" value="accept">
+                    <button type="submit" class="btn btn-mobile mobile-task-main-action" style="background:#e0f2fe;color:#0c4a6e;" aria-label="Tiếp nhận" title="Tiếp nhận">
+                        <i class="fa-solid fa-hand-point-right"></i>
+                        <span class="visually-hidden">Tiếp nhận</span>
+                    </button>
+                </form>
+            </div>
             {% elif t.current_user_status %}
-            <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}#report-section" class="btn btn-mobile btn-mobile-primary mobile-task-main-action" style="background:#dcfce7;color:#166534;" aria-label="Báo cáo" title="Báo cáo">
-                <i class="fa-solid fa-paper-plane"></i>
-                <span class="visually-hidden">Báo cáo</span>
-            </a>
-            {% else %}
-            <div class="mobile-task-action-spacer"></div>
+            <div class="mobile-task-actions">
+                <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}#report-section" class="btn btn-mobile btn-mobile-primary mobile-task-main-action" style="background:#dcfce7;color:#166534;" aria-label="Báo cáo" title="Báo cáo">
+                    <i class="fa-solid fa-paper-plane"></i>
+                    <span class="visually-hidden">Báo cáo</span>
+                </a>
+            </div>
             {% endif %}
-            <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}" class="btn btn-mobile btn-mobile-primary mobile-task-icon-action" aria-label="Chi tiết" title="Chi tiết">
-                <i class="fa-solid fa-arrow-right"></i>
-                <span class="visually-hidden">Chi tiết</span>
-            </a>
         </div>
     </article>
     {% else %}
