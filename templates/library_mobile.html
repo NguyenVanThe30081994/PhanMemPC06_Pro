@@ -61,7 +61,7 @@
         </div>
         <div class="mobile-library-foot">
             <span>{{ item.uploaded_at.strftime('%d/%m/%Y') }}</span>
-            <a href="/dl_file/{{ item.filename }}" class="btn btn-sm btn-primary rounded-pill px-3">Tải về</a>
+            <a href="/dl_file/{{ item.filename }}" class="btn btn-sm btn-primary rounded-pill px-3" aria-label="Tải tài liệu" title="Tải tài liệu"><i class="fa-solid fa-download"></i><span class="visually-hidden">Tải tài liệu</span></a>
         </div>
     </article>
     {% else %}
@@ -94,7 +94,7 @@
                     <div class="mb-3"><label class="form-label small fw-bold">Mô tả</label><textarea name="description" class="form-control" rows="3"></textarea></div>
                     <div><label class="form-label small fw-bold">Tệp đính kèm</label><input type="file" name="file" class="form-control" required></div>
                 </div>
-                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary">Tải lên</button></div>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary" aria-label="Tải lên" title="Tải lên"><i class="fa-solid fa-cloud-arrow-up"></i><span class="visually-hidden">Tải lên</span></button></div>
             </form>
         </div>
     </div>

@@ -24,7 +24,7 @@
     <p class="text-muted small mb-4">Tải xuống tệp SQLite hiện tại để lưu trữ hoặc di chuyển môi trường.</p>
     <form action="{{ url_for('admin_bp.db_manage') }}" method="POST">
         <input type="hidden" name="action" value="backup">
-        <button type="submit" class="btn-mobile btn-mobile-primary">Tải file backup</button>
+        <button type="submit" class="btn-mobile btn-mobile-primary" aria-label="Tải backup" title="Tải backup"><i class="fa-solid fa-download"></i><span class="visually-hidden">Tải backup</span></button>
     </form>
 </section>
 
@@ -33,9 +33,7 @@
     <p class="text-muted small mb-4">Thao tác này xóa toàn bộ dữ liệu hiện có và không thể hoàn tác.</p>
     <form id="resetForm" action="{{ url_for('admin_bp.db_manage') }}" method="POST">
         <input type="hidden" name="action" value="reset">
-        <button type="button" class="btn btn-danger w-100 rounded-pill fw-bold" onclick="if(confirm('Xác nhận reset toàn bộ hệ thống? Dữ liệu hiện tại sẽ bị xóa vĩnh viễn.')) document.getElementById('resetForm').submit();">
-            Reset toàn bộ hệ thống
-        </button>
+        <button type="button" class="btn btn-danger w-100 rounded-pill fw-bold" aria-label="Reset hệ thống" title="Reset hệ thống" onclick="if(confirm('Xác nhận reset toàn bộ hệ thống? Dữ liệu hiện tại sẽ bị xóa vĩnh viễn.')) document.getElementById('resetForm').submit();"><i class="fa-solid fa-triangle-exclamation"></i><span class="visually-hidden">Reset hệ thống</span></button>
     </form>
 </section>
 {% endblock %}

@@ -37,8 +37,8 @@
     <p>Tra cứu liên hệ nội bộ, lọc theo nhóm và cập nhật danh bạ trên thiết bị di động.</p>
     {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
     <div class="mobile-contact-actions">
-        <button class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#importContactModal"><i class="fa-solid fa-file-excel"></i>Nhập Excel</button>
-        <button class="btn btn-mobile btn-mobile-primary" data-bs-toggle="modal" data-bs-target="#addContactModal"><i class="fa-solid fa-plus"></i>Thêm mới</button>
+        <button class="btn btn-mobile" type="button" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#importContactModal" aria-label="Nhập Excel" title="Nhập Excel"><i class="fa-solid fa-file-excel"></i><span class="visually-hidden">Nhập Excel</span></button>
+        <button class="btn btn-mobile btn-mobile-primary" type="button" data-bs-toggle="modal" data-bs-target="#addContactModal" aria-label="Thêm liên hệ" title="Thêm liên hệ"><i class="fa-solid fa-plus"></i><span class="visually-hidden">Thêm liên hệ</span></button>
     </div>
     {% endif %}
 </section>
@@ -71,7 +71,7 @@
         <div class="mobile-contact-foot">
             <span class="small text-muted">Xử lý liên hệ</span>
             <form method="POST" action="{{ url_for('portal_bp.contact_delete', cid=c.id) }}" class="m-0" onsubmit="return confirm('Xóa liên hệ này?')">
-                <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">Xóa</button>
+                <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill" aria-label="Xóa liên hệ" title="Xóa liên hệ"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Xóa liên hệ</span></button>
             </form>
         </div>
         {% endif %}
@@ -108,7 +108,7 @@
                     </div>
                     <div class="mb-3"><label class="form-label small fw-bold">Số điện thoại</label><input type="tel" name="phone" class="form-control" required></div>
                 </div>
-                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary">Lưu liên hệ</button></div>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary" aria-label="Lưu liên hệ" title="Lưu liên hệ"><i class="fa-solid fa-floppy-disk"></i><span class="visually-hidden">Lưu liên hệ</span></button></div>
             </form>
         </div>
     </div>
@@ -138,7 +138,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary">Nhập danh bạ</button></div>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary" aria-label="Nhập danh bạ" title="Nhập danh bạ"><i class="fa-solid fa-file-import"></i><span class="visually-hidden">Nhập danh bạ</span></button></div>
             </form>
         </div>
     </div>

@@ -37,7 +37,7 @@
                 <div class="tiny text-muted mt-1">{{ get_labels(r.perms) or 'Chưa phân quyền' }}</div>
             </div>
             {% if can_manage_roles %}
-            <button class="btn btn-sm btn-outline-primary rounded-pill" onclick='openEditPerms({{ r.id }}, "{{ r.name }}", {{ r.perms|safe if r.perms else "{}" }})'>Quyền</button>
+            <button class="btn btn-sm btn-outline-primary rounded-pill" type="button" aria-label="Sửa quyền" title="Sửa quyền" onclick='openEditPerms({{ r.id }}, "{{ r.name }}", {{ r.perms|safe if r.perms else "{}" }})'><i class="fa-solid fa-key"></i><span class="visually-hidden">Sửa quyền</span></button>
             {% endif %}
         </div>
     </div>
@@ -61,8 +61,8 @@
             <span class="pc06-soft-tag neutral">{{ u.role.name if u.role else 'Chưa cấp' }}</span>
             {% if can_manage_roles %}
             <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-primary rounded-pill" onclick='openEditUser({{ u.id }}, "{{ u.username }}", "{{ u.fullname }}", "{{ u.unit_area }}", {{ u.role_id }})'>Sửa</button>
-                <a href="/admin/user/toggle-status/{{ u.id }}" class="btn btn-sm btn-outline-secondary rounded-pill">{{ 'Khóa' if u.is_active else 'Mở' }}</a>
+                <button class="btn btn-sm btn-outline-primary rounded-pill" type="button" aria-label="Sửa tài khoản" title="Sửa tài khoản" onclick='openEditUser({{ u.id }}, "{{ u.username }}", "{{ u.fullname }}", "{{ u.unit_area }}", {{ u.role_id }})'><i class="fa-solid fa-pen"></i><span class="visually-hidden">Sửa tài khoản</span></button>
+                <a href="/admin/user/toggle-status/{{ u.id }}" class="btn btn-sm btn-outline-secondary rounded-pill" aria-label="{{ 'Khóa tài khoản' if u.is_active else 'Mở tài khoản' }}" title="{{ 'Khóa tài khoản' if u.is_active else 'Mở tài khoản' }}"><i class="fa-solid {{ 'fa-lock' if u.is_active else 'fa-lock-open' }}"></i><span class="visually-hidden">{{ 'Khóa tài khoản' if u.is_active else 'Mở tài khoản' }}</span></a>
             </div>
             {% else %}
             <span class="small text-muted">Chỉ xem</span>
@@ -103,7 +103,7 @@
                     </div>
                     {% endfor %}
                 </div>
-                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary">Tạo vai trò</button></div>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary" aria-label="Tạo vai trò" title="Tạo vai trò"><i class="fa-solid fa-user-tag"></i><span class="visually-hidden">Tạo vai trò</span></button></div>
             </form>
         </div>
     </div>
@@ -130,7 +130,7 @@
                     </div>
                     {% endfor %}
                 </div>
-                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary">Cập nhật quyền</button></div>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary" aria-label="Cập nhật quyền" title="Cập nhật quyền"><i class="fa-solid fa-floppy-disk"></i><span class="visually-hidden">Cập nhật quyền</span></button></div>
             </form>
         </div>
     </div>
@@ -157,7 +157,7 @@
                     </div>
                     <div class="mb-0"><label class="form-label small fw-bold">Vai trò</label><select name="role_id" class="form-select" required>{% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select></div>
                 </div>
-                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary">Tạo tài khoản</button></div>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary" aria-label="Tạo tài khoản" title="Tạo tài khoản"><i class="fa-solid fa-user-plus"></i><span class="visually-hidden">Tạo tài khoản</span></button></div>
             </form>
         </div>
     </div>
@@ -185,7 +185,7 @@
                     </div>
                     <div class="mb-0"><label class="form-label small fw-bold">Vai trò</label><select name="role_id" id="edit_role_select" class="form-select" required>{% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select></div>
                 </div>
-                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary">Cập nhật tài khoản</button></div>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary" aria-label="Cập nhật tài khoản" title="Cập nhật tài khoản"><i class="fa-solid fa-floppy-disk"></i><span class="visually-hidden">Cập nhật tài khoản</span></button></div>
             </form>
         </div>
     </div>
@@ -203,7 +203,7 @@
                     <div class="mb-3"><label class="form-label small fw-bold">Vai trò chung</label><select name="role_id" class="form-select" required>{% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select></div>
                     <div class="mb-0"><label class="form-label small fw-bold">File Excel</label><input type="file" name="import_excel" class="form-control" accept=".xlsx, .xls" required></div>
                 </div>
-                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary">Bắt đầu nhập</button></div>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary" aria-label="Nhập tài khoản" title="Nhập tài khoản"><i class="fa-solid fa-file-import"></i><span class="visually-hidden">Nhập tài khoản</span></button></div>
             </form>
         </div>
     </div>

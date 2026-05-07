@@ -34,7 +34,7 @@
         <div class="mb-3">
             <input type="file" name="update_pkg" class="form-control" accept=".zip">
         </div>
-        <button type="submit" class="btn-mobile btn-mobile-primary">Tải lên và áp dụng</button>
+        <button type="submit" class="btn-mobile btn-mobile-primary" aria-label="Tải lên và áp dụng" title="Tải lên và áp dụng"><i class="fa-solid fa-cloud-arrow-up"></i><span class="visually-hidden">Tải lên và áp dụng</span></button>
     </form>
 </section>
 
@@ -42,12 +42,12 @@
     <h6 class="fw-bold mb-3">Remote URL</h6>
     <input type="text" class="form-control mb-3" id="remoteUrlInput" placeholder="https://github.com/username/repo.git" value="{{ git_info.remote_url|default('') }}">
     <div class="d-grid gap-2">
-        <button class="btn btn-light rounded-pill border" type="button" onclick="loadRemote()">Tải remote</button>
-        <button class="btn btn-light rounded-pill border" type="button" onclick="setRemote()">Lưu remote</button>
+        <button class="btn btn-light rounded-pill border" type="button" onclick="loadRemote()" aria-label="Tải remote" title="Tải remote"><i class="fa-solid fa-cloud-arrow-down"></i><span class="visually-hidden">Tải remote</span></button>
+        <button class="btn btn-light rounded-pill border" type="button" onclick="setRemote()" aria-label="Lưu remote" title="Lưu remote"><i class="fa-solid fa-floppy-disk"></i><span class="visually-hidden">Lưu remote</span></button>
         <form action="{{ url_for('admin_bp.git_pull') }}" method="POST" id="gitPullForm"></form>
-        <button class="btn btn-dark rounded-pill" type="button" onclick="confirmGitPull()">Git pull</button>
-        <button class="btn btn-outline-dark rounded-pill" type="button" onclick="checkGitStatus()">Kiểm tra status</button>
-        <button class="btn btn-outline-primary rounded-pill" type="button" onclick="showGitLog()">Xem commit</button>
+        <button class="btn btn-dark rounded-pill" type="button" onclick="confirmGitPull()" aria-label="Git pull" title="Git pull"><i class="fa-solid fa-code-pull-request"></i><span class="visually-hidden">Git pull</span></button>
+        <button class="btn btn-outline-dark rounded-pill" type="button" onclick="checkGitStatus()" aria-label="Kiểm tra trạng thái Git" title="Kiểm tra trạng thái Git"><i class="fa-solid fa-circle-info"></i><span class="visually-hidden">Kiểm tra trạng thái Git</span></button>
+        <button class="btn btn-outline-primary rounded-pill" type="button" onclick="showGitLog()" aria-label="Xem commit" title="Xem commit"><i class="fa-solid fa-clock-rotate-left"></i><span class="visually-hidden">Xem commit</span></button>
     </div>
 </section>
 

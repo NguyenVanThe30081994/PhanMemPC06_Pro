@@ -63,7 +63,9 @@
             {% endif %}
             <button
                 class="btn btn-sm btn-outline-primary rounded-pill"
-                onclick='Swal.fire({title: {{ n.title|tojson }}, text: {{ (n.content|default("", true)|replace("\n", " "))|tojson }}, icon: "info"})'>Xem</button>
+                aria-label="Xem chi tiết"
+                title="Xem chi tiết"
+                onclick='Swal.fire({title: {{ n.title|tojson }}, text: {{ (n.content|default("", true)|replace("\n", " "))|tojson }}, icon: "info"})'><i class="fa-solid fa-eye"></i><span class="visually-hidden">Xem chi tiết</span></button>
         </div>
     </article>
     {% else %}
@@ -97,7 +99,7 @@
                     <div class="mb-3"><label class="form-label small fw-bold">Nội dung</label><textarea name="content" class="form-control" rows="4"></textarea></div>
                     <div><label class="form-label small fw-bold">Tệp đính kèm</label><input type="file" name="file" class="form-control"></div>
                 </div>
-                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary">Đăng tin</button></div>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary" aria-label="Đăng tin" title="Đăng tin"><i class="fa-solid fa-paper-plane"></i><span class="visually-hidden">Đăng tin</span></button></div>
             </form>
         </div>
     </div>

@@ -37,14 +37,14 @@
 {% block content %}
 {% set display_status = task.display_status or (user_assign.status if user_assign else (task.initial_status or 'Chưa tiếp nhận')) %}
 <section class="detail-mobile-hero">
-    <a href="{{ url_for('tasks_bp.tasks') }}"><i class="fa-solid fa-arrow-left me-1"></i>Quay lại danh sách</a>
+    <a href="{{ url_for('tasks_bp.tasks') }}" aria-label="Quay lại danh sách" title="Quay lại danh sách"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay lại danh sách</span></a>
     <h1>{{ task.title }}</h1>
     <p>{{ task.author_name }} • {{ task.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
     {% if can_edit_task %}
     <div class="mt-3">
-        <button type="button" class="btn btn-mobile" style="background:rgba(255,255,255,0.16);color:#fff;border:1px solid rgba(255,255,255,0.22);" data-bs-toggle="modal" data-bs-target="#editTaskMobileModal">
+        <button type="button" class="btn btn-mobile" style="background:rgba(255,255,255,0.16);color:#fff;border:1px solid rgba(255,255,255,0.22);" data-bs-toggle="modal" data-bs-target="#editTaskMobileModal" aria-label="Sửa công việc" title="Sửa công việc">
             <i class="fa-solid fa-pen-to-square"></i>
-            Sửa công việc
+            <span class="visually-hidden">Sửa công việc</span>
         </button>
     </div>
     {% endif %}
@@ -160,10 +160,10 @@
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
-                    <button type="submit" class="btn btn-mobile btn-mobile-primary">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal" aria-label="Đóng" title="Đóng"><i class="fa-solid fa-xmark"></i><span class="visually-hidden">Đóng</span></button>
+                    <button type="submit" class="btn btn-mobile btn-mobile-primary" aria-label="Lưu thay đổi" title="Lưu thay đổi">
                         <i class="fa-solid fa-floppy-disk"></i>
-                        Lưu thay đổi
+                        <span class="visually-hidden">Lưu thay đổi</span>
                     </button>
                 </div>
             </form>
@@ -180,7 +180,7 @@
     {% if user_assign.status in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
     <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST">
         <input type="hidden" name="action" value="accept">
-        <button type="submit" class="btn btn-mobile btn-mobile-primary"><i class="fa-solid fa-hand-point-right"></i>Tiếp nhận công việc</button>
+        <button type="submit" class="btn btn-mobile btn-mobile-primary" aria-label="Tiếp nhận công việc" title="Tiếp nhận công việc"><i class="fa-solid fa-hand-point-right"></i><span class="visually-hidden">Tiếp nhận công việc</span></button>
     </form>
     {% endif %}
 </section>
@@ -197,13 +197,13 @@
             <strong>{{ task.file_path }}</strong>
             <span>Tệp đính kèm từ người giao việc</span>
         </div>
-        <a href="{{ url_for('dl_file', fn=task.file_path) }}" class="btn btn-sm btn-outline-primary rounded-pill">Tải</a>
+        <a href="{{ url_for('dl_file', fn=task.file_path) }}" class="btn btn-sm btn-outline-primary rounded-pill" aria-label="Tải tệp" title="Tải tệp"><i class="fa-solid fa-download"></i><span class="visually-hidden">Tải tệp</span></a>
     </div>
     {% endif %}
 </section>
 
 {% if user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
-<section class="detail-mobile-card">
+<section class="detail-mobile-card" id="report-section">
     <h2>Báo cáo kết quả</h2>
     <p class="helper">Gửi kết quả xử lý và tệp minh chứng.</p>
     <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data">
@@ -213,7 +213,7 @@
             <input class="form-check-input" type="checkbox" name="mark_completed" value="1">
             <span class="form-check-label">Đánh dấu hoàn thành</span>
         </label>
-        <button type="submit" class="btn btn-mobile btn-mobile-primary"><i class="fa-solid fa-paper-plane"></i>Gửi báo cáo</button>
+        <button type="submit" class="btn btn-mobile btn-mobile-primary" aria-label="Gửi báo cáo" title="Gửi báo cáo"><i class="fa-solid fa-paper-plane"></i><span class="visually-hidden">Gửi báo cáo</span></button>
     </form>
 </section>
 {% endif %}
@@ -223,7 +223,7 @@
     <p class="helper">Trao đổi ngay trên luồng công việc.</p>
     <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST">
         <textarea name="content" rows="3" class="form-control" placeholder="Nhập phản hồi" required></textarea>
-        <button type="submit" class="btn btn-mobile btn-mobile-primary mt-3"><i class="fa-solid fa-reply"></i>Gửi phản hồi</button>
+        <button type="submit" class="btn btn-mobile btn-mobile-primary mt-3" aria-label="Gửi phản hồi" title="Gửi phản hồi"><i class="fa-solid fa-reply"></i><span class="visually-hidden">Gửi phản hồi</span></button>
     </form>
 </section>
 

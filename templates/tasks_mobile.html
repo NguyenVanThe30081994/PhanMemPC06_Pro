@@ -114,17 +114,22 @@
             {% if t.current_user_status in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
             <form action="{{ url_for('tasks_bp.update_task_status', tid=t.id) }}" method="POST">
                 <input type="hidden" name="action" value="accept">
-                <button type="submit" class="btn btn-mobile" style="background:#e0f2fe;color:#0c4a6e;">
+                <button type="submit" class="btn btn-mobile" style="background:#e0f2fe;color:#0c4a6e;" aria-label="Tiếp nhận" title="Tiếp nhận">
                     <i class="fa-solid fa-hand-point-right"></i>
-                    Tiếp nhận
+                    <span class="visually-hidden">Tiếp nhận</span>
                 </button>
             </form>
+            {% elif t.current_user_status %}
+            <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}#report-section" class="btn btn-mobile btn-mobile-primary" style="background:#dcfce7;color:#166534;" aria-label="Báo cáo" title="Báo cáo">
+                <i class="fa-solid fa-paper-plane"></i>
+                <span class="visually-hidden">Báo cáo</span>
+            </a>
             {% else %}
             <div></div>
             {% endif %}
-            <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}" class="btn btn-mobile btn-mobile-primary">
+            <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}" class="btn btn-mobile btn-mobile-primary" aria-label="Chi tiết" title="Chi tiết">
                 <i class="fa-solid fa-arrow-right"></i>
-                Chi tiết
+                <span class="visually-hidden">Chi tiết</span>
             </a>
         </div>
     </article>
@@ -222,8 +227,8 @@
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
-                    <button type="submit" class="btn btn-primary rounded-pill px-4">Giao việc</button>
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal" aria-label="Đóng" title="Đóng"><i class="fa-solid fa-xmark"></i><span class="visually-hidden">Đóng</span></button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4" aria-label="Giao việc" title="Giao việc"><i class="fa-solid fa-plus"></i><span class="visually-hidden">Giao việc</span></button>
                 </div>
             </form>
         </div>

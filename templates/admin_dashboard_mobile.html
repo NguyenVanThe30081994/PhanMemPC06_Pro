@@ -82,7 +82,7 @@
         <div class="overview-mobile-empty">{{ card.empty_text }}</div>
         {% endif %}
         <div class="overview-mobile-card-footer">
-            <a href="{{ card.link }}" class="overview-mobile-link"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Mở chức năng</a>
+            <a href="{{ card.link }}" class="overview-mobile-link" aria-label="Mở chức năng" title="Mở chức năng"><i class="fa-solid fa-arrow-up-right-from-square"></i><span class="visually-hidden">Mở chức năng</span></a>
         </div>
     </div>
     {% endfor %}

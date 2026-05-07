@@ -24,9 +24,9 @@
     <div class="mobile-log-actions">
         <form method="POST" action="/logs" class="m-0">
             <input type="hidden" name="action" value="backup">
-            <button type="submit" class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;"><i class="fa-solid fa-file-excel"></i>Xuất Excel</button>
+            <button type="submit" class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" aria-label="Xuất Excel" title="Xuất Excel"><i class="fa-solid fa-file-excel"></i><span class="visually-hidden">Xuất Excel</span></button>
         </form>
-        <button class="btn btn-mobile btn-mobile-primary" data-bs-toggle="modal" data-bs-target="#clearLogsModal"><i class="fa-solid fa-broom"></i>Dọn nhật ký</button>
+        <button class="btn btn-mobile btn-mobile-primary" type="button" data-bs-toggle="modal" data-bs-target="#clearLogsModal" aria-label="Dọn nhật ký" title="Dọn nhật ký"><i class="fa-solid fa-broom"></i><span class="visually-hidden">Dọn nhật ký</span></button>
     </div>
 </section>
 
@@ -50,8 +50,8 @@
             </div>
         </div>
         <div class="d-grid gap-2">
-            <button type="submit" class="btn-mobile btn-mobile-primary">Áp dụng bộ lọc</button>
-            <a href="/logs" class="btn btn-light rounded-pill border">Đặt lại</a>
+            <button type="submit" class="btn-mobile btn-mobile-primary" aria-label="Áp dụng bộ lọc" title="Áp dụng bộ lọc"><i class="fa-solid fa-filter"></i><span class="visually-hidden">Áp dụng bộ lọc</span></button>
+            <a href="/logs" class="btn btn-light rounded-pill border" aria-label="Đặt lại bộ lọc" title="Đặt lại bộ lọc"><i class="fa-solid fa-rotate-left"></i><span class="visually-hidden">Đặt lại bộ lọc</span></a>
         </div>
     </form>
 </section>
@@ -92,11 +92,11 @@
                         <div class="col-6"><input type="date" name="s_date" class="form-control" required></div>
                         <div class="col-6"><input type="date" name="e_date" class="form-control" required></div>
                     </div>
-                    <button type="submit" class="btn btn-warning w-100 rounded-pill fw-bold">Xóa theo khoảng</button>
+                    <button type="submit" class="btn btn-warning w-100 rounded-pill fw-bold" aria-label="Xóa theo khoảng" title="Xóa theo khoảng"><i class="fa-solid fa-calendar-xmark"></i><span class="visually-hidden">Xóa theo khoảng</span></button>
                 </form>
                 <form method="POST" action="/logs">
                     <input type="hidden" name="action" value="clear_all">
-                    <button type="submit" class="btn btn-outline-danger w-100 rounded-pill fw-bold">Xóa toàn bộ nhật ký</button>
+                    <button type="submit" class="btn btn-outline-danger w-100 rounded-pill fw-bold" aria-label="Xóa toàn bộ nhật ký" title="Xóa toàn bộ nhật ký"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Xóa toàn bộ nhật ký</span></button>
                 </form>
             </div>
         </div>

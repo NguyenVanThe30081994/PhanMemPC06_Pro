@@ -22,8 +22,8 @@
     <h1>Nhóm danh mục</h1>
     <p>Quản lý thành phần và binding field cho các phân hệ nghiệp vụ.</p>
     <div class="mobile-category-actions">
-        <button class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#addGroupModal"><i class="fa-solid fa-plus"></i>Thêm</button>
-        <button class="btn btn-mobile btn-mobile-primary" data-bs-toggle="modal" data-bs-target="#deleteGroupModal"><i class="fa-solid fa-trash"></i>Xóa</button>
+        <button class="btn btn-mobile" type="button" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#addGroupModal" aria-label="Thêm danh mục" title="Thêm danh mục"><i class="fa-solid fa-plus"></i><span class="visually-hidden">Thêm danh mục</span></button>
+        <button class="btn btn-mobile btn-mobile-primary" type="button" data-bs-toggle="modal" data-bs-target="#deleteGroupModal" aria-label="Xóa danh mục" title="Xóa danh mục"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Xóa danh mục</span></button>
     </div>
 </section>
 
@@ -51,14 +51,14 @@
                 <input type="hidden" name="item_id" value="{{ item.id }}">
                 <input type="text" name="item_name" class="form-control form-control-sm" value="{{ item.name }}" required>
                 <div class="mobile-category-item-actions mt-2">
-                    <button type="submit" class="btn btn-light border text-primary btn-sm">Sửa</button>
+                    <button type="submit" class="btn btn-light border text-primary btn-sm" aria-label="Sửa mục" title="Sửa mục"><i class="fa-solid fa-pen"></i><span class="visually-hidden">Sửa mục</span></button>
                 </div>
             </form>
             <form method="POST" class="m-0">
                 <input type="hidden" name="action" value="delete_item">
                 <input type="hidden" name="item_id" value="{{ item.id }}">
                 <div class="mobile-category-item-actions">
-                    <button type="submit" class="btn btn-light border text-danger btn-sm">Xóa</button>
+                    <button type="submit" class="btn btn-light border text-danger btn-sm" aria-label="Xóa mục" title="Xóa mục"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Xóa mục</span></button>
                 </div>
             </form>
         </div>
@@ -78,7 +78,7 @@
         <input type="hidden" name="action" value="import_items_excel">
         <input type="hidden" name="group_id" value="{{ g.id }}">
         <input type="file" name="items_excel" id="excel-import-{{ g.id }}" class="d-none" accept=".xlsx,.xls" onchange="this.form.submit()">
-        <button type="button" class="btn btn-light rounded-pill border w-100" onclick="document.getElementById('excel-import-{{ g.id }}').click()">Import Excel</button>
+        <button type="button" class="btn btn-light rounded-pill border w-100" onclick="document.getElementById('excel-import-{{ g.id }}').click()" aria-label="Import Excel" title="Import Excel"><i class="fa-solid fa-file-excel"></i><span class="visually-hidden">Import Excel</span></button>
     </form>
 </section>
 {% endfor %}
@@ -109,7 +109,7 @@
             </select>
             <div class="d-flex justify-content-between align-items-center">
                 <label class="small"><input class="form-check-input me-1" type="checkbox" name="is_required" {% if binding and binding.is_required %}checked{% endif %}>Bắt buộc</label>
-                <button type="submit" class="btn btn-sm btn-primary rounded-pill">Lưu</button>
+                <button type="submit" class="btn btn-sm btn-primary rounded-pill" aria-label="Lưu binding" title="Lưu binding"><i class="fa-solid fa-floppy-disk"></i><span class="visually-hidden">Lưu binding</span></button>
             </div>
         </form>
         {% endfor %}
@@ -132,7 +132,7 @@
                         {% endfor %}
                     </div>
                 </div>
-                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary">Tạo danh mục</button></div>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary" aria-label="Tạo danh mục" title="Tạo danh mục"><i class="fa-solid fa-plus"></i><span class="visually-hidden">Tạo danh mục</span></button></div>
             </form>
         </div>
     </div>
@@ -148,7 +148,7 @@
                     <div class="mb-3"><label class="form-label small fw-bold">Chọn danh mục</label><select name="group_id" class="form-select" required><option value="" disabled selected>Chọn danh mục</option>{% for g in groups %}<option value="{{ g.id }}">{{ g.name }} ({{ g.items|length }} mục)</option>{% endfor %}</select></div>
                     <div class="alert alert-danger small mb-0">Toàn bộ thành phần thuộc danh mục sẽ bị xóa.</div>
                 </div>
-                <div class="modal-footer border-0"><button type="submit" class="btn btn-danger w-100 rounded-pill fw-bold">Xác nhận xóa</button></div>
+                <div class="modal-footer border-0"><button type="submit" class="btn btn-danger w-100 rounded-pill fw-bold" aria-label="Xác nhận xóa" title="Xác nhận xóa"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Xác nhận xóa</span></button></div>
             </form>
         </div>
     </div>
