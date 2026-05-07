@@ -18,7 +18,12 @@
     <div class="d-flex justify-content-between align-items-start gap-3">
         <div>
             <h1>{{ cycle.name }}</h1>
-            <p>{{ template.name }} • {{ current_unit.name if current_unit else 'Không có đơn vị' }}</p>
+            <p>
+                {{ template.name }} • {{ current_unit.name if current_unit else 'Không có đơn vị' }}
+                {% if report_type and report_type.code == 'daily' and report_date_str %}
+                • Luỹ kế đến hết ngày {{ report_date_str }}
+                {% endif %}
+            </p>
         </div>
         <a href="{{ url_for('reporting_bp.user_dashboard') if not is_admin else url_for('reporting_bp.admin_cycle_detail', cycle_id=cycle.id) }}" aria-label="Quay lại" title="Quay lại"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay lại</span></a>
     </div>

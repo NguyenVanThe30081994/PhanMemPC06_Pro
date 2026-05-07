@@ -578,12 +578,18 @@ def render_sheet_html(
     max_row = min(active_max_row, end_row or active_max_row)
     spans, shadows, anchors = _merge_lookup(ws)
     html_rows = []
+    sticky_top_by_row = {}
+    running_header_top = 0
 
     for r in range(min_row, max_row + 1):
         if ws.row_dimensions[r].hidden:
             continue
         row_height = ws.row_dimensions[r].height or 15
-        html_rows.append(f'<tr style="height:{int(row_height * 1.33)}px">')
+        rendered_row_height = int(row_height * 1.33)
+        if header_end_row is not None and r <= int(header_end_row):
+            sticky_top_by_row[r] = running_header_top
+            running_header_top += rendered_row_height
+        html_rows.append(f'<tr style="height:{rendered_row_height}px">')
         for c in range(min_col, max_col + 1):
             if (r, c) in shadows:
                 continue
@@ -628,10 +634,13 @@ def render_sheet_html(
                 td_class += " report-cell--first-col"
             if is_input:
                 td_class += " report-input"
+            sticky_style = ""
+            if is_header_cell:
+                sticky_style = f"--report-sticky-top:{sticky_top_by_row.get(r, 0)}px;"
             rs_attr = f' rowspan="{rowspan}"' if rowspan > 1 else ""
             cs_attr = f' colspan="{colspan}"' if colspan > 1 else ""
             html_rows.append(
-                f'<td class="{td_class}" {rs_attr}{cs_attr} style="padding:4px 6px;border:1px solid #d1d5db;overflow:hidden;box-sizing:border-box;{css}" {" ".join(attrs)}>{html.escape(display)}</td>'
+                f'<td class="{td_class}" {rs_attr}{cs_attr} style="padding:4px 6px;border:1px solid #d1d5db;overflow:hidden;box-sizing:border-box;{sticky_style}{css}" {" ".join(attrs)}>{html.escape(display)}</td>'
             )
         html_rows.append("</tr>")
 

@@ -587,6 +587,18 @@ def _submission_history(instance_id, report_date=None):
     return query.order_by(ReportSubmission.version_no.desc(), ReportSubmission.created_at.desc()).all()
 
 
+def _submission_history_through_date(instance_id, report_date):
+    submission_time = _submission_time_expr()
+    return (
+        ReportSubmission.query.filter(
+            ReportSubmission.instance_id == instance_id,
+            submission_time < _next_day_start(report_date),
+        )
+        .order_by(ReportSubmission.version_no.desc(), ReportSubmission.created_at.desc())
+        .all()
+    )
+
+
 def _submissions_through_date(instance_id, report_date):
     submission_time = _submission_time_expr()
     return (
@@ -664,6 +676,220 @@ def _merged_submission_cell_values(submissions):
         for sheet_name, cells in _submission_cell_values(submission.id).items():
             values.setdefault(sheet_name, {}).update(cells)
     return values
+
+
+def _resolve_working_submission_state(instance, template_version, report_type=None, report_date=None):
+    if not instance or not template_version:
+        return {
+            "latest_submission": None,
+            "history": [],
+            "existing_values": {},
+            "daily_submissions": [],
+        }
+
+    if report_type and report_type.code == "daily" and report_date:
+        daily_submissions = _daily_snapshot_submissions_through_date(instance.id, report_date)
+        latest_submission = daily_submissions[-1] if daily_submissions else None
+        history = _submission_history_through_date(instance.id, report_date)
+        existing_values = _cumulative_submission_cell_values(daily_submissions, template_version.id)
+        return {
+            "latest_submission": latest_submission,
+            "history": history,
+            "existing_values": existing_values,
+            "daily_submissions": daily_submissions,
+        }
+
+    latest_submission = _latest_submission(instance.id)
+    history = _submission_history(instance.id)
+    existing_values = _submission_cell_values(latest_submission.id) if latest_submission else {}
+    return {
+        "latest_submission": latest_submission,
+        "history": history,
+        "existing_values": existing_values,
+        "daily_submissions": [],
+    }
+
+
+def _effective_daily_cutoff_date(cycle, instance_id=None):
+    if cycle and cycle.close_at:
+        return cycle.close_at.date()
+    if cycle and cycle.due_at:
+        return cycle.due_at.date()
+    if instance_id:
+        latest = _latest_submission(instance_id)
+        latest_time = (latest.submitted_at or latest.created_at) if latest else None
+        if latest_time:
+            return latest_time.date()
+    return date.today()
+
+
+def _resolve_effective_instance_state(instance, cycle, template_version, report_type=None):
+    if not instance or not cycle or not template_version:
+        return {
+            "latest_submission": None,
+            "history": [],
+            "existing_values": {},
+            "daily_submissions": [],
+            "report_date": None,
+            "mode": "empty",
+        }
+
+    if report_type and report_type.code == "daily":
+        cutoff_date = _effective_daily_cutoff_date(cycle, instance.id)
+        state = _resolve_working_submission_state(
+            instance,
+            template_version,
+            report_type=report_type,
+            report_date=cutoff_date,
+        )
+        state["report_date"] = cutoff_date
+        state["mode"] = "daily_cumulative"
+        return state
+
+    state = _resolve_working_submission_state(
+        instance,
+        template_version,
+        report_type=report_type,
+        report_date=None,
+    )
+    state["report_date"] = None
+    state["mode"] = "latest_snapshot"
+    return state
+
+
+def _export_effective_values(cycle, instance, template_version, effective_values, suffix="effective"):
+    output_name = safe_filename(
+        f"{template_version.template_id}_cycle_{cycle.id}_instance_{instance.id}_{suffix}.xlsx"
+    )
+    output_path = os.path.join(current_app.root_path, "report_exports", output_name)
+    write_workbook_copy(template_version.source_path, output_path, effective_values)
+    return output_path
+
+
+def _materialize_effective_submission_export(
+    instance,
+    cycle,
+    template_version,
+    report_type=None,
+    overwrite=False,
+    apply=False,
+):
+    state = _resolve_effective_instance_state(
+        instance,
+        cycle,
+        template_version,
+        report_type=report_type,
+    )
+    latest_submission = state["latest_submission"]
+    result = {
+        "instance": instance,
+        "state": state,
+        "latest_submission": latest_submission,
+        "has_data": bool(latest_submission),
+        "has_existing_export": False,
+        "needs_export": False,
+        "exported": False,
+        "export_path": "",
+        "effective_time": (latest_submission.submitted_at or latest_submission.created_at) if latest_submission else None,
+        "error": "",
+    }
+    if not latest_submission:
+        return result
+
+    processed_path = (latest_submission.processed_file_path or "").strip()
+    has_existing_export = bool(processed_path and os.path.exists(processed_path))
+    needs_export = overwrite or not has_existing_export
+    result["has_existing_export"] = has_existing_export
+    result["needs_export"] = needs_export
+    result["export_path"] = processed_path if has_existing_export else ""
+
+    if apply and needs_export:
+        try:
+            export_path = _export_effective_values(
+                cycle,
+                instance,
+                template_version,
+                state["existing_values"] or {},
+                suffix=state["mode"],
+            )
+            latest_submission.processed_file_path = export_path
+            result["exported"] = True
+            result["export_path"] = export_path
+        except Exception as exc:
+            result["error"] = str(exc)
+            return result
+
+    if apply:
+        effective_time = result["effective_time"]
+        instance.status = latest_submission.status or instance.status or "draft"
+        instance.submitted_at = effective_time
+        if cycle and (cycle.is_locked or cycle.status == "closed"):
+            instance.locked_at = cycle.close_at or instance.locked_at or effective_time or datetime.now()
+
+    return result
+
+
+def _materialize_cycle_effective_exports(cycle, overwrite=False, apply=False, include_open=False):
+    summary = {
+        "cycle_id": cycle.id if cycle else None,
+        "instances_total": 0,
+        "instances_with_data": 0,
+        "instances_without_data": 0,
+        "exports_generated": 0,
+        "exports_reused": 0,
+        "errors": [],
+        "results": [],
+    }
+    if not cycle:
+        return summary
+    if not include_open and not (cycle.is_locked or cycle.status == "closed"):
+        return summary
+
+    template_version = db.session.get(ReportTemplateVersion, cycle.template_version_id)
+    if not template_version:
+        summary["errors"].append(f"cycle={cycle.id}: missing template version")
+        return summary
+
+    report_type = _report_type(cycle)
+    instances = ReportInstance.query.filter_by(cycle_id=cycle.id).order_by(ReportInstance.id.asc()).all()
+    summary["instances_total"] = len(instances)
+    for instance in instances:
+        result = _materialize_effective_submission_export(
+            instance,
+            cycle,
+            template_version,
+            report_type=report_type,
+            overwrite=overwrite,
+            apply=apply,
+        )
+        summary["results"].append(result)
+        if result["has_data"]:
+            summary["instances_with_data"] += 1
+        else:
+            summary["instances_without_data"] += 1
+        if result["error"]:
+            summary["errors"].append(
+                f"cycle={cycle.id} instance={instance.id}: {result['error']}"
+            )
+            continue
+        if result["exported"]:
+            summary["exports_generated"] += 1
+        elif result["has_existing_export"]:
+            summary["exports_reused"] += 1
+
+    return summary
+
+
+def _submission_download_path(submission):
+    if not submission:
+        return ""
+    processed_path = (submission.processed_file_path or "").strip()
+    if processed_path and os.path.exists(processed_path):
+        return processed_path
+    file_path = (submission.file_path or "").strip()
+    if file_path and os.path.exists(file_path):
+        return file_path
+    return ""
 
 
 def _submission_cell_values(submission_id):
@@ -1993,44 +2219,25 @@ def admin_cycle_detail(cycle_id):
     for unit in scoped_units:
         instance = instance_map.get(unit.id)
 
-        # For daily reports: find the latest submission within the selected report date.
-        # For other reports: use the latest submission
-        if is_daily and filter_date and instance:
-            submission_time = _submission_time_expr()
-            latest_submission = (
-                ReportSubmission.query.filter(
-                    ReportSubmission.instance_id == instance.id,
-                    submission_time >= filter_start,
-                    submission_time < filter_end,
-                )
-                .order_by(ReportSubmission.version_no.desc(), ReportSubmission.created_at.desc())
-                .first()
-            )
-            submission_count = (
-                ReportSubmission.query.filter(
-                    ReportSubmission.instance_id == instance.id,
-                    submission_time >= filter_start,
-                    submission_time < filter_end,
-                )
-                .count()
-            )
-        elif instance:
-            latest_submission = _latest_submission(instance.id)
-            submission_count = ReportSubmission.query.filter_by(instance_id=instance.id).count()
-        else:
-            latest_submission = None
-            submission_count = 0
+        working_state = _resolve_working_submission_state(
+            instance,
+            template_version,
+            report_type=report_type,
+            report_date=filter_date if is_daily else None,
+        ) if instance else {"latest_submission": None, "history": []}
+        latest_submission = working_state["latest_submission"]
+        submission_count = len(working_state["history"])
 
         submission_total += submission_count
         timeliness = _submission_timeliness(cycle, latest_submission, report_type=report_type)
 
-        # For daily reports: check if submitted for the filtered date
+        # For daily reports: count units with data available through the selected date.
         if is_daily:
             if latest_submission:
-                if latest_submission.status == "submitted":
-                    reported_total += 1
+                reported_total += 1
                 latest_submissions.append(latest_submission)
-                on_time_total += 1
+                if latest_submission.status == "submitted":
+                    on_time_total += 1
             else:
                 not_reported_total += 1
         else:
@@ -2059,7 +2266,6 @@ def admin_cycle_detail(cycle_id):
             ReportSubmission.instance_id.in_(instance_ids),
             *(
                 [
-                    _submission_time_expr() >= filter_start,
                     _submission_time_expr() < filter_end,
                 ]
                 if is_daily and filter_start and filter_end
@@ -2158,8 +2364,19 @@ def close_cycle(cycle_id):
     _ensure_reporting_period(cycle)
     for instance in ReportInstance.query.filter_by(cycle_id=cycle.id).all():
         instance.locked_at = cycle.close_at
+    materialized = _materialize_cycle_effective_exports(
+        cycle,
+        overwrite=True,
+        apply=True,
+        include_open=True,
+    )
     db.session.commit()
     _audit("close_cycle", "report_cycle", cycle.id, cycle.name)
+    if materialized["errors"]:
+        flash(
+            f"Đã đóng báo cáo, nhưng có {len(materialized['errors'])} đơn vị chưa tạo được tệp dữ liệu chốt.",
+            "warning",
+        )
     flash("Đã đóng báo cáo.", "success")
     return redirect(url_for("reporting_bp.admin_cycle_detail", cycle_id=cycle.id))
 
@@ -2349,13 +2566,9 @@ def cycle_workspace(cycle_id):
     metadata = json.loads(template_version.metadata_json or "{}")
     workbook = load_workbook(template_version.source_path, data_only=False)
     report_date = context["report_date"]
-    latest_submission = (
-        _latest_submission_for_date(instance.id, report_date)
-        if report_type and report_type.code == "daily" and report_date
-        else context["latest_submission"]
-    )
+    latest_submission = context["latest_submission"]
     submission_history = context["submission_history"]
-    existing_values = _submission_cell_values(latest_submission.id) if latest_submission else {}
+    existing_values = context.get("working_values", {})
     available_units = _cycle_units(cycle) if _is_admin() else []
     sheet_views = []
     for sheet_meta in metadata.get("sheets", []):
@@ -2478,11 +2691,11 @@ def cycle_preview(cycle_id):
             latest_submission = latest_submissions[0] if latest_submissions else None
         unit = None
     elif is_daily_cumulative:
-        submissions = _daily_snapshot_submissions_through_date(context["instance"].id, report_date)
-        existing_values = _cumulative_submission_cell_values(submissions, template_version.id)
+        existing_values = context.get("working_values", {})
+        submissions = context.get("daily_submissions", [])
         latest_submission = submissions[-1] if submissions else None
     else:
-        existing_values = _submission_cell_values(latest_submission.id) if latest_submission else {}
+        existing_values = context.get("working_values", {})
     workbook, formula_values = build_preview_workbook(template_version.source_path, existing_values)
     preview_sheets = []
     for sheet_meta in metadata.get("sheets", []):
@@ -2555,6 +2768,8 @@ def cycle_history(cycle_id):
         cycle=context["cycle"],
         template=context["template"],
         report_type=context["report_type"],
+        report_date=context["report_date"],
+        report_date_str=context["report_date"].strftime("%d/%m/%Y") if context["report_date"] else "",
         current_unit=context["unit"],
         latest_submission=context["latest_submission"],
         history_rows=history_rows,
@@ -2589,8 +2804,12 @@ def _resolve_cycle_context(cycle_id):
     report_date = None
     if report_type and report_type.code == "daily":
         report_date = _parse_date(request.args.get("report_date", "")) or date.today()
-    latest_submission = _latest_submission_through_date(instance.id, report_date) if report_date else _latest_submission(instance.id)
-    submission_history = _submission_history(instance.id, report_date=report_date)
+    working_state = _resolve_working_submission_state(
+        instance,
+        template_version,
+        report_type=report_type,
+        report_date=report_date,
+    )
     return {
         "cycle": cycle,
         "unit": unit,
@@ -2600,8 +2819,10 @@ def _resolve_cycle_context(cycle_id):
         "template": template,
         "report_type": report_type,
         "report_date": report_date,
-        "latest_submission": latest_submission,
-        "submission_history": submission_history,
+        "latest_submission": working_state["latest_submission"],
+        "submission_history": working_state["history"],
+        "working_values": working_state["existing_values"],
+        "daily_submissions": working_state["daily_submissions"],
     }
 
 
@@ -2614,6 +2835,9 @@ def save_cycle(cycle_id):
     unit = _resolve_cycle_unit(cycle) if cycle else None
     if not cycle or not _cycle_accessible(cycle, unit.id if unit else None, _is_admin()):
         return "Forbidden", 403
+    if cycle.is_locked or cycle.status == "closed":
+        flash("Báo cáo đã khóa, không thể lưu thêm dữ liệu.", "warning")
+        return redirect(url_for("reporting_bp.cycle_workspace", cycle_id=cycle.id))
     user = db.session.get(User, session.get("uid"))
     instance = _get_cycle_instance(cycle, unit, user)
     payload = _payload_from_request()
@@ -2632,6 +2856,9 @@ def submit_cycle(cycle_id):
     unit = _resolve_cycle_unit(cycle) if cycle else None
     if not cycle or not _cycle_accessible(cycle, unit.id if unit else None, _is_admin()):
         return "Forbidden", 403
+    if cycle.is_locked or cycle.status == "closed":
+        flash("Báo cáo đã khóa, không thể gửi thêm dữ liệu.", "warning")
+        return redirect(url_for("reporting_bp.cycle_workspace", cycle_id=cycle.id))
     user = db.session.get(User, session.get("uid"))
     instance = _get_cycle_instance(cycle, unit, user)
     payload = _payload_from_request()
@@ -2655,7 +2882,9 @@ def download_submission(submission_id):
     submission = db.session.get(ReportSubmission, submission_id)
     if not submission:
         return "Not Found", 404
-    if not submission.file_path or not os.path.exists(submission.file_path):
+    download_path = _submission_download_path(submission)
+    if not download_path:
         submission.file_path = _export_submission(submission)
         db.session.commit()
-    return send_file(submission.file_path, as_attachment=True, download_name=os.path.basename(submission.file_path))
+        download_path = _submission_download_path(submission)
+    return send_file(download_path, as_attachment=True, download_name=os.path.basename(download_path))

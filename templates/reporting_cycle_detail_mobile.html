@@ -70,8 +70,8 @@
 <section class="report-admin-mobile-card">
     <div class="report-admin-mobile-grid">
         {% if is_daily %}
-        <div><span>Đã báo cáo</span><strong>{{ reported_total }}</strong></div>
-        <div><span>Chưa báo cáo</span><strong>{{ not_reported_total }}</strong></div>
+        <div><span>Có dữ liệu</span><strong>{{ reported_total }}</strong></div>
+        <div><span>Chưa có dữ liệu</span><strong>{{ not_reported_total }}</strong></div>
         {% else %}
         <div><span>Đã nộp</span><strong>{{ submitted_total }}</strong></div>
         <div><span>Đúng hạn</span><strong>{{ on_time_total }}</strong></div>
@@ -106,12 +106,12 @@
         {% for row in unit_rows %}
         <article class="report-admin-mobile-item">
             <h3>{{ row.unit.name if row.unit else 'Không xác định' }}</h3>
-            <p>{{ row.submission_count }} lần lưu/gửi • {{ row.latest_submission.created_at.strftime('%d/%m/%Y %H:%M') if row.latest_submission and row.latest_submission.created_at else ('Chưa báo cáo ngày ' + filter_date_str if is_daily else 'Chưa có dữ liệu') }}</p>
+            <p>{{ row.submission_count }} lần lưu/gửi • {{ row.latest_submission.created_at.strftime('%d/%m/%Y %H:%M') if row.latest_submission and row.latest_submission.created_at else ('Chưa có dữ liệu đến ngày ' + filter_date_str if is_daily else 'Chưa có dữ liệu') }}</p>
             <div class="small mt-2" style="color: var(--text-main);">
                 {% if row.latest_submission %}
                 {{ 'Đã gửi báo cáo' if row.instance and row.instance.status == 'submitted' else 'Lưu nháp' }} • {{ row.timeliness }}
                 {% else %}
-                {{ 'Chưa báo cáo' if is_daily else 'Chưa nộp' }}
+                {{ 'Chưa có dữ liệu' if is_daily else 'Chưa nộp' }}
                 {% endif %}
             </div>
         </article>

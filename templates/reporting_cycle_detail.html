@@ -72,7 +72,7 @@
                     {% if is_daily %}
                     <div class="col-12">
                         <div class="p-3 bg-light rounded-3">
-                            <div class="small text-muted">Đơn vị đã báo cáo ngày {{ filter_date_str }}</div>
+                            <div class="small text-muted">Đơn vị có dữ liệu đến hết ngày {{ filter_date_str }}</div>
                             <div class="fw-bold fs-5">{{ reported_total }}/{{ scope_count }}</div>
                         </div>
                     </div>
@@ -155,14 +155,14 @@
                         <h5 class="fw-bold mb-1">Lịch sử nhập của các đơn vị</h5>
                         <div class="text-muted small">
                             {% if is_daily %}
-                            Hiển thị các lần lưu hoặc gửi báo cáo trong ngày {{ filter_date_str }}.
+                            Hiển thị các lần lưu hoặc gửi báo cáo đến hết ngày {{ filter_date_str }}.
                             {% else %}
                             Hiển thị toàn bộ các lần lưu hoặc gửi báo cáo của những đơn vị được giao.
                             {% endif %}
                         </div>
                     </div>
                     <div class="small text-muted">
-                        {{ submission_total }} lần lưu/gửi{% if is_daily %} trong ngày{% endif %}
+                        {{ submission_total }} lần lưu/gửi{% if is_daily %} đến ngày đã chọn{% endif %}
                     </div>
                 </div>
                 <div class="table-responsive">
@@ -214,7 +214,7 @@
                 <h5 class="fw-bold mb-1">Tình trạng từng đơn vị</h5>
                 <div class="text-muted small">
                     {% if is_daily %}
-                    Theo dõi nhanh đơn vị nào đã báo cáo trong ngày {{ filter_date_str }}.
+                    Theo dõi nhanh đơn vị nào đã có dữ liệu đến hết ngày {{ filter_date_str }}.
                     {% else %}
                     Theo dõi nhanh đơn vị nào đã nộp, đang lưu nháp hoặc chưa có dữ liệu.
                     {% endif %}
@@ -226,7 +226,7 @@
                 <thead>
                     <tr>
                         <th>Đơn vị</th>
-                        <th>Số lần lưu/gửi{% if is_daily %} trong ngày{% endif %}</th>
+                        <th>Số lần lưu/gửi{% if is_daily %} đến ngày chọn{% endif %}</th>
                         <th>Bản mới nhất</th>
                         <th>Trạng thái</th>
                     </tr>
@@ -240,7 +240,7 @@
                             {% if row.latest_submission %}
                             {{ row.latest_submission.created_at.strftime('%d/%m/%Y %H:%M') if row.latest_submission.created_at else '' }}
                             {% else %}
-                            <span class="text-muted">{{ 'Chưa báo cáo ngày ' + filter_date_str if is_daily else 'Chưa có dữ liệu' }}</span>
+                            <span class="text-muted">{{ 'Chưa có dữ liệu đến ngày ' + filter_date_str if is_daily else 'Chưa có dữ liệu' }}</span>
                             {% endif %}
                         </td>
                         <td>
@@ -248,7 +248,7 @@
                             <div class="fw-semibold">{{ 'Đã gửi báo cáo' if row.instance and row.instance.status == 'submitted' else 'Lưu nháp' }}</div>
                             <div class="small text-muted">{{ row.timeliness }}</div>
                             {% else %}
-                            <span class="text-muted">{{ 'Chưa báo cáo' if is_daily else 'Chưa nộp' }}</span>
+                            <span class="text-muted">{{ 'Chưa có dữ liệu' if is_daily else 'Chưa nộp' }}</span>
                             {% endif %}
                         </td>
                     </tr>
