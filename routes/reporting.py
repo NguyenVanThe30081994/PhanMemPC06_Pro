@@ -386,6 +386,50 @@ def _template_range_defaults(version):
     return defaults
 
 
+def _workbook_sheet_names(source_path):
+    if not source_path or not os.path.exists(source_path):
+        return []
+    workbook = load_workbook(source_path, read_only=True, data_only=True)
+    try:
+        return list(workbook.sheetnames)
+    finally:
+        workbook.close()
+
+
+def _template_sheet_range_defaults(version):
+    defaults = _template_range_defaults(version)
+    metadata = json.loads((version.metadata_json if version else "") or "{}")
+    metadata_sheets = metadata.get("sheets") or []
+    configured = []
+    configured_names = set()
+
+    for sheet in metadata_sheets:
+        sheet_name = (sheet.get("sheet_name") or "").strip()
+        if not sheet_name:
+            continue
+        configured_names.add(sheet_name)
+        configured.append(
+            {
+                "sheet_name": sheet_name,
+                "header_start_row": sheet.get("header_start_row") or defaults["header_start_row"],
+                "header_end_row": sheet.get("header_end_row") or defaults["header_end_row"],
+                "unit_start_row": sheet.get("unit_start_row") or sheet.get("data_start_row") or defaults["unit_start_row"],
+                "unit_end_row": sheet.get("unit_end_row") or sheet.get("data_end_row") or defaults["unit_end_row"],
+                "total_start_row": sheet.get("total_start_row") or defaults["total_start_row"],
+                "total_end_row": sheet.get("total_end_row") or defaults["total_end_row"],
+                "start_column": sheet.get("start_column") or defaults["start_column"],
+                "end_column": sheet.get("end_column") or defaults["end_column"],
+            }
+        )
+
+    for sheet_name in _workbook_sheet_names(version.source_path if version else ""):
+        if sheet_name in configured_names:
+            continue
+        configured.append({"sheet_name": sheet_name, **defaults})
+
+    return configured
+
+
 def _build_parse_options(form, defaults=None):
     defaults = defaults or {}
     header_start_row = _parse_positive_int(form.get("header_start_row"), defaults.get("header_start_row", 1))
@@ -415,7 +459,110 @@ def _build_parse_options(form, defaults=None):
     }
 
 
-def _apply_version_structure(version, source_path, source_filename, parse_options, notes=""):
+def _build_sheet_parse_options(form, defaults=None, workbook_sheet_names=None, global_defaults=None):
+    defaults = defaults or []
+    workbook_sheet_names = workbook_sheet_names or []
+    global_defaults = global_defaults or {}
+    defaults_by_name = {item.get("sheet_name"): item for item in defaults if item.get("sheet_name")}
+
+    names = form.getlist("sheet_name")
+    header_start_rows = form.getlist("sheet_header_start_row")
+    header_end_rows = form.getlist("sheet_header_end_row")
+    unit_start_rows = form.getlist("sheet_unit_start_row")
+    unit_end_rows = form.getlist("sheet_unit_end_row")
+    total_start_rows = form.getlist("sheet_total_start_row")
+    total_end_rows = form.getlist("sheet_total_end_row")
+    start_columns = form.getlist("sheet_start_column")
+    end_columns = form.getlist("sheet_end_column")
+
+    def _value_at(items, index, fallback=""):
+        return items[index] if index < len(items) else fallback
+
+    def _coerce_for_sheet(sheet_name, overrides=None):
+        overrides = overrides or {}
+        base = defaults_by_name.get(sheet_name, {})
+        header_start_row = _parse_positive_int(
+            overrides.get("header_start_row"),
+            base.get("header_start_row", global_defaults.get("header_start_row", 1)),
+        )
+        header_end_row = _parse_positive_int(
+            overrides.get("header_end_row"),
+            max(header_start_row, base.get("header_end_row", global_defaults.get("header_end_row", header_start_row))),
+        )
+        if header_end_row < header_start_row:
+            header_end_row = header_start_row
+        unit_start_row = _parse_positive_int(
+            overrides.get("unit_start_row"),
+            max(header_end_row + 1, base.get("unit_start_row", global_defaults.get("unit_start_row", header_end_row + 1))),
+        )
+        unit_end_row = _parse_positive_int(
+            overrides.get("unit_end_row"),
+            max(unit_start_row, base.get("unit_end_row", global_defaults.get("unit_end_row", unit_start_row))),
+        )
+        if unit_end_row < unit_start_row:
+            unit_end_row = unit_start_row
+        total_start_row = _parse_positive_int(
+            overrides.get("total_start_row"),
+            max(unit_end_row + 1, base.get("total_start_row", global_defaults.get("total_start_row", unit_end_row + 1))),
+        )
+        total_end_row = _parse_positive_int(
+            overrides.get("total_end_row"),
+            max(total_start_row, base.get("total_end_row", global_defaults.get("total_end_row", total_start_row))),
+        )
+        if total_end_row < total_start_row:
+            total_end_row = total_start_row
+        start_column = (
+            overrides.get("start_column")
+            or base.get("start_column")
+            or global_defaults.get("start_column")
+            or "A"
+        ).strip().upper()
+        end_column = (
+            overrides.get("end_column")
+            or base.get("end_column")
+            or global_defaults.get("end_column")
+            or start_column
+        ).strip().upper()
+        return {
+            "header_start_row": header_start_row,
+            "header_end_row": header_end_row,
+            "header_rows": max(1, header_end_row - header_start_row + 1),
+            "data_start_row": unit_start_row,
+            "data_end_row": unit_end_row,
+            "total_start_row": total_start_row,
+            "total_end_row": total_end_row,
+            "start_column": start_column,
+            "end_column": end_column,
+        }
+
+    options = {}
+    for index, raw_name in enumerate(names):
+        sheet_name = (raw_name or "").strip()
+        if not sheet_name:
+            continue
+        options[sheet_name] = _coerce_for_sheet(
+            sheet_name,
+            overrides={
+                "header_start_row": _value_at(header_start_rows, index),
+                "header_end_row": _value_at(header_end_rows, index),
+                "unit_start_row": _value_at(unit_start_rows, index),
+                "unit_end_row": _value_at(unit_end_rows, index),
+                "total_start_row": _value_at(total_start_rows, index),
+                "total_end_row": _value_at(total_end_rows, index),
+                "start_column": _value_at(start_columns, index),
+                "end_column": _value_at(end_columns, index),
+            },
+        )
+
+    for sheet_name in workbook_sheet_names:
+        if sheet_name in options:
+            continue
+        options[sheet_name] = _coerce_for_sheet(sheet_name)
+
+    return options
+
+
+def _apply_version_structure(version, source_path, source_filename, parse_options, notes="", sheet_parse_options=None):
     metadata = parse_workbook(
         source_path,
         header_rows=parse_options["header_rows"],
@@ -427,6 +574,7 @@ def _apply_version_structure(version, source_path, source_filename, parse_option
         total_end_row=parse_options["total_end_row"],
         start_column=parse_options["start_column"],
         end_column=parse_options["end_column"],
+        sheet_options=sheet_parse_options,
     )
 
     version.source_filename = source_filename
@@ -1950,6 +2098,7 @@ def template_settings(template_id):
         unit_groups=_unit_group_options(),
         scope_payload=_parse_scope_payload(template.assignment_scope_json),
         range_defaults=_template_range_defaults(current_version),
+        sheet_range_defaults=_template_sheet_range_defaults(current_version),
     )
 
 
@@ -2010,12 +2159,20 @@ def save_template_settings(template_id):
 
     defaults = _template_range_defaults(version)
     parse_options = _build_parse_options(request.form, defaults=defaults)
+    source_sheet_names = _workbook_sheet_names(source_path)
+    sheet_parse_options = _build_sheet_parse_options(
+        request.form,
+        defaults=_template_sheet_range_defaults(version),
+        workbook_sheet_names=source_sheet_names,
+        global_defaults=parse_options,
+    )
     _apply_version_structure(
         version,
         source_path,
         source_filename,
         parse_options,
         notes=template.description or "",
+        sheet_parse_options=sheet_parse_options,
     )
 
     if source_path != old_source_path and old_source_path and os.path.exists(old_source_path):

@@ -388,32 +388,38 @@ def parse_workbook(
     total_end_row=None,
     start_column=None,
     end_column=None,
+    sheet_options=None,
 ):
     wb = _load_workbook(file_path)
     metadata = {"sheets": [], "parser_version": "1.0"}
+    sheet_options = sheet_options or {}
 
     for order, ws in enumerate(wb.worksheets):
+        sheet_option = sheet_options.get(ws.title, {})
         min_col, min_row, max_col, max_row = _active_bounds(ws)
         resolved_min_col, resolved_max_col = _resolve_column_range(
             min_col,
             max_col,
-            start_column=start_column,
-            end_column=end_column,
+            start_column=sheet_option.get("start_column") or start_column,
+            end_column=sheet_option.get("end_column") or end_column,
         )
         spans, shadows, anchors = _merge_lookup(ws)
         resolved_header_start, resolved_header_end = _resolve_header_range(
             min_row,
             max_row,
-            header_rows=header_rows,
-            header_start_row=header_start_row,
-            header_end_row=header_end_row,
+            header_rows=sheet_option.get("header_rows") or header_rows,
+            header_start_row=sheet_option.get("header_start_row") or header_start_row,
+            header_end_row=sheet_option.get("header_end_row") or header_end_row,
         )
-        resolved_data_start = max(1, int(data_start_row or (resolved_header_end + 1)))
-        resolved_data_end = min(max_row, int(data_end_row or max_row))
+        resolved_data_start = max(
+            1,
+            int(sheet_option.get("data_start_row") or data_start_row or (resolved_header_end + 1)),
+        )
+        resolved_data_end = min(max_row, int(sheet_option.get("data_end_row") or data_end_row or max_row))
         if resolved_data_end < resolved_data_start:
             resolved_data_end = resolved_data_start
-        resolved_total_start = int(total_start_row or 0)
-        resolved_total_end = int(total_end_row or 0)
+        resolved_total_start = int(sheet_option.get("total_start_row") or total_start_row or 0)
+        resolved_total_end = int(sheet_option.get("total_end_row") or total_end_row or 0)
         if resolved_total_start:
             resolved_total_start = min(max_row, max(1, resolved_total_start))
         if resolved_total_end:
@@ -456,7 +462,7 @@ def parse_workbook(
             field_code = base_code if count == 0 else f"{base_code}_{get_column_letter(c).lower()}"
             used_codes[base_code] = count + 1
             inferred_type = "text"
-            for r in range(data_start_row, max_row + 1):
+            for r in range(resolved_data_start, max_row + 1):
                 if ws.row_dimensions[r].hidden:
                     continue
                 sample = ws.cell(row=r, column=c).value

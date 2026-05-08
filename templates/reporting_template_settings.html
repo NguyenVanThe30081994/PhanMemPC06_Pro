@@ -102,7 +102,8 @@
             <div class="row g-4 mt-1">
                 <div class="col-lg-12">
                     <div class="pc06-form-panel h-100">
-                        <h2 class="h6 fw-bold mb-3">Phạm vi dữ liệu</h2>
+                        <h2 class="h6 fw-bold mb-2">Mặc định phạm vi dữ liệu</h2>
+                        <div class="small text-muted mb-3">Dùng làm giá trị dự phòng khi thay file mẫu hoặc có sheet mới chưa có cấu hình riêng.</div>
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">Header từ dòng</label>
@@ -145,6 +146,61 @@
                     </div>
                 </div>
             </div>
+
+            {% if sheet_range_defaults %}
+            <div class="row g-4 mt-1">
+                <div class="col-lg-12">
+                    <div class="pc06-form-panel h-100">
+                        <h2 class="h6 fw-bold mb-2">Cấu hình từng sheet</h2>
+                        <div class="small text-muted mb-3">Mỗi sheet có thể khai báo vùng header, vùng đơn vị và cột hiển thị riêng.</div>
+                        <div class="row g-4">
+                            {% for sheet in sheet_range_defaults %}
+                            <div class="col-12">
+                                <div class="border rounded-4 p-3 p-lg-4">
+                                    <div class="fw-bold mb-3">{{ sheet.sheet_name }}</div>
+                                    <input type="hidden" name="sheet_name" value="{{ sheet.sheet_name }}">
+                                    <div class="row g-3">
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Header từ dòng</label>
+                                            <input type="number" name="sheet_header_start_row" class="form-control" value="{{ sheet.header_start_row }}" min="1">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Header đến dòng</label>
+                                            <input type="number" name="sheet_header_end_row" class="form-control" value="{{ sheet.header_end_row }}" min="1">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Đơn vị từ dòng</label>
+                                            <input type="number" name="sheet_unit_start_row" class="form-control" value="{{ sheet.unit_start_row }}" min="1">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Đơn vị đến dòng</label>
+                                            <input type="number" name="sheet_unit_end_row" class="form-control" value="{{ sheet.unit_end_row }}" min="1">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Tổng từ dòng</label>
+                                            <input type="number" name="sheet_total_start_row" class="form-control" value="{{ sheet.total_start_row }}" min="1">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Tổng đến dòng</label>
+                                            <input type="number" name="sheet_total_end_row" class="form-control" value="{{ sheet.total_end_row }}" min="1">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Cột từ</label>
+                                            <input type="text" name="sheet_start_column" class="form-control text-uppercase" value="{{ sheet.start_column }}" maxlength="4">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Cột đến</label>
+                                            <input type="text" name="sheet_end_column" class="form-control text-uppercase" value="{{ sheet.end_column }}" maxlength="4">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
 
             <div class="d-flex justify-content-end mt-4">
                 <button class="btn btn-bdhvs primary" type="submit">
