@@ -29,37 +29,35 @@
     .report-preview-table .report-cell--header { position: sticky; top: var(--report-sticky-top, 0px); z-index: var(--report-sticky-z, 3); background: #f8fafc; box-shadow: inset 0 -1px 0 #d1d5db; }
     .report-preview-table .report-cell--first-col { position: sticky; left: 0; z-index: 2; background: #fff; box-shadow: inset -1px 0 0 #d1d5db; }
     .report-preview-table .report-cell--header.report-cell--first-col { z-index: var(--report-sticky-cross-z, 4); background: #f1f5f9; }
-    .report-preview-sticky-head {
+    .report-preview-freeze-pane {
         position: absolute;
         top: 0;
         left: 0;
-        z-index: 30;
-        height: 0;
-        overflow: visible;
-        background: #fff;
+        overflow: hidden;
         pointer-events: none;
-        opacity: 0;
-        will-change: transform;
-    }
-    .report-preview-sticky-head .report-preview-table {
         background: #fff;
-        box-shadow: 0 1px 0 #d1d5db;
+        display: none;
     }
-    .report-preview-sticky-head .report-cell--header {
+    .report-preview-freeze-pane.is-header { z-index: 30; box-shadow: 0 1px 0 #d1d5db; }
+    .report-preview-freeze-pane.is-left { z-index: 29; box-shadow: 1px 0 0 #d1d5db; }
+    .report-preview-freeze-pane.is-corner { z-index: 31; box-shadow: 1px 1px 0 #d1d5db; }
+    .report-preview-freeze-pane .report-preview-table {
+        background: #fff;
+        transform-origin: top left;
+    }
+    .report-preview-freeze-pane .report-cell--header,
+    .report-preview-freeze-pane .report-cell--first-col {
         position: static !important;
         top: auto !important;
+        left: auto !important;
         z-index: auto !important;
     }
-    .report-preview-sticky-head .report-cell--first-col {
-        visibility: hidden;
-    }
-    .report-template-preview-mobile-stage.has-sticky-overlay .report-preview-table .report-cell--header:not(.report-cell--first-col) {
+    .report-template-preview-mobile-stage.has-frozen-panes .report-preview-table .report-cell--header,
+    .report-template-preview-mobile-stage.has-frozen-panes .report-preview-table .report-cell--first-col {
         position: static !important;
         top: auto !important;
+        left: auto !important;
         z-index: auto !important;
-    }
-    .report-template-preview-mobile-stage.has-sticky-overlay .report-preview-table .report-cell--header.report-cell--first-col {
-        z-index: 40 !important;
     }
 </style>
 {% endblock %}
@@ -106,6 +104,29 @@ function togglePreviewFullscreen() {
     }
 }
 
+function ensureFreezePane(stage, paneName) {
+    let pane = stage.querySelector(`.report-preview-freeze-pane[data-pane="${paneName}"]`);
+    if (!pane) {
+        pane = document.createElement('div');
+        pane.className = `report-preview-freeze-pane is-${paneName}`;
+        pane.dataset.pane = paneName;
+        stage.appendChild(pane);
+    }
+    return pane;
+}
+
+function rebuildFrozenStage(stage, table) {
+    ['header', 'left', 'corner'].forEach((paneName) => {
+        const pane = ensureFreezePane(stage, paneName);
+        const clone = table.cloneNode(true);
+        clone.setAttribute('aria-hidden', 'true');
+        pane.replaceChildren(clone);
+    });
+    stage.dataset.freezeBuilt = '1';
+    stage.dataset.freezeWidth = String(table.scrollWidth);
+    stage.dataset.freezeHeight = String(table.scrollHeight);
+}
+
 function syncStickyReportTables() {
     document.querySelectorAll('.report-template-preview-mobile-stage').forEach((stage) => {
         const table = stage.querySelector('.report-preview-table');
@@ -113,69 +134,83 @@ function syncStickyReportTables() {
             return;
         }
         const headerCells = Array.from(table.querySelectorAll('.report-cell--header'));
-        if (!headerCells.length) {
+        const frozenCells = Array.from(table.querySelectorAll('.report-cell--first-col'));
+        if (!headerCells.length && !frozenCells.length) {
             return;
         }
-        let overlay = stage.querySelector('.report-preview-sticky-head');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.className = 'report-preview-sticky-head';
-            stage.prepend(overlay);
+        if (!stage.dataset.freezeBound) {
+            stage.addEventListener('scroll', () => syncFrozenStage(stage), { passive: true });
+            stage.dataset.freezeBound = '1';
         }
-        if (!stage.dataset.stickyOverlayBound) {
-            stage.addEventListener('scroll', () => syncStickyReportStage(stage), { passive: true });
-            stage.dataset.stickyOverlayBound = '1';
+        const shouldRebuild = (
+            stage.dataset.freezeBuilt !== '1'
+            || stage.dataset.freezeWidth !== String(table.scrollWidth)
+            || stage.dataset.freezeHeight !== String(table.scrollHeight)
+        );
+        if (shouldRebuild) {
+            rebuildFrozenStage(stage, table);
         }
-        const headerRows = Array.from(new Set(headerCells.map((cell) => cell.parentElement).filter(Boolean)));
-        const overlayTable = table.cloneNode(false);
-        overlayTable.setAttribute('aria-hidden', 'true');
-        const overlayBody = document.createElement('tbody');
-        headerRows.forEach((row) => {
-            overlayBody.appendChild(row.cloneNode(true));
-        });
-        overlayTable.appendChild(overlayBody);
-        overlay.replaceChildren(overlayTable);
-        stage.classList.add('has-sticky-overlay');
-        syncStickyReportStage(stage);
+        stage.classList.add('has-frozen-panes');
+        syncFrozenStage(stage);
     });
 }
 
-function syncStickyReportStage(stage) {
+function syncFrozenStage(stage) {
     const table = stage.querySelector('.report-preview-table');
-    const overlay = stage.querySelector('.report-preview-sticky-head');
-    const overlayTable = overlay ? overlay.querySelector('.report-preview-table') : null;
-    if (!table || !overlay || !overlayTable) {
+    const headerPane = stage.querySelector('.report-preview-freeze-pane[data-pane="header"]');
+    const leftPane = stage.querySelector('.report-preview-freeze-pane[data-pane="left"]');
+    const cornerPane = stage.querySelector('.report-preview-freeze-pane[data-pane="corner"]');
+    if (!table || !headerPane || !leftPane || !cornerPane) {
         return;
     }
     const headerCells = Array.from(table.querySelectorAll('.report-cell--header'));
-    if (!headerCells.length) {
-        overlay.style.opacity = '0';
+    const frozenCells = Array.from(table.querySelectorAll('.report-cell--first-col'));
+    if (!headerCells.length && !frozenCells.length) {
         return;
     }
     const tableRect = table.getBoundingClientRect();
-    overlay.style.opacity = stage.scrollTop > 0 ? '1' : '0';
-    overlay.style.transform = `translate(${-stage.scrollLeft}px, ${stage.scrollTop}px)`;
-    overlayTable.style.width = `${Math.ceil(table.getBoundingClientRect().width)}px`;
-    const resolveHeaderTop = (cell) => {
-        const rowRect = cell.parentElement?.getBoundingClientRect();
-        return Math.max(0, (rowRect ? rowRect.top : cell.getBoundingClientRect().top) - tableRect.top);
-    };
-    const topValues = Array.from(new Set(headerCells.map(resolveHeaderTop))).sort((a, b) => a - b);
-    const zMap = new Map(topValues.map((top, index) => [top, topValues.length - index]));
-    headerCells.forEach((cell) => {
-        const stickyTop = resolveHeaderTop(cell);
-        const rank = zMap.get(stickyTop) || 1;
-        cell.style.setProperty('--report-sticky-top', `${stickyTop}px`);
-        cell.style.setProperty('--report-sticky-z', String(10 + rank));
-        if (cell.classList.contains('report-cell--first-col')) {
-            cell.style.setProperty('--report-sticky-cross-z', String(30 + rank));
-        }
-    });
-    Array.from(overlayTable.querySelectorAll('.report-cell--header')).forEach((cell) => {
-        cell.style.removeProperty('--report-sticky-top');
-        cell.style.removeProperty('--report-sticky-z');
-        cell.style.removeProperty('--report-sticky-cross-z');
-    });
+    const headerHeight = headerCells.reduce((maxHeight, cell) => {
+        return Math.max(maxHeight, cell.getBoundingClientRect().bottom - tableRect.top);
+    }, 0);
+    const frozenWidth = frozenCells.reduce((maxWidth, cell) => {
+        return Math.max(maxWidth, cell.getBoundingClientRect().right - tableRect.left);
+    }, 0);
+    const tableLeft = table.offsetLeft;
+    const tableTop = table.offsetTop;
+    const visibleWidth = Math.max(0, stage.clientWidth - tableLeft);
+    const visibleHeight = Math.max(0, stage.clientHeight - tableTop);
+    const tableWidth = Math.ceil(table.scrollWidth);
+
+    const headerClone = headerPane.querySelector('.report-preview-table');
+    const leftClone = leftPane.querySelector('.report-preview-table');
+    const cornerClone = cornerPane.querySelector('.report-preview-table');
+    if (!headerClone || !leftClone || !cornerClone) {
+        return;
+    }
+
+    headerPane.style.display = headerHeight > 0 ? 'block' : 'none';
+    headerPane.style.left = `${tableLeft}px`;
+    headerPane.style.top = `${tableTop}px`;
+    headerPane.style.width = `${visibleWidth}px`;
+    headerPane.style.height = `${Math.ceil(headerHeight)}px`;
+    headerClone.style.width = `${tableWidth}px`;
+    headerClone.style.transform = `translateX(${-stage.scrollLeft}px)`;
+
+    leftPane.style.display = frozenWidth > 0 ? 'block' : 'none';
+    leftPane.style.left = `${tableLeft}px`;
+    leftPane.style.top = `${tableTop}px`;
+    leftPane.style.width = `${Math.ceil(frozenWidth)}px`;
+    leftPane.style.height = `${visibleHeight}px`;
+    leftClone.style.width = `${tableWidth}px`;
+    leftClone.style.transform = `translateY(${-stage.scrollTop}px)`;
+
+    cornerPane.style.display = headerHeight > 0 && frozenWidth > 0 ? 'block' : 'none';
+    cornerPane.style.left = `${tableLeft}px`;
+    cornerPane.style.top = `${tableTop}px`;
+    cornerPane.style.width = `${Math.ceil(frozenWidth)}px`;
+    cornerPane.style.height = `${Math.ceil(headerHeight)}px`;
+    cornerClone.style.width = `${tableWidth}px`;
+    cornerClone.style.transform = 'translate(0, 0)';
 }
 
 let reportStickyFrame = 0;
