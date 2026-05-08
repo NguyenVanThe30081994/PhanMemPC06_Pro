@@ -50,11 +50,11 @@
                 </div>
                 <div class="pc06-metric-card">
                     <span>Báo cáo đang mở</span>
-                    <strong>{{ cycles|length }}</strong>
+                    <strong>{{ hero_stats.active_total if hero_stats is defined else cycles|length }}</strong>
                 </div>
                 <div class="pc06-metric-card">
-                    <span>Đơn vị</span>
-                    <strong>{{ units|length }}</strong>
+                    <span>Quá hạn</span>
+                    <strong>{{ hero_stats.overdue_total if hero_stats is defined else 0 }}</strong>
                 </div>
                 {% else %}
                 <div class="pc06-metric-card">
@@ -63,11 +63,15 @@
                 </div>
                 <div class="pc06-metric-card">
                     <span>Báo cáo đang mở</span>
-                    <strong>{{ cycles|length }}</strong>
+                    <strong>{{ hero_stats.active_total if hero_stats is defined else cycles|length }}</strong>
                 </div>
                 <div class="pc06-metric-card">
-                    <span>Bản ghi đơn vị</span>
-                    <strong>{{ instances|length if instances is defined else 0 }}</strong>
+                    <span>Đã báo cáo</span>
+                    <strong>{{ hero_stats.reported_total if hero_stats is defined else 0 }}</strong>
+                </div>
+                <div class="pc06-metric-card">
+                    <span>Quá hạn</span>
+                    <strong>{{ hero_stats.overdue_total if hero_stats is defined else 0 }}</strong>
                 </div>
                 {% endif %}
             </div>

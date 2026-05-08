@@ -1690,6 +1690,34 @@ def _dashboard_cycle_status(cycle, instance=None, report_type=None, report_date=
     return {"label": "Đã có báo cáo" if has_any_report else "Chưa báo cáo", "done": has_any_report}
 
 
+def _dashboard_hero_stats(cycles, cycle_status_map=None):
+    now = datetime.now()
+    active_total = 0
+    overdue_total = 0
+    locked_total = 0
+    reported_total = 0
+
+    for cycle in cycles or []:
+        is_locked = bool(cycle and (cycle.is_locked or cycle.status == "closed"))
+        if is_locked:
+            locked_total += 1
+        else:
+            active_total += 1
+            if cycle and cycle.due_at and cycle.due_at < now:
+                overdue_total += 1
+
+        status_info = (cycle_status_map or {}).get(getattr(cycle, "id", None))
+        if status_info and status_info.get("done"):
+            reported_total += 1
+
+    return {
+        "active_total": active_total,
+        "overdue_total": overdue_total,
+        "locked_total": locked_total,
+        "reported_total": reported_total,
+    }
+
+
 def _build_submission_summary(submission, template_version, workbook=None, field_lookup=None, sheet_fields=None, limit=8):
     if not submission or not template_version:
         return {"text": "", "count": 0}
@@ -2106,6 +2134,7 @@ def admin_dashboard():
             report_date=date.today(),
             progress=progress,
         )
+    hero_stats = _dashboard_hero_stats(cycles, cycle_status_map=cycle_status_map)
 
     return render_template(
         "reporting_dashboard.html",
@@ -2121,6 +2150,7 @@ def admin_dashboard():
         template_report_types=template_report_types,
         cycle_status_map=cycle_status_map,
         cycle_progress_map=cycle_progress_map,
+        hero_stats=hero_stats,
         can_view_cycle_progress=True,
         is_admin=True,
     )
@@ -3037,6 +3067,7 @@ def user_dashboard():
             report_date=dashboard_report_date,
             progress=progress,
         )
+    hero_stats = _dashboard_hero_stats(accessible_cycles, cycle_status_map=cycle_status_map)
 
     return render_template(
         "reporting_dashboard.html",
@@ -3057,6 +3088,7 @@ def user_dashboard():
         cycle_report_types=cycle_report_types,
         cycle_progress_map=cycle_progress_map,
         cycle_status_map=cycle_status_map,
+        hero_stats=hero_stats,
         can_view_cycle_progress=can_view_cycle_progress,
     )
 
