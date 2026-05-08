@@ -188,6 +188,15 @@
                         <input type="file" name="template_file" class="form-control" accept=".xlsx" required>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label fw-bold small">Loại báo cáo</label>
+                        <select name="report_type_id" class="form-select" required>
+                            <option value="">Chọn loại báo cáo</option>
+                            {% for item in report_types %}
+                            <option value="{{ item.id }}">{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label fw-bold small">Đội nghiệp vụ</label>
                         {% if professional_units %}
                         <select name="professional_unit" class="form-select">

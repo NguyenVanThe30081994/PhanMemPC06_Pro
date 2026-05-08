@@ -1972,6 +1972,11 @@ def upload_template():
     code = normalize_code(name or file.filename.rsplit(".", 1)[0]) or f"template_{datetime.now().strftime('%Y%m%d%H%M%S')}"
     description = (request.form.get("description") or "").strip()
     professional_unit = (request.form.get("professional_unit") or "").strip()
+    report_type_id = int(request.form.get("report_type_id") or 0)
+    report_type = db.session.get(ReportType, report_type_id)
+    if not report_type:
+        flash("Bạn cần chọn loại báo cáo.", "danger")
+        return redirect(url_for("reporting_bp.admin_dashboard"))
     parse_options = _build_parse_options(request.form)
     notes = description
 
@@ -1992,6 +1997,7 @@ def upload_template():
         template.status = "draft"
         db.session.flush()
 
+    template.report_type_id = report_type.id
     if professional_unit:
         template.professional_unit = professional_unit
 

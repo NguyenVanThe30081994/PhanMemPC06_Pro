@@ -318,6 +318,15 @@
                                     <summary class="fw-bold">Lĩnh vực nghiệp vụ</summary>
                                     <div class="row g-3 mt-1">
                                         <div class="col-12">
+                                            <label class="form-label fw-bold">Loại báo cáo</label>
+                                            <select name="report_type_id" class="form-select" required>
+                                                <option value="">Chọn loại báo cáo</option>
+                                                {% for item in report_types %}
+                                                <option value="{{ item.id }}">{{ item.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-12">
                                             <label class="form-label fw-bold">Chọn đội nghiệp vụ</label>
                                             {% if professional_units %}
                                             <select name="professional_unit" class="form-select">
