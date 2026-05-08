@@ -182,10 +182,39 @@ def slugify_unit(name):
     n = re.sub(r'[^a-z0-9]', '', n)
     return n
 
+
+def _ascii_unit_text(value):
+    if not value:
+        return ""
+    import unicodedata
+    text = str(value).strip().lower().replace('đ', 'd')
+    text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
+    text = re.sub(r'[^a-z0-9\s]', ' ', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
+
+def _unit_tail_slug(unit_name, prefix_text):
+    normalized = _ascii_unit_text(unit_name)
+    if not normalized.startswith(prefix_text):
+        return ""
+    tail = normalized[len(prefix_text):].strip()
+    return re.sub(r'[^a-z0-9]+', '', tail)
+
 def build_account_username(unit_name, unit_key=None):
     """
     Tạo tên đăng nhập theo unit_key đã chuẩn hóa.
     """
+    specialized_patterns = (
+        ("cong an xa ", "cax"),
+        ("cong an phuong ", "cap"),
+        ("ubnd xa ", "ubndxa"),
+        ("ubnd phuong ", "ubndphuong"),
+    )
+    for prefix_text, account_prefix in specialized_patterns:
+        tail_slug = _unit_tail_slug(unit_name, prefix_text)
+        if tail_slug:
+            return f"{account_prefix}{tail_slug}"
     key = (unit_key or extract_unit_key(unit_name) or slugify_unit(unit_name) or '').strip().lower()
     key = re.sub(r'[^a-z0-9]+', '', key)
     return key
