@@ -82,6 +82,17 @@
 </section>
 
 <section class="report-admin-mobile-card">
+    <div class="d-grid gap-2">
+        <form method="POST" action="{{ url_for('reporting_bp.reset_cycle_data', cycle_id=cycle.id) }}" onsubmit="return confirm('Reset toàn bộ dữ liệu báo cáo này? Thao tác sẽ xóa tất cả bản lưu/gửi của các đơn vị nhưng giữ nguyên cấu hình báo cáo.')" class="m-0">
+            <button class="btn btn-outline-danger w-100" type="submit" aria-label="Reset dữ liệu báo cáo" title="Reset dữ liệu báo cáo">
+                <i class="fa-solid fa-rotate-left"></i>
+                Reset dữ liệu báo cáo
+            </button>
+        </form>
+    </div>
+</section>
+
+<section class="report-admin-mobile-card">
     <h2 class="h6 fw-bold mb-3">Lịch sử nhập liệu</h2>
     <div class="report-admin-mobile-list">
         {% for row in history_rows %}

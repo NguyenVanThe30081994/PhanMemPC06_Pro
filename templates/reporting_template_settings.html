@@ -48,9 +48,35 @@
                             <select name="report_type_id" class="form-select" required>
                                 <option value="">Chọn loại báo cáo</option>
                                 {% for item in report_types %}
-                                <option value="{{ item.id }}" {% if template.report_type_id == item.id %}selected{% endif %}>{{ item.name }}</option>
+                                <option value="{{ item.id }}" data-code="{{ item.code }}" {% if template.report_type_id == item.id %}selected{% endif %}>{{ item.name }}</option>
                                 {% endfor %}
                             </select>
+                        </div>
+                        <div class="pc06-form-section" id="periodicConfigPanel">
+                            <label class="form-label fw-bold">Cấu hình báo cáo định kỳ</label>
+                            <div class="border rounded-4 p-3">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Định kỳ loại</label>
+                                        <select name="periodic_cycle_type" id="periodicCycleType" class="form-select">
+                                            {% for code, label in periodic_cycle_options %}
+                                            <option value="{{ code }}" {% if periodic_config.type == code %}selected{% endif %}>{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Ngày hạn</label>
+                                        <input type="number" name="periodic_due_day" id="periodicDueDay" class="form-control" min="1" max="31" value="{{ periodic_config.due_day }}">
+                                    </div>
+                                    <div class="col-md-4" id="periodicDueMonthWrap">
+                                        <label class="form-label">Tháng hạn</label>
+                                        <input type="number" name="periodic_due_month" id="periodicDueMonth" class="form-control" min="1" max="12" value="{{ periodic_config.due_month }}">
+                                    </div>
+                                </div>
+                                <div class="small text-muted mt-3" id="periodicConfigHelp">
+                                    Chỉ áp dụng khi chọn loại báo cáo là định kỳ.
+                                </div>
+                            </div>
                         </div>
                         <div class="pc06-form-section">
                             <label class="form-label fw-bold">Văn bản chỉ đạo</label>
@@ -211,4 +237,54 @@
         </form>
     </section>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+    const reportTypeSelect = document.querySelector('select[name="report_type_id"]');
+    const panel = document.getElementById('periodicConfigPanel');
+    const cycleType = document.getElementById('periodicCycleType');
+    const dueDay = document.getElementById('periodicDueDay');
+    const dueMonthWrap = document.getElementById('periodicDueMonthWrap');
+    const dueMonth = document.getElementById('periodicDueMonth');
+    const help = document.getElementById('periodicConfigHelp');
+
+    function selectedReportCode() {
+        const option = reportTypeSelect?.selectedOptions?.[0];
+        return option?.dataset?.code || '';
+    }
+
+    function syncPeriodicPanel() {
+        const isPeriodic = selectedReportCode() === 'periodic';
+        panel.style.display = isPeriodic ? '' : 'none';
+        dueDay.required = isPeriodic;
+        if (!isPeriodic) {
+            dueMonth.required = false;
+            return;
+        }
+
+        const type = cycleType.value;
+        const needsMonth = type === 'half_year' || type === 'yearly';
+        dueMonthWrap.style.display = needsMonth ? '' : 'none';
+        dueMonth.required = needsMonth;
+
+        if (type === 'monthly') {
+            help.textContent = 'Báo cáo hằng tháng: hạn mặc định trước ngày ... mỗi tháng.';
+        } else if (type === 'quarterly') {
+            help.textContent = 'Báo cáo hằng quý: hạn mặc định trước ngày ... của tháng cuối quý.';
+        } else if (type === 'half_year') {
+            help.textContent = 'Báo cáo 6 tháng: nhập ngày và tháng hạn, ví dụ ngày 15 tháng 7.';
+        } else if (type === 'yearly') {
+            help.textContent = 'Báo cáo năm: nhập ngày và tháng hạn, ví dụ ngày 31 tháng 1.';
+        } else {
+            help.textContent = 'Chỉ áp dụng khi chọn loại báo cáo là định kỳ.';
+        }
+    }
+
+    reportTypeSelect?.addEventListener('change', syncPeriodicPanel);
+    cycleType?.addEventListener('change', syncPeriodicPanel);
+    syncPeriodicPanel();
+})();
+</script>
 {% endblock %}

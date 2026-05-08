@@ -139,6 +139,9 @@
                     <form method="POST" action="{{ url_for('reporting_bp.close_cycle', cycle_id=cycle.id) }}" onsubmit="return confirm('Đóng báo cáo này? Sau khi đóng, đơn vị sẽ không sửa tiếp được.')">
                         <button class="btn btn-outline-warning rounded-pill px-4" type="submit">Đóng báo cáo</button>
                     </form>
+                    <form method="POST" action="{{ url_for('reporting_bp.reset_cycle_data', cycle_id=cycle.id) }}" onsubmit="return confirm('Reset toàn bộ dữ liệu báo cáo này? Thao tác sẽ xóa tất cả bản lưu/gửi của các đơn vị nhưng giữ nguyên cấu hình báo cáo.')">
+                        <button class="btn btn-outline-danger rounded-pill px-4" type="submit">Reset dữ liệu</button>
+                    </form>
                     <form method="POST" action="{{ url_for('reporting_bp.delete_cycle', cycle_id=cycle.id) }}" onsubmit="return confirm('Xóa toàn bộ báo cáo này?')">
                         <button class="btn btn-outline-danger rounded-pill px-4" type="submit">Xóa báo cáo</button>
                     </form>

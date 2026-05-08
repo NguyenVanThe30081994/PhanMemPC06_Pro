@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import calendar
 import json
 import os
 from datetime import date, datetime, time, timedelta
@@ -34,6 +35,15 @@ from report_engine import build_preview_workbook, normalize_code, parse_workbook
 from utils import apply_migrations, extract_unit_key, is_unit_match, log_action, render_auto_template as render_template
 
 reporting_bp = Blueprint("reporting_bp", __name__)
+
+PERIODIC_CYCLE_OPTIONS = [
+    ("monthly", "Hàng tháng"),
+    ("quarterly", "Hàng quý"),
+    ("half_year", "6 tháng"),
+    ("yearly", "1 năm"),
+]
+
+PERIODIC_CYCLE_LABELS = {code: label for code, label in PERIODIC_CYCLE_OPTIONS}
 
 
 def _ensure_report_schema():
@@ -560,6 +570,35 @@ def _build_sheet_parse_options(form, defaults=None, workbook_sheet_names=None, g
         options[sheet_name] = _coerce_for_sheet(sheet_name)
 
     return options
+
+
+def _save_template_periodic_config(template, report_type, form):
+    if not template:
+        return None
+    if not report_type or report_type.code != "periodic":
+        template.periodic_cycle_type = None
+        template.periodic_due_day = None
+        template.periodic_due_month = None
+        return None
+
+    cycle_type = (form.get("periodic_cycle_type") or "").strip().lower()
+    if cycle_type not in PERIODIC_CYCLE_LABELS:
+        return "Bạn cần chọn loại chu kỳ cho báo cáo định kỳ."
+
+    due_day = _parse_bounded_int(form.get("periodic_due_day"), 1, 31, None)
+    if due_day is None:
+        return "Bạn cần nhập ngày hạn hợp lệ cho báo cáo định kỳ."
+
+    due_month = None
+    if cycle_type in {"half_year", "yearly"}:
+        due_month = _parse_bounded_int(form.get("periodic_due_month"), 1, 12, None)
+        if due_month is None:
+            return "Bạn cần nhập tháng hạn hợp lệ cho báo cáo định kỳ."
+
+    template.periodic_cycle_type = cycle_type
+    template.periodic_due_day = due_day
+    template.periodic_due_month = due_month
+    return None
 
 
 def _apply_version_structure(version, source_path, source_filename, parse_options, notes="", sheet_parse_options=None):
@@ -1180,6 +1219,118 @@ def _parse_positive_int(value, default=1):
     return parsed if parsed > 0 else default
 
 
+def _parse_bounded_int(value, minimum, maximum, default=None):
+    try:
+        parsed = int(value)
+    except Exception:
+        return default
+    if parsed < minimum or parsed > maximum:
+        return default
+    return parsed
+
+
+def _template_for_cycle(cycle):
+    template_version = db.session.get(ReportTemplateVersion, cycle.template_version_id) if cycle else None
+    return db.session.get(ReportTemplate, template_version.template_id) if template_version else None
+
+
+def _template_periodic_config(template):
+    kind = (getattr(template, "periodic_cycle_type", "") or "").strip().lower()
+    if kind not in PERIODIC_CYCLE_LABELS:
+        kind = ""
+    due_day = _parse_bounded_int(getattr(template, "periodic_due_day", None), 1, 31, None)
+    due_month = _parse_bounded_int(getattr(template, "periodic_due_month", None), 1, 12, None)
+    return {
+        "type": kind,
+        "label": PERIODIC_CYCLE_LABELS.get(kind, ""),
+        "due_day": due_day,
+        "due_month": due_month,
+    }
+
+
+def _periodic_schedule_rule_text(template):
+    config = _template_periodic_config(template)
+    kind = config["type"]
+    due_day = config["due_day"]
+    due_month = config["due_month"]
+    if not kind or not due_day:
+        return ""
+    if kind == "monthly":
+        return f"Định kỳ hằng tháng, hạn trước ngày {due_day}"
+    if kind == "quarterly":
+        return f"Định kỳ hằng quý, hạn trước ngày {due_day} của tháng cuối quý"
+    if kind == "half_year" and due_month:
+        return f"Định kỳ 6 tháng, hạn ngày {due_day} tháng {due_month}"
+    if kind == "yearly" and due_month:
+        return f"Định kỳ hằng năm, hạn ngày {due_day} tháng {due_month}"
+    return ""
+
+
+def _safe_calendar_date(year, month, day):
+    last_day = calendar.monthrange(year, month)[1]
+    return date(year, month, min(max(1, day), last_day))
+
+
+def _next_month(year, month):
+    if month == 12:
+        return year + 1, 1
+    return year, month + 1
+
+
+def _next_quarter_end(year, month):
+    quarter_end_month = ((month - 1) // 3 + 1) * 3
+    return year, quarter_end_month
+
+
+def _default_periodic_due_date(template, reference_date=None):
+    config = _template_periodic_config(template)
+    kind = config["type"]
+    due_day = config["due_day"]
+    due_month = config["due_month"]
+    if not kind or not due_day:
+        return None
+
+    reference_date = reference_date or date.today()
+    year = reference_date.year
+
+    if kind == "monthly":
+        candidate = _safe_calendar_date(year, reference_date.month, due_day)
+        if candidate >= reference_date:
+            return candidate
+        next_year, next_month = _next_month(year, reference_date.month)
+        return _safe_calendar_date(next_year, next_month, due_day)
+
+    if kind == "quarterly":
+        candidate_year, candidate_month = _next_quarter_end(year, reference_date.month)
+        candidate = _safe_calendar_date(candidate_year, candidate_month, due_day)
+        if candidate >= reference_date:
+            return candidate
+        next_month = candidate_month + 3
+        next_year = candidate_year
+        if next_month > 12:
+            next_month -= 12
+            next_year += 1
+        return _safe_calendar_date(next_year, next_month, due_day)
+
+    if kind in {"half_year", "yearly"} and due_month:
+        candidate = _safe_calendar_date(year, due_month, due_day)
+        if candidate >= reference_date:
+            return candidate
+        return _safe_calendar_date(year + 1, due_month, due_day)
+
+    return None
+
+
+def _periodic_form_defaults(template):
+    config = _template_periodic_config(template)
+    return {
+        "type": config["type"] or "monthly",
+        "due_day": config["due_day"] or "",
+        "due_month": config["due_month"] or "",
+        "rule_text": _periodic_schedule_rule_text(template),
+    }
+
+
 def _field_display_name(field):
     return (field.display_name or field.field_name or field.field_code or "").strip()
 
@@ -1397,6 +1548,13 @@ def _report_schedule_text(cycle, report_type=None, report_date=None):
     if report_code == "daily":
         target_day = report_date or (cycle.open_at or cycle.due_at or cycle.created_at)
         return f"Báo cáo ngày {target_day.strftime('%d/%m/%Y')}" if target_day else "Báo cáo hằng ngày"
+    if report_code == "periodic":
+        template = _template_for_cycle(cycle)
+        rule_text = _periodic_schedule_rule_text(template)
+        if rule_text and cycle.due_at:
+            return f"{rule_text} • Hạn kỳ hiện tại: {cycle.due_at.strftime('%d/%m/%Y')}"
+        if rule_text:
+            return rule_text
     if cycle.due_at:
         return f"Hạn báo cáo: {cycle.due_at.strftime('%d/%m/%Y')}"
     return "Không đặt hạn cụ thể"
@@ -1666,7 +1824,13 @@ def _ensure_active_cycle_for_template(template, version, report_type):
 
     if not selected_cycle:
         open_at = datetime.now()
-        due_at = _end_of_day(datetime.now().date()) if report_type and report_type.code == "daily" else None
+        if report_type and report_type.code == "daily":
+            due_at = _end_of_day(datetime.now().date())
+        elif report_type and report_type.code == "periodic":
+            periodic_due_date = _default_periodic_due_date(template)
+            due_at = _end_of_day(periodic_due_date) if periodic_due_date else None
+        else:
+            due_at = None
         selected_cycle = ReportCycle(
             template_version_id=version.id,
             report_type_id=report_type.id,
@@ -1690,6 +1854,11 @@ def _ensure_active_cycle_for_template(template, version, report_type):
             selected_cycle.open_at = _start_of_day(datetime.now().date())
             selected_cycle.due_at = _end_of_day(datetime.now().date())
             selected_cycle.name = _build_cycle_name(template, report_type)
+        elif report_type and report_type.code == "periodic":
+            periodic_due_date = _default_periodic_due_date(template)
+            if periodic_due_date:
+                selected_cycle.due_at = _end_of_day(periodic_due_date)
+            selected_cycle.name = template.name
         else:
             selected_cycle.name = template.name
 
@@ -2093,10 +2262,12 @@ def template_settings(template_id):
     if not template:
         return "Not Found", 404
     current_version = _template_version(template)
+    current_report_type = db.session.get(ReportType, template.report_type_id) if template and template.report_type_id else None
     return render_template(
         "reporting_template_settings.html",
         template=template,
         current_version=current_version,
+        current_report_type=current_report_type,
         report_types=ReportType.query.order_by(ReportType.name.asc()).all(),
         professional_units=_professional_unit_options(),
         roles=AppRole.query.order_by(AppRole.name.asc()).all(),
@@ -2105,6 +2276,8 @@ def template_settings(template_id):
         scope_payload=_parse_scope_payload(template.assignment_scope_json),
         range_defaults=_template_range_defaults(current_version),
         sheet_range_defaults=_template_sheet_range_defaults(current_version),
+        periodic_config=_periodic_form_defaults(template),
+        periodic_cycle_options=PERIODIC_CYCLE_OPTIONS,
     )
 
 
@@ -2136,6 +2309,10 @@ def save_template_settings(template_id):
     template.report_type_id = report_type.id
     template.professional_unit = professional_unit
     template.assignment_scope_json = json.dumps(_scope_payload_from_form(request.form), ensure_ascii=False)
+    periodic_error = _save_template_periodic_config(template, report_type, request.form)
+    if periodic_error:
+        flash(periodic_error, "danger")
+        return redirect(url_for("reporting_bp.template_settings", template_id=template.id))
 
     directive_file = request.files.get("directive_file")
     directive_filename, directive_path = _save_directive_file(directive_file, template.code or template.name or "report")
@@ -2599,6 +2776,7 @@ def update_cycle(cycle_id):
     cycle = db.session.get(ReportCycle, cycle_id)
     if not cycle:
         return "Not Found", 404
+    template = _template_for_cycle(cycle)
     name = (request.form.get("name") or cycle.name or "").strip()
     if not name:
         flash("Tên báo cáo không được để trống.", "danger")
@@ -2617,6 +2795,8 @@ def update_cycle(cycle_id):
         cycle.due_at = _end_of_day(report_date)
     elif report_type.code == "periodic":
         due_date = _parse_date(request.form.get("due_date"))
+        if not due_date and template:
+            due_date = _default_periodic_due_date(template)
         cycle.open_at = cycle.open_at or datetime.now()
         cycle.due_at = _end_of_day(due_date) if due_date else None
     else:
@@ -2698,6 +2878,41 @@ def delete_submission(submission_id):
     return redirect(url_for("reporting_bp.admin_cycle_detail", cycle_id=cycle_id))
 
 
+@reporting_bp.route("/admin/reports/cycles/<int:cycle_id>/reset-data", methods=["POST"])
+def reset_cycle_data(cycle_id):
+    if not _is_admin():
+        return redirect(url_for("auth_bp.login"))
+    _ensure_report_schema()
+    cycle = db.session.get(ReportCycle, cycle_id)
+    if not cycle:
+        return "Not Found", 404
+
+    instances = ReportInstance.query.filter_by(cycle_id=cycle.id).all()
+    submission_ids = []
+    for instance in instances:
+        submissions = ReportSubmission.query.filter_by(instance_id=instance.id).all()
+        for submission in submissions:
+            submission_ids.append(submission.id)
+            _purge_submission(submission)
+
+    db.session.flush()
+
+    for instance in instances:
+        _refresh_instance_status(instance)
+        if cycle.is_locked or cycle.status == "closed":
+            instance.locked_at = cycle.close_at or instance.locked_at
+
+    db.session.commit()
+    _audit(
+        "reset_cycle_data",
+        "report_cycle",
+        cycle.id,
+        f"submissions={len(submission_ids)}",
+    )
+    flash(f"Đã reset dữ liệu báo cáo, xóa {len(submission_ids)} bản lưu/gửi.", "success")
+    return redirect(url_for("reporting_bp.admin_cycle_detail", cycle_id=cycle.id))
+
+
 @reporting_bp.route("/admin/reports/cycles", methods=["POST"])
 def create_cycle():
     if not _is_admin():
@@ -2727,6 +2942,8 @@ def create_cycle():
         due_at = _end_of_day(report_date)
     else:
         due_date = _parse_date(request.form.get("due_date"))
+        if report_type.code == "periodic" and not due_date and template:
+            due_date = _default_periodic_due_date(template)
         open_at = datetime.now()
         due_at = _end_of_day(due_date) if due_date else None
 
