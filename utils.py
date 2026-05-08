@@ -201,6 +201,22 @@ def _unit_tail_slug(unit_name, prefix_text):
     tail = normalized[len(prefix_text):].strip()
     return re.sub(r'[^a-z0-9]+', '', tail)
 
+
+def _person_slug(fullname):
+    normalized = _ascii_unit_text(fullname)
+    return re.sub(r'[^a-z0-9]+', '', normalized)
+
+
+def _commander_title_suffix(position_name):
+    normalized = _ascii_unit_text(position_name)
+    if not normalized:
+        return ""
+    if "pho doi truong" in normalized or "doi pho" in normalized:
+        return "pdt"
+    if "doi truong" in normalized:
+        return "dt"
+    return ""
+
 def build_account_username(unit_name, unit_key=None):
     """
     Tạo tên đăng nhập theo unit_key đã chuẩn hóa.
@@ -218,6 +234,18 @@ def build_account_username(unit_name, unit_key=None):
     key = (unit_key or extract_unit_key(unit_name) or slugify_unit(unit_name) or '').strip().lower()
     key = re.sub(r'[^a-z0-9]+', '', key)
     return key
+
+
+def build_commander_username(fullname, position_name):
+    """
+    Tạo tên đăng nhập cho chỉ huy đội theo dạng:
+    pc06.<hotenkhongdau><.dt|.pdt>
+    """
+    name_slug = _person_slug(fullname)
+    title_suffix = _commander_title_suffix(position_name)
+    if not name_slug or not title_suffix:
+        return ""
+    return f"pc06.{name_slug}.{title_suffix}"
 
 def normalize_unit_key(unit_name):
     """

@@ -361,7 +361,8 @@
                 </div>
                 <div class="modal-body p-4">
                     <div class="alert alert-info small mb-4">
-                        File Excel cần có 2 cột bắt buộc: <b>Họ tên</b> và <b>Số điện thoại</b>. Có thể bổ sung thêm cột <b>Đơn vị</b>; nếu thiếu, hệ thống sẽ dùng đơn vị của tài khoản đang nhập.
+                        File Excel chuẩn nên có đủ 4 cột: <b>Họ tên</b>, <b>Chức vụ</b>, <b>Số điện thoại</b>, <b>Đơn vị</b>.
+                        Hệ thống sẽ ưu tiên đọc đúng <b>Chức vụ</b> và <b>Đơn vị</b> từ file; chỉ khi ô trống mới dùng giá trị mặc định hoặc đơn vị của tài khoản đang nhập.
                     </div>
 
                     <div class="row g-3">
@@ -379,10 +380,10 @@
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-bold">Chức vụ</label>
+                            <label class="form-label fw-bold">Chức vụ mặc định</label>
                             <div data-category-picker data-module="contacts" data-field="role" data-placeholder="Chọn chức vụ" data-storage-key="modal.contacts.import_role_simple">
-                                <select name="global_role" class="form-select" id="globalRoleSelect" required data-category-target>
-                                    <option value="" disabled selected>Chọn chức vụ</option>
+                                <select name="global_role" class="form-select" id="globalRoleSelect" data-category-target>
+                                    <option value="" selected>Để trống nếu file đã có cột Chức vụ</option>
                                     {% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}
                                 </select>
                             </div>
@@ -393,7 +394,8 @@
                                 <label class="form-check-label fw-bold small" for="hasHeaderCheck">Dòng đầu tiên là tiêu đề</label>
                             </div>
                             <div class="small text-muted mt-2">
-                                Nếu bật tùy chọn này, file nên có tiêu đề cột là <b>Họ tên</b>, <b>Số điện thoại</b> và tùy chọn <b>Đơn vị</b>. Nếu tắt, hệ thống sẽ đọc theo quy ước: <b>cột A = Họ tên</b>, <b>cột B = Số điện thoại</b>, <b>cột C = Đơn vị</b> nếu có.
+                                Nếu bật tùy chọn này, file nên có tiêu đề cột là <b>Họ tên</b>, <b>Chức vụ</b>, <b>Số điện thoại</b>, <b>Đơn vị</b>.
+                                Nếu tắt, hệ thống sẽ ưu tiên đọc theo quy ước 4 cột: <b>A = Họ tên</b>, <b>B = Chức vụ</b>, <b>C = Số điện thoại</b>, <b>D = Đơn vị</b>. Với file cũ ít cột hơn, hệ thống vẫn giữ tương thích.
                             </div>
                         </div>
                     </div>
@@ -401,9 +403,9 @@
                     <div class="mt-4 p-3 bg-light rounded border small">
                         <div class="fw-bold text-dark mb-2">Mẫu dữ liệu hợp lệ</div>
                         <div class="text-muted">Có tiêu đề:</div>
-                        <div class="font-monospace small">Họ tên | Số điện thoại | Đơn vị</div>
-                        <div class="font-monospace small">Nguyễn Văn A | 0912345678 | Công an xã An Tường</div>
-                        <div class="font-monospace small">Trần Thị B | 0987654321 | Phòng PC06</div>
+                        <div class="font-monospace small">Họ tên | Chức vụ | Số điện thoại | Đơn vị</div>
+                        <div class="font-monospace small">Nguyễn Văn A | Cán bộ | 0912345678 | Công an xã An Tường</div>
+                        <div class="font-monospace small">Trần Thị B | Đội phó | 0987654321 | Phòng PC06</div>
                     </div>
 
                     <div id="previewArea" class="d-none mt-4">
@@ -417,6 +419,7 @@
                                     <tr>
                                         <th width="90">Dòng Excel</th>
                                         <th>Họ tên</th>
+                                        <th>Chức vụ</th>
                                         <th>SĐT</th>
                                         <th>Đơn vị</th>
                                     </tr>
@@ -580,6 +583,7 @@
             tr.innerHTML = `
                 <td class="small text-muted">${item.excel_row}</td>
                 <td class="fw-medium">${item.name || '<em class="text-muted">-</em>'}</td>
+                <td>${item.role || '<em class="text-muted">Sẽ dùng chức vụ mặc định</em>'}</td>
                 <td>${item.phone || '<em class="text-muted">-</em>'}</td>
                 <td>${item.unit_name || '<em class="text-muted">Sẽ dùng đơn vị người nhập</em>'}</td>
             `;

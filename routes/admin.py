@@ -18,7 +18,7 @@ except ImportError:
     HAS_PANDAS = False
     pd = None
 from datetime import datetime, timedelta
-from utils import build_account_username, clear_logs, extract_unit_key, init_db, log_action, render_auto_template as render_template
+from utils import build_account_username, build_commander_username, clear_logs, extract_unit_key, init_db, log_action, render_auto_template as render_template
 from category_helpers import slugify_code
 from category_helpers import get_module_field_items, get_category_items
 
@@ -48,6 +48,29 @@ USER_IMPORT_HEADER_MARKERS = (
     'ho ten',
     'fullname',
     'username',
+    'chức vụ',
+    'chuc vu',
+    'vai trò',
+    'vai tro',
+    'position',
+)
+
+USER_IMPORT_FULLNAME_MARKERS = (
+    'họ tên',
+    'ho ten',
+    'fullname',
+    'name',
+    'tên',
+    'ten',
+)
+
+USER_IMPORT_POSITION_MARKERS = (
+    'chức vụ',
+    'chuc vu',
+    'vai trò',
+    'vai tro',
+    'position',
+    'role',
 )
 
 
@@ -96,6 +119,35 @@ def _looks_like_user_import_header(value):
     return any(marker in text for marker in USER_IMPORT_HEADER_MARKERS)
 
 
+def _normalize_import_text(value):
+    text = str(value or '').strip().lower().replace('đ', 'd')
+    text = ' '.join(text.split())
+    return text
+
+
+def _find_user_import_column(df, markers, has_header=True):
+    if df.empty:
+        return None
+    if has_header:
+        normalized_markers = tuple(_normalize_import_text(marker) for marker in markers)
+        for column in df.columns:
+            column_text = _normalize_import_text(column)
+            if any(marker in column_text for marker in normalized_markers):
+                return column
+    return None
+
+
+def _looks_like_commander_title(value):
+    text = _normalize_import_text(value)
+    if not text:
+        return False
+    return (
+        'doi truong' in text
+        or 'doi pho' in text
+        or 'pho doi truong' in text
+    )
+
+
 def _load_user_import_dataframe(file_storage, has_header=True):
     raw = file_storage.read()
     if not raw:
@@ -125,6 +177,24 @@ def _user_import_unit_column(df, has_header=True):
     if has_header:
         return next((c for c in df.columns if _looks_like_user_import_header(c)), df.columns[0])
     return df.columns[0]
+
+
+def _user_import_commander_columns(df, has_header=True):
+    fullname_col = _find_user_import_column(df, USER_IMPORT_FULLNAME_MARKERS, has_header=has_header)
+    title_col = _find_user_import_column(df, USER_IMPORT_POSITION_MARKERS, has_header=has_header)
+    if fullname_col is not None and title_col is not None and fullname_col != title_col:
+        return fullname_col, title_col
+
+    if len(df.columns) >= 2:
+        sample_values = [
+            str(df.iloc[idx, 1]).strip()
+            for idx in range(min(len(df.index), 5))
+            if len(df.columns) > 1
+        ]
+        if any(_looks_like_commander_title(value) for value in sample_values):
+            return df.columns[0], df.columns[1]
+
+    return None, None
 
 
 def _get_admin_perms():
@@ -658,52 +728,88 @@ def import_users():
     if f and f.filename.endswith(('.xlsx', '.xls')):
         try:
             df, inferred_has_header = _load_user_import_dataframe(f, has_header=has_header)
-            col_name = _user_import_unit_column(df, has_header=inferred_has_header)
-            if col_name is None:
-                flash('Không đọc được cột đơn vị từ file Excel.', 'danger')
-                return redirect(url_for('admin_bp.roles'))
-
             created_count = 0
             skipped_empty = 0
-            for _, row in df.iterrows():
-                unit_name = str(row.get(col_name, '')).strip()
-                if not unit_name:
-                    skipped_empty += 1
-                    continue
-                
-                # Auto-generate username
-                unit_key = extract_unit_key(unit_name)
-                base_uname = build_account_username(unit_name, unit_key)
-                uname = base_uname
-                
-                # Handle duplicates
-                counter = 2
-                while User.query.filter_by(username=uname).first():
-                    uname = f"{base_uname}_{counter}"
-                    counter += 1
-                
-                u = User(
-                    username=uname,
-                    fullname=unit_name,
-                    unit_area=unit_name,
-                    unit_key=unit_key,
-                    role_id=role_id
-                )
-                u.set_password('123456')
-                db.session.add(u)
-                created_count += 1
+            skipped_invalid = 0
+            import_mode = 'unit'
+
+            fullname_col, title_col = _user_import_commander_columns(df, has_header=inferred_has_header)
+            if fullname_col is not None and title_col is not None:
+                import_mode = 'commander'
+                for _, row in df.iterrows():
+                    fullname = str(row.get(fullname_col, '')).strip()
+                    position_name = str(row.get(title_col, '')).strip()
+                    if not fullname and not position_name:
+                        skipped_empty += 1
+                        continue
+
+                    base_uname = build_commander_username(fullname, position_name)
+                    if not fullname or not position_name or not base_uname:
+                        skipped_invalid += 1
+                        continue
+
+                    uname = base_uname
+                    counter = 2
+                    while User.query.filter_by(username=uname).first():
+                        uname = f"{base_uname}_{counter}"
+                        counter += 1
+
+                    u = User(
+                        username=uname,
+                        fullname=fullname,
+                        unit_area=f"PC06 - {position_name}",
+                        unit_key='pc06',
+                        role_id=role_id
+                    )
+                    u.set_password('123456')
+                    db.session.add(u)
+                    created_count += 1
+            else:
+                col_name = _user_import_unit_column(df, has_header=inferred_has_header)
+                if col_name is None:
+                    flash('Không đọc được cột đơn vị từ file Excel.', 'danger')
+                    return redirect(url_for('admin_bp.roles'))
+
+                for _, row in df.iterrows():
+                    unit_name = str(row.get(col_name, '')).strip()
+                    if not unit_name:
+                        skipped_empty += 1
+                        continue
+                    
+                    unit_key = extract_unit_key(unit_name)
+                    base_uname = build_account_username(unit_name, unit_key)
+                    uname = base_uname
+                    
+                    counter = 2
+                    while User.query.filter_by(username=uname).first():
+                        uname = f"{base_uname}_{counter}"
+                        counter += 1
+                    
+                    u = User(
+                        username=uname,
+                        fullname=unit_name,
+                        unit_area=unit_name,
+                        unit_key=unit_key,
+                        role_id=role_id
+                    )
+                    u.set_password('123456')
+                    db.session.add(u)
+                    created_count += 1
             db.session.commit()
             log_action(
                 session['uid'],
                 session['fullname'],
                 "Import tài khoản hàng loạt",
                 "Tài khoản",
-                f"Tạo {created_count}/{len(df)} dòng; bo_qua_trong={skipped_empty}; has_header={inferred_has_header}"
+                f"Tạo {created_count}/{len(df)} dòng; kieu={import_mode}; bo_qua_trong={skipped_empty}; bo_qua_khong_hop_le={skipped_invalid}; has_header={inferred_has_header}"
             )
             header_note = 'có tiêu đề' if inferred_has_header else 'không có tiêu đề'
-            flash(f'Đã nhập {created_count} tài khoản từ {len(df)} dòng dữ liệu ({header_note}).', 'success')
+            mode_note = 'chỉ huy đội' if import_mode == 'commander' else 'đơn vị'
+            flash(f'Đã nhập {created_count} tài khoản {mode_note} từ {len(df)} dòng dữ liệu ({header_note}).', 'success')
             if skipped_empty:
                 flash(f'Có {skipped_empty} dòng trống bị bỏ qua.', 'warning')
+            if skipped_invalid:
+                flash('Có dòng bị bỏ qua vì thiếu họ tên/chức vụ hoặc chức vụ không phải Đội trưởng, Đội phó.', 'warning')
         except Exception as e: 
             db.session.rollback()
             flash(f'Lỗi import: {e}', 'danger')

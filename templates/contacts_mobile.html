@@ -124,6 +124,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body pt-0">
+                    <div class="small text-muted mb-3">File Excel chuẩn nên có 4 cột: Họ tên, Chức vụ, Số điện thoại, Đơn vị. Hệ thống sẽ ưu tiên đọc Chức vụ và Đơn vị từ file.</div>
                     <div class="mb-3"><label class="form-label small fw-bold">File Excel</label><input type="file" name="import_excel" class="form-control" accept=".xlsx,.xls" required></div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Nhóm danh bạ</label>
@@ -132,9 +133,9 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label small fw-bold">Chức vụ</label>
+                        <label class="form-label small fw-bold">Chức vụ mặc định</label>
                         <div data-category-picker data-module="contacts" data-field="role" data-placeholder="Chọn chức vụ" data-storage-key="mobile.contacts.import_role_simple">
-                            <select name="global_role" class="form-select" required data-category-target>{% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}</select>
+                            <select name="global_role" class="form-select" data-category-target><option value="" selected>Để trống nếu file đã có cột Chức vụ</option>{% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}</select>
                         </div>
                     </div>
                 </div>

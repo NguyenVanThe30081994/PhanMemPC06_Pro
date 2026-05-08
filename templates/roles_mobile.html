@@ -221,7 +221,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="small text-muted mb-3">Nếu file không có dòng tiêu đề, bỏ chọn mục bên dưới để không mất dòng dữ liệu đầu tiên.</div>
+                    <div class="small text-muted mb-3">Hỗ trợ file 1 cột đơn vị hoặc 2 cột Họ tên + Chức vụ để tạo tài khoản chỉ huy đội dạng `pc06.hotenkhongdau.dt/pdt`. Nếu file không có dòng tiêu đề, bỏ chọn mục bên dưới để không mất dòng dữ liệu đầu tiên.</div>
                     <div class="mb-3"><label class="form-label small fw-bold">Vai trò chung</label><select name="role_id" class="form-select" required>{% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select></div>
                     <div class="mb-3"><label class="form-label small fw-bold">File Excel</label><input type="file" name="import_excel" class="form-control" accept=".xlsx, .xls" required></div>
                     <div class="form-check">

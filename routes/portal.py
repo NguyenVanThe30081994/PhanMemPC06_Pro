@@ -37,6 +37,7 @@ _BCA_DOCS_CACHE = {
 
 CONTACT_IMPORT_HEADER_ALIASES = {
     'name': {'ho ten', 'ten', 'ten lien he', 'ho va ten'},
+    'role': {'chuc vu', 'vai tro', 'chuc danh', 'position', 'role'},
     'phone': {'so dien thoai', 'sdt', 'so dt', 'dien thoai'},
     'unit_name': {'don vi', 'ten don vi', 'co quan', 'phong ban', 'don vi cong tac', 'unit'}
 }
@@ -415,15 +416,23 @@ def _load_contacts_from_excel(file_storage, has_header=True):
 
     if has_header:
         name_col = _find_import_column(df.columns, 'name')
+        role_col = _find_import_column(df.columns, 'role')
         phone_col = _find_import_column(df.columns, 'phone')
         unit_col = _find_import_column(df.columns, 'unit_name')
         if not name_col or not phone_col:
-            raise ValueError('Khi có tiêu đề, file phải có đúng 2 cột nhận diện được: "Họ tên" và "Số điện thoại".')
+            raise ValueError('Khi có tiêu đề, file phải nhận diện được ít nhất 2 cột: "Họ tên" và "Số điện thoại". Nếu có, hệ thống sẽ đọc thêm "Chức vụ" và "Đơn vị".')
     else:
         if len(df.columns) < 2:
             raise ValueError('Khi không có tiêu đề, file phải có ít nhất 2 cột: cột A là Họ tên, cột B là Số điện thoại.')
-        name_col, phone_col = df.columns[0], df.columns[1]
-        unit_col = df.columns[2] if len(df.columns) >= 3 else None
+        name_col = df.columns[0]
+        if len(df.columns) >= 4:
+            role_col = df.columns[1]
+            phone_col = df.columns[2]
+            unit_col = df.columns[3]
+        else:
+            role_col = None
+            phone_col = df.columns[1]
+            unit_col = df.columns[2] if len(df.columns) >= 3 else None
 
     contacts = []
     skipped_empty = 0
@@ -431,11 +440,12 @@ def _load_contacts_from_excel(file_storage, has_header=True):
 
     for idx, row in df.iterrows():
         name = _clean_import_text(row.get(name_col, ''))
+        role = _clean_import_text(row.get(role_col, '')) if role_col is not None else ''
         phone = _normalize_import_phone(row.get(phone_col, ''))
         unit_name = _clean_import_text(row.get(unit_col, '')) if unit_col is not None else ''
         excel_row = idx + (2 if has_header else 1)
 
-        if not name and not phone:
+        if not name and not role and not phone and not unit_name:
             skipped_empty += 1
             continue
 
@@ -447,6 +457,7 @@ def _load_contacts_from_excel(file_storage, has_header=True):
             'idx': len(contacts),
             'excel_row': int(excel_row),
             'name': name,
+            'role': role,
             'phone': phone,
             'unit_name': unit_name
         })
@@ -895,25 +906,29 @@ def contact_import():
         flash('Bạn cần chọn nhóm danh bạ trước khi nhập.', 'danger')
         return redirect(url_for('portal_bp.contacts'))
 
-    if not global_role:
-        flash('Bạn cần chọn chức vụ trước khi nhập.', 'danger')
-        return redirect(url_for('portal_bp.contacts'))
-
     if f and f.filename.lower().endswith(('.xlsx', '.xls')):
         try:
             parsed = _load_contacts_from_excel(f, has_header=has_header)
             imported = 0
             user_unit = _get_current_user_unit()
+            missing_role_rows = []
 
             for row in parsed['rows']:
+                resolved_role = (row.get('role') or global_role or '').strip()
+                if not resolved_role:
+                    missing_role_rows.append(row['excel_row'])
+                    continue
                 db.session.add(Contact(
                     contact_group=global_group,
                     unit_name=(row.get('unit_name') or user_unit or '').strip(),
                     name=row['name'],
                     phone=row['phone'],
-                    role=global_role
+                    role=resolved_role
                 ))
                 imported += 1
+
+            if imported == 0 and missing_role_rows:
+                raise ValueError('Không có dòng nào được nhập vì thiếu chức vụ. Hãy thêm cột "Chức vụ" trong file hoặc chọn "Chức vụ mặc định".')
             db.session.commit()
             log_action(session['uid'], session['fullname'], "Import danh bạ hàng loạt", "Danh bạ", f"File: {f.filename}, {imported} liên hệ")
 
@@ -922,6 +937,8 @@ def contact_import():
                 warning_parts.append(f"bỏ qua {parsed['skipped_empty']} dòng trống")
             if parsed['invalid_rows']:
                 warning_parts.append(f"bỏ qua các dòng thiếu dữ liệu: {', '.join(map(str, parsed['invalid_rows'][:10]))}")
+            if missing_role_rows:
+                warning_parts.append(f"bỏ qua các dòng thiếu chức vụ: {', '.join(map(str, missing_role_rows[:10]))}")
 
             flash_message = f'Đã nhập {imported} liên lạc thành công!'
             if warning_parts:
