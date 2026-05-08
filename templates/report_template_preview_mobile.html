@@ -30,14 +30,16 @@
     .report-preview-table .report-cell--first-col { position: sticky; left: 0; z-index: 2; background: #fff; box-shadow: inset -1px 0 0 #d1d5db; }
     .report-preview-table .report-cell--header.report-cell--first-col { z-index: var(--report-sticky-cross-z, 4); background: #f1f5f9; }
     .report-preview-sticky-head {
-        position: sticky;
+        position: absolute;
         top: 0;
+        left: 0;
         z-index: 30;
         height: 0;
         overflow: visible;
         background: #fff;
         pointer-events: none;
         opacity: 0;
+        will-change: transform;
     }
     .report-preview-sticky-head .report-preview-table {
         background: #fff;
@@ -152,8 +154,8 @@ function syncStickyReportStage(stage) {
     }
     const tableRect = table.getBoundingClientRect();
     overlay.style.opacity = stage.scrollTop > 0 ? '1' : '0';
+    overlay.style.transform = `translate(${-stage.scrollLeft}px, ${stage.scrollTop}px)`;
     overlayTable.style.width = `${Math.ceil(table.getBoundingClientRect().width)}px`;
-    overlayTable.style.transform = `translateX(${-stage.scrollLeft}px)`;
     const resolveHeaderTop = (cell) => {
         const rowRect = cell.parentElement?.getBoundingClientRect();
         return Math.max(0, (rowRect ? rowRect.top : cell.getBoundingClientRect().top) - tableRect.top);
