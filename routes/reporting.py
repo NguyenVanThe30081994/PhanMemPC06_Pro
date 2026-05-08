@@ -415,7 +415,7 @@ def _template_sheet_range_defaults(version):
 
     for sheet in metadata_sheets:
         sheet_name = (sheet.get("sheet_name") or "").strip()
-        if not sheet_name:
+        if not sheet_name or sheet_name in configured_names:
             continue
         configured_names.add(sheet_name)
         configured.append(

@@ -33,8 +33,20 @@
     </section>
 
     <section class="pc06-panel report-preview-shell" id="reportPreviewSurface">
+        {% if preview_sheets|length > 1 %}
+        <div class="report-preview-toolbar">
+            <div class="report-preview-toolbar-label">Sheet</div>
+            <div class="report-preview-tab-row" id="reportPreviewTabRow">
+                {% for sheet in preview_sheets %}
+                <button type="button" class="report-preview-tab{% if loop.first %} active{% endif %}" data-preview-target="preview-sheet-{{ loop.index }}">
+                    {{ sheet.sheet_name }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
         {% for sheet in preview_sheets %}
-        <section class="report-preview-card">
+        <section class="report-preview-card" id="preview-sheet-{{ loop.index }}">
             <div class="report-preview-head">
                 <h2>{{ sheet.sheet_name }}</h2>
             </div>
@@ -54,6 +66,46 @@
 
 <style>
     .report-preview-shell { display: grid; gap: 18px; }
+    .report-preview-toolbar {
+        display: grid;
+        gap: 10px;
+        padding: 14px 16px;
+        border: 1px solid rgba(148,163,184,0.16);
+        border-radius: 18px;
+        background: rgba(255,255,255,0.94);
+        box-shadow: 0 8px 24px rgba(15,23,42,0.06);
+    }
+    .report-preview-toolbar-label {
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+    .report-preview-tab-row {
+        display: flex;
+        gap: 10px;
+        overflow: auto;
+        padding-bottom: 2px;
+        scrollbar-width: none;
+    }
+    .report-preview-tab-row::-webkit-scrollbar { display: none; }
+    .report-preview-tab {
+        border: 1px solid rgba(148,163,184,0.18);
+        background: #f8fafc;
+        color: #475569;
+        border-radius: 999px;
+        padding: 9px 14px;
+        font-size: 0.84rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .report-preview-tab.active {
+        background: linear-gradient(135deg, #1d4ed8, #2563eb);
+        border-color: transparent;
+        color: #fff;
+        box-shadow: 0 10px 24px rgba(37,99,235,0.26);
+    }
     .report-preview-card {
         border: 1px solid rgba(148,163,184,0.16);
         border-radius: 20px;
@@ -97,8 +149,31 @@
         background: rgba(30,41,59,0.92);
         border-color: rgba(148,163,184,0.14);
     }
+    [data-theme="dark"] .report-preview-toolbar {
+        background: rgba(30,41,59,0.92);
+        border-color: rgba(148,163,184,0.14);
+    }
     [data-theme="dark"] .report-preview-head {
         background: rgba(15,23,42,0.45);
+    }
+    [data-theme="dark"] .report-preview-tab {
+        background: rgba(15,23,42,0.68);
+        border-color: rgba(148,163,184,0.16);
+        color: #cbd5e1;
+    }
+    #reportPreviewSurface:fullscreen {
+        padding: 18px;
+        overflow: auto;
+        background: #e2e8f0;
+        align-content: start;
+    }
+    #reportPreviewSurface:fullscreen .report-preview-toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+    }
+    [data-theme="dark"] #reportPreviewSurface:fullscreen {
+        background: #0f172a;
     }
     @page {
         size: A4 landscape;
@@ -113,6 +188,7 @@
         .pc06-hero-card,
         .btn,
         .pc06-action-cluster { display: none !important; }
+        .report-preview-toolbar { display: none !important; }
         .pc06-page-shell,
         .pc06-panel {
             padding: 0 !important;
@@ -128,9 +204,8 @@
             overflow: visible !important;
         }
         .report-preview-fit {
-            transform-origin: top left !important;
-            transform: scale(var(--print-scale, 1)) !important;
-            width: max-content !important;
+            transform: none !important;
+            width: 100% !important;
             height: auto !important;
         }
         .report-preview-card {
@@ -148,9 +223,9 @@
             background: #fff !important;
         }
         .report-preview-table {
-            font-size: 9px !important;
-            width: auto !important;
-            table-layout: auto !important;
+            font-size: 8.5px !important;
+            width: 100% !important;
+            table-layout: fixed !important;
             border-collapse: collapse !important;
             border: 1.4px solid #000 !important;
         }
@@ -184,6 +259,26 @@ function fitPreviewTables() {
     });
 }
 
+function scrollPreviewSheet(targetId) {
+    const target = document.getElementById(targetId);
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function syncPreviewTabs() {
+    const cards = Array.from(document.querySelectorAll('.report-preview-card[id]'));
+    const tabs = Array.from(document.querySelectorAll('.report-preview-tab[data-preview-target]'));
+    if (!cards.length || !tabs.length) return;
+    const activeCard = cards.find((card) => {
+        const rect = card.getBoundingClientRect();
+        return rect.top <= 180 && rect.bottom >= 180;
+    }) || cards[0];
+    const activeId = activeCard?.id || '';
+    tabs.forEach((tab) => {
+        tab.classList.toggle('active', tab.getAttribute('data-preview-target') === activeId);
+    });
+}
+
 function togglePreviewFullscreen() {
     const surface = document.getElementById('reportPreviewSurface');
     if (!document.fullscreenElement) {
@@ -195,23 +290,18 @@ function togglePreviewFullscreen() {
 
 window.addEventListener('load', fitPreviewTables);
 window.addEventListener('resize', fitPreviewTables);
+window.addEventListener('scroll', syncPreviewTabs, { passive: true });
 document.addEventListener('fullscreenchange', fitPreviewTables);
-function preparePrintLayout() {
-    const printableWidthPx = Math.round(((297 - 16) / 25.4) * 96);
-    document.querySelectorAll('.js-preview-fit').forEach((fit) => {
-        const table = fit.querySelector('table');
-        if (!table) return;
-        fit.style.transform = 'none';
-        fit.style.height = 'auto';
-        fit.style.width = 'max-content';
-        fit.style.setProperty('--print-scale', '1');
-        const tableWidth = Math.max(table.scrollWidth, 1);
-        const scale = Math.min(1, printableWidthPx / tableWidth);
-        fit.style.setProperty('--print-scale', String(scale));
-        fit.style.height = `${Math.ceil(table.scrollHeight * scale)}px`;
-    });
-}
-window.addEventListener('beforeprint', preparePrintLayout);
-window.addEventListener('afterprint', fitPreviewTables);
+document.querySelectorAll('.report-preview-tab[data-preview-target]').forEach((tab) => {
+    tab.addEventListener('click', () => scrollPreviewSheet(tab.getAttribute('data-preview-target')));
+});
+document.getElementById('reportPreviewSurface')?.addEventListener('scroll', syncPreviewTabs, { passive: true });
+document.addEventListener('fullscreenchange', () => setTimeout(syncPreviewTabs, 120));
+window.addEventListener('load', syncPreviewTabs);
+window.addEventListener('resize', syncPreviewTabs);
+window.addEventListener('afterprint', () => {
+    fitPreviewTables();
+    syncPreviewTabs();
+});
 </script>
 {% endblock %}
