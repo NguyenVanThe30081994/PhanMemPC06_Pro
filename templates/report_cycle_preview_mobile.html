@@ -29,6 +29,36 @@
     .report-preview-table .report-cell--header { position: sticky; top: var(--report-sticky-top, 0px); z-index: var(--report-sticky-z, 3); background: #f8fafc; box-shadow: inset 0 -1px 0 #d1d5db; }
     .report-preview-table .report-cell--first-col { position: sticky; left: 0; z-index: 2; background: #fff; box-shadow: inset -1px 0 0 #d1d5db; }
     .report-preview-table .report-cell--header.report-cell--first-col { z-index: var(--report-sticky-cross-z, 4); background: #f1f5f9; }
+    .report-preview-sticky-head {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        height: 0;
+        overflow: visible;
+        background: #fff;
+        pointer-events: none;
+        opacity: 0;
+    }
+    .report-preview-sticky-head .report-preview-table {
+        background: #fff;
+        box-shadow: 0 1px 0 #d1d5db;
+    }
+    .report-preview-sticky-head .report-cell--header {
+        position: static !important;
+        top: auto !important;
+        z-index: auto !important;
+    }
+    .report-preview-sticky-head .report-cell--first-col {
+        visibility: hidden;
+    }
+    .report-preview-mobile-stage.has-sticky-overlay .report-preview-table .report-cell--header:not(.report-cell--first-col) {
+        position: static !important;
+        top: auto !important;
+        z-index: auto !important;
+    }
+    .report-preview-mobile-stage.has-sticky-overlay .report-preview-table .report-cell--header.report-cell--first-col {
+        z-index: 40 !important;
+    }
 </style>
 {% endblock %}
 
@@ -80,43 +110,74 @@ function togglePreviewFullscreen() {
 }
 
 function syncStickyReportTables() {
-    document.querySelectorAll('.report-preview-table').forEach((table) => {
+    document.querySelectorAll('.report-preview-mobile-stage').forEach((stage) => {
+        const table = stage.querySelector('.report-preview-table');
+        if (!table) {
+            return;
+        }
         const headerCells = Array.from(table.querySelectorAll('.report-cell--header'));
         if (!headerCells.length) {
             return;
         }
-        const resolveStickyTop = (cell) => {
-            const rawTop = cell.style.getPropertyValue('--report-sticky-top') || getComputedStyle(cell).getPropertyValue('--report-sticky-top');
-            const parsedTop = Number.parseFloat(rawTop);
-            if (Number.isFinite(parsedTop)) {
-                return parsedTop;
-            }
-            const rowTop = cell.parentElement?.offsetTop ?? cell.offsetTop ?? 0;
-            return Math.max(0, rowTop);
-        };
-        const topValues = headerCells.map(resolveStickyTop);
-        const uniqueTops = Array.from(new Set(topValues)).sort((a, b) => a - b);
-        const zMap = new Map(uniqueTops.map((top, index) => [top, uniqueTops.length - index]));
-        headerCells.forEach((cell) => {
-            const stickyTop = resolveStickyTop(cell);
-            const rank = zMap.get(stickyTop) || 1;
-            cell.style.setProperty('--report-sticky-top', `${stickyTop}px`);
-            cell.style.setProperty('--report-sticky-z', String(10 + rank));
-            if (cell.classList.contains('report-cell--first-col')) {
-                cell.style.setProperty('--report-sticky-cross-z', String(30 + rank));
-            }
+        let overlay = stage.querySelector('.report-preview-sticky-head');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'report-preview-sticky-head';
+            stage.prepend(overlay);
+        }
+        if (!stage.dataset.stickyOverlayBound) {
+            stage.addEventListener('scroll', () => syncStickyReportStage(stage), { passive: true });
+            stage.dataset.stickyOverlayBound = '1';
+        }
+        const headerRows = Array.from(new Set(headerCells.map((cell) => cell.parentElement).filter(Boolean)));
+        const overlayTable = table.cloneNode(false);
+        overlayTable.setAttribute('aria-hidden', 'true');
+        const overlayBody = document.createElement('tbody');
+        headerRows.forEach((row) => {
+            overlayBody.appendChild(row.cloneNode(true));
         });
+        overlayTable.appendChild(overlayBody);
+        overlay.replaceChildren(overlayTable);
+        stage.classList.add('has-sticky-overlay');
+        syncStickyReportStage(stage);
     });
 }
 
-let reportStickyFrame = 0;
-function scheduleStickyReportSync() {
-    if (reportStickyFrame) {
-        cancelAnimationFrame(reportStickyFrame);
+function syncStickyReportStage(stage) {
+    const table = stage.querySelector('.report-preview-table');
+    const overlay = stage.querySelector('.report-preview-sticky-head');
+    const overlayTable = overlay ? overlay.querySelector('.report-preview-table') : null;
+    if (!table || !overlay || !overlayTable) {
+        return;
     }
-    reportStickyFrame = requestAnimationFrame(() => {
-        reportStickyFrame = 0;
-        syncStickyReportTables();
+    const headerCells = Array.from(table.querySelectorAll('.report-cell--header'));
+    if (!headerCells.length) {
+        overlay.style.opacity = '0';
+        return;
+    }
+    const tableRect = table.getBoundingClientRect();
+    overlay.style.opacity = stage.scrollTop > 0 ? '1' : '0';
+    overlayTable.style.width = `${Math.ceil(table.getBoundingClientRect().width)}px`;
+    overlayTable.style.transform = `translateX(${-stage.scrollLeft}px)`;
+    const resolveHeaderTop = (cell) => {
+        const rowRect = cell.parentElement?.getBoundingClientRect();
+        return Math.max(0, (rowRect ? rowRect.top : cell.getBoundingClientRect().top) - tableRect.top);
+    };
+    const topValues = Array.from(new Set(headerCells.map(resolveHeaderTop))).sort((a, b) => a - b);
+    const zMap = new Map(topValues.map((top, index) => [top, topValues.length - index]));
+    headerCells.forEach((cell) => {
+        const stickyTop = resolveHeaderTop(cell);
+        const rank = zMap.get(stickyTop) || 1;
+        cell.style.setProperty('--report-sticky-top', `${stickyTop}px`);
+        cell.style.setProperty('--report-sticky-z', String(10 + rank));
+        if (cell.classList.contains('report-cell--first-col')) {
+            cell.style.setProperty('--report-sticky-cross-z', String(30 + rank));
+        }
+    });
+    Array.from(overlayTable.querySelectorAll('.report-cell--header')).forEach((cell) => {
+        cell.style.removeProperty('--report-sticky-top');
+        cell.style.removeProperty('--report-sticky-z');
+        cell.style.removeProperty('--report-sticky-cross-z');
     });
 }
 
@@ -134,5 +195,15 @@ document.addEventListener('fullscreenchange', () => {
     scheduleStickyReportSync();
     setTimeout(scheduleStickyReportSync, 120);
 });
+let reportStickyFrame = 0;
+function scheduleStickyReportSync() {
+    if (reportStickyFrame) {
+        cancelAnimationFrame(reportStickyFrame);
+    }
+    reportStickyFrame = requestAnimationFrame(() => {
+        reportStickyFrame = 0;
+        syncStickyReportTables();
+    });
+}
 </script>
 {% endblock %}
