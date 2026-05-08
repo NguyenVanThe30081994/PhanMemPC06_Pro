@@ -10,6 +10,10 @@
                 <h1 class="pc06-page-title">Tài khoản & Vai trò</h1>
                 {% if can_manage_roles %}
                 <div class="pc06-action-cluster">
+                    <a class="btn btn-bdhvs light" href="{{ url_for('admin_bp.export_users', role_id=selected_role_id, unit=selected_unit, q=search_query) }}">
+                        <i class="fa-solid fa-file-arrow-down"></i>
+                        Xuất danh sách
+                    </a>
                     <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importUserModal">
                         <i class="fa-solid fa-file-excel"></i>
                         Nhập Excel

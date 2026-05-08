@@ -208,6 +208,45 @@ def _get_admin_perms():
     return {}
 
 
+def _build_role_user_query(selected_role_id=None, selected_unit='', search_query=''):
+    selected_role = db.session.get(AppRole, selected_role_id) if selected_role_id else None
+    users_query = User.query
+
+    if selected_role:
+        users_query = users_query.filter(User.role_id == selected_role.id)
+
+    selected_unit = (selected_unit or '').strip()
+    if selected_unit:
+        from sqlalchemy import or_
+
+        selected_unit_key = extract_unit_key(selected_unit)
+        if selected_unit_key:
+            users_query = users_query.filter(
+                or_(
+                    User.unit_area == selected_unit,
+                    User.unit_key == selected_unit_key
+                )
+            )
+        else:
+            users_query = users_query.filter(User.unit_area == selected_unit)
+
+    search_query = (search_query or '').strip()
+    if search_query:
+        from sqlalchemy import or_
+
+        term = f"%{search_query}%"
+        users_query = users_query.filter(
+            or_(
+                User.fullname.ilike(term),
+                User.username.ilike(term),
+                User.unit_area.ilike(term),
+                User.unit_key.ilike(term)
+            )
+        )
+
+    return selected_role, users_query
+
+
 def _mask_secret(value):
     value = (value or '').strip()
     if not value:
@@ -526,14 +565,14 @@ def roles():
 
     selected_role_id = request.args.get('role_id', type=int)
     selected_unit = (request.args.get('unit') or '').strip()
-    selected_unit_key = extract_unit_key(selected_unit)
     search_query = (request.args.get('q') or '').strip()
-    selected_role = db.session.get(AppRole, selected_role_id) if selected_role_id else None
 
     roles = AppRole.query.order_by(AppRole.name.asc()).all()
-    users_query = User.query
-    if selected_role:
-        users_query = users_query.filter(User.role_id == selected_role.id)
+    selected_role, users_query = _build_role_user_query(
+        selected_role_id=selected_role_id,
+        selected_unit=selected_unit,
+        search_query=search_query
+    )
 
     unit_options_query = db.session.query(User.unit_area)
     if selected_role:
@@ -546,31 +585,6 @@ def roles():
         },
         key=lambda value: value.lower()
     )
-
-    if selected_unit:
-        from sqlalchemy import or_
-        if selected_unit_key:
-            users_query = users_query.filter(
-                or_(
-                    User.unit_area == selected_unit,
-                    User.unit_key == selected_unit_key
-                )
-            )
-        else:
-            users_query = users_query.filter(User.unit_area == selected_unit)
-
-    if search_query:
-        from sqlalchemy import or_
-
-        term = f"%{search_query}%"
-        users_query = users_query.filter(
-            or_(
-                User.fullname.ilike(term),
-                User.username.ilike(term),
-                User.unit_area.ilike(term),
-                User.unit_key.ilike(term)
-            )
-        )
 
     users = users_query.order_by(User.fullname.asc(), User.username.asc()).all()
 
@@ -598,6 +612,87 @@ def roles():
         total_user_count=sum(role_user_counts.values()),
         units=[u[0] for u in db.session.query(MasterData.name).distinct().all() if u[0]],
         unit_cats=unit_cats
+    )
+
+
+@admin_bp.route('/admin/users/export')
+def export_users():
+    if not session.get('is_admin'):
+        flash('Chỉ quản trị viên mới được xuất danh sách tài khoản.', 'danger')
+        return redirect(url_for('admin_bp.roles'))
+    if not HAS_PANDAS:
+        flash('Máy chủ chưa cài thư viện xuất Excel.', 'danger')
+        return redirect(url_for('admin_bp.roles'))
+
+    selected_role_id = request.args.get('role_id', type=int)
+    selected_unit = (request.args.get('unit') or '').strip()
+    search_query = (request.args.get('q') or '').strip()
+    selected_role, users_query = _build_role_user_query(
+        selected_role_id=selected_role_id,
+        selected_unit=selected_unit,
+        search_query=search_query
+    )
+    users = users_query.order_by(User.fullname.asc(), User.username.asc()).all()
+
+    rows = []
+    for index, user in enumerate(users, start=1):
+        rows.append({
+            'STT': index,
+            'Tài khoản': user.username or '',
+            'Họ và tên': user.fullname or '',
+            'Đơn vị': user.unit_area or '',
+            'Mã đơn vị': user.unit_key or '',
+            'Vai trò': user.role.name if user.role else '',
+            'Trạng thái': 'Hoạt động' if user.is_active else 'Vô hiệu hóa',
+            'Yêu cầu đổi mật khẩu': 'Có' if user.must_change_password else 'Không',
+        })
+
+    if not rows:
+        rows.append({
+            'STT': '',
+            'Tài khoản': '',
+            'Họ và tên': '',
+            'Đơn vị': '',
+            'Mã đơn vị': '',
+            'Vai trò': '',
+            'Trạng thái': '',
+            'Yêu cầu đổi mật khẩu': '',
+        })
+
+    export_filters = pd.DataFrame([
+        {'Tiêu chí': 'Vai trò', 'Giá trị': selected_role.name if selected_role else 'Tất cả'},
+        {'Tiêu chí': 'Đơn vị', 'Giá trị': selected_unit or 'Tất cả'},
+        {'Tiêu chí': 'Từ khóa', 'Giá trị': search_query or 'Không có'},
+        {'Tiêu chí': 'Số tài khoản', 'Giá trị': len(users)},
+        {'Tiêu chí': 'Thời gian xuất', 'Giá trị': datetime.now().strftime('%d/%m/%Y %H:%M:%S')},
+    ])
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        pd.DataFrame(rows).to_excel(writer, index=False, sheet_name='TaiKhoan')
+        export_filters.to_excel(writer, index=False, sheet_name='BoLoc')
+
+        account_sheet = writer.sheets['TaiKhoan']
+        for column_cells in account_sheet.columns:
+            max_length = max(len(str(cell.value or '')) for cell in column_cells)
+            account_sheet.column_dimensions[column_cells[0].column_letter].width = min(max(max_length + 2, 12), 36)
+        account_sheet.freeze_panes = 'A2'
+
+        filter_sheet = writer.sheets['BoLoc']
+        filter_sheet.column_dimensions['A'].width = 22
+        filter_sheet.column_dimensions['B'].width = 36
+
+    file_parts = ['danh_sach_tai_khoan']
+    if selected_role:
+        file_parts.append(slugify_code(selected_role.name) or f'role_{selected_role.id}')
+    if selected_unit:
+        file_parts.append(slugify_code(selected_unit) or 'don_vi')
+    filename = f"{'_'.join(file_parts)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+    return Response(
+        output.getvalue(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-disposition": f"attachment; filename={filename}"}
     )
 
 @admin_bp.route('/admin/user/delete/<int:uid>', methods=['POST'])
