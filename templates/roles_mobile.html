@@ -46,9 +46,27 @@
 
 <section class="mobile-role-card">
     <h6 class="fw-bold mb-3">{{ selected_role.name if selected_role else 'Tài khoản' }}</h6>
+    {% if can_manage_roles %}
+    <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+        <label class="small d-flex align-items-center gap-2">
+            <input type="checkbox" class="form-check-input" id="mobileUserCheckAll" onchange="handleMobileUserCheckAllChange()">
+            <span>Chọn tất cả</span>
+        </label>
+        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" id="mobileBulkUserDeleteBtn" onclick="submitMobileBulkUserDelete()" disabled>
+            <i class="fa-solid fa-trash-can"></i>
+            Xóa đã chọn
+        </button>
+    </div>
+    <div class="small text-muted mb-3" id="mobileBulkUserSelectionText">Chưa chọn tài khoản nào</div>
+    {% endif %}
     {% if users %}
     {% for u in users %}
     <div class="border rounded-4 p-3 mb-2">
+        {% if can_manage_roles %}
+        <div class="d-flex justify-content-end mb-2">
+            <input type="checkbox" class="form-check-input mobile-user-row-check" value="{{ u.id }}" {% if u.username == 'admin' %}disabled{% endif %} onchange="updateMobileUserBulkSelectionState()">
+        </div>
+        {% endif %}
         <div class="d-flex justify-content-between gap-3">
             <div>
                 <div class="fw-bold text-dark">{{ u.fullname }}</div>
@@ -78,6 +96,9 @@
 {% include "roles_modals_mobile_partial.html" ignore missing %}
 
 {% if can_manage_roles %}
+<form method="POST" action="{{ url_for('admin_bp.delete_users_bulk') }}" id="mobileBulkUserDeleteForm" class="d-none">
+    <input type="hidden" name="selected_ids" id="mobileBulkUserDeleteSelectedIds">
+</form>
 <!-- Add Role Modal -->
 <div class="modal fade" id="addRoleModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered mx-3">
@@ -200,8 +221,13 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="small text-muted mb-3">Nếu file không có dòng tiêu đề, bỏ chọn mục bên dưới để không mất dòng dữ liệu đầu tiên.</div>
                     <div class="mb-3"><label class="form-label small fw-bold">Vai trò chung</label><select name="role_id" class="form-select" required>{% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select></div>
-                    <div class="mb-0"><label class="form-label small fw-bold">File Excel</label><input type="file" name="import_excel" class="form-control" accept=".xlsx, .xls" required></div>
+                    <div class="mb-3"><label class="form-label small fw-bold">File Excel</label><input type="file" name="import_excel" class="form-control" accept=".xlsx, .xls" required></div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="has_header" value="1" id="mobileUserImportHasHeader" checked>
+                        <label class="form-check-label small" for="mobileUserImportHasHeader">File có dòng tiêu đề ở dòng đầu</label>
+                    </div>
                 </div>
                 <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary" aria-label="Nhập tài khoản" title="Nhập tài khoản"><i class="fa-solid fa-file-import"></i><span class="visually-hidden">Nhập tài khoản</span></button></div>
             </form>
@@ -227,6 +253,38 @@ function openEditUser(id, user, full, unit, rid) {
     document.getElementById('edit_role_select').value = rid;
     new bootstrap.Modal(document.getElementById('editUserModal')).show();
 }
+
+function updateMobileUserBulkSelectionState() {
+    const checks = Array.from(document.querySelectorAll('.mobile-user-row-check'));
+    const enabledChecks = checks.filter((item) => !item.disabled);
+    const selectedChecks = enabledChecks.filter((item) => item.checked);
+    const checkAll = document.getElementById('mobileUserCheckAll');
+    const bulkBtn = document.getElementById('mobileBulkUserDeleteBtn');
+    const bulkText = document.getElementById('mobileBulkUserSelectionText');
+    if (!checkAll || !bulkBtn || !bulkText) return;
+    checkAll.checked = enabledChecks.length > 0 && selectedChecks.length === enabledChecks.length;
+    checkAll.indeterminate = selectedChecks.length > 0 && selectedChecks.length < enabledChecks.length;
+    bulkBtn.disabled = selectedChecks.length === 0;
+    bulkText.textContent = selectedChecks.length === 0 ? 'Chưa chọn tài khoản nào' : `Đã chọn ${selectedChecks.length} tài khoản`;
+}
+
+function handleMobileUserCheckAllChange() {
+    const checked = !!document.getElementById('mobileUserCheckAll')?.checked;
+    document.querySelectorAll('.mobile-user-row-check').forEach((item) => {
+        if (!item.disabled) item.checked = checked;
+    });
+    updateMobileUserBulkSelectionState();
+}
+
+function submitMobileBulkUserDelete() {
+    const selectedIds = Array.from(document.querySelectorAll('.mobile-user-row-check:checked')).map((item) => Number(item.value)).filter(Boolean);
+    if (!selectedIds.length) return;
+    if (!confirm(`Xóa ${selectedIds.length} tài khoản đã chọn?`)) return;
+    document.getElementById('mobileBulkUserDeleteSelectedIds').value = JSON.stringify(selectedIds);
+    document.getElementById('mobileBulkUserDeleteForm').submit();
+}
+
+updateMobileUserBulkSelectionState();
 </script>
 {% endif %}
 {% endblock %}

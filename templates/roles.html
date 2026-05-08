@@ -56,11 +56,25 @@
                         <h2>{{ selected_role.name if selected_role else 'Danh sách tài khoản' }}</h2>
                         <p>{{ users|length }} tài khoản đang hiển thị.</p>
                     </div>
+                    {% if can_manage_roles %}
+                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                        <button type="button" class="btn btn-bdhvs light text-danger" id="bulkUserDeleteBtn" onclick="submitBulkUserDelete()" disabled>
+                            <i class="fa-solid fa-trash-can"></i>
+                            Xóa đã chọn
+                        </button>
+                        <span class="small text-muted" id="bulkUserSelectionText">Chưa chọn tài khoản nào</span>
+                    </div>
+                    {% endif %}
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="pill-thead">
                             <tr>
+                                {% if can_manage_roles %}
+                                <th style="width: 52px;" class="text-center">
+                                    <input type="checkbox" class="form-check-input" id="userCheckAll" onchange="handleUserCheckAllChange()">
+                                </th>
+                                {% endif %}
                                 <th class="ps-4">Người dùng</th>
                                 <th>Đơn vị</th>
                                 <th>Vai trò</th>
@@ -72,6 +86,11 @@
                             {% if users %}
                             {% for u in users %}
                             <tr>
+                                {% if can_manage_roles %}
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input user-row-check" value="{{ u.id }}" {% if u.username == 'admin' %}disabled{% endif %} onchange="updateUserBulkSelectionState()">
+                                </td>
+                                {% endif %}
                                 <td class="ps-4 py-3">
                                     <div class="d-flex align-items-center gap-3">
                                         <div class="contact-avatar">{{ u.fullname[:1].upper() }}</div>
@@ -111,7 +130,7 @@
                             {% endfor %}
                             {% else %}
                             <tr>
-                                <td colspan="5" class="py-5 text-center text-muted">Không có tài khoản trong vai trò đang chọn.</td>
+                                <td colspan="{{ 6 if can_manage_roles else 5 }}" class="py-5 text-center text-muted">Không có tài khoản trong vai trò đang chọn.</td>
                             </tr>
                             {% endif %}
                         </tbody>
@@ -156,6 +175,9 @@
 </div>
 
 {% if can_manage_roles %}
+<form method="POST" action="{{ url_for('admin_bp.delete_users_bulk') }}" id="bulkUserDeleteForm" class="d-none">
+    <input type="hidden" name="selected_ids" id="bulkUserDeleteSelectedIds">
+</form>
 <!-- Add Role Modal -->
 <div class="modal fade" id="addRoleModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -362,6 +384,7 @@
                     <div class="alert alert-success border-0 rounded-3 small mb-4">
                         <i class="fa-solid fa-circle-info me-2"></i>
                         Hệ thống tự sinh mã tài khoản và mật khẩu mặc định `123456`.
+                        Nếu file không có dòng tiêu đề, bỏ chọn mục tương ứng bên dưới để tránh mất dòng đầu tiên.
                     </div>
                     <div class="mb-4">
                         <label class="form-label fw-bold text-dark small">CHỌN VAI TRÒ CHUNG</label>
@@ -372,6 +395,12 @@
                     <div class="mb-0">
                         <label class="form-label fw-bold text-dark small">CHỌN FILE EXCEL (.xlsx, .xls)</label>
                         <input type="file" name="import_excel" class="form-control py-2 shadow-sm border-light" accept=".xlsx, .xls" required>
+                    </div>
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" name="has_header" value="1" id="userImportHasHeader" checked>
+                        <label class="form-check-label small" for="userImportHasHeader">
+                            File có dòng tiêu đề ở dòng đầu
+                        </label>
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-0">
@@ -401,6 +430,37 @@ function openEditUser(id, user, full, unit, rid) {
     new bootstrap.Modal(document.getElementById('editUserModal')).show();
 }
 
+function updateUserBulkSelectionState() {
+    const checks = Array.from(document.querySelectorAll('.user-row-check'));
+    const enabledChecks = checks.filter((item) => !item.disabled);
+    const selectedChecks = enabledChecks.filter((item) => item.checked);
+    const checkAll = document.getElementById('userCheckAll');
+    const bulkBtn = document.getElementById('bulkUserDeleteBtn');
+    const bulkText = document.getElementById('bulkUserSelectionText');
+    if (!checkAll || !bulkBtn || !bulkText) return;
+    checkAll.checked = enabledChecks.length > 0 && selectedChecks.length === enabledChecks.length;
+    checkAll.indeterminate = selectedChecks.length > 0 && selectedChecks.length < enabledChecks.length;
+    bulkBtn.disabled = selectedChecks.length === 0;
+    bulkText.textContent = selectedChecks.length === 0 ? 'Chưa chọn tài khoản nào' : `Đã chọn ${selectedChecks.length} tài khoản`;
+}
+
+function handleUserCheckAllChange() {
+    const checkAll = document.getElementById('userCheckAll');
+    const checked = !!checkAll?.checked;
+    document.querySelectorAll('.user-row-check').forEach((item) => {
+        if (!item.disabled) item.checked = checked;
+    });
+    updateUserBulkSelectionState();
+}
+
+function submitBulkUserDelete() {
+    const selectedIds = Array.from(document.querySelectorAll('.user-row-check:checked')).map((item) => Number(item.value)).filter(Boolean);
+    if (!selectedIds.length) return;
+    if (!confirm(`Xóa ${selectedIds.length} tài khoản đã chọn?`)) return;
+    document.getElementById('bulkUserDeleteSelectedIds').value = JSON.stringify(selectedIds);
+    document.getElementById('bulkUserDeleteForm').submit();
+}
+
 document.querySelectorAll('.toggle-password').forEach(btn => {
     btn.addEventListener('click', () => {
         const input = btn.parentElement.querySelector('input');
@@ -413,6 +473,8 @@ document.querySelectorAll('.toggle-password').forEach(btn => {
         }
     });
 });
+
+updateUserBulkSelectionState();
 </script>
 
 {% endif %}

@@ -38,6 +38,18 @@ AI_PROVIDER_DEFAULTS = {
     'groq': 'llama-3.3-70b-versatile',
 }
 
+USER_IMPORT_HEADER_MARKERS = (
+    'đơn vị',
+    'don vi',
+    'tên đơn vị',
+    'ten don vi',
+    'unit',
+    'họ tên',
+    'ho ten',
+    'fullname',
+    'username',
+)
+
 
 def _looks_like_org_unit(value):
     text = (value or '').strip().lower()
@@ -75,6 +87,44 @@ def _resolve_user_unit_value(fullname, unit, username=''):
             return fullname, fullname_key
     resolved = unit or fullname or username
     return resolved, extract_unit_key(resolved)
+
+
+def _looks_like_user_import_header(value):
+    text = str(value or '').strip().lower()
+    if not text:
+        return False
+    return any(marker in text for marker in USER_IMPORT_HEADER_MARKERS)
+
+
+def _load_user_import_dataframe(file_storage, has_header=True):
+    raw = file_storage.read()
+    if not raw:
+        raise ValueError('File Excel không có dữ liệu.')
+
+    def _read(header_mode):
+        kwargs = {}
+        kwargs['header'] = 0 if header_mode else None
+        return pd.read_excel(io.BytesIO(raw), **kwargs).fillna('')
+
+    df = _read(has_header)
+    inferred_has_header = has_header
+
+    if has_header and len(df.columns):
+        first_col = df.columns[0]
+        if not any(_looks_like_user_import_header(col) for col in df.columns):
+            if _looks_like_org_unit(str(first_col)) or not _looks_like_user_import_header(first_col):
+                df = _read(False)
+                inferred_has_header = False
+
+    return df, inferred_has_header
+
+
+def _user_import_unit_column(df, has_header=True):
+    if df.empty:
+        return None
+    if has_header:
+        return next((c for c in df.columns if _looks_like_user_import_header(c)), df.columns[0])
+    return df.columns[0]
 
 
 def _get_admin_perms():
@@ -497,6 +547,48 @@ def delete_user(uid):
             flash(f'Đã xóa tài khoản {name} thành công!', 'success')
     return redirect(url_for('admin_bp.roles'))
 
+
+@admin_bp.route('/admin/users/delete-bulk', methods=['POST'])
+def delete_users_bulk():
+    if not session.get('is_admin'):
+        flash('Chỉ quản trị viên mới được xóa tài khoản.', 'danger')
+        return redirect(url_for('admin_bp.roles'))
+
+    raw_selected = request.form.get('selected_ids', '').strip()
+    try:
+        selected_ids = json.loads(raw_selected) if raw_selected else []
+    except Exception:
+        selected_ids = []
+
+    selected_ids = [int(uid) for uid in selected_ids if str(uid).isdigit()]
+    if not selected_ids:
+        flash('Chưa chọn tài khoản nào để xóa.', 'warning')
+        return redirect(url_for('admin_bp.roles'))
+
+    users = User.query.filter(User.id.in_(selected_ids)).all()
+    deleted_names = []
+    skipped_admin = False
+    for user in users:
+        if user.username == 'admin':
+            skipped_admin = True
+            continue
+        deleted_names.append(user.username)
+        db.session.delete(user)
+
+    db.session.commit()
+    if deleted_names:
+        log_action(
+            session['uid'],
+            session['fullname'],
+            "Xóa hàng loạt tài khoản",
+            "Tài khoản",
+            ", ".join(deleted_names[:20]) + ("..." if len(deleted_names) > 20 else "")
+        )
+        flash(f'Đã xóa {len(deleted_names)} tài khoản.', 'success')
+    if skipped_admin:
+        flash('Tài khoản admin hệ thống được giữ lại và không bị xóa.', 'warning')
+    return redirect(url_for('admin_bp.roles'))
+
 @admin_bp.route('/admin/user/toggle-status/<int:uid>')
 def toggle_user_status(uid):
     if not session.get('is_admin'):
@@ -561,16 +653,23 @@ def import_users():
     if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
     f = request.files.get('import_excel')
     role_id = request.form.get('role_id', 2) # Default to 2 if not selected
+    has_header = request.form.get('has_header') == '1'
     
     if f and f.filename.endswith(('.xlsx', '.xls')):
         try:
-            df = pd.read_excel(io.BytesIO(f.read())).fillna('')
-            # Find the best column name for "Tên đơn vị"
-            col_name = next((c for c in df.columns if 'đơn vị' in str(c).lower()), df.columns[0])
-            
+            df, inferred_has_header = _load_user_import_dataframe(f, has_header=has_header)
+            col_name = _user_import_unit_column(df, has_header=inferred_has_header)
+            if col_name is None:
+                flash('Không đọc được cột đơn vị từ file Excel.', 'danger')
+                return redirect(url_for('admin_bp.roles'))
+
+            created_count = 0
+            skipped_empty = 0
             for _, row in df.iterrows():
                 unit_name = str(row.get(col_name, '')).strip()
-                if not unit_name: continue
+                if not unit_name:
+                    skipped_empty += 1
+                    continue
                 
                 # Auto-generate username
                 unit_key = extract_unit_key(unit_name)
@@ -592,9 +691,19 @@ def import_users():
                 )
                 u.set_password('123456')
                 db.session.add(u)
+                created_count += 1
             db.session.commit()
-            log_action(session['uid'], session['fullname'], "Import tài khoản hàng loạt", "Tài khoản", f"Số lượng: {len(df)}")
-            flash('Đã nhập tài khoản thành công!', 'success')
+            log_action(
+                session['uid'],
+                session['fullname'],
+                "Import tài khoản hàng loạt",
+                "Tài khoản",
+                f"Tạo {created_count}/{len(df)} dòng; bo_qua_trong={skipped_empty}; has_header={inferred_has_header}"
+            )
+            header_note = 'có tiêu đề' if inferred_has_header else 'không có tiêu đề'
+            flash(f'Đã nhập {created_count} tài khoản từ {len(df)} dòng dữ liệu ({header_note}).', 'success')
+            if skipped_empty:
+                flash(f'Có {skipped_empty} dòng trống bị bỏ qua.', 'warning')
         except Exception as e: 
             db.session.rollback()
             flash(f'Lỗi import: {e}', 'danger')
