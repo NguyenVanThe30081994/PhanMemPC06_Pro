@@ -112,6 +112,9 @@
                     <div class="report-mobile-actions-row">
                         {% if item.current_cycle %}
                         <a class="btn btn-sm btn-outline-primary rounded-pill" href="{{ url_for('reporting_bp.admin_cycle_detail', cycle_id=item.current_cycle.id) }}" aria-label="Chi tiết báo cáo" title="Chi tiết báo cáo"><i class="fa-solid fa-chart-line"></i><span class="visually-hidden">Chi tiết báo cáo</span></a>
+                        <form method="POST" action="{{ url_for('reporting_bp.reset_cycle_data', cycle_id=item.current_cycle.id) }}" class="m-0" onsubmit="return confirm('Reset toàn bộ dữ liệu báo cáo này? Thao tác sẽ xóa tất cả bản lưu/gửi của các đơn vị nhưng giữ nguyên cấu hình báo cáo.')">
+                            <button class="btn btn-sm btn-outline-danger rounded-pill" type="submit" aria-label="Reset dữ liệu báo cáo" title="Reset dữ liệu báo cáo"><i class="fa-solid fa-rotate-left"></i><span class="visually-hidden">Reset dữ liệu báo cáo</span></button>
+                        </form>
                         {% endif %}
                         <a class="btn btn-sm btn-outline-secondary rounded-pill" href="{{ url_for('reporting_bp.admin_template_preview', template_id=template.id) }}" aria-label="Xem biểu mẫu" title="Xem biểu mẫu"><i class="fa-solid fa-eye"></i><span class="visually-hidden">Xem biểu mẫu</span></a>
                         <form method="POST" action="{{ url_for('reporting_bp.delete_template', template_id=template.id) }}" class="m-0" onsubmit="return confirm('Xóa biểu mẫu này?')">

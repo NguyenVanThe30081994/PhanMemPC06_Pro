@@ -125,6 +125,11 @@
                                             <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.admin_cycle_detail', cycle_id=current_cycle.id) }}" title="Lịch sử toàn bộ đơn vị">
                                                 <i class="fa-solid fa-clock-rotate-left"></i>
                                             </a>
+                                            <form method="POST" action="{{ url_for('reporting_bp.reset_cycle_data', cycle_id=current_cycle.id) }}" onsubmit="return confirm('Reset toàn bộ dữ liệu báo cáo này? Thao tác sẽ xóa tất cả bản lưu/gửi của các đơn vị nhưng giữ nguyên cấu hình báo cáo.')">
+                                                <button class="btn btn-light border btn-sm text-danger" type="submit" title="Reset dữ liệu">
+                                                    <i class="fa-solid fa-rotate-left"></i>
+                                                </button>
+                                            </form>
                                             {% else %}
                                             <button class="btn btn-light border btn-sm" type="button" disabled title="Chưa có báo cáo">
                                                 <i class="fa-solid fa-clock-rotate-left"></i>
@@ -209,6 +214,11 @@
                                         <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.admin_cycle_detail', cycle_id=current_cycle.id) }}" title="Lịch sử toàn bộ đơn vị">
                                             <i class="fa-solid fa-clock-rotate-left"></i>
                                         </a>
+                                        <form method="POST" action="{{ url_for('reporting_bp.reset_cycle_data', cycle_id=current_cycle.id) }}" onsubmit="return confirm('Reset toàn bộ dữ liệu báo cáo này? Thao tác sẽ xóa tất cả bản lưu/gửi của các đơn vị nhưng giữ nguyên cấu hình báo cáo.')">
+                                            <button class="btn btn-light border btn-sm text-danger" type="submit" title="Reset dữ liệu">
+                                                <i class="fa-solid fa-rotate-left"></i>
+                                            </button>
+                                        </form>
                                         {% else %}
                                         <button class="btn btn-light border btn-sm" type="button" disabled title="Chưa có báo cáo">
                                             <i class="fa-solid fa-clock-rotate-left"></i>
