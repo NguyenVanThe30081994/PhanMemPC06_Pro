@@ -85,16 +85,22 @@ function syncStickyReportTables() {
         if (!headerCells.length) {
             return;
         }
-        const topValues = [];
-        headerCells.forEach((cell) => {
-            const top = cell.offsetTop || 0;
-            topValues.push(top);
-            cell.style.setProperty('--report-sticky-top', `${top}px`);
-        });
+        const resolveStickyTop = (cell) => {
+            const rawTop = cell.style.getPropertyValue('--report-sticky-top') || getComputedStyle(cell).getPropertyValue('--report-sticky-top');
+            const parsedTop = Number.parseFloat(rawTop);
+            if (Number.isFinite(parsedTop)) {
+                return parsedTop;
+            }
+            const rowTop = cell.parentElement?.offsetTop ?? cell.offsetTop ?? 0;
+            return Math.max(0, rowTop);
+        };
+        const topValues = headerCells.map(resolveStickyTop);
         const uniqueTops = Array.from(new Set(topValues)).sort((a, b) => a - b);
         const zMap = new Map(uniqueTops.map((top, index) => [top, uniqueTops.length - index]));
         headerCells.forEach((cell) => {
-            const rank = zMap.get(cell.offsetTop || 0) || 1;
+            const stickyTop = resolveStickyTop(cell);
+            const rank = zMap.get(stickyTop) || 1;
+            cell.style.setProperty('--report-sticky-top', `${stickyTop}px`);
             cell.style.setProperty('--report-sticky-z', String(10 + rank));
             if (cell.classList.contains('report-cell--first-col')) {
                 cell.style.setProperty('--report-sticky-cross-z', String(30 + rank));
