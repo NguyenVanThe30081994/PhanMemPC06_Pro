@@ -2042,8 +2042,8 @@ def upload_template():
 
     db.session.commit()
     _audit("upload_template", "report_template", template.id, name)
-    flash("Đã tải file mẫu. Tiếp theo cấu hình trường dữ liệu và loại báo cáo.", "success")
-    return redirect(url_for("reporting_bp.template_detail", template_id=template.id))
+    flash("Đã tạo biểu mẫu. Tiếp theo cấu hình chi tiết cho từng sheet.", "success")
+    return redirect(url_for("reporting_bp.template_settings", template_id=template.id))
 
 
 @reporting_bp.route("/admin/reports/templates/<int:template_id>")
