@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+import re
+import unicodedata
+
 from models import CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding
 
 CATEGORY_GROUP_ALIASES = {
@@ -34,19 +37,11 @@ LEGACY_MODULE_GROUP_MAP = {
 
 
 def slugify_code(value):
-    value = (value or '').strip().lower()
-    replacements = {
-        'ă': 'a', 'â': 'a', 'á': 'a', 'à': 'a', 'ả': 'a', 'ã': 'a', 'ạ': 'a',
-        'đ': 'd',
-        'ê': 'e', 'é': 'e', 'è': 'e', 'ẻ': 'e', 'ẽ': 'e', 'ẹ': 'e',
-        'í': 'i', 'ì': 'i', 'ỉ': 'i', 'ĩ': 'i', 'ị': 'i',
-        'ô': 'o', 'ơ': 'o', 'ó': 'o', 'ò': 'o', 'ỏ': 'o', 'õ': 'o', 'ọ': 'o',
-        'ư': 'u', 'ú': 'u', 'ù': 'u', 'ủ': 'u', 'ũ': 'u', 'ụ': 'u',
-        'ý': 'y', 'ỳ': 'y', 'ỷ': 'y', 'ỹ': 'y', 'ỵ': 'y'
-    }
-    for src, dst in replacements.items():
-        value = value.replace(src, dst)
-    return '_'.join(part for part in value.replace('/', ' ').replace('-', ' ').split() if part)
+    text = unicodedata.normalize('NFKD', str(value or '').strip().lower())
+    text = ''.join(ch for ch in text if not unicodedata.combining(ch))
+    text = text.replace('đ', 'd')
+    text = re.sub(r'[^0-9a-z]+', ' ', text)
+    return '_'.join(part for part in text.split() if part)
 
 
 def resolve_group_code(name):
