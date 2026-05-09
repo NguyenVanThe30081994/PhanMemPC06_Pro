@@ -145,6 +145,27 @@ def _resolve_category_display(value, category_options, fallback_label='Chưa ph�
     }
 
 
+def _canonicalize_category_value(value, category_options):
+    resolved = _resolve_category_display(value, category_options, fallback_label='')
+    option = resolved.get('option')
+    if not option:
+        return (value or '').strip()
+    return (option.get('value') or option.get('name') or '').strip()
+
+
+def _sync_record_categories(records, category_options, attr_name='category'):
+    changed = False
+    for record in records:
+        current_value = getattr(record, attr_name, '') or ''
+        canonical_value = _canonicalize_category_value(current_value, category_options)
+        if canonical_value and canonical_value != current_value:
+            setattr(record, attr_name, canonical_value)
+            changed = True
+    if changed:
+        db.session.commit()
+    return records
+
+
 def _decorate_records_with_category(records, category_options, fallback_label='Chưa phân lĩnh vực'):
     decorated = []
     for record in records:
@@ -549,7 +570,9 @@ def library():
                 return redirect(url_for('portal_bp.library'))
             fn = safe_fn
             f.save(os.path.join(current_app.root_path, 'library_files', fn))
-            db.session.add(DocumentLib(title=request.form['title'], category=request.form['category'], filename=fn))
+            library_category_items = _module_category_options('library', 'category', 'Lĩnh vực', 'Loại tài liệu')
+            category_value = _canonicalize_category_value(request.form.get('category', ''), library_category_items)
+            db.session.add(DocumentLib(title=request.form['title'], category=category_value, filename=fn))
             db.session.commit()
             log_action(session['uid'], session['fullname'], "Tải lên tài liệu", "Thư viện", request.form['title'])
             push_global_notif("Thư viện", f"Tài liệu mới: {request.form['title']}", "/library", exclude_uid=session['uid'])
@@ -558,6 +581,7 @@ def library():
     
     library_category_items = _module_category_options('library', 'category', 'Lĩnh vực', 'Loại tài liệu')
     docs = DocumentLib.query.order_by(DocumentLib.uploaded_at.desc()).all()
+    docs = _sync_record_categories(docs, library_category_items)
     decorated_docs = _decorate_records_with_category(docs, library_category_items)
     library_filters = _category_filter_counts(decorated_docs, library_category_items)
 

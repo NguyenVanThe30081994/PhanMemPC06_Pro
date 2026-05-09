@@ -138,7 +138,7 @@
     }
     .report-preview-stage {
         overflow: auto;
-        padding: 16px;
+        padding: 18px;
         background: #fff;
     }
     .report-preview-fit {
@@ -149,14 +149,18 @@
         border-collapse: collapse;
         background: #fff;
         color: #1f2937;
-        font-size: 13px;
-        line-height: 1.35;
+        font-size: 15px;
+        line-height: 1.5;
+        font-weight: 500;
     }
     .report-preview-table td {
-        min-width: 54px;
-        max-width: 260px;
+        min-width: 64px;
+        max-width: 320px;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+    .report-preview-table .report-cell {
+        padding: 6px 8px !important;
     }
     [data-theme="dark"] .report-preview-card {
         background: rgba(30,41,59,0.92);
@@ -266,7 +270,8 @@ function fitPreviewTables() {
         fit.style.height = 'auto';
         const availableWidth = Math.max(stage.clientWidth - 8, 320);
         const tableWidth = Math.max(table.scrollWidth, 1);
-        const scale = Math.min(1, availableWidth / tableWidth);
+        const overflowTolerance = availableWidth * 1.12;
+        const scale = tableWidth <= overflowTolerance ? 1 : Math.min(1, availableWidth / tableWidth);
         fit.style.transform = `scale(${scale})`;
         fit.style.height = `${table.scrollHeight * scale}px`;
     });
