@@ -2,7 +2,7 @@
 import re
 import unicodedata
 
-from models import CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding, db
+from models import CategoryGroup, CategoryItem, CategoryItemAlias, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding, db
 
 CATEGORY_GROUP_ALIASES = {
     'Nhóm danh bạ': ['Nhóm danh bạ', 'Nhom danh ba'],
@@ -33,6 +33,16 @@ LEGACY_MODULE_GROUP_MAP = {
     'Bảng tin': ['Lĩnh vực', 'Đội nghiệp vụ'],
     'Thư viện': ['Lĩnh vực', 'Loại tài liệu'],
     'Công việc': ['Đội nghiệp vụ', 'Loại công việc', 'Mức độ ưu tiên', 'Trạng thái công việc'],
+}
+
+LEGACY_ITEM_ALIAS_SEEDS = {
+    'news_domain': {
+        'nghi_quyet_57': [
+            'Phát triển KHCN, ĐMST, CĐS',
+            'Phat trien KHCN, DMST, CDS',
+            'phat_trien_khcn_dmst_cds',
+        ],
+    },
 }
 
 
@@ -119,10 +129,54 @@ def get_module_categories(module_name):
     return result
 
 
+def ensure_category_item_alias(item, alias_name):
+    alias_name = (alias_name or '').strip()
+    if not item or not alias_name:
+        return None
+    alias_slug = slugify_code(alias_name)
+    existing = CategoryItemAlias.query.filter_by(item_id=item.id, alias_slug=alias_slug).first()
+    if existing:
+        if existing.alias_name != alias_name:
+            existing.alias_name = alias_name
+        return existing
+    alias = CategoryItemAlias(item_id=item.id, alias_name=alias_name, alias_slug=alias_slug)
+    db.session.add(alias)
+    return alias
+
+
+def _bootstrap_seed_aliases(items):
+    if not items:
+        return
+    group_code = ((getattr(items[0], 'group', None) and getattr(items[0].group, 'code', None)) or '').strip()
+    seed_map = LEGACY_ITEM_ALIAS_SEEDS.get(group_code, {})
+    if not seed_map:
+        return
+    item_by_slug = {
+        slugify_code((item.name or item.code or '').strip()): item
+        for item in items
+        if (item.name or item.code)
+    }
+    changed = False
+    for target_slug, aliases in seed_map.items():
+        target_item = item_by_slug.get(target_slug)
+        if not target_item:
+            continue
+        for alias_name in aliases:
+            alias_slug = slugify_code(alias_name)
+            exists = CategoryItemAlias.query.filter_by(item_id=target_item.id, alias_slug=alias_slug).first()
+            if exists:
+                continue
+            ensure_category_item_alias(target_item, alias_name)
+            changed = True
+    if changed:
+        db.session.commit()
+
+
 def module_category_options(module_code, field_code, *fallback_names):
     items = get_module_field_items(module_code, field_code)
     if not items:
         items = get_category_items(*fallback_names)
+    _bootstrap_seed_aliases(items)
     results = []
     for item in items:
         value = (item.code or slugify_code(item.name) or item.name or '').strip()
@@ -141,6 +195,11 @@ def module_category_options(module_code, field_code, *fallback_names):
 
 def category_resolver(category_options):
     mapping = {}
+    item_ids = [item.get('id') for item in category_options or [] if item.get('id') is not None]
+    alias_rows = CategoryItemAlias.query.filter(CategoryItemAlias.item_id.in_(item_ids)).all() if item_ids else []
+    alias_map = {}
+    for alias in alias_rows:
+        alias_map.setdefault(alias.item_id, []).append(alias)
     for item in category_options or []:
         keys = {
             f"category_item:{item.get('id')}" if item.get('id') is not None else '',
@@ -155,10 +214,18 @@ def category_resolver(category_options):
         for key in keys:
             if key:
                 mapping[str(key).strip().lower()] = item
+        for alias in alias_map.get(item.get('id'), []):
+            for key in {
+                (alias.alias_name or '').strip().lower(),
+                (alias.alias_slug or '').strip().lower(),
+                slugify_code(alias.alias_name or ''),
+            }:
+                if key:
+                    mapping[str(key).strip().lower()] = item
     return mapping
 
 
-def resolve_category_display(value, category_options, fallback_label='Chưa phân loại'):
+def resolve_category_display(value, category_options, fallback_label='Chưa phân loại', allow_unknown_label=True):
     raw_value = (value or '').strip()
     if not raw_value:
         return {
@@ -175,6 +242,13 @@ def resolve_category_display(value, category_options, fallback_label='Chưa phâ
             'display_name': item['name'],
             'filter_value': item['slug'] or slugify_code(item['name']) or '__uncategorized__',
             'option': item,
+        }
+    if not allow_unknown_label:
+        return {
+            'raw_value': raw_value,
+            'display_name': fallback_label,
+            'filter_value': '__uncategorized__',
+            'option': None,
         }
     return {
         'raw_value': raw_value,
@@ -220,13 +294,14 @@ def stable_form_category_options(category_options):
     ]
 
 
-def decorate_records_with_category(records, category_options, fallback_label='Chưa phân loại', attr_name='category'):
+def decorate_records_with_category(records, category_options, fallback_label='Chưa phân loại', attr_name='category', allow_unknown_label=True):
     decorated = []
     for record in records or []:
         category_info = resolve_category_display(
             getattr(record, attr_name, ''),
             category_options,
             fallback_label=fallback_label,
+            allow_unknown_label=allow_unknown_label,
         )
         decorated.append({
             'record': record,

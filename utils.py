@@ -528,6 +528,14 @@ def apply_migrations(app):
             is_required BOOLEAN DEFAULT 0,
             allow_multiple_groups BOOLEAN DEFAULT 0
         )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS category_item_alias (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            item_id INTEGER NOT NULL,
+            alias_name VARCHAR(255) NOT NULL,
+            alias_slug VARCHAR(255)
+        )
         """
     ]
     for stmt in create_table_statements:

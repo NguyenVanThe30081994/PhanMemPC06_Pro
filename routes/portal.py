@@ -5,7 +5,21 @@ from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 from html import unescape
 from models import db, NewsDoc, DocumentLib, Contact, CategoryItem, AppRole
-from category_helpers import get_category_items, get_module_field_items, get_bound_group, get_category_group, slugify_code
+from category_helpers import (
+    canonicalize_category_value as shared_canonicalize_category_value,
+    category_resolver as shared_category_resolver,
+    decorate_records_with_category as shared_decorate_records_with_category,
+    ensure_category_item_alias,
+    get_bound_group,
+    get_category_group,
+    get_category_items,
+    get_module_field_items,
+    module_category_options as shared_module_category_options,
+    resolve_category_display as shared_resolve_category_display,
+    slugify_code,
+    stable_form_category_options as shared_stable_form_category_options,
+    sync_record_categories as shared_sync_record_categories,
+)
 from utils import log_action, push_global_notif, render_auto_template as render_template
 import requests
 try:
@@ -88,100 +102,32 @@ def _get_current_user_unit():
 
 
 def _module_category_options(module_code, field_code, *fallback_names):
-    items = get_module_field_items(module_code, field_code)
-    if not items:
-        items = get_category_items(*fallback_names)
-    results = []
-    for item in items:
-        value = (item.code or slugify_code(item.name) or item.name or '').strip()
-        if not value:
-            continue
-        results.append({
-            'id': item.id,
-            'code': (item.code or '').strip(),
-            'value': value,
-            'stable_value': f"category_item:{item.id}",
-            'name': (item.name or '').strip() or value,
-            'slug': slugify_code(item.name or value),
-        })
-    return results
+    return shared_module_category_options(module_code, field_code, *fallback_names)
 
 
 def _category_resolver(category_options):
-    mapping = {}
-    for item in category_options:
-        keys = {
-            f"category_item:{item.get('id')}" if item.get('id') is not None else '',
-            str(item.get('id')) if item.get('id') is not None else '',
-            (item.get('value') or '').strip().lower(),
-            (item.get('code') or '').strip().lower(),
-            (item.get('name') or '').strip().lower(),
-            slugify_code(item.get('value') or ''),
-            slugify_code(item.get('code') or ''),
-            slugify_code(item.get('name') or ''),
-        }
-        for key in keys:
-            if key:
-                mapping[str(key).strip().lower()] = item
-    return mapping
+    return shared_category_resolver(category_options)
 
 
-def _resolve_category_display(value, category_options, fallback_label='Chưa phân lĩnh vực'):
-    raw_value = (value or '').strip()
-    if not raw_value:
-        return {
-            'raw_value': '',
-            'display_name': fallback_label,
-            'filter_value': '__uncategorized__',
-            'option': None,
-        }
-    resolver = _category_resolver(category_options)
-    item = resolver.get(raw_value.lower()) or resolver.get(slugify_code(raw_value))
-    if item:
-        return {
-            'raw_value': raw_value,
-            'display_name': item['name'],
-            'filter_value': item['slug'] or slugify_code(item['name']) or '__uncategorized__',
-            'option': item,
-        }
-    return {
-        'raw_value': raw_value,
-        'display_name': raw_value,
-        'filter_value': slugify_code(raw_value) or '__uncategorized__',
-        'option': None,
-    }
+def _resolve_category_display(value, category_options, fallback_label='Chưa phân lĩnh vực', allow_unknown_label=True):
+    return shared_resolve_category_display(
+        value,
+        category_options,
+        fallback_label=fallback_label,
+        allow_unknown_label=allow_unknown_label,
+    )
 
 
 def _canonicalize_category_value(value, category_options, prefer_stable=False):
-    resolved = _resolve_category_display(value, category_options, fallback_label='')
-    option = resolved.get('option')
-    if not option:
-        return (value or '').strip()
-    preferred = option.get('stable_value') if prefer_stable else option.get('value')
-    return (preferred or option.get('value') or option.get('name') or '').strip()
+    return shared_canonicalize_category_value(value, category_options, prefer_stable=prefer_stable)
 
 
 def _sync_record_categories(records, category_options, attr_name='category', prefer_stable=False):
-    changed = False
-    for record in records:
-        current_value = getattr(record, attr_name, '') or ''
-        canonical_value = _canonicalize_category_value(current_value, category_options, prefer_stable=prefer_stable)
-        if canonical_value and canonical_value != current_value:
-            setattr(record, attr_name, canonical_value)
-            changed = True
-    if changed:
-        db.session.commit()
-    return records
+    return shared_sync_record_categories(records, category_options, attr_name=attr_name, prefer_stable=prefer_stable)
 
 
 def _stable_form_category_options(category_options):
-    return [
-        {
-            **item,
-            'value': item.get('stable_value') or item.get('value') or '',
-        }
-        for item in category_options
-    ]
+    return shared_stable_form_category_options(category_options)
 
 
 def _category_match_values(value, category_options):
@@ -201,18 +147,13 @@ def _category_match_values(value, category_options):
     return {item.strip() for item in values if item and str(item).strip()}
 
 
-def _decorate_records_with_category(records, category_options, fallback_label='Chưa phân lĩnh vực'):
-    decorated = []
-    for record in records:
-        category_info = _resolve_category_display(getattr(record, 'category', ''), category_options, fallback_label=fallback_label)
-        decorated.append({
-            'record': record,
-            'category_display': category_info['display_name'],
-            'category_filter': category_info['filter_value'],
-            'category_raw': category_info['raw_value'],
-            'category_option': category_info['option'],
-        })
-    return decorated
+def _decorate_records_with_category(records, category_options, fallback_label='Chưa phân lĩnh vực', allow_unknown_label=True):
+    return shared_decorate_records_with_category(
+        records,
+        category_options,
+        fallback_label=fallback_label,
+        allow_unknown_label=allow_unknown_label,
+    )
 
 
 def _category_filter_counts(items, category_options):
@@ -573,7 +514,7 @@ def news():
         news_category_items = _module_category_options('tasks', 'domain', 'Đội nghiệp vụ')
     news_records = NewsDoc.query.order_by(NewsDoc.uploaded_at.desc()).all()
     news_records = _sync_record_categories(news_records, news_category_items, prefer_stable=True)
-    decorated_news = _decorate_records_with_category(news_records, news_category_items)
+    decorated_news = _decorate_records_with_category(news_records, news_category_items, allow_unknown_label=False)
     news_filters = _category_filter_counts(decorated_news, news_category_items)
 
     return render_template('news.html',
@@ -629,7 +570,7 @@ def library():
     library_category_items = _module_category_options('library', 'category', 'Lĩnh vực', 'Loại tài liệu')
     docs = DocumentLib.query.order_by(DocumentLib.uploaded_at.desc()).all()
     docs = _sync_record_categories(docs, library_category_items, prefer_stable=True)
-    decorated_docs = _decorate_records_with_category(docs, library_category_items)
+    decorated_docs = _decorate_records_with_category(docs, library_category_items, allow_unknown_label=False)
     library_filters = _category_filter_counts(decorated_docs, library_category_items)
     library_form_category_options = _stable_form_category_options(library_category_items)
 

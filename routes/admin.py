@@ -22,6 +22,7 @@ from utils import build_account_username, build_commander_username, clear_logs, 
 from category_helpers import (
     apply_reference_display,
     canonicalize_category_value,
+    ensure_category_item_alias,
     get_module_field_items,
     get_category_items,
     module_category_options,
@@ -1284,7 +1285,7 @@ def module_categories():
             group_id = request.form.get('group_id')
             item_name = request.form.get('item_name', '').strip()
             if group_id and item_name:
-                db.session.add(CategoryItem(group_id=group_id, name=item_name))
+                db.session.add(CategoryItem(group_id=group_id, code=slugify_code(item_name), name=item_name))
                 db.session.commit()
                 flash(f'Đã thêm thành phần: {item_name}', 'success')
 
@@ -1332,7 +1333,7 @@ def module_categories():
                             for name in deduped:
                                 if name.lower() in existing:
                                     continue
-                                db.session.add(CategoryItem(group_id=group_id, name=name))
+                                db.session.add(CategoryItem(group_id=group_id, code=slugify_code(name), name=name))
                                 existing.add(name.lower())
                                 added += 1
 
@@ -1373,7 +1374,10 @@ def module_categories():
                     flash(f'Tên thành phần "{item_name}" đã tồn tại trong danh mục này.', 'warning')
                 else:
                     old_name = item.name
+                    if not item.code:
+                        item.code = slugify_code(item.name)
                     item.name = item_name
+                    ensure_category_item_alias(item, old_name)
                     db.session.commit()
                     flash(f'Đã đổi tên thành phần: {old_name} -> {item_name}', 'success')
 

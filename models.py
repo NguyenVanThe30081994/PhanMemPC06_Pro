@@ -85,6 +85,15 @@ class CategoryItem(db.Model):
     group = db.relationship('CategoryGroup', backref='items')
 
 
+class CategoryItemAlias(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    item_id = db.Column(db.Integer, db.ForeignKey('category_item.id'), nullable=False, index=True)
+    alias_name = db.Column(db.String(255), nullable=False)
+    alias_slug = db.Column(db.String(255), index=True)
+
+    item = db.relationship('CategoryItem', backref='aliases')
+
+
 class ModuleRegistry(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(50), unique=True, index=True)
