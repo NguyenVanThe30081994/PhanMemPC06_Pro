@@ -6,7 +6,7 @@ from datetime import date, datetime, time, timedelta
 
 from openpyxl import load_workbook
 from openpyxl.utils import column_index_from_string
-from flask import Blueprint, current_app, flash, jsonify, redirect, request, session, send_file, url_for
+from flask import Blueprint, current_app, flash, g, jsonify, redirect, request, session, send_file, url_for
 from sqlalchemy import func, or_
 from werkzeug.utils import secure_filename
 
@@ -3244,6 +3244,22 @@ def cycle_preview(cycle_id):
         latest_submission = submissions[-1] if submissions else None
     else:
         existing_values = context.get("working_values", {})
+    download_url = (
+        url_for("reporting_bp.download_submission", submission_id=latest_submission.id)
+        if latest_submission and not admin_all_units and not is_daily_cumulative
+        else ""
+    )
+    if g.get("is_mobile"):
+        if download_url:
+            flash("Trên mobile, hệ thống sẽ tải file báo cáo để xem kết quả.", "info")
+            return redirect(download_url)
+        flash("Trên mobile, giao diện xem báo cáo đã được ẩn. Vui lòng theo dõi tiến độ hoặc tải file khi có sẵn.", "info")
+        if _is_admin():
+            fallback_values = {}
+            if report_date:
+                fallback_values["report_date"] = report_date.strftime("%Y-%m-%d")
+            return redirect(url_for("reporting_bp.admin_cycle_detail", cycle_id=cycle.id, **fallback_values))
+        return redirect(url_for("reporting_bp.user_dashboard"))
     workbook, formula_values = build_preview_workbook(template_version.source_path, existing_values)
     preview_sheets = []
     for sheet_meta in metadata.get("sheets", []):
@@ -3284,11 +3300,7 @@ def cycle_preview(cycle_id):
         preview_sheets=preview_sheets,
         current_unit=unit,
         is_admin=_is_admin(),
-        download_url=(
-            url_for("reporting_bp.download_submission", submission_id=latest_submission.id)
-            if latest_submission and not admin_all_units and not is_daily_cumulative
-            else ""
-        ),
+        download_url=download_url,
     )
 
 

@@ -46,7 +46,7 @@
         Trung tâm báo cáo
     </div>
     <h1>Báo cáo</h1>
-    <p>{{ 'Quản lý biểu mẫu, chu kỳ và đơn vị báo cáo trên giao diện di động thống nhất.' if is_admin else 'Theo dõi, nhập và xem lại các biểu mẫu báo cáo của đơn vị trên giao diện mobile.' }}</p>
+    <p>{{ 'Quản lý biểu mẫu, chu kỳ và đơn vị báo cáo trên giao diện di động thống nhất.' if is_admin else 'Theo dõi tiến độ, nhập liệu và tải file báo cáo của đơn vị trên giao diện mobile.' }}</p>
     {% if is_admin %}
     <div class="report-mobile-actions">
         <button class="btn btn-mobile" type="button" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#createReportTemplateModal" aria-label="Thiết lập mẫu" title="Thiết lập mẫu"><i class="fa-solid fa-plus"></i><span class="visually-hidden">Thiết lập mẫu</span></button>
@@ -131,6 +131,9 @@
                 {% set instance = instance_map.get(cycle.id) if instance_map is defined else None %}
                 {% set latest_submission = latest_submission_map.get(cycle.id) if latest_submission_map is defined else None %}
                 {% set report_type = item.report_type or (cycle_report_types.get(cycle.id) if cycle_report_types is defined else None) %}
+                {% set cycle_status = cycle_status_map.get(cycle.id) if cycle_status_map is defined else none %}
+                {% set cycle_progress = cycle_progress_map.get(cycle.id) if cycle_progress_map is defined else none %}
+                {% set has_downloadable_file = latest_submission and (latest_submission.processed_file_path or latest_submission.file_path) %}
                 <article class="report-mobile-card report-mobile-row" data-report-group="{{ group.name|lower }}">
                     <div class="report-mobile-card-head">
                         <div class="report-mobile-card-copy">
@@ -145,15 +148,28 @@
                             <strong>{{ report_type.name if report_type else 'Chưa cấu hình' }}</strong>
                         </div>
                         <div>
+                            <span>Tiến độ đơn vị</span>
+                            <strong>{{ cycle_status.label if cycle_status else 'Chưa có dữ liệu' }}</strong>
+                        </div>
+                        <div>
                             <span>Bản mới nhất</span>
                             <strong>{{ latest_submission.created_at.strftime('%d/%m/%Y %H:%M') if latest_submission and latest_submission.created_at else 'Chưa có' }}</strong>
+                        </div>
+                        <div>
+                            <span>{{ 'Tiến độ toàn đơn vị' if can_view_cycle_progress and cycle_progress and cycle_progress.total else 'Tệp kết quả' }}</span>
+                            <strong>
+                                {% if can_view_cycle_progress and cycle_progress and cycle_progress.total %}
+                                {{ cycle_progress.reported }}/{{ cycle_progress.total }} đơn vị
+                                {% else %}
+                                {{ 'Sẵn sàng tải' if has_downloadable_file else 'Chưa có file' }}
+                                {% endif %}
+                            </strong>
                         </div>
                     </div>
                     <div class="report-mobile-actions-row">
                         <a class="btn btn-sm btn-outline-primary rounded-pill" href="{{ url_for('reporting_bp.cycle_workspace', cycle_id=cycle.id) }}" aria-label="Nhập báo cáo" title="Nhập báo cáo"><i class="fa-solid fa-pen-to-square"></i><span class="visually-hidden">Nhập báo cáo</span></a>
-                        <a class="btn btn-sm btn-outline-secondary rounded-pill" href="{{ url_for('reporting_bp.cycle_preview', cycle_id=cycle.id) }}" aria-label="Xem báo cáo" title="Xem báo cáo"><i class="fa-solid fa-eye"></i><span class="visually-hidden">Xem báo cáo</span></a>
                         <a class="btn btn-sm btn-outline-dark rounded-pill" href="{{ url_for('reporting_bp.cycle_history', cycle_id=cycle.id) }}" aria-label="Lịch sử báo cáo" title="Lịch sử báo cáo"><i class="fa-solid fa-clock-rotate-left"></i><span class="visually-hidden">Lịch sử báo cáo</span></a>
-                        {% if latest_submission and (latest_submission.processed_file_path or latest_submission.file_path) %}
+                        {% if has_downloadable_file %}
                         <a class="btn btn-sm btn-outline-success rounded-pill" href="{{ url_for('reporting_bp.download_submission', submission_id=latest_submission.id) }}" aria-label="Tải file báo cáo" title="Tải file báo cáo"><i class="fa-solid fa-download"></i><span class="visually-hidden">Tải file báo cáo</span></a>
                         {% endif %}
                     </div>

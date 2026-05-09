@@ -8,7 +8,7 @@
     .report-admin-mobile-hero a { color: #fff; text-decoration: none; }
     .report-admin-mobile-hero h1 { margin: 10px 0 8px; font-size: 1.32rem; font-weight: 800; }
     .report-admin-mobile-hero p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.88rem; }
-    .report-admin-mobile-toolbar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+    .report-admin-mobile-toolbar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
     .report-admin-mobile-toolbar .btn { min-height: 50px; border-radius: 16px; }
     .report-admin-mobile-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); padding: 16px; margin-bottom: 16px; }
     .report-admin-mobile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -36,7 +36,6 @@
         <a href="{{ url_for('reporting_bp.admin_dashboard') }}" aria-label="Quay lại" title="Quay lại"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay lại</span></a>
     </div>
     <div class="report-admin-mobile-toolbar">
-        <a class="btn btn-light border" href="{{ url_for('reporting_bp.cycle_preview', cycle_id=cycle.id, report_date=filter_date.strftime('%Y-%m-%d')) if is_daily and filter_date else url_for('reporting_bp.cycle_preview', cycle_id=cycle.id) }}" aria-label="Xem báo cáo" title="Xem báo cáo"><i class="fa-solid fa-eye"></i><span class="visually-hidden">Xem báo cáo</span></a>
         <form method="POST" action="{{ url_for('reporting_bp.close_cycle', cycle_id=cycle.id) }}" onsubmit="return confirm('Đóng báo cáo này?')" class="m-0">
             <button class="btn btn-light border w-100" type="submit" aria-label="Đóng báo cáo" title="Đóng báo cáo"><i class="fa-solid fa-lock"></i><span class="visually-hidden">Đóng báo cáo</span></button>
         </form>
