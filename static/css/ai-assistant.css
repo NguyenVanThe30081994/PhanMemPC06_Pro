@@ -135,6 +135,12 @@
     backdrop-filter: blur(10px);
 }
 
+.assistant-chat-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
 .assistant-card-header {
     padding: 20px 22px 0;
 }
@@ -190,11 +196,13 @@
 .assistant-chat-body {
     display: flex;
     flex-direction: column;
-    min-height: 620px;
+    min-height: clamp(420px, calc(100vh - 320px), 620px);
+    height: clamp(420px, calc(100vh - 320px), 620px);
 }
 
 .assistant-message-list {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding: 20px;
     background: rgba(248, 250, 252, 0.85);
@@ -621,6 +629,7 @@
 
     .assistant-chat-body {
         min-height: 420px;
+        height: auto;
     }
 
     .assistant-bubble {

@@ -2495,6 +2495,10 @@ def admin_template_preview(template_id):
     if not template_version:
         flash("Biểu mẫu này chưa có file để xem.", "warning")
         return redirect(url_for("reporting_bp.template_detail", template_id=template.id))
+    download_url = url_for("reporting_bp.download_template_source", template_id=template.id)
+    if g.get("is_mobile"):
+        flash("Trên mobile, hệ thống sẽ tải file biểu mẫu thay cho giao diện xem trước.", "info")
+        return redirect(download_url)
     metadata = json.loads(template_version.metadata_json or "{}")
     workbook, formula_values = build_preview_workbook(template_version.source_path, {})
     preview_sheets = []
@@ -2528,7 +2532,7 @@ def admin_template_preview(template_id):
         template=template,
         template_version=template_version,
         preview_sheets=preview_sheets,
-        download_url=url_for("reporting_bp.download_template_source", template_id=template.id),
+        download_url=download_url,
     )
 
 

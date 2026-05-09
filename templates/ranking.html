@@ -44,6 +44,7 @@
                     </div>
                     <span class="pc06-status-badge done">TOP 10</span>
                 </div>
+                {% if leaderboard %}
                 <div class="ranking-top-grid">
                     {% for item in leaderboard[:10] %}
                     <article class="ranking-top-card {% if item.rank == 1 %}champion{% endif %}">
@@ -54,6 +55,13 @@
                     </article>
                     {% endfor %}
                 </div>
+                {% else %}
+                <div class="pc06-empty-state compact py-5">
+                    <div class="pc06-empty-icon"><i class="fa-solid fa-trophy"></i></div>
+                    <h3>Chưa có dữ liệu xếp hạng</h3>
+                    <p>Tải file chấm điểm để hệ thống tạo bảng xếp hạng và danh sách dẫn đầu.</p>
+                </div>
+                {% endif %}
             </section>
 
             <section class="pc06-panel">
@@ -63,6 +71,7 @@
                         <p>Bảng đầy đủ theo tổng điểm, nhóm và điểm nhóm.</p>
                     </div>
                 </div>
+                {% if leaderboard %}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="pill-thead">
@@ -89,6 +98,13 @@
                         </tbody>
                     </table>
                 </div>
+                {% else %}
+                <div class="pc06-empty-state compact py-5">
+                    <div class="pc06-empty-icon"><i class="fa-solid fa-table-list"></i></div>
+                    <h3>Bảng chi tiết đang trống</h3>
+                    <p>Dữ liệu chi tiết sẽ xuất hiện ngay sau khi có kết quả chấm điểm.</p>
+                </div>
+                {% endif %}
             </section>
         </div>
 

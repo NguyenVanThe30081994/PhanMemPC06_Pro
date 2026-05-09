@@ -116,7 +116,7 @@
                             <button class="btn btn-sm btn-outline-danger rounded-pill" type="submit" aria-label="Reset dữ liệu báo cáo" title="Reset dữ liệu báo cáo"><i class="fa-solid fa-rotate-left"></i><span class="visually-hidden">Reset dữ liệu báo cáo</span></button>
                         </form>
                         {% endif %}
-                        <a class="btn btn-sm btn-outline-secondary rounded-pill" href="{{ url_for('reporting_bp.admin_template_preview', template_id=template.id) }}" aria-label="Xem biểu mẫu" title="Xem biểu mẫu"><i class="fa-solid fa-eye"></i><span class="visually-hidden">Xem biểu mẫu</span></a>
+                        <a class="btn btn-sm btn-outline-secondary rounded-pill" href="{{ url_for('reporting_bp.download_template_source', template_id=template.id) }}" aria-label="Tải biểu mẫu" title="Tải biểu mẫu"><i class="fa-solid fa-download"></i><span class="visually-hidden">Tải biểu mẫu</span></a>
                         <form method="POST" action="{{ url_for('reporting_bp.delete_template', template_id=template.id) }}" class="m-0" onsubmit="return confirm('Xóa biểu mẫu này?')">
                             <button class="btn btn-sm btn-outline-danger rounded-pill" type="submit" aria-label="Xóa biểu mẫu" title="Xóa biểu mẫu"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Xóa biểu mẫu</span></button>
                         </form>

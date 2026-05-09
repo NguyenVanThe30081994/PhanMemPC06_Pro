@@ -12,23 +12,27 @@
     .report-form-mobile-info,
     .report-form-mobile-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); }
     .report-form-mobile-info { padding: 16px; margin-bottom: 16px; }
-    .report-form-mobile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .report-form-mobile-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
     .report-form-mobile-grid div { padding: 12px; border-radius: 14px; background: var(--bg-body); }
     .report-form-mobile-grid span { display: block; font-size: 0.76rem; color: var(--text-muted); }
     .report-form-mobile-grid strong { display: block; margin-top: 5px; font-size: 0.92rem; color: var(--text-main); }
     .report-form-mobile-sheet { display: grid; gap: 14px; }
     .report-form-mobile-card { padding: 16px; margin-bottom: 16px; }
-    .report-form-mobile-card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .report-form-mobile-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
     .report-form-mobile-card-head h2 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-main); }
+    .report-form-mobile-sheet-note { margin-bottom: 4px; font-size: 0.8rem; color: var(--text-muted); }
     .report-form-mobile-row { padding: 14px; border-radius: 16px; background: var(--bg-body); display: grid; gap: 12px; }
     .report-form-mobile-row-title { font-size: 0.92rem; font-weight: 800; color: var(--text-main); }
     .report-form-mobile-row-meta { font-size: 0.76rem; color: var(--text-muted); }
     .report-form-mobile-inputs { display: grid; gap: 12px; }
-    .report-form-mobile-inputs label { display: grid; gap: 6px; }
-    .report-form-mobile-inputs span { font-size: 0.84rem; font-weight: 700; color: var(--text-main); }
-    .report-form-mobile-inputs small { color: var(--text-muted); }
-    .report-form-mobile-toolbar { position: sticky; bottom: calc(var(--nav-height) + var(--safe-bottom) + 10px); z-index: 12; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
-    .report-form-mobile-toolbar .btn { min-height: 50px; border-radius: 16px; }
+    .report-form-mobile-field { display: grid; gap: 8px; padding: 12px; border-radius: 14px; background: var(--bg-surface); border: 1px solid var(--border); }
+    .report-form-mobile-field-head { display: grid; gap: 4px; }
+    .report-form-mobile-field-title { font-size: 0.84rem; font-weight: 700; color: var(--text-main); }
+    .report-form-mobile-field small { color: var(--text-muted); }
+    .report-form-mobile-field-cell { font-size: 0.74rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; }
+    .report-form-mobile-field input.form-control { min-height: 48px; font-size: 1rem; }
+    .report-form-mobile-toolbar { position: sticky; bottom: calc(var(--nav-height) + var(--safe-bottom) + 10px); z-index: 12; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
+    .report-form-mobile-toolbar .btn { min-height: 52px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; }
 </style>
 {% endblock %}
 
@@ -68,7 +72,10 @@
     {% for sheet in sheet_views %}
     <section class="report-form-mobile-card report-sheet-panel" data-sheet="{{ sheet.sheet_name }}">
         <div class="report-form-mobile-card-head">
-            <h2>{{ sheet.sheet_name }}</h2>
+            <div>
+                <h2>{{ sheet.sheet_name }}</h2>
+                <div class="report-form-mobile-sheet-note">Mỗi ô dữ liệu hiển thị thành một dòng nhập riêng để thao tác dễ hơn trên mobile.</div>
+            </div>
             <span class="pc06-soft-tag neutral">{{ sheet.rows|length }} dòng</span>
         </div>
         <div class="report-form-mobile-sheet">
@@ -80,8 +87,11 @@
                 </div>
                 <div class="report-form-mobile-inputs">
                     {% for input in row.inputs %}
-                    <label>
-                        <span>{{ input.field_label }}</span>
+                    <label class="report-form-mobile-field">
+                        <div class="report-form-mobile-field-head">
+                            <span class="report-form-mobile-field-title">{{ input.field_label }}</span>
+                            <div class="report-form-mobile-field-cell">Ô {{ input.cell_address }}</div>
+                        </div>
                         {% if input.field_path %}
                         <small>{{ input.field_path }}</small>
                         {% endif %}
@@ -99,14 +109,14 @@
 </form>
 
 <div class="report-form-mobile-toolbar">
-    <a class="btn btn-light border" href="{{ url_for('reporting_bp.cycle_history', cycle_id=cycle.id, report_date=report_date.strftime('%Y-%m-%d')) if report_date else url_for('reporting_bp.cycle_history', cycle_id=cycle.id) }}" aria-label="Lịch sử" title="Lịch sử"><i class="fa-solid fa-clock-rotate-left"></i><span class="visually-hidden">Lịch sử</span></a>
+    <a class="btn btn-light border" href="{{ url_for('reporting_bp.cycle_history', cycle_id=cycle.id, report_date=report_date.strftime('%Y-%m-%d')) if report_date else url_for('reporting_bp.cycle_history', cycle_id=cycle.id) }}" aria-label="Lịch sử" title="Lịch sử"><i class="fa-solid fa-clock-rotate-left"></i><span>Lịch sử</span></a>
     {% if latest_submission and (latest_submission.processed_file_path or latest_submission.file_path) %}
-    <a class="btn btn-light border" href="{{ url_for('reporting_bp.download_submission', submission_id=latest_submission.id) }}" aria-label="Tải file báo cáo" title="Tải file báo cáo"><i class="fa-solid fa-download"></i><span class="visually-hidden">Tải file báo cáo</span></a>
+    <a class="btn btn-light border" href="{{ url_for('reporting_bp.download_submission', submission_id=latest_submission.id) }}" aria-label="Tải file báo cáo" title="Tải file báo cáo"><i class="fa-solid fa-download"></i><span>Tải file</span></a>
     {% else %}
-    <button type="button" class="btn btn-light border" disabled aria-label="Chưa có file báo cáo" title="Chưa có file báo cáo"><i class="fa-solid fa-download"></i><span class="visually-hidden">Chưa có file báo cáo</span></button>
+    <button type="button" class="btn btn-light border" disabled aria-label="Chưa có file báo cáo" title="Chưa có file báo cáo"><i class="fa-solid fa-download"></i><span>Chưa có file</span></button>
     {% endif %}
-    <button type="button" class="btn btn-light border" {% if not editable %}disabled{% endif %} onclick="submitReport('{{ url_for('reporting_bp.save_cycle', cycle_id=cycle.id) }}')" aria-label="Lưu nháp" title="Lưu nháp"><i class="fa-solid fa-floppy-disk"></i><span class="visually-hidden">Lưu nháp</span></button>
-    <button type="button" class="btn btn-primary" {% if not editable %}disabled{% endif %} onclick="submitReport('{{ url_for('reporting_bp.submit_cycle', cycle_id=cycle.id) }}')" aria-label="Gửi báo cáo" title="Gửi báo cáo"><i class="fa-solid fa-paper-plane"></i><span class="visually-hidden">Gửi báo cáo</span></button>
+    <button type="button" class="btn btn-light border" {% if not editable %}disabled{% endif %} onclick="submitReport('{{ url_for('reporting_bp.save_cycle', cycle_id=cycle.id) }}')" aria-label="Lưu nháp" title="Lưu nháp"><i class="fa-solid fa-floppy-disk"></i><span>Lưu nháp</span></button>
+    <button type="button" class="btn btn-primary" {% if not editable %}disabled{% endif %} onclick="submitReport('{{ url_for('reporting_bp.submit_cycle', cycle_id=cycle.id) }}')" aria-label="Gửi báo cáo" title="Gửi báo cáo"><i class="fa-solid fa-paper-plane"></i><span>Gửi báo cáo</span></button>
 </div>
 {% endblock %}
 
