@@ -2705,9 +2705,6 @@ def admin_cycle_detail(cycle_id):
     not_reported_total = 0
     on_time_total = 0
     late_total = 0
-    filter_start = _start_of_day(filter_date) if is_daily and filter_date else None
-    filter_end = _next_day_start(filter_date) if is_daily and filter_date else None
-
     for unit in scoped_units:
         instance = instance_map.get(unit.id)
 
@@ -2754,21 +2751,18 @@ def admin_cycle_detail(cycle_id):
 
     instance_ids = [row["instance"].id for row in unit_rows if row["instance"]]
     submissions = (
-        ReportSubmission.query.filter(
-            ReportSubmission.instance_id.in_(instance_ids),
-            *(
-                [
-                    _submission_time_expr() < filter_end,
-                ]
-                if is_daily and filter_start and filter_end
-                else []
-            ),
-        )
+        ReportSubmission.query.filter(ReportSubmission.instance_id.in_(instance_ids))
         .order_by(ReportSubmission.created_at.desc(), ReportSubmission.id.desc())
         .all()
         if instance_ids
         else []
     )
+    if is_daily and filter_date:
+        submissions = [
+            submission
+            for submission in submissions
+            if _submission_business_date(submission) and _submission_business_date(submission) <= filter_date
+        ]
     history_rows = _history_rows_for_submissions(
         submissions,
         template_version,
