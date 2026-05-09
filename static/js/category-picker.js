@@ -20,6 +20,7 @@ class CategoryPicker {
         this.fieldCode = root.dataset.field || '';
         this.groupCode = root.dataset.groupCode || '';
         this.groupName = root.dataset.groupName || '';
+        this.valueMode = root.dataset.valueMode || '';
         this.placeholder = root.dataset.placeholder || this.targetSelect.dataset.placeholder || 'Chọn danh mục';
         this.loadingLabel = root.dataset.loadingLabel || 'Đang tải...';
         this.selectedValue = this.targetSelect.dataset.selectedValue || this.targetSelect.value || '';
@@ -116,15 +117,27 @@ class CategoryPicker {
 
     renderTargetOptions(items) {
         const options = [`<option value="">${escapeCategoryHtml(this.placeholder)}</option>`];
-        const itemNames = items.map(item => item.name);
+        const useStableValue = this.valueMode === 'stable'
+            || (this.moduleCode === 'library' && this.fieldCode === 'category');
+        const optionValueOf = (item) => {
+            if (useStableValue) {
+                return item.stable_value || item.value || item.code || item.name || '';
+            }
+            return item.value || item.code || item.name || '';
+        };
+        const normalizedItemValues = new Set();
 
         items.forEach(item => {
+            const optionValue = optionValueOf(item);
+            normalizedItemValues.add(String(optionValue));
+            normalizedItemValues.add(String(item.name || ''));
+            normalizedItemValues.add(String(item.code || ''));
             options.push(
-                `<option value="${escapeCategoryHtml(item.name)}">${escapeCategoryHtml(item.name)}</option>`
+                `<option value="${escapeCategoryHtml(optionValue)}">${escapeCategoryHtml(item.name)}</option>`
             );
         });
 
-        if (this.selectedValue && !itemNames.includes(this.selectedValue)) {
+        if (this.selectedValue && !normalizedItemValues.has(String(this.selectedValue))) {
             options.push(
                 `<option value="${escapeCategoryHtml(this.selectedValue)}">${escapeCategoryHtml(this.selectedValue)}</option>`
             );

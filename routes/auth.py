@@ -2,6 +2,7 @@
 from flask import Blueprint, request, session, redirect, url_for, flash
 from models import db, User, AppRole
 from utils import extract_unit_key, log_action, render_auto_template as render_template
+from category_helpers import module_category_options, resolve_category_display
 import re
 try:
     from security_utils.security_helpers import log_security_event
@@ -28,12 +29,18 @@ def login():
         elif not usr.check_password(password):
             flash('Mật khẩu nhập vào không chính xác!', 'danger')
         else:
+            unit_display = resolve_category_display(
+                usr.unit_area,
+                module_category_options('contacts', 'unit_name', 'Đơn vị'),
+                fallback_label=usr.unit_area or '',
+            )['display_name']
             session['uid'] = usr.id
             session['username'] = usr.username
             session['fullname'] = usr.fullname
-            session['unit'] = usr.unit_area
-            session['unit_area'] = usr.unit_area
-            session['unit_key'] = usr.unit_key or extract_unit_key(usr.fullname or usr.unit_area or usr.username)
+            session['unit'] = unit_display
+            session['unit_area'] = unit_display
+            session['unit_area_ref'] = usr.unit_area
+            session['unit_key'] = usr.unit_key or extract_unit_key(usr.fullname or unit_display or usr.username)
             session['role_id'] = usr.role_id
             session['must_change'] = usr.must_change_password
             

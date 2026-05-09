@@ -30,7 +30,12 @@ from models import (
     ReportingPeriod,
     User,
 )
-from category_helpers import get_category_items, get_module_field_items
+from category_helpers import (
+    canonicalize_category_value,
+    module_category_options,
+    resolve_category_display,
+    stable_form_category_options,
+)
 from report_engine import build_preview_workbook, normalize_code, parse_workbook, render_sheet_html, safe_filename, write_workbook_copy
 from utils import apply_migrations, extract_unit_key, is_unit_match, log_action, render_auto_template as render_template
 
@@ -110,7 +115,8 @@ def _is_generic_unit_key(value):
 
 
 def _preferred_unit_identity(user):
-    unit_area = (getattr(user, "unit_area", None) or "").strip()
+    unit_area_raw = (getattr(user, "unit_area", None) or "").strip()
+    unit_area = resolve_category_display(unit_area_raw, _unit_group_options(), fallback_label=unit_area_raw)["display_name"]
     fullname = (getattr(user, "fullname", None) or "").strip()
     username = (getattr(user, "username", None) or "").strip()
 
@@ -206,15 +212,34 @@ def _template_version_ids(template_id):
 
 
 def _professional_unit_options():
-    return get_module_field_items("tasks", "domain") or get_category_items("Đội nghiệp vụ")
+    return module_category_options("tasks", "domain", "Đội nghiệp vụ")
 
 
 def _template_professional_unit(template):
-    return (getattr(template, "professional_unit", None) or "").strip() or "Chưa phân đội"
+    return resolve_category_display(
+        getattr(template, "professional_unit", None),
+        _professional_unit_options(),
+        fallback_label="Chưa phân đội",
+    )["display_name"]
+
+
+def _sync_template_professional_unit(template):
+    current_value = (getattr(template, "professional_unit", None) or "").strip()
+    if not current_value:
+        return False
+    canonical_value = canonicalize_category_value(
+        current_value,
+        _professional_unit_options(),
+        prefer_stable=True,
+    )
+    if canonical_value and canonical_value != current_value:
+        template.professional_unit = canonical_value
+        return True
+    return False
 
 
 def _unit_group_options():
-    return get_module_field_items("contacts", "unit_name") or get_category_items("Đơn vị")
+    return module_category_options("contacts", "unit_name", "Đơn vị")
 
 
 def _empty_scope_payload():
@@ -246,13 +271,12 @@ def _parse_scope_payload(raw_value):
 
     payload["unit_ids"] = sorted({int(v) for v in data.get("unit_ids", []) if str(v).isdigit()})
     payload["role_ids"] = sorted({int(v) for v in data.get("role_ids", []) if str(v).isdigit()})
-    payload["unit_groups"] = sorted(
-        {
-            str(v).strip()
-            for v in data.get("unit_groups", [])
-            if str(v).strip()
-        }
-    )
+    unit_group_options = _unit_group_options()
+    payload["unit_groups"] = sorted({
+        canonicalize_category_value(str(v).strip(), unit_group_options, prefer_stable=True)
+        for v in data.get("unit_groups", [])
+        if str(v).strip()
+    })
     mode = (data.get("mode") or "").strip().lower()
     payload["mode"] = "targeted" if (payload["unit_ids"] or payload["role_ids"] or payload["unit_groups"]) else "all"
     if mode == "all" and not (payload["unit_ids"] or payload["role_ids"] or payload["unit_groups"]):
@@ -264,7 +288,12 @@ def _scope_payload_from_form(form):
     payload = _empty_scope_payload()
     payload["unit_ids"] = sorted({int(v) for v in form.getlist("unit_ids") if str(v).isdigit()})
     payload["role_ids"] = sorted({int(v) for v in form.getlist("role_ids") if str(v).isdigit()})
-    payload["unit_groups"] = sorted({str(v).strip() for v in form.getlist("unit_groups") if str(v).strip()})
+    unit_group_options = _unit_group_options()
+    payload["unit_groups"] = sorted({
+        canonicalize_category_value(str(v).strip(), unit_group_options, prefer_stable=True)
+        for v in form.getlist("unit_groups")
+        if str(v).strip()
+    })
     if payload["unit_ids"] or payload["role_ids"] or payload["unit_groups"]:
         payload["mode"] = "targeted"
     return payload
@@ -288,11 +317,17 @@ def _unit_matches_group(unit, group_name):
     group_value = (group_name or "").strip()
     if not group_value:
         return False
+    resolved_group = resolve_category_display(group_value, _unit_group_options(), fallback_label="")["display_name"]
     if is_unit_match(unit.name, group_value) or is_unit_match(unit.code, group_value):
         return True
+    if resolved_group and (is_unit_match(unit.name, resolved_group) or is_unit_match(unit.code, resolved_group)):
+        return True
     normalized_group = normalize_code(group_value)
+    normalized_resolved_group = normalize_code(resolved_group)
     normalized_name = normalize_code(unit.name)
     normalized_code = normalize_code(unit.code)
+    if not normalized_group:
+        normalized_group = normalized_resolved_group
     if not normalized_group:
         return False
     return (
@@ -1625,7 +1660,12 @@ def _ensure_cycle_instances(cycle):
         if unit:
             user = (
                 User.query.filter(
-                    or_(User.unit_key == unit.code, User.unit_area == unit.name, User.fullname == unit.name)
+                    or_(
+                        User.unit_key == unit.code,
+                        User.unit_area == unit.name,
+                        User.unit_area == canonicalize_category_value(unit.name, _unit_group_options(), prefer_stable=True),
+                        User.fullname == unit.name,
+                    )
                 )
                 .order_by(User.id.asc())
                 .first()
@@ -2114,9 +2154,14 @@ def admin_dashboard():
     recent_submissions = ReportSubmission.query.order_by(ReportSubmission.created_at.desc()).limit(20).all()
 
     current_versions = {}
+    templates_changed = False
     for template in templates:
+        templates_changed = _sync_template_professional_unit(template) or templates_changed
         current_version = _template_version(template)
         current_versions[template.id] = current_version
+        setattr(template, "professional_unit_display", _template_professional_unit(template))
+    if templates_changed:
+        db.session.commit()
     template_report_types = {
         template.id: (db.session.get(ReportType, template.report_type_id) if template.report_type_id else None)
         for template in templates
@@ -2136,6 +2181,7 @@ def admin_dashboard():
         )
     hero_stats = _dashboard_hero_stats(cycles, cycle_status_map=cycle_status_map)
 
+    setattr(template, "professional_unit_display", _template_professional_unit(template))
     return render_template(
         "reporting_dashboard.html",
         templates=templates,
@@ -2144,7 +2190,7 @@ def admin_dashboard():
         cycles=cycles,
         units=units,
         report_types=report_types,
-        professional_units=_professional_unit_options(),
+        professional_units=stable_form_category_options(_professional_unit_options()),
         recent_submissions=recent_submissions,
         current_versions=current_versions,
         template_report_types=template_report_types,
@@ -2170,7 +2216,11 @@ def upload_template():
     name = (request.form.get("name") or file.filename.rsplit(".", 1)[0]).strip()
     code = normalize_code(name or file.filename.rsplit(".", 1)[0]) or f"template_{datetime.now().strftime('%Y%m%d%H%M%S')}"
     description = (request.form.get("description") or "").strip()
-    professional_unit = (request.form.get("professional_unit") or "").strip()
+    professional_unit = canonicalize_category_value(
+        request.form.get("professional_unit") or "",
+        _professional_unit_options(),
+        prefer_stable=True,
+    )
     report_type_id = int(request.form.get("report_type_id") or 0)
     report_type = db.session.get(ReportType, report_type_id)
     if not report_type:
@@ -2253,6 +2303,8 @@ def template_detail(template_id):
     template = db.session.get(ReportTemplate, template_id)
     if not template:
         return "Not Found", 404
+    if _sync_template_professional_unit(template):
+        db.session.commit()
     current_version = _template_version(template)
     fields = []
     field_rows = []
@@ -2293,16 +2345,17 @@ def template_settings(template_id):
         return "Not Found", 404
     current_version = _template_version(template)
     current_report_type = db.session.get(ReportType, template.report_type_id) if template and template.report_type_id else None
+    setattr(template, "professional_unit_display", _template_professional_unit(template))
     return render_template(
         "reporting_template_settings.html",
         template=template,
         current_version=current_version,
         current_report_type=current_report_type,
         report_types=ReportType.query.order_by(ReportType.name.asc()).all(),
-        professional_units=_professional_unit_options(),
+        professional_units=stable_form_category_options(_professional_unit_options()),
         roles=AppRole.query.order_by(AppRole.name.asc()).all(),
         units=ReportUnit.query.filter_by(is_active=True).order_by(ReportUnit.name.asc()).all(),
-        unit_groups=_unit_group_options(),
+        unit_groups=stable_form_category_options(_unit_group_options()),
         scope_payload=_parse_scope_payload(template.assignment_scope_json),
         range_defaults=_template_range_defaults(current_version),
         sheet_range_defaults=_template_sheet_range_defaults(current_version),
@@ -2330,7 +2383,11 @@ def save_template_settings(template_id):
         flash("Bạn cần chọn loại báo cáo.", "danger")
         return redirect(url_for("reporting_bp.template_settings", template_id=template.id))
 
-    professional_unit = (request.form.get("professional_unit") or "").strip()
+    professional_unit = canonicalize_category_value(
+        request.form.get("professional_unit") or "",
+        _professional_unit_options(),
+        prefer_stable=True,
+    )
     if not professional_unit:
         flash("Bạn cần chọn đội nghiệp vụ.", "danger")
         return redirect(url_for("reporting_bp.template_settings", template_id=template.id))
@@ -2998,7 +3055,11 @@ def create_cycle():
         if unit:
             user = (
                 User.query.filter(
-                    or_(User.unit_key == unit.code, User.unit_area == unit.name)
+                    or_(
+                        User.unit_key == unit.code,
+                        User.unit_area == unit.name,
+                        User.unit_area == canonicalize_category_value(unit.name, _unit_group_options(), prefer_stable=True),
+                    )
                 )
                 .order_by(User.id.asc())
                 .first()

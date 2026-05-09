@@ -72,7 +72,7 @@
             <div>
                 <div class="fw-bold text-dark">{{ u.fullname }}</div>
                 <div class="tiny text-muted">@{{ u.username }}</div>
-                <div class="tiny text-muted mt-1">{{ u.unit_area }}</div>
+                <div class="tiny text-muted mt-1">{{ u.unit_area_display or u.unit_area }}</div>
             </div>
             <span class="pc06-status-badge {% if u.is_active %}done{% else %}neutral{% endif %}">{{ 'Hoạt động' if u.is_active else 'Khóa' }}</span>
         </div>
@@ -173,8 +173,8 @@
                     <div class="mb-3"><label class="form-label small fw-bold">Họ và tên</label><input type="text" name="fullname" class="form-control" required></div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Đơn vị</label>
-                        <div data-category-picker data-group-name="Đơn vị" data-placeholder="Chọn đơn vị" data-storage-key="mobile.roles.unit">
-                            <select name="unit" class="form-select" required data-category-target>{% for u in unit_cats %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}</select>
+                        <div data-category-picker data-group-name="Đơn vị" data-value-mode="stable" data-placeholder="Chọn đơn vị" data-storage-key="mobile.roles.unit">
+                            <select name="unit" class="form-select" required data-category-target>{% for u in unit_cats %}<option value="{{ u.value }}">{{ u.name }}</option>{% endfor %}</select>
                         </div>
                     </div>
                     <div class="mb-0"><label class="form-label small fw-bold">Vai trò</label><select name="role_id" class="form-select" required>{% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select></div>
@@ -201,8 +201,8 @@
                     <div class="mb-3"><label class="form-label small fw-bold">Họ và tên</label><input type="text" name="fullname" id="edit_fullname" class="form-control" required></div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Đơn vị</label>
-                        <div data-category-picker data-group-name="Đơn vị" data-placeholder="Chọn đơn vị" data-storage-key="mobile.roles.unit_edit">
-                            <select name="unit" id="edit_unit" class="form-select" required data-category-target>{% for u in unit_cats %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}</select>
+                        <div data-category-picker data-group-name="Đơn vị" data-value-mode="stable" data-placeholder="Chọn đơn vị" data-storage-key="mobile.roles.unit_edit">
+                            <select name="unit" id="edit_unit" class="form-select" required data-category-target>{% for u in unit_cats %}<option value="{{ u.value }}">{{ u.name }}</option>{% endfor %}</select>
                         </div>
                     </div>
                     <div class="mb-0"><label class="form-label small fw-bold">Vai trò</label><select name="role_id" id="edit_role_select" class="form-select" required>{% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select></div>

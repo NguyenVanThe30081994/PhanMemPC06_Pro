@@ -8,7 +8,15 @@ from flask import Blueprint, current_app, flash, redirect, request, session, url
 from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 
-from category_helpers import get_category_items, get_module_field_items
+from category_helpers import (
+    apply_reference_display,
+    canonicalize_category_value,
+    category_filter_counts,
+    module_category_options,
+    resolve_category_display,
+    stable_form_category_options,
+    sync_record_categories,
+)
 from models import AppRole, RankingUnit, Task, TaskAssignment, TaskComment, User, db
 from utils import (
     apply_migrations,
@@ -27,6 +35,47 @@ tasks_bp = Blueprint("tasks_bp", __name__)
 PENDING_STATUSES = {"Chưa tiếp nhận", "Chưa bắt đầu", None, ""}
 IN_PROGRESS_STATUS = "Đang thực hiện"
 COMPLETED_STATUS = "Hoàn thành"
+
+
+def _task_domain_options():
+    return module_category_options("tasks", "domain", "Đội nghiệp vụ")
+
+
+def _task_field_options():
+    return module_category_options("news", "category", "Lĩnh vực", "Đội nghiệp vụ")
+
+
+def _task_type_options():
+    return module_category_options("tasks", "task_type", "Loại công việc")
+
+
+def _task_priority_options():
+    return module_category_options("tasks", "priority", "Mức độ ưu tiên")
+
+
+def _task_field_display(value, options, fallback_label):
+    return resolve_category_display(value, options, fallback_label=fallback_label)
+
+
+def _decorate_task_categories(task, field_options, domain_options, type_options, priority_options):
+    field_info = _task_field_display(task.category, field_options, "Chưa phân lĩnh vực")
+    domain_info = _task_field_display(task.domain, domain_options, "Chưa phân đơn vị")
+    type_info = _task_field_display(task.task_type, type_options, "Công việc thường xuyên")
+    priority_info = _task_field_display(task.priority, priority_options, "Trung bình")
+
+    setattr(task, "category_display", field_info["display_name"])
+    setattr(task, "category_filter", field_info["filter_value"])
+    setattr(task, "domain_display", domain_info["display_name"])
+    setattr(task, "domain_filter", domain_info["filter_value"])
+    setattr(task, "task_type_display", type_info["display_name"])
+    setattr(task, "priority_display", priority_info["display_name"])
+
+    return {
+        "category": field_info,
+        "domain": domain_info,
+        "task_type": type_info,
+        "priority": priority_info,
+    }
 
 
 def _current_perms():
@@ -112,20 +161,23 @@ def _user_unit_key(user):
 
 
 def _users_for_unit(unit_name):
-    unit_key = extract_unit_key(unit_name)
+    domain_options = _task_domain_options()
+    canonical_unit = canonicalize_category_value(unit_name or "", domain_options, prefer_stable=True)
+    resolved_unit = resolve_category_display(canonical_unit or unit_name, domain_options, fallback_label="").get("display_name", "")
+    unit_key = extract_unit_key(resolved_unit or unit_name)
     query = User.query.filter(User.is_active.is_(True))
     if unit_key:
         users = query.filter(User.unit_key == unit_key).order_by(User.fullname.asc()).all()
         if users:
             return users
 
-    if unit_name:
-        users = query.filter(User.unit_area == unit_name).order_by(User.fullname.asc()).all()
+    if canonical_unit or resolved_unit:
+        users = query.filter(User.unit_area.in_([value for value in {canonical_unit, resolved_unit} if value])).order_by(User.fullname.asc()).all()
         if users:
             return users
 
     users = query.order_by(User.fullname.asc()).all()
-    return [user for user in users if is_unit_match(user.unit_area or user.fullname or user.username, unit_name)]
+    return [user for user in users if is_unit_match(user.unit_area or user.fullname or user.username, resolved_unit or unit_name)]
 
 
 def _is_commune_role(role_name):
@@ -310,13 +362,21 @@ def tasks():
 
     _ensure_task_schema()
 
-    pro_units = get_module_field_items("tasks", "domain") or get_category_items("Đội nghiệp vụ")
-    task_fields = get_module_field_items("news", "category") or get_category_items("Lĩnh vực")
-    task_types = get_module_field_items("tasks", "task_type") or get_category_items("Loại công việc")
-    priority_items = get_module_field_items("tasks", "priority") or get_category_items("Mức độ ưu tiên")
-    status_items = get_module_field_items("tasks", "initial_status") or get_category_items("Trạng thái công việc")
-    current_domain = request.args.get("domain", "ALL")
-    current_field = request.args.get("field", "ALL")
+    pro_units = _task_domain_options()
+    task_fields = _task_field_options()
+    task_types = _task_type_options()
+    priority_items = _task_priority_options()
+    status_items = module_category_options("tasks", "initial_status", "Trạng thái công việc")
+    current_domain = canonicalize_category_value(
+        request.args.get("domain", "ALL"),
+        pro_units,
+        prefer_stable=True,
+    ) if request.args.get("domain") not in {None, "", "ALL"} else "ALL"
+    current_field = canonicalize_category_value(
+        request.args.get("field", "ALL"),
+        task_fields,
+        prefer_stable=True,
+    ) if request.args.get("field") not in {None, "", "ALL"} else "ALL"
     now_dt = datetime.now()
 
     perms = _current_perms()
@@ -324,15 +384,38 @@ def tasks():
     is_admin = bool(session.get("is_admin"))
 
     active_users = User.query.filter_by(is_active=True).order_by(User.unit_area.asc(), User.fullname.asc()).all()
+    active_users = apply_reference_display(
+        sync_record_categories(active_users, module_category_options("contacts", "unit_name", "Đơn vị"), attr_name="unit_area", prefer_stable=True),
+        "unit_area",
+        module_category_options("contacts", "unit_name", "Đơn vị"),
+        display_attr="unit_area_display",
+        fallback_label="Chưa có đơn vị",
+    )
     roles = AppRole.query.order_by(AppRole.name.asc()).all()
 
     if request.method == "POST" and is_lead:
         title = (request.form.get("title") or "").strip()
-        category = (request.form.get("category") or "").strip()
-        domain = (request.form.get("unit_name") or request.form.get("domain") or "").strip()
+        category = canonicalize_category_value(
+            request.form.get("category") or "",
+            task_fields,
+            prefer_stable=True,
+        )
+        domain = canonicalize_category_value(
+            request.form.get("unit_name") or request.form.get("domain") or "",
+            pro_units,
+            prefer_stable=True,
+        )
         content = (request.form.get("description") or request.form.get("content") or "").strip()
-        priority = request.form.get("priority") or "Trung bình"
-        task_type = request.form.get("task_type") or "Công việc thường xuyên"
+        priority = canonicalize_category_value(
+            request.form.get("priority") or "Trung bình",
+            priority_items,
+            prefer_stable=True,
+        )
+        task_type = canonicalize_category_value(
+            request.form.get("task_type") or "Công việc thường xuyên",
+            task_types,
+            prefer_stable=True,
+        )
 
         if not title:
             flash("Tiêu đề công việc không được để trống.", "danger")
@@ -376,8 +459,11 @@ def tasks():
 
         db.session.commit()
 
+        domain_display = resolve_category_display(domain, pro_units, fallback_label=domain).get("display_name") or domain
+        category_display = resolve_category_display(category, task_fields, fallback_label=category).get("display_name") or category
+
         notify_message = (
-            f"Đơn vị {domain} được giao: {new_task.title}"
+            f"Đơn vị {domain_display} được giao: {new_task.title}"
             if request.form.get("assign_type", "unit") == "unit"
             else f"Bạn vừa được giao: {new_task.title}"
         )
@@ -420,33 +506,52 @@ def tasks():
     total_count = len(all_tasks)
     overdue_count = 0
     completed_count = 0
-    field_counts = {item.name: 0 for item in task_fields if getattr(item, "name", "").strip()}
+    all_tasks = sync_record_categories(all_tasks, task_fields, attr_name="category", prefer_stable=True)
+    all_tasks = sync_record_categories(all_tasks, pro_units, attr_name="domain", prefer_stable=True)
+    all_tasks = sync_record_categories(all_tasks, task_types, attr_name="task_type", prefer_stable=True)
+    all_tasks = sync_record_categories(all_tasks, priority_items, attr_name="priority", prefer_stable=True)
+    task_filters_source = []
     uncategorized_count = 0
 
     for task in all_tasks:
         task_metrics = _decorate_task(task, session["uid"], is_lead)
+        category_meta = _decorate_task_categories(task, task_fields, pro_units, task_types, priority_items)
         if task_metrics["is_overdue"]:
             overdue_count += 1
         if task_metrics["display_status"] == COMPLETED_STATUS:
             completed_count += 1
-        if task.category and task.category in field_counts:
-            field_counts[task.category] += 1
-        elif task.category:
-            field_counts[task.category] = field_counts.get(task.category, 0) + 1
-        else:
+        if category_meta["category"]["option"]:
+            task_filters_source.append({"category_filter": task.category_filter})
+        elif not task.category:
             uncategorized_count += 1
+            task_filters_source.append({"category_filter": "__uncategorized__"})
+        else:
+            task_filters_source.append({"category_filter": task.category_filter})
+
+    field_counts = {
+        item["filter_value"]: item["count"]
+        for item in category_filter_counts(
+            task_filters_source,
+            task_fields,
+            empty_label="Chưa phân lĩnh vực",
+        )
+    }
+    uncategorized_count = field_counts.get("__uncategorized__", 0)
 
     return render_template(
         "tasks.html",
         tasks=all_tasks,
         users=active_users,
         roles=roles,
-        pro_units=pro_units,
+        pro_units=stable_form_category_options(pro_units),
+        pro_unit_labels=pro_units,
         task_fields=task_fields,
         field_counts=field_counts,
         uncategorized_count=uncategorized_count,
-        task_types=task_types,
-        priority_items=priority_items,
+        task_types=stable_form_category_options(task_types),
+        task_type_labels=task_types,
+        priority_items=stable_form_category_options(priority_items),
+        priority_labels=priority_items,
         status_items=status_items,
         current_domain=current_domain,
         current_field=current_field,
@@ -473,11 +578,23 @@ def task_detail(tid):
     if not task:
         return "Not Found", 404
 
-    pro_units = get_module_field_items("tasks", "domain") or get_category_items("Đội nghiệp vụ")
-    task_fields = get_module_field_items("news", "category") or get_category_items("Lĩnh vực")
-    task_types = get_module_field_items("tasks", "task_type") or get_category_items("Loại công việc")
-    priority_items = get_module_field_items("tasks", "priority") or get_category_items("Mức độ ưu tiên")
+    pro_units = _task_domain_options()
+    task_fields = _task_field_options()
+    task_types = _task_type_options()
+    priority_items = _task_priority_options()
+    sync_record_categories([task], task_fields, attr_name="category", prefer_stable=True)
+    sync_record_categories([task], pro_units, attr_name="domain", prefer_stable=True)
+    sync_record_categories([task], task_types, attr_name="task_type", prefer_stable=True)
+    sync_record_categories([task], priority_items, attr_name="priority", prefer_stable=True)
+    _decorate_task_categories(task, task_fields, pro_units, task_types, priority_items)
     active_users = User.query.filter_by(is_active=True).order_by(User.unit_area.asc(), User.fullname.asc()).all()
+    active_users = apply_reference_display(
+        sync_record_categories(active_users, module_category_options("contacts", "unit_name", "Đơn vị"), attr_name="unit_area", prefer_stable=True),
+        "unit_area",
+        module_category_options("contacts", "unit_name", "Đơn vị"),
+        display_attr="unit_area_display",
+        fallback_label="Chưa có đơn vị",
+    )
     roles = AppRole.query.order_by(AppRole.name.asc()).all()
     perms = _current_perms()
     is_lead = perms.get("p_task_lead") or session.get("is_admin")
@@ -490,6 +607,10 @@ def task_detail(tid):
         .order_by(TaskAssignment.updated_at.desc(), User.fullname.asc())
         .all()
     )
+    assign_users = [user for _, user in assigns]
+    unit_options = module_category_options("contacts", "unit_name", "Đơn vị")
+    sync_record_categories(assign_users, unit_options, attr_name="unit_area", prefer_stable=True)
+    apply_reference_display(assign_users, "unit_area", unit_options, display_attr="unit_area_display", fallback_label="Chưa có đơn vị")
 
     task_metrics = _decorate_task(task, session["uid"], is_lead)
     user_assign = task_metrics["user_assignment"]
@@ -515,10 +636,10 @@ def task_detail(tid):
         task=task,
         comments=comments,
         assigns=assigns,
-        pro_units=pro_units,
-        task_fields=task_fields,
-        task_types=task_types,
-        priority_items=priority_items,
+        pro_units=stable_form_category_options(pro_units),
+        task_fields=stable_form_category_options(task_fields),
+        task_types=stable_form_category_options(task_types),
+        priority_items=stable_form_category_options(priority_items),
         users=active_users,
         roles=roles,
         assignment_context=assignment_context,
@@ -546,11 +667,32 @@ def edit_task(tid):
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
     title = (request.form.get("title") or "").strip()
-    category = (request.form.get("category") or task.category or "").strip()
-    domain = (request.form.get("domain") or "").strip()
+    task_fields = _task_field_options()
+    pro_units = _task_domain_options()
+    task_types = _task_type_options()
+    priority_items = _task_priority_options()
+
+    category = canonicalize_category_value(
+        request.form.get("category") or task.category or "",
+        task_fields,
+        prefer_stable=True,
+    )
+    domain = canonicalize_category_value(
+        request.form.get("domain") or "",
+        pro_units,
+        prefer_stable=True,
+    )
     content = (request.form.get("content") or "").strip()
-    priority = (request.form.get("priority") or "Trung bình").strip()
-    task_type = (request.form.get("task_type") or "Công việc thường xuyên").strip()
+    priority = canonicalize_category_value(
+        request.form.get("priority") or "Trung bình",
+        priority_items,
+        prefer_stable=True,
+    )
+    task_type = canonicalize_category_value(
+        request.form.get("task_type") or "Công việc thường xuyên",
+        task_types,
+        prefer_stable=True,
+    )
 
     if not title:
         flash("Tiêu đề công việc không được để trống.", "danger")

@@ -394,11 +394,11 @@
                         <span>{{ tasks|length }}</span>
                     </button>
                     {% for item in task_fields %}
-                    <button type="button" class="pc06-field-chip" data-field-filter="{{ item.name|lower }}">
+                    <button type="button" class="pc06-field-chip" data-field-filter="{{ item.slug or '__uncategorized__' }}">
                         <div>
                             <strong>{{ item.name }}</strong>
                         </div>
-                        <span>{{ field_counts.get(item.name, 0) }}</span>
+                        <span>{{ field_counts.get(item.slug or '__uncategorized__', 0) }}</span>
                     </button>
                     {% endfor %}
                     {% if uncategorized_count %}
@@ -432,7 +432,7 @@
                         <select id="taskUnitFilter" class="form-select">
                             <option value="ALL">Tất cả đội</option>
                             {% for unit in pro_units %}
-                            <option value="{{ unit.name|lower }}">{{ unit.name }}</option>
+                            <option value="{{ unit.slug or '__uncategorized__' }}">{{ unit.name }}</option>
                             {% endfor %}
                         </select>
                     </label>
@@ -454,10 +454,10 @@
                 {% set status_key = status_text|lower %}
                     <article
                         class="pc06-task-compact-card task-row"
-                    data-field="{{ (t.category or '__uncategorized__')|lower }}"
-                    data-unit="{{ (t.domain or 'Không xác định')|lower }}"
+                    data-field="{{ t.category_filter or '__uncategorized__' }}"
+                    data-unit="{{ t.domain_filter or '__uncategorized__' }}"
                     data-status="{{ status_key }}"
-                    data-search="{{ (t.title ~ ' ' ~ (t.content or '') ~ ' ' ~ (t.domain or '') ~ ' ' ~ (t.category or ''))|lower }}"
+                    data-search="{{ (t.title ~ ' ' ~ (t.content or '') ~ ' ' ~ (t.domain_display or '') ~ ' ' ~ (t.category_display or ''))|lower }}"
                     >
                         <div class="pc06-task-title-row">
                             <h3>{{ t.title }}</h3>
@@ -465,7 +465,7 @@
 
                         <div class="pc06-task-compact-meta">
                             <div>
-                                <strong>{{ t.domain or 'Chưa phân đội' }}</strong>
+                                <strong>{{ t.domain_display or 'Chưa phân đội' }}</strong>
                             </div>
                             <div>
                                 <strong class="pc06-task-deadline-inline {% if t.is_overdue %}text-danger{% endif %}">
@@ -541,11 +541,11 @@
                                     <div class="col-md-6">
                                         <div class="pc06-form-section">
                                             <label class="form-label fw-bold">Lĩnh vực</label>
-                                            <div data-category-picker data-module="news" data-field="category" data-placeholder="Chọn lĩnh vực" data-storage-key="modal.tasks.category">
+                                            <div data-category-picker data-module="news" data-field="category" data-value-mode="stable" data-placeholder="Chọn lĩnh vực" data-storage-key="modal.tasks.category">
                                                 <select name="category" class="form-select form-select-lg" required data-category-target>
                                                     <option value="" disabled selected>Chọn lĩnh vực</option>
                                                     {% for item in task_fields %}
-                                                    <option value="{{ item.name }}">{{ item.name }}</option>
+                                                    <option value="{{ item.value }}">{{ item.name }}</option>
                                                     {% endfor %}
                                                 </select>
                                             </div>
@@ -554,11 +554,11 @@
                                     <div class="col-md-6">
                                         <div class="pc06-form-section">
                                             <label class="form-label fw-bold">Đội nghiệp vụ</label>
-                                            <div data-category-picker data-module="tasks" data-field="domain" data-placeholder="Chọn đội nghiệp vụ" data-storage-key="modal.tasks.domain">
+                                            <div data-category-picker data-module="tasks" data-field="domain" data-value-mode="stable" data-placeholder="Chọn đội nghiệp vụ" data-storage-key="modal.tasks.domain">
                                                 <select name="unit_name" class="form-select form-select-lg" required data-category-target>
                                                     <option value="" disabled selected>Chọn đội nghiệp vụ</option>
                                                     {% for u in pro_units %}
-                                                    <option value="{{ u.name }}">{{ u.name }}</option>
+                                                    <option value="{{ u.value }}">{{ u.name }}</option>
                                                     {% endfor %}
                                                 </select>
                                             </div>
@@ -567,11 +567,11 @@
                                     <div class="col-md-6">
                                         <div class="pc06-form-section">
                                             <label class="form-label fw-bold">Mức độ ưu tiên</label>
-                                            <div data-category-picker data-module="tasks" data-field="priority" data-placeholder="Chọn mức độ ưu tiên" data-storage-key="modal.tasks.priority">
+                                            <div data-category-picker data-module="tasks" data-field="priority" data-value-mode="stable" data-placeholder="Chọn mức độ ưu tiên" data-storage-key="modal.tasks.priority">
                                                 <select name="priority" class="form-select form-select-lg" data-category-target>
                                                     <option value="">Chọn mức độ</option>
                                                     {% for item in priority_items %}
-                                                    <option value="{{ item.name }}">{{ item.name }}</option>
+                                                    <option value="{{ item.value }}">{{ item.name }}</option>
                                                     {% endfor %}
                                                 </select>
                                             </div>
@@ -583,7 +583,7 @@
                                             <select name="task_type" class="form-select form-select-lg">
                                                 <option value="">Công việc thường xuyên</option>
                                                 {% for item in task_types %}
-                                                <option value="{{ item.name }}">{{ item.name }}</option>
+                                                <option value="{{ item.value }}">{{ item.name }}</option>
                                                 {% endfor %}
                                             </select>
                                         </div>
@@ -704,11 +704,11 @@
                                             <input type="text" class="pc06-user-search" placeholder="Tìm theo họ tên hoặc đơn vị" data-user-picker-search>
                                             <div class="pc06-user-option-list" data-user-picker-options>
                                                 {% for user in users %}
-                                                <label class="pc06-user-option" data-user-picker-option data-search="{{ (user.fullname ~ ' ' ~ (user.unit_area or ''))|lower }}">
+                                                <label class="pc06-user-option" data-user-picker-option data-search="{{ (user.fullname ~ ' ' ~ (user.unit_area_display or user.unit_area or ''))|lower }}">
                                                     <input type="checkbox" name="target_users" value="{{ user.id }}">
                                                     <div>
                                                         <strong>{{ user.fullname }}</strong>
-                                                        <small>{{ user.unit_area or 'Chưa có đơn vị' }}</small>
+                                                        <small>{{ user.unit_area_display or 'Chưa có đơn vị' }}</small>
                                                     </div>
                                                 </label>
                                                 {% endfor %}

@@ -192,7 +192,13 @@ def get_category_picker_bundle():
         'selected_group_id': selected_group.id if selected_group else None,
         'selected_group_name': selected_group.name if selected_group else None,
         'items': [
-            {'id': item.id, 'code': item.code, 'name': item.name}
+            {
+                'id': item.id,
+                'code': item.code,
+                'name': item.name,
+                'value': (item.code or item.name or '').strip(),
+                'stable_value': f'category_item:{item.id}',
+            }
             for item in items
         ]
     })

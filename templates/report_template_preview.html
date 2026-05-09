@@ -7,7 +7,7 @@
             <div>
                 <h1 class="pc06-page-title">{{ template.name }}</h1>
                 <div class="text-muted">
-                    {% if template.professional_unit %}{{ template.professional_unit }} • {% endif %}
+                    {% if template.professional_unit_display or template.professional_unit %}{{ template.professional_unit_display or template.professional_unit }} • {% endif %}
                     {% if template_version %}{{ template_version.source_filename }}{% endif %}
                 </div>
             </div>

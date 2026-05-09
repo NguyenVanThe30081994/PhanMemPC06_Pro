@@ -205,7 +205,7 @@
                     <div class="mb-3"><label class="form-label small fw-bold">Tên tài liệu</label><input type="text" name="title" class="form-control" required></div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Lĩnh vực</label>
-                        <div data-category-picker data-module="library" data-field="category" data-placeholder="Chọn lĩnh vực" data-storage-key="mobile.library.category">
+                        <div data-category-picker data-module="library" data-field="category" data-value-mode="stable" data-placeholder="Chọn lĩnh vực" data-storage-key="mobile.library.category">
                             <select name="category" class="form-select" required data-category-target>
                                 {% for c in category_options %}<option value="{{ c.value }}">{{ c.name }}</option>{% endfor %}
                             </select>

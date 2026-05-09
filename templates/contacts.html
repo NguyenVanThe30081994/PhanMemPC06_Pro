@@ -166,10 +166,10 @@
                         <strong>Tất cả nhóm</strong>
                         <span>{{ total_contact_count }}</span>
                     </a>
-                    {% for cat in groups %}
-                    <a href="{{ url_for('portal_bp.contacts', group=cat.name) }}" class="pc06-contacts-group-card {% if current_group == cat.name %}active{% endif %}">
+                    {% for cat in contact_group_filters %}
+                    <a href="{{ url_for('portal_bp.contacts', group=cat.filter_value) }}" class="pc06-contacts-group-card {% if current_group == cat.filter_value %}active{% endif %}">
                         <strong>{{ cat.name }}</strong>
-                        <span>{{ group_contact_counts.get(cat.name, 0) }}</span>
+                        <span>{{ cat.count }}</span>
                     </a>
                     {% endfor %}
                 </div>
@@ -179,7 +179,7 @@
         <div class="pc06-contacts-board">
             <section class="pc06-panel pc06-contacts-board-panel">
                 <div class="pc06-contacts-board-head">
-                    <h2>{{ current_group or 'Tất cả nhóm' }}</h2>
+                    <h2>{{ current_group_display or 'Tất cả nhóm' }}</h2>
                 </div>
 
                 <div class="pc06-contacts-board-tools">
@@ -225,7 +225,7 @@
                         </thead>
                         <tbody id="contactTable">
                             {% for c in contacts %}
-                            <tr class="contact-row" data-category="{{ c.contact_group }}">
+                            <tr class="contact-row" data-category="{{ c.contact_group_filter }}">
                                 {% if perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin %}
                                 <td class="ps-4">
                                     <input type="checkbox" class="form-check-input contact-row-check" value="{{ c.id }}" onchange="updateBulkSelectionState()">
@@ -236,15 +236,15 @@
                                         <div class="pc06-contact-avatar">{{ c.name[:1].upper() }}</div>
                                         <div>
                                             <div class="fw-bold text-dark">{{ c.name }}</div>
-                                            <div class="tiny text-muted d-lg-none">{{ c.role or 'Thành viên' }}</div>
+                                            <div class="tiny text-muted d-lg-none">{{ c.role_display or 'Thành viên' }}</div>
                                         </div>
                                     </div>
                                 </td>
                                 <td>
-                                    <div class="fw-bold text-dark">{{ c.role or 'Chưa cập nhật' }}</div>
+                                    <div class="fw-bold text-dark">{{ c.role_display or 'Chưa cập nhật' }}</div>
                                 </td>
                                 <td class="fw-bold text-primary">{{ c.phone }}</td>
-                                <td class="small text-muted">{{ c.unit_name or '-' }}</td>
+                                <td class="small text-muted">{{ c.unit_name_display or '-' }}</td>
                                 <td class="pe-4 text-end">
                                     <div class="d-flex justify-content-end gap-2">
                                         <a href="tel:{{ c.phone }}" class="btn btn-light btn-circle btn-circle-sm border shadow-sm">
@@ -302,16 +302,16 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Chức vụ</label>
-                            <div data-category-picker data-module="contacts" data-field="role" data-placeholder="Chọn chức vụ" data-storage-key="modal.contacts.role">
+                            <div data-category-picker data-module="contacts" data-field="role" data-value-mode="stable" data-placeholder="Chọn chức vụ" data-storage-key="modal.contacts.role">
                                 <select name="role" class="form-select" data-category-target>
                                     <option value="" disabled selected>Chọn chức vụ</option>
-                                    {% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}
+                                    {% for r in roles %}<option value="{{ r.value }}">{{ r.name }}</option>{% endfor %}
                                 </select>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Nhóm</label>
-                            <div data-category-picker data-module="contacts" data-field="contact_group" data-placeholder="Chọn nhóm danh bạ" data-storage-key="modal.contacts.group">
+                            <div data-category-picker data-module="contacts" data-field="contact_group" data-value-mode="stable" data-placeholder="Chọn nhóm danh bạ" data-storage-key="modal.contacts.group">
                                 <select name="contact_group" class="form-select" required data-category-target>
                                     <option value="" disabled selected>Chọn nhóm danh bạ</option>
                                     {% for cat in groups %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}
@@ -321,10 +321,10 @@
                         {% if perms.get('p_contact_lead') or is_admin %}
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Đơn vị</label>
-                            <div data-category-picker data-module="contacts" data-field="unit_name" data-placeholder="Chọn đơn vị" data-storage-key="modal.contacts.unit">
+                            <div data-category-picker data-module="contacts" data-field="unit_name" data-value-mode="stable" data-placeholder="Chọn đơn vị" data-storage-key="modal.contacts.unit">
                                 <select name="unit_name" class="form-select" data-category-target>
                                     <option value="" disabled selected>Chọn đơn vị</option>
-                                    {% for unit in unit_items %}<option value="{{ unit.name }}">{{ unit.name }}</option>{% endfor %}
+                                    {% for unit in unit_items %}<option value="{{ unit.value }}">{{ unit.name }}</option>{% endfor %}
                                 </select>
                             </div>
                         </div>
@@ -372,7 +372,7 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Nhóm danh bạ</label>
-                            <div data-category-picker data-module="contacts" data-field="contact_group" data-placeholder="Chọn nhóm danh bạ" data-storage-key="modal.contacts.import_group_simple">
+                            <div data-category-picker data-module="contacts" data-field="contact_group" data-value-mode="stable" data-placeholder="Chọn nhóm danh bạ" data-storage-key="modal.contacts.import_group_simple">
                                 <select name="global_group" class="form-select" id="globalGroupSelect" required data-category-target>
                                     <option value="" disabled selected>Chọn nhóm danh bạ</option>
                                     {% for cat in groups %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}
@@ -381,10 +381,10 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Chức vụ mặc định</label>
-                            <div data-category-picker data-module="contacts" data-field="role" data-placeholder="Chọn chức vụ" data-storage-key="modal.contacts.import_role_simple">
+                            <div data-category-picker data-module="contacts" data-field="role" data-value-mode="stable" data-placeholder="Chọn chức vụ" data-storage-key="modal.contacts.import_role_simple">
                                 <select name="global_role" class="form-select" id="globalRoleSelect" data-category-target>
                                     <option value="" selected>Để trống nếu file đã có cột Chức vụ</option>
-                                    {% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}
+                                    {% for r in roles %}<option value="{{ r.value }}">{{ r.name }}</option>{% endfor %}
                                 </select>
                             </div>
                         </div>

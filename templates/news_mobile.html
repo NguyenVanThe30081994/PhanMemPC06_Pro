@@ -90,7 +90,7 @@
                     <div class="mb-3"><label class="form-label small fw-bold">Tiêu đề</label><input type="text" name="title" class="form-control" required></div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Danh mục</label>
-                        <div data-category-picker data-module="news" data-field="category" data-placeholder="Chọn danh mục" data-storage-key="mobile.news.category">
+                        <div data-category-picker data-module="news" data-field="category" data-value-mode="stable" data-placeholder="Chọn danh mục" data-storage-key="mobile.news.category">
                             <select name="category" class="form-select" required data-category-target>
                                 <option value="" disabled selected>Chọn danh mục</option>
                                 {% for u in category_options %}<option value="{{ u.value }}">{{ u.name }}</option>{% endfor %}

@@ -20,23 +20,23 @@
                     {% if task.category %}
                     <span class="pc06-soft-tag neutral">
                         <i class="fa-solid fa-layer-group"></i>
-                        {{ task.category }}
+                        {{ task.category_display }}
                     </span>
                     {% endif %}
                     <span class="pc06-soft-tag">
                         <i class="fa-solid fa-users"></i>
-                        {{ task.domain or 'Chưa phân đơn vị' }}
+                        {{ task.domain_display or 'Chưa phân đơn vị' }}
                     </span>
                     {% if task.task_type %}
                     <span class="pc06-soft-tag neutral">
                         <i class="fa-solid fa-tag"></i>
-                        {{ task.task_type }}
+                        {{ task.task_type_display }}
                     </span>
                     {% endif %}
                     {% if task.priority %}
                     <span class="pc06-soft-tag danger">
                         <i class="fa-solid fa-flag"></i>
-                        {{ task.priority }}
+                        {{ task.priority_display }}
                     </span>
                     {% endif %}
                 </div>
@@ -212,10 +212,10 @@
                     </div>
                 </div>
                 <div class="pc06-info-list">
-                    <div class="pc06-info-item"><span>Lĩnh vực</span><strong>{{ task.category or 'Chưa phân lĩnh vực' }}</strong></div>
-                    <div class="pc06-info-item"><span>Đơn vị nghiệp vụ</span><strong>{{ task.domain or 'Chưa phân đơn vị' }}</strong></div>
-                    <div class="pc06-info-item"><span>Loại công việc</span><strong>{{ task.task_type or 'Công việc thường xuyên' }}</strong></div>
-                    <div class="pc06-info-item"><span>Mức ưu tiên</span><strong>{{ task.priority or 'Trung bình' }}</strong></div>
+                    <div class="pc06-info-item"><span>Lĩnh vực</span><strong>{{ task.category_display or 'Chưa phân lĩnh vực' }}</strong></div>
+                    <div class="pc06-info-item"><span>Đơn vị nghiệp vụ</span><strong>{{ task.domain_display or 'Chưa phân đơn vị' }}</strong></div>
+                    <div class="pc06-info-item"><span>Loại công việc</span><strong>{{ task.task_type_display or 'Công việc thường xuyên' }}</strong></div>
+                    <div class="pc06-info-item"><span>Mức ưu tiên</span><strong>{{ task.priority_display or 'Trung bình' }}</strong></div>
                     <div class="pc06-info-item"><span>Người giao</span><strong>{{ task.author_name }}</strong></div>
                 </div>
             </section>
@@ -233,7 +233,7 @@
                         <div class="pc06-comment-avatar">{{ u.fullname[:1].upper() }}</div>
                         <div class="pc06-assignee-copy">
                             <strong>{{ u.fullname }}</strong>
-                            <span>{{ u.unit_area or 'Chưa có đơn vị' }}</span>
+                            <span>{{ u.unit_area_display or 'Chưa có đơn vị' }}</span>
                             {% if a.result_file %}
                             <a href="{{ url_for('dl_file', fn=a.result_file) }}" class="pc06-inline-link">
                                 <i class="fa-solid fa-paperclip"></i>
@@ -285,7 +285,7 @@
                             <select name="category" class="form-select form-select-lg">
                                 <option value="">Chọn lĩnh vực</option>
                                 {% for item in task_fields %}
-                                <option value="{{ item.name }}" {% if item.name == task.category %}selected{% endif %}>{{ item.name }}</option>
+                                <option value="{{ item.value }}" {% if item.value == task.category %}selected{% endif %}>{{ item.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -294,7 +294,7 @@
                             <select name="domain" class="form-select form-select-lg">
                                 <option value="">Chọn đơn vị</option>
                                 {% for unit in pro_units %}
-                                <option value="{{ unit.name }}" {% if unit.name == task.domain %}selected{% endif %}>{{ unit.name }}</option>
+                                <option value="{{ unit.value }}" {% if unit.value == task.domain %}selected{% endif %}>{{ unit.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -308,7 +308,7 @@
                             <select name="priority" class="form-select form-select-lg">
                                 <option value="">Chọn mức độ</option>
                                 {% for item in priority_items %}
-                                <option value="{{ item.name }}" {% if item.name == task.priority %}selected{% endif %}>{{ item.name }}</option>
+                                <option value="{{ item.value }}" {% if item.value == task.priority %}selected{% endif %}>{{ item.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -317,7 +317,7 @@
                             <select name="task_type" class="form-select form-select-lg">
                                 <option value="">Công việc thường xuyên</option>
                                 {% for item in task_types %}
-                                <option value="{{ item.name }}" {% if item.name == task.task_type %}selected{% endif %}>{{ item.name }}</option>
+                                <option value="{{ item.value }}" {% if item.value == task.task_type %}selected{% endif %}>{{ item.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -365,7 +365,7 @@
                             <label class="form-label fw-bold">Cán bộ nhận việc</label>
                             <select name="target_users" class="form-select" size="10" multiple>
                                 {% for user in users %}
-                                <option value="{{ user.id }}" {% if user.id in assignment_context.user_ids %}selected{% endif %}>{{ user.fullname }}{% if user.unit_area %} - {{ user.unit_area }}{% endif %}</option>
+                                <option value="{{ user.id }}" {% if user.id in assignment_context.user_ids %}selected{% endif %}>{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</option>
                                 {% endfor %}
                             </select>
                             <div class="form-text">Giữ `Ctrl` hoặc `Cmd` để chọn nhiều cán bộ.</div>

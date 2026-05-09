@@ -51,7 +51,7 @@
     <div class="detail-mobile-stats">
         <div class="detail-mobile-stat"><span>Tiến độ</span><strong>{{ progress_percent }}%</strong></div>
         <div class="detail-mobile-stat"><span>Trạng thái</span><strong style="font-size:0.95rem;">{{ display_status }}</strong></div>
-        <div class="detail-mobile-stat"><span>Lĩnh vực</span><strong style="font-size:0.95rem;">{{ task.category or 'Chưa phân' }}</strong></div>
+        <div class="detail-mobile-stat"><span>Lĩnh vực</span><strong style="font-size:0.95rem;">{{ task.category_display or 'Chưa phân' }}</strong></div>
         <div class="detail-mobile-stat"><span>Hạn xử lý</span><strong style="font-size:0.95rem;">{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa có' }}</strong></div>
     </div>
 </section>
@@ -78,7 +78,7 @@
                         <select name="category" class="form-select">
                             <option value="">Chọn lĩnh vực</option>
                             {% for item in task_fields %}
-                            <option value="{{ item.name }}" {% if item.name == task.category %}selected{% endif %}>{{ item.name }}</option>
+                            <option value="{{ item.value }}" {% if item.value == task.category %}selected{% endif %}>{{ item.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -87,7 +87,7 @@
                         <select name="domain" class="form-select">
                             <option value="">Chọn đơn vị</option>
                             {% for unit in pro_units %}
-                            <option value="{{ unit.name }}" {% if unit.name == task.domain %}selected{% endif %}>{{ unit.name }}</option>
+                            <option value="{{ unit.value }}" {% if unit.value == task.domain %}selected{% endif %}>{{ unit.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -97,7 +97,7 @@
                             <select name="priority" class="form-select">
                                 <option value="">Chọn mức độ</option>
                                 {% for item in priority_items %}
-                                <option value="{{ item.name }}" {% if item.name == task.priority %}selected{% endif %}>{{ item.name }}</option>
+                                <option value="{{ item.value }}" {% if item.value == task.priority %}selected{% endif %}>{{ item.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -106,7 +106,7 @@
                             <select name="task_type" class="form-select">
                                 <option value="">Thường xuyên</option>
                                 {% for item in task_types %}
-                                <option value="{{ item.name }}" {% if item.name == task.task_type %}selected{% endif %}>{{ item.name }}</option>
+                                <option value="{{ item.value }}" {% if item.value == task.task_type %}selected{% endif %}>{{ item.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -147,7 +147,7 @@
                         <label class="form-label fw-bold small">Cán bộ nhận việc</label>
                         <select name="target_users" class="form-select" multiple size="6">
                             {% for user in users %}
-                            <option value="{{ user.id }}" {% if user.id in assignment_context.user_ids %}selected{% endif %}>{{ user.fullname }}{% if user.unit_area %} - {{ user.unit_area }}{% endif %}</option>
+                            <option value="{{ user.id }}" {% if user.id in assignment_context.user_ids %}selected{% endif %}>{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -236,7 +236,7 @@
             <div class="detail-mobile-avatar">{{ u.fullname[:1].upper() }}</div>
             <div class="detail-mobile-assignee-copy">
                 <strong>{{ u.fullname }}</strong>
-                <span>{{ u.unit_area or 'Chưa có đơn vị' }}</span>
+                <span>{{ u.unit_area_display or 'Chưa có đơn vị' }}</span>
                 {% if a.result_file %}<span><i class="fa-solid fa-paperclip me-1"></i>{{ a.result_file }}</span>{% endif %}
             </div>
             <div class="detail-mobile-status {% if a.status == 'Hoàn thành' %}done{% elif a.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}" style="margin-bottom:0;">{{ a.status }}</div>

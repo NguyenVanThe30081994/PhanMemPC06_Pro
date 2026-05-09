@@ -551,7 +551,7 @@
                     </div>
                     <div class="pc06-form-section">
                         <label class="form-label fw-bold">Lĩnh vực</label>
-                        <div data-category-picker data-module="library" data-field="category" data-placeholder="Chọn lĩnh vực" data-storage-key="modal.library.category">
+                        <div data-category-picker data-module="library" data-field="category" data-value-mode="stable" data-placeholder="Chọn lĩnh vực" data-storage-key="modal.library.category">
                             <select name="category" class="form-select" required data-category-target>
                                 <option value="" disabled selected>Chọn lĩnh vực</option>
                                 {% for c in category_options %}<option value="{{ c.value }}">{{ c.name }}</option>{% endfor %}

@@ -36,11 +36,11 @@
                             <select name="professional_unit" class="form-select" required>
                                 <option value="">Chọn đội nghiệp vụ</option>
                                 {% for item in professional_units %}
-                                <option value="{{ item.name }}" {% if template.professional_unit == item.name %}selected{% endif %}>{{ item.name }}</option>
+                                <option value="{{ item.value }}" {% if template.professional_unit == item.value %}selected{% endif %}>{{ item.name }}</option>
                                 {% endfor %}
                             </select>
                             {% else %}
-                            <input type="text" name="professional_unit" class="form-control" value="{{ template.professional_unit or '' }}" required>
+                            <input type="text" name="professional_unit" class="form-control" value="{{ template.professional_unit_display or template.professional_unit or '' }}" required>
                             {% endif %}
                         </div>
                         <div class="pc06-form-section">
@@ -117,7 +117,7 @@
                             <label class="form-label fw-bold">Nhóm đơn vị</label>
                             <select name="unit_groups" class="form-select" multiple size="5">
                                 {% for item in unit_groups %}
-                                <option value="{{ item.name }}" {% if item.name in scope_payload.unit_groups %}selected{% endif %}>{{ item.name }}</option>
+                                <option value="{{ item.value }}" {% if item.value in scope_payload.unit_groups %}selected{% endif %}>{{ item.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>

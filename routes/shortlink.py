@@ -2,7 +2,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort, send_file, current_app
 from utils import render_auto_template, apply_migrations
 from models import db, ShortLink, User
-from category_helpers import get_category_items, get_module_field_items
+from category_helpers import canonicalize_category_value, module_category_options, stable_form_category_options, sync_record_categories
 import qrcode
 from io import BytesIO
 import random
@@ -53,15 +53,17 @@ def manage_links():
     else:
         links = ShortLink.query.filter_by(created_by=session['uid']).order_by(ShortLink.created_at.desc()).all()
 
-    link_categories = get_module_field_items('news', 'category') or get_category_items('Lĩnh vực')
-    pro_units = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
+    link_categories = module_category_options('news', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
+    pro_units = module_category_options('tasks', 'domain', 'Đội nghiệp vụ')
+    links = sync_record_categories(links, link_categories, attr_name='category', prefer_stable=True)
+    links = sync_record_categories(links, pro_units, attr_name='domain', prefer_stable=True)
 
     return render_auto_template(
         'shortlinks.html',
         links=links,
         is_admin=is_admin,
-        link_categories=link_categories,
-        pro_units=pro_units,
+        link_categories=stable_form_category_options(link_categories),
+        pro_units=stable_form_category_options(pro_units),
     )
 
 @shortlink_bp.route('/links/add', methods=['POST'])
@@ -74,8 +76,10 @@ def add_link():
     custom_code = request.form.get('custom_code', '').strip()
     custom_name = request.form.get('custom_name', '').strip()
     info = request.form.get('info', '').strip()
-    category = request.form.get('category', '').strip()
-    domain = request.form.get('domain', '').strip()
+    link_categories = module_category_options('news', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
+    pro_units = module_category_options('tasks', 'domain', 'Đội nghiệp vụ')
+    category = canonicalize_category_value(request.form.get('category', ''), link_categories, prefer_stable=True)
+    domain = canonicalize_category_value(request.form.get('domain', ''), pro_units, prefer_stable=True)
     
     if not original_url:
         flash('Vui lòng nhập đường dẫn gốc!', 'danger')

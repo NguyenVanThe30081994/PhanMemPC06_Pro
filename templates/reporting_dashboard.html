@@ -346,7 +346,7 @@
                                             <select name="professional_unit" class="form-select">
                                                 <option value="">Chọn đội nghiệp vụ</option>
                                                 {% for item in professional_units %}
-                                                <option value="{{ item.name }}">{{ item.name }}</option>
+                                                <option value="{{ item.value }}">{{ item.name }}</option>
                                                 {% endfor %}
                                             </select>
                                             {% else %}

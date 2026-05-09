@@ -2,7 +2,7 @@
 import re
 import unicodedata
 
-from models import CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding
+from models import CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding, db
 
 CATEGORY_GROUP_ALIASES = {
     'Nhóm danh bạ': ['Nhóm danh bạ', 'Nhom danh ba'],
@@ -117,3 +117,156 @@ def get_module_categories(module_name):
     for group_name in LEGACY_MODULE_GROUP_MAP.get(module_name, []):
         result[group_name] = get_category_items(group_name)
     return result
+
+
+def module_category_options(module_code, field_code, *fallback_names):
+    items = get_module_field_items(module_code, field_code)
+    if not items:
+        items = get_category_items(*fallback_names)
+    results = []
+    for item in items:
+        value = (item.code or slugify_code(item.name) or item.name or '').strip()
+        if not value:
+            continue
+        results.append({
+            'id': item.id,
+            'code': (item.code or '').strip(),
+            'value': value,
+            'stable_value': f"category_item:{item.id}",
+            'name': (item.name or '').strip() or value,
+            'slug': slugify_code(item.name or value),
+        })
+    return results
+
+
+def category_resolver(category_options):
+    mapping = {}
+    for item in category_options or []:
+        keys = {
+            f"category_item:{item.get('id')}" if item.get('id') is not None else '',
+            str(item.get('id')) if item.get('id') is not None else '',
+            (item.get('value') or '').strip().lower(),
+            (item.get('code') or '').strip().lower(),
+            (item.get('name') or '').strip().lower(),
+            slugify_code(item.get('value') or ''),
+            slugify_code(item.get('code') or ''),
+            slugify_code(item.get('name') or ''),
+        }
+        for key in keys:
+            if key:
+                mapping[str(key).strip().lower()] = item
+    return mapping
+
+
+def resolve_category_display(value, category_options, fallback_label='Chưa phân loại'):
+    raw_value = (value or '').strip()
+    if not raw_value:
+        return {
+            'raw_value': '',
+            'display_name': fallback_label,
+            'filter_value': '__uncategorized__',
+            'option': None,
+        }
+    resolver = category_resolver(category_options)
+    item = resolver.get(raw_value.lower()) or resolver.get(slugify_code(raw_value))
+    if item:
+        return {
+            'raw_value': raw_value,
+            'display_name': item['name'],
+            'filter_value': item['slug'] or slugify_code(item['name']) or '__uncategorized__',
+            'option': item,
+        }
+    return {
+        'raw_value': raw_value,
+        'display_name': raw_value,
+        'filter_value': slugify_code(raw_value) or '__uncategorized__',
+        'option': None,
+    }
+
+
+def canonicalize_category_value(value, category_options, prefer_stable=False):
+    resolved = resolve_category_display(value, category_options, fallback_label='')
+    option = resolved.get('option')
+    if not option:
+        return (value or '').strip()
+    preferred = option.get('stable_value') if prefer_stable else option.get('value')
+    return (preferred or option.get('value') or option.get('name') or '').strip()
+
+
+def sync_record_categories(records, category_options, attr_name='category', prefer_stable=False):
+    changed = False
+    for record in records or []:
+        current_value = getattr(record, attr_name, '') or ''
+        canonical_value = canonicalize_category_value(
+            current_value,
+            category_options,
+            prefer_stable=prefer_stable,
+        )
+        if canonical_value and canonical_value != current_value:
+            setattr(record, attr_name, canonical_value)
+            changed = True
+    if changed:
+        db.session.commit()
+    return records
+
+
+def stable_form_category_options(category_options):
+    return [
+        {
+            **item,
+            'value': item.get('stable_value') or item.get('value') or '',
+        }
+        for item in category_options or []
+    ]
+
+
+def decorate_records_with_category(records, category_options, fallback_label='Chưa phân loại', attr_name='category'):
+    decorated = []
+    for record in records or []:
+        category_info = resolve_category_display(
+            getattr(record, attr_name, ''),
+            category_options,
+            fallback_label=fallback_label,
+        )
+        decorated.append({
+            'record': record,
+            'category_display': category_info['display_name'],
+            'category_filter': category_info['filter_value'],
+            'category_raw': category_info['raw_value'],
+            'category_option': category_info['option'],
+        })
+    return decorated
+
+
+def category_filter_counts(items, category_options, empty_label='Chưa phân loại'):
+    counts = {item['slug']: 0 for item in category_options or [] if item.get('slug')}
+    uncategorized_total = 0
+    for item in items or []:
+        filter_value = item.get('category_filter') or '__uncategorized__'
+        if filter_value in counts:
+            counts[filter_value] += 1
+        else:
+            uncategorized_total += 1
+    filters = []
+    for option in category_options or []:
+        filters.append({
+            'name': option['name'],
+            'filter_value': option['slug'] or '__uncategorized__',
+            'count': counts.get(option['slug'], 0),
+        })
+    if uncategorized_total:
+        filters.append({
+            'name': empty_label,
+            'filter_value': '__uncategorized__',
+            'count': uncategorized_total,
+        })
+    return filters
+
+
+def apply_reference_display(records, attr_name, category_options, display_attr=None, fallback_label=''):
+    display_attr = display_attr or f"{attr_name}_display"
+    for record in records or []:
+        value = getattr(record, attr_name, '')
+        display_name = resolve_category_display(value, category_options, fallback_label=fallback_label)['display_name']
+        setattr(record, display_attr, display_name)
+    return records

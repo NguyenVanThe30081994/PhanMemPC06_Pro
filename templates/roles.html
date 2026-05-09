@@ -104,7 +104,7 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td class="small text-muted">{{ u.unit_area }}</td>
+                                <td class="small text-muted">{{ u.unit_area_display or u.unit_area }}</td>
                                 <td><span class="pc06-soft-tag neutral">{{ u.role.name if u.role else 'Chưa cấp' }}</span></td>
                                 <td>
                                     <span class="pc06-status-badge {% if u.is_active %}done{% else %}neutral{% endif %}">
@@ -298,10 +298,10 @@
                     <div class="row g-3">
                         <div class="col-6">
                             <label class="form-label fw-bold text-dark small">ĐƠN VỊ</label>
-                            <div data-category-picker data-group-name="Đơn vị" data-placeholder="Chọn đơn vị" data-storage-key="modal.roles.unit_add">
+                            <div data-category-picker data-group-name="Đơn vị" data-value-mode="stable" data-placeholder="Chọn đơn vị" data-storage-key="modal.roles.unit_add">
                                 <select name="unit" class="form-select border-0 bg-light py-2 rounded-3 shadow-sm" required data-category-target>
                                     <option value="" disabled selected>Chọn đơn vị</option>
-                                    {% for u in unit_cats %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
+                                    {% for u in unit_cats %}<option value="{{ u.value }}">{{ u.name }}</option>{% endfor %}
                                 </select>
                             </div>
                             {% if not unit_cats %}<div class="tiny text-danger mt-1 fw-bold italic">* Cần khai báo danh mục Đơn vị trước khi tạo tài khoản.</div>{% endif %}
@@ -352,9 +352,9 @@
                     <div class="row g-3">
                         <div class="col-6">
                             <label class="form-label fw-bold text-dark small">ĐƠN VỊ</label>
-                            <div data-category-picker data-group-name="Đơn vị" data-placeholder="Chọn đơn vị" data-storage-key="modal.roles.unit_edit">
+                            <div data-category-picker data-group-name="Đơn vị" data-value-mode="stable" data-placeholder="Chọn đơn vị" data-storage-key="modal.roles.unit_edit">
                                 <select name="unit" id="edit_unit" class="form-select border-0 bg-light py-2 rounded-3 shadow-sm" required data-category-target>
-                                    {% for u in unit_cats %}<option value="{{ u.name }}">{{ u.name }}</option>{% endfor %}
+                                    {% for u in unit_cats %}<option value="{{ u.value }}">{{ u.name }}</option>{% endfor %}
                                 </select>
                             </div>
                         </div>

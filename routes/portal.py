@@ -97,7 +97,10 @@ def _module_category_options(module_code, field_code, *fallback_names):
         if not value:
             continue
         results.append({
+            'id': item.id,
+            'code': (item.code or '').strip(),
             'value': value,
+            'stable_value': f"category_item:{item.id}",
             'name': (item.name or '').strip() or value,
             'slug': slugify_code(item.name or value),
         })
@@ -108,14 +111,18 @@ def _category_resolver(category_options):
     mapping = {}
     for item in category_options:
         keys = {
+            f"category_item:{item.get('id')}" if item.get('id') is not None else '',
+            str(item.get('id')) if item.get('id') is not None else '',
             (item.get('value') or '').strip().lower(),
+            (item.get('code') or '').strip().lower(),
             (item.get('name') or '').strip().lower(),
             slugify_code(item.get('value') or ''),
+            slugify_code(item.get('code') or ''),
             slugify_code(item.get('name') or ''),
         }
         for key in keys:
             if key:
-                mapping[key] = item
+                mapping[str(key).strip().lower()] = item
     return mapping
 
 
@@ -145,25 +152,53 @@ def _resolve_category_display(value, category_options, fallback_label='Chưa ph�
     }
 
 
-def _canonicalize_category_value(value, category_options):
+def _canonicalize_category_value(value, category_options, prefer_stable=False):
     resolved = _resolve_category_display(value, category_options, fallback_label='')
     option = resolved.get('option')
     if not option:
         return (value or '').strip()
-    return (option.get('value') or option.get('name') or '').strip()
+    preferred = option.get('stable_value') if prefer_stable else option.get('value')
+    return (preferred or option.get('value') or option.get('name') or '').strip()
 
 
-def _sync_record_categories(records, category_options, attr_name='category'):
+def _sync_record_categories(records, category_options, attr_name='category', prefer_stable=False):
     changed = False
     for record in records:
         current_value = getattr(record, attr_name, '') or ''
-        canonical_value = _canonicalize_category_value(current_value, category_options)
+        canonical_value = _canonicalize_category_value(current_value, category_options, prefer_stable=prefer_stable)
         if canonical_value and canonical_value != current_value:
             setattr(record, attr_name, canonical_value)
             changed = True
     if changed:
         db.session.commit()
     return records
+
+
+def _stable_form_category_options(category_options):
+    return [
+        {
+            **item,
+            'value': item.get('stable_value') or item.get('value') or '',
+        }
+        for item in category_options
+    ]
+
+
+def _category_match_values(value, category_options):
+    raw_value = (value or '').strip()
+    if not raw_value:
+        return set()
+    resolved = _resolve_category_display(raw_value, category_options, fallback_label='')
+    values = {raw_value}
+    option = resolved.get('option')
+    if option:
+        values.update({
+            option.get('stable_value') or '',
+            option.get('value') or '',
+            option.get('code') or '',
+            option.get('name') or '',
+        })
+    return {item.strip() for item in values if item and str(item).strip()}
 
 
 def _decorate_records_with_category(records, category_options, fallback_label='Chưa phân lĩnh vực'):
@@ -513,15 +548,22 @@ def news():
                 return redirect(url_for('portal_bp.news'))
             fn = safe_fn
             f.save(os.path.join(current_app.root_path, 'uploads', fn))
+        news_category_items = _module_category_options('news', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
+        category_value = _canonicalize_category_value(
+            request.form.get('category', ''),
+            news_category_items,
+            prefer_stable=True,
+        )
+        category_display = _resolve_category_display(category_value, news_category_items, fallback_label='').get('display_name') or request.form.get('category', '')
         db.session.add(NewsDoc(
             title=request.form['title'],
-            category=request.form['category'],
+            category=category_value,
             content=request.form['content'],
             filename=fn
         ))
         db.session.commit()
         log_action(session['uid'], session['fullname'], "Đăng tin mới", "Bảng tin", request.form['title'])
-        push_global_notif(f"Bảng tin: {request.form['category']}", f"{request.form['title']}", "/news", exclude_uid=session['uid'])
+        push_global_notif(f"Bảng tin: {category_display}", f"{request.form['title']}", "/news", exclude_uid=session['uid'])
         flash('Đã đăng tin mới!', 'success')
         return redirect(url_for('portal_bp.news'))
     now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
@@ -530,6 +572,7 @@ def news():
     if not news_category_items:
         news_category_items = _module_category_options('tasks', 'domain', 'Đội nghiệp vụ')
     news_records = NewsDoc.query.order_by(NewsDoc.uploaded_at.desc()).all()
+    news_records = _sync_record_categories(news_records, news_category_items, prefer_stable=True)
     decorated_news = _decorate_records_with_category(news_records, news_category_items)
     news_filters = _category_filter_counts(decorated_news, news_category_items)
 
@@ -537,7 +580,7 @@ def news():
                           news_list=news_records,
                           news_cards=decorated_news,
                           category_filters=news_filters,
-                          category_options=news_category_items,
+                          category_options=_stable_form_category_options(news_category_items),
                           cats=news_category_items,
                           pro_units=news_category_items,
                           now_str=now_str)
@@ -571,7 +614,11 @@ def library():
             fn = safe_fn
             f.save(os.path.join(current_app.root_path, 'library_files', fn))
             library_category_items = _module_category_options('library', 'category', 'Lĩnh vực', 'Loại tài liệu')
-            category_value = _canonicalize_category_value(request.form.get('category', ''), library_category_items)
+            category_value = _canonicalize_category_value(
+                request.form.get('category', ''),
+                library_category_items,
+                prefer_stable=True,
+            )
             db.session.add(DocumentLib(title=request.form['title'], category=category_value, filename=fn))
             db.session.commit()
             log_action(session['uid'], session['fullname'], "Tải lên tài liệu", "Thư viện", request.form['title'])
@@ -581,9 +628,10 @@ def library():
     
     library_category_items = _module_category_options('library', 'category', 'Lĩnh vực', 'Loại tài liệu')
     docs = DocumentLib.query.order_by(DocumentLib.uploaded_at.desc()).all()
-    docs = _sync_record_categories(docs, library_category_items)
+    docs = _sync_record_categories(docs, library_category_items, prefer_stable=True)
     decorated_docs = _decorate_records_with_category(docs, library_category_items)
     library_filters = _category_filter_counts(decorated_docs, library_category_items)
+    library_form_category_options = _stable_form_category_options(library_category_items)
 
     legal_field_options = []
     legal_docs = []
@@ -651,7 +699,7 @@ def library():
         docs=docs,
         doc_cards=decorated_docs,
         library_filters=library_filters,
-        category_options=library_category_items,
+        category_options=library_form_category_options,
         cats=library_category_items,
         categories=library_category_items,
         items=docs,
@@ -684,42 +732,57 @@ def contacts():
     is_admin = session.get('is_admin')
     is_contact_lead = perms.get('p_contact_lead') or is_admin
     user_unit = session.get('unit_area')
+    contact_groups_items = _module_category_options('contacts', 'contact_group', 'Nhóm danh bạ')
+    contact_roles_items = _module_category_options('contacts', 'role', 'Chức vụ')
+    linhvuc_items = _module_category_options('contacts', 'category', 'Lĩnh vực')
+    unit_items = _module_category_options('contacts', 'unit_name', 'Đơn vị')
 
     group_filter = request.args.get('group')
+    canonical_group_filter = _canonicalize_category_value(group_filter or '', contact_groups_items, prefer_stable=True) if group_filter else ''
     scoped_query = Contact.query
-    
+
     if not is_contact_lead:
-        scoped_query = scoped_query.filter_by(unit_name=user_unit)
+        user_unit_matches = list(_category_match_values(user_unit, unit_items)) or [user_unit]
+        scoped_query = scoped_query.filter(Contact.unit_name.in_(user_unit_matches))
 
-    query = scoped_query
-    if group_filter:
-        query = query.filter_by(contact_group=group_filter)
-    
-    contact_groups_items = get_module_field_items('contacts', 'contact_group') or get_category_items('Nhóm danh bạ')
-    contact_roles_items = get_module_field_items('contacts', 'role') or get_category_items('Chức vụ')
-    linhvuc_items = get_module_field_items('contacts', 'category') or get_category_items('Lĩnh vực')
-    unit_items = get_module_field_items('contacts', 'unit_name') or get_category_items('Đơn vị')
+    scoped_contacts = scoped_query.order_by(Contact.name.asc()).all()
+    scoped_contacts = _sync_record_categories(scoped_contacts, contact_groups_items, attr_name='contact_group', prefer_stable=True)
+    scoped_contacts = _sync_record_categories(scoped_contacts, contact_roles_items, attr_name='role', prefer_stable=True)
+    scoped_contacts = _sync_record_categories(scoped_contacts, unit_items, attr_name='unit_name', prefer_stable=True)
 
-    from sqlalchemy import func
-    raw_group_counts = scoped_query.with_entities(
-        Contact.contact_group,
-        func.count(Contact.id)
-    ).group_by(Contact.contact_group).all()
-    group_contact_counts = {
-        (name or 'Chưa phân nhóm'): int(count or 0)
-        for name, count in raw_group_counts
-    }
+    decorated_contacts = []
+    for contact in scoped_contacts:
+        group_info = _resolve_category_display(contact.contact_group, contact_groups_items, fallback_label='Chưa phân nhóm')
+        role_info = _resolve_category_display(contact.role, contact_roles_items, fallback_label='Chưa cập nhật')
+        unit_info = _resolve_category_display(contact.unit_name, unit_items, fallback_label='-')
+        setattr(contact, 'contact_group_display', group_info['display_name'])
+        setattr(contact, 'contact_group_filter', group_info['filter_value'])
+        setattr(contact, 'role_display', role_info['display_name'])
+        setattr(contact, 'unit_name_display', unit_info['display_name'])
+        decorated_contacts.append({
+            'category_filter': group_info['filter_value'],
+        })
+
+    contact_group_filters = _category_filter_counts(decorated_contacts, contact_groups_items, 'Chưa phân nhóm')
+    current_group_info = _resolve_category_display(canonical_group_filter or group_filter or '', contact_groups_items, fallback_label='')
+    current_group_filter = current_group_info['filter_value'] if canonical_group_filter else ''
+    current_group_display = current_group_info['display_name'] if canonical_group_filter else ''
+    contacts = [
+        contact for contact in scoped_contacts
+        if not current_group_filter or getattr(contact, 'contact_group_filter', '') == current_group_filter
+    ]
 
     return render_template('contacts.html', 
-                          contacts=query.order_by(Contact.contact_group.asc(), Contact.name.asc()).all(), 
+                          contacts=contacts,
                           groups=contact_groups_items,
                           categories=contact_groups_items,
-                          roles=contact_roles_items, 
+                          roles=_stable_form_category_options(contact_roles_items), 
                           linhvuc_items=linhvuc_items,
-                          unit_items=unit_items,
-                          group_contact_counts=group_contact_counts,
-                          total_contact_count=sum(group_contact_counts.values()),
-                          current_group=group_filter)
+                          unit_items=_stable_form_category_options(unit_items),
+                          contact_group_filters=contact_group_filters,
+                          total_contact_count=len(scoped_contacts),
+                          current_group=current_group_filter,
+                          current_group_display=current_group_display)
 
 @portal_bp.route('/contacts/edit/<int:cid>', methods=['POST'])
 def contact_edit(cid):
@@ -731,15 +794,19 @@ def contact_edit(cid):
     user_unit = session.get('unit_area')
 
     c = Contact.query.get_or_404(cid)
-    
-    if not is_contact_lead and c.unit_name != user_unit:
+    unit_items = _module_category_options('contacts', 'unit_name', 'Đơn vị')
+    user_unit_matches = _category_match_values(user_unit, unit_items)
+
+    if not is_contact_lead and (c.unit_name or '') not in user_unit_matches:
         flash('Bạn không có quyền sửa liên lạc của đơn vị khác!', 'danger')
         return redirect(url_for('portal_bp.contacts'))
+    role_items = _module_category_options('contacts', 'role', 'Chức vụ')
+    contact_group_items = _module_category_options('contacts', 'contact_group', 'Nhóm danh bạ')
     c.name = request.form.get('name')
     c.phone = request.form.get('phone')
-    c.role = request.form.get('role')
-    c.unit_name = request.form.get('unit_name')
-    c.contact_group = request.form.get('contact_group')
+    c.role = _canonicalize_category_value(request.form.get('role'), role_items, prefer_stable=True)
+    c.unit_name = _canonicalize_category_value(request.form.get('unit_name'), unit_items, prefer_stable=True)
+    c.contact_group = _canonicalize_category_value(request.form.get('contact_group'), contact_group_items, prefer_stable=True)
     try:
         db.session.commit()
         flash('Đã cập nhật thông tin liên lạc!', 'success')
@@ -758,7 +825,9 @@ def contact_delete(cid):
     user_unit = _get_current_user_unit()
 
     c = Contact.query.get_or_404(cid)
-    if not is_contact_lead and c.unit_name != user_unit:
+    unit_items = _module_category_options('contacts', 'unit_name', 'Đơn vị')
+    user_unit_matches = _category_match_values(user_unit, unit_items)
+    if not is_contact_lead and (c.unit_name or '') not in user_unit_matches:
         flash('Bạn không có quyền xóa liên lạc của đơn vị khác!', 'danger')
         return redirect(url_for('portal_bp.contacts'))
     try:
@@ -830,11 +899,14 @@ def contact_add():
 
     name = request.form.get('name')
     phone = request.form.get('phone')
-    role = request.form.get('role')
-    unit = (request.form.get('unit_name') or user_unit or '').strip()
+    role_items = _module_category_options('contacts', 'role', 'Chức vụ')
+    group_items = _module_category_options('contacts', 'contact_group', 'Nhóm danh bạ')
+    unit_items = _module_category_options('contacts', 'unit_name', 'Đơn vị')
+    role = _canonicalize_category_value(request.form.get('role'), role_items, prefer_stable=True)
+    unit = _canonicalize_category_value(request.form.get('unit_name') or user_unit or '', unit_items, prefer_stable=True)
     
     if not is_contact_lead:
-        unit = user_unit # Force own unit
+        unit = _canonicalize_category_value(user_unit, unit_items, prefer_stable=True) or user_unit
     group = request.form.get('contact_group')
     new_group_name = request.form.get('new_group_name')
 
@@ -860,9 +932,11 @@ def contact_add():
             )
             db.session.add(new_g)
             db.session.flush()
-            group = new_g.name
+            group = f"category_item:{new_g.id}"
         else:
-            group = existing.name
+            group = f"category_item:{existing.id}"
+    else:
+        group = _canonicalize_category_value(group, group_items, prefer_stable=True)
 
     db.session.add(Contact(
         name=name,
@@ -925,6 +999,11 @@ def contact_import():
     global_group = (request.form.get('global_group') or '').strip()
     global_role = (request.form.get('global_role') or '').strip()
     has_header = request.form.get('has_header', '1') == '1'
+    group_items = _module_category_options('contacts', 'contact_group', 'Nhóm danh bạ')
+    role_items = _module_category_options('contacts', 'role', 'Chức vụ')
+    unit_items = _module_category_options('contacts', 'unit_name', 'Đơn vị')
+    global_group = _canonicalize_category_value(global_group, group_items, prefer_stable=True)
+    global_role = _canonicalize_category_value(global_role, role_items, prefer_stable=True)
 
     if not global_group:
         flash('Bạn cần chọn nhóm danh bạ trước khi nhập.', 'danger')
@@ -938,13 +1017,21 @@ def contact_import():
             missing_role_rows = []
 
             for row in parsed['rows']:
-                resolved_role = (row.get('role') or global_role or '').strip()
+                resolved_role = _canonicalize_category_value(
+                    row.get('role') or global_role or '',
+                    role_items,
+                    prefer_stable=True,
+                )
                 if not resolved_role:
                     missing_role_rows.append(row['excel_row'])
                     continue
                 db.session.add(Contact(
                     contact_group=global_group,
-                    unit_name=(row.get('unit_name') or user_unit or '').strip(),
+                    unit_name=_canonicalize_category_value(
+                        row.get('unit_name') or user_unit or '',
+                        unit_items,
+                        prefer_stable=True,
+                    ),
                     name=row['name'],
                     phone=row['phone'],
                     role=resolved_role

@@ -50,20 +50,20 @@
     </label>
     <div class="mobile-chip-row" id="categoryFilters">
         <button type="button" class="mobile-chip active" data-cat="ALL">Tất cả</button>
-        {% for cat in groups %}
-        <button type="button" class="mobile-chip" data-cat="{{ cat.name }}">{{ cat.name }}</button>
+        {% for cat in contact_group_filters %}
+        <button type="button" class="mobile-chip" data-cat="{{ cat.filter_value }}">{{ cat.name }}</button>
         {% endfor %}
     </div>
 </section>
 
 <section class="mobile-contact-list" id="contactGrid">
     {% for c in contacts %}
-    <article class="mobile-contact-card contact-item" data-category="{{ c.contact_group }}">
+    <article class="mobile-contact-card contact-item" data-category="{{ c.contact_group_filter }}">
         <div class="mobile-contact-head">
             <div class="mobile-contact-avatar">{{ c.name[:1].upper() }}</div>
             <div class="mobile-contact-copy">
                 <h3 class="mt-2">{{ c.name }}</h3>
-                <p><strong>{{ c.role or 'Chưa cập nhật' }}</strong>{% if c.unit_name %} • {{ c.unit_name }}{% endif %}</p>
+                <p><strong>{{ c.role_display or 'Chưa cập nhật' }}</strong>{% if c.unit_name_display %} • {{ c.unit_name_display }}{% endif %}</p>
                 <a href="tel:{{ c.phone }}" class="mobile-contact-phone"><i class="fa-solid fa-phone me-1"></i>{{ c.phone }}</a>
             </div>
         </div>
@@ -95,13 +95,13 @@
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label class="form-label small fw-bold">Chức vụ</label>
-                            <div data-category-picker data-module="contacts" data-field="role" data-placeholder="Chọn chức vụ" data-storage-key="mobile.contacts.role">
-                                <select name="role" class="form-select" data-category-target>{% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}</select>
+                            <div data-category-picker data-module="contacts" data-field="role" data-value-mode="stable" data-placeholder="Chọn chức vụ" data-storage-key="mobile.contacts.role">
+                                <select name="role" class="form-select" data-category-target>{% for r in roles %}<option value="{{ r.value }}">{{ r.name }}</option>{% endfor %}</select>
                             </div>
                         </div>
                         <div class="col-6">
                             <label class="form-label small fw-bold">Nhóm</label>
-                            <div data-category-picker data-module="contacts" data-field="contact_group" data-placeholder="Chọn nhóm danh bạ" data-storage-key="mobile.contacts.group">
+                            <div data-category-picker data-module="contacts" data-field="contact_group" data-value-mode="stable" data-placeholder="Chọn nhóm danh bạ" data-storage-key="mobile.contacts.group">
                                 <select name="contact_group" class="form-select" required data-category-target>{% for cat in groups %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}</select>
                             </div>
                         </div>
@@ -128,14 +128,14 @@
                     <div class="mb-3"><label class="form-label small fw-bold">File Excel</label><input type="file" name="import_excel" class="form-control" accept=".xlsx,.xls" required></div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Nhóm danh bạ</label>
-                        <div data-category-picker data-module="contacts" data-field="contact_group" data-placeholder="Chọn nhóm danh bạ" data-storage-key="mobile.contacts.import_group_simple">
+                        <div data-category-picker data-module="contacts" data-field="contact_group" data-value-mode="stable" data-placeholder="Chọn nhóm danh bạ" data-storage-key="mobile.contacts.import_group_simple">
                             <select name="global_group" class="form-select" required data-category-target>{% for cat in groups %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}</select>
                         </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Chức vụ mặc định</label>
-                        <div data-category-picker data-module="contacts" data-field="role" data-placeholder="Chọn chức vụ" data-storage-key="mobile.contacts.import_role_simple">
-                            <select name="global_role" class="form-select" data-category-target><option value="" selected>Để trống nếu file đã có cột Chức vụ</option>{% for r in roles %}<option value="{{ r.name }}">{{ r.name }}</option>{% endfor %}</select>
+                        <div data-category-picker data-module="contacts" data-field="role" data-value-mode="stable" data-placeholder="Chọn chức vụ" data-storage-key="mobile.contacts.import_role_simple">
+                            <select name="global_role" class="form-select" data-category-target><option value="" selected>Để trống nếu file đã có cột Chức vụ</option>{% for r in roles %}<option value="{{ r.value }}">{{ r.name }}</option>{% endfor %}</select>
                         </div>
                     </div>
                 </div>

@@ -139,7 +139,7 @@
                             <select name="category" class="form-select">
                                 <option value="">Chọn lĩnh vực</option>
                                 {% for item in link_categories %}
-                                <option value="{{ item.name }}">{{ item.name }}</option>
+                                <option value="{{ item.value }}">{{ item.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -148,7 +148,7 @@
                             <select name="domain" class="form-select">
                                 <option value="">Chọn đội nghiệp vụ</option>
                                 {% for unit in pro_units %}
-                                <option value="{{ unit.name }}">{{ unit.name }}</option>
+                                <option value="{{ unit.value }}">{{ unit.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>

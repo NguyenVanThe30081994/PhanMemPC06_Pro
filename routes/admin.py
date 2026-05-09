@@ -19,8 +19,17 @@ except ImportError:
     pd = None
 from datetime import datetime, timedelta
 from utils import build_account_username, build_commander_username, clear_logs, extract_unit_key, init_db, log_action, render_auto_template as render_template
-from category_helpers import slugify_code
-from category_helpers import get_module_field_items, get_category_items
+from category_helpers import (
+    apply_reference_display,
+    canonicalize_category_value,
+    get_module_field_items,
+    get_category_items,
+    module_category_options,
+    resolve_category_display,
+    slugify_code,
+    stable_form_category_options,
+    sync_record_categories,
+)
 
 admin_bp = Blueprint('admin_bp', __name__)
 
@@ -98,10 +107,16 @@ def _looks_like_org_unit(value):
     return any(marker in text for marker in markers)
 
 
+def _unit_category_options():
+    return module_category_options('contacts', 'unit_name', 'Đơn vị')
+
+
 def _resolve_user_unit_value(fullname, unit, username=''):
-    unit = (unit or '').strip()
+    unit_options = _unit_category_options()
+    unit = canonicalize_category_value(unit or '', unit_options, prefer_stable=True)
     fullname = (fullname or '').strip()
-    unit_key = extract_unit_key(unit) if unit else ''
+    unit_display = resolve_category_display(unit, unit_options, fallback_label=unit)['display_name'] if unit else ''
+    unit_key = extract_unit_key(unit_display) if unit_display else ''
     if unit and unit_key and unit_key not in {'xa', 'phuong', 'huyen', 'quan', 'tp', 'thi', 'tran'}:
         return unit, unit_key
     if fullname and _looks_like_org_unit(fullname):
@@ -211,6 +226,7 @@ def _get_admin_perms():
 def _build_role_user_query(selected_role_id=None, selected_unit='', search_query=''):
     selected_role = db.session.get(AppRole, selected_role_id) if selected_role_id else None
     users_query = User.query
+    unit_options = _unit_category_options()
 
     if selected_role:
         users_query = users_query.filter(User.role_id == selected_role.id)
@@ -219,30 +235,45 @@ def _build_role_user_query(selected_role_id=None, selected_unit='', search_query
     if selected_unit:
         from sqlalchemy import or_
 
-        selected_unit_key = extract_unit_key(selected_unit)
+        canonical_unit = canonicalize_category_value(selected_unit, unit_options, prefer_stable=True)
+        selected_unit_display = resolve_category_display(canonical_unit or selected_unit, unit_options, fallback_label=selected_unit)['display_name']
+        selected_unit_key = extract_unit_key(selected_unit_display or selected_unit)
         if selected_unit_key:
             users_query = users_query.filter(
                 or_(
+                    User.unit_area == canonical_unit,
                     User.unit_area == selected_unit,
                     User.unit_key == selected_unit_key
                 )
             )
         else:
-            users_query = users_query.filter(User.unit_area == selected_unit)
+            users_query = users_query.filter(User.unit_area.in_([canonical_unit, selected_unit]))
 
     search_query = (search_query or '').strip()
     if search_query:
         from sqlalchemy import or_
 
         term = f"%{search_query}%"
-        users_query = users_query.filter(
-            or_(
-                User.fullname.ilike(term),
-                User.username.ilike(term),
-                User.unit_area.ilike(term),
-                User.unit_key.ilike(term)
-            )
-        )
+        matching_unit_values = []
+        lowered_query = search_query.lower()
+        for option in unit_options:
+            option_name = (option.get('name') or '').strip().lower()
+            if option_name and lowered_query in option_name:
+                matching_unit_values.extend([
+                    option.get('stable_value') or '',
+                    option.get('value') or '',
+                    option.get('name') or '',
+                ])
+        matching_unit_values = [value for value in dict.fromkeys(matching_unit_values) if value]
+        conditions = [
+            User.fullname.ilike(term),
+            User.username.ilike(term),
+            User.unit_area.ilike(term),
+            User.unit_key.ilike(term),
+        ]
+        if matching_unit_values:
+            conditions.append(User.unit_area.in_(matching_unit_values))
+        users_query = users_query.filter(or_(*conditions))
 
     return selected_role, users_query
 
@@ -269,17 +300,23 @@ def _normalize_group_label(value, fallback='Chưa phân loại'):
     return value or fallback
 
 
-def _build_grouped_rows(raw_counts, ordered_items=None, fallback_label='Chưa phân loại', include_zero=False):
+def _build_grouped_rows(raw_counts, ordered_items=None, fallback_label='Chưa phân loại', include_zero=False, category_options=None):
     count_map = {}
     for name, count in raw_counts:
-        label = _normalize_group_label(name, fallback_label)
+        if category_options:
+            label = resolve_category_display(name, category_options, fallback_label=fallback_label)['display_name']
+        else:
+            label = _normalize_group_label(name, fallback_label)
         count_map[label] = count_map.get(label, 0) + int(count or 0)
 
     rows = []
     seen = set()
 
     for item in ordered_items or []:
-        label = _normalize_group_label(getattr(item, 'name', ''), fallback_label)
+        label = _normalize_group_label(
+            item.get('name') if isinstance(item, dict) else getattr(item, 'name', ''),
+            fallback_label,
+        )
         rows.append({
             'name': label,
             'count': count_map.get(label, 0)
@@ -309,13 +346,9 @@ def index():
         from models import Task, DocumentLib, Contact, ReportTemplate, ReportCycle, ReportTemplateVersion
         from category_helpers import get_module_field_items, get_category_items
 
-        task_domain_items = get_module_field_items('tasks', 'domain') or get_category_items('Đội nghiệp vụ')
-        contact_group_items = get_module_field_items('contacts', 'contact_group') or get_category_items('Nhóm danh bạ')
-        document_field_items = (
-            get_module_field_items('library', 'category')
-            or get_category_items('Lĩnh vực')
-            or get_category_items('Loại tài liệu')
-        )
+        task_domain_items = module_category_options('tasks', 'domain', 'Đội nghiệp vụ')
+        contact_group_items = module_category_options('contacts', 'contact_group', 'Nhóm danh bạ')
+        document_field_items = module_category_options('library', 'category', 'Lĩnh vực', 'Loại tài liệu')
         # Filter out 5 Đội nghiệp vụ manually since it's hardcoded constraint
         fixed_report_teams = [{'name': f'Đội {i}'} for i in range(1, 6)]
 
@@ -348,18 +381,21 @@ def index():
             task_domain_items,
             fallback_label='Chưa phân đội',
             include_zero=True,
+            category_options=task_domain_items,
         )
         document_dashboard = _build_grouped_rows(
             document_raw_counts,
             document_field_items,
             fallback_label='Chưa phân lĩnh vực',
             include_zero=True,
+            category_options=document_field_items,
         )
         contact_dashboard = _build_grouped_rows(
             contact_raw_counts,
             contact_group_items,
             fallback_label='Chưa phân nhóm',
             include_zero=True,
+            category_options=contact_group_items,
         )
         
         # Build report dashboard using exactly Đội 1 -> Đội 5
@@ -566,6 +602,8 @@ def roles():
     selected_role_id = request.args.get('role_id', type=int)
     selected_unit = (request.args.get('unit') or '').strip()
     search_query = (request.args.get('q') or '').strip()
+    unit_options = _unit_category_options()
+    selected_unit = canonicalize_category_value(selected_unit, unit_options, prefer_stable=True) if selected_unit else ''
 
     roles = AppRole.query.order_by(AppRole.name.asc()).all()
     selected_role, users_query = _build_role_user_query(
@@ -577,16 +615,15 @@ def roles():
     unit_options_query = db.session.query(User.unit_area)
     if selected_role:
         unit_options_query = unit_options_query.filter(User.role_id == selected_role.id)
-    available_units = sorted(
-        {
-            unit_name.strip()
-            for unit_name, in unit_options_query.distinct().all()
-            if unit_name and unit_name.strip()
-        },
-        key=lambda value: value.lower()
-    )
+    available_units = sorted({
+        resolve_category_display(unit_name, unit_options, fallback_label=unit_name)['display_name']
+        for unit_name, in unit_options_query.distinct().all()
+        if unit_name and str(unit_name).strip()
+    }, key=lambda value: value.lower())
 
     users = users_query.order_by(User.fullname.asc(), User.username.asc()).all()
+    users = sync_record_categories(users, unit_options, attr_name='unit_area', prefer_stable=True)
+    users = apply_reference_display(users, 'unit_area', unit_options, display_attr='unit_area_display', fallback_label='Chưa có đơn vị')
 
     from sqlalchemy import func
     raw_role_counts = db.session.query(
@@ -595,8 +632,7 @@ def roles():
     ).group_by(User.role_id).all()
     role_user_counts = {int(role_id): int(count) for role_id, count in raw_role_counts if role_id}
 
-    unit_group = CategoryGroup.query.filter((CategoryGroup.name == 'Don vi') | (CategoryGroup.name == 'Đơn vị')).first()
-    unit_cats = CategoryItem.query.filter_by(group_id=unit_group.id).all() if unit_group else []
+    selected_unit_display = resolve_category_display(selected_unit, unit_options, fallback_label=selected_unit)['display_name'] if selected_unit else ''
     return render_template(
         'roles.html',
         can_manage_roles=is_admin,
@@ -605,13 +641,14 @@ def roles():
         selected_role=selected_role,
         selected_role_id=selected_role.id if selected_role else None,
         selected_unit=selected_unit,
+        selected_unit_display=selected_unit_display,
         search_query=search_query,
         available_units=available_units,
         role_user_counts=role_user_counts,
         total_role_count=len(roles),
         total_user_count=sum(role_user_counts.values()),
         units=[u[0] for u in db.session.query(MasterData.name).distinct().all() if u[0]],
-        unit_cats=unit_cats
+        unit_cats=stable_form_category_options(unit_options)
     )
 
 
@@ -627,12 +664,17 @@ def export_users():
     selected_role_id = request.args.get('role_id', type=int)
     selected_unit = (request.args.get('unit') or '').strip()
     search_query = (request.args.get('q') or '').strip()
+    unit_options = _unit_category_options()
+    selected_unit = canonicalize_category_value(selected_unit, unit_options, prefer_stable=True) if selected_unit else ''
     selected_role, users_query = _build_role_user_query(
         selected_role_id=selected_role_id,
         selected_unit=selected_unit,
         search_query=search_query
     )
     users = users_query.order_by(User.fullname.asc(), User.username.asc()).all()
+    users = sync_record_categories(users, unit_options, attr_name='unit_area', prefer_stable=True)
+    users = apply_reference_display(users, 'unit_area', unit_options, display_attr='unit_area_display', fallback_label='')
+    selected_unit_display = resolve_category_display(selected_unit, unit_options, fallback_label=selected_unit)['display_name'] if selected_unit else ''
 
     rows = []
     for index, user in enumerate(users, start=1):
@@ -640,7 +682,7 @@ def export_users():
             'STT': index,
             'Tài khoản': user.username or '',
             'Họ và tên': user.fullname or '',
-            'Đơn vị': user.unit_area or '',
+            'Đơn vị': user.unit_area_display or '',
             'Mã đơn vị': user.unit_key or '',
             'Vai trò': user.role.name if user.role else '',
             'Trạng thái': 'Hoạt động' if user.is_active else 'Vô hiệu hóa',
@@ -661,7 +703,7 @@ def export_users():
 
     export_filters = pd.DataFrame([
         {'Tiêu chí': 'Vai trò', 'Giá trị': selected_role.name if selected_role else 'Tất cả'},
-        {'Tiêu chí': 'Đơn vị', 'Giá trị': selected_unit or 'Tất cả'},
+        {'Tiêu chí': 'Đơn vị', 'Giá trị': selected_unit_display or 'Tất cả'},
         {'Tiêu chí': 'Từ khóa', 'Giá trị': search_query or 'Không có'},
         {'Tiêu chí': 'Số tài khoản', 'Giá trị': len(users)},
         {'Tiêu chí': 'Thời gian xuất', 'Giá trị': datetime.now().strftime('%d/%m/%Y %H:%M:%S')},
@@ -685,8 +727,8 @@ def export_users():
     file_parts = ['danh_sach_tai_khoan']
     if selected_role:
         file_parts.append(slugify_code(selected_role.name) or f'role_{selected_role.id}')
-    if selected_unit:
-        file_parts.append(slugify_code(selected_unit) or 'don_vi')
+    if selected_unit_display:
+        file_parts.append(slugify_code(selected_unit_display) or 'don_vi')
     filename = f"{'_'.join(file_parts)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
 
     return Response(
@@ -870,9 +912,10 @@ def import_users():
                     if not unit_name:
                         skipped_empty += 1
                         continue
-                    
-                    unit_key = extract_unit_key(unit_name)
-                    base_uname = build_account_username(unit_name, unit_key)
+
+                    resolved_unit, unit_key = _resolve_user_unit_value(unit_name, unit_name, unit_name)
+                    display_unit = resolve_category_display(resolved_unit, _unit_category_options(), fallback_label=unit_name)['display_name']
+                    base_uname = build_account_username(display_unit, unit_key)
                     uname = base_uname
                     
                     counter = 2
@@ -883,7 +926,7 @@ def import_users():
                     u = User(
                         username=uname,
                         fullname=unit_name,
-                        unit_area=unit_name,
+                        unit_area=resolved_unit,
                         unit_key=unit_key,
                         role_id=role_id
                     )
