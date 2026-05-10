@@ -118,6 +118,56 @@ def add_link():
     flash('Đã tạo link rút gọn thành công!', 'success')
     return redirect(url_for('shortlink_bp.manage_links'))
 
+@shortlink_bp.route('/links/edit/<int:link_id>', methods=['POST'])
+def edit_link(link_id):
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    _ensure_shortlink_schema()
+
+    link = db.session.get(ShortLink, link_id)
+    if not link:
+        flash('Không tìm thấy liên kết cần sửa.', 'danger')
+        return redirect(url_for('shortlink_bp.manage_links'))
+
+    is_admin = session.get('is_admin', False)
+    if not (is_admin or link.created_by == session['uid']):
+        flash('Bạn không có quyền sửa liên kết này!', 'danger')
+        return redirect(url_for('shortlink_bp.manage_links'))
+
+    original_url = request.form.get('original_url', '').strip()
+    custom_code = request.form.get('custom_code', '').strip()
+    custom_name = request.form.get('custom_name', '').strip()
+    info = request.form.get('info', '').strip()
+    link_categories = module_category_options('news', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
+    pro_units = module_category_options('tasks', 'domain', 'Đội nghiệp vụ')
+
+    if not original_url:
+        flash('Vui lòng nhập đường dẫn gốc!', 'danger')
+        return redirect(url_for('shortlink_bp.manage_links'))
+
+    if not (original_url.startswith('http://') or original_url.startswith('https://')):
+        original_url = 'https://' + original_url
+
+    if not custom_code:
+        flash('Mã rút gọn không được để trống khi cập nhật.', 'danger')
+        return redirect(url_for('shortlink_bp.manage_links'))
+
+    existing = ShortLink.query.filter(ShortLink.short_code == custom_code, ShortLink.id != link.id).first()
+    if existing:
+        flash(f'Mã rút gọn "{custom_code}" đã tồn tại. Vui lòng chọn mã khác!', 'danger')
+        return redirect(url_for('shortlink_bp.manage_links'))
+
+    link.short_code = custom_code
+    link.original_url = original_url
+    link.custom_name = custom_name
+    link.info = info
+    link.category = canonicalize_category_value(request.form.get('category', ''), link_categories, prefer_stable=True)
+    link.domain = canonicalize_category_value(request.form.get('domain', ''), pro_units, prefer_stable=True)
+
+    db.session.commit()
+    flash('Đã cập nhật liên kết rút gọn!', 'success')
+    return redirect(url_for('shortlink_bp.manage_links'))
+
 @shortlink_bp.route('/links/delete/<int:link_id>', methods=['POST'])
 def delete_link(link_id):
     if not session.get('uid'):

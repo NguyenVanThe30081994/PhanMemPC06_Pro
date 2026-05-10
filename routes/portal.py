@@ -7,6 +7,7 @@ from html import unescape
 from models import db, NewsDoc, DocumentLib, Contact, CategoryItem, AppRole
 from category_helpers import (
     canonicalize_category_value as shared_canonicalize_category_value,
+    category_filter_counts as shared_category_filter_counts,
     category_resolver as shared_category_resolver,
     decorate_records_with_category as shared_decorate_records_with_category,
     ensure_category_item_alias,
@@ -101,6 +102,56 @@ def _get_current_user_unit():
     return session.get('unit_area') or session.get('unit') or 'N/A'
 
 
+def _current_portal_permissions():
+    role = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
+    perms = json.loads(role.perms) if role and role.perms else {}
+    is_admin = bool(session.get('is_admin'))
+    return perms, is_admin
+
+
+def _can_manage_news(perms=None, is_admin=None):
+    perms = perms or {}
+    is_admin = bool(session.get('is_admin')) if is_admin is None else bool(is_admin)
+    return bool(perms.get('p_news_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin)
+
+
+def _can_manage_library(perms=None, is_admin=None):
+    perms = perms or {}
+    is_admin = bool(session.get('is_admin')) if is_admin is None else bool(is_admin)
+    return bool(perms.get('p_lib_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin)
+
+
+def _can_manage_contacts(perms=None, is_admin=None):
+    perms = perms or {}
+    is_admin = bool(session.get('is_admin')) if is_admin is None else bool(is_admin)
+    return bool(perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin)
+
+
+def _save_uploaded_file(file_storage, folder_name, existing_filename=''):
+    if not file_storage or not file_storage.filename:
+        return existing_filename
+
+    is_valid, message, safe_fn = validate_file_upload(file_storage)
+    if not is_valid:
+        raise ValueError(message)
+
+    target_dir = os.path.join(current_app.root_path, folder_name)
+    os.makedirs(target_dir, exist_ok=True)
+
+    file_path = os.path.join(target_dir, safe_fn)
+    file_storage.save(file_path)
+
+    if existing_filename and existing_filename != safe_fn:
+        old_path = os.path.join(target_dir, existing_filename)
+        if os.path.exists(old_path):
+            try:
+                os.remove(old_path)
+            except OSError:
+                current_app.logger.warning("Không thể xóa file cũ: %s", old_path)
+
+    return safe_fn
+
+
 def _module_category_options(module_code, field_code, *fallback_names):
     return shared_module_category_options(module_code, field_code, *fallback_names)
 
@@ -156,29 +207,8 @@ def _decorate_records_with_category(records, category_options, fallback_label='C
     )
 
 
-def _category_filter_counts(items, category_options):
-    counts = {item['slug']: 0 for item in category_options if item.get('slug')}
-    uncategorized_total = 0
-    for item in items:
-        filter_value = item.get('category_filter') or '__uncategorized__'
-        if filter_value in counts:
-            counts[filter_value] += 1
-        else:
-            uncategorized_total += 1
-    filters = []
-    for option in category_options:
-        filters.append({
-            'name': option['name'],
-            'filter_value': option['slug'] or '__uncategorized__',
-            'count': counts.get(option['slug'], 0),
-        })
-    if uncategorized_total:
-        filters.append({
-            'name': 'Chưa phân lĩnh vực',
-            'filter_value': '__uncategorized__',
-            'count': uncategorized_total,
-        })
-    return filters
+def _category_filter_counts(items, category_options, empty_label='Chưa phân lĩnh vực'):
+    return shared_category_filter_counts(items, category_options, empty_label=empty_label)
 
 
 def _parse_iso_datetime(value):
@@ -473,22 +503,16 @@ def _load_contacts_from_excel(file_storage, has_header=True):
 @portal_bp.route('/news', methods=['GET', 'POST'])
 def news():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
-    
-    role = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
-    perms = json.loads(role.perms) if role and role.perms else {}
-    is_news_lead = perms.get('p_news_lead') or session.get('is_admin')
 
-    if request.method == 'POST' and is_news_lead:
-        f = request.files.get('file')
-        fn = ""
-        if f and f.filename:
-            # Validate file
-            is_valid, message, safe_fn = validate_file_upload(f)
-            if not is_valid:
-                flash(f'Lỗi upload file: {message}', 'danger')
-                return redirect(url_for('portal_bp.news'))
-            fn = safe_fn
-            f.save(os.path.join(current_app.root_path, 'uploads', fn))
+    perms, is_admin = _current_portal_permissions()
+    can_manage_news = _can_manage_news(perms, is_admin)
+
+    if request.method == 'POST' and can_manage_news:
+        try:
+            fn = _save_uploaded_file(request.files.get('file'), 'uploads', '')
+        except ValueError as exc:
+            flash(f'Lỗi upload file: {exc}', 'danger')
+            return redirect(url_for('portal_bp.news'))
         news_category_items = _module_category_options('news', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
         category_value = _canonicalize_category_value(
             request.form.get('category', ''),
@@ -524,7 +548,46 @@ def news():
                           category_options=_stable_form_category_options(news_category_items),
                           cats=news_category_items,
                           pro_units=news_category_items,
-                          now_str=now_str)
+                          now_str=now_str,
+                          perms=perms,
+                          is_admin=is_admin,
+                          can_manage_news=can_manage_news)
+
+
+@portal_bp.route('/news/edit/<int:nid>', methods=['POST'])
+def news_edit(nid):
+    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
+
+    perms, is_admin = _current_portal_permissions()
+    if not _can_manage_news(perms, is_admin):
+        flash('Bạn không có quyền sửa bản tin.', 'danger')
+        return redirect(url_for('portal_bp.news'))
+
+    news_item = NewsDoc.query.get_or_404(nid)
+    news_category_items = _module_category_options('news', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
+
+    try:
+        news_item.filename = _save_uploaded_file(request.files.get('file'), 'uploads', news_item.filename or '')
+    except ValueError as exc:
+        flash(f'Lỗi upload file: {exc}', 'danger')
+        return redirect(url_for('portal_bp.news'))
+
+    news_item.title = (request.form.get('title') or '').strip()
+    news_item.content = (request.form.get('content') or '').strip()
+    news_item.category = _canonicalize_category_value(
+        request.form.get('category', ''),
+        news_category_items,
+        prefer_stable=True,
+    )
+
+    if not news_item.title:
+        flash('Tiêu đề bản tin không được để trống.', 'danger')
+        return redirect(url_for('portal_bp.news'))
+
+    db.session.commit()
+    log_action(session['uid'], session['fullname'], "Cập nhật bản tin", "Bảng tin", news_item.title)
+    flash('Đã cập nhật bản tin.', 'success')
+    return redirect(url_for('portal_bp.news'))
 
 @portal_bp.route('/notifications')
 def notifications():
@@ -539,28 +602,28 @@ def notifications():
 @portal_bp.route('/library', methods=['GET', 'POST'])
 def library():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
-    
-    role = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
-    perms = json.loads(role.perms) if role and role.perms else {}
-    is_lib_lead = perms.get('p_lib_lead') or session.get('is_admin')
 
-    if request.method == 'POST' and is_lib_lead:
+    perms, is_admin = _current_portal_permissions()
+    can_manage_library = _can_manage_library(perms, is_admin)
+
+    if request.method == 'POST' and can_manage_library:
         f = request.files.get('file')
         if f and f.filename:
-            # Validate file
-            is_valid, message, safe_fn = validate_file_upload(f)
-            if not is_valid:
-                flash(f'Lỗi upload file: {message}', 'danger')
+            try:
+                fn = _save_uploaded_file(f, 'library_files', '')
+            except ValueError as exc:
+                flash(f'Lỗi upload file: {exc}', 'danger')
                 return redirect(url_for('portal_bp.library'))
-            fn = safe_fn
-            f.save(os.path.join(current_app.root_path, 'library_files', fn))
             library_category_items = _module_category_options('library', 'category', 'Lĩnh vực', 'Loại tài liệu')
             category_value = _canonicalize_category_value(
                 request.form.get('category', ''),
                 library_category_items,
                 prefer_stable=True,
             )
-            db.session.add(DocumentLib(title=request.form['title'], category=category_value, filename=fn))
+            doc = DocumentLib(title=request.form['title'], category=category_value, filename=fn)
+            if hasattr(doc, 'description'):
+                doc.description = (request.form.get('description') or '').strip()
+            db.session.add(doc)
             db.session.commit()
             log_action(session['uid'], session['fullname'], "Tải lên tài liệu", "Thư viện", request.form['title'])
             push_global_notif("Thư viện", f"Tài liệu mới: {request.form['title']}", "/library", exclude_uid=session['uid'])
@@ -662,16 +725,53 @@ def library():
         selected_bca_type_name=selected_bca_type_name,
         selected_bca_effective_id=selected_bca_effective_id,
         selected_bca_effective_name=selected_bca_effective_name,
+        perms=perms,
+        is_admin=is_admin,
+        can_manage_library=can_manage_library,
     )
+
+
+@portal_bp.route('/library/edit/<int:doc_id>', methods=['POST'])
+def library_edit(doc_id):
+    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
+
+    perms, is_admin = _current_portal_permissions()
+    if not _can_manage_library(perms, is_admin):
+        flash('Bạn không có quyền sửa tài liệu thư viện.', 'danger')
+        return redirect(url_for('portal_bp.library'))
+
+    doc = DocumentLib.query.get_or_404(doc_id)
+    library_category_items = _module_category_options('library', 'category', 'Lĩnh vực', 'Loại tài liệu')
+
+    try:
+        doc.filename = _save_uploaded_file(request.files.get('file'), 'library_files', doc.filename or '')
+    except ValueError as exc:
+        flash(f'Lỗi upload file: {exc}', 'danger')
+        return redirect(url_for('portal_bp.library'))
+
+    doc.title = (request.form.get('title') or '').strip()
+    doc.category = _canonicalize_category_value(
+        request.form.get('category', ''),
+        library_category_items,
+        prefer_stable=True,
+    )
+    if hasattr(doc, 'description'):
+        doc.description = (request.form.get('description') or '').strip()
+
+    if not doc.title:
+        flash('Tên tài liệu không được để trống.', 'danger')
+        return redirect(url_for('portal_bp.library'))
+
+    db.session.commit()
+    log_action(session['uid'], session['fullname'], "Cập nhật tài liệu", "Thư viện", doc.title)
+    flash('Đã cập nhật tài liệu.', 'success')
+    return redirect(url_for('portal_bp.library'))
 
 @portal_bp.route('/contacts')
 def contacts():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
-    # Permissions
-    role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
-    perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
-    is_admin = session.get('is_admin')
-    is_contact_lead = perms.get('p_contact_lead') or is_admin
+    perms, is_admin = _current_portal_permissions()
+    can_manage_contacts = _can_manage_contacts(perms, is_admin)
     user_unit = session.get('unit_area')
     contact_groups_items = _module_category_options('contacts', 'contact_group', 'Nhóm danh bạ')
     contact_roles_items = _module_category_options('contacts', 'role', 'Chức vụ')
@@ -682,9 +782,11 @@ def contacts():
     canonical_group_filter = _canonicalize_category_value(group_filter or '', contact_groups_items, prefer_stable=True) if group_filter else ''
     scoped_query = Contact.query
 
-    if not is_contact_lead:
+    if not can_manage_contacts:
         user_unit_matches = list(_category_match_values(user_unit, unit_items)) or [user_unit]
         scoped_query = scoped_query.filter(Contact.unit_name.in_(user_unit_matches))
+    else:
+        user_unit_matches = _category_match_values(user_unit, unit_items)
 
     scoped_contacts = scoped_query.order_by(Contact.name.asc()).all()
     scoped_contacts = _sync_record_categories(scoped_contacts, contact_groups_items, attr_name='contact_group', prefer_stable=True)
@@ -700,6 +802,9 @@ def contacts():
         setattr(contact, 'contact_group_filter', group_info['filter_value'])
         setattr(contact, 'role_display', role_info['display_name'])
         setattr(contact, 'unit_name_display', unit_info['display_name'])
+        can_touch = can_manage_contacts or not user_unit_matches or (contact.unit_name or '') in user_unit_matches
+        setattr(contact, 'can_edit', can_touch)
+        setattr(contact, 'can_delete', can_touch)
         decorated_contacts.append({
             'category_filter': group_info['filter_value'],
         })
@@ -723,15 +828,17 @@ def contacts():
                           contact_group_filters=contact_group_filters,
                           total_contact_count=len(scoped_contacts),
                           current_group=current_group_filter,
-                          current_group_display=current_group_display)
+                          current_group_display=current_group_display,
+                          perms=perms,
+                          is_admin=is_admin,
+                          can_manage_contacts=can_manage_contacts)
 
 @portal_bp.route('/contacts/edit/<int:cid>', methods=['POST'])
 def contact_edit(cid):
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
-    
-    role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
-    perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
-    is_contact_lead = perms.get('p_contact_lead') or session.get('is_admin')
+
+    perms, is_admin = _current_portal_permissions()
+    is_contact_lead = _can_manage_contacts(perms, is_admin)
     user_unit = session.get('unit_area')
 
     c = Contact.query.get_or_404(cid)
