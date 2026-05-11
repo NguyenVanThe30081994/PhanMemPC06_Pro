@@ -53,10 +53,16 @@
             <input type="checkbox" class="form-check-input" id="mobileUserCheckAll" onchange="handleMobileUserCheckAllChange()">
             <span>Chọn tất cả</span>
         </label>
-        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" id="mobileBulkUserDeleteBtn" onclick="submitMobileBulkUserDelete()" disabled>
-            <i class="fa-solid fa-trash-can"></i>
-            Xóa đã chọn
-        </button>
+        <div class="d-flex flex-wrap justify-content-end gap-2">
+            <button type="button" class="btn btn-sm btn-outline-warning rounded-pill" onclick="submitMobileBulkPasswordReset()">
+                <i class="fa-solid fa-rotate-left"></i>
+                Reset toàn bộ
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" id="mobileBulkUserDeleteBtn" onclick="submitMobileBulkUserDelete()" disabled>
+                <i class="fa-solid fa-trash-can"></i>
+                Xóa đã chọn
+            </button>
+        </div>
     </div>
     <div class="small text-muted mb-3" id="mobileBulkUserSelectionText">Chưa chọn tài khoản nào</div>
     {% endif %}
@@ -70,9 +76,8 @@
         {% endif %}
         <div class="d-flex justify-content-between gap-3">
             <div>
-                <div class="fw-bold text-dark">{{ u.fullname }}</div>
-                <div class="tiny text-muted">@{{ u.username }}</div>
-                <div class="tiny text-muted mt-1">{{ u.unit_area_display or u.unit_area }}</div>
+                <div class="fw-bold text-dark">{{ u.username }}</div>
+                <div class="small fw-bold mt-1">{{ u.unit_area_display or u.unit_area }}</div>
             </div>
             <span class="pc06-status-badge {% if u.is_active %}done{% else %}neutral{% endif %}">{{ 'Hoạt động' if u.is_active else 'Khóa' }}</span>
         </div>
@@ -99,6 +104,11 @@
 {% if can_manage_roles %}
 <form method="POST" action="{{ url_for('admin_bp.delete_users_bulk') }}" id="mobileBulkUserDeleteForm" class="d-none">
     <input type="hidden" name="selected_ids" id="mobileBulkUserDeleteSelectedIds">
+</form>
+<form method="POST" action="{{ url_for('admin_bp.reset_users_password_bulk') }}" id="mobileBulkPasswordResetForm" class="d-none">
+    {% if selected_role_id %}<input type="hidden" name="role_id" value="{{ selected_role_id }}">{% endif %}
+    {% if selected_unit %}<input type="hidden" name="unit" value="{{ selected_unit }}">{% endif %}
+    {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
 </form>
 <!-- Add Role Modal -->
 <div class="modal fade" id="addRoleModal" tabindex="-1">
@@ -293,6 +303,16 @@ function submitMobileBulkUserDelete() {
     if (!confirm(`Xóa ${selectedIds.length} tài khoản đã chọn?`)) return;
     document.getElementById('mobileBulkUserDeleteSelectedIds').value = JSON.stringify(selectedIds);
     document.getElementById('mobileBulkUserDeleteForm').submit();
+}
+
+function submitMobileBulkPasswordReset() {
+    const totalUsers = {{ users|length }};
+    if (!totalUsers) {
+        alert('Không có tài khoản nào trong danh sách hiện tại để reset mật khẩu.');
+        return;
+    }
+    if (!confirm(`Reset mật khẩu cho toàn bộ ${totalUsers} tài khoản đang hiển thị về mặc định 123456 và yêu cầu đổi mật khẩu khi đăng nhập?`)) return;
+    document.getElementById('mobileBulkPasswordResetForm').submit();
 }
 
 updateMobileUserBulkSelectionState();

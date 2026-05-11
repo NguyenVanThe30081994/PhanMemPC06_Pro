@@ -62,6 +62,10 @@
                     </div>
                     {% if can_manage_roles %}
                     <div class="d-flex align-items-center gap-3 flex-wrap">
+                        <button type="button" class="btn btn-bdhvs light text-warning" onclick="submitBulkPasswordReset()">
+                            <i class="fa-solid fa-rotate-left"></i>
+                            Reset mật khẩu toàn bộ
+                        </button>
                         <button type="button" class="btn btn-bdhvs light text-danger" id="bulkUserDeleteBtn" onclick="submitBulkUserDelete()" disabled>
                             <i class="fa-solid fa-trash-can"></i>
                             Xóa đã chọn
@@ -96,15 +100,9 @@
                                 </td>
                                 {% endif %}
                                 <td class="ps-4 py-3">
-                                    <div class="d-flex align-items-center gap-3">
-                                        <div class="contact-avatar">{{ u.fullname[:1].upper() }}</div>
-                                        <div>
-                                            <div class="fw-bold text-dark">{{ u.fullname }}</div>
-                                            <div class="tiny text-muted">@{{ u.username }}</div>
-                                        </div>
-                                    </div>
+                                    <div class="fw-bold text-dark">{{ u.username }}</div>
                                 </td>
-                                <td class="small text-muted">{{ u.unit_area_display or u.unit_area }}</td>
+                                <td class="fw-bold">{{ u.unit_area_display or u.unit_area }}</td>
                                 <td><span class="pc06-soft-tag neutral">{{ u.role.name if u.role else 'Chưa cấp' }}</span></td>
                                 <td>
                                     <span class="pc06-status-badge {% if u.is_active %}done{% else %}neutral{% endif %}">
@@ -181,6 +179,11 @@
 {% if can_manage_roles %}
 <form method="POST" action="{{ url_for('admin_bp.delete_users_bulk') }}" id="bulkUserDeleteForm" class="d-none">
     <input type="hidden" name="selected_ids" id="bulkUserDeleteSelectedIds">
+</form>
+<form method="POST" action="{{ url_for('admin_bp.reset_users_password_bulk') }}" id="bulkPasswordResetForm" class="d-none">
+    {% if selected_role_id %}<input type="hidden" name="role_id" value="{{ selected_role_id }}">{% endif %}
+    {% if selected_unit %}<input type="hidden" name="unit" value="{{ selected_unit }}">{% endif %}
+    {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
 </form>
 <!-- Add Role Modal -->
 <div class="modal fade" id="addRoleModal" tabindex="-1">
@@ -474,6 +477,16 @@ function submitBulkUserDelete() {
     if (!confirm(`Xóa ${selectedIds.length} tài khoản đã chọn?`)) return;
     document.getElementById('bulkUserDeleteSelectedIds').value = JSON.stringify(selectedIds);
     document.getElementById('bulkUserDeleteForm').submit();
+}
+
+function submitBulkPasswordReset() {
+    const totalUsers = {{ users|length }};
+    if (!totalUsers) {
+        alert('Không có tài khoản nào trong danh sách hiện tại để reset mật khẩu.');
+        return;
+    }
+    if (!confirm(`Reset mật khẩu cho toàn bộ ${totalUsers} tài khoản đang hiển thị về mặc định 123456 và yêu cầu đổi mật khẩu khi đăng nhập?`)) return;
+    document.getElementById('bulkPasswordResetForm').submit();
 }
 
 document.querySelectorAll('.toggle-password').forEach(btn => {
