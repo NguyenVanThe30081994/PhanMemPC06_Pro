@@ -183,16 +183,20 @@
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 12px;
+        align-items: start;
     }
     .pc06-report-group-column {
         display: grid;
         gap: 12px;
+        align-content: start;
+        align-self: start;
     }
     .pc06-report-group {
         border: 1px solid rgba(226, 232, 240, 0.92);
         border-radius: 18px;
         background: rgba(255, 255, 255, 0.98);
         overflow: hidden;
+        align-self: start;
     }
     .pc06-report-group summary,
     .pc06-report-item summary {
