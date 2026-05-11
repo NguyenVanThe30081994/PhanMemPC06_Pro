@@ -3133,6 +3133,10 @@ def update_cycle(cycle_id):
     cycle.name = name
     cycle.report_type_id = report_type.id
     cycle.note = (request.form.get("note") or "").strip()
+    cycle.status = "open"
+    cycle.is_locked = False
+    cycle.close_at = None
+    cycle.auto_lock_at = None
     if report_type.code == "daily":
         report_date = _parse_date(request.form.get("report_date")) or datetime.now().date()
         cycle.open_at = _start_of_day(report_date)
@@ -3147,11 +3151,12 @@ def update_cycle(cycle_id):
         due_date = _parse_date(request.form.get("due_date"))
         cycle.open_at = cycle.open_at or datetime.now()
         cycle.due_at = _end_of_day(due_date) if due_date else None
-    cycle.auto_lock_at = None
     _ensure_reporting_period(cycle, report_type=report_type)
+    for instance in ReportInstance.query.filter_by(cycle_id=cycle.id).all():
+        instance.locked_at = None
     db.session.commit()
     _audit("update_cycle", "report_cycle", cycle.id, cycle.name)
-    flash("Đã cập nhật báo cáo.", "success")
+    flash("Đã cập nhật báo cáo và mở lại kỳ nhập liệu theo thời hạn mới.", "success")
     return redirect(url_for("reporting_bp.admin_cycle_detail", cycle_id=cycle.id))
 
 

@@ -251,14 +251,45 @@ def _infer_assignment_context(task):
     return context
 
 
-def _resolve_assignees(form, domain):
-    assign_type = form.get("assign_type", "unit")
-    target_ids = [int(uid) for uid in form.getlist("target_users") if str(uid).isdigit()]
-    assignee_role_ids = [int(role_id) for role_id in form.getlist("assignee_role_ids") if str(role_id).isdigit()]
-    if not assignee_role_ids:
+def _requested_role_ids(form):
+    role_ids = [int(role_id) for role_id in form.getlist("assignee_role_ids") if str(role_id).isdigit()]
+    if not role_ids:
         assignee_role_id = form.get("assignee_role_id")
         if assignee_role_id and str(assignee_role_id).isdigit():
-            assignee_role_ids = [int(assignee_role_id)]
+            role_ids = [int(assignee_role_id)]
+    return sorted(set(role_ids))
+
+
+def _requested_user_ids(form):
+    return sorted({int(uid) for uid in form.getlist("target_users") if str(uid).isdigit()})
+
+
+def _should_refresh_assignments(task, form, domain):
+    if form.get("refresh_assignments") == "1":
+        return True
+
+    current_context = _infer_assignment_context(task)
+    requested_mode = form.get("assign_type", current_context.get("mode") or "unit")
+
+    if requested_mode != current_context.get("mode"):
+        return True
+
+    if requested_mode == "unit":
+        return (domain or "") != (task.domain or "")
+
+    if requested_mode == "role":
+        return _requested_role_ids(form) != sorted(current_context.get("role_ids") or [])
+
+    if requested_mode == "user":
+        return _requested_user_ids(form) != sorted(current_context.get("user_ids") or [])
+
+    return False
+
+
+def _resolve_assignees(form, domain):
+    assign_type = form.get("assign_type", "unit")
+    target_ids = _requested_user_ids(form)
+    assignee_role_ids = _requested_role_ids(form)
 
     if assign_type == "role":
         if not assignee_role_ids:
@@ -716,7 +747,7 @@ def edit_task(tid):
 
     refreshed_assignee_count = None
     new_assignees_to_notify = []
-    if request.form.get("refresh_assignments") == "1":
+    if _should_refresh_assignments(task, request.form, task.domain):
         assignees, error_message = _resolve_assignees(request.form, task.domain)
         if error_message:
             flash(error_message, "danger")
