@@ -40,6 +40,8 @@ tasks_bp = Blueprint("tasks_bp", __name__)
 PENDING_STATUSES = {"Chưa tiếp nhận", "Chưa bắt đầu", None, ""}
 IN_PROGRESS_STATUS = "Đang thực hiện"
 COMPLETED_STATUS = "Hoàn thành"
+REPORT_PREFIX = "[BÁO CÁO]"
+REPORT_ATTACHMENT_RE = re.compile(r"\s*\(Đính kèm:\s*([^)]+)\)\s*$")
 
 
 def _task_domain_options():
@@ -465,6 +467,130 @@ def _build_assignment_report_context(user_assign, comments):
     }
 
 
+def _parse_report_comment_content(content):
+    raw_content = (content or "").strip()
+    if raw_content.startswith(REPORT_PREFIX):
+        raw_content = raw_content[len(REPORT_PREFIX):].strip()
+
+    attachment_name = ""
+    attachment_match = REPORT_ATTACHMENT_RE.search(raw_content)
+    if attachment_match:
+        attachment_name = (attachment_match.group(1) or "").strip()
+        raw_content = REPORT_ATTACHMENT_RE.sub("", raw_content).strip()
+
+    return raw_content, attachment_name
+
+
+def _task_download_slug(value, fallback):
+    ascii_text = remove_accents(value or "").strip().replace(" ", "_")
+    safe_value = secure_filename(ascii_text)
+    return safe_value or fallback
+
+
+def _task_report_download_name(task, unit_name, original_name):
+    _root, ext = os.path.splitext(original_name or "")
+    unit_slug = _task_download_slug(unit_name, "don_vi")
+    task_slug = _task_download_slug(getattr(task, "title", ""), f"task_{getattr(task, 'id', 'file')}")
+    ext = ext or os.path.splitext(original_name or "")[1] or ""
+    return f"{unit_slug}_{task_slug}{ext}"
+
+
+def _build_unit_report_cards(task, assigns, comments):
+    latest_reports_by_user = {}
+    for comment in comments or []:
+        if not (getattr(comment, "content", "") or "").startswith(REPORT_PREFIX):
+            continue
+        if not getattr(comment, "user_id", None):
+            continue
+
+        body_text, attachment_name = _parse_report_comment_content(getattr(comment, "content", "") or "")
+        current_item = latest_reports_by_user.get(comment.user_id)
+        if current_item is None or getattr(comment, "created_at", None) and comment.created_at > current_item["created_at"]:
+            latest_reports_by_user[comment.user_id] = {
+                "created_at": getattr(comment, "created_at", None),
+                "body_text": body_text,
+                "attachment_name": attachment_name,
+                "user_name": getattr(comment, "user_name", "") or "",
+            }
+
+    unit_cards = {}
+    for assignment, user in assigns or []:
+        if not user:
+            continue
+
+        unit_name = (
+            getattr(user, "unit_area_display", None)
+            or getattr(user, "unit_area", None)
+            or getattr(user, "fullname", None)
+            or getattr(user, "username", None)
+            or "Chưa có đơn vị"
+        )
+        unit_key = _user_unit_key(user) or extract_unit_key(unit_name) or unit_name.lower()
+        card = unit_cards.setdefault(
+            unit_key,
+            {
+                "unit_name": unit_name,
+                "status": "Chưa báo cáo",
+                "latest_report_at": None,
+                "latest_report_user_name": "",
+                "latest_report_excerpt": "",
+                "assignee_names": [],
+                "attachments": [],
+                "has_report": False,
+            },
+        )
+
+        display_name = getattr(user, "fullname", None) or getattr(user, "username", None) or f"UID {user.id}"
+        if display_name not in card["assignee_names"]:
+            card["assignee_names"].append(display_name)
+
+        report_item = latest_reports_by_user.get(user.id)
+        file_name = (report_item or {}).get("attachment_name") or getattr(assignment, "result_file", "") or ""
+        if file_name:
+            download_name = _task_report_download_name(task, unit_name, file_name)
+            if not any(item["file_name"] == file_name and item["user_id"] == user.id for item in card["attachments"]):
+                card["attachments"].append(
+                    {
+                        "file_name": file_name,
+                        "download_name": download_name,
+                        "user_id": user.id,
+                        "user_name": display_name,
+                    }
+                )
+
+        if report_item:
+            card["has_report"] = True
+            report_time = report_item.get("created_at")
+            if report_time and (card["latest_report_at"] is None or report_time > card["latest_report_at"]):
+                card["latest_report_at"] = report_time
+                card["latest_report_user_name"] = report_item.get("user_name") or display_name
+                card["latest_report_excerpt"] = report_item.get("body_text") or ""
+
+    summary_rows, _summary_stats = _build_unit_report_summary(assigns, comments, task.deadline)
+    summary_by_unit = {
+        (_task_download_slug(row.get("unit_name"), row.get("unit_name", "").lower()) or row.get("unit_name", "").lower()): row
+        for row in summary_rows
+    }
+
+    cards = []
+    for unit_key, card in unit_cards.items():
+        summary_row = summary_by_unit.get(_task_download_slug(card["unit_name"], card["unit_name"].lower()))
+        if summary_row:
+            card["status"] = summary_row.get("status", card["status"])
+        card["assignee_names"].sort()
+        card["attachments"].sort(key=lambda item: item["file_name"].lower())
+        cards.append(card)
+
+    cards.sort(
+        key=lambda item: (
+            0 if item["has_report"] else 1,
+            -(item["latest_report_at"].timestamp()) if item["latest_report_at"] else float("inf"),
+            item["unit_name"].lower(),
+        )
+    )
+    return cards
+
+
 def _task_file_root():
     task_dir = current_app.config.get("TASK_FOLDER") or os.path.join(current_app.root_path, "task_files")
     os.makedirs(task_dir, exist_ok=True)
@@ -475,6 +601,18 @@ def _task_file_path(file_name):
     if not file_name:
         return ""
     return os.path.join(_task_file_root(), file_name)
+
+
+def _task_assignee_unit_name(user):
+    if not user:
+        return "don_vi"
+    return (
+        getattr(user, "unit_area_display", None)
+        or getattr(user, "unit_area", None)
+        or getattr(user, "fullname", None)
+        or getattr(user, "username", None)
+        or "don_vi"
+    )
 
 
 def _purge_task(task):
@@ -918,6 +1056,7 @@ def task_detail(tid):
     comments = TaskComment.query.filter_by(task_id=tid).order_by(TaskComment.created_at.desc()).all()
     visible_comments = _filter_comments_for_viewer(task, comments, current_user, can_manage_all=can_manage_task_view)
     assignment_context = _infer_assignment_context(task)
+    discussion_comments = visible_comments
     unit_report_rows, unit_report_stats = ([], {
         "total_units": 0,
         "reported_units": 0,
@@ -925,8 +1064,14 @@ def task_detail(tid):
         "overdue_units": 0,
         "on_time_units": 0,
     })
+    unit_report_cards = []
     if can_manage_task_view:
+        discussion_comments = [
+            comment for comment in visible_comments
+            if not (getattr(comment, "content", "") or "").startswith(REPORT_PREFIX)
+        ]
         unit_report_rows, unit_report_stats = _build_unit_report_summary(assigns, comments, task.deadline)
+        unit_report_cards = _build_unit_report_cards(task, assigns, comments)
     report_context = _build_assignment_report_context(user_assign, visible_comments)
     limited_assignment_view = bool(user_assign and not can_manage_task_view)
 
@@ -953,6 +1098,7 @@ def task_detail(tid):
         "task_detail.html",
         task=task,
         comments=visible_comments,
+        discussion_comments=discussion_comments,
         assigns=assigns,
         pro_units=stable_form_category_options(pro_units),
         task_fields=stable_form_category_options(task_fields),
@@ -968,10 +1114,60 @@ def task_detail(tid):
         progress_percent=task_metrics["progress_percent"],
         unit_report_rows=unit_report_rows,
         unit_report_stats=unit_report_stats,
+        unit_report_cards=unit_report_cards,
         can_manage_task_view=can_manage_task_view,
         limited_assignment_view=limited_assignment_view,
         report_context=report_context,
     )
+
+
+@tasks_bp.route("/tasks/<int:tid>/assignees/<int:user_id>/report-download")
+def download_task_report_file(tid, user_id):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+
+    task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    perms = _current_perms()
+    is_lead = perms.get("p_task_lead") or session.get("is_admin")
+    can_manage_task_view = bool(is_lead or _can_edit_task(task))
+    if not _can_view_task(task, is_lead=is_lead):
+        flash("Bạn không có quyền tải tệp của công việc này.", "danger")
+        return redirect(url_for("tasks_bp.tasks"))
+
+    if not can_manage_task_view and session.get("uid") != user_id:
+        flash("Bạn chỉ có thể tải tệp báo cáo của mình.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    assign = TaskAssignment.query.filter_by(task_id=tid, user_id=user_id).first()
+    if not assign or not assign.result_file:
+        flash("Không tìm thấy tệp báo cáo cần tải.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    file_path = _task_file_path(assign.result_file)
+    if not os.path.exists(file_path):
+        flash("Tệp báo cáo không còn tồn tại trên hệ thống.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    target_user = db.session.get(User, user_id)
+    if target_user:
+        unit_options = module_category_options("contacts", "unit_name", "Đơn vị")
+        sync_record_categories([target_user], unit_options, attr_name="unit_area", prefer_stable=True)
+        apply_reference_display(
+            [target_user],
+            "unit_area",
+            unit_options,
+            display_attr="unit_area_display",
+            fallback_label="Chưa có đơn vị",
+        )
+
+    unit_name = _task_assignee_unit_name(target_user)
+    download_name = _task_report_download_name(task, unit_name, assign.result_file)
+    return send_file(file_path, as_attachment=True, download_name=download_name)
 
 
 @tasks_bp.route("/tasks/<int:tid>/unit-report-export")

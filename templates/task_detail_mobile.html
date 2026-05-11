@@ -37,6 +37,17 @@
     .detail-mobile-unit-row { padding: 14px; border-radius: 16px; background: var(--bg-body); }
     .detail-mobile-unit-row strong { display: block; color: var(--text-main); }
     .detail-mobile-unit-row span { display: block; margin-top: 4px; color: var(--text-muted); font-size: 0.82rem; }
+    .detail-mobile-report-card { padding: 14px; border-radius: 16px; background: var(--bg-body); }
+    .detail-mobile-report-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .detail-mobile-report-copy { min-width: 0; flex: 1; }
+    .detail-mobile-report-copy strong { display: block; color: var(--text-main); }
+    .detail-mobile-report-copy span { display: block; color: var(--text-muted); font-size: 0.8rem; margin-top: 4px; }
+    .detail-mobile-report-meta { display: grid; gap: 4px; margin-top: 10px; color: var(--text-muted); font-size: 0.8rem; }
+    .detail-mobile-report-meta div { display: flex; align-items: center; gap: 6px; }
+    .detail-mobile-report-excerpt { margin-top: 10px; color: var(--text-main); line-height: 1.6; font-size: 0.92rem; }
+    .detail-mobile-report-files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .detail-mobile-report-file { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; padding: 8px 11px; border-radius: 999px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; text-decoration: none; font-size: 0.78rem; }
+    .detail-mobile-report-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .detail-mobile-info-list { display: grid; gap: 10px; }
     .detail-mobile-info-item { padding: 12px 14px; border-radius: 16px; background: var(--bg-body); }
     .detail-mobile-info-item span { display: block; font-size: 0.76rem; color: var(--text-muted); }
@@ -218,8 +229,72 @@
         <div class="detail-mobile-info-item"><span>Đơn vị nghiệp vụ</span><strong>{{ task.domain_display or 'Chưa phân đơn vị' }}</strong></div>
         <div class="detail-mobile-info-item"><span>Hạn xử lý</span><strong>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa có' }}</strong></div>
         <div class="detail-mobile-info-item"><span>Trạng thái báo cáo</span><strong>{{ report_context.status }}</strong></div>
-        <div class="detail-mobile-info-item"><span>Tệp minh chứng đã nộp</span><strong>{{ report_file_name or 'Chưa tải lên' }}</strong></div>
+        <div class="detail-mobile-info-item">
+            <span>Tệp minh chứng đã nộp</span>
+            <strong>{{ report_file_name or 'Chưa tải lên' }}</strong>
+            {% if report_file_name and user_assign %}
+            <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=user_assign.user_id) }}" class="btn btn-sm btn-outline-primary rounded-pill mt-2" aria-label="Tải tệp đã nộp" title="Tải tệp đã nộp">
+                <i class="fa-solid fa-download"></i>
+                <span>Tải tệp</span>
+            </a>
+            {% endif %}
+        </div>
         <div class="detail-mobile-info-item"><span>Lần báo cáo gần nhất</span><strong>{{ report_context.latest_report_at.strftime('%d/%m/%Y %H:%M') if report_context.latest_report_at else 'Chưa gửi báo cáo' }}</strong></div>
+    </div>
+</section>
+{% endif %}
+
+{% if can_manage_task_view %}
+<section class="detail-mobile-card">
+    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+            <h2>Báo cáo đơn vị</h2>
+        </div>
+        <a href="{{ url_for('tasks_bp.export_task_unit_report', tid=task.id) }}" class="btn btn-sm btn-outline-success rounded-pill" aria-label="Xuất Excel" title="Xuất Excel">
+            <i class="fa-solid fa-file-excel"></i>
+        </a>
+    </div>
+    <div class="detail-mobile-unit-stats">
+        <div class="detail-mobile-unit-stat"><span>Đã báo cáo</span><strong>{{ unit_report_stats.reported_units }}</strong></div>
+        <div class="detail-mobile-unit-stat"><span>Chưa báo cáo</span><strong>{{ unit_report_stats.unreported_units }}</strong></div>
+        <div class="detail-mobile-unit-stat"><span>Đúng hạn</span><strong>{{ unit_report_stats.on_time_units }}</strong></div>
+        <div class="detail-mobile-unit-stat"><span>Quá hạn</span><strong>{{ unit_report_stats.overdue_units }}</strong></div>
+    </div>
+    <div class="detail-mobile-stack">
+        {% for card in unit_report_cards %}
+        <article class="detail-mobile-report-card">
+            <div class="detail-mobile-report-head">
+                <div class="detail-mobile-report-copy">
+                    <strong>{{ card.unit_name }}</strong>
+                    <span>{{ card.assignee_names|join(', ') }}</span>
+                </div>
+                <div class="detail-mobile-status {% if card.status == 'Báo cáo đúng hạn' %}done{% elif card.status == 'Báo cáo quá hạn' %}todo{% elif card.status == 'Chưa báo cáo' %}doing{% else %}doing{% endif %}" style="margin-bottom:0;">
+                    {{ card.status }}
+                </div>
+            </div>
+            <div class="detail-mobile-report-meta">
+                <div><i class="fa-regular fa-user"></i>{{ card.latest_report_user_name or 'Chưa có người gửi' }}</div>
+                <div><i class="fa-regular fa-clock"></i>{{ card.latest_report_at.strftime('%d/%m/%Y %H:%M') if card.latest_report_at else 'Chưa có thời điểm báo cáo' }}</div>
+            </div>
+            {% if card.latest_report_excerpt %}
+            <div class="detail-mobile-report-excerpt">{{ card.latest_report_excerpt }}</div>
+            {% else %}
+            <div class="detail-mobile-report-excerpt text-muted">Đơn vị này chưa gửi nội dung báo cáo.</div>
+            {% endif %}
+            {% if card.attachments %}
+            <div class="detail-mobile-report-files">
+                {% for attachment in card.attachments %}
+                <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=attachment.user_id) }}" class="detail-mobile-report-file" title="{{ attachment.file_name }}">
+                    <i class="fa-solid fa-download"></i>
+                    <span>{{ attachment.user_name }} · {{ attachment.file_name }}</span>
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </article>
+        {% else %}
+        <div class="text-muted small">Khi đơn vị gửi kết quả, báo cáo tóm tắt sẽ xuất hiện tại đây.</div>
+        {% endfor %}
     </div>
 </section>
 {% endif %}
@@ -257,13 +332,7 @@
             <div class="detail-mobile-assignee-copy">
                 <strong>{{ u.fullname }}</strong>
                 <span>{{ u.unit_area_display or 'Chưa có đơn vị' }}</span>
-                {% if a.result_file %}
-                <span><i class="fa-solid fa-paperclip me-1"></i>{{ a.result_file }}</span>
-                <a href="{{ url_for('dl_file', fn=a.result_file) }}" class="btn btn-sm btn-outline-primary rounded-pill mt-2" aria-label="Tải tệp báo cáo" title="Tải tệp báo cáo">
-                    <i class="fa-solid fa-download"></i>
-                    <span>Tải tệp</span>
-                </a>
-                {% endif %}
+                <span>{{ 'Đã nộp tệp minh chứng' if a.result_file else 'Chưa nộp tệp minh chứng' }}</span>
             </div>
             <div class="detail-mobile-status {% if a.status == 'Hoàn thành' %}done{% elif a.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}" style="margin-bottom:0;">{{ a.status }}</div>
         </article>
@@ -272,51 +341,12 @@
         {% endfor %}
     </div>
 </section>
-
-<section class="detail-mobile-card">
-    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-        <div>
-            <h2>Thống kê theo đơn vị</h2>
-        </div>
-        <a href="{{ url_for('tasks_bp.export_task_unit_report', tid=task.id) }}" class="btn btn-sm btn-outline-success rounded-pill" aria-label="Xuất Excel" title="Xuất Excel">
-            <i class="fa-solid fa-file-excel"></i>
-        </a>
-    </div>
-    <div class="detail-mobile-unit-stats">
-        <div class="detail-mobile-unit-stat"><span>Đã báo cáo</span><strong>{{ unit_report_stats.reported_units }}</strong></div>
-        <div class="detail-mobile-unit-stat"><span>Chưa báo cáo</span><strong>{{ unit_report_stats.unreported_units }}</strong></div>
-        <div class="detail-mobile-unit-stat"><span>Đúng hạn</span><strong>{{ unit_report_stats.on_time_units }}</strong></div>
-        <div class="detail-mobile-unit-stat"><span>Quá hạn</span><strong>{{ unit_report_stats.overdue_units }}</strong></div>
-    </div>
-    <div class="detail-mobile-stack">
-        {% for row in unit_report_rows %}
-        <article class="detail-mobile-unit-row">
-            <strong>{{ row.unit_name }}</strong>
-            <span>{{ row.reporter_count }}/{{ row.assignee_count }} cán bộ đã gửi báo cáo</span>
-            <span>Cán bộ nhận việc: {{ row.assignee_names|join(', ') }}</span>
-            {% if row.reporter_names %}<span>Cán bộ đã báo cáo: {{ row.reporter_names|join(', ') }}</span>{% endif %}
-            <div class="detail-mobile-status {% if row.status == 'Báo cáo đúng hạn' %}done{% elif row.status == 'Báo cáo quá hạn' %}todo{% else %}doing{% endif %}" style="margin-top:10px;margin-bottom:0;">
-                {{ row.status }}
-            </div>
-            <span>
-                {% if row.first_report_at %}
-                Báo cáo đầu tiên: {{ row.first_report_at.strftime('%d/%m/%Y %H:%M') }}
-                {% else %}
-                Chưa ghi nhận báo cáo
-                {% endif %}
-            </span>
-        </article>
-        {% else %}
-        <div class="text-muted small">Chưa có đơn vị nhận việc cho công việc này.</div>
-        {% endfor %}
-    </div>
-</section>
 {% endif %}
 
 <section class="detail-mobile-card">
     <h2>Lịch sử trao đổi</h2>
     <div class="detail-mobile-stack">
-        {% for c in comments %}
+        {% for c in discussion_comments %}
         {% set is_report = c.content.startswith('[BÁO CÁO]') %}
         <article class="detail-mobile-comment {% if is_report %}report{% endif %}">
             <div class="detail-mobile-avatar">{{ c.user_name[:1].upper() }}</div>
@@ -327,7 +357,7 @@
             </div>
         </article>
         {% else %}
-        <div class="text-muted small">Chưa có trao đổi nào.</div>
+        <div class="text-muted small">{{ 'Báo cáo đơn vị đã được tách riêng ở khối phía trên.' if can_manage_task_view else 'Chưa có trao đổi nào.' }}</div>
         {% endfor %}
     </div>
 </section>

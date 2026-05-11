@@ -134,6 +134,110 @@
         margin-top: 10px;
         flex-wrap: wrap;
     }
+    .pc06-unit-report-overview {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+    .pc06-unit-report-overview .pc06-unit-report-stat {
+        border-radius: 16px;
+        padding: 12px 14px;
+        margin-bottom: 0;
+    }
+    .pc06-report-board {
+        display: grid;
+        gap: 12px;
+    }
+    .pc06-report-card {
+        border: 1px solid rgba(226, 232, 240, 0.92);
+        border-radius: 18px;
+        padding: 14px 16px;
+        background: rgba(255, 255, 255, 0.98);
+    }
+    .pc06-report-card-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .pc06-report-card-copy {
+        min-width: 0;
+        display: grid;
+        gap: 5px;
+    }
+    .pc06-report-card-copy strong {
+        font-size: 1rem;
+        color: var(--text-main, #0f172a);
+    }
+    .pc06-report-card-copy small,
+    .pc06-report-card-meta span,
+    .pc06-report-card-note,
+    .pc06-assignee-copy small {
+        color: var(--text-muted, #64748b);
+    }
+    .pc06-report-card-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        margin-top: 10px;
+        font-size: 0.84rem;
+    }
+    .pc06-report-card-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .pc06-report-card-excerpt {
+        margin-top: 12px;
+        color: var(--text-main, #0f172a);
+        line-height: 1.6;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .pc06-report-card-note {
+        margin-top: 12px;
+        font-size: 0.88rem;
+        line-height: 1.55;
+    }
+    .pc06-report-card-files {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+    }
+    .pc06-report-file-pill {
+        min-width: 0;
+        max-width: 100%;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(191, 219, 254, 0.92);
+        background: rgba(239, 246, 255, 0.9);
+        color: #1d4ed8;
+        font-size: 0.82rem;
+        text-decoration: none;
+    }
+    .pc06-report-file-pill span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .pc06-assignee-copy small {
+        display: block;
+        margin-top: 5px;
+    }
+    @media (max-width: 991.98px) {
+        .pc06-unit-report-overview {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
 </style>
 {% endblock %}
 
@@ -268,6 +372,88 @@
                 {% endif %}
             </section>
 
+            {% if can_manage_task_view %}
+            <section class="pc06-panel pc06-detail-panel-compact">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>Báo cáo đơn vị</h2>
+                    </div>
+                    <a href="{{ url_for('tasks_bp.export_task_unit_report', tid=task.id) }}" class="btn btn-bdhvs light">
+                        <i class="fa-solid fa-file-excel"></i>
+                        Xuất Excel
+                    </a>
+                </div>
+                <div class="pc06-unit-report-overview">
+                    <div class="pc06-unit-report-stat">
+                        <span>Đã báo cáo</span>
+                        <strong>{{ unit_report_stats.reported_units }}</strong>
+                    </div>
+                    <div class="pc06-unit-report-stat">
+                        <span>Chưa báo cáo</span>
+                        <strong>{{ unit_report_stats.unreported_units }}</strong>
+                    </div>
+                    <div class="pc06-unit-report-stat">
+                        <span>Đúng hạn</span>
+                        <strong>{{ unit_report_stats.on_time_units }}</strong>
+                    </div>
+                    <div class="pc06-unit-report-stat">
+                        <span>Quá hạn</span>
+                        <strong>{{ unit_report_stats.overdue_units }}</strong>
+                    </div>
+                </div>
+                <div class="pc06-report-board">
+                    {% for card in unit_report_cards %}
+                    <article class="pc06-report-card">
+                        <div class="pc06-report-card-head">
+                            <div class="pc06-report-card-copy">
+                                <strong>{{ card.unit_name }}</strong>
+                                <small>{{ card.assignee_names|join(', ') }}</small>
+                            </div>
+                            <span class="pc06-status-badge {% if card.status == 'Báo cáo đúng hạn' %}done{% elif card.status == 'Báo cáo quá hạn' %}todo{% elif card.status == 'Chưa báo cáo' %}neutral{% else %}doing{% endif %}">
+                                {{ card.status }}
+                            </span>
+                        </div>
+                        <div class="pc06-report-card-meta">
+                            <span>
+                                <i class="fa-regular fa-user"></i>
+                                {{ card.latest_report_user_name or 'Chưa có người gửi' }}
+                            </span>
+                            <span>
+                                <i class="fa-regular fa-clock"></i>
+                                {{ card.latest_report_at.strftime('%d/%m/%Y %H:%M') if card.latest_report_at else 'Chưa có thời điểm báo cáo' }}
+                            </span>
+                            <span>
+                                <i class="fa-solid fa-users"></i>
+                                {{ card.assignee_names|length }} cán bộ nhận việc
+                            </span>
+                        </div>
+                        {% if card.latest_report_excerpt %}
+                        <div class="pc06-report-card-excerpt">{{ card.latest_report_excerpt }}</div>
+                        {% else %}
+                        <div class="pc06-report-card-note">Đơn vị này chưa gửi nội dung báo cáo.</div>
+                        {% endif %}
+                        {% if card.attachments %}
+                        <div class="pc06-report-card-files">
+                            {% for attachment in card.attachments %}
+                            <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=attachment.user_id) }}" class="pc06-report-file-pill" title="{{ attachment.file_name }}">
+                                <i class="fa-solid fa-download"></i>
+                                <span>{{ attachment.user_name }} · {{ attachment.file_name }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </article>
+                    {% else %}
+                    <div class="pc06-empty-state compact">
+                        <div class="pc06-empty-icon"><i class="fa-solid fa-building-circle-exclamation"></i></div>
+                        <h3>Chưa có báo cáo đơn vị</h3>
+                        <p>Khi đơn vị gửi kết quả, bản tóm tắt và tệp đính kèm sẽ xuất hiện tại đây.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
             {% if user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
             <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
@@ -316,7 +502,7 @@
                 </form>
 
                 <div class="pc06-comment-stack">
-                    {% for c in comments %}
+                    {% for c in discussion_comments %}
                     {% set is_report = c.content.startswith('[BÁO CÁO]') %}
                     <article class="pc06-comment-card {% if is_report %}report{% endif %}">
                         <div class="pc06-comment-avatar">{{ c.user_name[:1].upper() }}</div>
@@ -332,7 +518,7 @@
                     <div class="pc06-empty-state compact">
                         <div class="pc06-empty-icon"><i class="fa-regular fa-comment-dots"></i></div>
                         <h3>Chưa có phản hồi</h3>
-                        <p>Khi có trao đổi hoặc báo cáo, nội dung sẽ xuất hiện tại đây.</p>
+                        <p>{{ 'Báo cáo đơn vị đã được tách lên khối phía trên để tránh rối mắt.' if can_manage_task_view else 'Khi có trao đổi hoặc báo cáo, nội dung sẽ xuất hiện tại đây.' }}</p>
                     </div>
                     {% endfor %}
                 </div>
@@ -354,7 +540,16 @@
                     <div class="pc06-info-item"><span>Người giao</span><strong>{{ task.author_name }}</strong></div>
                     {% if limited_assignment_view %}
                     <div class="pc06-info-item"><span>Trạng thái báo cáo</span><strong>{{ report_context.status }}</strong></div>
-                    <div class="pc06-info-item"><span>Tệp minh chứng đã nộp</span><strong>{{ report_file_name or 'Chưa tải lên' }}</strong></div>
+                    <div class="pc06-info-item">
+                        <span>Tệp minh chứng đã nộp</span>
+                        <strong>{{ report_file_name or 'Chưa tải lên' }}</strong>
+                        {% if report_file_name and user_assign %}
+                        <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=user_assign.user_id) }}" class="pc06-inline-link mt-2 d-inline-flex align-items-center gap-2">
+                            <i class="fa-solid fa-download"></i>
+                            Tải tệp đã nộp
+                        </a>
+                        {% endif %}
+                    </div>
                     <div class="pc06-info-item"><span>Lần báo cáo gần nhất</span><strong>{{ report_context.latest_report_at.strftime('%d/%m/%Y %H:%M') if report_context.latest_report_at else 'Chưa gửi báo cáo' }}</strong></div>
                     {% endif %}
                 </div>
@@ -374,18 +569,7 @@
                         <div class="pc06-assignee-copy">
                             <strong>{{ u.fullname }}</strong>
                             <span>{{ u.unit_area_display or 'Chưa có đơn vị' }}</span>
-                            {% if a.result_file %}
-                            <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
-                                <a href="{{ url_for('dl_file', fn=a.result_file) }}" class="pc06-inline-link">
-                                    <i class="fa-solid fa-paperclip"></i>
-                                    {{ a.result_file }}
-                                </a>
-                                <a href="{{ url_for('dl_file', fn=a.result_file) }}" class="btn btn-sm btn-outline-primary rounded-pill">
-                                    <i class="fa-solid fa-download"></i>
-                                    Tải tệp
-                                </a>
-                            </div>
-                            {% endif %}
+                            <small>{{ 'Đã nộp tệp minh chứng' if a.result_file else 'Chưa nộp tệp minh chứng' }}</small>
                         </div>
                         <span class="pc06-status-badge {% if a.status == 'Hoàn thành' %}done{% elif a.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
                             {{ a.status }}
@@ -401,65 +585,6 @@
                 </div>
             </section>
 
-            <section class="pc06-panel pc06-detail-panel-compact">
-                <div class="pc06-panel-head">
-                    <div>
-                        <h2>Thống kê báo cáo theo đơn vị</h2>
-                    </div>
-                    <a href="{{ url_for('tasks_bp.export_task_unit_report', tid=task.id) }}" class="btn btn-bdhvs light">
-                        <i class="fa-solid fa-file-excel"></i>
-                        Xuất Excel
-                    </a>
-                </div>
-                <div class="pc06-unit-report-stats">
-                    <div class="pc06-unit-report-stat">
-                        <span>Đơn vị đã báo cáo</span>
-                        <strong>{{ unit_report_stats.reported_units }}</strong>
-                    </div>
-                    <div class="pc06-unit-report-stat">
-                        <span>Đơn vị chưa báo cáo</span>
-                        <strong>{{ unit_report_stats.unreported_units }}</strong>
-                    </div>
-                    <div class="pc06-unit-report-stat">
-                        <span>Báo cáo đúng hạn</span>
-                        <strong>{{ unit_report_stats.on_time_units }}</strong>
-                    </div>
-                    <div class="pc06-unit-report-stat">
-                        <span>Báo cáo quá hạn</span>
-                        <strong>{{ unit_report_stats.overdue_units }}</strong>
-                    </div>
-                </div>
-                <div class="pc06-unit-report-table">
-                    {% for row in unit_report_rows %}
-                    <article class="pc06-unit-report-row">
-                        <strong>{{ row.unit_name }}</strong>
-                        <small>{{ row.reporter_count }}/{{ row.assignee_count }} cán bộ của đơn vị đã gửi báo cáo</small>
-                        <small>Cán bộ nhận việc: {{ row.assignee_names|join(', ') }}</small>
-                        {% if row.reporter_names %}
-                        <small>Cán bộ đã báo cáo: {{ row.reporter_names|join(', ') }}</small>
-                        {% endif %}
-                        <div class="pc06-unit-report-meta">
-                            <span class="pc06-status-badge {% if row.status == 'Báo cáo đúng hạn' %}done{% elif row.status == 'Báo cáo quá hạn' %}todo{% else %}neutral{% endif %}">
-                                {{ row.status }}
-                            </span>
-                            <small>
-                                {% if row.first_report_at %}
-                                Báo cáo đầu tiên: {{ row.first_report_at.strftime('%d/%m/%Y %H:%M') }}
-                                {% else %}
-                                Chưa ghi nhận báo cáo
-                                {% endif %}
-                            </small>
-                        </div>
-                    </article>
-                    {% else %}
-                    <div class="pc06-empty-state compact">
-                        <div class="pc06-empty-icon"><i class="fa-solid fa-building-circle-exclamation"></i></div>
-                        <h3>Chưa có đơn vị nhận việc</h3>
-                        <p>Thống kê sẽ hiển thị sau khi công việc được giao cho ít nhất một cán bộ.</p>
-                    </div>
-                    {% endfor %}
-                </div>
-            </section>
             {% endif %}
         </aside>
     </div>
