@@ -28,7 +28,7 @@
             </div>
             <div>
                 <span>Trạng thái</span>
-                <strong>{{ 'Đang nhập' if editable else 'Đã khóa' }}</strong>
+                <strong>{{ 'Đã khóa xem kết quả' if view_locked else ('Đang nhập' if editable else 'Đã khóa') }}</strong>
             </div>
             <div>
                 <span>Bản mới nhất</span>

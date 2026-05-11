@@ -1795,6 +1795,17 @@ def _cycle_deadline_badge_text(cycle, report_type=None):
     return "Không đặt hạn"
 
 
+def _is_cycle_view_locked(cycle, now=None):
+    if not cycle:
+        return False
+    now = now or datetime.now()
+    return bool(
+        cycle.is_locked
+        or cycle.status == "closed"
+        or (cycle.due_at and cycle.due_at < now)
+    )
+
+
 def _period_dates_for_cycle(cycle, report_type=None):
     report_type = report_type or _report_type(cycle)
     start_date = (cycle.open_at or cycle.created_at or datetime.now()).date()
@@ -3516,7 +3527,7 @@ def cycle_workspace(cycle_id):
     template_version = context["template_version"]
     template = context["template"]
     report_type = context["report_type"]
-    editable = not cycle.is_locked and cycle.status != "closed"
+    editable = not context.get("view_locked") and not cycle.is_locked and cycle.status != "closed"
     metadata = json.loads(template_version.metadata_json or "{}")
     workbook = load_workbook(template_version.source_path, data_only=False)
     report_date = context["report_date"]
@@ -3599,6 +3610,7 @@ def cycle_workspace(cycle_id):
         is_admin=report_admin_mode,
         available_units=available_units,
         editable=editable,
+        view_locked=context.get("view_locked", False),
     )
 
 
@@ -3784,9 +3796,16 @@ def _resolve_cycle_context(cycle_id):
     template_version = db.session.get(ReportTemplateVersion, cycle.template_version_id)
     template = db.session.get(ReportTemplate, template_version.template_id)
     report_type = _report_type(cycle)
+    view_locked = _is_cycle_view_locked(cycle)
     report_date = None
     if report_type and report_type.code == "daily":
-        report_date = _parse_date(request.args.get("report_date", "")) or date.today()
+        requested_report_date = _parse_date(request.args.get("report_date", ""))
+        if requested_report_date:
+            report_date = requested_report_date
+        elif view_locked:
+            report_date = _effective_daily_cutoff_date(cycle, instance.id if instance else None)
+        else:
+            report_date = date.today()
     entry_state = _resolve_entry_submission_state(
         instance,
         template_version,
@@ -3799,6 +3818,12 @@ def _resolve_cycle_context(cycle_id):
         report_type=report_type,
         report_date=report_date,
     )
+    effective_state = _resolve_effective_instance_state(
+        instance,
+        cycle,
+        template_version,
+        report_type=report_type,
+    )
     return {
         "cycle": cycle,
         "unit": unit,
@@ -3807,14 +3832,15 @@ def _resolve_cycle_context(cycle_id):
         "template_version": template_version,
         "template": template,
         "report_type": report_type,
-        "report_date": report_date,
-        "latest_submission": entry_state["latest_submission"],
-        "submission_history": entry_state["history"],
-        "entry_values": entry_state["existing_values"],
-        "view_submission": working_state["latest_submission"],
-        "view_history": working_state["history"],
-        "working_values": working_state["existing_values"],
-        "daily_submissions": working_state["daily_submissions"],
+        "report_date": effective_state["report_date"] if view_locked and effective_state.get("report_date") else report_date,
+        "latest_submission": effective_state["latest_submission"] if view_locked else entry_state["latest_submission"],
+        "submission_history": effective_state["history"] if view_locked else entry_state["history"],
+        "entry_values": effective_state["existing_values"] if view_locked else entry_state["existing_values"],
+        "view_submission": effective_state["latest_submission"] if view_locked else working_state["latest_submission"],
+        "view_history": effective_state["history"] if view_locked else working_state["history"],
+        "working_values": effective_state["existing_values"] if view_locked else working_state["existing_values"],
+        "daily_submissions": effective_state["daily_submissions"] if view_locked else working_state["daily_submissions"],
+        "view_locked": view_locked,
     }
 
 
@@ -3833,7 +3859,7 @@ def save_cycle(cycle_id):
     workspace_values = _workspace_route_values(cycle, unit=unit, report_date=report_date) if cycle else {"cycle_id": cycle_id}
     if not cycle or not _cycle_accessible(cycle, unit.id if unit else None, _can_manage_report_templates()):
         return "Forbidden", 403
-    if cycle.is_locked or cycle.status == "closed":
+    if _is_cycle_view_locked(cycle):
         flash("Báo cáo đã khóa, không thể lưu thêm dữ liệu.", "warning")
         return redirect(url_for("reporting_bp.cycle_workspace", **workspace_values))
     user = db.session.get(User, session.get("uid"))
@@ -3860,7 +3886,7 @@ def submit_cycle(cycle_id):
     workspace_values = _workspace_route_values(cycle, unit=unit, report_date=report_date) if cycle else {"cycle_id": cycle_id}
     if not cycle or not _cycle_accessible(cycle, unit.id if unit else None, _can_manage_report_templates()):
         return "Forbidden", 403
-    if cycle.is_locked or cycle.status == "closed":
+    if _is_cycle_view_locked(cycle):
         flash("Báo cáo đã khóa, không thể gửi thêm dữ liệu.", "warning")
         return redirect(url_for("reporting_bp.cycle_workspace", **workspace_values))
     user = db.session.get(User, session.get("uid"))

@@ -54,7 +54,7 @@
 <section class="report-form-mobile-info">
     <div class="report-form-mobile-grid">
         <div><span>Lịch báo cáo</span><strong>{{ schedule_text }}</strong></div>
-        <div><span>Trạng thái</span><strong>{{ 'Đang nhập' if editable else 'Đã khóa' }}</strong></div>
+        <div><span>Trạng thái</span><strong>{{ 'Đã khóa xem kết quả' if view_locked else ('Đang nhập' if editable else 'Đã khóa') }}</strong></div>
         <div><span>Bản mới nhất</span><strong>{{ latest_submission.created_at.strftime('%d/%m/%Y %H:%M') if latest_submission and latest_submission.created_at else 'Chưa có' }}</strong></div>
         <div><span>Đánh giá</span><strong>{{ latest_timeliness or 'Chưa có' }}</strong></div>
     </div>
