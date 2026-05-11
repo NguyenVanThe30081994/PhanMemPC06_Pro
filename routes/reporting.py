@@ -3049,34 +3049,40 @@ def admin_cycle_detail(cycle_id):
     template = db.session.get(ReportTemplate, template_version.template_id) if template_version else None
     report_type = _report_type(cycle)
     is_daily = report_type and report_type.code == "daily"
+    view_locked = _is_cycle_view_locked(cycle)
     scoped_units = _cycle_units(cycle)
     instance_list = ReportInstance.query.filter_by(cycle_id=cycle.id).order_by(ReportInstance.report_unit_id.asc()).all()
     instance_map = {instance.report_unit_id: instance for instance in instance_list if instance.report_unit_id}
 
     # --- Date filter for daily reports ---
     report_date_str = request.args.get("report_date", "")
-    filter_date = _parse_date(report_date_str) if report_date_str else None
-    if is_daily and not filter_date:
-        filter_date = date.today()
+    requested_filter_date = _parse_date(report_date_str) if report_date_str else None
+    filter_date = None
+    if is_daily:
+        if view_locked:
+            filter_date = _effective_daily_cutoff_date(cycle)
+        else:
+            filter_date = requested_filter_date or date.today()
 
     # --- Build available dates list (for daily reports) ---
     available_dates = []
     if is_daily:
+        cutoff_date = filter_date if view_locked else None
         all_submission_dates = set()
         all_instances = ReportInstance.query.filter_by(cycle_id=cycle.id).all()
         for inst in all_instances:
             subs = ReportSubmission.query.filter_by(instance_id=inst.id).all()
             for s in subs:
                 business_date = _submission_business_date(s)
-                if business_date:
+                if business_date and (not cutoff_date or business_date <= cutoff_date):
                     all_submission_dates.add(business_date)
             # Also include the cycle open_at date
-            if inst.opened_at:
+            if inst.opened_at and (not cutoff_date or inst.opened_at.date() <= cutoff_date):
                 all_submission_dates.add(inst.opened_at.date())
-        # Include the cycle's open date and today
-        if cycle.open_at:
+        # Include the cycle's open date and the effective viewing day.
+        if cycle.open_at and (not cutoff_date or cycle.open_at.date() <= cutoff_date):
             all_submission_dates.add(cycle.open_at.date())
-        all_submission_dates.add(date.today())
+        all_submission_dates.add(cutoff_date or date.today())
         available_dates = sorted(all_submission_dates, reverse=True)
 
     unit_rows = []
@@ -3175,6 +3181,7 @@ def admin_cycle_detail(cycle_id):
         filter_date_str=filter_date.strftime("%d/%m/%Y") if filter_date else "",
         available_dates=available_dates,
         today=date.today(),
+        view_locked=view_locked,
     )
 
 
@@ -3800,10 +3807,11 @@ def _resolve_cycle_context(cycle_id):
     report_date = None
     if report_type and report_type.code == "daily":
         requested_report_date = _parse_date(request.args.get("report_date", ""))
-        if requested_report_date:
-            report_date = requested_report_date
-        elif view_locked:
+        if view_locked:
+            # Daily reports must stay pinned to the last effective day once the cycle is locked/expired.
             report_date = _effective_daily_cutoff_date(cycle, instance.id if instance else None)
+        elif requested_report_date:
+            report_date = requested_report_date
         else:
             report_date = date.today()
     entry_state = _resolve_entry_submission_state(
