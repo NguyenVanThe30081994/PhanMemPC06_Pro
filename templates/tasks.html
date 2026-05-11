@@ -690,12 +690,18 @@
 
                                 <div class="pc06-form-section d-none" id="roleAssignmentPanel">
                                     <label class="form-label fw-bold">Vai trò nhận việc</label>
-                                    <select name="assignee_role_ids" class="form-select form-select-lg" multiple size="8">
+                                    <div class="pc06-user-picker-panel border rounded-4 p-2" style="display:block; max-height: 320px; overflow:auto;">
                                         {% for role in roles %}
-                                        <option value="{{ role.id }}">{{ role.name }}</option>
+                                        <label class="pc06-user-option">
+                                            <input type="checkbox" name="assignee_role_ids" value="{{ role.id }}">
+                                            <div>
+                                                <strong>{{ role.name }}</strong>
+                                                <small>Chọn để giao việc cho toàn bộ cán bộ thuộc vai trò này</small>
+                                            </div>
+                                        </label>
                                         {% endfor %}
-                                    </select>
-                                    <div class="form-text">Giữ `Command` hoặc `Ctrl` để chọn nhiều vai trò cùng lúc.</div>
+                                    </div>
+                                    <div class="form-text">Tích một hoặc nhiều vai trò ở đầu dòng để giao việc đồng thời.</div>
                                 </div>
 
                                 <div class="pc06-form-section d-none" id="userAssignmentPanel">

@@ -360,12 +360,18 @@
                         </div>
                         <div class="col-md-6 {% if assignment_context.mode != 'role' %}d-none{% endif %}" id="editRoleAssignmentPanel">
                             <label class="form-label fw-bold">Vai trò nhận việc</label>
-                            <select name="assignee_role_ids" class="form-select form-select-lg" multiple size="8">
+                            <div class="pc06-user-picker-panel border rounded-4 p-2" style="display:block; max-height: 320px; overflow:auto;">
                                 {% for role in roles %}
-                                <option value="{{ role.id }}" {% if role.id in assignment_context.role_ids %}selected{% endif %}>{{ role.name }}</option>
+                                <label class="pc06-user-option">
+                                    <input type="checkbox" name="assignee_role_ids" value="{{ role.id }}" {% if role.id in assignment_context.role_ids %}checked{% endif %}>
+                                    <div>
+                                        <strong>{{ role.name }}</strong>
+                                        <small>Chọn để giao lại cho toàn bộ cán bộ thuộc vai trò này</small>
+                                    </div>
+                                </label>
                                 {% endfor %}
-                            </select>
-                            <div class="form-text">Có thể chọn một hoặc nhiều vai trò khi cập nhật lại luồng giao việc.</div>
+                            </div>
+                            <div class="form-text">Tích một hoặc nhiều vai trò ở đầu dòng khi cập nhật lại luồng giao việc.</div>
                         </div>
                         <div class="col-12 {% if assignment_context.mode != 'user' %}d-none{% endif %}" id="editUserAssignmentPanel">
                             <label class="form-label fw-bold">Cán bộ nhận việc</label>
@@ -426,8 +432,10 @@
     });
 
     document.querySelector('#editTaskModal select[name="domain"]')?.addEventListener('change', markEditAssignmentsDirty);
-    document.querySelector('#editTaskModal select[name="assignee_role_ids"]')?.addEventListener('change', markEditAssignmentsDirty);
-    document.querySelector('#editTaskModal select[name="assignee_role_ids"]')?.addEventListener('focus', markEditAssignmentsDirty);
+    document.querySelectorAll('#editTaskModal input[name="assignee_role_ids"]').forEach((checkbox) => {
+        checkbox.addEventListener('change', markEditAssignmentsDirty);
+        checkbox.addEventListener('click', markEditAssignmentsDirty);
+    });
     document.querySelector('#editTaskModal select[name="target_users"]')?.addEventListener('change', markEditAssignmentsDirty);
     document.querySelector('#editTaskModal select[name="target_users"]')?.addEventListener('focus', markEditAssignmentsDirty);
 
