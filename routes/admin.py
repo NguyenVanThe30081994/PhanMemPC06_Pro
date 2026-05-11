@@ -2,6 +2,7 @@
 from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, current_app, Response, send_from_directory
 from sqlalchemy import func
 from models import db, User, AppRole, MasterData, SystemLog, Task, NewsDoc, DocumentLib, Contact, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding, AIAssistantConfig
+from werkzeug.security import generate_password_hash
 try:
     from security_utils.password_validator import validate_password, get_password_requirements
 except ImportError:
@@ -288,19 +289,25 @@ def _mask_secret(value):
     return f"{value[:4]}{'*' * (len(value) - 8)}{value[-4:]}"
 
 
-def _reset_users_passwords(users, default_password='123456'):
-    updated_names = []
-    skipped_admin = False
-    for user in users:
-        if not user:
-            continue
-        if user.username == 'admin':
-            skipped_admin = True
-            continue
-        user.set_password(default_password)
-        user.must_change_password = True
-        updated_names.append(user.username)
-    return updated_names, skipped_admin
+def _reset_users_passwords_bulk(user_query, default_password='123456'):
+    target_rows = user_query.with_entities(User.id, User.username).all()
+    if not target_rows:
+        return 0, False
+
+    target_ids = [uid for uid, username in target_rows if username != 'admin']
+    skipped_admin = len(target_ids) != len(target_rows)
+    if not target_ids:
+        return 0, skipped_admin
+
+    default_hash = generate_password_hash(default_password, method='pbkdf2:sha256')
+    User.query.filter(User.id.in_(target_ids)).update(
+        {
+            User.password_hash: default_hash,
+            User.must_change_password: True,
+        },
+        synchronize_session=False,
+    )
+    return len(target_ids), skipped_admin
 
 
 def _test_ai_runtime_connection():
@@ -838,15 +845,15 @@ def reset_users_password_bulk():
     )
 
     if selected_ids:
-        users = User.query.filter(User.id.in_(selected_ids)).order_by(User.fullname.asc(), User.username.asc()).all()
+        reset_query = User.query.filter(User.id.in_(selected_ids))
     else:
-        users = users_query.order_by(User.fullname.asc(), User.username.asc()).all()
-    if not users:
+        reset_query = users_query
+
+    updated_count, skipped_admin = _reset_users_passwords_bulk(reset_query, default_password='123456')
+    if updated_count == 0 and not skipped_admin:
         flash('Không có tài khoản nào trong danh sách hiện tại để reset mật khẩu.', 'warning')
         return redirect(url_for('admin_bp.roles', role_id=selected_role_id, unit=selected_unit, q=search_query))
-
-    updated_names, skipped_admin = _reset_users_passwords(users, default_password='123456')
-    if not updated_names and skipped_admin:
+    if updated_count == 0 and skipped_admin:
         flash('Tài khoản admin hệ thống được giữ lại và không bị reset mật khẩu.', 'warning')
         return redirect(url_for('admin_bp.roles', role_id=selected_role_id, unit=selected_unit, q=search_query))
 
@@ -866,9 +873,9 @@ def reset_users_password_bulk():
         session['fullname'],
         "Reset mật khẩu hàng loạt",
         "Tài khoản",
-        f"so_luong={len(updated_names)} | mat_khau_mac_dinh=123456" + (f" | {'; '.join(filter_parts)}" if filter_parts else "")
+        f"so_luong={updated_count} | mat_khau_mac_dinh=123456" + (f" | {'; '.join(filter_parts)}" if filter_parts else "")
     )
-    flash(f'Đã reset {len(updated_names)} tài khoản về mật khẩu mặc định 123456 và yêu cầu đổi mật khẩu khi đăng nhập.', 'success')
+    flash(f'Đã reset {updated_count} tài khoản về mật khẩu mặc định 123456 và yêu cầu đổi mật khẩu khi đăng nhập.', 'success')
     if skipped_admin:
         flash('Tài khoản admin hệ thống được giữ lại và không bị reset mật khẩu.', 'warning')
     return redirect(url_for('admin_bp.roles', role_id=selected_role_id, unit=selected_unit, q=search_query))
