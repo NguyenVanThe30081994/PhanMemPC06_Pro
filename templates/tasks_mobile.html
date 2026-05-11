@@ -129,6 +129,16 @@
                     <span class="visually-hidden">Chi tiết</span>
                 </a>
             </div>
+            {% if t.can_edit %}
+            <div class="mobile-task-actions">
+                <form action="{{ url_for('tasks_bp.delete_task', tid=t.id) }}" method="POST" onsubmit="return confirm('Xóa công việc này? Toàn bộ phân công, phản hồi và tệp đính kèm liên quan sẽ bị xóa.')">
+                    <button type="submit" class="btn btn-mobile mobile-task-main-action" style="background:#fee2e2;color:#b91c1c;" aria-label="Xóa công việc" title="Xóa công việc">
+                        <i class="fa-solid fa-trash"></i>
+                        <span class="visually-hidden">Xóa công việc</span>
+                    </button>
+                </form>
+            </div>
+            {% endif %}
             {% if t.current_user_status in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
             <div class="mobile-task-actions">
                 <form action="{{ url_for('tasks_bp.update_task_status', tid=t.id) }}" method="POST">

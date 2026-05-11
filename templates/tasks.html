@@ -492,6 +492,14 @@
                                 <i class="fa-solid fa-arrow-right"></i>
                                 Chi tiết
                             </a>
+                            {% if t.can_edit %}
+                            <form action="{{ url_for('tasks_bp.delete_task', tid=t.id) }}" method="POST" onsubmit="return confirm('Xóa công việc này? Toàn bộ phân công, phản hồi và tệp đính kèm liên quan sẽ bị xóa.')">
+                                <button type="submit" class="btn btn-bdhvs light text-danger">
+                                    <i class="fa-solid fa-trash"></i>
+                                    Xóa
+                                </button>
+                            </form>
+                            {% endif %}
                         </div>
                     </div>
                 </article>

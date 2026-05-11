@@ -46,6 +46,12 @@
                         <i class="fa-solid fa-pen-to-square"></i>
                         Sửa công việc
                     </button>
+                    <form action="{{ url_for('tasks_bp.delete_task', tid=task.id) }}" method="POST" onsubmit="return confirm('Xóa công việc này? Toàn bộ phân công, phản hồi và tệp đính kèm liên quan sẽ bị xóa.')" class="m-0">
+                        <button type="submit" class="btn btn-bdhvs light text-danger">
+                            <i class="fa-solid fa-trash"></i>
+                            Xóa công việc
+                        </button>
+                    </form>
                 </div>
                 {% endif %}
             </div>

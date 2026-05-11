@@ -329,6 +329,30 @@ def _can_edit_task(task):
     return bool(session.get("is_admin")) or task.author_id == session.get("uid")
 
 
+def _purge_task(task):
+    if not task:
+        return
+
+    file_names = set()
+    if task.file_path:
+        file_names.add(task.file_path)
+
+    for assignment in task.assignments or []:
+        if assignment.result_file:
+            file_names.add(assignment.result_file)
+
+    for file_name in file_names:
+        file_path = os.path.join(current_app.root_path, "task_files", file_name)
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                current_app.logger.warning(f"Không thể xóa file công việc: {file_path}")
+
+    TaskComment.query.filter_by(task_id=task.id).delete(synchronize_session=False)
+    db.session.delete(task)
+
+
 def _ensure_task_schema():
     try:
         apply_migrations(current_app)
@@ -554,6 +578,7 @@ def tasks():
 
     for task in all_tasks:
         task_metrics = _decorate_task(task, session["uid"], is_lead)
+        setattr(task, "can_edit", _can_edit_task(task))
         category_meta = _decorate_task_categories(task, task_fields, pro_units, task_types, priority_items)
         if task_metrics["is_overdue"]:
             overdue_count += 1
@@ -794,6 +819,36 @@ def edit_task(tid):
         success_message = f"Đã cập nhật công việc và đồng bộ {refreshed_assignee_count} người được giao."
     flash(success_message, "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+@tasks_bp.route("/tasks/<int:tid>/delete", methods=["POST"])
+def delete_task(tid):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+
+    task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    if not _can_edit_task(task):
+        flash("Bạn không có quyền xóa công việc này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    task_title = task.title
+    _purge_task(task)
+    db.session.commit()
+
+    log_action(
+        session["uid"],
+        session.get("fullname", "Quản trị"),
+        "Xóa công việc",
+        "Công việc",
+        f"Task #{tid} | {task_title}",
+    )
+    flash("Đã xóa công việc đã giao.", "success")
+    return redirect(url_for("tasks_bp.tasks"))
 
 
 @tasks_bp.route("/tasks/<int:tid>/update_status", methods=["POST"])
