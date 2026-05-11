@@ -30,6 +30,7 @@
     .detail-mobile-comment { padding: 14px; border-radius: 16px; background: var(--bg-body); }
     .detail-mobile-comment.report { border-left: 4px solid #10b981; background: #f0fdf4; }
     .detail-mobile-avatar { width: 40px; height: 40px; border-radius: 50%; background: #dbeafe; color: #1d4ed8; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; }
+    .detail-mobile-report-guidance { margin-bottom: 12px; color: var(--text-muted); font-size: 0.8rem; line-height: 1.55; }
     .detail-mobile-unit-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
     .detail-mobile-unit-stat { padding: 12px; border-radius: 16px; background: var(--bg-body); }
     .detail-mobile-unit-stat span { display: block; font-size: 0.76rem; color: var(--text-muted); }
@@ -37,11 +38,23 @@
     .detail-mobile-unit-row { padding: 14px; border-radius: 16px; background: var(--bg-body); }
     .detail-mobile-unit-row strong { display: block; color: var(--text-main); }
     .detail-mobile-unit-row span { display: block; margin-top: 4px; color: var(--text-muted); font-size: 0.82rem; }
-    .detail-mobile-report-card { padding: 14px; border-radius: 16px; background: var(--bg-body); }
-    .detail-mobile-report-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .detail-mobile-report-group, .detail-mobile-report-item { border: 1px solid var(--border); border-radius: 16px; background: var(--bg-body); overflow: hidden; }
+    .detail-mobile-report-group summary, .detail-mobile-report-item summary { list-style: none; cursor: pointer; }
+    .detail-mobile-report-group summary::-webkit-details-marker, .detail-mobile-report-item summary::-webkit-details-marker { display: none; }
+    .detail-mobile-report-group-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; }
+    .detail-mobile-report-group-summary span { display: block; color: var(--text-muted); font-size: 0.78rem; }
+    .detail-mobile-report-group-summary strong { display: block; margin-top: 3px; color: var(--text-main); font-size: 1.12rem; }
+    .detail-mobile-report-body { display: grid; gap: 10px; padding: 0 12px 12px; border-top: 1px solid var(--border); }
+    .detail-mobile-report-item-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; }
     .detail-mobile-report-copy { min-width: 0; flex: 1; }
     .detail-mobile-report-copy strong { display: block; color: var(--text-main); }
-    .detail-mobile-report-copy span { display: block; color: var(--text-muted); font-size: 0.8rem; margin-top: 4px; }
+    .detail-mobile-report-fileline { display: flex; align-items: center; gap: 6px; margin-top: 4px; color: var(--text-muted); font-size: 0.78rem; min-width: 0; }
+    .detail-mobile-report-fileline span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .detail-mobile-report-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .detail-mobile-report-download { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; text-decoration: none; }
+    .detail-mobile-report-caret { color: var(--text-muted); transition: transform 0.2s ease; }
+    .detail-mobile-report-group[open] .detail-mobile-report-caret, .detail-mobile-report-item[open] .detail-mobile-report-caret { transform: rotate(180deg); }
+    .detail-mobile-report-item-body { padding: 0 12px 12px; border-top: 1px solid var(--border); }
     .detail-mobile-report-meta { display: grid; gap: 4px; margin-top: 10px; color: var(--text-muted); font-size: 0.8rem; }
     .detail-mobile-report-meta div { display: flex; align-items: center; gap: 6px; }
     .detail-mobile-report-excerpt { margin-top: 10px; color: var(--text-main); line-height: 1.6; font-size: 0.92rem; }
@@ -254,46 +267,79 @@
             <i class="fa-solid fa-file-excel"></i>
         </a>
     </div>
+    <div class="detail-mobile-report-guidance">
+        Đi từ tổng quan đến chi tiết: xem số đơn vị theo từng trạng thái trước, sau đó mở nhóm và mở từng đơn vị khi cần kiểm tra sâu.
+    </div>
     <div class="detail-mobile-unit-stats">
+        <div class="detail-mobile-unit-stat"><span>Tổng đơn vị</span><strong>{{ unit_report_stats.total_units }}</strong></div>
         <div class="detail-mobile-unit-stat"><span>Đã báo cáo</span><strong>{{ unit_report_stats.reported_units }}</strong></div>
         <div class="detail-mobile-unit-stat"><span>Chưa báo cáo</span><strong>{{ unit_report_stats.unreported_units }}</strong></div>
         <div class="detail-mobile-unit-stat"><span>Đúng hạn</span><strong>{{ unit_report_stats.on_time_units }}</strong></div>
         <div class="detail-mobile-unit-stat"><span>Quá hạn</span><strong>{{ unit_report_stats.overdue_units }}</strong></div>
     </div>
     <div class="detail-mobile-stack">
-        {% for card in unit_report_cards %}
-        <article class="detail-mobile-report-card">
-            <div class="detail-mobile-report-head">
-                <div class="detail-mobile-report-copy">
-                    <strong>{{ card.unit_name }}</strong>
-                    <span>{{ card.assignee_names|join(', ') }}</span>
+        {% for group in unit_report_groups %}
+        <details class="detail-mobile-report-group">
+            <summary class="detail-mobile-report-group-summary">
+                <div>
+                    <span>{{ group.label }}</span>
+                    <strong>{{ group.count }}</strong>
+                    <span>Bấm để xem đơn vị</span>
                 </div>
-                <div class="detail-mobile-status {% if card.status == 'Báo cáo đúng hạn' %}done{% elif card.status == 'Báo cáo quá hạn' %}todo{% elif card.status == 'Chưa báo cáo' %}doing{% else %}doing{% endif %}" style="margin-bottom:0;">
-                    {{ card.status }}
-                </div>
-            </div>
-            <div class="detail-mobile-report-meta">
-                <div><i class="fa-regular fa-user"></i>{{ card.latest_report_user_name or 'Chưa có người gửi' }}</div>
-                <div><i class="fa-regular fa-clock"></i>{{ card.latest_report_at.strftime('%d/%m/%Y %H:%M') if card.latest_report_at else 'Chưa có thời điểm báo cáo' }}</div>
-            </div>
-            {% if card.latest_report_excerpt %}
-            <div class="detail-mobile-report-excerpt">{{ card.latest_report_excerpt }}</div>
-            {% else %}
-            <div class="detail-mobile-report-excerpt text-muted">Đơn vị này chưa gửi nội dung báo cáo.</div>
-            {% endif %}
-            {% if card.attachments %}
-            <div class="detail-mobile-report-files">
-                {% for attachment in card.attachments %}
-                <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=attachment.user_id) }}" class="detail-mobile-report-file" title="{{ attachment.file_name }}">
-                    <i class="fa-solid fa-download"></i>
-                    <span>{{ attachment.user_name }} · {{ attachment.file_name }}</span>
-                </a>
+                <i class="fa-solid fa-chevron-down detail-mobile-report-caret"></i>
+            </summary>
+            <div class="detail-mobile-report-body">
+                {% for card in group.cards %}
+                {% set primary_attachment = card.attachments[0] if card.attachments else None %}
+                <details class="detail-mobile-report-item">
+                    <summary class="detail-mobile-report-item-summary">
+                        <div class="detail-mobile-report-copy">
+                            <strong>{{ card.unit_name }}</strong>
+                            <div class="detail-mobile-report-fileline" title="{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp minh chứng' }}">
+                                <i class="fa-solid fa-paperclip"></i>
+                                <span>{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp minh chứng' }}</span>
+                            </div>
+                        </div>
+                        <div class="detail-mobile-report-actions">
+                            {% if primary_attachment %}
+                            <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=primary_attachment.user_id) }}" class="detail-mobile-report-download" title="Tải tệp" onclick="event.stopPropagation();">
+                                <i class="fa-solid fa-download"></i>
+                            </a>
+                            {% endif %}
+                            <i class="fa-solid fa-chevron-down detail-mobile-report-caret"></i>
+                        </div>
+                    </summary>
+                    <div class="detail-mobile-report-item-body">
+                        <div class="detail-mobile-status {% if card.status == 'Báo cáo đúng hạn' %}done{% elif card.status == 'Báo cáo quá hạn' %}todo{% elif card.status == 'Chưa báo cáo' %}doing{% else %}doing{% endif %}" style="margin-bottom:0;">
+                            {{ card.status }}
+                        </div>
+                        <div class="detail-mobile-report-meta">
+                            <div><i class="fa-regular fa-user"></i>{{ card.latest_report_user_name or 'Chưa có người gửi' }}</div>
+                            <div><i class="fa-regular fa-clock"></i>{{ card.latest_report_at.strftime('%d/%m/%Y %H:%M') if card.latest_report_at else 'Chưa có thời điểm báo cáo' }}</div>
+                            <div><i class="fa-solid fa-users"></i>{{ card.assignee_names|join(', ') }}</div>
+                        </div>
+                        {% if card.latest_report_excerpt %}
+                        <div class="detail-mobile-report-excerpt">{{ card.latest_report_excerpt }}</div>
+                        {% else %}
+                        <div class="detail-mobile-report-excerpt text-muted">Đơn vị này chưa gửi nội dung báo cáo.</div>
+                        {% endif %}
+                        {% if card.attachments|length > 1 %}
+                        <div class="detail-mobile-report-files">
+                            {% for attachment in card.attachments %}
+                            <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=attachment.user_id) }}" class="detail-mobile-report-file" title="{{ attachment.file_name }}">
+                                <i class="fa-solid fa-download"></i>
+                                <span>{{ attachment.user_name }} · {{ attachment.file_name }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </details>
+                {% else %}
+                <div class="text-muted small">Nhóm này hiện chưa có đơn vị phù hợp.</div>
                 {% endfor %}
             </div>
-            {% endif %}
-        </article>
-        {% else %}
-        <div class="text-muted small">Khi đơn vị gửi kết quả, báo cáo tóm tắt sẽ xuất hiện tại đây.</div>
+        </details>
         {% endfor %}
     </div>
 </section>

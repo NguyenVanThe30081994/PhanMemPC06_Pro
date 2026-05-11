@@ -591,6 +591,29 @@ def _build_unit_report_cards(task, assigns, comments):
     return cards
 
 
+def _build_unit_report_groups(cards):
+    cards = cards or []
+    group_specs = [
+        ("reported", "Đã báo cáo", lambda card: bool(card.get("has_report"))),
+        ("unreported", "Chưa báo cáo", lambda card: not bool(card.get("has_report"))),
+        ("on_time", "Đúng hạn", lambda card: card.get("status") == "Báo cáo đúng hạn"),
+        ("overdue", "Quá hạn", lambda card: card.get("status") == "Báo cáo quá hạn"),
+    ]
+
+    groups = []
+    for key, label, matcher in group_specs:
+        matched_cards = [card for card in cards if matcher(card)]
+        groups.append(
+            {
+                "key": key,
+                "label": label,
+                "count": len(matched_cards),
+                "cards": matched_cards,
+            }
+        )
+    return groups
+
+
 def _task_file_root():
     task_dir = current_app.config.get("TASK_FOLDER") or os.path.join(current_app.root_path, "task_files")
     os.makedirs(task_dir, exist_ok=True)
@@ -1065,6 +1088,7 @@ def task_detail(tid):
         "on_time_units": 0,
     })
     unit_report_cards = []
+    unit_report_groups = []
     if can_manage_task_view:
         discussion_comments = [
             comment for comment in visible_comments
@@ -1072,6 +1096,7 @@ def task_detail(tid):
         ]
         unit_report_rows, unit_report_stats = _build_unit_report_summary(assigns, comments, task.deadline)
         unit_report_cards = _build_unit_report_cards(task, assigns, comments)
+        unit_report_groups = _build_unit_report_groups(unit_report_cards)
     report_context = _build_assignment_report_context(user_assign, visible_comments)
     limited_assignment_view = bool(user_assign and not can_manage_task_view)
 
@@ -1115,6 +1140,7 @@ def task_detail(tid):
         unit_report_rows=unit_report_rows,
         unit_report_stats=unit_report_stats,
         unit_report_cards=unit_report_cards,
+        unit_report_groups=unit_report_groups,
         can_manage_task_view=can_manage_task_view,
         limited_assignment_view=limited_assignment_view,
         report_context=report_context,
