@@ -181,6 +181,11 @@
     }
     .pc06-report-groups {
         display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+    .pc06-report-group-column {
+        display: grid;
         gap: 12px;
     }
     .pc06-report-group {
@@ -358,30 +363,55 @@
         background: rgba(255, 255, 255, 0.98);
         overflow: hidden;
     }
+    .pc06-thread-card summary {
+        list-style: none;
+        cursor: pointer;
+    }
+    .pc06-thread-card summary::-webkit-details-marker {
+        display: none;
+    }
     .pc06-thread-head {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-start;
         gap: 12px;
         padding: 14px 16px;
-        border-bottom: 1px solid rgba(226, 232, 240, 0.82);
     }
     .pc06-thread-head strong {
         display: block;
         color: var(--text-main, #0f172a);
         font-size: 1rem;
     }
-    .pc06-thread-head span {
+    .pc06-thread-head span,
+    .pc06-thread-head small {
         display: block;
         color: var(--text-muted, #64748b);
-        font-size: 0.82rem;
+        font-size: 0.8rem;
         margin-top: 4px;
+    }
+    .pc06-thread-head small {
+        line-height: 1.5;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .pc06-thread-head .pc06-soft-tag {
+        flex-shrink: 0;
+    }
+    .pc06-thread-caret {
+        color: var(--text-muted, #64748b);
+        transition: transform 0.2s ease;
+    }
+    .pc06-thread-card[open] .pc06-thread-caret {
+        transform: rotate(180deg);
     }
     .pc06-thread-stack {
         display: grid;
         gap: 10px;
         padding: 14px 16px;
         background: rgba(248, 250, 252, 0.7);
+        border-top: 1px solid rgba(226, 232, 240, 0.82);
     }
     .pc06-thread-bubble {
         max-width: 86%;
@@ -489,6 +519,9 @@
     @media (max-width: 991.98px) {
         .pc06-unit-report-overview {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .pc06-report-groups {
+            grid-template-columns: 1fr;
         }
         .pc06-unit-report-cluster-grid {
             grid-template-columns: 1fr;
@@ -683,82 +716,162 @@
                     </article>
                 </div>
                 <div class="pc06-report-groups">
-                    {% for group in unit_report_groups %}
-                    <details class="pc06-report-group">
-                        <summary class="pc06-report-group-summary">
-                            <div>
-                                <span>{{ group.label }}</span>
-                                <strong>{{ group.count }}</strong>
-                                <small>Bấm để xem danh sách đơn vị</small>
-                            </div>
-                            <i class="fa-solid fa-chevron-down pc06-report-caret"></i>
-                        </summary>
-                        <div class="pc06-report-group-body">
-                            {% for card in group.cards %}
-                            {% set primary_attachment = card.attachments[0] if card.attachments else None %}
-                            <details class="pc06-report-item">
-                                <summary class="pc06-report-item-summary">
-                                    <div class="pc06-report-item-copy">
-                                        <strong>{{ card.unit_name }}</strong>
-                                        <div class="pc06-report-item-fileline" title="{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp minh chứng' }}">
-                                            <i class="fa-solid fa-paperclip"></i>
-                                            <span>{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp minh chứng' }}</span>
-                                        </div>
-                                    </div>
-                                    <div class="pc06-report-item-actions">
-                                        {% if primary_attachment %}
-                                        <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=primary_attachment.user_id) }}" class="pc06-report-download-icon" title="Tải tệp" onclick="event.stopPropagation();">
-                                            <i class="fa-solid fa-download"></i>
-                                        </a>
-                                        {% endif %}
-                                        <i class="fa-solid fa-chevron-down pc06-report-caret"></i>
-                                    </div>
-                                </summary>
-                                <div class="pc06-report-item-body">
-                                    <span class="pc06-status-badge {% if card.status == 'Báo cáo đúng hạn' %}done{% elif card.status == 'Báo cáo quá hạn' %}todo{% elif card.status == 'Chưa báo cáo' %}neutral{% else %}doing{% endif %}">
-                                        {{ card.status }}
-                                    </span>
-                                    <div class="pc06-report-item-meta">
-                                        <span>
-                                            <i class="fa-regular fa-user"></i>
-                                            {{ card.latest_report_user_name or 'Chưa có người gửi' }}
-                                        </span>
-                                        <span>
-                                            <i class="fa-regular fa-clock"></i>
-                                            {{ card.latest_report_at.strftime('%d/%m/%Y %H:%M') if card.latest_report_at else 'Chưa có thời điểm báo cáo' }}
-                                        </span>
-                                        <span>
-                                            <i class="fa-solid fa-users"></i>
-                                            {{ card.assignee_names|join(', ') }}
-                                        </span>
-                                    </div>
-                                    {% if card.latest_report_excerpt %}
-                                    <div class="pc06-report-item-excerpt">{{ card.latest_report_excerpt }}</div>
-                                    {% else %}
-                                    <div class="pc06-report-item-note">Đơn vị này chưa gửi nội dung báo cáo.</div>
-                                    {% endif %}
-                                    {% if card.attachments|length > 1 %}
-                                    <div class="pc06-report-item-files">
-                                        {% for attachment in card.attachments %}
-                                        <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=attachment.user_id) }}" class="pc06-report-file-pill" title="{{ attachment.file_name }}">
-                                            <i class="fa-solid fa-download"></i>
-                                            <span>{{ attachment.user_name }} · {{ attachment.file_name }}</span>
-                                        </a>
-                                        {% endfor %}
-                                    </div>
-                                    {% endif %}
+                    <div class="pc06-report-group-column">
+                        {% for group in unit_report_groups if group.key in ['reported', 'unreported'] %}
+                        <details class="pc06-report-group">
+                            <summary class="pc06-report-group-summary">
+                                <div>
+                                    <span>{{ group.label }}</span>
+                                    <strong>{{ group.count }}</strong>
+                                    <small>Bấm để xem danh sách đơn vị</small>
                                 </div>
-                            </details>
-                            {% else %}
-                            <div class="pc06-empty-state compact">
-                                <div class="pc06-empty-icon"><i class="fa-regular fa-folder-open"></i></div>
-                                <h3>Chưa có đơn vị</h3>
-                                <p>Nhóm này hiện chưa có đơn vị phù hợp.</p>
+                                <i class="fa-solid fa-chevron-down pc06-report-caret"></i>
+                            </summary>
+                            <div class="pc06-report-group-body">
+                                {% for card in group.cards %}
+                                {% set primary_attachment = card.attachments[0] if card.attachments else None %}
+                                <details class="pc06-report-item">
+                                    <summary class="pc06-report-item-summary">
+                                        <div class="pc06-report-item-copy">
+                                            <strong>{{ card.unit_name }}</strong>
+                                            <div class="pc06-report-item-fileline" title="{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp minh chứng' }}">
+                                                <i class="fa-solid fa-paperclip"></i>
+                                                <span>{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp minh chứng' }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="pc06-report-item-actions">
+                                            {% if primary_attachment %}
+                                            <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=primary_attachment.user_id) }}" class="pc06-report-download-icon" title="Tải tệp" onclick="event.stopPropagation();">
+                                                <i class="fa-solid fa-download"></i>
+                                            </a>
+                                            {% endif %}
+                                            <i class="fa-solid fa-chevron-down pc06-report-caret"></i>
+                                        </div>
+                                    </summary>
+                                    <div class="pc06-report-item-body">
+                                        <span class="pc06-status-badge {% if card.status == 'Báo cáo đúng hạn' %}done{% elif card.status == 'Báo cáo quá hạn' %}todo{% elif card.status == 'Chưa báo cáo' %}neutral{% else %}doing{% endif %}">
+                                            {{ card.status }}
+                                        </span>
+                                        <div class="pc06-report-item-meta">
+                                            <span>
+                                                <i class="fa-regular fa-user"></i>
+                                                {{ card.latest_report_user_name or 'Chưa có người gửi' }}
+                                            </span>
+                                            <span>
+                                                <i class="fa-regular fa-clock"></i>
+                                                {{ card.latest_report_at.strftime('%d/%m/%Y %H:%M') if card.latest_report_at else 'Chưa có thời điểm báo cáo' }}
+                                            </span>
+                                            <span>
+                                                <i class="fa-solid fa-users"></i>
+                                                {{ card.assignee_names|join(', ') }}
+                                            </span>
+                                        </div>
+                                        {% if card.latest_report_excerpt %}
+                                        <div class="pc06-report-item-excerpt">{{ card.latest_report_excerpt }}</div>
+                                        {% else %}
+                                        <div class="pc06-report-item-note">Đơn vị này chưa gửi nội dung báo cáo.</div>
+                                        {% endif %}
+                                        {% if card.attachments|length > 1 %}
+                                        <div class="pc06-report-item-files">
+                                            {% for attachment in card.attachments %}
+                                            <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=attachment.user_id) }}" class="pc06-report-file-pill" title="{{ attachment.file_name }}">
+                                                <i class="fa-solid fa-download"></i>
+                                                <span>{{ attachment.user_name }} · {{ attachment.file_name }}</span>
+                                            </a>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </details>
+                                {% else %}
+                                <div class="pc06-empty-state compact">
+                                    <div class="pc06-empty-icon"><i class="fa-regular fa-folder-open"></i></div>
+                                    <h3>Chưa có đơn vị</h3>
+                                    <p>Nhóm này hiện chưa có đơn vị phù hợp.</p>
+                                </div>
+                                {% endfor %}
                             </div>
-                            {% endfor %}
-                        </div>
-                    </details>
-                    {% endfor %}
+                        </details>
+                        {% endfor %}
+                    </div>
+                    <div class="pc06-report-group-column">
+                        {% for group in unit_report_groups if group.key in ['on_time', 'overdue'] %}
+                        <details class="pc06-report-group">
+                            <summary class="pc06-report-group-summary">
+                                <div>
+                                    <span>{{ group.label }}</span>
+                                    <strong>{{ group.count }}</strong>
+                                    <small>Bấm để xem danh sách đơn vị</small>
+                                </div>
+                                <i class="fa-solid fa-chevron-down pc06-report-caret"></i>
+                            </summary>
+                            <div class="pc06-report-group-body">
+                                {% for card in group.cards %}
+                                {% set primary_attachment = card.attachments[0] if card.attachments else None %}
+                                <details class="pc06-report-item">
+                                    <summary class="pc06-report-item-summary">
+                                        <div class="pc06-report-item-copy">
+                                            <strong>{{ card.unit_name }}</strong>
+                                            <div class="pc06-report-item-fileline" title="{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp minh chứng' }}">
+                                                <i class="fa-solid fa-paperclip"></i>
+                                                <span>{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp minh chứng' }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="pc06-report-item-actions">
+                                            {% if primary_attachment %}
+                                            <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=primary_attachment.user_id) }}" class="pc06-report-download-icon" title="Tải tệp" onclick="event.stopPropagation();">
+                                                <i class="fa-solid fa-download"></i>
+                                            </a>
+                                            {% endif %}
+                                            <i class="fa-solid fa-chevron-down pc06-report-caret"></i>
+                                        </div>
+                                    </summary>
+                                    <div class="pc06-report-item-body">
+                                        <span class="pc06-status-badge {% if card.status == 'Báo cáo đúng hạn' %}done{% elif card.status == 'Báo cáo quá hạn' %}todo{% elif card.status == 'Chưa báo cáo' %}neutral{% else %}doing{% endif %}">
+                                            {{ card.status }}
+                                        </span>
+                                        <div class="pc06-report-item-meta">
+                                            <span>
+                                                <i class="fa-regular fa-user"></i>
+                                                {{ card.latest_report_user_name or 'Chưa có người gửi' }}
+                                            </span>
+                                            <span>
+                                                <i class="fa-regular fa-clock"></i>
+                                                {{ card.latest_report_at.strftime('%d/%m/%Y %H:%M') if card.latest_report_at else 'Chưa có thời điểm báo cáo' }}
+                                            </span>
+                                            <span>
+                                                <i class="fa-solid fa-users"></i>
+                                                {{ card.assignee_names|join(', ') }}
+                                            </span>
+                                        </div>
+                                        {% if card.latest_report_excerpt %}
+                                        <div class="pc06-report-item-excerpt">{{ card.latest_report_excerpt }}</div>
+                                        {% else %}
+                                        <div class="pc06-report-item-note">Đơn vị này chưa gửi nội dung báo cáo.</div>
+                                        {% endif %}
+                                        {% if card.attachments|length > 1 %}
+                                        <div class="pc06-report-item-files">
+                                            {% for attachment in card.attachments %}
+                                            <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=attachment.user_id) }}" class="pc06-report-file-pill" title="{{ attachment.file_name }}">
+                                                <i class="fa-solid fa-download"></i>
+                                                <span>{{ attachment.user_name }} · {{ attachment.file_name }}</span>
+                                            </a>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </details>
+                                {% else %}
+                                <div class="pc06-empty-state compact">
+                                    <div class="pc06-empty-icon"><i class="fa-regular fa-folder-open"></i></div>
+                                    <h3>Chưa có đơn vị</h3>
+                                    <p>Nhóm này hiện chưa có đơn vị phù hợp.</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </details>
+                        {% endfor %}
+                    </div>
                 </div>
             </section>
             {% endif %}
@@ -801,14 +914,18 @@
                 </div>
                 <div class="pc06-thread-grid">
                     {% for thread in discussion_threads %}
-                    <article class="pc06-thread-card">
-                        <div class="pc06-thread-head">
+                    <details class="pc06-thread-card">
+                        <summary class="pc06-thread-head">
                             <div>
                                 <strong>{{ thread.unit_name }}</strong>
-                                <span>{{ thread.assignee_names|join(', ') }}</span>
+                                <span>{{ thread.comment_count }} phản hồi · {{ thread.latest_comment_at.strftime('%d/%m/%Y %H:%M') if thread.latest_comment_at else 'Chưa có thời gian phản hồi' }}</span>
+                                <small>{{ thread.latest_comment_user_name }}{% if thread.latest_comment_preview %}: {{ thread.latest_comment_preview }}{% endif %}</small>
                             </div>
-                            <span class="pc06-soft-tag neutral">{{ thread.comment_count }} phản hồi</span>
-                        </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="pc06-soft-tag neutral">{{ thread.comment_count }} phản hồi</span>
+                                <i class="fa-solid fa-chevron-down pc06-thread-caret"></i>
+                            </div>
+                        </summary>
                         <div class="pc06-thread-stack">
                             {% for c in thread.comments %}
                             {% set is_reply = can_manage_task_view and c.user_id == task.author_id %}
@@ -827,7 +944,7 @@
                                 Gửi phản hồi
                             </button>
                         </form>
-                    </article>
+                    </details>
                     {% else %}
                     <div class="pc06-empty-state compact">
                         <div class="pc06-empty-icon"><i class="fa-regular fa-comment-dots"></i></div>

@@ -688,11 +688,17 @@ def _build_discussion_threads(assigns, comments):
         thread["assignee_names"].sort()
         thread["comments"].sort(key=lambda item: getattr(item, "created_at", datetime.min))
         thread["comment_count"] = len(thread["comments"])
+        latest_comment = thread["comments"][-1] if thread["comments"] else None
+        latest_content = (getattr(latest_comment, "content", "") or "").strip() if latest_comment else ""
+        thread["latest_comment_at"] = getattr(latest_comment, "created_at", None) if latest_comment else None
+        thread["latest_comment_user_name"] = getattr(latest_comment, "user_name", "") if latest_comment else ""
+        thread["latest_comment_preview"] = latest_content
         output.append(thread)
 
     output.sort(
         key=lambda item: (
             0 if item["comments"] else 1,
+            -(item["latest_comment_at"].timestamp()) if item.get("latest_comment_at") else float("inf"),
             item["unit_name"].lower(),
         )
     )

@@ -67,10 +67,15 @@
     .detail-mobile-report-file { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; padding: 8px 11px; border-radius: 999px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; text-decoration: none; font-size: 0.78rem; }
     .detail-mobile-report-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .detail-mobile-thread-card { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--bg-body); }
-    .detail-mobile-thread-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    .detail-mobile-thread-card summary { list-style: none; cursor: pointer; }
+    .detail-mobile-thread-card summary::-webkit-details-marker { display: none; }
+    .detail-mobile-thread-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; }
     .detail-mobile-thread-head strong { display: block; color: var(--text-main); }
-    .detail-mobile-thread-head span { display: block; margin-top: 3px; color: var(--text-muted); font-size: 0.78rem; }
+    .detail-mobile-thread-head span, .detail-mobile-thread-head small { display: block; margin-top: 3px; color: var(--text-muted); font-size: 0.78rem; }
+    .detail-mobile-thread-head small { line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .detail-mobile-thread-badge { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-muted); font-size: 0.74rem; }
+    .detail-mobile-thread-caret { color: var(--text-muted); transition: transform 0.2s ease; }
+    .detail-mobile-thread-card[open] .detail-mobile-thread-caret { transform: rotate(180deg); }
     .detail-mobile-thread-stack { display: grid; gap: 8px; padding: 12px 14px; background: var(--bg-surface); }
     .detail-mobile-thread-bubble { max-width: 92%; padding: 10px 12px; border-radius: 14px; background: #fff; border: 1px solid var(--border); }
     .detail-mobile-thread-bubble.reply { margin-left: auto; background: #eff6ff; border-color: #bfdbfe; }
@@ -408,14 +413,18 @@
     <h2>Trao đổi</h2>
     <div class="detail-mobile-stack">
         {% for thread in discussion_threads %}
-        <article class="detail-mobile-thread-card">
-            <div class="detail-mobile-thread-head">
+        <details class="detail-mobile-thread-card">
+            <summary class="detail-mobile-thread-head">
                 <div>
                     <strong>{{ thread.unit_name }}</strong>
-                    <span>{{ thread.assignee_names|join(', ') }}</span>
+                    <span>{{ thread.comment_count }} phản hồi · {{ thread.latest_comment_at.strftime('%d/%m/%Y %H:%M') if thread.latest_comment_at else 'Chưa có thời gian phản hồi' }}</span>
+                    <small>{{ thread.latest_comment_user_name }}{% if thread.latest_comment_preview %}: {{ thread.latest_comment_preview }}{% endif %}</small>
                 </div>
-                <div class="detail-mobile-thread-badge">{{ thread.comment_count }} phản hồi</div>
-            </div>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="detail-mobile-thread-badge">{{ thread.comment_count }} phản hồi</div>
+                    <i class="fa-solid fa-chevron-down detail-mobile-thread-caret"></i>
+                </div>
+            </summary>
             <div class="detail-mobile-thread-stack">
                 {% for c in thread.comments %}
                 {% set is_reply = can_manage_task_view and c.user_id == task.author_id %}
@@ -431,7 +440,7 @@
                 <textarea name="content" rows="3" class="form-control" placeholder="Nhập phản hồi cho {{ thread.unit_name }}" required></textarea>
                 <button type="submit" class="btn btn-mobile btn-mobile-primary mt-3" aria-label="Gửi phản hồi" title="Gửi phản hồi"><i class="fa-solid fa-reply"></i><span class="visually-hidden">Gửi phản hồi</span></button>
             </form>
-        </article>
+        </details>
         {% else %}
         <div class="text-muted small">{{ 'Phản hồi sẽ được nhóm thành từng ô chat theo đơn vị khi bắt đầu trao đổi.' if can_manage_task_view else 'Ô chat của đơn vị sẽ hiển thị tại đây khi có trao đổi.' }}</div>
         {% endfor %}
