@@ -328,7 +328,7 @@ def index(): return redirect(url_for('admin_bp.index'))
 
 @app.route('/dl_file/<path:fn>')
 def dl_file(fn): 
-    legacy_task_folder = os.path.join(current_app.root_path, 'task_files')
+    legacy_task_folder = os.path.join(app.root_path, 'task_files')
     candidate_dirs = [TASK_FOLDER, UPLOAD_FOLDER, LIB_FOLDER]
     if legacy_task_folder not in candidate_dirs:
         candidate_dirs.append(legacy_task_folder)
