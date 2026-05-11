@@ -1,5 +1,13 @@
 {% extends "base.html" %}
 
+{% block extra_head %}
+<style>
+    .pc06-role-checklist .pc06-user-option {
+        justify-content: flex-start;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 {% set display_status = task.display_status or (user_assign.status if user_assign else (task.initial_status or 'Chưa tiếp nhận')) %}
 {% set status_key = display_status|lower %}
@@ -360,18 +368,14 @@
                         </div>
                         <div class="col-md-6 {% if assignment_context.mode != 'role' %}d-none{% endif %}" id="editRoleAssignmentPanel">
                             <label class="form-label fw-bold">Vai trò nhận việc</label>
-                            <div class="pc06-user-picker-panel border rounded-4 p-2" style="display:block; max-height: 320px; overflow:auto;">
+                            <div class="pc06-user-picker-panel pc06-role-checklist border rounded-4 p-2" style="display:block; max-height: 320px; overflow:auto;">
                                 {% for role in roles %}
                                 <label class="pc06-user-option">
                                     <input type="checkbox" name="assignee_role_ids" value="{{ role.id }}" {% if role.id in assignment_context.role_ids %}checked{% endif %}>
-                                    <div>
-                                        <strong>{{ role.name }}</strong>
-                                        <small>Chọn để giao lại cho toàn bộ cán bộ thuộc vai trò này</small>
-                                    </div>
+                                    <span class="fw-semibold">{{ role.name }}</span>
                                 </label>
                                 {% endfor %}
                             </div>
-                            <div class="form-text">Tích một hoặc nhiều vai trò ở đầu dòng khi cập nhật lại luồng giao việc.</div>
                         </div>
                         <div class="col-12 {% if assignment_context.mode != 'user' %}d-none{% endif %}" id="editUserAssignmentPanel">
                             <label class="form-label fw-bold">Cán bộ nhận việc</label>
