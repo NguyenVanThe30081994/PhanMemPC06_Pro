@@ -819,6 +819,13 @@ def reset_users_password_bulk():
         flash('Chỉ quản trị viên mới được reset mật khẩu hàng loạt.', 'danger')
         return redirect(url_for('admin_bp.roles'))
 
+    raw_selected = request.form.get('selected_ids', '').strip()
+    try:
+        selected_ids = json.loads(raw_selected) if raw_selected else []
+    except Exception:
+        selected_ids = []
+
+    selected_ids = [int(uid) for uid in selected_ids if str(uid).isdigit()]
     selected_role_id = request.form.get('role_id', type=int)
     selected_unit = (request.form.get('unit') or '').strip()
     search_query = (request.form.get('q') or '').strip()
@@ -830,7 +837,10 @@ def reset_users_password_bulk():
         search_query=search_query
     )
 
-    users = users_query.order_by(User.fullname.asc(), User.username.asc()).all()
+    if selected_ids:
+        users = User.query.filter(User.id.in_(selected_ids)).order_by(User.fullname.asc(), User.username.asc()).all()
+    else:
+        users = users_query.order_by(User.fullname.asc(), User.username.asc()).all()
     if not users:
         flash('Không có tài khoản nào trong danh sách hiện tại để reset mật khẩu.', 'warning')
         return redirect(url_for('admin_bp.roles', role_id=selected_role_id, unit=selected_unit, q=search_query))
