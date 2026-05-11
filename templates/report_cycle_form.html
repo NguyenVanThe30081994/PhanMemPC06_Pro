@@ -20,6 +20,27 @@
         </div>
     </section>
 
+    <section class="pc06-panel report-form-summary">
+        <div class="report-form-summary-grid">
+            <div>
+                <span>Lịch báo cáo</span>
+                <strong>{{ schedule_text }}</strong>
+            </div>
+            <div>
+                <span>Trạng thái</span>
+                <strong>{{ 'Đang nhập' if editable else 'Đã khóa' }}</strong>
+            </div>
+            <div>
+                <span>Bản mới nhất</span>
+                <strong>{{ latest_submission.created_at.strftime('%d/%m/%Y %H:%M') if latest_submission and latest_submission.created_at else 'Chưa có' }}</strong>
+            </div>
+            <div>
+                <span>Đánh giá</span>
+                <strong>{{ latest_timeliness or 'Chưa có' }}</strong>
+            </div>
+        </div>
+    </section>
+
     <form id="reportForm" method="POST">
         <input type="hidden" name="payload_json" id="payloadJson">
         {% if report_date %}
@@ -36,6 +57,12 @@
                 <div class="d-flex gap-2 flex-wrap">
                     <a href="{{ url_for('reporting_bp.cycle_history', cycle_id=cycle.id, report_date=report_date.strftime('%Y-%m-%d')) if report_date else url_for('reporting_bp.cycle_history', cycle_id=cycle.id) }}" class="btn btn-bdhvs light">LỊCH SỬ</a>
                     <a href="{{ url_for('reporting_bp.cycle_preview', cycle_id=cycle.id, report_date=report_date.strftime('%Y-%m-%d')) if report_date else url_for('reporting_bp.cycle_preview', cycle_id=cycle.id) }}" class="btn btn-bdhvs light">XEM BÁO CÁO</a>
+                    {% if latest_submission and (latest_submission.processed_file_path or latest_submission.file_path) %}
+                    <a href="{{ url_for('reporting_bp.download_submission', submission_id=latest_submission.id) }}" class="btn btn-bdhvs light">TẢI FILE</a>
+                    {% endif %}
+                    {% if editable %}
+                    <button type="button" class="btn btn-bdhvs light" onclick="submitReport('{{ url_for('reporting_bp.save_cycle', cycle_id=cycle.id) }}')">LƯU NHÁP</button>
+                    {% endif %}
                     {% if editable %}
                     <button type="button" class="btn btn-bdhvs primary" onclick="submitReport('{{ url_for('reporting_bp.submit_cycle', cycle_id=cycle.id) }}')">GỬI BÁO CÁO</button>
                     {% endif %}
@@ -68,9 +95,45 @@
         </section>
         {% endfor %}
     </form>
+
+    <div class="report-form-toolbar-desktop">
+        <a class="btn btn-bdhvs light" href="{{ url_for('reporting_bp.cycle_history', cycle_id=cycle.id, report_date=report_date.strftime('%Y-%m-%d')) if report_date else url_for('reporting_bp.cycle_history', cycle_id=cycle.id) }}">LỊCH SỬ</a>
+        {% if latest_submission and (latest_submission.processed_file_path or latest_submission.file_path) %}
+        <a class="btn btn-bdhvs light" href="{{ url_for('reporting_bp.download_submission', submission_id=latest_submission.id) }}">TẢI FILE</a>
+        {% endif %}
+        {% if editable %}
+        <button type="button" class="btn btn-bdhvs light" onclick="submitReport('{{ url_for('reporting_bp.save_cycle', cycle_id=cycle.id) }}')">LƯU NHÁP</button>
+        <button type="button" class="btn btn-bdhvs primary" onclick="submitReport('{{ url_for('reporting_bp.submit_cycle', cycle_id=cycle.id) }}')">GỬI BÁO CÁO</button>
+        {% endif %}
+    </div>
 </div>
 
 <style>
+    .report-form-summary {
+        margin-bottom: 18px;
+        padding: 18px 20px;
+    }
+    .report-form-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+    }
+    .report-form-summary-grid div {
+        padding: 14px 16px;
+        border-radius: 16px;
+        background: rgba(248,250,252,0.8);
+        border: 1px solid rgba(148,163,184,0.14);
+    }
+    .report-form-summary-grid span {
+        display: block;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+    }
+    .report-form-summary-grid strong {
+        display: block;
+        margin-top: 6px;
+        color: var(--text-main);
+    }
     .report-input-sheet { margin-bottom: 18px; }
     .report-input-list { display: grid; gap: 16px; }
     .report-input-row {
@@ -113,9 +176,28 @@
         color: var(--text-muted);
         line-height: 1.4;
     }
+    .report-form-toolbar-desktop {
+        position: sticky;
+        bottom: 18px;
+        z-index: 10;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding-top: 10px;
+    }
     [data-theme="dark"] .report-input-row {
         background: rgba(15,23,42,0.45);
         border-color: rgba(148,163,184,0.14);
+    }
+    [data-theme="dark"] .report-form-summary-grid div {
+        background: rgba(15,23,42,0.45);
+        border-color: rgba(148,163,184,0.14);
+    }
+    @media (max-width: 768px) {
+        .report-form-toolbar-desktop {
+            bottom: 10px;
+        }
     }
 </style>
 

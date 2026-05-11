@@ -385,6 +385,64 @@ def _template_current_cycle(template):
     return cycles[0] if cycles else None
 
 
+def _cycle_has_submissions(cycle):
+    if not cycle:
+        return False
+    return bool(
+        db.session.query(ReportSubmission.id)
+        .join(ReportInstance, ReportSubmission.instance_id == ReportInstance.id)
+        .filter(ReportInstance.cycle_id == cycle.id)
+        .first()
+    )
+
+
+def _close_cycle_for_type_change(cycle, closed_at=None):
+    if not cycle:
+        return
+    closed_at = closed_at or datetime.now()
+    cycle.status = "closed"
+    cycle.is_locked = True
+    cycle.close_at = closed_at
+    period = db.session.get(ReportingPeriod, cycle.legacy_period_id) if cycle.legacy_period_id else None
+    if period:
+        period.is_locked = True
+    for instance in ReportInstance.query.filter_by(cycle_id=cycle.id).all():
+        instance.locked_at = closed_at
+
+
+def _configure_cycle_for_report_type(cycle, template, report_type, reset_window=False):
+    if not cycle:
+        return
+    now = datetime.now()
+    report_code = report_type.code if report_type else ""
+    cycle.auto_lock_at = None
+    cycle.status = "open"
+    cycle.is_locked = False
+    cycle.close_at = None
+
+    if report_code == "daily":
+        target_day = now.date()
+        if not reset_window and cycle.open_at:
+            target_day = cycle.open_at.date()
+        cycle.open_at = _start_of_day(target_day)
+        cycle.due_at = _end_of_day(target_day)
+        if reset_window or not cycle.name:
+            cycle.name = _build_cycle_name(template, report_type)
+        return
+
+    if reset_window or not cycle.open_at:
+        cycle.open_at = now
+
+    if report_code == "periodic":
+        periodic_due_date = _default_periodic_due_date(template, reference_date=cycle.open_at.date() if cycle.open_at else now.date())
+        cycle.due_at = _end_of_day(periodic_due_date) if periodic_due_date else None
+        cycle.name = template.name
+        return
+
+    cycle.due_at = None
+    cycle.name = template.name
+
+
 def _save_directive_file(file_storage, template_code):
     if not file_storage or not file_storage.filename:
         return "", ""
@@ -1645,6 +1703,18 @@ def _report_schedule_text(cycle, report_type=None, report_date=None):
     return "Không đặt hạn cụ thể"
 
 
+def _cycle_deadline_badge_text(cycle, report_type=None):
+    if not cycle:
+        return "Chưa mở báo cáo"
+    report_type = report_type or _report_type(cycle)
+    if cycle.due_at:
+        return cycle.due_at.strftime("%d/%m/%Y")
+    if report_type and report_type.code == "daily":
+        target_day = cycle.open_at or cycle.created_at
+        return target_day.strftime("%d/%m/%Y") if target_day else "Hôm nay"
+    return "Không đặt hạn"
+
+
 def _period_dates_for_cycle(cycle, report_type=None):
     report_type = report_type or _report_type(cycle)
     start_date = (cycle.open_at or cycle.created_at or datetime.now()).date()
@@ -1961,37 +2031,48 @@ def _ensure_active_cycle_for_template(template, version, report_type):
         ReportCycle.status != "closed",
     ).order_by(ReportCycle.created_at.desc()).all() if version_ids else []
 
+    closed_at = datetime.now()
     selected_cycle = None
+    selected_cycle_has_submissions = False
+    reusable_cycle = None
+    same_type_cycles = []
     for cycle in open_cycles:
-        has_submissions = (
-            db.session.query(ReportSubmission.id)
-            .join(ReportInstance, ReportSubmission.instance_id == ReportInstance.id)
-            .filter(ReportInstance.cycle_id == cycle.id)
-            .first()
-        )
+        has_submissions = _cycle_has_submissions(cycle)
+        if cycle.report_type_id != report_type.id:
+            if has_submissions:
+                _close_cycle_for_type_change(cycle, closed_at=closed_at)
+                continue
+            if reusable_cycle is None:
+                reusable_cycle = cycle
+            else:
+                _close_cycle_for_type_change(cycle, closed_at=closed_at)
+            continue
+        same_type_cycles.append((cycle, has_submissions))
+
+    for cycle, has_submissions in same_type_cycles:
         if not has_submissions:
             selected_cycle = cycle
+            selected_cycle_has_submissions = False
             break
 
-    if not selected_cycle and open_cycles:
-        selected_cycle = open_cycles[0]
+    if not selected_cycle and same_type_cycles:
+        selected_cycle, selected_cycle_has_submissions = same_type_cycles[0]
+
+    if not selected_cycle and reusable_cycle:
+        selected_cycle = reusable_cycle
+        selected_cycle_has_submissions = False
+
+    if reusable_cycle and reusable_cycle is not selected_cycle:
+        _close_cycle_for_type_change(reusable_cycle, closed_at=closed_at)
 
     if not selected_cycle:
-        open_at = datetime.now()
-        if report_type and report_type.code == "daily":
-            due_at = _end_of_day(datetime.now().date())
-        elif report_type and report_type.code == "periodic":
-            periodic_due_date = _default_periodic_due_date(template)
-            due_at = _end_of_day(periodic_due_date) if periodic_due_date else None
-        else:
-            due_at = None
         selected_cycle = ReportCycle(
             template_version_id=version.id,
             report_type_id=report_type.id,
             name=_build_cycle_name(template, report_type),
-            open_at=open_at,
+            open_at=datetime.now(),
             close_at=None,
-            due_at=due_at,
+            due_at=None,
             auto_lock_at=None,
             status="open",
             scope_json=scope_json,
@@ -2000,21 +2081,19 @@ def _ensure_active_cycle_for_template(template, version, report_type):
         )
         db.session.add(selected_cycle)
         db.session.flush()
+        _configure_cycle_for_report_type(selected_cycle, template, report_type, reset_window=True)
     else:
+        previous_type_id = selected_cycle.report_type_id
         selected_cycle.template_version_id = version.id
         selected_cycle.report_type_id = report_type.id
         selected_cycle.scope_json = scope_json
-        if report_type and report_type.code == "daily":
-            selected_cycle.open_at = _start_of_day(datetime.now().date())
-            selected_cycle.due_at = _end_of_day(datetime.now().date())
-            selected_cycle.name = _build_cycle_name(template, report_type)
-        elif report_type and report_type.code == "periodic":
-            periodic_due_date = _default_periodic_due_date(template)
-            if periodic_due_date:
-                selected_cycle.due_at = _end_of_day(periodic_due_date)
-            selected_cycle.name = template.name
-        else:
-            selected_cycle.name = template.name
+        should_reset_window = previous_type_id != report_type.id or not selected_cycle_has_submissions
+        _configure_cycle_for_report_type(
+            selected_cycle,
+            template,
+            report_type,
+            reset_window=should_reset_window,
+        )
 
     _ensure_reporting_period(selected_cycle, report_type=report_type)
     _ensure_cycle_instances(selected_cycle)
@@ -2275,6 +2354,7 @@ def admin_dashboard():
     }
     cycle_status_map = {}
     cycle_progress_map = {}
+    cycle_deadline_map = {}
     for cycle in cycles:
         report_type = _report_type(cycle)
         progress = _dashboard_cycle_progress(cycle, report_type=report_type, report_date=date.today())
@@ -2286,6 +2366,7 @@ def admin_dashboard():
             report_date=date.today(),
             progress=progress,
         )
+        cycle_deadline_map[cycle.id] = _cycle_deadline_badge_text(cycle, report_type=report_type)
     hero_stats = _dashboard_hero_stats(cycles, cycle_status_map=cycle_status_map)
 
     setattr(template, "professional_unit_display", _template_professional_unit(template))
@@ -2303,6 +2384,7 @@ def admin_dashboard():
         template_report_types=template_report_types,
         cycle_status_map=cycle_status_map,
         cycle_progress_map=cycle_progress_map,
+        cycle_deadline_map=cycle_deadline_map,
         hero_stats=hero_stats,
         can_view_cycle_progress=True,
         is_admin=True,
@@ -3222,6 +3304,7 @@ def user_dashboard():
     }
     cycle_progress_map = {}
     cycle_status_map = {}
+    cycle_deadline_map = {}
     for cycle in accessible_cycles:
         report_type = cycle_report_types.get(cycle.id)
         progress = _dashboard_cycle_progress(cycle, report_type=report_type, report_date=dashboard_report_date)
@@ -3233,6 +3316,7 @@ def user_dashboard():
             report_date=dashboard_report_date,
             progress=progress,
         )
+        cycle_deadline_map[cycle.id] = _cycle_deadline_badge_text(cycle, report_type=report_type)
     hero_stats = _dashboard_hero_stats(accessible_cycles, cycle_status_map=cycle_status_map)
 
     return render_template(
@@ -3254,6 +3338,7 @@ def user_dashboard():
         cycle_report_types=cycle_report_types,
         cycle_progress_map=cycle_progress_map,
         cycle_status_map=cycle_status_map,
+        cycle_deadline_map=cycle_deadline_map,
         hero_stats=hero_stats,
         can_view_cycle_progress=can_view_cycle_progress,
     )

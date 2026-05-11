@@ -87,6 +87,7 @@
                 {% set template = item.template %}
                 {% set current_version = item.current_version %}
                 {% set report_type = item.report_type or (template_report_types.get(template.id) if template_report_types is defined else None) %}
+                {% set deadline_text = cycle_deadline_map.get(item.current_cycle.id) if item.current_cycle and cycle_deadline_map is defined else 'Chưa mở báo cáo' %}
                 <article class="report-mobile-card report-mobile-row" data-report-group="{{ group.name|lower }}">
                     <div class="report-mobile-card-head">
                         <div class="report-mobile-card-copy">
@@ -107,6 +108,10 @@
                         <div>
                             <span>Loại báo cáo</span>
                             <strong>{{ report_type.name if report_type else 'Chưa cấu hình' }}</strong>
+                        </div>
+                        <div>
+                            <span>Thời hạn báo cáo</span>
+                            <strong>{{ deadline_text }}</strong>
                         </div>
                     </div>
                     <div class="report-mobile-actions-row">
@@ -134,6 +139,7 @@
                 {% set cycle_status = cycle_status_map.get(cycle.id) if cycle_status_map is defined else none %}
                 {% set cycle_progress = cycle_progress_map.get(cycle.id) if cycle_progress_map is defined else none %}
                 {% set has_downloadable_file = latest_submission and (latest_submission.processed_file_path or latest_submission.file_path) %}
+                {% set deadline_text = cycle_deadline_map.get(cycle.id) if cycle_deadline_map is defined else 'Chưa mở báo cáo' %}
                 <article class="report-mobile-card report-mobile-row" data-report-group="{{ group.name|lower }}">
                     <div class="report-mobile-card-head">
                         <div class="report-mobile-card-copy">
@@ -150,6 +156,10 @@
                         <div>
                             <span>Tiến độ đơn vị</span>
                             <strong>{{ cycle_status.label if cycle_status else 'Chưa có dữ liệu' }}</strong>
+                        </div>
+                        <div>
+                            <span>Thời hạn báo cáo</span>
+                            <strong>{{ deadline_text }}</strong>
                         </div>
                         <div>
                             <span>Bản mới nhất</span>

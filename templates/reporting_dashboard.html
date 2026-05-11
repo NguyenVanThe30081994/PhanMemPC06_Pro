@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% macro render_cycle_copy(title, report_type_label, status_info, progress_info=None) -%}
+{% macro render_cycle_copy(title, report_type_label, status_info, progress_info=None, deadline_text='') -%}
 <div class="report-template-copy">
     <h3>{{ title }}</h3>
     <div class="report-template-meta">
@@ -11,6 +11,9 @@
         {% endif %}
         {% if progress_info and progress_info.total %}
         <span class="pc06-soft-tag neutral">Tiến độ {{ progress_info.reported }}/{{ progress_info.total }} đơn vị</span>
+        {% endif %}
+        {% if deadline_text %}
+        <span class="pc06-soft-tag neutral">Hạn {{ deadline_text }}</span>
         {% endif %}
     </div>
 </div>
@@ -117,12 +120,14 @@
                                     {% set current_cycle = item.current_cycle %}
                                     {% set cycle_status = cycle_status_map.get(current_cycle.id) if current_cycle and cycle_status_map is defined else {'label': 'Chưa mở báo cáo', 'done': false} %}
                                     {% set cycle_progress = cycle_progress_map.get(current_cycle.id) if current_cycle and cycle_progress_map is defined else none %}
+                                    {% set deadline_text = cycle_deadline_map.get(current_cycle.id) if current_cycle and cycle_deadline_map is defined else 'Chưa mở báo cáo' %}
                                     <article class="report-template-row">
                                         {{ render_cycle_copy(
                                             template.name,
                                             item.report_type.name if item.report_type else '',
                                             cycle_status,
-                                            cycle_progress if can_view_cycle_progress else none
+                                            cycle_progress if can_view_cycle_progress else none,
+                                            deadline_text
                                         ) }}
                                         <div class="report-template-actions">
                                             {% if current_cycle %}
@@ -166,12 +171,14 @@
                                     {% set latest_submission = latest_submission_map.get(cycle.id) if latest_submission_map is defined else None %}
                                     {% set cycle_status = cycle_status_map.get(cycle.id) if cycle_status_map is defined else none %}
                                     {% set cycle_progress = cycle_progress_map.get(cycle.id) if cycle_progress_map is defined else none %}
+                                    {% set deadline_text = cycle_deadline_map.get(cycle.id) if cycle_deadline_map is defined else 'Chưa mở báo cáo' %}
                                     <article class="report-template-row">
                                         {{ render_cycle_copy(
                                             template.name if template else cycle.name,
                                             item.report_type.name if item.report_type else '',
                                             cycle_status,
-                                            cycle_progress if can_view_cycle_progress else none
+                                            cycle_progress if can_view_cycle_progress else none,
+                                            deadline_text
                                         ) }}
                                         <div class="report-template-actions">
                                             <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.cycle_workspace', cycle_id=cycle.id) }}" title="Nhập">
@@ -206,12 +213,14 @@
                                 {% set current_cycle = item.current_cycle %}
                                 {% set cycle_status = cycle_status_map.get(current_cycle.id) if current_cycle and cycle_status_map is defined else {'label': 'Chưa mở báo cáo', 'done': false} %}
                                 {% set cycle_progress = cycle_progress_map.get(current_cycle.id) if current_cycle and cycle_progress_map is defined else none %}
+                                {% set deadline_text = cycle_deadline_map.get(current_cycle.id) if current_cycle and cycle_deadline_map is defined else 'Chưa mở báo cáo' %}
                                 <article class="report-template-row">
                                     {{ render_cycle_copy(
                                         template.name,
                                         item.report_type.name if item.report_type else '',
                                         cycle_status,
-                                        cycle_progress if can_view_cycle_progress else none
+                                        cycle_progress if can_view_cycle_progress else none,
+                                        deadline_text
                                     ) }}
                                     <div class="report-template-actions">
                                         {% if current_cycle %}
@@ -253,12 +262,14 @@
                                 {% set latest_submission = latest_submission_map.get(cycle.id) if latest_submission_map is defined else None %}
                                 {% set cycle_status = cycle_status_map.get(cycle.id) if cycle_status_map is defined else none %}
                                 {% set cycle_progress = cycle_progress_map.get(cycle.id) if cycle_progress_map is defined else none %}
+                                {% set deadline_text = cycle_deadline_map.get(cycle.id) if cycle_deadline_map is defined else 'Chưa mở báo cáo' %}
                                 <article class="report-template-row">
                                     {{ render_cycle_copy(
                                         template.name if template else cycle.name,
                                         item.report_type.name if item.report_type else '',
                                         cycle_status,
-                                        cycle_progress if can_view_cycle_progress else none
+                                        cycle_progress if can_view_cycle_progress else none,
+                                        deadline_text
                                     ) }}
                                     <div class="report-template-actions">
                                         <a class="btn btn-light border btn-sm" href="{{ url_for('reporting_bp.cycle_workspace', cycle_id=cycle.id) }}" title="Nhập">
