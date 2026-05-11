@@ -13,10 +13,14 @@
         {% for n in notifs %}
         <div class="mobile-card p-0 overflow-hidden mb-3 border-start border-4 border-{{ 'primary' if loop.index <= 3 else 'light' }}">
             <a href="{{ n.link or '#' }}" class="text-decoration-none p-3 d-block">
-                <div class="d-flex justify-content-between align-items-start mb-1">
-                    <div class="fw-bold text-dark small">{{ n.title }}</div>
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                    <span class="notif-source-tag {{ n.source_info.class_name }}">
+                        <i class="fa-solid {{ n.source_info.icon }}"></i>
+                        {{ n.source_info.label }}
+                    </span>
                     <div class="tiny text-muted">{{ n.created_at.strftime('%H:%M') }}</div>
                 </div>
+                <div class="fw-bold text-dark small">{{ n.title }}</div>
                 <div class="text-muted small text-truncate-2">{{ n.msg }}</div>
                 <div class="mt-2 py-1 tiny text-primary fw-bold">
                     <i class="fa-solid fa-chevron-right me-1"></i> Xem chi tiết
@@ -36,5 +40,18 @@
 
 <style>
     .border-primary { border-left-color: var(--primary) !important; }
+    .notif-source-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+    }
+    .notif-source-tag.task { background: #dbeafe; color: #1d4ed8; }
+    .notif-source-tag.news { background: #fef3c7; color: #b45309; }
+    .notif-source-tag.library { background: #dcfce7; color: #166534; }
+    .notif-source-tag.report { background: #ede9fe; color: #6d28d9; }
 </style>
 {% endblock %}

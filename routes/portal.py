@@ -21,7 +21,7 @@ from category_helpers import (
     stable_form_category_options as shared_stable_form_category_options,
     sync_record_categories as shared_sync_record_categories,
 )
-from utils import log_action, push_global_notif, render_auto_template as render_template
+from utils import infer_notification_source, log_action, push_global_notif, render_auto_template as render_template
 import requests
 try:
     from security_utils.file_validator import validate_file_upload
@@ -617,7 +617,16 @@ def news_edit(nid):
 def notifications():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
     from models import Notification
-    notifs = Notification.query.filter_by(user_id=session['uid']).order_by(Notification.created_at.desc()).limit(20).all()
+    raw_notifs = Notification.query.filter_by(user_id=session['uid']).order_by(Notification.created_at.desc()).limit(40).all()
+    notifs = []
+    for notif in raw_notifs:
+        source_info = infer_notification_source(notif.title, notif.msg, notif.link)
+        if source_info['code'] not in {'task', 'news', 'library', 'report'}:
+            continue
+        setattr(notif, 'source_info', source_info)
+        notifs.append(notif)
+        if len(notifs) >= 20:
+            break
     # Mark as read when viewing the page
     Notification.query.filter_by(user_id=session['uid']).update({'is_read': 1})
     db.session.commit()

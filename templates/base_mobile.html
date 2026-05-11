@@ -228,6 +228,24 @@
             color: var(--text-main);
         }
         .theme-toggle:active { transform: scale(0.9); }
+        .mobile-bell-link {
+            position: relative;
+            text-decoration: none;
+        }
+        .mobile-notif-badge {
+            position: absolute;
+            top: 2px;
+            right: 1px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 4px;
+            border-radius: 999px;
+            border: 2px solid var(--bg-surface);
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 14px;
+            display: none;
+        }
         
         .sidebar-profile {
             background:
@@ -346,7 +364,10 @@
             <span class="header-title">PC06</span>
         </div>
         <div class="header-right d-flex gap-2">
-            <a href="/notifications" class="theme-toggle" style="text-decoration: none;"><i class="fa-regular fa-bell"></i></a>
+            <a href="/notifications" class="theme-toggle mobile-bell-link">
+                <i class="fa-regular fa-bell"></i>
+                <span class="badge bg-danger mobile-notif-badge" id="notifCountMobile">0</span>
+            </a>
             <button class="theme-toggle" id="themeToggler" type="button">
                 <i class="fa-solid fa-moon"></i>
             </button>
@@ -579,7 +600,7 @@
                 const r = await fetch('/api/notifications');
                 const d = await r.json();
                 const badge = document.getElementById('notifCountMobile');
-                if (badge && d.length > 0) {
+                if (badge) {
                     const unread = d.filter(x => !x.is_read).length;
                     badge.innerText = unread;
                     badge.style.display = unread > 0 ? 'block' : 'none';

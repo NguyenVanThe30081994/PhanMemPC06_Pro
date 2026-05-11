@@ -650,6 +650,48 @@ def push_global_notif(title, msg, link, exclude_uid=None):
         db.session.rollback()
         print(f"Global Notif Error: {e}")
 
+
+def infer_notification_source(title="", msg="", link=""):
+    title_text = (title or "").strip().lower()
+    msg_text = (msg or "").strip().lower()
+    link_text = (link or "").strip().lower()
+    combined = " ".join([title_text, msg_text, link_text])
+
+    if link_text.startswith("/tasks") or "công việc" in combined or "nhiệm vụ" in combined:
+        return {
+            "code": "task",
+            "label": "Công việc",
+            "icon": "fa-list-check",
+            "class_name": "task",
+        }
+    if link_text.startswith("/news") or "bảng tin" in combined:
+        return {
+            "code": "news",
+            "label": "Bảng tin",
+            "icon": "fa-newspaper",
+            "class_name": "news",
+        }
+    if link_text.startswith("/library") or "thư viện" in combined or "tai lieu moi" in remove_accents(combined):
+        return {
+            "code": "library",
+            "label": "Thư viện",
+            "icon": "fa-book-open",
+            "class_name": "library",
+        }
+    if link_text.startswith("/reports") or link_text.startswith("/admin/reports") or "báo cáo" in combined:
+        return {
+            "code": "report",
+            "label": "Báo cáo",
+            "icon": "fa-chart-column",
+            "class_name": "report",
+        }
+    return {
+        "code": "other",
+        "label": "Khác",
+        "icon": "fa-bell",
+        "class_name": "other",
+    }
+
 def safe_float(v):
     if v is None or v == "": return 0.0
     try: 

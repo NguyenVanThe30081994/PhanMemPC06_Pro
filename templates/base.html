@@ -73,13 +73,36 @@
             display: block;
         }
 
+        .notif-trigger {
+            width: 44px;
+            height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .notif-icon-wrap {
+            position: relative;
+            width: 22px;
+            height: 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         .notif-badge {
             position: absolute;
-            top: -5px;
-            right: -5px;
-            padding: 2px 6px;
-            border-radius: 50%;
+            top: 0;
+            right: 0;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 4px;
+            transform: translate(40%, -35%);
+            border-radius: 999px;
+            border: 2px solid #fff;
             font-size: 10px;
+            font-weight: 700;
+            line-height: 14px;
             display: none;
         }
 
@@ -108,6 +131,36 @@
         .notif-item.unread {
             border-left: 3px solid var(--primary);
             background: rgba(37, 99, 235, 0.03);
+        }
+
+        .notif-source-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .notif-source-tag.task {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .notif-source-tag.news {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .notif-source-tag.library {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .notif-source-tag.report {
+            background: #ede9fe;
+            color: #6d28d9;
         }
 
         .nav-link-top {
@@ -739,10 +792,12 @@
 
             <div class="nav-right d-flex align-items-center gap-3">
                 <div class="dropdown">
-                    <button class="btn btn-light position-relative rounded-pill p-2" type="button"
+                    <button class="btn btn-light position-relative rounded-pill p-2 notif-trigger" type="button"
                         data-bs-toggle="dropdown" id="bellBtn">
-                        <i class="fa-regular fa-bell fs-5"></i>
-                        <span class="badge bg-danger notif-badge" id="notifCount">0</span>
+                        <span class="notif-icon-wrap">
+                            <i class="fa-regular fa-bell fs-5"></i>
+                            <span class="badge bg-danger notif-badge" id="notifCount">0</span>
+                        </span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 mt-1 rounded-4 p-2"
                         id="notif-dropdown" style="min-width: 320px;">
@@ -1022,12 +1077,22 @@
                     document.getElementById('notifList').innerHTML = d.map(n => `
                         <li class="notif-item p-0 ${n.is_read ? '' : 'unread'}">
                             <a href="${n.link || '#'}" class="dropdown-item p-3">
+                                <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                                    <span class="notif-source-tag ${n.source_class || ''}">
+                                        <i class="fa-solid ${n.source_icon || 'fa-bell'}"></i>
+                                        ${n.source_label || 'Thông báo'}
+                                    </span>
+                                    <div class="text-end text-muted" style="font-size:10px">${n.time}</div>
+                                </div>
                                 <div class="fw-bold text-dark small mb-1">${n.title}</div>
                                 <div class="text-muted small text-truncate" style="max-width:250px">${n.msg}</div>
-                                <div class="text-end text-muted mt-1" style="font-size:10px">${n.time}</div>
                             </a>
                         </li>
                     `).join('');
+                } else {
+                    document.getElementById('notifList').innerHTML = `
+                        <li class="p-4 text-center text-muted tiny">Không có thông báo mới</li>
+                    `;
                 }
             } catch (e) { console.error("Poll Error:", e); }
         }

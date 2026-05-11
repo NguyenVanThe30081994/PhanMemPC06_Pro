@@ -1,23 +1,33 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, jsonify, session, request
 from models import db, Notification, User
+from utils import infer_notification_source
 
 api_bp = Blueprint('api_bp', __name__)
 
 @api_bp.route('/api/notifications')
 def get_notifications():
     if not session.get('uid'): return jsonify([])
-    notifs = Notification.query.filter_by(user_id=session['uid']).order_by(Notification.created_at.desc()).limit(10).all()
+    notifs = Notification.query.filter_by(user_id=session['uid']).order_by(Notification.created_at.desc()).limit(40).all()
     res = []
     for n in notifs:
+        source_info = infer_notification_source(n.title, n.msg, n.link)
+        if source_info['code'] not in {'task', 'news', 'library', 'report'}:
+            continue
         res.append({
             'id': n.id,
             'title': n.title,
             'msg': n.msg,
             'link': n.link,
             'is_read': n.is_read or False,
-            'time': n.created_at.strftime('%H:%M %d/%m/%Y')
+            'time': n.created_at.strftime('%H:%M %d/%m/%Y'),
+            'source': source_info['code'],
+            'source_label': source_info['label'],
+            'source_icon': source_info['icon'],
+            'source_class': source_info['class_name'],
         })
+        if len(res) >= 10:
+            break
     return jsonify(res)
 
 @api_bp.route('/api/notifications/read', methods=['POST'])

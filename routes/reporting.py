@@ -37,7 +37,7 @@ from category_helpers import (
     stable_form_category_options,
 )
 from report_engine import build_preview_workbook, normalize_code, parse_workbook, render_sheet_html, safe_filename, write_workbook_copy
-from utils import apply_migrations, extract_unit_key, is_unit_match, log_action, render_auto_template as render_template
+from utils import apply_migrations, extract_unit_key, is_unit_match, log_action, push_notif, render_auto_template as render_template
 
 reporting_bp = Blueprint("reporting_bp", __name__)
 
@@ -87,6 +87,64 @@ def _can_access_report_workspace():
 
 def _can_view_report_progress():
     return _has_report_permission("p_form_lead", "p_input_lead", "p_stat_lead", "p_stat_exec")
+
+
+def _role_perms_payload(role):
+    if not role or not getattr(role, "perms", None):
+        return {}
+    try:
+        return json.loads(role.perms) or {}
+    except Exception:
+        return {}
+
+
+def _report_manager_users():
+    perm_names = {"p_form_lead", "p_input_lead", "p_stat_lead", "p_stat_exec"}
+    users = (
+        User.query.filter(User.is_active.is_(True))
+        .order_by(User.fullname.asc())
+        .all()
+    )
+    recipients = []
+    for user in users:
+        if session.get("uid") and user.id == session.get("uid"):
+            continue
+        if session.get("is_admin") and user.id == session.get("uid"):
+            continue
+        perms = _role_perms_payload(getattr(user, "role", None))
+        if any(perms.get(name) for name in perm_names):
+            recipients.append(user)
+    return recipients
+
+
+def _notify_cycle_assignees(cycle, cycle_name):
+    if not cycle:
+        return
+    notified_ids = set()
+    instances = ReportInstance.query.filter_by(cycle_id=cycle.id).all()
+    for instance in instances:
+        target_uid = getattr(instance, "assigned_user_id", None) or getattr(instance, "user_id", None)
+        if not target_uid or target_uid in notified_ids or target_uid == session.get("uid"):
+            continue
+        push_notif(
+            target_uid,
+            "Báo cáo mới",
+            f"{cycle_name} đã được mở cho đơn vị {instance.org_unit or 'được giao báo cáo'}.",
+            f"/reports/cycles/{cycle.id}",
+        )
+        notified_ids.add(target_uid)
+
+
+def _notify_report_submission(cycle, cycle_name, unit_name):
+    if not cycle:
+        return
+    for user in _report_manager_users():
+        push_notif(
+            user.id,
+            "Báo cáo đã gửi",
+            f"{unit_name or 'Đơn vị'} vừa gửi báo cáo cho {cycle_name}.",
+            f"/admin/reports/cycles/{cycle.id}",
+        )
 
 
 def _require_login():
@@ -3358,6 +3416,7 @@ def create_cycle():
         )
 
     db.session.commit()
+    _notify_cycle_assignees(cycle, cycle.name)
     _audit("create_cycle", "report_cycle", cycle.id, name)
     flash("Đã mở báo cáo.", "success")
     return redirect(url_for("reporting_bp.admin_dashboard"))
@@ -3811,6 +3870,7 @@ def submit_cycle(cycle_id):
     if errors:
         flash("Còn dữ liệu bắt buộc chưa hoàn tất, hệ thống đã giữ ở trạng thái nháp.", "warning")
         return redirect(url_for("reporting_bp.cycle_workspace", **workspace_values))
+    _notify_report_submission(cycle, cycle.name, unit.name if unit else session.get("unit_area"))
     _audit("submit_report", "report_submission", submission.id, f"cycle={cycle.id}")
     flash("Đã gửi báo cáo.", "success")
     return redirect(url_for("reporting_bp.cycle_workspace", **workspace_values))
