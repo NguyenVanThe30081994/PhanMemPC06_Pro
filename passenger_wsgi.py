@@ -3,6 +3,7 @@ import os
 
 # Set UTF-8 encoding
 os.environ['PYTHONIOENCODING'] = 'utf-8'
+os.environ.setdefault('PC06_PASSENGER', '1')
 
 # Add current directory to path
 APP_ROOT = os.path.dirname(__file__)

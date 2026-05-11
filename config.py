@@ -31,7 +31,10 @@ ALLOWED_MIME_TYPES = {
 CSRF_TOKEN_LIFETIME = 3600  # 1 hour
 
 # Database
+# Prefer setting DATABASE_URL or PC06_DATA_DIR on hosting so the SQLite file
+# is stored outside the deployed source tree.
 DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///pc06_system.db')
+PC06_DATA_DIR = os.environ.get('PC06_DATA_DIR', '')
 
 # Session Security
 SESSION_COOKIE_SECURE = os.environ.get('FLASK_ENV') == 'production'

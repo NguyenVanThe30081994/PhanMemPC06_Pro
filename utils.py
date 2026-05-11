@@ -292,8 +292,7 @@ def apply_migrations(app):
         if not db_uri.startswith('sqlite:///'): return
         db_path = db_uri.replace('sqlite:///', '')
         if not os.path.exists(db_path):
-            # Try relative to root_path as fallback
-            db_path = os.path.join(app.root_path, 'pc06_system.db')
+            db_path = app.config.get('SQLITE_DB_PATH') or os.path.join(app.root_path, 'pc06_system.db')
             if not os.path.exists(db_path): return
     
     conn = sqlite3.connect(db_path, timeout=30)

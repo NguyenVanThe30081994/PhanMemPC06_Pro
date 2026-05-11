@@ -4,10 +4,20 @@ Migrate Database - Add phone column
 # -*- coding: utf-8 -*-
 import sqlite3
 import os
-import codecs
-from datetime import datetime
 
-db_path = os.path.join(os.path.dirname(__file__), 'pc06_system.db')
+
+def _resolve_db_path():
+    env_data_dir = (os.environ.get('PC06_DATA_DIR') or '').strip()
+    if env_data_dir:
+        if os.path.isabs(env_data_dir):
+            data_root = env_data_dir
+        else:
+            data_root = os.path.abspath(os.path.join(os.path.dirname(__file__), env_data_dir))
+        return os.path.join(data_root, 'pc06_system.db')
+    return os.path.join(os.path.dirname(__file__), 'pc06_system.db')
+
+
+db_path = _resolve_db_path()
 
 def migrate():
     print("=" * 50)

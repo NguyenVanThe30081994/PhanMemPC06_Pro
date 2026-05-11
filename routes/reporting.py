@@ -391,7 +391,7 @@ def _save_directive_file(file_storage, template_code):
     original_name = secure_filename(file_storage.filename)
     if not original_name:
         return "", ""
-    directive_dir = os.path.join(current_app.root_path, "report_templates", "directives")
+    directive_dir = os.path.join(current_app.config["REPORT_TEMPLATE_FOLDER"], "directives")
     os.makedirs(directive_dir, exist_ok=True)
     filename = safe_filename(
         f"{normalize_code(template_code) or 'report'}_directive_{datetime.now().strftime('%Y%m%d%H%M%S')}_{original_name}"
@@ -865,6 +865,49 @@ def _daily_snapshot_submissions_through_date(instance_id, report_date):
     return [latest_by_day[day] for day in sorted(latest_by_day.keys())]
 
 
+def _submission_storage_mode(submission):
+    return (_submission_metadata(submission).get("storage_mode", "") or "").strip().lower()
+
+
+def _clone_sheet_values(values):
+    cloned = {}
+    for sheet_name, cells in (values or {}).items():
+        if not isinstance(cells, dict):
+            continue
+        cloned[sheet_name] = dict(cells)
+    return cloned
+
+
+def _normalize_sheet_values(values):
+    normalized = {}
+    for sheet_name, cells in (values or {}).items():
+        if not sheet_name or not isinstance(cells, dict):
+            continue
+        bucket = normalized.setdefault(sheet_name, {})
+        for cell_address, raw_value in cells.items():
+            address = str(cell_address or "").strip().upper()
+            if not address:
+                continue
+            bucket[address] = "" if raw_value is None else str(raw_value).strip()
+    return normalized
+
+
+def _merge_sheet_values(base_values, override_values):
+    merged = _clone_sheet_values(base_values)
+    for sheet_name, cells in _normalize_sheet_values(override_values).items():
+        merged.setdefault(sheet_name, {}).update(cells)
+    return merged
+
+
+def _effective_daily_cell_values(submissions, template_version_id):
+    if not submissions:
+        return {}
+    latest_submission = submissions[-1]
+    if _submission_storage_mode(latest_submission) == "full_snapshot":
+        return _submission_cell_values(latest_submission.id)
+    return _cumulative_submission_cell_values(submissions, template_version_id)
+
+
 def _parse_numeric_value(raw_value):
     if raw_value is None:
         return None
@@ -943,7 +986,7 @@ def _resolve_working_submission_state(instance, template_version, report_type=No
         daily_submissions = _daily_snapshot_submissions_through_date(instance.id, report_date)
         latest_submission = daily_submissions[-1] if daily_submissions else None
         history = _submission_history_through_date(instance.id, report_date)
-        existing_values = _cumulative_submission_cell_values(daily_submissions, template_version.id)
+        existing_values = _effective_daily_cell_values(daily_submissions, template_version.id)
         return {
             "latest_submission": latest_submission,
             "history": history,
@@ -1041,7 +1084,7 @@ def _export_effective_values(cycle, instance, template_version, effective_values
     output_name = safe_filename(
         f"{template_version.template_id}_cycle_{cycle.id}_instance_{instance.id}_{suffix}.xlsx"
     )
-    output_path = os.path.join(current_app.root_path, "report_exports", output_name)
+    output_path = os.path.join(current_app.config["REPORT_EXPORT_FOLDER"], output_name)
     write_workbook_copy(template_version.source_path, output_path, effective_values)
     return output_path
 
@@ -1523,9 +1566,16 @@ def _resolve_cycle_unit(cycle):
 
 
 def _purge_submission(submission):
-    if submission.file_path and os.path.exists(submission.file_path):
+    for stored_path in {submission.file_path, submission.processed_file_path}:
+        if stored_path and os.path.exists(stored_path):
+            try:
+                os.remove(stored_path)
+            except Exception:
+                pass
+    backup_path = _submission_backup_path(submission)
+    if backup_path and os.path.exists(backup_path):
         try:
-            os.remove(submission.file_path)
+            os.remove(backup_path)
         except Exception:
             pass
     ReportValidationLog.query.filter_by(submission_id=submission.id).delete(synchronize_session=False)
@@ -1818,6 +1868,42 @@ def _build_submission_summary(submission, template_version, workbook=None, field
     return {"text": text, "count": len(summary_entries)}
 
 
+def _submission_backup_path(submission):
+    if not submission:
+        return ""
+    instance = db.session.get(ReportInstance, submission.instance_id) if submission.instance_id else None
+    cycle_id = instance.cycle_id if instance else 0
+    instance_id = submission.instance_id or 0
+    backup_dir = os.path.join(
+        current_app.config["BACKUP_FOLDER"],
+        "report_submissions",
+        f"cycle_{cycle_id}",
+        f"instance_{instance_id}",
+    )
+    os.makedirs(backup_dir, exist_ok=True)
+    return os.path.join(backup_dir, f"submission_{submission.id}.json")
+
+
+def _write_submission_backup(submission, stored_values):
+    backup_path = _submission_backup_path(submission)
+    payload = {
+        "submission_id": submission.id,
+        "instance_id": submission.instance_id,
+        "status": submission.status,
+        "report_period": submission.report_period,
+        "reporting_unit": submission.reporting_unit,
+        "submitted_by": submission.submitted_by,
+        "submitted_at": submission.submitted_at.isoformat() if submission.submitted_at else None,
+        "created_at": submission.created_at.isoformat() if submission.created_at else None,
+        "metadata": _submission_metadata(submission),
+        "sheets": _normalize_sheet_values(stored_values),
+    }
+    temp_path = f"{backup_path}.tmp"
+    with open(temp_path, "w", encoding="utf-8") as backup_file:
+        json.dump(payload, backup_file, ensure_ascii=False, indent=2)
+    os.replace(temp_path, backup_path)
+
+
 def _history_rows_for_submissions(submissions, template_version, report_type, include_unit=False, include_actor=False, cycle=None):
     if not submissions or not template_version:
         return []
@@ -1999,9 +2085,9 @@ def _save_submission(instance, payload, final_submit=False, report_date=None):
     sheet_meta = json.loads(template_version.metadata_json or "{}").get("sheets", [])
     sheets = {sheet["sheet_name"]: sheet for sheet in sheet_meta}
 
-    payload_sheets = payload.get("sheets", {}) if isinstance(payload, dict) else {}
+    payload_sheets = _normalize_sheet_values(payload.get("sheets", {}) if isinstance(payload, dict) else {})
     errors = []
-    normalized = {}
+    stored_sheet_values = payload_sheets
 
     existing_version = (
         ReportSubmission.query.filter_by(instance_id=instance.id)
@@ -2010,6 +2096,10 @@ def _save_submission(instance, payload, final_submit=False, report_date=None):
     metadata_payload = {"note": payload.get("note", "") if isinstance(payload, dict) else ""}
     if report_type and report_type.code == "daily" and report_date:
         metadata_payload["report_date"] = report_date.strftime("%Y-%m-%d")
+        metadata_payload["storage_mode"] = "full_snapshot"
+        base_submissions = _daily_snapshot_submissions_through_date(instance.id, report_date)
+        base_values = _effective_daily_cell_values(base_submissions, template_version.id)
+        stored_sheet_values = _merge_sheet_values(base_values, payload_sheets)
 
     submission = ReportSubmission(
         template_id=template_version.template_id,
@@ -2036,7 +2126,8 @@ def _save_submission(instance, payload, final_submit=False, report_date=None):
     db.session.add(submission)
     db.session.flush()
 
-    for sheet_name, cells in payload_sheets.items():
+    submission_value_rows = []
+    for sheet_name, cells in stored_sheet_values.items():
         if sheet_name not in sheets:
             continue
         sheet_fields = ReportTemplateField.query.filter_by(
@@ -2044,8 +2135,7 @@ def _save_submission(instance, payload, final_submit=False, report_date=None):
             sheet_name=sheet_name,
         ).all()
         field_by_col = {f.column_index: f for f in sheet_fields}
-        sheet_values = cells if isinstance(cells, dict) else {}
-        for cell_address, raw_value in sheet_values.items():
+        for cell_address, raw_value in cells.items():
             col_letters = "".join(ch for ch in cell_address if ch.isalpha())
             row_digits = "".join(ch for ch in cell_address if ch.isdigit())
             if not col_letters or not row_digits:
@@ -2071,20 +2161,25 @@ def _save_submission(instance, payload, final_submit=False, report_date=None):
                 )
             )
             if field_code:
-                db.session.add(
-                    ReportSubmissionValue(
-                        submission_id=submission.id,
-                        sheet_name=sheet_name,
-                        field_code=field_code,
-                        cell_address=cell_address,
-                        value_text=text_value,
-                        value_number=number_value,
-                        value_json=json.dumps({"cell": cell_address, "value": text_value}, ensure_ascii=False),
-                    )
+                value_row = ReportSubmissionValue(
+                    submission_id=submission.id,
+                    sheet_name=sheet_name,
+                    field_code=field_code,
+                    cell_address=cell_address,
+                    value_text=text_value,
+                    value_number=number_value,
+                    value_json=json.dumps({"cell": cell_address, "value": text_value}, ensure_ascii=False),
                 )
+                submission_value_rows.append(value_row)
+                db.session.add(value_row)
         for field in sheet_fields:
             if field.is_required:
-                has_value = any(v.field_code == field.field_code and (v.value_text or v.value_number is not None) for v in ReportSubmissionValue.query.filter_by(submission_id=submission.id).all())
+                has_value = any(
+                    v.sheet_name == sheet_name
+                    and v.field_code == field.field_code
+                    and (v.value_text or v.value_number is not None)
+                    for v in submission_value_rows
+                )
                 if not has_value:
                     field_label = _field_display_name(field)
                     errors.append((sheet_name, field_label, "Trường bắt buộc chưa có dữ liệu"))
@@ -2114,16 +2209,26 @@ def _save_submission(instance, payload, final_submit=False, report_date=None):
         instance.updated_at = datetime.now()
 
     db.session.commit()
+    try:
+        export_path = _export_submission(submission, values=stored_sheet_values, commit=False)
+        submission.processed_file_path = export_path
+        if final_submit:
+            submission.file_path = export_path
+        _write_submission_backup(submission, stored_sheet_values)
+        db.session.commit()
+    except Exception:
+        current_app.logger.exception("Unable to persist report submission artifacts", exc_info=True)
+        db.session.rollback()
     return submission, errors
 
 
-def _export_submission(submission):
+def _export_submission(submission, values=None, commit=True):
     instance = db.session.get(ReportInstance, submission.instance_id)
     cycle = db.session.get(ReportCycle, instance.cycle_id)
     version = db.session.get(ReportTemplateVersion, cycle.template_version_id)
     output_name = safe_filename(f"{version.template_id}_cycle_{cycle.id}_submission_{submission.id}.xlsx")
-    output_path = os.path.join(current_app.root_path, "report_exports", output_name)
-    values = _submission_cell_values(submission.id)
+    output_path = os.path.join(current_app.config["REPORT_EXPORT_FOLDER"], output_name)
+    values = _normalize_sheet_values(values or _submission_cell_values(submission.id))
     write_workbook_copy(version.source_path, output_path, values)
     job = ReportExportJob(
         cycle_id=cycle.id,
@@ -2133,7 +2238,9 @@ def _export_submission(submission):
         finished_at=datetime.now(),
     )
     db.session.add(job)
-    db.session.commit()
+    submission.processed_file_path = output_path
+    if commit:
+        db.session.commit()
     return output_path
 
 
@@ -2264,7 +2371,7 @@ def upload_template():
     existing_versions = ReportTemplateVersion.query.filter_by(template_id=template.id).count()
     version_no = existing_versions + 1
     filename = safe_filename(f"{code}_v{version_no}_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx")
-    storage_path = os.path.join(current_app.root_path, "report_templates", filename)
+    storage_path = os.path.join(current_app.config["REPORT_TEMPLATE_FOLDER"], filename)
     file.save(storage_path)
     for version in ReportTemplateVersion.query.filter_by(template_id=template.id).all():
         version.is_current = False
@@ -2423,7 +2530,7 @@ def save_template_settings(template_id):
         filename = safe_filename(
             f"{template.code or normalize_code(template.name) or 'report'}_current_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"
         )
-        source_path = os.path.join(current_app.root_path, "report_templates", filename)
+        source_path = os.path.join(current_app.config["REPORT_TEMPLATE_FOLDER"], filename)
         new_upload.save(source_path)
         source_filename = secure_filename(new_upload.filename)
 
@@ -3175,7 +3282,7 @@ def cycle_workspace(cycle_id):
     report_date = context["report_date"]
     latest_submission = context["latest_submission"]
     submission_history = context["submission_history"]
-    existing_values = context.get("entry_values", {})
+    existing_values = context.get("working_values", {}) if report_type and report_type.code == "daily" else context.get("entry_values", {})
     available_units = _cycle_units(cycle) if _is_admin() else []
     sheet_views = []
     for sheet_meta in metadata.get("sheets", []):
@@ -3284,7 +3391,7 @@ def cycle_preview(cycle_id):
                 submissions = _daily_snapshot_submissions_through_date(instance.id, report_date)
                 if submissions:
                     latest_submissions.append(submissions[-1])
-                    unit_values = _cumulative_submission_cell_values(submissions, template_version.id)
+                    unit_values = _effective_daily_cell_values(submissions, template_version.id)
                     for sheet_name, cells in unit_values.items():
                         existing_values.setdefault(sheet_name, {}).update(cells)
             latest_submission = latest_submissions[0] if latest_submissions else None
@@ -3509,9 +3616,6 @@ def submit_cycle(cycle_id):
     if errors:
         flash("Còn dữ liệu bắt buộc chưa hoàn tất, hệ thống đã giữ ở trạng thái nháp.", "warning")
         return redirect(url_for("reporting_bp.cycle_workspace", **workspace_values))
-    output_path = _export_submission(submission)
-    submission.file_path = output_path
-    db.session.commit()
     _audit("submit_report", "report_submission", submission.id, f"cycle={cycle.id}")
     flash("Đã gửi báo cáo.", "success")
     return redirect(url_for("reporting_bp.cycle_workspace", **workspace_values))
@@ -3527,7 +3631,6 @@ def download_submission(submission_id):
         return "Not Found", 404
     download_path = _submission_download_path(submission)
     if not download_path:
-        submission.file_path = _export_submission(submission)
-        db.session.commit()
+        download_path = _export_submission(submission)
         download_path = _submission_download_path(submission)
     return send_file(download_path, as_attachment=True, download_name=os.path.basename(download_path))

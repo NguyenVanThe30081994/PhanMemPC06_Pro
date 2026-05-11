@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import sqlite3
 
 # ── UTF-8 Environment (safe for Python 3.9 on Mắt Bão / cPanel) ──
 os.environ['PYTHONIOENCODING'] = 'utf-8'
@@ -19,24 +20,27 @@ import json
 from flask import Flask, session, request, redirect, url_for, send_from_directory, render_template, g, jsonify
 from datetime import datetime, timedelta
 from werkzeug.exceptions import HTTPException
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
 from models import db, AppRole
+from storage import bootstrap_storage, build_storage_layout
 from utils import init_db, get_perms_labels, is_mobile_device
 
 # --- RELIABLE PATH RESOLUTION (Improved for Mắt Bão/Passenger) ---
 basedir = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(basedir, 'templates')
 STATIC_DIR = os.path.join(basedir, 'static')
-UPLOAD_FOLDER = os.path.join(basedir, 'uploads')
-TASK_FOLDER = os.path.join(basedir, 'task_files')
-LIB_FOLDER = os.path.join(basedir, 'library_files')
-REPORT_TEMPLATE_FOLDER = os.path.join(basedir, 'report_templates')
-REPORT_EXPORT_FOLDER = os.path.join(basedir, 'report_exports')
+storage_layout = build_storage_layout(basedir)
+bootstrap_storage(storage_layout, basedir)
 
-BACKUP_FOLDER = os.path.join(basedir, 'backups') # Added for safety
-
-# Ensure directories exist with absolute paths
-for f in [UPLOAD_FOLDER, TASK_FOLDER, LIB_FOLDER, REPORT_TEMPLATE_FOLDER, REPORT_EXPORT_FOLDER, BACKUP_FOLDER, os.path.join(basedir, 'tmp')]:
-    os.makedirs(f, exist_ok=True)
+UPLOAD_FOLDER = storage_layout['UPLOAD_FOLDER']
+TASK_FOLDER = storage_layout['TASK_FOLDER']
+LIB_FOLDER = storage_layout['LIB_FOLDER']
+REPORT_TEMPLATE_FOLDER = storage_layout['REPORT_TEMPLATE_FOLDER']
+REPORT_EXPORT_FOLDER = storage_layout['REPORT_EXPORT_FOLDER']
+BACKUP_FOLDER = storage_layout['BACKUP_FOLDER']
+LOG_DIR = storage_layout['LOG_DIR']
+TMP_FOLDER = storage_layout['TMP_FOLDER']
 
 app = Flask(__name__, 
             root_path=basedir, 
@@ -65,10 +69,18 @@ except ImportError:
 
 app.secret_key = SECRET_KEY
 app.config['JSON_AS_ASCII'] = False  # Giữ nguyên tiếng Việt trong jsonify()
+app.config['PC06_DATA_ROOT'] = storage_layout['data_root']
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['TASK_FOLDER'] = TASK_FOLDER
+app.config['LIB_FOLDER'] = LIB_FOLDER
+app.config['REPORT_TEMPLATE_FOLDER'] = REPORT_TEMPLATE_FOLDER
+app.config['REPORT_EXPORT_FOLDER'] = REPORT_EXPORT_FOLDER
+app.config['BACKUP_FOLDER'] = BACKUP_FOLDER
+app.config['LOG_DIR'] = LOG_DIR
+app.config['TMP_FOLDER'] = TMP_FOLDER
+app.config['SQLITE_DB_PATH'] = storage_layout['SQLITE_DB_PATH']
 
 # ==================== FILE LOGGING ====================
-# Create logs directory
-LOG_DIR = os.path.join(basedir, 'logs')
 os.makedirs(LOG_DIR, exist_ok=True)
 
 # Configure logging
@@ -93,7 +105,6 @@ app.config['WTF_CSRF_ENABLED'] = True
 app.config['WTF_CSRF_TIME_LIMIT'] = CSRF_TOKEN_LIFETIME  # 1 hour token lifetime
 
 # File Upload Security
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH  # 100MB max
 
 # Allowed extensions for file upload
@@ -103,10 +114,28 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ==================== DATABASE CONFIG ====================
-# Using abspath for database URI
-db_path = os.path.abspath(os.path.join(basedir, 'pc06_system.db'))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
+app.config['SQLALCHEMY_DATABASE_URI'] = storage_layout['DATABASE_URI']
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+}
+
+for folder in [UPLOAD_FOLDER, TASK_FOLDER, LIB_FOLDER, REPORT_TEMPLATE_FOLDER, REPORT_EXPORT_FOLDER, BACKUP_FOLDER, TMP_FOLDER]:
+    os.makedirs(folder, exist_ok=True)
+
+
+@event.listens_for(Engine, 'connect')
+def _set_sqlite_pragmas(dbapi_connection, _connection_record):
+    if not isinstance(dbapi_connection, sqlite3.Connection):
+        return
+    cursor = dbapi_connection.cursor()
+    try:
+        cursor.execute('PRAGMA foreign_keys=ON')
+        cursor.execute('PRAGMA busy_timeout=30000')
+        cursor.execute('PRAGMA synchronous=FULL')
+        cursor.execute('PRAGMA journal_mode=PERSIST')
+    finally:
+        cursor.close()
 
 # Security Headers Configuration
 @app.after_request

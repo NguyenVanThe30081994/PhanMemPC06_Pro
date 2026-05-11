@@ -7,6 +7,9 @@
             <div>
                 <h1 class="pc06-page-title">{{ cycle.name }}</h1>
                 <div class="text-muted">{{ template.name }} • {{ current_unit.name if current_unit else 'Không có đơn vị' }}</div>
+                {% if report_type and report_type.code == 'daily' and report_date %}
+                <div class="text-muted mt-2">Biểu mẫu đang hiển thị số liệu lũy kế đến hết ngày {{ report_date.strftime('%d/%m/%Y') }}. Khi lưu, hệ thống sẽ chốt một bản snapshot đầy đủ cho ngày này.</div>
+                {% endif %}
             </div>
             <div class="pc06-action-cluster">
                 <a href="{{ url_for('reporting_bp.user_dashboard') if not is_admin else url_for('reporting_bp.admin_cycle_detail', cycle_id=cycle.id) }}" class="btn btn-bdhvs light">
