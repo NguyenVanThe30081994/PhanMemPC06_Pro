@@ -50,9 +50,9 @@
     .pc06-field-chip {
         width: 100%;
         border: 1px solid rgba(148, 163, 184, 0.18);
-        background: rgba(248, 250, 252, 0.92);
-        border-radius: 18px;
-        padding: 14px 16px;
+        background: rgba(248, 250, 252, 0.82);
+        border-radius: 14px;
+        padding: 12px 14px;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -76,36 +76,72 @@
     }
 
     .pc06-field-chip span {
-        min-width: 38px;
-        height: 38px;
+        min-width: 32px;
+        height: 32px;
         border-radius: 999px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: rgba(37, 99, 235, 0.08);
-        color: #1d4ed8;
+        background: rgba(15, 23, 42, 0.05);
+        color: var(--text-muted, #64748b);
         font-weight: 900;
         flex-shrink: 0;
     }
 
     .pc06-field-chip.active {
-        border-color: rgba(37, 99, 235, 0.32);
-        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(37, 99, 235, 0.92));
-        box-shadow: 0 18px 34px rgba(37, 99, 235, 0.14);
+        border-color: rgba(37, 99, 235, 0.2);
+        background: rgba(219, 234, 254, 0.68);
+        box-shadow: none;
     }
 
     .pc06-field-chip.active strong,
     .pc06-field-chip.active small {
-        color: #fff;
+        color: var(--text-main, #0f172a);
     }
 
     .pc06-field-chip.active span {
-        background: rgba(255, 255, 255, 0.18);
-        color: #fff;
+        background: rgba(255, 255, 255, 0.7);
+        color: #1d4ed8;
     }
 
     .pc06-task-filter-panel {
-        padding: 20px;
+        padding: 16px 18px;
+    }
+
+    .pc06-task-hero-compact {
+        display: grid;
+        gap: 10px;
+    }
+
+    .pc06-task-hero-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .pc06-task-summary-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        color: var(--text-muted, #64748b);
+        font-size: 0.84rem;
+    }
+
+    .pc06-task-summary-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        background: rgba(248, 250, 252, 0.92);
+        border: 1px solid rgba(226, 232, 240, 0.92);
+    }
+
+    .pc06-task-summary-pill strong {
+        color: var(--text-main, #0f172a);
+        font-size: 0.88rem;
     }
 
     .pc06-task-filter-head {
@@ -133,58 +169,70 @@
     .pc06-task-compact-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 18px;
+        gap: 14px;
     }
 
     .pc06-task-compact-card {
-        padding: 20px;
-        border-radius: 26px;
+        padding: 16px 18px;
+        border-radius: 18px;
         background: var(--bg-surface, #fff);
         border: 1px solid rgba(226, 232, 240, 0.96);
-        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.06);
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
         display: grid;
-        gap: 16px;
+        gap: 12px;
+    }
+
+    .pc06-hero-card {
+        padding: 18px 20px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
     }
 
     .pc06-task-title-row {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
+        min-width: 0;
     }
 
     .pc06-task-title-row h3 {
         margin: 0;
-        font-size: 1.02rem;
-        line-height: 1.45;
+        font-size: 0.98rem;
+        line-height: 1.4;
         font-weight: 800;
         color: var(--text-main, #0f172a);
     }
 
-    .pc06-task-compact-meta {
+    .pc06-task-compact-summary {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-    }
-
-    .pc06-task-compact-meta div {
-        padding: 14px;
-        border-radius: 18px;
-        background: rgba(248, 250, 252, 0.96);
-        border: 1px solid rgba(226, 232, 240, 0.92);
-    }
-
-    .pc06-task-compact-meta strong {
-        display: block;
-        color: var(--text-main, #0f172a);
-        font-size: 0.95rem;
-        line-height: 1.45;
-        word-break: break-word;
-    }
-
-    .pc06-task-deadline-inline {
+        gap: 6px;
         color: var(--text-muted, #64748b);
-        font-size: 0.86rem;
-        line-height: 1.5;
+        font-size: 0.84rem;
+        line-height: 1.45;
+    }
+
+    .pc06-task-compact-summary strong {
+        color: var(--text-main, #0f172a);
+        font-weight: 700;
+    }
+
+    .pc06-task-inline-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        color: var(--text-muted, #64748b);
+        font-size: 0.82rem;
+    }
+
+    .pc06-task-inline-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .pc06-task-inline-meta span + span::before {
+        content: "";
+        width: 4px;
+        height: 4px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.8);
+        margin-right: 6px;
     }
 
     .pc06-task-compact-footer {
@@ -198,8 +246,25 @@
     .pc06-task-compact-actions {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
         flex-wrap: wrap;
+    }
+
+    .pc06-task-compact-actions .btn {
+        border-radius: 14px;
+        min-height: 40px;
+        padding-inline: 14px;
+    }
+
+    .pc06-task-delete-btn {
+        width: 40px;
+        min-width: 40px;
+        padding-inline: 0 !important;
+        justify-content: center;
+    }
+
+    .pc06-task-compact-card .pc06-status-badge {
+        box-shadow: none;
     }
 
     .pc06-user-picker {
@@ -323,12 +388,12 @@
     }
 
     @media (max-width: 768px) {
-        .pc06-task-filter-head {
-            flex-direction: column;
+        .pc06-task-hero-head {
+            align-items: flex-start;
         }
 
-        .pc06-task-compact-meta {
-            grid-template-columns: 1fr;
+        .pc06-task-filter-head {
+            flex-direction: column;
         }
 
         .pc06-user-picker-panel {
@@ -343,8 +408,9 @@
 {% block content %}
 <div class="pc06-page-shell">
     <section class="pc06-hero-card">
-        <div class="pc06-hero-grid">
-            <div>
+        <div class="pc06-task-hero-compact">
+            <div class="pc06-task-hero-head">
+                <div>
                 <h1 class="pc06-page-title">Công việc</h1>
                 <div class="pc06-action-cluster">
                     {% if is_lead or is_admin %}
@@ -358,24 +424,13 @@
                         Xem danh sách
                     </a>
                 </div>
+                </div>
             </div>
-            <div class="pc06-stat-strip">
-                <div class="pc06-metric-card">
-                    <span>Tổng công việc</span>
-                    <strong>{{ stats.total }}</strong>
-                </div>
-                <div class="pc06-metric-card">
-                    <span>Đã hoàn thành</span>
-                    <strong>{{ stats.completed }}</strong>
-                </div>
-                <div class="pc06-metric-card">
-                    <span>Đang xử lý</span>
-                    <strong>{{ stats.pending }}</strong>
-                </div>
-                <div class="pc06-metric-card danger">
-                    <span>Quá hạn</span>
-                    <strong>{{ stats.overdue }}</strong>
-                </div>
+            <div class="pc06-task-summary-strip">
+                <span class="pc06-task-summary-pill">Tổng <strong>{{ stats.total }}</strong></span>
+                <span class="pc06-task-summary-pill">Hoàn thành <strong>{{ stats.completed }}</strong></span>
+                <span class="pc06-task-summary-pill">Đang xử lý <strong>{{ stats.pending }}</strong></span>
+                <span class="pc06-task-summary-pill">Quá hạn <strong>{{ stats.overdue }}</strong></span>
             </div>
         </div>
     </section>
@@ -463,14 +518,17 @@
                             <h3>{{ t.title }}</h3>
                         </div>
 
-                        <div class="pc06-task-compact-meta">
-                            <div>
-                                <strong>{{ t.domain_display or 'Chưa phân đội' }}</strong>
-                            </div>
-                            <div>
-                                <strong class="pc06-task-deadline-inline {% if t.is_overdue %}text-danger{% endif %}">
-                                    {{ t.deadline.strftime('%d/%m/%Y') if t.deadline else 'Chưa xác định' }}
-                                </strong>
+                        <div class="pc06-task-compact-summary">
+                            <strong>{{ t.domain_display or 'Chưa phân đội' }}</strong>
+                            <div class="pc06-task-inline-meta">
+                                <span>
+                                    <i class="fa-regular fa-calendar"></i>
+                                    <strong class="{% if t.is_overdue %}text-danger{% endif %}">{{ t.deadline.strftime('%d/%m/%Y') if t.deadline else 'Chưa xác định' }}</strong>
+                                </span>
+                                <span>
+                                    <i class="fa-solid fa-chart-line"></i>
+                                    {{ t.progress_percent }}%
+                                </span>
                             </div>
                         </div>
 
@@ -488,15 +546,14 @@
                                 </button>
                             </form>
                             {% endif %}
-                            <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}" class="btn btn-bdhvs primary">
+                            <a href="{{ url_for('tasks_bp.task_detail', tid=t.id) }}" class="btn btn-bdhvs light">
                                 <i class="fa-solid fa-arrow-right"></i>
                                 Chi tiết
                             </a>
                             {% if t.can_edit %}
                             <form action="{{ url_for('tasks_bp.delete_task', tid=t.id) }}" method="POST" onsubmit="return confirm('Xóa công việc này? Toàn bộ phân công, phản hồi và tệp đính kèm liên quan sẽ bị xóa.')">
-                                <button type="submit" class="btn btn-bdhvs light text-danger">
+                                <button type="submit" class="btn btn-bdhvs light text-danger pc06-task-delete-btn" title="Xóa công việc" aria-label="Xóa công việc">
                                     <i class="fa-solid fa-trash"></i>
-                                    Xóa
                                 </button>
                             </form>
                             {% endif %}

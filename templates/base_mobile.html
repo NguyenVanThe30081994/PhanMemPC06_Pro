@@ -231,20 +231,25 @@
         .mobile-bell-link {
             position: relative;
             text-decoration: none;
+            overflow: visible;
         }
         .mobile-notif-badge {
             position: absolute;
-            top: 2px;
-            right: 1px;
-            min-width: 18px;
-            height: 18px;
-            padding: 0 4px;
+            top: -4px;
+            right: -6px;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 5px;
             border-radius: 999px;
             border: 2px solid var(--bg-surface);
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 700;
-            line-height: 14px;
+            line-height: 1;
             display: none;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            box-sizing: border-box;
         }
         
         .sidebar-profile {
@@ -603,7 +608,7 @@
                 if (badge) {
                     const unread = d.filter(x => !x.is_read).length;
                     badge.innerText = unread;
-                    badge.style.display = unread > 0 ? 'block' : 'none';
+                    badge.style.display = unread > 0 ? 'inline-flex' : 'none';
                 }
             } catch (e) {}
         }

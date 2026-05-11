@@ -79,6 +79,7 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            overflow: visible;
         }
 
         .notif-icon-wrap {
@@ -88,22 +89,26 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            overflow: visible;
         }
 
         .notif-badge {
             position: absolute;
-            top: 0;
-            right: 0;
-            min-width: 18px;
-            height: 18px;
-            padding: 0 4px;
-            transform: translate(40%, -35%);
+            top: -6px;
+            right: -10px;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 5px;
             border-radius: 999px;
             border: 2px solid #fff;
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 700;
-            line-height: 14px;
+            line-height: 1;
             display: none;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            box-sizing: border-box;
         }
 
         .toast-container {
@@ -1071,7 +1076,7 @@
                 if (!Array.isArray(d)) return;
                 const unread = d.filter(x => !x.is_read).length;
                 const badge = document.getElementById('notifCount');
-                if (unread > 0) { badge.innerText = unread; badge.style.display = 'block'; }
+                if (unread > 0) { badge.innerText = unread; badge.style.display = 'inline-flex'; }
                 else { badge.style.display = 'none'; }
                 if (d.length > 0) {
                     document.getElementById('notifList').innerHTML = d.map(n => `

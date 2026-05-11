@@ -5,77 +5,81 @@
 {% block head %}
 <style>
     .mobile-task-hero {
-        background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%);
+        background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
         color: #fff;
-        padding: 20px;
-        border-radius: 24px;
-        margin-bottom: 16px;
-        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+        padding: 14px;
+        border-radius: 16px;
+        margin-bottom: 12px;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
     }
-    .mobile-task-hero h1 { margin: 10px 0 8px; font-size: 1.55rem; font-weight: 800; letter-spacing: -0.03em; }
-    .mobile-task-hero p { margin: 0; color: rgba(255, 255, 255, 0.82); font-size: 0.94rem; }
-    .mobile-task-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); font-size: 0.8rem; font-weight: 700; }
-    .mobile-task-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
-    .mobile-task-stat { padding: 14px; border-radius: 18px; background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(10px); }
-    .mobile-task-stat span { display: block; font-size: 0.78rem; color: rgba(255, 255, 255, 0.75); }
-    .mobile-task-stat strong { display: block; margin-top: 6px; font-size: 1.4rem; font-weight: 800; }
-    .mobile-filter-card, .mobile-task-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06); }
-    .mobile-filter-card { padding: 16px; margin-bottom: 16px; }
-    .mobile-search { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--border); background: var(--bg-body); margin-bottom: 12px; }
+    .mobile-task-hero h1 { margin: 0; font-size: 1.24rem; font-weight: 800; letter-spacing: -0.02em; }
+    .mobile-task-hero-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .mobile-task-summary-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .mobile-task-summary-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); font-size: 0.74rem; color: rgba(255, 255, 255, 0.82); }
+    .mobile-task-summary-pill strong { color: #fff; font-size: 0.8rem; }
+    .mobile-filter-card, .mobile-task-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04); }
+    .mobile-filter-card { padding: 14px; margin-bottom: 14px; }
+    .mobile-search { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--bg-body); margin-bottom: 10px; }
     .mobile-search input { border: 0; outline: 0; background: transparent; width: 100%; color: var(--text-main); }
     .mobile-chip-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
     .mobile-chip-row::-webkit-scrollbar { display: none; }
-    .mobile-chip { border: 1px solid var(--border); background: var(--bg-body); color: var(--text-muted); padding: 10px 14px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
-    .mobile-chip.active { background: linear-gradient(135deg, #2563eb, #1d4ed8); border-color: transparent; color: #fff; }
-    .mobile-task-list { display: grid; gap: 14px; }
-    .mobile-task-card { padding: 16px; }
-    .mobile-task-card-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
-    .mobile-task-icon { width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1d4ed8; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .mobile-chip { border: 1px solid var(--border); background: var(--bg-body); color: var(--text-muted); padding: 8px 12px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+    .mobile-chip.active { background: #dbeafe; border-color: rgba(37, 99, 235, 0.18); color: #1d4ed8; }
+    .mobile-task-list { display: grid; gap: 12px; }
+    .mobile-task-card { padding: 14px; }
+    .mobile-task-card-head { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+    .mobile-task-icon { width: 36px; height: 36px; border-radius: 12px; background: #eff6ff; color: #1d4ed8; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .mobile-task-copy { min-width: 0; flex: 1; }
-    .mobile-task-copy h3 { margin: 0 0 6px; font-size: 1rem; font-weight: 800; color: var(--text-main); }
-    .mobile-task-copy p { margin: 0; color: var(--text-muted); font-size: 0.82rem; }
-    .mobile-task-progress { padding: 8px 12px; border-radius: 999px; background: rgba(37, 99, 235, 0.08); color: #1d4ed8; font-size: 0.78rem; font-weight: 800; }
-    .mobile-task-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
-    .mobile-task-meta div { padding: 12px; border-radius: 14px; background: var(--bg-body); }
-    .mobile-task-meta span { display: block; font-size: 0.76rem; color: var(--text-muted); }
-    .mobile-task-meta strong { display: block; margin-top: 5px; font-size: 0.92rem; color: var(--text-main); }
+    .mobile-task-copy h3 { margin: 0 0 4px; font-size: 0.96rem; font-weight: 800; color: var(--text-main); line-height: 1.4; }
+    .mobile-task-copy p { margin: 0; color: var(--text-muted); font-size: 0.81rem; }
+    .mobile-task-progress { padding: 5px 8px; border-radius: 999px; background: rgba(15, 23, 42, 0.05); color: var(--text-muted); font-size: 0.72rem; font-weight: 700; }
+    .mobile-task-meta { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 12px; color: var(--text-muted); font-size: 0.8rem; }
+    .mobile-task-meta span { display: inline-flex; align-items: center; gap: 6px; }
     .mobile-status { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; font-size: 0.76rem; font-weight: 800; margin-bottom: 14px; }
     .mobile-status.todo { background: #fef3c7; color: #92400e; }
     .mobile-status.doing { background: #dbeafe; color: #1d4ed8; }
     .mobile-status.done { background: #dcfce7; color: #166534; }
     .mobile-status.neutral { background: #e2e8f0; color: #334155; }
-    .mobile-task-footer { display: grid; gap: 10px; }
+    .mobile-task-footer { display: grid; gap: 8px; }
     .mobile-task-status-row { display: flex; align-items: center; gap: 12px; }
     .mobile-task-status-row .mobile-status { margin-bottom: 0; flex: 1; min-width: 0; }
     .mobile-task-actions { display: flex; align-items: stretch; gap: 10px; }
     .mobile-task-actions form { flex: 1; margin: 0; }
     .mobile-task-main-action { flex: 1; min-width: 0; }
     .mobile-task-icon-action {
-        width: 50px;
-        min-width: 50px;
-        height: 50px;
+        width: 42px;
+        min-width: 42px;
+        height: 42px;
         padding: 0;
-        border-radius: 14px;
-        flex: 0 0 50px;
+        border-radius: 12px;
+        flex: 0 0 42px;
+        background: var(--bg-body);
+        color: var(--text-main);
+        border: 1px solid var(--border);
+    }
+    .mobile-task-delete-btn {
+        width: 42px;
+        min-width: 42px;
+        height: 42px;
+        padding: 0;
+        border-radius: 12px;
+        flex: 0 0 42px;
     }
     .mobile-empty { padding: 28px 20px; text-align: center; color: var(--text-muted); }
-    .mobile-fab { position: fixed; right: 18px; bottom: 92px; width: 58px; height: 58px; border: 0; border-radius: 18px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; box-shadow: 0 18px 30px rgba(37, 99, 235, 0.3); }
+    .mobile-fab { position: fixed; right: 18px; bottom: 92px; width: 54px; height: 54px; border: 0; border-radius: 16px; background: #2563eb; color: #fff; box-shadow: 0 12px 22px rgba(37, 99, 235, 0.22); }
 </style>
 {% endblock %}
 
 {% block content %}
 <section class="mobile-task-hero">
-    <div class="mobile-task-kicker">
-        <i class="fa-solid fa-shield-halved"></i>
-        Điều hành công việc
+    <div class="mobile-task-hero-head">
+        <h1>Công việc</h1>
+        <span class="mobile-task-summary-pill">Tổng <strong>{{ stats.total }}</strong></span>
     </div>
-    <h1>Công việc</h1>
-    <p>Theo dõi giao việc, tiếp nhận và báo cáo kết quả trên giao diện di động thống nhất.</p>
-    <div class="mobile-task-stats">
-        <div class="mobile-task-stat"><span>Tổng việc</span><strong>{{ stats.total }}</strong></div>
-        <div class="mobile-task-stat"><span>Hoàn thành</span><strong>{{ stats.completed }}</strong></div>
-        <div class="mobile-task-stat"><span>Đang xử lý</span><strong>{{ stats.pending }}</strong></div>
-        <div class="mobile-task-stat"><span>Quá hạn</span><strong>{{ stats.overdue }}</strong></div>
+    <div class="mobile-task-summary-strip">
+        <span class="mobile-task-summary-pill">Hoàn thành <strong>{{ stats.completed }}</strong></span>
+        <span class="mobile-task-summary-pill">Đang xử lý <strong>{{ stats.pending }}</strong></span>
+        <span class="mobile-task-summary-pill">Quá hạn <strong>{{ stats.overdue }}</strong></span>
     </div>
 </section>
 
@@ -115,8 +119,14 @@
         </div>
 
         <div class="mobile-task-meta">
-            <div><span>Tiến độ thực hiện</span><strong>{{ t.progress_percent }}%</strong></div>
-            <div><span>Hạn xử lý</span><strong{% if t.is_overdue %} class="text-danger"{% endif %}>{{ t.deadline.strftime('%d/%m/%Y') if t.deadline else 'Chưa có' }}</strong></div>
+            <span>
+                <i class="fa-regular fa-calendar"></i>
+                <strong{% if t.is_overdue %} class="text-danger"{% endif %}>{{ t.deadline.strftime('%d/%m/%Y') if t.deadline else 'Chưa có' }}</strong>
+            </span>
+            <span>
+                <i class="fa-solid fa-chart-line"></i>
+                {{ t.progress_percent }}%
+            </span>
         </div>
 
         <div class="mobile-task-footer">
@@ -132,7 +142,7 @@
             {% if t.can_edit %}
             <div class="mobile-task-actions">
                 <form action="{{ url_for('tasks_bp.delete_task', tid=t.id) }}" method="POST" onsubmit="return confirm('Xóa công việc này? Toàn bộ phân công, phản hồi và tệp đính kèm liên quan sẽ bị xóa.')">
-                    <button type="submit" class="btn btn-mobile mobile-task-main-action" style="background:#fee2e2;color:#b91c1c;" aria-label="Xóa công việc" title="Xóa công việc">
+                    <button type="submit" class="btn btn-mobile mobile-task-delete-btn" style="background:#fee2e2;color:#b91c1c;" aria-label="Xóa công việc" title="Xóa công việc">
                         <i class="fa-solid fa-trash"></i>
                         <span class="visually-hidden">Xóa công việc</span>
                     </button>
