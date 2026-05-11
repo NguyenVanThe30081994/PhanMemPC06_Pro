@@ -32,7 +32,12 @@
     .detail-mobile-avatar { width: 40px; height: 40px; border-radius: 50%; background: #dbeafe; color: #1d4ed8; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; }
     .detail-mobile-report-guidance { margin-bottom: 12px; color: var(--text-muted); font-size: 0.8rem; line-height: 1.55; }
     .detail-mobile-unit-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
-    .detail-mobile-unit-stat { padding: 12px; border-radius: 16px; background: var(--bg-body); }
+    .detail-mobile-unit-cluster { padding: 12px; border-radius: 16px; background: var(--bg-body); border: 1px solid var(--border); }
+    .detail-mobile-unit-cluster-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+    .detail-mobile-unit-cluster-head strong { color: var(--text-main); font-size: 0.92rem; }
+    .detail-mobile-unit-cluster-head span { color: var(--text-muted); font-size: 0.76rem; }
+    .detail-mobile-unit-cluster-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .detail-mobile-unit-stat { padding: 12px; border-radius: 14px; background: var(--bg-surface); border: 1px solid var(--border); }
     .detail-mobile-unit-stat span { display: block; font-size: 0.76rem; color: var(--text-muted); }
     .detail-mobile-unit-stat strong { display: block; margin-top: 6px; font-size: 1.08rem; color: var(--text-main); }
     .detail-mobile-unit-row { padding: 14px; border-radius: 16px; background: var(--bg-body); }
@@ -61,6 +66,30 @@
     .detail-mobile-report-files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
     .detail-mobile-report-file { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; padding: 8px 11px; border-radius: 999px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; text-decoration: none; font-size: 0.78rem; }
     .detail-mobile-report-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .detail-mobile-thread-card { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--bg-body); }
+    .detail-mobile-thread-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    .detail-mobile-thread-head strong { display: block; color: var(--text-main); }
+    .detail-mobile-thread-head span { display: block; margin-top: 3px; color: var(--text-muted); font-size: 0.78rem; }
+    .detail-mobile-thread-badge { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-muted); font-size: 0.74rem; }
+    .detail-mobile-thread-stack { display: grid; gap: 8px; padding: 12px 14px; background: var(--bg-surface); }
+    .detail-mobile-thread-bubble { max-width: 92%; padding: 10px 12px; border-radius: 14px; background: #fff; border: 1px solid var(--border); }
+    .detail-mobile-thread-bubble.reply { margin-left: auto; background: #eff6ff; border-color: #bfdbfe; }
+    .detail-mobile-thread-bubble strong { display: block; color: var(--text-main); font-size: 0.84rem; }
+    .detail-mobile-thread-bubble small { display: block; margin-top: 3px; color: var(--text-muted); font-size: 0.74rem; }
+    .detail-mobile-thread-bubble p { margin: 7px 0 0; white-space: pre-line; color: var(--text-main); line-height: 1.55; font-size: 0.9rem; }
+    .detail-mobile-thread-form { padding: 12px 14px 14px; border-top: 1px solid var(--border); }
+    .detail-mobile-assignment-unit { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--bg-body); }
+    .detail-mobile-assignment-unit summary { list-style: none; cursor: pointer; }
+    .detail-mobile-assignment-unit summary::-webkit-details-marker { display: none; }
+    .detail-mobile-assignment-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; }
+    .detail-mobile-assignment-summary strong { color: var(--text-main); }
+    .detail-mobile-assignment-summary i { color: var(--text-muted); transition: transform 0.2s ease; }
+    .detail-mobile-assignment-unit[open] .detail-mobile-assignment-summary i { transform: rotate(180deg); }
+    .detail-mobile-assignment-body { padding: 0 12px 12px; border-top: 1px solid var(--border); }
+    .detail-mobile-assignment-member { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .detail-mobile-assignment-member:last-child { border-bottom: 0; }
+    .detail-mobile-assignment-member strong { display: block; color: var(--text-main); font-size: 0.84rem; }
+    .detail-mobile-assignment-member span { display: block; margin-top: 3px; color: var(--text-muted); font-size: 0.74rem; }
     .detail-mobile-info-list { display: grid; gap: 10px; }
     .detail-mobile-info-item { padding: 12px 14px; border-radius: 16px; background: var(--bg-body); }
     .detail-mobile-info-item span { display: block; font-size: 0.76rem; color: var(--text-muted); }
@@ -271,11 +300,26 @@
         Đi từ tổng quan đến chi tiết: xem số đơn vị theo từng trạng thái trước, sau đó mở nhóm và mở từng đơn vị khi cần kiểm tra sâu.
     </div>
     <div class="detail-mobile-unit-stats">
-        <div class="detail-mobile-unit-stat"><span>Tổng đơn vị</span><strong>{{ unit_report_stats.total_units }}</strong></div>
-        <div class="detail-mobile-unit-stat"><span>Đã báo cáo</span><strong>{{ unit_report_stats.reported_units }}</strong></div>
-        <div class="detail-mobile-unit-stat"><span>Chưa báo cáo</span><strong>{{ unit_report_stats.unreported_units }}</strong></div>
-        <div class="detail-mobile-unit-stat"><span>Đúng hạn</span><strong>{{ unit_report_stats.on_time_units }}</strong></div>
-        <div class="detail-mobile-unit-stat"><span>Quá hạn</span><strong>{{ unit_report_stats.overdue_units }}</strong></div>
+        <article class="detail-mobile-unit-cluster">
+            <div class="detail-mobile-unit-cluster-head">
+                <strong>Tiến độ báo cáo</strong>
+                <span>Tổng {{ unit_report_stats.total_units }} đơn vị</span>
+            </div>
+            <div class="detail-mobile-unit-cluster-grid">
+                <div class="detail-mobile-unit-stat"><span>Đã báo cáo</span><strong>{{ unit_report_stats.reported_units }}</strong></div>
+                <div class="detail-mobile-unit-stat"><span>Chưa báo cáo</span><strong>{{ unit_report_stats.unreported_units }}</strong></div>
+            </div>
+        </article>
+        <article class="detail-mobile-unit-cluster">
+            <div class="detail-mobile-unit-cluster-head">
+                <strong>Chất lượng thời hạn</strong>
+                <span>Theo hạn xử lý</span>
+            </div>
+            <div class="detail-mobile-unit-cluster-grid">
+                <div class="detail-mobile-unit-stat"><span>Đúng hạn</span><strong>{{ unit_report_stats.on_time_units }}</strong></div>
+                <div class="detail-mobile-unit-stat"><span>Quá hạn</span><strong>{{ unit_report_stats.overdue_units }}</strong></div>
+            </div>
+        </article>
     </div>
     <div class="detail-mobile-stack">
         {% for group in unit_report_groups %}
@@ -362,26 +406,63 @@
 
 <section class="detail-mobile-card">
     <h2>Trao đổi</h2>
-    <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST">
-        <textarea name="content" rows="3" class="form-control" placeholder="Nhập phản hồi ngắn gọn" required></textarea>
-        <button type="submit" class="btn btn-mobile btn-mobile-primary mt-3" aria-label="Gửi phản hồi" title="Gửi phản hồi"><i class="fa-solid fa-reply"></i><span class="visually-hidden">Gửi phản hồi</span></button>
-    </form>
+    <div class="detail-mobile-stack">
+        {% for thread in discussion_threads %}
+        <article class="detail-mobile-thread-card">
+            <div class="detail-mobile-thread-head">
+                <div>
+                    <strong>{{ thread.unit_name }}</strong>
+                    <span>{{ thread.assignee_names|join(', ') }}</span>
+                </div>
+                <div class="detail-mobile-thread-badge">{{ thread.comment_count }} phản hồi</div>
+            </div>
+            <div class="detail-mobile-thread-stack">
+                {% for c in thread.comments %}
+                {% set is_reply = can_manage_task_view and c.user_id == task.author_id %}
+                <article class="detail-mobile-thread-bubble {% if is_reply %}reply{% endif %}">
+                    <strong>{{ c.user_name }}</strong>
+                    <small>{{ c.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                    <p>{{ c.content }}</p>
+                </article>
+                {% endfor %}
+            </div>
+            <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST" class="detail-mobile-thread-form">
+                <input type="hidden" name="assignee_id" value="{{ thread.primary_assignee_id }}">
+                <textarea name="content" rows="3" class="form-control" placeholder="Nhập phản hồi cho {{ thread.unit_name }}" required></textarea>
+                <button type="submit" class="btn btn-mobile btn-mobile-primary mt-3" aria-label="Gửi phản hồi" title="Gửi phản hồi"><i class="fa-solid fa-reply"></i><span class="visually-hidden">Gửi phản hồi</span></button>
+            </form>
+        </article>
+        {% else %}
+        <div class="text-muted small">{{ 'Phản hồi sẽ được nhóm thành từng ô chat theo đơn vị khi bắt đầu trao đổi.' if can_manage_task_view else 'Ô chat của đơn vị sẽ hiển thị tại đây khi có trao đổi.' }}</div>
+        {% endfor %}
+    </div>
 </section>
 
 {% if can_manage_task_view %}
 <section class="detail-mobile-card">
     <h2>Người thực hiện</h2>
     <div class="detail-mobile-stack">
-        {% for a, u in assigns %}
-        <article class="detail-mobile-assignee">
-            <div class="detail-mobile-avatar">{{ u.fullname[:1].upper() }}</div>
-            <div class="detail-mobile-assignee-copy">
-                <strong>{{ u.fullname }}</strong>
-                <span>{{ u.unit_area_display or 'Chưa có đơn vị' }}</span>
-                <span>{{ 'Đã nộp tệp minh chứng' if a.result_file else 'Chưa nộp tệp minh chứng' }}</span>
+        {% for card in assignment_unit_cards %}
+        <details class="detail-mobile-assignment-unit">
+            <summary class="detail-mobile-assignment-summary">
+                <strong>{{ card.unit_name }}</strong>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="detail-mobile-status {% if card.status == 'Hoàn thành' %}done{% elif card.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}" style="margin-bottom:0;">{{ card.status }}</div>
+                    <i class="fa-solid fa-chevron-down"></i>
+                </div>
+            </summary>
+            <div class="detail-mobile-assignment-body">
+                {% for member in card.members %}
+                <article class="detail-mobile-assignment-member">
+                    <div>
+                        <strong>{{ member.name }}</strong>
+                        <span>{{ 'Đã nộp tệp minh chứng' if member.has_file else 'Chưa nộp tệp minh chứng' }}</span>
+                    </div>
+                    <div class="detail-mobile-status {% if member.status == 'Hoàn thành' %}done{% elif member.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}" style="margin-bottom:0;">{{ member.status }}</div>
+                </article>
+                {% endfor %}
             </div>
-            <div class="detail-mobile-status {% if a.status == 'Hoàn thành' %}done{% elif a.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}" style="margin-bottom:0;">{{ a.status }}</div>
-        </article>
+        </details>
         {% else %}
         <div class="text-muted small">Chưa có người nhận việc.</div>
         {% endfor %}
@@ -389,24 +470,6 @@
 </section>
 {% endif %}
 
-<section class="detail-mobile-card">
-    <h2>Lịch sử trao đổi</h2>
-    <div class="detail-mobile-stack">
-        {% for c in discussion_comments %}
-        {% set is_report = c.content.startswith('[BÁO CÁO]') %}
-        <article class="detail-mobile-comment {% if is_report %}report{% endif %}">
-            <div class="detail-mobile-avatar">{{ c.user_name[:1].upper() }}</div>
-            <div class="detail-mobile-comment-copy">
-                <strong>{{ c.user_name }}</strong>
-                <span>{{ c.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
-                <div class="mt-2" style="white-space:pre-line;color:var(--text-main);">{{ c.content }}</div>
-            </div>
-        </article>
-        {% else %}
-        <div class="text-muted small">{{ 'Báo cáo đơn vị đã được tách riêng ở khối phía trên.' if can_manage_task_view else 'Chưa có trao đổi nào.' }}</div>
-        {% endfor %}
-    </div>
-</section>
 {% endblock %}
 
 {% block scripts %}

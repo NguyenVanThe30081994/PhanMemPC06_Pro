@@ -136,14 +136,42 @@
     }
     .pc06-unit-report-overview {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
         margin-bottom: 14px;
     }
-    .pc06-unit-report-overview .pc06-unit-report-stat {
+    .pc06-unit-report-cluster {
+        border: 1px solid rgba(226, 232, 240, 0.92);
+        border-radius: 18px;
+        background: rgba(248, 250, 252, 0.92);
+        padding: 14px;
+    }
+    .pc06-unit-report-cluster-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+    .pc06-unit-report-cluster-head strong {
+        color: var(--text-main, #0f172a);
+        font-size: 0.98rem;
+    }
+    .pc06-unit-report-cluster-head span {
+        color: var(--text-muted, #64748b);
+        font-size: 0.8rem;
+    }
+    .pc06-unit-report-cluster-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+    .pc06-unit-report-stat {
         border-radius: 16px;
         padding: 12px 14px;
         margin-bottom: 0;
+        background: rgba(255, 255, 255, 0.98);
+        border: 1px solid rgba(226, 232, 240, 0.88);
     }
     .pc06-report-guidance {
         margin-bottom: 14px;
@@ -320,12 +348,156 @@
         display: block;
         margin-top: 5px;
     }
+    .pc06-thread-grid {
+        display: grid;
+        gap: 12px;
+    }
+    .pc06-thread-card {
+        border: 1px solid rgba(226, 232, 240, 0.92);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.98);
+        overflow: hidden;
+    }
+    .pc06-thread-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        border-bottom: 1px solid rgba(226, 232, 240, 0.82);
+    }
+    .pc06-thread-head strong {
+        display: block;
+        color: var(--text-main, #0f172a);
+        font-size: 1rem;
+    }
+    .pc06-thread-head span {
+        display: block;
+        color: var(--text-muted, #64748b);
+        font-size: 0.82rem;
+        margin-top: 4px;
+    }
+    .pc06-thread-stack {
+        display: grid;
+        gap: 10px;
+        padding: 14px 16px;
+        background: rgba(248, 250, 252, 0.7);
+    }
+    .pc06-thread-bubble {
+        max-width: 86%;
+        padding: 11px 13px;
+        border-radius: 16px;
+        background: #ffffff;
+        border: 1px solid rgba(226, 232, 240, 0.88);
+    }
+    .pc06-thread-bubble.reply {
+        margin-left: auto;
+        background: rgba(239, 246, 255, 0.95);
+        border-color: rgba(191, 219, 254, 0.92);
+    }
+    .pc06-thread-bubble strong {
+        display: block;
+        color: var(--text-main, #0f172a);
+        font-size: 0.88rem;
+    }
+    .pc06-thread-bubble small {
+        display: block;
+        margin-top: 3px;
+        color: var(--text-muted, #64748b);
+        font-size: 0.76rem;
+    }
+    .pc06-thread-bubble p {
+        margin: 8px 0 0;
+        white-space: pre-line;
+        color: var(--text-main, #0f172a);
+        line-height: 1.55;
+    }
+    .pc06-thread-form {
+        padding: 14px 16px 16px;
+        border-top: 1px solid rgba(226, 232, 240, 0.82);
+    }
+    .pc06-thread-form textarea {
+        border-radius: 14px;
+    }
+    .pc06-thread-form .btn {
+        margin-top: 10px;
+    }
+    .pc06-assignment-unit-list {
+        display: grid;
+        gap: 10px;
+    }
+    .pc06-assignment-unit {
+        border: 1px solid rgba(226, 232, 240, 0.92);
+        border-radius: 16px;
+        background: rgba(248, 250, 252, 0.78);
+        overflow: hidden;
+    }
+    .pc06-assignment-unit summary {
+        list-style: none;
+        cursor: pointer;
+    }
+    .pc06-assignment-unit summary::-webkit-details-marker {
+        display: none;
+    }
+    .pc06-assignment-unit-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 13px 14px;
+    }
+    .pc06-assignment-unit-summary strong {
+        color: var(--text-main, #0f172a);
+    }
+    .pc06-assignment-unit-summary i {
+        color: var(--text-muted, #64748b);
+        transition: transform 0.2s ease;
+    }
+    .pc06-assignment-unit[open] .pc06-assignment-unit-summary i {
+        transform: rotate(180deg);
+    }
+    .pc06-assignment-unit-body {
+        padding: 0 14px 14px;
+        border-top: 1px solid rgba(226, 232, 240, 0.82);
+    }
+    .pc06-assignment-member-list {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+    }
+    .pc06-assignment-member {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.98);
+        border: 1px solid rgba(226, 232, 240, 0.88);
+    }
+    .pc06-assignment-member strong {
+        display: block;
+        color: var(--text-main, #0f172a);
+        font-size: 0.9rem;
+    }
+    .pc06-assignment-member span {
+        display: block;
+        margin-top: 4px;
+        color: var(--text-muted, #64748b);
+        font-size: 0.78rem;
+    }
     @media (max-width: 991.98px) {
         .pc06-unit-report-overview {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
+        .pc06-unit-report-cluster-grid {
+            grid-template-columns: 1fr;
+        }
         .pc06-report-item-summary {
             align-items: flex-start;
+        }
+        .pc06-thread-bubble {
+            max-width: 100%;
         }
     }
 </style>
@@ -477,26 +649,38 @@
                     Xem theo thứ tự từ tổng quan đến chi tiết: nhìn số đơn vị ở từng trạng thái, chọn nhóm cần kiểm tra, sau đó mở từng đơn vị để xem nội dung và tải tệp.
                 </div>
                 <div class="pc06-unit-report-overview">
-                    <div class="pc06-unit-report-stat">
-                        <span>Tổng đơn vị</span>
-                        <strong>{{ unit_report_stats.total_units }}</strong>
-                    </div>
-                    <div class="pc06-unit-report-stat">
-                        <span>Đã báo cáo</span>
-                        <strong>{{ unit_report_stats.reported_units }}</strong>
-                    </div>
-                    <div class="pc06-unit-report-stat">
-                        <span>Chưa báo cáo</span>
-                        <strong>{{ unit_report_stats.unreported_units }}</strong>
-                    </div>
-                    <div class="pc06-unit-report-stat">
-                        <span>Đúng hạn</span>
-                        <strong>{{ unit_report_stats.on_time_units }}</strong>
-                    </div>
-                    <div class="pc06-unit-report-stat">
-                        <span>Quá hạn</span>
-                        <strong>{{ unit_report_stats.overdue_units }}</strong>
-                    </div>
+                    <article class="pc06-unit-report-cluster">
+                        <div class="pc06-unit-report-cluster-head">
+                            <strong>Tiến độ báo cáo</strong>
+                            <span>Tổng {{ unit_report_stats.total_units }} đơn vị</span>
+                        </div>
+                        <div class="pc06-unit-report-cluster-grid">
+                            <div class="pc06-unit-report-stat">
+                                <span>Đã báo cáo</span>
+                                <strong>{{ unit_report_stats.reported_units }}</strong>
+                            </div>
+                            <div class="pc06-unit-report-stat">
+                                <span>Chưa báo cáo</span>
+                                <strong>{{ unit_report_stats.unreported_units }}</strong>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="pc06-unit-report-cluster">
+                        <div class="pc06-unit-report-cluster-head">
+                            <strong>Chất lượng thời hạn</strong>
+                            <span>Theo hạn xử lý</span>
+                        </div>
+                        <div class="pc06-unit-report-cluster-grid">
+                            <div class="pc06-unit-report-stat">
+                                <span>Đúng hạn</span>
+                                <strong>{{ unit_report_stats.on_time_units }}</strong>
+                            </div>
+                            <div class="pc06-unit-report-stat">
+                                <span>Quá hạn</span>
+                                <strong>{{ unit_report_stats.overdue_units }}</strong>
+                            </div>
+                        </div>
+                    </article>
                 </div>
                 <div class="pc06-report-groups">
                     {% for group in unit_report_groups %}
@@ -615,35 +799,40 @@
                         <h2>Trao đổi và phản hồi</h2>
                     </div>
                 </div>
-
-                <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST" class="pc06-comment-form">
-                    <textarea name="content" class="form-control" rows="3" placeholder="Nhập phản hồi ngắn gọn" required></textarea>
-                    <div class="text-end mt-3">
-                        <button type="submit" class="btn btn-bdhvs primary">
-                            <i class="fa-solid fa-reply"></i>
-                            Gửi phản hồi
-                        </button>
-                    </div>
-                </form>
-
-                <div class="pc06-comment-stack">
-                    {% for c in discussion_comments %}
-                    {% set is_report = c.content.startswith('[BÁO CÁO]') %}
-                    <article class="pc06-comment-card {% if is_report %}report{% endif %}">
-                        <div class="pc06-comment-avatar">{{ c.user_name[:1].upper() }}</div>
-                        <div class="pc06-comment-body">
-                            <div class="pc06-comment-head">
-                                <strong>{{ c.user_name }}</strong>
-                                <span>{{ c.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                <div class="pc06-thread-grid">
+                    {% for thread in discussion_threads %}
+                    <article class="pc06-thread-card">
+                        <div class="pc06-thread-head">
+                            <div>
+                                <strong>{{ thread.unit_name }}</strong>
+                                <span>{{ thread.assignee_names|join(', ') }}</span>
                             </div>
-                            <div class="pc06-comment-text">{{ c.content }}</div>
+                            <span class="pc06-soft-tag neutral">{{ thread.comment_count }} phản hồi</span>
                         </div>
+                        <div class="pc06-thread-stack">
+                            {% for c in thread.comments %}
+                            {% set is_reply = can_manage_task_view and c.user_id == task.author_id %}
+                            <article class="pc06-thread-bubble {% if is_reply %}reply{% endif %}">
+                                <strong>{{ c.user_name }}</strong>
+                                <small>{{ c.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                                <p>{{ c.content }}</p>
+                            </article>
+                            {% endfor %}
+                        </div>
+                        <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST" class="pc06-thread-form">
+                            <input type="hidden" name="assignee_id" value="{{ thread.primary_assignee_id }}">
+                            <textarea name="content" class="form-control" rows="3" placeholder="Nhập phản hồi cho {{ thread.unit_name }}" required></textarea>
+                            <button type="submit" class="btn btn-bdhvs primary">
+                                <i class="fa-solid fa-reply"></i>
+                                Gửi phản hồi
+                            </button>
+                        </form>
                     </article>
                     {% else %}
                     <div class="pc06-empty-state compact">
                         <div class="pc06-empty-icon"><i class="fa-regular fa-comment-dots"></i></div>
-                        <h3>Chưa có phản hồi</h3>
-                        <p>{{ 'Báo cáo đơn vị đã được tách lên khối phía trên để tránh rối mắt.' if can_manage_task_view else 'Khi có trao đổi hoặc báo cáo, nội dung sẽ xuất hiện tại đây.' }}</p>
+                        <h3>Chưa có phản hồi theo đơn vị</h3>
+                        <p>{{ 'Phản hồi sẽ được nhóm thành từng ô chat riêng theo đơn vị khi bắt đầu trao đổi.' if can_manage_task_view else 'Ô chat của đơn vị sẽ hiển thị tại đây khi có trao đổi.' }}</p>
                     </div>
                     {% endfor %}
                 </div>
@@ -687,19 +876,34 @@
                         <h2>Phân công thực hiện</h2>
                     </div>
                 </div>
-                <div class="pc06-assignee-stack">
-                    {% for a, u in assigns %}
-                    <article class="pc06-assignee-card">
-                        <div class="pc06-comment-avatar">{{ u.fullname[:1].upper() }}</div>
-                        <div class="pc06-assignee-copy">
-                            <strong>{{ u.fullname }}</strong>
-                            <span>{{ u.unit_area_display or 'Chưa có đơn vị' }}</span>
-                            <small>{{ 'Đã nộp tệp minh chứng' if a.result_file else 'Chưa nộp tệp minh chứng' }}</small>
+                <div class="pc06-assignment-unit-list">
+                    {% for card in assignment_unit_cards %}
+                    <details class="pc06-assignment-unit">
+                        <summary class="pc06-assignment-unit-summary">
+                            <strong>{{ card.unit_name }}</strong>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="pc06-status-badge {% if card.status == 'Hoàn thành' %}done{% elif card.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
+                                    {{ card.status }}
+                                </span>
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </div>
+                        </summary>
+                        <div class="pc06-assignment-unit-body">
+                            <div class="pc06-assignment-member-list">
+                                {% for member in card.members %}
+                                <article class="pc06-assignment-member">
+                                    <div>
+                                        <strong>{{ member.name }}</strong>
+                                        <span>{{ 'Đã nộp tệp minh chứng' if member.has_file else 'Chưa nộp tệp minh chứng' }}</span>
+                                    </div>
+                                    <span class="pc06-status-badge {% if member.status == 'Hoàn thành' %}done{% elif member.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
+                                        {{ member.status }}
+                                    </span>
+                                </article>
+                                {% endfor %}
+                            </div>
                         </div>
-                        <span class="pc06-status-badge {% if a.status == 'Hoàn thành' %}done{% elif a.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
-                            {{ a.status }}
-                        </span>
-                    </article>
+                    </details>
                     {% else %}
                     <div class="pc06-empty-state compact">
                         <div class="pc06-empty-icon"><i class="fa-solid fa-users-slash"></i></div>

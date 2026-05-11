@@ -426,7 +426,12 @@ def _filter_comments_for_viewer(task, comments, viewer, can_manage_all=False):
         return comments
 
     viewer_unit_key = _user_unit_key(viewer)
-    comment_user_ids = sorted({comment.user_id for comment in comments if getattr(comment, "user_id", None)})
+    comment_user_ids = sorted({
+        user_id
+        for comment in comments
+        for user_id in [getattr(comment, "user_id", None), getattr(comment, "assignee_id", None)]
+        if user_id
+    })
     comment_users = {}
     if comment_user_ids:
         comment_users = {
@@ -437,9 +442,19 @@ def _filter_comments_for_viewer(task, comments, viewer, can_manage_all=False):
     visible_comments = []
     for comment in comments:
         comment_user_id = getattr(comment, "user_id", None)
-        if comment_user_id in {viewer.id, task.author_id}:
+        comment_assignee_id = getattr(comment, "assignee_id", 0) or 0
+        if comment_user_id == viewer.id:
             visible_comments.append(comment)
             continue
+
+        if comment_user_id == task.author_id:
+            if not comment_assignee_id:
+                visible_comments.append(comment)
+                continue
+            target_user = comment_users.get(comment_assignee_id)
+            if target_user and viewer_unit_key and _user_unit_key(target_user) == viewer_unit_key:
+                visible_comments.append(comment)
+                continue
 
         comment_user = comment_users.get(comment_user_id)
         if comment_user and viewer_unit_key and _user_unit_key(comment_user) == viewer_unit_key:
@@ -529,12 +544,15 @@ def _build_unit_report_cards(task, assigns, comments):
         card = unit_cards.setdefault(
             unit_key,
             {
+                "unit_key": unit_key,
                 "unit_name": unit_name,
                 "status": "Chưa báo cáo",
                 "latest_report_at": None,
                 "latest_report_user_name": "",
                 "latest_report_excerpt": "",
                 "assignee_names": [],
+                "assignee_user_ids": [],
+                "primary_assignee_id": user.id,
                 "attachments": [],
                 "has_report": False,
             },
@@ -543,6 +561,8 @@ def _build_unit_report_cards(task, assigns, comments):
         display_name = getattr(user, "fullname", None) or getattr(user, "username", None) or f"UID {user.id}"
         if display_name not in card["assignee_names"]:
             card["assignee_names"].append(display_name)
+        if user.id not in card["assignee_user_ids"]:
+            card["assignee_user_ids"].append(user.id)
 
         report_item = latest_reports_by_user.get(user.id)
         file_name = (report_item or {}).get("attachment_name") or getattr(assignment, "result_file", "") or ""
@@ -612,6 +632,123 @@ def _build_unit_report_groups(cards):
             }
         )
     return groups
+
+
+def _build_discussion_threads(assigns, comments):
+    threads = {}
+    assigned_users = {}
+
+    for assignment, user in assigns or []:
+        if not user:
+            continue
+        unit_name = _task_assignee_unit_name(user)
+        unit_key = _user_unit_key(user) or extract_unit_key(unit_name) or unit_name.lower()
+        thread = threads.setdefault(
+            unit_key,
+            {
+                "unit_key": unit_key,
+                "unit_name": unit_name,
+                "assignee_names": [],
+                "assignee_user_ids": [],
+                "primary_assignee_id": user.id,
+                "comments": [],
+            },
+        )
+        assigned_users[user.id] = user
+        display_name = getattr(user, "fullname", None) or getattr(user, "username", None) or f"UID {user.id}"
+        if display_name not in thread["assignee_names"]:
+            thread["assignee_names"].append(display_name)
+        if user.id not in thread["assignee_user_ids"]:
+            thread["assignee_user_ids"].append(user.id)
+
+    if not threads:
+        return []
+
+    ordered_unit_keys = list(threads.keys())
+    for comment in comments or []:
+        if (getattr(comment, "content", "") or "").startswith(REPORT_PREFIX):
+            continue
+
+        thread_key = None
+        target_assignee_id = getattr(comment, "assignee_id", 0) or 0
+        if target_assignee_id and target_assignee_id in assigned_users:
+            target_user = assigned_users[target_assignee_id]
+            thread_key = _user_unit_key(target_user) or extract_unit_key(_task_assignee_unit_name(target_user)) or _task_assignee_unit_name(target_user).lower()
+        elif getattr(comment, "user_id", None) in assigned_users:
+            author_user = assigned_users.get(comment.user_id)
+            thread_key = _user_unit_key(author_user) or extract_unit_key(_task_assignee_unit_name(author_user)) or _task_assignee_unit_name(author_user).lower()
+        elif len(ordered_unit_keys) == 1:
+            thread_key = ordered_unit_keys[0]
+
+        if thread_key and thread_key in threads:
+            threads[thread_key]["comments"].append(comment)
+
+    output = []
+    for thread in threads.values():
+        thread["assignee_names"].sort()
+        thread["comments"].sort(key=lambda item: getattr(item, "created_at", datetime.min))
+        thread["comment_count"] = len(thread["comments"])
+        output.append(thread)
+
+    output.sort(
+        key=lambda item: (
+            0 if item["comments"] else 1,
+            item["unit_name"].lower(),
+        )
+    )
+    return output
+
+
+def _build_assignment_unit_cards(assigns):
+    unit_cards = {}
+    for assignment, user in assigns or []:
+        if not user:
+            continue
+
+        unit_name = _task_assignee_unit_name(user)
+        unit_key = _user_unit_key(user) or extract_unit_key(unit_name) or unit_name.lower()
+        card = unit_cards.setdefault(
+            unit_key,
+            {
+                "unit_key": unit_key,
+                "unit_name": unit_name,
+                "members": [],
+                "status": "Chưa tiếp nhận",
+                "completed_count": 0,
+                "accepted_count": 0,
+                "total_count": 0,
+            },
+        )
+
+        normalized_status = _normalize_status(getattr(assignment, "status", ""))
+        display_name = getattr(user, "fullname", None) or getattr(user, "username", None) or f"UID {user.id}"
+        card["members"].append(
+            {
+                "user_id": user.id,
+                "name": display_name,
+                "status": normalized_status,
+                "has_file": bool(getattr(assignment, "result_file", "")),
+            }
+        )
+        card["total_count"] += 1
+        if normalized_status != "Chưa tiếp nhận":
+            card["accepted_count"] += 1
+        if normalized_status == COMPLETED_STATUS:
+            card["completed_count"] += 1
+
+    output = []
+    for card in unit_cards.values():
+        if card["completed_count"] == card["total_count"] and card["total_count"] > 0:
+            card["status"] = COMPLETED_STATUS
+        elif card["accepted_count"] > 0:
+            card["status"] = IN_PROGRESS_STATUS
+        else:
+            card["status"] = "Chưa tiếp nhận"
+        card["members"].sort(key=lambda item: item["name"].lower())
+        output.append(card)
+
+    output.sort(key=lambda item: item["unit_name"].lower())
+    return output
 
 
 def _task_file_root():
@@ -1089,14 +1226,28 @@ def task_detail(tid):
     })
     unit_report_cards = []
     unit_report_groups = []
+    discussion_threads = []
+    assignment_unit_cards = []
     if can_manage_task_view:
         discussion_comments = [
             comment for comment in visible_comments
             if not (getattr(comment, "content", "") or "").startswith(REPORT_PREFIX)
         ]
+        assignment_unit_cards = _build_assignment_unit_cards(assigns)
         unit_report_rows, unit_report_stats = _build_unit_report_summary(assigns, comments, task.deadline)
         unit_report_cards = _build_unit_report_cards(task, assigns, comments)
         unit_report_groups = _build_unit_report_groups(unit_report_cards)
+        discussion_threads = [thread for thread in _build_discussion_threads(assigns, discussion_comments) if thread.get("comments")]
+    elif user_assign:
+        discussion_comments = [
+            comment for comment in visible_comments
+            if not (getattr(comment, "content", "") or "").startswith(REPORT_PREFIX)
+        ]
+        discussion_threads = [
+            thread
+            for thread in _build_discussion_threads(assigns, discussion_comments)
+            if user_assign.user_id in (thread.get("assignee_user_ids") or [])
+        ]
     report_context = _build_assignment_report_context(user_assign, visible_comments)
     limited_assignment_view = bool(user_assign and not can_manage_task_view)
 
@@ -1106,6 +1257,15 @@ def task_detail(tid):
             return redirect(url_for("tasks_bp.tasks"))
 
         content = (request.form.get("content") or "").strip()
+        requested_assignee_id = request.form.get("assignee_id", "").strip()
+        assignee_id = int(requested_assignee_id) if requested_assignee_id.isdigit() else 0
+        valid_assignee_ids = {assignment.user_id for assignment, _user in assigns if assignment.user_id}
+
+        if can_manage_task_view:
+            assignee_id = assignee_id if assignee_id in valid_assignee_ids else 0
+        elif user_assign:
+            assignee_id = user_assign.user_id
+
         if content:
             db.session.add(
                 TaskComment(
@@ -1113,6 +1273,7 @@ def task_detail(tid):
                     user_id=session["uid"],
                     user_name=session.get("fullname", "Người dùng"),
                     content=content,
+                    assignee_id=assignee_id,
                 )
             )
             db.session.commit()
@@ -1124,6 +1285,7 @@ def task_detail(tid):
         task=task,
         comments=visible_comments,
         discussion_comments=discussion_comments,
+        discussion_threads=discussion_threads,
         assigns=assigns,
         pro_units=stable_form_category_options(pro_units),
         task_fields=stable_form_category_options(task_fields),
@@ -1141,6 +1303,7 @@ def task_detail(tid):
         unit_report_stats=unit_report_stats,
         unit_report_cards=unit_report_cards,
         unit_report_groups=unit_report_groups,
+        assignment_unit_cards=assignment_unit_cards,
         can_manage_task_view=can_manage_task_view,
         limited_assignment_view=limited_assignment_view,
         report_context=report_context,
