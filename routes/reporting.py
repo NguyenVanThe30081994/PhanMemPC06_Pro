@@ -2855,6 +2855,10 @@ def admin_template_preview(template_id):
     template = db.session.get(ReportTemplate, template_id)
     if not template:
         return "Not Found", 404
+    current_cycle = _template_current_cycle(template)
+    preview_mode = (request.args.get("mode") or "").strip().lower()
+    if current_cycle and preview_mode != "template":
+        return redirect(url_for("reporting_bp.cycle_preview", cycle_id=current_cycle.id))
     template_version = _template_version(template)
     if not template_version:
         flash("Biểu mẫu này chưa có file để xem.", "warning")
