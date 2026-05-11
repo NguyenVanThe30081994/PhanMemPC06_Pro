@@ -686,8 +686,8 @@ def get_perms_labels(perms_json):
     if not perms_json: return ""
     labels_map = {
         "dash": "Tổng quan", "task": "Công việc", "lib": "Thư viện", 
-        "news": "Bảng tin", "contact": "Danh bạ", "form": "Cấu hình biểu mẫu", 
-        "sys": "Hệ thống", "input": "Nhập liệu", "stat": "Thống kê", "user": "Tài khoản"
+        "news": "Bảng tin", "contact": "Danh bạ", "form": "Quản lý báo cáo", 
+        "sys": "Hệ thống", "input": "Nhập và gửi báo cáo", "stat": "Tiến độ báo cáo", "user": "Tài khoản"
     }
     try:
         p = json.loads(perms_json) if isinstance(perms_json, str) else perms_json

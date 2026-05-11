@@ -221,7 +221,7 @@ def _infer_assignment_context(task):
     assigned_user_ids = [assignment.user_id for assignment in assignments if assignment.user_id]
     context = {
         "mode": "unit",
-        "role_id": None,
+        "role_ids": [],
         "user_ids": assigned_user_ids,
     }
 
@@ -237,13 +237,14 @@ def _infer_assignment_context(task):
         if domain_user_ids and domain_user_ids == set(assigned_user_ids):
             return context
 
-    role_ids = {user.role_id for user in assigned_users if user.role_id}
-    if len(role_ids) == 1:
-        role_id = next(iter(role_ids))
-        role_user_ids = {user.id for user in _resolve_role_assignees(role_id)}
+    role_ids = sorted({user.role_id for user in assigned_users if user.role_id})
+    if role_ids:
+        role_user_ids = set()
+        for role_id in role_ids:
+            role_user_ids.update(user.id for user in _resolve_role_assignees(role_id))
         if role_user_ids and role_user_ids == set(assigned_user_ids):
             context["mode"] = "role"
-            context["role_id"] = role_id
+            context["role_ids"] = role_ids
             return context
 
     context["mode"] = "user"
@@ -253,15 +254,22 @@ def _infer_assignment_context(task):
 def _resolve_assignees(form, domain):
     assign_type = form.get("assign_type", "unit")
     target_ids = [int(uid) for uid in form.getlist("target_users") if str(uid).isdigit()]
-    assignee_role_id = form.get("assignee_role_id")
+    assignee_role_ids = [int(role_id) for role_id in form.getlist("assignee_role_ids") if str(role_id).isdigit()]
+    if not assignee_role_ids:
+        assignee_role_id = form.get("assignee_role_id")
+        if assignee_role_id and str(assignee_role_id).isdigit():
+            assignee_role_ids = [int(assignee_role_id)]
 
     if assign_type == "role":
-        if not assignee_role_id or not str(assignee_role_id).isdigit():
-            return [], "Cần chọn vai trò nhận việc."
-        users = _resolve_role_assignees(int(assignee_role_id))
+        if not assignee_role_ids:
+            return [], "Cần chọn ít nhất một vai trò nhận việc."
+        users = []
+        for role_id in assignee_role_ids:
+            users.extend(_resolve_role_assignees(role_id))
+        users = _dedupe_users(users)
         if not users:
-            return [], "Không có cán bộ hoạt động nào thuộc vai trò đã chọn."
-        return _dedupe_users(users), None
+            return [], "Không có cán bộ hoạt động nào thuộc các vai trò đã chọn."
+        return users, None
 
     if assign_type == "user":
         if not target_ids:

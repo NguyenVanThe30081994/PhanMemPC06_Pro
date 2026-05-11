@@ -20,7 +20,7 @@
     <p>Quản lý vai trò, tài khoản và nhập dữ liệu hàng loạt trên thiết bị di động.</p>
     {% if can_manage_roles %}
     <div class="mobile-role-actions">
-        <a class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" href="{{ url_for('admin_bp.export_users', role_id=selected_role_id, unit=selected_unit, q=search_query) }}"><i class="fa-solid fa-file-arrow-down"></i></a>
+        <a class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" href="{{ url_for('admin_bp.export_users', role_id=selected_role_id, unit=selected_unit, q=search_query) }}" aria-label="{{ 'Xuất ' ~ selected_role.name if selected_role else 'Xuất danh sách tài khoản' }}" title="{{ 'Xuất ' ~ selected_role.name if selected_role else 'Xuất danh sách tài khoản' }}"><i class="fa-solid fa-file-arrow-down"></i></a>
         <button class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#importUserModal"><i class="fa-solid fa-file-excel"></i></button>
         <button class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#addRoleModal"><i class="fa-solid fa-user-tag"></i></button>
         <button class="btn btn-mobile btn-mobile-primary" data-bs-toggle="modal" data-bs-target="#addUserModal"><i class="fa-solid fa-plus"></i></button>
@@ -31,10 +31,10 @@
 <section class="mobile-role-card">
     <h6 class="fw-bold mb-3">Vai trò</h6>
     {% for r in roles %}
-    <div class="border rounded-4 p-3 mb-2">
+    <div class="border rounded-4 p-3 mb-2 {% if selected_role_id == r.id %}border-primary bg-primary-subtle bg-opacity-10{% endif %}">
         <div class="d-flex justify-content-between align-items-start gap-3">
             <div>
-                <div class="fw-bold text-dark">{{ r.name }}</div>
+                <a class="fw-bold text-dark text-decoration-none" href="{{ url_for('admin_bp.roles', role_id=r.id, unit=selected_unit, q=search_query) }}">{{ r.name }}</a>
                 <div class="tiny text-muted mt-1">{{ get_labels(r.perms) or 'Chưa phân quyền' }}</div>
             </div>
             {% if can_manage_roles %}
@@ -115,7 +115,7 @@
                         <label class="form-label small fw-bold">Tên vai trò</label>
                         <input type="text" name="name" class="form-control" required>
                     </div>
-                    {% for k, v in [('dash','Tổng quan'),('task','Công việc'),('lib','Thư viện'),('news','Bảng tin'),('contact','Danh bạ'),('form','Cấu hình biểu mẫu'),('input','Nhập liệu'),('stat','Thống kê'),('user','Tài khoản')] %}
+                    {% for k, v in [('dash','Tổng quan'),('task','Công việc'),('lib','Thư viện'),('news','Bảng tin'),('contact','Danh bạ'),('form','Quản lý báo cáo'),('input','Nhập và gửi báo cáo'),('stat','Tiến độ báo cáo'),('user','Tài khoản')] %}
                     <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
                         <span class="small fw-bold">{{ v }}</span>
                         <div class="d-flex gap-3">
@@ -124,6 +124,11 @@
                         </div>
                     </div>
                     {% endfor %}
+                    <div class="small text-muted mt-3">
+                        <code>Quản lý báo cáo</code>: quản lý biểu mẫu, chu kỳ, thời hạn và dữ liệu tổng hợp.
+                        <code>Nhập và gửi báo cáo</code>: lưu nháp, gửi báo cáo, xem lịch sử và tải tệp của đơn vị.
+                        <code>Tiến độ báo cáo</code>: xem tiến độ, trạng thái và mức độ hoàn thành của các đơn vị.
+                    </div>
                 </div>
                 <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary" aria-label="Tạo vai trò" title="Tạo vai trò"><i class="fa-solid fa-user-tag"></i><span class="visually-hidden">Tạo vai trò</span></button></div>
             </form>
@@ -142,7 +147,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    {% for k, v in [('dash','Tổng quan'),('task','Công việc'),('lib','Thư viện'),('news','Bảng tin'),('contact','Danh bạ'),('form','Cấu hình biểu mẫu'),('input','Nhập liệu'),('stat','Thống kê'),('user','Tài khoản')] %}
+                    {% for k, v in [('dash','Tổng quan'),('task','Công việc'),('lib','Thư viện'),('news','Bảng tin'),('contact','Danh bạ'),('form','Quản lý báo cáo'),('input','Nhập và gửi báo cáo'),('stat','Tiến độ báo cáo'),('user','Tài khoản')] %}
                     <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
                         <span class="small fw-bold">{{ v }}</span>
                         <div class="d-flex gap-3">
@@ -151,6 +156,11 @@
                         </div>
                     </div>
                     {% endfor %}
+                    <div class="small text-muted mt-3">
+                        <code>Quản lý báo cáo</code>: quản lý biểu mẫu, chu kỳ, thời hạn và dữ liệu tổng hợp.
+                        <code>Nhập và gửi báo cáo</code>: lưu nháp, gửi báo cáo, xem lịch sử và tải tệp của đơn vị.
+                        <code>Tiến độ báo cáo</code>: xem tiến độ, trạng thái và mức độ hoàn thành của các đơn vị.
+                    </div>
                 </div>
                 <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary" aria-label="Cập nhật quyền" title="Cập nhật quyền"><i class="fa-solid fa-floppy-disk"></i><span class="visually-hidden">Cập nhật quyền</span></button></div>
             </form>

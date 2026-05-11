@@ -59,12 +59,34 @@ def _is_admin():
     return bool(session.get("is_admin"))
 
 
-def _is_pc06_role(user):
-    if not user or not getattr(user, "role_id", None):
-        return False
-    role = getattr(user, "role", None) or db.session.get(AppRole, user.role_id)
-    role_name = normalize_code(getattr(role, "name", ""))
-    return "pc06" in role_name
+def _current_report_perms():
+    role_id = session.get("role_id")
+    role = db.session.get(AppRole, role_id) if role_id else None
+    if role and role.perms:
+        try:
+            return json.loads(role.perms)
+        except Exception:
+            return {}
+    return {}
+
+
+def _has_report_permission(*perm_names):
+    if _is_admin():
+        return True
+    perms = _current_report_perms()
+    return any(perms.get(name) for name in perm_names)
+
+
+def _can_manage_report_templates():
+    return _has_report_permission("p_form_lead")
+
+
+def _can_access_report_workspace():
+    return _has_report_permission("p_form_lead", "p_input_lead", "p_input_exec")
+
+
+def _can_view_report_progress():
+    return _has_report_permission("p_form_lead", "p_input_lead", "p_stat_lead", "p_stat_exec")
 
 
 def _require_login():
@@ -1611,7 +1633,7 @@ def _cycle_units(cycle):
 
 
 def _resolve_cycle_unit(cycle):
-    if _is_admin():
+    if _can_manage_report_templates():
         requested_unit_id = int(request.values.get("unit_id") or 0)
         if requested_unit_id:
             unit = db.session.get(ReportUnit, requested_unit_id)
@@ -2325,8 +2347,11 @@ def _export_submission(submission, values=None, commit=True):
 
 @reporting_bp.route("/admin/reports")
 def admin_dashboard():
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền quản lý trung tâm báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     _ensure_default_types()
     _sync_units_from_users()
@@ -2393,8 +2418,11 @@ def admin_dashboard():
 
 @reporting_bp.route("/admin/reports/upload", methods=["POST"])
 def upload_template():
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền thiết lập biểu mẫu báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
 
     file = request.files.get("template_file")
@@ -2486,8 +2514,11 @@ def upload_template():
 
 @reporting_bp.route("/admin/reports/templates/<int:template_id>")
 def template_detail(template_id):
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền truy cập cấu hình báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     template = db.session.get(ReportTemplate, template_id)
     if not template:
@@ -2526,8 +2557,11 @@ def template_detail(template_id):
 
 @reporting_bp.route("/admin/reports/templates/<int:template_id>/settings")
 def template_settings(template_id):
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền truy cập cấu hình báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     template = db.session.get(ReportTemplate, template_id)
     if not template:
@@ -2555,8 +2589,11 @@ def template_settings(template_id):
 
 @reporting_bp.route("/admin/reports/templates/<int:template_id>/settings", methods=["POST"])
 def save_template_settings(template_id):
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền cập nhật cấu hình báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     template = db.session.get(ReportTemplate, template_id)
     if not template:
@@ -2651,8 +2688,11 @@ def save_template_settings(template_id):
 
 @reporting_bp.route("/admin/reports/templates/<int:template_id>/save-config", methods=["POST"])
 def save_template_config(template_id):
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền cập nhật trường dữ liệu báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     template = db.session.get(ReportTemplate, template_id)
     if not template:
@@ -2685,8 +2725,11 @@ def save_template_config(template_id):
 
 @reporting_bp.route("/admin/reports/templates/<int:template_id>/fields/<int:field_id>/display-name", methods=["POST"])
 def update_field_display_name(template_id, field_id):
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền cập nhật trường dữ liệu báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     field = db.session.get(ReportTemplateField, field_id)
     if not field:
@@ -2716,8 +2759,11 @@ def update_field_display_name(template_id, field_id):
 
 @reporting_bp.route("/admin/reports/templates/<int:template_id>/versions/<int:version_id>/activate", methods=["POST"])
 def activate_version(template_id, version_id):
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền chuyển bản biểu mẫu.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     ReportTemplateVersion.query.filter_by(template_id=template_id).update({"is_current": False})
     version = db.session.get(ReportTemplateVersion, version_id)
@@ -2731,8 +2777,11 @@ def activate_version(template_id, version_id):
 
 @reporting_bp.route("/admin/reports/templates/<int:template_id>/view")
 def admin_template_preview(template_id):
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền xem trước biểu mẫu báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     template = db.session.get(ReportTemplate, template_id)
     if not template:
@@ -2784,8 +2833,11 @@ def admin_template_preview(template_id):
 
 @reporting_bp.route("/admin/reports/templates/<int:template_id>/download")
 def download_template_source(template_id):
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền tải biểu mẫu báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     template = db.session.get(ReportTemplate, template_id)
     version = _template_version(template) if template else None
@@ -2796,8 +2848,11 @@ def download_template_source(template_id):
 
 @reporting_bp.route("/admin/reports/templates/<int:template_id>/directive")
 def download_template_directive(template_id):
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền tải file hướng dẫn báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     template = db.session.get(ReportTemplate, template_id)
     if not template or not template.directive_path or not os.path.exists(template.directive_path):
@@ -2807,8 +2862,11 @@ def download_template_directive(template_id):
 
 @reporting_bp.route("/admin/reports/templates/<int:template_id>/versions/<int:version_id>/delete", methods=["POST"])
 def delete_version(template_id, version_id):
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền xóa bản biểu mẫu.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     version = db.session.get(ReportTemplateVersion, version_id)
     if not version or version.template_id != template_id:
@@ -2855,8 +2913,11 @@ def delete_version(template_id, version_id):
 
 @reporting_bp.route("/admin/reports/templates/<int:template_id>/delete", methods=["POST"])
 def delete_template(template_id):
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền xóa biểu mẫu báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     template = db.session.get(ReportTemplate, template_id)
     if not template:
@@ -2893,8 +2954,11 @@ def delete_template(template_id):
 
 @reporting_bp.route("/admin/reports/units/sync", methods=["POST"])
 def sync_units():
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền đồng bộ đơn vị báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     _sync_units_from_users()
     flash("Đã đồng bộ đơn vị từ tài khoản.", "success")
@@ -2903,8 +2967,11 @@ def sync_units():
 
 @reporting_bp.route("/admin/reports/cycles/<int:cycle_id>")
 def admin_cycle_detail(cycle_id):
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền theo dõi chu kỳ báo cáo này.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     cycle = db.session.get(ReportCycle, cycle_id)
     if not cycle:
@@ -3044,8 +3111,11 @@ def admin_cycle_detail(cycle_id):
 
 @reporting_bp.route("/admin/reports/cycles/<int:cycle_id>/update", methods=["POST"])
 def update_cycle(cycle_id):
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền cập nhật chu kỳ báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     cycle = db.session.get(ReportCycle, cycle_id)
     if not cycle:
@@ -3087,8 +3157,11 @@ def update_cycle(cycle_id):
 
 @reporting_bp.route("/admin/reports/cycles/<int:cycle_id>/close", methods=["POST"])
 def close_cycle(cycle_id):
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền đóng báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     cycle = db.session.get(ReportCycle, cycle_id)
     if not cycle:
@@ -3118,8 +3191,11 @@ def close_cycle(cycle_id):
 
 @reporting_bp.route("/admin/reports/cycles/<int:cycle_id>/delete", methods=["POST"])
 def delete_cycle(cycle_id):
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền xóa báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     cycle = db.session.get(ReportCycle, cycle_id)
     if not cycle:
@@ -3134,8 +3210,11 @@ def delete_cycle(cycle_id):
 
 @reporting_bp.route("/admin/reports/submissions/<int:submission_id>/delete", methods=["POST"])
 def delete_submission(submission_id):
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền xóa bản nộp báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     submission = db.session.get(ReportSubmission, submission_id)
     if not submission:
@@ -3154,8 +3233,11 @@ def delete_submission(submission_id):
 
 @reporting_bp.route("/admin/reports/cycles/<int:cycle_id>/reset-data", methods=["POST"])
 def reset_cycle_data(cycle_id):
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền reset dữ liệu báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     cycle = db.session.get(ReportCycle, cycle_id)
     if not cycle:
@@ -3189,8 +3271,11 @@ def reset_cycle_data(cycle_id):
 
 @reporting_bp.route("/admin/reports/cycles", methods=["POST"])
 def create_cycle():
-    if not _is_admin():
+    if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_manage_report_templates():
+        flash("Bạn không có quyền tạo chu kỳ báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     template_version_id = int(request.form.get("template_version_id") or 0)
     report_type_id = int(request.form.get("report_type_id") or 0)
@@ -3277,6 +3362,9 @@ def create_cycle():
 def user_dashboard():
     if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_access_report_workspace():
+        flash("Bạn không có quyền truy cập trung tâm báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     _ensure_default_types()
     _sync_units_from_users()
@@ -3284,8 +3372,8 @@ def user_dashboard():
 
     user = db.session.get(User, session.get("uid"))
     unit = _current_user_report_unit()
-    is_admin = _is_admin()
-    can_view_cycle_progress = is_admin or _is_pc06_role(user)
+    is_admin = _can_manage_report_templates()
+    can_view_cycle_progress = _can_view_report_progress()
     dashboard_report_date = date.today()
     cycles = ReportCycle.query.order_by(ReportCycle.created_at.desc()).all()
     accessible_cycles = [cycle for cycle in cycles if _cycle_accessible(cycle, unit.id if unit else None, is_admin)]
@@ -3348,6 +3436,9 @@ def user_dashboard():
 def cycle_workspace(cycle_id):
     if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_access_report_workspace():
+        flash("Bạn không có quyền truy cập báo cáo này.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     _ensure_default_types()
     _sync_units_from_users()
@@ -3368,7 +3459,8 @@ def cycle_workspace(cycle_id):
     latest_submission = context["latest_submission"]
     submission_history = context["submission_history"]
     existing_values = context.get("working_values", {}) if report_type and report_type.code == "daily" else context.get("entry_values", {})
-    available_units = _cycle_units(cycle) if _is_admin() else []
+    report_admin_mode = _can_manage_report_templates()
+    available_units = _cycle_units(cycle) if report_admin_mode else []
     sheet_views = []
     for sheet_meta in metadata.get("sheets", []):
         ws = workbook[sheet_meta["sheet_name"]]
@@ -3383,7 +3475,7 @@ def cycle_workspace(cycle_id):
         for row_index in range(unit_start_row, unit_end_row + 1):
             if ws.row_dimensions[row_index].hidden:
                 continue
-            if not _is_admin() and unit and not _row_matches_unit(
+            if not report_admin_mode and unit and not _row_matches_unit(
                 ws,
                 sheet_fields,
                 existing_values,
@@ -3440,7 +3532,7 @@ def cycle_workspace(cycle_id):
         submission_history=submission_history,
         report_date=report_date,
         current_unit=unit,
-        is_admin=_is_admin(),
+        is_admin=report_admin_mode,
         available_units=available_units,
         editable=editable,
     )
@@ -3450,6 +3542,9 @@ def cycle_workspace(cycle_id):
 def cycle_preview(cycle_id):
     if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_access_report_workspace():
+        flash("Bạn không có quyền xem báo cáo này.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     _ensure_default_types()
     _sync_units_from_users()
@@ -3465,7 +3560,8 @@ def cycle_preview(cycle_id):
     latest_submission = context["view_submission"]
     report_date = context["report_date"]
     metadata = json.loads(template_version.metadata_json or "{}")
-    admin_all_units = _is_admin() and not request.args.get("unit_id")
+    report_admin_mode = _can_manage_report_templates()
+    admin_all_units = report_admin_mode and not request.args.get("unit_id")
     is_daily_cumulative = bool(report_type and report_type.code == "daily" and report_date)
     if admin_all_units:
         instances = ReportInstance.query.filter_by(cycle_id=cycle.id).order_by(ReportInstance.report_unit_id.asc()).all()
@@ -3505,7 +3601,7 @@ def cycle_preview(cycle_id):
             flash("Trên mobile, hệ thống sẽ tải file báo cáo để xem kết quả.", "info")
             return redirect(download_url)
         flash("Trên mobile, giao diện xem báo cáo đã được ẩn. Vui lòng theo dõi tiến độ hoặc tải file khi có sẵn.", "info")
-        if _is_admin():
+        if report_admin_mode:
             fallback_values = {}
             if report_date:
                 fallback_values["report_date"] = report_date.strftime("%Y-%m-%d")
@@ -3550,7 +3646,7 @@ def cycle_preview(cycle_id):
         latest_submission=latest_submission,
         preview_sheets=preview_sheets,
         current_unit=unit,
-        is_admin=_is_admin(),
+        is_admin=report_admin_mode,
         download_url=download_url,
     )
 
@@ -3559,6 +3655,9 @@ def cycle_preview(cycle_id):
 def cycle_history(cycle_id):
     if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_access_report_workspace():
+        flash("Bạn không có quyền xem lịch sử báo cáo.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     _ensure_default_types()
     _sync_units_from_users()
@@ -3584,7 +3683,7 @@ def cycle_history(cycle_id):
         current_unit=context["unit"],
         latest_submission=context["view_submission"],
         history_rows=history_rows,
-        is_admin=_is_admin(),
+        is_admin=_can_manage_report_templates(),
     )
 
 
@@ -3602,7 +3701,7 @@ def _payload_from_request():
 
 def _workspace_route_values(cycle, unit=None, report_date=None):
     values = {"cycle_id": cycle.id}
-    if unit and _is_admin():
+    if unit and _can_manage_report_templates():
         values["unit_id"] = unit.id
     if report_date:
         values["report_date"] = report_date.strftime("%Y-%m-%d")
@@ -3614,7 +3713,7 @@ def _resolve_cycle_context(cycle_id):
     if not cycle:
         return None
     unit = _resolve_cycle_unit(cycle)
-    if not _cycle_accessible(cycle, unit.id if unit else None, _is_admin()):
+    if not _cycle_accessible(cycle, unit.id if unit else None, _can_manage_report_templates()):
         return None
     user = db.session.get(User, session.get("uid"))
     instance = _get_cycle_instance(cycle, unit, user)
@@ -3659,13 +3758,16 @@ def _resolve_cycle_context(cycle_id):
 def save_cycle(cycle_id):
     if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_access_report_workspace():
+        flash("Bạn không có quyền lưu báo cáo này.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     cycle = db.session.get(ReportCycle, cycle_id)
     unit = _resolve_cycle_unit(cycle) if cycle else None
     report_type = _report_type(cycle) if cycle else None
     report_date = _parse_date(request.form.get("report_date", "")) if report_type and report_type.code == "daily" else None
     workspace_values = _workspace_route_values(cycle, unit=unit, report_date=report_date) if cycle else {"cycle_id": cycle_id}
-    if not cycle or not _cycle_accessible(cycle, unit.id if unit else None, _is_admin()):
+    if not cycle or not _cycle_accessible(cycle, unit.id if unit else None, _can_manage_report_templates()):
         return "Forbidden", 403
     if cycle.is_locked or cycle.status == "closed":
         flash("Báo cáo đã khóa, không thể lưu thêm dữ liệu.", "warning")
@@ -3683,13 +3785,16 @@ def save_cycle(cycle_id):
 def submit_cycle(cycle_id):
     if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_access_report_workspace():
+        flash("Bạn không có quyền gửi báo cáo này.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     cycle = db.session.get(ReportCycle, cycle_id)
     unit = _resolve_cycle_unit(cycle) if cycle else None
     report_type = _report_type(cycle) if cycle else None
     report_date = _parse_date(request.form.get("report_date", "")) if report_type and report_type.code == "daily" else None
     workspace_values = _workspace_route_values(cycle, unit=unit, report_date=report_date) if cycle else {"cycle_id": cycle_id}
-    if not cycle or not _cycle_accessible(cycle, unit.id if unit else None, _is_admin()):
+    if not cycle or not _cycle_accessible(cycle, unit.id if unit else None, _can_manage_report_templates()):
         return "Forbidden", 403
     if cycle.is_locked or cycle.status == "closed":
         flash("Báo cáo đã khóa, không thể gửi thêm dữ liệu.", "warning")
@@ -3710,10 +3815,21 @@ def submit_cycle(cycle_id):
 def download_submission(submission_id):
     if not _require_login():
         return redirect(url_for("auth_bp.login"))
+    if not _can_access_report_workspace():
+        flash("Bạn không có quyền tải file báo cáo này.", "warning")
+        return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
     submission = db.session.get(ReportSubmission, submission_id)
     if not submission:
         return "Not Found", 404
+    instance = db.session.get(ReportInstance, submission.instance_id)
+    cycle = db.session.get(ReportCycle, instance.cycle_id) if instance else None
+    unit = _resolve_cycle_unit(cycle) if cycle else None
+    if not cycle or not _cycle_accessible(cycle, unit.id if unit else None, _can_manage_report_templates()):
+        return "Forbidden", 403
+    if not _can_manage_report_templates():
+        if not instance or not unit or instance.report_unit_id != unit.id:
+            return "Forbidden", 403
     download_path = _submission_download_path(submission)
     if not download_path:
         download_path = _export_submission(submission)

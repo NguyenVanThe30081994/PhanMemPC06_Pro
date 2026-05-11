@@ -682,12 +682,12 @@
 
                                 <div class="pc06-form-section d-none" id="roleAssignmentPanel">
                                     <label class="form-label fw-bold">Vai trò nhận việc</label>
-                                    <select name="assignee_role_id" class="form-select form-select-lg">
-                                        <option value="">Chọn vai trò</option>
+                                    <select name="assignee_role_ids" class="form-select form-select-lg" multiple size="8">
                                         {% for role in roles %}
                                         <option value="{{ role.id }}">{{ role.name }}</option>
                                         {% endfor %}
                                     </select>
+                                    <div class="form-text">Giữ `Command` hoặc `Ctrl` để chọn nhiều vai trò cùng lúc.</div>
                                 </div>
 
                                 <div class="pc06-form-section d-none" id="userAssignmentPanel">

@@ -354,12 +354,12 @@
                         </div>
                         <div class="col-md-6 {% if assignment_context.mode != 'role' %}d-none{% endif %}" id="editRoleAssignmentPanel">
                             <label class="form-label fw-bold">Vai trò nhận việc</label>
-                            <select name="assignee_role_id" class="form-select form-select-lg">
-                                <option value="">Chọn vai trò</option>
+                            <select name="assignee_role_ids" class="form-select form-select-lg" multiple size="8">
                                 {% for role in roles %}
-                                <option value="{{ role.id }}" {% if assignment_context.role_id == role.id %}selected{% endif %}>{{ role.name }}</option>
+                                <option value="{{ role.id }}" {% if role.id in assignment_context.role_ids %}selected{% endif %}>{{ role.name }}</option>
                                 {% endfor %}
                             </select>
+                            <div class="form-text">Có thể chọn một hoặc nhiều vai trò khi cập nhật lại luồng giao việc.</div>
                         </div>
                         <div class="col-12 {% if assignment_context.mode != 'user' %}d-none{% endif %}" id="editUserAssignmentPanel">
                             <label class="form-label fw-bold">Cán bộ nhận việc</label>

@@ -12,7 +12,7 @@
                 <div class="pc06-action-cluster">
                     <a class="btn btn-bdhvs light" href="{{ url_for('admin_bp.export_users', role_id=selected_role_id, unit=selected_unit, q=search_query) }}">
                         <i class="fa-solid fa-file-arrow-down"></i>
-                        Xuất danh sách
+                        {{ 'Xuất ' ~ selected_role.name if selected_role else 'Xuất danh sách' }}
                     </a>
                     <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importUserModal">
                         <i class="fa-solid fa-file-excel"></i>
@@ -44,7 +44,7 @@
                         <span>{{ total_user_count }}</span>
                     </a>
                     {% for r in roles %}
-                    <a href="{{ url_for('admin_bp.roles', role_id=r.id) }}" class="system-filter-chip {% if selected_role_id == r.id %}active{% endif %}">
+                    <a href="{{ url_for('admin_bp.roles', role_id=r.id, unit=selected_unit, q=search_query) }}" class="system-filter-chip {% if selected_role_id == r.id %}active{% endif %}">
                         <strong>{{ r.name }}</strong>
                         <span>{{ role_user_counts.get(r.id, 0) }}</span>
                     </a>
@@ -207,7 +207,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for k, v in [('dash','Tổng quan'),('task','Công việc'),('lib','Thư viện'),('news','Bảng tin'),('contact','Danh bạ'),('form','Cấu hình biểu mẫu'),('input','Nhập liệu'),('stat','Thống kê'),('user','Tài khoản')] %}
+                                {% for k, v in [('dash','Tổng quan'),('task','Công việc'),('lib','Thư viện'),('news','Bảng tin'),('contact','Danh bạ'),('form','Quản lý báo cáo'),('input','Nhập và gửi báo cáo'),('stat','Tiến độ báo cáo'),('user','Tài khoản')] %}
                                 <tr>
                                     <td class="small fw-bold">{{ v }}</td>
                                     <td class="text-center"><div class="form-check d-inline-block"><input class="form-check-input" type="checkbox" name="perms" value="p_{{ k }}_lead" id="p_lead_{{ k }}"></div></td>
@@ -216,6 +216,11 @@
                                 {% endfor %}
                             </tbody>
                         </table>
+                    </div>
+                    <div class="alert alert-light border rounded-4 small text-muted mt-3 mb-0">
+                        <code>Quản lý báo cáo</code>: quản lý biểu mẫu, chu kỳ, thời hạn và dữ liệu tổng hợp.
+                        <code>Nhập và gửi báo cáo</code>: lưu nháp, gửi báo cáo, xem lịch sử và tải tệp của đơn vị.
+                        <code>Tiến độ báo cáo</code>: xem tiến độ, trạng thái và mức độ hoàn thành của các đơn vị.
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-0">
@@ -248,7 +253,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for k, v in [('dash','Tổng quan'),('task','Công việc'),('lib','Thư viện'),('news','Bảng tin'),('contact','Danh bạ'),('form','Cấu hình biểu mẫu'),('input','Nhập liệu'),('stat','Thống kê'),('user','Tài khoản')] %}
+                                {% for k, v in [('dash','Tổng quan'),('task','Công việc'),('lib','Thư viện'),('news','Bảng tin'),('contact','Danh bạ'),('form','Quản lý báo cáo'),('input','Nhập và gửi báo cáo'),('stat','Tiến độ báo cáo'),('user','Tài khoản')] %}
                                 <tr>
                                     <td class="small fw-bold">{{ v }}</td>
                                     <td class="text-center"><div class="form-check d-inline-block"><input class="form-check-input perm-check" type="checkbox" name="perms" value="p_{{ k }}_lead" id="edit_p_lead_{{ k }}"></div></td>
@@ -257,6 +262,11 @@
                                 {% endfor %}
                             </tbody>
                         </table>
+                    </div>
+                    <div class="alert alert-light border rounded-4 small text-muted mt-3 mb-0">
+                        <code>Quản lý báo cáo</code>: quản lý biểu mẫu, chu kỳ, thời hạn và dữ liệu tổng hợp.
+                        <code>Nhập và gửi báo cáo</code>: lưu nháp, gửi báo cáo, xem lịch sử và tải tệp của đơn vị.
+                        <code>Tiến độ báo cáo</code>: xem tiến độ, trạng thái và mức độ hoàn thành của các đơn vị.
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-0">
