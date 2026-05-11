@@ -62,6 +62,7 @@
 {% block content %}
 {% set display_status = task.display_status or (user_assign.status if user_assign else (task.initial_status or 'Chưa tiếp nhận')) %}
 {% set status_key = display_status|lower %}
+{% set report_file_name = report_context.result_file if report_context is defined else '' %}
 <div class="pc06-page-shell">
     <section class="pc06-hero-card detail-hero">
         <div class="pc06-hero-grid">
@@ -120,10 +121,17 @@
                     <span>Tiến độ</span>
                     <strong>{{ progress_percent }}%</strong>
                 </div>
+                {% if limited_assignment_view %}
+                <div class="pc06-metric-card">
+                    <span>Minh chứng</span>
+                    <strong>{{ 'Đã tải lên' if report_file_name else 'Chưa có' }}</strong>
+                </div>
+                {% else %}
                 <div class="pc06-metric-card">
                     <span>Đã hoàn thành</span>
                     <strong>{{ task.completed_assignments or 0 }}/{{ task.assignee_count or 0 }}</strong>
                 </div>
+                {% endif %}
                 <div class="pc06-metric-card {% if task.is_overdue %}danger{% endif %}">
                     <span>Hạn xử lý</span>
                     <strong>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa có' }}</strong>
@@ -230,7 +238,13 @@
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Trao đổi và phản hồi</h2>
-                        <p>Toàn bộ phản hồi và báo cáo được gom trong một luồng thảo luận.</p>
+                        <p>
+                            {% if limited_assignment_view %}
+                            Chỉ hiển thị trao đổi liên quan đến tài khoản hoặc đơn vị của bạn.
+                            {% else %}
+                            Toàn bộ phản hồi và báo cáo được gom trong một luồng thảo luận.
+                            {% endif %}
+                        </p>
                     </div>
                 </div>
 
@@ -272,8 +286,14 @@
             <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
-                        <h2>Thông tin nhanh</h2>
-                        <p>Bức tranh tóm tắt của công việc đang xử lý.</p>
+                        <h2>{{ 'Thông tin báo cáo' if limited_assignment_view else 'Thông tin nhanh' }}</h2>
+                        <p>
+                            {% if limited_assignment_view %}
+                            Các thông tin cần thiết để nhập, gửi và theo dõi báo cáo của bạn.
+                            {% else %}
+                            Bức tranh tóm tắt của công việc đang xử lý.
+                            {% endif %}
+                        </p>
                     </div>
                 </div>
                 <div class="pc06-info-list">
@@ -282,9 +302,15 @@
                     <div class="pc06-info-item"><span>Loại công việc</span><strong>{{ task.task_type_display or 'Công việc thường xuyên' }}</strong></div>
                     <div class="pc06-info-item"><span>Mức ưu tiên</span><strong>{{ task.priority_display or 'Trung bình' }}</strong></div>
                     <div class="pc06-info-item"><span>Người giao</span><strong>{{ task.author_name }}</strong></div>
+                    {% if limited_assignment_view %}
+                    <div class="pc06-info-item"><span>Trạng thái báo cáo</span><strong>{{ report_context.status }}</strong></div>
+                    <div class="pc06-info-item"><span>Tệp minh chứng đã nộp</span><strong>{{ report_file_name or 'Chưa tải lên' }}</strong></div>
+                    <div class="pc06-info-item"><span>Lần báo cáo gần nhất</span><strong>{{ report_context.latest_report_at.strftime('%d/%m/%Y %H:%M') if report_context.latest_report_at else 'Chưa gửi báo cáo' }}</strong></div>
+                    {% endif %}
                 </div>
             </section>
 
+            {% if can_manage_task_view %}
             <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
@@ -326,7 +352,6 @@
                 </div>
             </section>
 
-            {% if is_lead or can_edit_task %}
             <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>

@@ -411,6 +411,60 @@ def _can_edit_task(task):
     return bool(session.get("is_admin")) or task.author_id == session.get("uid")
 
 
+def _can_view_task(task, is_lead=False):
+    if not task or not session.get("uid"):
+        return False
+    if session.get("is_admin") or is_lead or task.author_id == session.get("uid"):
+        return True
+    return any(assignment.user_id == session.get("uid") for assignment in (task.assignments or []))
+
+
+def _filter_comments_for_viewer(task, comments, viewer, can_manage_all=False):
+    if can_manage_all or not viewer:
+        return comments
+
+    viewer_unit_key = _user_unit_key(viewer)
+    comment_user_ids = sorted({comment.user_id for comment in comments if getattr(comment, "user_id", None)})
+    comment_users = {}
+    if comment_user_ids:
+        comment_users = {
+            user.id: user
+            for user in User.query.filter(User.id.in_(comment_user_ids)).all()
+        }
+
+    visible_comments = []
+    for comment in comments:
+        comment_user_id = getattr(comment, "user_id", None)
+        if comment_user_id in {viewer.id, task.author_id}:
+            visible_comments.append(comment)
+            continue
+
+        comment_user = comment_users.get(comment_user_id)
+        if comment_user and viewer_unit_key and _user_unit_key(comment_user) == viewer_unit_key:
+            visible_comments.append(comment)
+
+    return visible_comments
+
+
+def _build_assignment_report_context(user_assign, comments):
+    latest_report = next(
+        (
+            comment
+            for comment in comments
+            if getattr(comment, "user_id", None) == getattr(user_assign, "user_id", None)
+            and (getattr(comment, "content", "") or "").startswith("[BÁO CÁO]")
+        ),
+        None,
+    ) if user_assign else None
+
+    return {
+        "latest_report_at": getattr(latest_report, "created_at", None),
+        "latest_report_content": getattr(latest_report, "content", "") if latest_report else "",
+        "result_file": getattr(user_assign, "result_file", "") if user_assign else "",
+        "status": _normalize_status(getattr(user_assign, "status", "")) if user_assign else "Chưa tiếp nhận",
+    }
+
+
 def _task_file_root():
     task_dir = current_app.config.get("TASK_FOLDER") or os.path.join(current_app.root_path, "task_files")
     os.makedirs(task_dir, exist_ok=True)
@@ -837,7 +891,10 @@ def task_detail(tid):
     perms = _current_perms()
     is_lead = perms.get("p_task_lead") or session.get("is_admin")
     can_edit_task = _can_edit_task(task)
-    comments = TaskComment.query.filter_by(task_id=tid).order_by(TaskComment.created_at.desc()).all()
+    if not _can_view_task(task, is_lead=is_lead):
+        flash("Bạn không có quyền xem công việc này.", "danger")
+        return redirect(url_for("tasks_bp.tasks"))
+
     assigns = (
         db.session.query(TaskAssignment, User)
         .join(User, TaskAssignment.user_id == User.id)
@@ -845,6 +902,7 @@ def task_detail(tid):
         .order_by(TaskAssignment.updated_at.desc(), User.fullname.asc())
         .all()
     )
+    current_user = db.session.get(User, session["uid"])
     assign_users = [user for _, user in assigns]
     unit_options = module_category_options("contacts", "unit_name", "Đơn vị")
     sync_record_categories(assign_users, unit_options, attr_name="unit_area", prefer_stable=True)
@@ -852,10 +910,31 @@ def task_detail(tid):
 
     task_metrics = _decorate_task(task, session["uid"], is_lead)
     user_assign = task_metrics["user_assignment"]
+    can_manage_task_view = bool(is_lead or can_edit_task)
+    if not can_manage_task_view and not user_assign:
+        flash("Bạn không có quyền xem công việc này.", "danger")
+        return redirect(url_for("tasks_bp.tasks"))
+
+    comments = TaskComment.query.filter_by(task_id=tid).order_by(TaskComment.created_at.desc()).all()
+    visible_comments = _filter_comments_for_viewer(task, comments, current_user, can_manage_all=can_manage_task_view)
     assignment_context = _infer_assignment_context(task)
-    unit_report_rows, unit_report_stats = _build_unit_report_summary(assigns, comments, task.deadline)
+    unit_report_rows, unit_report_stats = ([], {
+        "total_units": 0,
+        "reported_units": 0,
+        "unreported_units": 0,
+        "overdue_units": 0,
+        "on_time_units": 0,
+    })
+    if can_manage_task_view:
+        unit_report_rows, unit_report_stats = _build_unit_report_summary(assigns, comments, task.deadline)
+    report_context = _build_assignment_report_context(user_assign, visible_comments)
+    limited_assignment_view = bool(user_assign and not can_manage_task_view)
 
     if request.method == "POST":
+        if not (can_manage_task_view or user_assign):
+            flash("Bạn không có quyền phản hồi công việc này.", "danger")
+            return redirect(url_for("tasks_bp.tasks"))
+
         content = (request.form.get("content") or "").strip()
         if content:
             db.session.add(
@@ -873,7 +952,7 @@ def task_detail(tid):
     return render_template(
         "task_detail.html",
         task=task,
-        comments=comments,
+        comments=visible_comments,
         assigns=assigns,
         pro_units=stable_form_category_options(pro_units),
         task_fields=stable_form_category_options(task_fields),
@@ -889,6 +968,9 @@ def task_detail(tid):
         progress_percent=task_metrics["progress_percent"],
         unit_report_rows=unit_report_rows,
         unit_report_stats=unit_report_stats,
+        can_manage_task_view=can_manage_task_view,
+        limited_assignment_view=limited_assignment_view,
+        report_context=report_context,
     )
 
 

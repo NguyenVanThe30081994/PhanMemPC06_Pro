@@ -38,11 +38,16 @@
     .detail-mobile-unit-row { padding: 14px; border-radius: 16px; background: var(--bg-body); }
     .detail-mobile-unit-row strong { display: block; color: var(--text-main); }
     .detail-mobile-unit-row span { display: block; margin-top: 4px; color: var(--text-muted); font-size: 0.82rem; }
+    .detail-mobile-info-list { display: grid; gap: 10px; }
+    .detail-mobile-info-item { padding: 12px 14px; border-radius: 16px; background: var(--bg-body); }
+    .detail-mobile-info-item span { display: block; font-size: 0.76rem; color: var(--text-muted); }
+    .detail-mobile-info-item strong { display: block; margin-top: 4px; color: var(--text-main); }
 </style>
 {% endblock %}
 
 {% block content %}
 {% set display_status = task.display_status or (user_assign.status if user_assign else (task.initial_status or 'Chưa tiếp nhận')) %}
+{% set report_file_name = report_context.result_file if report_context is defined else '' %}
 <section class="detail-mobile-hero">
     <a href="{{ url_for('tasks_bp.tasks') }}" aria-label="Quay lại danh sách" title="Quay lại danh sách"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay lại danh sách</span></a>
     <h1>{{ task.title }}</h1>
@@ -209,6 +214,21 @@
     {% endif %}
 </section>
 
+{% if limited_assignment_view %}
+<section class="detail-mobile-card">
+    <h2>Thông tin báo cáo</h2>
+    <p class="helper">Chỉ hiển thị thông tin cần thiết cho tài khoản nhận việc.</p>
+    <div class="detail-mobile-info-list">
+        <div class="detail-mobile-info-item"><span>Người giao</span><strong>{{ task.author_name }}</strong></div>
+        <div class="detail-mobile-info-item"><span>Đơn vị nghiệp vụ</span><strong>{{ task.domain_display or 'Chưa phân đơn vị' }}</strong></div>
+        <div class="detail-mobile-info-item"><span>Hạn xử lý</span><strong>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa có' }}</strong></div>
+        <div class="detail-mobile-info-item"><span>Trạng thái báo cáo</span><strong>{{ report_context.status }}</strong></div>
+        <div class="detail-mobile-info-item"><span>Tệp minh chứng đã nộp</span><strong>{{ report_file_name or 'Chưa tải lên' }}</strong></div>
+        <div class="detail-mobile-info-item"><span>Lần báo cáo gần nhất</span><strong>{{ report_context.latest_report_at.strftime('%d/%m/%Y %H:%M') if report_context.latest_report_at else 'Chưa gửi báo cáo' }}</strong></div>
+    </div>
+</section>
+{% endif %}
+
 {% if user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
 <section class="detail-mobile-card" id="report-section">
     <h2>Báo cáo kết quả</h2>
@@ -226,14 +246,21 @@
 {% endif %}
 
 <section class="detail-mobile-card">
-    <h2>Phản hồi nhanh</h2>
-    <p class="helper">Trao đổi ngay trên luồng công việc.</p>
+    <h2>Trao đổi và phản hồi</h2>
+    <p class="helper">
+        {% if limited_assignment_view %}
+        Chỉ hiển thị trao đổi liên quan đến tài khoản hoặc đơn vị của bạn.
+        {% else %}
+        Trao đổi ngay trên luồng công việc.
+        {% endif %}
+    </p>
     <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST">
         <textarea name="content" rows="3" class="form-control" placeholder="Nhập phản hồi" required></textarea>
         <button type="submit" class="btn btn-mobile btn-mobile-primary mt-3" aria-label="Gửi phản hồi" title="Gửi phản hồi"><i class="fa-solid fa-reply"></i><span class="visually-hidden">Gửi phản hồi</span></button>
     </form>
 </section>
 
+{% if can_manage_task_view %}
 <section class="detail-mobile-card">
     <h2>Người thực hiện</h2>
     <p class="helper">Danh sách cán bộ đang nhận việc.</p>
@@ -260,7 +287,6 @@
     </div>
 </section>
 
-{% if is_lead or can_edit_task %}
 <section class="detail-mobile-card">
     <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
         <div>
@@ -304,7 +330,13 @@
 
 <section class="detail-mobile-card">
     <h2>Lịch sử trao đổi</h2>
-    <p class="helper">Báo cáo và phản hồi được gom tại đây.</p>
+    <p class="helper">
+        {% if limited_assignment_view %}
+        Chỉ hiển thị lịch sử trao đổi thuộc phạm vi báo cáo của bạn.
+        {% else %}
+        Báo cáo và phản hồi được gom tại đây.
+        {% endif %}
+    </p>
     <div class="detail-mobile-stack">
         {% for c in comments %}
         {% set is_report = c.content.startswith('[BÁO CÁO]') %}
