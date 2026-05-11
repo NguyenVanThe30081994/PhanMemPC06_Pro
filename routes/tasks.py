@@ -406,6 +406,18 @@ def _can_edit_task(task):
     return bool(session.get("is_admin")) or task.author_id == session.get("uid")
 
 
+def _task_file_root():
+    task_dir = current_app.config.get("TASK_FOLDER") or os.path.join(current_app.root_path, "task_files")
+    os.makedirs(task_dir, exist_ok=True)
+    return task_dir
+
+
+def _task_file_path(file_name):
+    if not file_name:
+        return ""
+    return os.path.join(_task_file_root(), file_name)
+
+
 def _purge_task(task):
     if not task:
         return
@@ -419,7 +431,7 @@ def _purge_task(task):
             file_names.add(assignment.result_file)
 
     for file_name in file_names:
-        file_path = os.path.join(current_app.root_path, "task_files", file_name)
+        file_path = _task_file_path(file_name)
         if os.path.exists(file_path):
             try:
                 os.remove(file_path)
@@ -574,7 +586,7 @@ def tasks():
         attachment_name = ""
         if attachment and attachment.filename:
             attachment_name = secure_filename(attachment.filename)
-            attachment.save(os.path.join(current_app.root_path, "task_files", attachment_name))
+            attachment.save(_task_file_path(attachment_name))
 
         new_task = Task(
             category=category,
@@ -883,7 +895,7 @@ def edit_task(tid):
     attachment = request.files.get("task_file")
     if attachment and attachment.filename:
         attachment_name = secure_filename(attachment.filename)
-        attachment.save(os.path.join(current_app.root_path, "task_files", attachment_name))
+        attachment.save(_task_file_path(attachment_name))
         task.file_path = attachment_name
 
     db.session.commit()
@@ -978,7 +990,7 @@ def submit_task_report(tid):
     attachment_name = ""
     if report_file and report_file.filename:
         attachment_name = secure_filename(report_file.filename)
-        report_file.save(os.path.join(current_app.root_path, "task_files", attachment_name))
+        report_file.save(_task_file_path(attachment_name))
 
     if report_content:
         report_message = f"[BÁO CÁO] {report_content}"

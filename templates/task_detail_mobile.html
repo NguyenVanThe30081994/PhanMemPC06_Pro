@@ -237,7 +237,13 @@
             <div class="detail-mobile-assignee-copy">
                 <strong>{{ u.fullname }}</strong>
                 <span>{{ u.unit_area_display or 'Chưa có đơn vị' }}</span>
-                {% if a.result_file %}<span><i class="fa-solid fa-paperclip me-1"></i>{{ a.result_file }}</span>{% endif %}
+                {% if a.result_file %}
+                <span><i class="fa-solid fa-paperclip me-1"></i>{{ a.result_file }}</span>
+                <a href="{{ url_for('dl_file', fn=a.result_file) }}" class="btn btn-sm btn-outline-primary rounded-pill mt-2" aria-label="Tải tệp báo cáo" title="Tải tệp báo cáo">
+                    <i class="fa-solid fa-download"></i>
+                    <span>Tải tệp</span>
+                </a>
+                {% endif %}
             </div>
             <div class="detail-mobile-status {% if a.status == 'Hoàn thành' %}done{% elif a.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}" style="margin-bottom:0;">{{ a.status }}</div>
         </article>

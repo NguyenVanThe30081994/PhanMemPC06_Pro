@@ -236,6 +236,22 @@ def build_account_username(unit_name, unit_key=None):
     return key
 
 
+def build_role_account_username(role_name, unit_name, unit_key=None):
+    """
+    Tạo tên đăng nhập theo vai trò nếu có quy tắc riêng.
+    """
+    normalized_role = _ascii_unit_text(role_name)
+    if normalized_role == 'to cong tac cap xa':
+        normalized_unit = _ascii_unit_text(unit_name)
+        if normalized_unit.startswith('to cong tac '):
+            normalized_unit = normalized_unit[len('to cong tac '):].strip()
+        key = (extract_unit_key(normalized_unit) or slugify_unit(normalized_unit) or unit_key or '').strip().lower()
+        key = re.sub(r'[^a-z0-9]+', '', key)
+        if key:
+            return f"tct{key}"
+    return build_account_username(unit_name, unit_key)
+
+
 def build_commander_username(fullname, position_name):
     """
     Tạo tên đăng nhập cho chỉ huy đội theo dạng:

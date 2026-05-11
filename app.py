@@ -328,7 +328,11 @@ def index(): return redirect(url_for('admin_bp.index'))
 
 @app.route('/dl_file/<path:fn>')
 def dl_file(fn): 
-    for b in [TASK_FOLDER, UPLOAD_FOLDER, LIB_FOLDER]:
+    legacy_task_folder = os.path.join(current_app.root_path, 'task_files')
+    candidate_dirs = [TASK_FOLDER, UPLOAD_FOLDER, LIB_FOLDER]
+    if legacy_task_folder not in candidate_dirs:
+        candidate_dirs.append(legacy_task_folder)
+    for b in candidate_dirs:
         target = os.path.join(b, fn)
         if os.path.exists(target): 
             return send_from_directory(b, fn, as_attachment=True)

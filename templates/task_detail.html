@@ -249,10 +249,16 @@
                             <strong>{{ u.fullname }}</strong>
                             <span>{{ u.unit_area_display or 'Chưa có đơn vị' }}</span>
                             {% if a.result_file %}
-                            <a href="{{ url_for('dl_file', fn=a.result_file) }}" class="pc06-inline-link">
-                                <i class="fa-solid fa-paperclip"></i>
-                                {{ a.result_file }}
-                            </a>
+                            <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
+                                <a href="{{ url_for('dl_file', fn=a.result_file) }}" class="pc06-inline-link">
+                                    <i class="fa-solid fa-paperclip"></i>
+                                    {{ a.result_file }}
+                                </a>
+                                <a href="{{ url_for('dl_file', fn=a.result_file) }}" class="btn btn-sm btn-outline-primary rounded-pill">
+                                    <i class="fa-solid fa-download"></i>
+                                    Tải tệp
+                                </a>
+                            </div>
                             {% endif %}
                         </div>
                         <span class="pc06-status-badge {% if a.status == 'Hoàn thành' %}done{% elif a.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">

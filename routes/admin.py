@@ -19,7 +19,7 @@ except ImportError:
     HAS_PANDAS = False
     pd = None
 from datetime import datetime, timedelta
-from utils import build_account_username, build_commander_username, clear_logs, extract_unit_key, init_db, log_action, render_auto_template as render_template
+from utils import build_account_username, build_commander_username, build_role_account_username, clear_logs, extract_unit_key, init_db, log_action, render_auto_template as render_template
 from category_helpers import (
     apply_reference_display,
     canonicalize_category_value,
@@ -584,12 +584,13 @@ def roles():
                 role_id = request.form.get('role_id')
                 password = request.form.get('password', '')
                 unit, unit_key = _resolve_user_unit_value(fullname, unit, username)
+                role = db.session.get(AppRole, role_id) if role_id else None
                 
                 if not role_id:
                     flash('Thiếu thông tin bắt buộc!', 'danger')
                 else:
                     if not username:
-                        username = build_account_username(unit, unit_key)
+                        username = build_role_account_username(role.name if role else '', unit, unit_key)
                     if not username:
                         flash('Không thể sinh tên đăng nhập từ đơn vị đã chọn!', 'danger')
                     else:
@@ -944,6 +945,7 @@ def import_users():
     if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
     f = request.files.get('import_excel')
     role_id = request.form.get('role_id', 2) # Default to 2 if not selected
+    role = db.session.get(AppRole, role_id) if role_id else None
     has_header = request.form.get('has_header') == '1'
     
     if f and f.filename.endswith(('.xlsx', '.xls')):
@@ -999,7 +1001,7 @@ def import_users():
 
                     resolved_unit, unit_key = _resolve_user_unit_value(unit_name, unit_name, unit_name)
                     display_unit = resolve_category_display(resolved_unit, _unit_category_options(), fallback_label=unit_name)['display_name']
-                    base_uname = build_account_username(display_unit, unit_key)
+                    base_uname = build_role_account_username(role.name if role else '', display_unit, unit_key)
                     uname = base_uname
                     
                     counter = 2
