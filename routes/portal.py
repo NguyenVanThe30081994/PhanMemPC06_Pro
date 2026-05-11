@@ -102,10 +102,34 @@ def _get_current_user_unit():
     return session.get('unit_area') or session.get('unit') or 'N/A'
 
 
+def _normalized_portal_perms(perms=None, is_admin=None, role_name=''):
+    normalized = dict(perms or {})
+    is_admin = bool(session.get('is_admin')) if is_admin is None else bool(is_admin)
+    role_name = (role_name or '').strip().lower()
+
+    # Tương thích vai trò cũ chỉ có key dạng p_task/p_lib/... nhưng topbar mới đọc lead/exec.
+    for module_code in ['dash', 'task', 'lib', 'news', 'contact', 'form', 'sys', 'input', 'stat', 'user']:
+        legacy_key = f'p_{module_code}'
+        if normalized.get(legacy_key):
+            normalized.setdefault(f'p_{module_code}_lead', 1)
+            normalized.setdefault(f'p_{module_code}_exec', 1)
+
+    # Đồng bộ cách mở rộng quyền như context processor toàn cục.
+    if is_admin or role_name == 'quản trị hệ thống' or role_name == 'admin_system':
+        for module_code in ['dash', 'task', 'lib', 'news', 'contact', 'form', 'sys', 'input', 'stat', 'user']:
+            normalized[f'p_{module_code}_lead'] = 1
+            normalized[f'p_{module_code}_exec'] = 1
+            normalized[f'p_{module_code}'] = 1
+
+    return normalized
+
+
 def _current_portal_permissions():
     role = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = json.loads(role.perms) if role and role.perms else {}
+    role_name = role.name if role else ''
     is_admin = bool(session.get('is_admin'))
+    perms = _normalized_portal_perms(perms, is_admin=is_admin, role_name=role_name)
     return perms, is_admin
 
 

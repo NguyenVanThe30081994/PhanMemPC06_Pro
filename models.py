@@ -153,6 +153,8 @@ class Task(db.Model):
     priority = db.Column(db.String(50))
     task_type = db.Column(db.String(100))
     initial_status = db.Column(db.String(50), default='Chưa tiếp nhận')
+    assign_type = db.Column(db.String(20), default='unit')
+    assignment_scope_json = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.now)
     assignments = db.relationship('TaskAssignment', backref='task', cascade='all, delete-orphan')
 

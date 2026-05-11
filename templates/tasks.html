@@ -839,6 +839,13 @@
         document.getElementById('userAssignmentPanel')?.classList.toggle('d-none', selected !== 'user');
     }
 
+    function selectAssignmentMode(mode) {
+        const target = document.querySelector(`input[name="assign_type"][value="${mode}"]`);
+        if (!target) return;
+        target.checked = true;
+        syncAssignmentMode();
+    }
+
     function initUserPickers() {
         document.querySelectorAll('[data-user-picker]').forEach((picker) => {
             const trigger = picker.querySelector('[data-user-picker-trigger]');
@@ -882,7 +889,10 @@
 
             searchInput?.addEventListener('input', applySearch);
             options.forEach((option) => {
-                option.querySelector('input')?.addEventListener('change', updateLabel);
+                option.querySelector('input')?.addEventListener('change', () => {
+                    selectAssignmentMode('user');
+                    updateLabel();
+                });
             });
 
             document.addEventListener('click', (event) => {
@@ -898,6 +908,9 @@
 
     document.querySelectorAll('input[name="assign_type"]').forEach((radio) => {
         radio.addEventListener('change', syncAssignmentMode);
+    });
+    document.querySelectorAll('input[name="assignee_role_ids"]').forEach((checkbox) => {
+        checkbox.addEventListener('change', () => selectAssignmentMode('role'));
     });
 
     toggleDeadlineFields();

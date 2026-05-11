@@ -408,6 +408,13 @@
 {% block scripts %}
 {{ super() }}
 <script>
+    function selectEditAssignmentMode(mode) {
+        const target = document.querySelector(`#editTaskModal input[name="assign_type"][value="${mode}"]`);
+        if (!target) return;
+        target.checked = true;
+        syncEditAssignmentMode();
+    }
+
     function markEditAssignmentsDirty() {
         const refreshToggle = document.getElementById('refreshAssignmentsDesktop');
         if (refreshToggle) refreshToggle.checked = true;
@@ -433,11 +440,18 @@
 
     document.querySelector('#editTaskModal select[name="domain"]')?.addEventListener('change', markEditAssignmentsDirty);
     document.querySelectorAll('#editTaskModal input[name="assignee_role_ids"]').forEach((checkbox) => {
+        checkbox.addEventListener('change', () => selectEditAssignmentMode('role'));
         checkbox.addEventListener('change', markEditAssignmentsDirty);
         checkbox.addEventListener('click', markEditAssignmentsDirty);
     });
-    document.querySelector('#editTaskModal select[name="target_users"]')?.addEventListener('change', markEditAssignmentsDirty);
-    document.querySelector('#editTaskModal select[name="target_users"]')?.addEventListener('focus', markEditAssignmentsDirty);
+    document.querySelector('#editTaskModal select[name="target_users"]')?.addEventListener('change', () => {
+        selectEditAssignmentMode('user');
+        markEditAssignmentsDirty();
+    });
+    document.querySelector('#editTaskModal select[name="target_users"]')?.addEventListener('focus', () => {
+        selectEditAssignmentMode('user');
+        markEditAssignmentsDirty();
+    });
 
     syncEditAssignmentMode();
 </script>

@@ -216,11 +216,69 @@ def _resolve_role_assignees(role_id):
     return _dedupe_users(users)
 
 
+def _assignment_scope_payload(assign_type, domain="", role_ids=None, user_ids=None):
+    normalized_mode = assign_type if assign_type in {"unit", "role", "user"} else "unit"
+    payload = {
+        "mode": normalized_mode,
+        "domain": (domain or "").strip(),
+        "role_ids": sorted({int(role_id) for role_id in (role_ids or []) if str(role_id).isdigit()}),
+        "user_ids": sorted({int(user_id) for user_id in (user_ids or []) if str(user_id).isdigit()}),
+    }
+    if normalized_mode == "unit":
+        payload["role_ids"] = []
+        payload["user_ids"] = []
+    elif normalized_mode == "role":
+        payload["user_ids"] = []
+    elif normalized_mode == "user":
+        payload["role_ids"] = []
+    return payload
+
+
+def _load_assignment_scope(task):
+    if not task:
+        return {}
+
+    payload = {}
+    raw_payload = getattr(task, "assignment_scope_json", None)
+    if raw_payload:
+        try:
+            payload = json.loads(raw_payload) or {}
+        except Exception:
+            payload = {}
+
+    assign_type = payload.get("mode") or getattr(task, "assign_type", None)
+    if not raw_payload and not assign_type:
+        return {}
+
+    domain = payload.get("domain") or getattr(task, "domain", "") or ""
+    role_ids = payload.get("role_ids") or []
+    user_ids = payload.get("user_ids") or []
+
+    return _assignment_scope_payload(assign_type, domain=domain, role_ids=role_ids, user_ids=user_ids)
+
+
+def _store_assignment_scope(task, assign_type, domain="", role_ids=None, user_ids=None):
+    payload = _assignment_scope_payload(assign_type, domain=domain, role_ids=role_ids, user_ids=user_ids)
+    task.assign_type = payload["mode"]
+    task.assignment_scope_json = json.dumps(payload, ensure_ascii=False)
+    return payload
+
+
 def _infer_assignment_context(task):
     assignments = task.assignments or []
     assigned_user_ids = [assignment.user_id for assignment in assignments if assignment.user_id]
+    stored_scope = _load_assignment_scope(task)
+    if stored_scope.get("mode") in {"unit", "role", "user"}:
+        return {
+            "mode": stored_scope["mode"],
+            "domain": stored_scope.get("domain") or getattr(task, "domain", "") or "",
+            "role_ids": stored_scope.get("role_ids") or [],
+            "user_ids": stored_scope.get("user_ids") or assigned_user_ids,
+        }
+
     context = {
         "mode": "unit",
+        "domain": getattr(task, "domain", "") or "",
         "role_ids": [],
         "user_ids": assigned_user_ids,
     }
@@ -275,7 +333,7 @@ def _should_refresh_assignments(task, form, domain):
         return True
 
     if requested_mode == "unit":
-        return (domain or "") != (task.domain or "")
+        return (domain or "") != ((current_context.get("domain") or task.domain) or "")
 
     if requested_mode == "role":
         return _requested_role_ids(form) != sorted(current_context.get("role_ids") or [])
@@ -321,6 +379,25 @@ def _resolve_assignees(form, domain):
     if not users:
         return [], f"Không tìm thấy cán bộ hoạt động nào thuộc đơn vị {domain}."
     return _dedupe_users(users), None
+
+
+def _sync_task_assignments(task, assignees):
+    existing_assignments = {assignment.user_id: assignment for assignment in task.assignments}
+    new_assignee_ids = {user.id for user in assignees}
+    new_assignees_to_notify = []
+
+    for assignment in list(task.assignments):
+        if assignment.user_id not in new_assignee_ids:
+            db.session.delete(assignment)
+
+    for user in assignees:
+        if user.id not in existing_assignments:
+            db.session.add(
+                TaskAssignment(task_id=task.id, user_id=user.id, status="Chưa tiếp nhận")
+            )
+            new_assignees_to_notify.append(user)
+
+    return len(new_assignee_ids), new_assignees_to_notify
 
 
 def _can_edit_task(task):
@@ -512,13 +589,17 @@ def tasks():
             task_type=task_type,
             initial_status="Chưa tiếp nhận",
         )
+        _store_assignment_scope(
+            new_task,
+            request.form.get("assign_type", "unit"),
+            domain=domain,
+            role_ids=_requested_role_ids(request.form),
+            user_ids=_requested_user_ids(request.form),
+        )
         db.session.add(new_task)
         db.session.flush()
 
-        for user in assignees:
-            db.session.add(
-                TaskAssignment(task_id=new_task.id, user_id=user.id, status="Chưa tiếp nhận")
-            )
+        _sync_task_assignments(new_task, assignees)
 
         db.session.commit()
 
@@ -762,6 +843,26 @@ def edit_task(tid):
         flash("Tiêu đề công việc không được để trống.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
+    requested_assign_type = request.form.get("assign_type", _infer_assignment_context(task).get("mode") or "unit")
+    requested_role_ids = _requested_role_ids(request.form)
+    requested_user_ids = _requested_user_ids(request.form)
+    refreshed_assignee_count = None
+    new_assignees_to_notify = []
+    if _should_refresh_assignments(task, request.form, domain):
+        assignees, error_message = _resolve_assignees(request.form, domain)
+        if error_message:
+            flash(error_message, "danger")
+            return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+        refreshed_assignee_count, new_assignees_to_notify = _sync_task_assignments(task, assignees)
+        _store_assignment_scope(
+            task,
+            requested_assign_type,
+            domain=domain,
+            role_ids=requested_role_ids,
+            user_ids=requested_user_ids,
+        )
+
     task.title = title
     task.category = category
     task.domain = domain
@@ -769,30 +870,15 @@ def edit_task(tid):
     task.priority = priority
     task.task_type = task_type
     task.deadline = _parse_deadline(request.form)
-
-    refreshed_assignee_count = None
-    new_assignees_to_notify = []
-    if _should_refresh_assignments(task, request.form, task.domain):
-        assignees, error_message = _resolve_assignees(request.form, task.domain)
-        if error_message:
-            flash(error_message, "danger")
-            return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-        existing_assignments = {assignment.user_id: assignment for assignment in task.assignments}
-        new_assignee_ids = {user.id for user in assignees}
-
-        for assignment in list(task.assignments):
-            if assignment.user_id not in new_assignee_ids:
-                db.session.delete(assignment)
-
-        for user in assignees:
-            if user.id not in existing_assignments:
-                db.session.add(
-                    TaskAssignment(task_id=task.id, user_id=user.id, status="Chưa tiếp nhận")
-                )
-                new_assignees_to_notify.append(user)
-
-        refreshed_assignee_count = len(new_assignee_ids)
+    if refreshed_assignee_count is None:
+        current_scope = _load_assignment_scope(task)
+        _store_assignment_scope(
+            task,
+            requested_assign_type,
+            domain=domain,
+            role_ids=requested_role_ids if requested_assign_type == "role" else current_scope.get("role_ids"),
+            user_ids=requested_user_ids if requested_assign_type == "user" else current_scope.get("user_ids"),
+        )
 
     attachment = request.files.get("task_file")
     if attachment and attachment.filename:

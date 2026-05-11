@@ -309,6 +309,8 @@ def apply_migrations(app):
         ("task", "task_type", "VARCHAR(100)"),
         ("task", "initial_status", "VARCHAR(50) DEFAULT 'Chưa bắt đầu'"),
         ("task", "category", "VARCHAR(100)"),
+        ("task", "assign_type", "VARCHAR(20) DEFAULT 'unit'"),
+        ("task", "assignment_scope_json", "TEXT"),
         ("task", "created_at", "DATETIME"),
         ("short_link", "category", "VARCHAR(100)"),
         ("short_link", "domain", "VARCHAR(100)"),
