@@ -31,6 +31,13 @@
     .detail-mobile-comment { padding: 14px; border-radius: 16px; background: var(--bg-body); }
     .detail-mobile-comment.report { border-left: 4px solid #10b981; background: #f0fdf4; }
     .detail-mobile-avatar { width: 40px; height: 40px; border-radius: 50%; background: #dbeafe; color: #1d4ed8; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; }
+    .detail-mobile-unit-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .detail-mobile-unit-stat { padding: 12px; border-radius: 16px; background: var(--bg-body); }
+    .detail-mobile-unit-stat span { display: block; font-size: 0.76rem; color: var(--text-muted); }
+    .detail-mobile-unit-stat strong { display: block; margin-top: 6px; font-size: 1.08rem; color: var(--text-main); }
+    .detail-mobile-unit-row { padding: 14px; border-radius: 16px; background: var(--bg-body); }
+    .detail-mobile-unit-row strong { display: block; color: var(--text-main); }
+    .detail-mobile-unit-row span { display: block; margin-top: 4px; color: var(--text-muted); font-size: 0.82rem; }
 </style>
 {% endblock %}
 
@@ -252,6 +259,48 @@
         {% endfor %}
     </div>
 </section>
+
+{% if is_lead or can_edit_task %}
+<section class="detail-mobile-card">
+    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+            <h2>Thống kê theo đơn vị</h2>
+            <p class="helper">Theo dõi đơn vị đã báo cáo, chưa báo cáo và tình trạng đúng hạn.</p>
+        </div>
+        <a href="{{ url_for('tasks_bp.export_task_unit_report', tid=task.id) }}" class="btn btn-sm btn-outline-success rounded-pill" aria-label="Xuất Excel" title="Xuất Excel">
+            <i class="fa-solid fa-file-excel"></i>
+        </a>
+    </div>
+    <div class="detail-mobile-unit-stats">
+        <div class="detail-mobile-unit-stat"><span>Đã báo cáo</span><strong>{{ unit_report_stats.reported_units }}</strong></div>
+        <div class="detail-mobile-unit-stat"><span>Chưa báo cáo</span><strong>{{ unit_report_stats.unreported_units }}</strong></div>
+        <div class="detail-mobile-unit-stat"><span>Đúng hạn</span><strong>{{ unit_report_stats.on_time_units }}</strong></div>
+        <div class="detail-mobile-unit-stat"><span>Quá hạn</span><strong>{{ unit_report_stats.overdue_units }}</strong></div>
+    </div>
+    <div class="detail-mobile-stack">
+        {% for row in unit_report_rows %}
+        <article class="detail-mobile-unit-row">
+            <strong>{{ row.unit_name }}</strong>
+            <span>{{ row.reporter_count }}/{{ row.assignee_count }} cán bộ đã gửi báo cáo</span>
+            <span>Cán bộ nhận việc: {{ row.assignee_names|join(', ') }}</span>
+            {% if row.reporter_names %}<span>Cán bộ đã báo cáo: {{ row.reporter_names|join(', ') }}</span>{% endif %}
+            <div class="detail-mobile-status {% if row.status == 'Báo cáo đúng hạn' %}done{% elif row.status == 'Báo cáo quá hạn' %}todo{% else %}doing{% endif %}" style="margin-top:10px;margin-bottom:0;">
+                {{ row.status }}
+            </div>
+            <span>
+                {% if row.first_report_at %}
+                Báo cáo đầu tiên: {{ row.first_report_at.strftime('%d/%m/%Y %H:%M') }}
+                {% else %}
+                Chưa ghi nhận báo cáo
+                {% endif %}
+            </span>
+        </article>
+        {% else %}
+        <div class="text-muted small">Chưa có đơn vị nhận việc cho công việc này.</div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
 
 <section class="detail-mobile-card">
     <h2>Lịch sử trao đổi</h2>

@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
 import json
+import io
 import os
 import re
 from datetime import datetime, timedelta
 
-from flask import Blueprint, current_app, flash, redirect, request, session, url_for
+from flask import Blueprint, current_app, flash, redirect, request, session, url_for, send_file
 from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
+try:
+    from openpyxl import Workbook
+except ImportError:
+    Workbook = None
 
 from category_helpers import (
     apply_reference_display,
@@ -507,6 +512,82 @@ def _decorate_task(task, current_uid, is_lead):
     }
 
 
+def _build_unit_report_summary(assigns, comments, deadline):
+    report_times_by_user = {}
+    for comment in comments or []:
+        if not (getattr(comment, "content", "") or "").startswith("[BÁO CÁO]"):
+            continue
+        if not getattr(comment, "user_id", None) or not getattr(comment, "created_at", None):
+            continue
+        current_first = report_times_by_user.get(comment.user_id)
+        if current_first is None or comment.created_at < current_first:
+            report_times_by_user[comment.user_id] = comment.created_at
+
+    unit_rows = {}
+    for assignment, user in assigns or []:
+        if not user:
+            continue
+        unit_name = (
+            getattr(user, "unit_area_display", None)
+            or getattr(user, "unit_area", None)
+            or getattr(user, "fullname", None)
+            or getattr(user, "username", None)
+            or "Chưa có đơn vị"
+        )
+        unit_key = _user_unit_key(user) or extract_unit_key(unit_name) or unit_name.lower()
+        row = unit_rows.setdefault(
+            unit_key,
+            {
+                "unit_name": unit_name,
+                "assignee_names": [],
+                "reporter_names": [],
+                "first_report_at": None,
+            },
+        )
+        display_name = getattr(user, "fullname", None) or getattr(user, "username", None) or f"UID {user.id}"
+        if display_name not in row["assignee_names"]:
+            row["assignee_names"].append(display_name)
+
+        report_at = report_times_by_user.get(user.id)
+        if report_at:
+            if display_name not in row["reporter_names"]:
+                row["reporter_names"].append(display_name)
+            if row["first_report_at"] is None or report_at < row["first_report_at"]:
+                row["first_report_at"] = report_at
+
+    status_order = {
+        "Chưa báo cáo": 0,
+        "Báo cáo quá hạn": 1,
+        "Báo cáo đúng hạn": 2,
+    }
+    rows = []
+    for row in unit_rows.values():
+        row["assignee_count"] = len(row["assignee_names"])
+        row["reporter_count"] = len(row["reporter_names"])
+        row["has_report"] = row["first_report_at"] is not None
+        row["is_overdue_report"] = bool(
+            row["has_report"] and deadline and row["first_report_at"].date() > deadline
+        )
+        row["is_on_time_report"] = bool(row["has_report"] and not row["is_overdue_report"])
+        if not row["has_report"]:
+            row["status"] = "Chưa báo cáo"
+        elif row["is_overdue_report"]:
+            row["status"] = "Báo cáo quá hạn"
+        else:
+            row["status"] = "Báo cáo đúng hạn"
+        rows.append(row)
+
+    rows.sort(key=lambda item: (status_order.get(item["status"], 99), item["unit_name"].lower()))
+    stats = {
+        "total_units": len(rows),
+        "reported_units": sum(1 for row in rows if row["has_report"]),
+        "unreported_units": sum(1 for row in rows if not row["has_report"]),
+        "overdue_units": sum(1 for row in rows if row["is_overdue_report"]),
+        "on_time_units": sum(1 for row in rows if row["is_on_time_report"]),
+    }
+    return rows, stats
+
+
 @tasks_bp.route("/tasks", methods=["GET", "POST"])
 def tasks():
     if not session.get("uid"):
@@ -772,6 +853,7 @@ def task_detail(tid):
     task_metrics = _decorate_task(task, session["uid"], is_lead)
     user_assign = task_metrics["user_assignment"]
     assignment_context = _infer_assignment_context(task)
+    unit_report_rows, unit_report_stats = _build_unit_report_summary(assigns, comments, task.deadline)
 
     if request.method == "POST":
         content = (request.form.get("content") or "").strip()
@@ -805,6 +887,94 @@ def task_detail(tid):
         can_edit_task=can_edit_task,
         user_assign=user_assign,
         progress_percent=task_metrics["progress_percent"],
+        unit_report_rows=unit_report_rows,
+        unit_report_stats=unit_report_stats,
+    )
+
+
+@tasks_bp.route("/tasks/<int:tid>/unit-report-export")
+def export_task_unit_report(tid):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+
+    if Workbook is None:
+        flash("Máy chủ chưa cài thư viện xuất Excel.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    perms = _current_perms()
+    is_lead = perms.get("p_task_lead") or session.get("is_admin")
+    if not (is_lead or _can_edit_task(task)):
+        flash("Bạn không có quyền xuất thống kê báo cáo của công việc này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    assigns = (
+        db.session.query(TaskAssignment, User)
+        .join(User, TaskAssignment.user_id == User.id)
+        .filter(TaskAssignment.task_id == tid)
+        .order_by(TaskAssignment.updated_at.desc(), User.fullname.asc())
+        .all()
+    )
+    assign_users = [user for _, user in assigns]
+    unit_options = module_category_options("contacts", "unit_name", "Đơn vị")
+    sync_record_categories(assign_users, unit_options, attr_name="unit_area", prefer_stable=True)
+    apply_reference_display(assign_users, "unit_area", unit_options, display_attr="unit_area_display", fallback_label="Chưa có đơn vị")
+    comments = TaskComment.query.filter_by(task_id=tid).order_by(TaskComment.created_at.desc()).all()
+    unit_report_rows, unit_report_stats = _build_unit_report_summary(assigns, comments, task.deadline)
+
+    workbook = Workbook()
+    summary_sheet = workbook.active
+    summary_sheet.title = "Tong hop"
+    summary_sheet.append(["Công việc", task.title])
+    summary_sheet.append(["Người giao", task.author_name or ""])
+    summary_sheet.append(["Hạn xử lý", task.deadline.strftime("%d/%m/%Y") if task.deadline else "Chưa có"])
+    summary_sheet.append(["Ngày xuất", datetime.now().strftime("%d/%m/%Y %H:%M")])
+    summary_sheet.append([])
+    summary_sheet.append(["Chỉ số", "Số lượng"])
+    summary_sheet.append(["Tổng số đơn vị", unit_report_stats["total_units"]])
+    summary_sheet.append(["Đơn vị đã báo cáo", unit_report_stats["reported_units"]])
+    summary_sheet.append(["Đơn vị chưa báo cáo", unit_report_stats["unreported_units"]])
+    summary_sheet.append(["Đơn vị báo cáo đúng hạn", unit_report_stats["on_time_units"]])
+    summary_sheet.append(["Đơn vị báo cáo quá hạn", unit_report_stats["overdue_units"]])
+
+    detail_sheet = workbook.create_sheet("Chi tiet don vi")
+    detail_sheet.append([
+        "Đơn vị",
+        "Số cán bộ nhận việc",
+        "Cán bộ nhận việc",
+        "Số cán bộ đã báo cáo",
+        "Cán bộ đã báo cáo",
+        "Báo cáo đầu tiên",
+        "Hạn xử lý",
+        "Trạng thái",
+    ])
+    for row in unit_report_rows:
+        detail_sheet.append([
+            row["unit_name"],
+            row["assignee_count"],
+            ", ".join(row["assignee_names"]),
+            row["reporter_count"],
+            ", ".join(row["reporter_names"]),
+            row["first_report_at"].strftime("%d/%m/%Y %H:%M") if row["first_report_at"] else "",
+            task.deadline.strftime("%d/%m/%Y") if task.deadline else "",
+            row["status"],
+        ])
+
+    output = io.BytesIO()
+    workbook.save(output)
+    output.seek(0)
+    safe_name = secure_filename(task.title or f"task_{task.id}") or f"task_{task.id}"
+    filename = f"thong_ke_bao_cao_{safe_name}_{task.id}.xlsx"
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
 

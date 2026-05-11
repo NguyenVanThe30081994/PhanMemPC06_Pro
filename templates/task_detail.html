@@ -5,6 +5,57 @@
     .pc06-role-checklist .pc06-user-option {
         justify-content: flex-start;
     }
+    .pc06-unit-report-stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .pc06-unit-report-stat {
+        padding: 14px;
+        border-radius: 18px;
+        background: rgba(248, 250, 252, 0.96);
+        border: 1px solid rgba(226, 232, 240, 0.92);
+    }
+    .pc06-unit-report-stat span {
+        display: block;
+        font-size: 0.76rem;
+        color: var(--text-muted, #64748b);
+    }
+    .pc06-unit-report-stat strong {
+        display: block;
+        margin-top: 6px;
+        font-size: 1.15rem;
+        color: var(--text-main, #0f172a);
+    }
+    .pc06-unit-report-table {
+        display: grid;
+        gap: 10px;
+    }
+    .pc06-unit-report-row {
+        padding: 14px;
+        border-radius: 18px;
+        border: 1px solid rgba(226, 232, 240, 0.92);
+        background: rgba(255, 255, 255, 0.96);
+    }
+    .pc06-unit-report-row strong {
+        display: block;
+        color: var(--text-main, #0f172a);
+    }
+    .pc06-unit-report-row small {
+        display: block;
+        color: var(--text-muted, #64748b);
+        margin-top: 4px;
+        line-height: 1.5;
+    }
+    .pc06-unit-report-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+    }
 </style>
 {% endblock %}
 
@@ -274,6 +325,69 @@
                     {% endfor %}
                 </div>
             </section>
+
+            {% if is_lead or can_edit_task %}
+            <section class="pc06-panel">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>Thống kê báo cáo theo đơn vị</h2>
+                        <p>Tổng hợp trạng thái nộp báo cáo của từng đơn vị nhận việc.</p>
+                    </div>
+                    <a href="{{ url_for('tasks_bp.export_task_unit_report', tid=task.id) }}" class="btn btn-bdhvs light">
+                        <i class="fa-solid fa-file-excel"></i>
+                        Xuất Excel
+                    </a>
+                </div>
+                <div class="pc06-unit-report-stats">
+                    <div class="pc06-unit-report-stat">
+                        <span>Đơn vị đã báo cáo</span>
+                        <strong>{{ unit_report_stats.reported_units }}</strong>
+                    </div>
+                    <div class="pc06-unit-report-stat">
+                        <span>Đơn vị chưa báo cáo</span>
+                        <strong>{{ unit_report_stats.unreported_units }}</strong>
+                    </div>
+                    <div class="pc06-unit-report-stat">
+                        <span>Báo cáo đúng hạn</span>
+                        <strong>{{ unit_report_stats.on_time_units }}</strong>
+                    </div>
+                    <div class="pc06-unit-report-stat">
+                        <span>Báo cáo quá hạn</span>
+                        <strong>{{ unit_report_stats.overdue_units }}</strong>
+                    </div>
+                </div>
+                <div class="pc06-unit-report-table">
+                    {% for row in unit_report_rows %}
+                    <article class="pc06-unit-report-row">
+                        <strong>{{ row.unit_name }}</strong>
+                        <small>{{ row.reporter_count }}/{{ row.assignee_count }} cán bộ của đơn vị đã gửi báo cáo</small>
+                        <small>Cán bộ nhận việc: {{ row.assignee_names|join(', ') }}</small>
+                        {% if row.reporter_names %}
+                        <small>Cán bộ đã báo cáo: {{ row.reporter_names|join(', ') }}</small>
+                        {% endif %}
+                        <div class="pc06-unit-report-meta">
+                            <span class="pc06-status-badge {% if row.status == 'Báo cáo đúng hạn' %}done{% elif row.status == 'Báo cáo quá hạn' %}todo{% else %}neutral{% endif %}">
+                                {{ row.status }}
+                            </span>
+                            <small>
+                                {% if row.first_report_at %}
+                                Báo cáo đầu tiên: {{ row.first_report_at.strftime('%d/%m/%Y %H:%M') }}
+                                {% else %}
+                                Chưa ghi nhận báo cáo
+                                {% endif %}
+                            </small>
+                        </div>
+                    </article>
+                    {% else %}
+                    <div class="pc06-empty-state compact">
+                        <div class="pc06-empty-icon"><i class="fa-solid fa-building-circle-exclamation"></i></div>
+                        <h3>Chưa có đơn vị nhận việc</h3>
+                        <p>Thống kê sẽ hiển thị sau khi công việc được giao cho ít nhất một cán bộ.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
         </aside>
     </div>
 </div>
