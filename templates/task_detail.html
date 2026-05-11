@@ -2,6 +2,84 @@
 
 {% block extra_head %}
 <style>
+    .pc06-detail-hero-minimal {
+        display: grid;
+        gap: 12px;
+    }
+    .pc06-detail-hero-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    .pc06-detail-hero-copy {
+        display: grid;
+        gap: 8px;
+        min-width: 0;
+    }
+    .pc06-detail-hero-copy .pc06-page-title {
+        margin: 0;
+    }
+    .pc06-detail-hero-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .pc06-detail-hero-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.84);
+        border: 1px solid rgba(226, 232, 240, 0.88);
+        color: var(--text-muted, #64748b);
+        font-size: 0.82rem;
+    }
+    .pc06-detail-hero-pill strong {
+        color: var(--text-main, #0f172a);
+        font-size: 0.9rem;
+    }
+    .pc06-detail-hero-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .pc06-detail-hero-actions .btn {
+        min-height: 40px;
+        border-radius: 14px;
+    }
+    .pc06-detail-panel-compact .pc06-panel-head {
+        margin-bottom: 12px;
+    }
+    .pc06-detail-panel-compact .pc06-panel-head p {
+        display: none;
+    }
+    .pc06-detail-panel-compact .pc06-panel-head h2 {
+        margin-bottom: 0;
+    }
+    .pc06-detail-inline-note {
+        color: var(--text-muted, #64748b);
+        font-size: 0.84rem;
+        line-height: 1.5;
+    }
+    .pc06-detail-side .pc06-panel {
+        box-shadow: none;
+    }
+    .pc06-comment-form textarea,
+    .pc06-report-form textarea {
+        border-radius: 14px;
+    }
+    .pc06-comment-card {
+        border: 1px solid rgba(226, 232, 240, 0.9);
+        border-radius: 16px;
+        padding: 12px;
+    }
+    .pc06-comment-card.report {
+        background: rgba(240, 253, 244, 0.8);
+    }
     .pc06-role-checklist .pc06-user-option {
         justify-content: flex-start;
     }
@@ -65,18 +143,29 @@
 {% set report_file_name = report_context.result_file if report_context is defined else '' %}
 <div class="pc06-page-shell">
     <section class="pc06-hero-card detail-hero">
-        <div class="pc06-hero-grid">
-            <div>
+        <div class="pc06-detail-hero-minimal">
+            <div class="pc06-detail-hero-head">
+                <div class="pc06-detail-hero-copy">
                 <a href="{{ url_for('tasks_bp.tasks') }}" class="pc06-back-link">
                     <i class="fa-solid fa-arrow-left"></i>
                     Quay lại danh sách
                 </a>
                 <h1 class="pc06-page-title">{{ task.title }}</h1>
-                <p class="pc06-page-lead">
-                    Người giao: <strong>{{ task.author_name }}</strong> •
-                    Ngày tạo: <strong>{{ task.created_at.strftime('%d/%m/%Y %H:%M') }}</strong>
-                </p>
-                <div class="pc06-task-tags mt-3">
+                <div class="pc06-detail-hero-meta">
+                    <span class="pc06-detail-hero-pill">
+                        <i class="fa-regular fa-calendar"></i>
+                        <strong>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa có hạn' }}</strong>
+                    </span>
+                    <span class="pc06-detail-hero-pill">
+                        <i class="fa-solid fa-chart-line"></i>
+                        <strong>{{ progress_percent }}%</strong>
+                    </span>
+                    <span class="pc06-detail-hero-pill">
+                        <i class="fa-solid fa-circle-dot"></i>
+                        <strong>{{ display_status }}</strong>
+                    </span>
+                </div>
+                <div class="pc06-task-tags">
                     {% if task.category %}
                     <span class="pc06-soft-tag neutral">
                         <i class="fa-solid fa-layer-group"></i>
@@ -100,8 +189,9 @@
                     </span>
                     {% endif %}
                 </div>
+                </div>
                 {% if can_edit_task %}
-                <div class="pc06-action-cluster mt-3">
+                <div class="pc06-detail-hero-actions">
                     <button type="button" class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#editTaskModal">
                         <i class="fa-solid fa-pen-to-square"></i>
                         Sửa công việc
@@ -115,31 +205,8 @@
                 </div>
                 {% endif %}
             </div>
-
-            <div class="pc06-stat-strip">
-                <div class="pc06-metric-card">
-                    <span>Tiến độ</span>
-                    <strong>{{ progress_percent }}%</strong>
-                </div>
-                {% if limited_assignment_view %}
-                <div class="pc06-metric-card">
-                    <span>Minh chứng</span>
-                    <strong>{{ 'Đã tải lên' if report_file_name else 'Chưa có' }}</strong>
-                </div>
-                {% else %}
-                <div class="pc06-metric-card">
-                    <span>Đã hoàn thành</span>
-                    <strong>{{ task.completed_assignments or 0 }}/{{ task.assignee_count or 0 }}</strong>
-                </div>
-                {% endif %}
-                <div class="pc06-metric-card {% if task.is_overdue %}danger{% endif %}">
-                    <span>Hạn xử lý</span>
-                    <strong>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa có' }}</strong>
-                </div>
-                <div class="pc06-metric-card">
-                    <span>Trạng thái</span>
-                    <strong style="font-size:1.05rem;">{{ display_status }}</strong>
-                </div>
+            <div class="pc06-detail-inline-note">
+                Người giao: <strong>{{ task.author_name }}</strong> · Tạo lúc <strong>{{ task.created_at.strftime('%d/%m/%Y %H:%M') }}</strong>
             </div>
         </div>
     </section>
@@ -147,11 +214,10 @@
     <div class="pc06-detail-grid">
         <div class="pc06-detail-main">
             {% if user_assign %}
-            <section class="pc06-panel">
+            <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Trạng thái của bạn</h2>
-                        <p>Tiếp nhận và báo cáo trực tiếp trên cùng một luồng thao tác.</p>
                     </div>
                     <span class="pc06-status-badge {% if user_assign.status == 'Hoàn thành' %}done{% elif user_assign.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
                         {{ user_assign.status }}
@@ -177,11 +243,10 @@
             </section>
             {% endif %}
 
-            <section class="pc06-panel">
+            <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Nội dung công việc</h2>
-                        <p>Mô tả yêu cầu và tài liệu nguồn đi kèm.</p>
                     </div>
                 </div>
                 <div class="pc06-rich-content">
@@ -204,11 +269,10 @@
             </section>
 
             {% if user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
-            <section class="pc06-panel">
+            <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Báo cáo kết quả</h2>
-                        <p>Nộp tóm tắt tiến độ, minh chứng và cập nhật trạng thái hoàn thành.</p>
                     </div>
                 </div>
                 <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data" class="pc06-report-form">
@@ -234,22 +298,15 @@
             </section>
             {% endif %}
 
-            <section class="pc06-panel">
+            <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Trao đổi và phản hồi</h2>
-                        <p>
-                            {% if limited_assignment_view %}
-                            Chỉ hiển thị trao đổi liên quan đến tài khoản hoặc đơn vị của bạn.
-                            {% else %}
-                            Toàn bộ phản hồi và báo cáo được gom trong một luồng thảo luận.
-                            {% endif %}
-                        </p>
                     </div>
                 </div>
 
                 <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST" class="pc06-comment-form">
-                    <textarea name="content" class="form-control" rows="4" placeholder="Nhập ý kiến phản hồi, nhắc việc hoặc cập nhật mới" required></textarea>
+                    <textarea name="content" class="form-control" rows="3" placeholder="Nhập phản hồi ngắn gọn" required></textarea>
                     <div class="text-end mt-3">
                         <button type="submit" class="btn btn-bdhvs primary">
                             <i class="fa-solid fa-reply"></i>
@@ -283,17 +340,10 @@
         </div>
 
         <aside class="pc06-detail-side">
-            <section class="pc06-panel">
+            <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>{{ 'Thông tin báo cáo' if limited_assignment_view else 'Thông tin nhanh' }}</h2>
-                        <p>
-                            {% if limited_assignment_view %}
-                            Các thông tin cần thiết để nhập, gửi và theo dõi báo cáo của bạn.
-                            {% else %}
-                            Bức tranh tóm tắt của công việc đang xử lý.
-                            {% endif %}
-                        </p>
                     </div>
                 </div>
                 <div class="pc06-info-list">
@@ -311,11 +361,10 @@
             </section>
 
             {% if can_manage_task_view %}
-            <section class="pc06-panel">
+            <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Phân công thực hiện</h2>
-                        <p>Theo dõi ai đã tiếp nhận và ai đã hoàn thành.</p>
                     </div>
                 </div>
                 <div class="pc06-assignee-stack">
@@ -352,11 +401,10 @@
                 </div>
             </section>
 
-            <section class="pc06-panel">
+            <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Thống kê báo cáo theo đơn vị</h2>
-                        <p>Tổng hợp trạng thái nộp báo cáo của từng đơn vị nhận việc.</p>
                     </div>
                     <a href="{{ url_for('tasks_bp.export_task_unit_report', tid=task.id) }}" class="btn btn-bdhvs light">
                         <i class="fa-solid fa-file-excel"></i>

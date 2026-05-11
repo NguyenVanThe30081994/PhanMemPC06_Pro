@@ -4,17 +4,16 @@
 
 {% block head %}
 <style>
-    .detail-mobile-hero { background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff; border-radius: 24px; padding: 20px; margin-bottom: 16px; box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18); }
+    .detail-mobile-hero { background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: #fff; border-radius: 18px; padding: 14px; margin-bottom: 12px; box-shadow: 0 10px 22px rgba(15, 23, 42, 0.1); }
     .detail-mobile-hero a { color: #fff; text-decoration: none; font-weight: 700; font-size: 0.9rem; }
-    .detail-mobile-hero h1 { margin: 14px 0 10px; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.03em; }
-    .detail-mobile-hero p { margin: 0; color: rgba(255, 255, 255, 0.82); font-size: 0.9rem; }
-    .detail-mobile-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
-    .detail-mobile-stat { padding: 12px; border-radius: 16px; background: rgba(255, 255, 255, 0.12); }
-    .detail-mobile-stat span { display: block; font-size: 0.76rem; color: rgba(255, 255, 255, 0.7); }
-    .detail-mobile-stat strong { display: block; margin-top: 6px; font-size: 1.1rem; font-weight: 800; }
-    .detail-mobile-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; padding: 16px; margin-bottom: 16px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); }
+    .detail-mobile-hero h1 { margin: 8px 0 4px; font-size: 1.24rem; font-weight: 800; letter-spacing: -0.02em; }
+    .detail-mobile-hero p { margin: 0; color: rgba(255, 255, 255, 0.8); font-size: 0.84rem; }
+    .detail-mobile-summary-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .detail-mobile-summary-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); font-size: 0.74rem; color: rgba(255, 255, 255, 0.82); }
+    .detail-mobile-summary-pill strong { color: #fff; font-size: 0.8rem; }
+    .detail-mobile-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 18px; padding: 14px; margin-bottom: 12px; box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04); }
     .detail-mobile-card h2 { margin: 0 0 8px; font-size: 1rem; font-weight: 800; color: var(--text-main); }
-    .detail-mobile-card p.helper { margin: 0 0 14px; font-size: 0.84rem; color: var(--text-muted); }
+    .detail-mobile-card p.helper { display: none; }
     .detail-mobile-status { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 800; margin-bottom: 12px; }
     .detail-mobile-status.todo { background: #fef3c7; color: #92400e; }
     .detail-mobile-status.doing { background: #dbeafe; color: #1d4ed8; }
@@ -60,11 +59,10 @@
         </button>
     </div>
     {% endif %}
-    <div class="detail-mobile-stats">
-        <div class="detail-mobile-stat"><span>Tiến độ</span><strong>{{ progress_percent }}%</strong></div>
-        <div class="detail-mobile-stat"><span>Trạng thái</span><strong style="font-size:0.95rem;">{{ display_status }}</strong></div>
-        <div class="detail-mobile-stat"><span>Lĩnh vực</span><strong style="font-size:0.95rem;">{{ task.category_display or 'Chưa phân' }}</strong></div>
-        <div class="detail-mobile-stat"><span>Hạn xử lý</span><strong style="font-size:0.95rem;">{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa có' }}</strong></div>
+    <div class="detail-mobile-summary-strip">
+        <span class="detail-mobile-summary-pill">Hạn <strong>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa có' }}</strong></span>
+        <span class="detail-mobile-summary-pill">Tiến độ <strong>{{ progress_percent }}%</strong></span>
+        <span class="detail-mobile-summary-pill">Trạng thái <strong>{{ display_status }}</strong></span>
     </div>
 </section>
 
@@ -187,7 +185,6 @@
 {% if user_assign %}
 <section class="detail-mobile-card">
     <h2>Trạng thái của bạn</h2>
-    <p class="helper">Tiếp nhận và gửi báo cáo ngay trên di động.</p>
     <div class="detail-mobile-status {% if user_assign.status == 'Hoàn thành' %}done{% elif user_assign.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">{{ user_assign.status }}</div>
     {% if user_assign.status in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
     <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST">
@@ -200,7 +197,6 @@
 
 <section class="detail-mobile-card">
     <h2>Nội dung công việc</h2>
-    <p class="helper">Chi tiết đầu việc và yêu cầu xử lý.</p>
     <div class="detail-mobile-body">{{ task.content or 'Chưa có mô tả chi tiết.' }}</div>
     {% if task.file_path %}
     <div class="detail-mobile-file">
@@ -217,7 +213,6 @@
 {% if limited_assignment_view %}
 <section class="detail-mobile-card">
     <h2>Thông tin báo cáo</h2>
-    <p class="helper">Chỉ hiển thị thông tin cần thiết cho tài khoản nhận việc.</p>
     <div class="detail-mobile-info-list">
         <div class="detail-mobile-info-item"><span>Người giao</span><strong>{{ task.author_name }}</strong></div>
         <div class="detail-mobile-info-item"><span>Đơn vị nghiệp vụ</span><strong>{{ task.domain_display or 'Chưa phân đơn vị' }}</strong></div>
@@ -232,7 +227,6 @@
 {% if user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
 <section class="detail-mobile-card" id="report-section">
     <h2>Báo cáo kết quả</h2>
-    <p class="helper">Gửi kết quả xử lý và tệp minh chứng.</p>
     <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data">
         <div class="mb-3"><textarea name="report_content" rows="4" class="form-control" placeholder="Nội dung báo cáo" required></textarea></div>
         <div class="mb-3"><input type="file" name="report_file" class="form-control"></div>
@@ -246,16 +240,9 @@
 {% endif %}
 
 <section class="detail-mobile-card">
-    <h2>Trao đổi và phản hồi</h2>
-    <p class="helper">
-        {% if limited_assignment_view %}
-        Chỉ hiển thị trao đổi liên quan đến tài khoản hoặc đơn vị của bạn.
-        {% else %}
-        Trao đổi ngay trên luồng công việc.
-        {% endif %}
-    </p>
+    <h2>Trao đổi</h2>
     <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST">
-        <textarea name="content" rows="3" class="form-control" placeholder="Nhập phản hồi" required></textarea>
+        <textarea name="content" rows="3" class="form-control" placeholder="Nhập phản hồi ngắn gọn" required></textarea>
         <button type="submit" class="btn btn-mobile btn-mobile-primary mt-3" aria-label="Gửi phản hồi" title="Gửi phản hồi"><i class="fa-solid fa-reply"></i><span class="visually-hidden">Gửi phản hồi</span></button>
     </form>
 </section>
@@ -263,7 +250,6 @@
 {% if can_manage_task_view %}
 <section class="detail-mobile-card">
     <h2>Người thực hiện</h2>
-    <p class="helper">Danh sách cán bộ đang nhận việc.</p>
     <div class="detail-mobile-stack">
         {% for a, u in assigns %}
         <article class="detail-mobile-assignee">
@@ -291,7 +277,6 @@
     <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
         <div>
             <h2>Thống kê theo đơn vị</h2>
-            <p class="helper">Theo dõi đơn vị đã báo cáo, chưa báo cáo và tình trạng đúng hạn.</p>
         </div>
         <a href="{{ url_for('tasks_bp.export_task_unit_report', tid=task.id) }}" class="btn btn-sm btn-outline-success rounded-pill" aria-label="Xuất Excel" title="Xuất Excel">
             <i class="fa-solid fa-file-excel"></i>
@@ -330,13 +315,6 @@
 
 <section class="detail-mobile-card">
     <h2>Lịch sử trao đổi</h2>
-    <p class="helper">
-        {% if limited_assignment_view %}
-        Chỉ hiển thị lịch sử trao đổi thuộc phạm vi báo cáo của bạn.
-        {% else %}
-        Báo cáo và phản hồi được gom tại đây.
-        {% endif %}
-    </p>
     <div class="detail-mobile-stack">
         {% for c in comments %}
         {% set is_report = c.content.startswith('[BÁO CÁO]') %}
