@@ -181,7 +181,7 @@ def _user_unit_key(user):
 
 
 def _is_generic_task_unit_key(value):
-    normalized = re.sub(r"\s+", "", remove_accents(value or "")).strip().lower()
+    normalized = re.sub(r"[^a-z0-9]", "", remove_accents(value or "")).strip().lower()
     return normalized in {
         "",
         "sobannganh",
@@ -212,7 +212,7 @@ def _is_generic_task_unit_key(value):
 
 
 def _is_generic_task_unit_name(value):
-    normalized = re.sub(r"\s+", "", remove_accents(value or "")).strip().lower()
+    normalized = re.sub(r"[^a-z0-9]", "", remove_accents(value or "")).strip().lower()
     return normalized in {
         "",
         "sobannganh",
