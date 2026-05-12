@@ -5,7 +5,7 @@ import os
 import re
 from datetime import datetime, timedelta
 
-from flask import Blueprint, current_app, flash, redirect, request, session, url_for, send_file
+from flask import Blueprint, current_app, flash, g, has_request_context, redirect, request, session, url_for, send_file
 from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 try:
@@ -60,6 +60,31 @@ def _task_priority_options():
     return module_category_options("tasks", "priority", "Mức độ ưu tiên")
 
 
+def _task_assignment_unit_options():
+    if has_request_context():
+        cached = getattr(g, "_task_assignment_unit_options", None)
+        if cached is not None:
+            return cached
+
+    merged = []
+    seen = set()
+    for options in (
+        module_category_options("contacts", "unit_name", "Đơn vị"),
+        _task_domain_options(),
+    ):
+        for item in options or []:
+            stable_value = (item.get("stable_value") or "").strip()
+            option_key = stable_value or (item.get("value") or "").strip() or (item.get("name") or "").strip()
+            if not option_key or option_key in seen:
+                continue
+            seen.add(option_key)
+            merged.append(item)
+
+    if has_request_context():
+        g._task_assignment_unit_options = merged
+    return merged
+
+
 def _task_field_display(value, options, fallback_label):
     return resolve_category_display(value, options, fallback_label=fallback_label)
 
@@ -97,6 +122,10 @@ def _current_perms():
 
 def _normalize_status(status):
     return "Chưa tiếp nhận" if status in PENDING_STATUSES else status
+
+
+def _is_category_item_reference(value):
+    return bool(re.fullmatch(r"category_item:\d+", (value or "").strip().lower()))
 
 
 def _parse_deadline(form):
@@ -166,6 +195,8 @@ def _user_unit_key(user):
 
 
 def _is_generic_task_unit_key(value):
+    if _is_category_item_reference(value):
+        return True
     normalized = re.sub(r"[^a-z0-9]", "", remove_accents(value or "")).strip().lower()
     return normalized in {
         "",
@@ -197,6 +228,8 @@ def _is_generic_task_unit_key(value):
 
 
 def _is_generic_task_unit_name(value):
+    if _is_category_item_reference(value):
+        return True
     normalized = re.sub(r"[^a-z0-9]", "", remove_accents(value or "")).strip().lower()
     return normalized in {
         "",
@@ -248,40 +281,69 @@ def _looks_like_task_unit_name(value):
     )
 
 
+def _resolve_task_unit_label(value):
+    raw_value = (value or "").strip()
+    if not raw_value:
+        return ""
+    resolved = resolve_category_display(
+        raw_value,
+        _task_assignment_unit_options(),
+        fallback_label="",
+    ).get("display_name", "")
+    resolved = (resolved or "").strip()
+    return resolved or raw_value
+
+
 def _task_unit_identity(user):
     if not user:
         return {"unit_name": "Chưa có đơn vị", "unit_key": ""}
 
     stored_key = (getattr(user, "unit_key", "") or "").strip()
-    unit_area_display = (getattr(user, "unit_area_display", None) or "").strip()
+    unit_area_display = _resolve_task_unit_label(getattr(user, "unit_area_display", None) or "")
     unit_area = (getattr(user, "unit_area", None) or "").strip()
+    resolved_unit_area = _resolve_task_unit_label(unit_area)
     fullname = (getattr(user, "fullname", None) or "").strip()
     username = (getattr(user, "username", None) or "").strip()
 
     unit_name = ""
-    for candidate in [unit_area_display, unit_area]:
+    unit_name_source = ""
+    for candidate in [unit_area_display, resolved_unit_area, unit_area]:
         if candidate and not _is_generic_task_unit_name(candidate):
             unit_name = candidate
+            unit_name_source = "unit_area"
             break
 
     if not unit_name:
         for candidate in [fullname, username]:
             if candidate and _looks_like_task_unit_name(candidate):
                 unit_name = candidate
+                unit_name_source = "identity"
                 break
 
     if not unit_name:
-        unit_name = unit_area_display or unit_area or fullname or username or "Chưa có đơn vị"
+        unit_name = resolved_unit_area or unit_area_display or unit_area or fullname or username or "Chưa có đơn vị"
+        unit_name_source = "fallback"
+
+    key_candidates = []
+    if unit_name_source == "identity":
+        key_candidates.extend([unit_name, fullname, username])
+        if stored_key and not _is_generic_task_unit_key(stored_key):
+            key_candidates.append(stored_key)
+    else:
+        if stored_key and not _is_generic_task_unit_key(stored_key):
+            key_candidates.append(stored_key)
+        key_candidates.extend([unit_name, resolved_unit_area, unit_area_display, unit_area, fullname, username])
 
     unit_key = ""
-    for candidate in [stored_key, unit_name, unit_area_display, unit_area, fullname, username]:
+    for candidate in key_candidates:
         key = extract_unit_key(candidate)
         if key and not _is_generic_task_unit_key(key):
             unit_key = key.strip()
             break
 
     if not unit_key:
-        unit_key = (stored_key or extract_unit_key(unit_name) or unit_name.lower()).strip()
+        fallback_key = stored_key if stored_key and not _is_category_item_reference(stored_key) else ""
+        unit_key = (fallback_key or extract_unit_key(unit_name) or unit_name.lower()).strip()
 
     return {
         "unit_name": unit_name,
@@ -1330,7 +1392,13 @@ def task_detail(tid):
     assign_users = [user for _, user in assigns]
     unit_options = module_category_options("contacts", "unit_name", "Đơn vị")
     sync_record_categories(assign_users, unit_options, attr_name="unit_area", prefer_stable=True)
-    apply_reference_display(assign_users, "unit_area", unit_options, display_attr="unit_area_display", fallback_label="Chưa có đơn vị")
+    apply_reference_display(
+        assign_users,
+        "unit_area",
+        _task_assignment_unit_options(),
+        display_attr="unit_area_display",
+        fallback_label="Chưa có đơn vị",
+    )
 
     task_metrics = _decorate_task(task, session["uid"], is_lead)
     user_assign = task_metrics["user_assignment"]
@@ -1516,7 +1584,13 @@ def export_task_unit_report(tid):
     assign_users = [user for _, user in assigns]
     unit_options = module_category_options("contacts", "unit_name", "Đơn vị")
     sync_record_categories(assign_users, unit_options, attr_name="unit_area", prefer_stable=True)
-    apply_reference_display(assign_users, "unit_area", unit_options, display_attr="unit_area_display", fallback_label="Chưa có đơn vị")
+    apply_reference_display(
+        assign_users,
+        "unit_area",
+        _task_assignment_unit_options(),
+        display_attr="unit_area_display",
+        fallback_label="Chưa có đơn vị",
+    )
     comments = TaskComment.query.filter_by(task_id=tid).order_by(TaskComment.created_at.desc()).all()
     unit_report_rows, unit_report_stats = _build_unit_report_summary(assigns, comments, task.deadline)
 
