@@ -1947,6 +1947,7 @@ def _dashboard_hero_stats(cycles, cycle_status_map=None):
     overdue_total = 0
     locked_total = 0
     reported_total = 0
+    unreported_total = 0
 
     for cycle in cycles or []:
         is_locked = bool(cycle and (cycle.is_locked or cycle.status == "closed"))
@@ -1960,12 +1961,15 @@ def _dashboard_hero_stats(cycles, cycle_status_map=None):
         status_info = (cycle_status_map or {}).get(getattr(cycle, "id", None))
         if status_info and status_info.get("done"):
             reported_total += 1
+        else:
+            unreported_total += 1
 
     return {
         "active_total": active_total,
         "overdue_total": overdue_total,
         "locked_total": locked_total,
         "reported_total": reported_total,
+        "unreported_total": unreported_total,
     }
 
 

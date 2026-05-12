@@ -65,8 +65,8 @@
                     <strong>{{ cycle_groups|length }}</strong>
                 </div>
                 <div class="pc06-metric-card">
-                    <span>Báo cáo đang mở</span>
-                    <strong>{{ hero_stats.active_total if hero_stats is defined else cycles|length }}</strong>
+                    <span>Chưa báo cáo</span>
+                    <strong>{{ hero_stats.unreported_total if hero_stats is defined else 0 }}</strong>
                 </div>
                 <div class="pc06-metric-card">
                     <span>Đã báo cáo</span>

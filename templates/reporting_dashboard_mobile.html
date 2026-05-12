@@ -63,7 +63,7 @@
         <div class="report-mobile-stat"><span>Quá hạn</span><strong>{{ hero_stats.overdue_total if hero_stats is defined else 0 }}</strong></div>
         {% else %}
         <div class="report-mobile-stat"><span>Đội nghiệp vụ</span><strong>{{ cycle_groups|length }}</strong></div>
-        <div class="report-mobile-stat"><span>Báo cáo mở</span><strong>{{ hero_stats.active_total if hero_stats is defined else cycles|length }}</strong></div>
+        <div class="report-mobile-stat"><span>Chưa báo cáo</span><strong>{{ hero_stats.unreported_total if hero_stats is defined else 0 }}</strong></div>
         <div class="report-mobile-stat"><span>Đã báo cáo</span><strong>{{ hero_stats.reported_total if hero_stats is defined else 0 }}</strong></div>
         <div class="report-mobile-stat"><span>Quá hạn</span><strong>{{ hero_stats.overdue_total if hero_stats is defined else 0 }}</strong></div>
         {% endif %}
