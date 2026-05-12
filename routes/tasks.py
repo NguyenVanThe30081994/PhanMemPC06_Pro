@@ -162,22 +162,7 @@ def _dedupe_users(users):
 
 
 def _user_unit_key(user):
-    if not user:
-        return ""
-    stored_key = (getattr(user, "unit_key", "") or "").strip()
-    if stored_key and not _is_generic_task_unit_key(stored_key):
-        return stored_key
-
-    for candidate in [
-        getattr(user, "unit_area", ""),
-        getattr(user, "fullname", ""),
-        getattr(user, "username", ""),
-    ]:
-        key = extract_unit_key(candidate)
-        if key and not _is_generic_task_unit_key(key):
-            return key.strip()
-
-    return (stored_key or extract_unit_key(getattr(user, "fullname", "") or getattr(user, "unit_area", "") or getattr(user, "username", ""))).strip()
+    return _task_unit_identity(user).get("unit_key", "")
 
 
 def _is_generic_task_unit_key(value):
@@ -248,6 +233,10 @@ def _looks_like_task_unit_name(value):
             "so ",
             "bao hiem xa hoi",
             "chi cuc",
+            "cuc ",
+            "thanh tra",
+            "thue ",
+            "trung tam",
             "truong ",
             "vien ",
             "xa ",
@@ -257,6 +246,47 @@ def _looks_like_task_unit_name(value):
             "quan ",
         ]
     )
+
+
+def _task_unit_identity(user):
+    if not user:
+        return {"unit_name": "Chưa có đơn vị", "unit_key": ""}
+
+    stored_key = (getattr(user, "unit_key", "") or "").strip()
+    unit_area_display = (getattr(user, "unit_area_display", None) or "").strip()
+    unit_area = (getattr(user, "unit_area", None) or "").strip()
+    fullname = (getattr(user, "fullname", None) or "").strip()
+    username = (getattr(user, "username", None) or "").strip()
+
+    unit_name = ""
+    for candidate in [unit_area_display, unit_area]:
+        if candidate and not _is_generic_task_unit_name(candidate):
+            unit_name = candidate
+            break
+
+    if not unit_name:
+        for candidate in [fullname, username]:
+            if candidate and _looks_like_task_unit_name(candidate):
+                unit_name = candidate
+                break
+
+    if not unit_name:
+        unit_name = unit_area_display or unit_area or fullname or username or "Chưa có đơn vị"
+
+    unit_key = ""
+    for candidate in [stored_key, unit_name, unit_area_display, unit_area, fullname, username]:
+        key = extract_unit_key(candidate)
+        if key and not _is_generic_task_unit_key(key):
+            unit_key = key.strip()
+            break
+
+    if not unit_key:
+        unit_key = (stored_key or extract_unit_key(unit_name) or unit_name.lower()).strip()
+
+    return {
+        "unit_name": unit_name,
+        "unit_key": unit_key,
+    }
 
 
 def _users_for_unit(unit_name):
@@ -625,8 +655,9 @@ def _build_unit_report_cards(task, assigns, comments):
         if not user:
             continue
 
-        unit_name = _task_assignee_unit_name(user) or "Chưa có đơn vị"
-        unit_key = extract_unit_key(unit_name) or _user_unit_key(user) or unit_name.lower()
+        unit_identity = _task_unit_identity(user)
+        unit_name = unit_identity["unit_name"] or "Chưa có đơn vị"
+        unit_key = unit_identity["unit_key"] or unit_name.lower()
         card = unit_cards.setdefault(
             unit_key,
             {
@@ -674,13 +705,13 @@ def _build_unit_report_cards(task, assigns, comments):
 
     summary_rows, _summary_stats = _build_unit_report_summary(assigns, comments, task.deadline)
     summary_by_unit = {
-        (_task_download_slug(row.get("unit_name"), row.get("unit_name", "").lower()) or row.get("unit_name", "").lower()): row
+        (row.get("unit_key") or row.get("unit_name", "").lower()): row
         for row in summary_rows
     }
 
     cards = []
     for unit_key, card in unit_cards.items():
-        summary_row = summary_by_unit.get(_task_download_slug(card["unit_name"], card["unit_name"].lower()))
+        summary_row = summary_by_unit.get(card["unit_key"] or card["unit_name"].lower())
         if summary_row:
             card["status"] = summary_row.get("status", card["status"])
         card["assignee_names"].sort()
@@ -736,8 +767,9 @@ def _build_discussion_threads(assigns, comments):
     for assignment, user in assigns or []:
         if not user:
             continue
-        unit_name = _task_assignee_unit_name(user)
-        unit_key = extract_unit_key(unit_name) or _user_unit_key(user) or unit_name.lower()
+        unit_identity = _task_unit_identity(user)
+        unit_name = unit_identity["unit_name"]
+        unit_key = unit_identity["unit_key"] or unit_name.lower()
         thread = threads.setdefault(
             unit_key,
             {
@@ -768,12 +800,14 @@ def _build_discussion_threads(assigns, comments):
         target_assignee_id = getattr(comment, "assignee_id", 0) or 0
         if target_assignee_id and target_assignee_id in assigned_users:
             target_user = assigned_users[target_assignee_id]
-            target_unit_name = _task_assignee_unit_name(target_user)
-            thread_key = extract_unit_key(target_unit_name) or _user_unit_key(target_user) or target_unit_name.lower()
+            target_identity = _task_unit_identity(target_user)
+            target_unit_name = target_identity["unit_name"]
+            thread_key = target_identity["unit_key"] or target_unit_name.lower()
         elif getattr(comment, "user_id", None) in assigned_users:
             author_user = assigned_users.get(comment.user_id)
-            author_unit_name = _task_assignee_unit_name(author_user)
-            thread_key = extract_unit_key(author_unit_name) or _user_unit_key(author_user) or author_unit_name.lower()
+            author_identity = _task_unit_identity(author_user)
+            author_unit_name = author_identity["unit_name"]
+            thread_key = author_identity["unit_key"] or author_unit_name.lower()
         elif len(ordered_unit_keys) == 1:
             thread_key = ordered_unit_keys[0]
 
@@ -808,8 +842,9 @@ def _build_assignment_unit_cards(assigns):
         if not user:
             continue
 
-        unit_name = _task_assignee_unit_name(user)
-        unit_key = extract_unit_key(unit_name) or _user_unit_key(user) or unit_name.lower()
+        unit_identity = _task_unit_identity(user)
+        unit_name = unit_identity["unit_name"]
+        unit_key = unit_identity["unit_key"] or unit_name.lower()
         card = unit_cards.setdefault(
             unit_key,
             {
@@ -867,15 +902,7 @@ def _task_file_path(file_name):
 
 
 def _task_assignee_unit_name(user):
-    if not user:
-        return "don_vi"
-    unit_name = getattr(user, "unit_area_display", None) or getattr(user, "unit_area", None) or ""
-    fullname = getattr(user, "fullname", None) or ""
-    if unit_name and not _is_generic_task_unit_name(unit_name):
-        return unit_name
-    if fullname and _looks_like_task_unit_name(fullname):
-        return fullname
-    return unit_name or fullname or getattr(user, "username", None) or "don_vi"
+    return _task_unit_identity(user).get("unit_name", "Chưa có đơn vị")
 
 
 def _purge_task(task):
@@ -982,11 +1009,13 @@ def _build_unit_report_summary(assigns, comments, deadline):
     for assignment, user in assigns or []:
         if not user:
             continue
-        unit_name = _task_assignee_unit_name(user) or "Chưa có đơn vị"
-        unit_key = extract_unit_key(unit_name) or _user_unit_key(user) or unit_name.lower()
+        unit_identity = _task_unit_identity(user)
+        unit_name = unit_identity["unit_name"] or "Chưa có đơn vị"
+        unit_key = unit_identity["unit_key"] or unit_name.lower()
         row = unit_rows.setdefault(
             unit_key,
             {
+                "unit_key": unit_key,
                 "unit_name": unit_name,
                 "assignee_names": [],
                 "reporter_names": [],
