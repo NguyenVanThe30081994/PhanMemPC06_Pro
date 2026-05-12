@@ -191,7 +191,52 @@ def _looks_like_org_unit(value):
 
 
 def _is_generic_unit_key(value):
-    return (value or "").strip().lower() in {"xa", "phuong", "huyen", "quan", "tp", "thi", "tran"}
+    normalized = normalize_code(value)
+    return normalized in {
+        "",
+        "xa",
+        "phuong",
+        "huyen",
+        "quan",
+        "tp",
+        "thi",
+        "tran",
+        "capxa",
+        "caphuong",
+        "caphuyen",
+        "captinh",
+        "congancapxa",
+        "congancaphuong",
+        "congancaphuongxa",
+        "congancaphuyen",
+        "congancaptinh",
+        "ubndcapxa",
+        "ubndcaphuong",
+        "ubndcaphuyen",
+        "ubndcaptinh",
+        "hethong",
+    }
+
+
+def _is_generic_unit_name(value):
+    normalized = normalize_code(value)
+    return normalized in {
+        "",
+        "congancapxa",
+        "congancaphuong",
+        "congancaphuongxa",
+        "congancaphuyen",
+        "congancaptinh",
+        "ubndcapxa",
+        "ubndcaphuong",
+        "ubndcaphuyen",
+        "ubndcaptinh",
+        "capxa",
+        "caphuong",
+        "caphuyen",
+        "captinh",
+        "hethong",
+    }
 
 
 def _preferred_unit_identity(user):
@@ -199,15 +244,24 @@ def _preferred_unit_identity(user):
     unit_area = resolve_category_display(unit_area_raw, _unit_group_options(), fallback_label=unit_area_raw)["display_name"]
     fullname = (getattr(user, "fullname", None) or "").strip()
     username = (getattr(user, "username", None) or "").strip()
+    stored_unit_key = normalize_code(getattr(user, "unit_key", None) or "")
 
     unit_key = extract_unit_key(unit_area) if unit_area else ""
-    if unit_area and unit_key and not _is_generic_unit_key(unit_key):
-        return unit_area, unit_key
+    if unit_area and not _is_generic_unit_name(unit_area):
+        preferred_key = stored_unit_key if stored_unit_key and not _is_generic_unit_key(stored_unit_key) else unit_key
+        if preferred_key and not _is_generic_unit_key(preferred_key):
+            return unit_area, preferred_key
 
     if fullname and _looks_like_org_unit(fullname):
         fullname_key = extract_unit_key(fullname) or normalize_code(fullname)
         if fullname_key and not _is_generic_unit_key(fullname_key):
-            return fullname, fullname_key
+            return fullname, stored_unit_key or fullname_key
+
+    if stored_unit_key and not _is_generic_unit_key(stored_unit_key):
+        if unit_area:
+            return unit_area, stored_unit_key
+        if fullname:
+            return fullname, stored_unit_key
 
     if unit_area:
         return unit_area, unit_key or normalize_code(unit_area)
@@ -1941,7 +1995,7 @@ def _dashboard_cycle_status(cycle, instance=None, report_type=None, report_date=
     return {"label": "Đã có báo cáo" if has_any_report else "Chưa báo cáo", "done": has_any_report}
 
 
-def _dashboard_hero_stats(cycles, cycle_status_map=None):
+def _dashboard_hero_stats(cycles, cycle_status_map=None, cycle_progress_map=None):
     now = datetime.now()
     active_total = 0
     overdue_total = 0
@@ -1957,6 +2011,14 @@ def _dashboard_hero_stats(cycles, cycle_status_map=None):
             active_total += 1
             if cycle and cycle.due_at and cycle.due_at < now:
                 overdue_total += 1
+
+        progress = (cycle_progress_map or {}).get(getattr(cycle, "id", None))
+        if progress and progress.get("total"):
+            reported = int(progress.get("reported") or 0)
+            total = int(progress.get("total") or 0)
+            reported_total += reported
+            unreported_total += max(total - reported, 0)
+            continue
 
         status_info = (cycle_status_map or {}).get(getattr(cycle, "id", None))
         if status_info and status_info.get("done"):
@@ -2465,7 +2527,11 @@ def admin_dashboard():
             progress=progress,
         )
         cycle_deadline_map[cycle.id] = _cycle_deadline_badge_text(cycle, report_type=report_type)
-    hero_stats = _dashboard_hero_stats(cycles, cycle_status_map=cycle_status_map)
+    hero_stats = _dashboard_hero_stats(
+        cycles,
+        cycle_status_map=cycle_status_map,
+        cycle_progress_map=cycle_progress_map,
+    )
 
     setattr(template, "professional_unit_display", _template_professional_unit(template))
     return render_template(
@@ -3050,9 +3116,12 @@ def admin_cycle_detail(cycle_id):
         flash("Bạn không có quyền theo dõi chu kỳ báo cáo này.", "warning")
         return redirect(url_for("admin_bp.index"))
     _ensure_report_schema()
+    _sync_units_from_users()
     cycle = db.session.get(ReportCycle, cycle_id)
     if not cycle:
         return "Not Found", 404
+    _ensure_cycle_instances(cycle)
+    db.session.commit()
     template_version = db.session.get(ReportTemplateVersion, cycle.template_version_id)
     template = db.session.get(ReportTemplate, template_version.template_id) if template_version else None
     report_type = _report_type(cycle)
@@ -3495,7 +3564,11 @@ def user_dashboard():
             progress=progress,
         )
         cycle_deadline_map[cycle.id] = _cycle_deadline_badge_text(cycle, report_type=report_type)
-    hero_stats = _dashboard_hero_stats(accessible_cycles, cycle_status_map=cycle_status_map)
+    hero_stats = _dashboard_hero_stats(
+        accessible_cycles,
+        cycle_status_map=cycle_status_map,
+        cycle_progress_map=cycle_progress_map,
+    )
 
     return render_template(
         "reporting_dashboard.html",

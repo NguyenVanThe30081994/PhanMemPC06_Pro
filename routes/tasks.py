@@ -164,7 +164,77 @@ def _dedupe_users(users):
 def _user_unit_key(user):
     if not user:
         return ""
-    return (getattr(user, "unit_key", "") or extract_unit_key(getattr(user, "fullname", "") or getattr(user, "unit_area", "") or getattr(user, "username", ""))).strip()
+    stored_key = (getattr(user, "unit_key", "") or "").strip()
+    if stored_key and not _is_generic_task_unit_key(stored_key):
+        return stored_key
+
+    for candidate in [
+        getattr(user, "unit_area", ""),
+        getattr(user, "fullname", ""),
+        getattr(user, "username", ""),
+    ]:
+        key = extract_unit_key(candidate)
+        if key and not _is_generic_task_unit_key(key):
+            return key.strip()
+
+    return (stored_key or extract_unit_key(getattr(user, "fullname", "") or getattr(user, "unit_area", "") or getattr(user, "username", ""))).strip()
+
+
+def _is_generic_task_unit_key(value):
+    normalized = re.sub(r"\s+", "", remove_accents(value or "")).strip().lower()
+    return normalized in {
+        "",
+        "xa",
+        "phuong",
+        "huyen",
+        "quan",
+        "tp",
+        "thi",
+        "tran",
+        "capxa",
+        "caphuong",
+        "caphuyen",
+        "captinh",
+        "congancapxa",
+        "congancaphuong",
+        "congancaphuongxa",
+        "congancaphuyen",
+        "congancaptinh",
+        "ubndcapxa",
+        "ubndcaphuong",
+        "ubndcaphuyen",
+        "ubndcaptinh",
+        "hethong",
+    }
+
+
+def _is_generic_task_unit_name(value):
+    normalized = re.sub(r"\s+", "", remove_accents(value or "")).strip().lower()
+    return normalized in {
+        "",
+        "congancapxa",
+        "congancaphuong",
+        "congancaphuongxa",
+        "congancaphuyen",
+        "congancaptinh",
+        "ubndcapxa",
+        "ubndcaphuong",
+        "ubndcaphuyen",
+        "ubndcaptinh",
+        "capxa",
+        "caphuong",
+        "caphuyen",
+        "captinh",
+        "hethong",
+    }
+
+
+def _looks_like_task_unit_name(value):
+    normalized = re.sub(r"\s+", " ", remove_accents(value or "")).strip().lower()
+    return any(
+        token in normalized
+        for token in ["cong an", "ubnd", "doi ", "phong ", "ban ", "xa ", "phuong ", "thi tran", "huyen ", "quan "]
+    )
 
 
 def _users_for_unit(unit_name):
@@ -772,13 +842,13 @@ def _task_file_path(file_name):
 def _task_assignee_unit_name(user):
     if not user:
         return "don_vi"
-    return (
-        getattr(user, "unit_area_display", None)
-        or getattr(user, "unit_area", None)
-        or getattr(user, "fullname", None)
-        or getattr(user, "username", None)
-        or "don_vi"
-    )
+    unit_name = getattr(user, "unit_area_display", None) or getattr(user, "unit_area", None) or ""
+    fullname = getattr(user, "fullname", None) or ""
+    if unit_name and not _is_generic_task_unit_name(unit_name):
+        return unit_name
+    if fullname and _looks_like_task_unit_name(fullname):
+        return fullname
+    return unit_name or fullname or getattr(user, "username", None) or "don_vi"
 
 
 def _purge_task(task):
