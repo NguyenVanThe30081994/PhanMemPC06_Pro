@@ -626,7 +626,7 @@ def _build_unit_report_cards(task, assigns, comments):
             continue
 
         unit_name = _task_assignee_unit_name(user) or "Chưa có đơn vị"
-        unit_key = _user_unit_key(user) or extract_unit_key(unit_name) or unit_name.lower()
+        unit_key = extract_unit_key(unit_name) or _user_unit_key(user) or unit_name.lower()
         card = unit_cards.setdefault(
             unit_key,
             {
@@ -737,7 +737,7 @@ def _build_discussion_threads(assigns, comments):
         if not user:
             continue
         unit_name = _task_assignee_unit_name(user)
-        unit_key = _user_unit_key(user) or extract_unit_key(unit_name) or unit_name.lower()
+        unit_key = extract_unit_key(unit_name) or _user_unit_key(user) or unit_name.lower()
         thread = threads.setdefault(
             unit_key,
             {
@@ -768,10 +768,12 @@ def _build_discussion_threads(assigns, comments):
         target_assignee_id = getattr(comment, "assignee_id", 0) or 0
         if target_assignee_id and target_assignee_id in assigned_users:
             target_user = assigned_users[target_assignee_id]
-            thread_key = _user_unit_key(target_user) or extract_unit_key(_task_assignee_unit_name(target_user)) or _task_assignee_unit_name(target_user).lower()
+            target_unit_name = _task_assignee_unit_name(target_user)
+            thread_key = extract_unit_key(target_unit_name) or _user_unit_key(target_user) or target_unit_name.lower()
         elif getattr(comment, "user_id", None) in assigned_users:
             author_user = assigned_users.get(comment.user_id)
-            thread_key = _user_unit_key(author_user) or extract_unit_key(_task_assignee_unit_name(author_user)) or _task_assignee_unit_name(author_user).lower()
+            author_unit_name = _task_assignee_unit_name(author_user)
+            thread_key = extract_unit_key(author_unit_name) or _user_unit_key(author_user) or author_unit_name.lower()
         elif len(ordered_unit_keys) == 1:
             thread_key = ordered_unit_keys[0]
 
@@ -807,7 +809,7 @@ def _build_assignment_unit_cards(assigns):
             continue
 
         unit_name = _task_assignee_unit_name(user)
-        unit_key = _user_unit_key(user) or extract_unit_key(unit_name) or unit_name.lower()
+        unit_key = extract_unit_key(unit_name) or _user_unit_key(user) or unit_name.lower()
         card = unit_cards.setdefault(
             unit_key,
             {
@@ -981,7 +983,7 @@ def _build_unit_report_summary(assigns, comments, deadline):
         if not user:
             continue
         unit_name = _task_assignee_unit_name(user) or "Chưa có đơn vị"
-        unit_key = _user_unit_key(user) or extract_unit_key(unit_name) or unit_name.lower()
+        unit_key = extract_unit_key(unit_name) or _user_unit_key(user) or unit_name.lower()
         row = unit_rows.setdefault(
             unit_key,
             {
