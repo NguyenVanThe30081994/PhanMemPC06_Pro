@@ -66,6 +66,9 @@
     .detail-mobile-report-files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
     .detail-mobile-report-file { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; padding: 8px 11px; border-radius: 999px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; text-decoration: none; font-size: 0.78rem; }
     .detail-mobile-report-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .detail-mobile-report-eye { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-muted); }
+    .detail-mobile-report-name-list { display: grid; gap: 8px; }
+    .detail-mobile-report-name-item { padding: 12px; border-radius: 14px; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-main); font-weight: 700; line-height: 1.45; }
     .detail-mobile-thread-card { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--bg-body); }
     .detail-mobile-thread-card summary { list-style: none; cursor: pointer; }
     .detail-mobile-thread-card summary::-webkit-details-marker { display: none; }
@@ -327,7 +330,7 @@
         </article>
     </div>
     <div class="detail-mobile-stack">
-        {% for group in unit_report_groups %}
+        {% for group in unit_report_groups if group.key in ['reported', 'unreported', 'on_time', 'overdue'] %}
         <details class="detail-mobile-report-group">
             <summary class="detail-mobile-report-group-summary">
                 <div>
@@ -338,55 +341,53 @@
                 <i class="fa-solid fa-chevron-down detail-mobile-report-caret"></i>
             </summary>
             <div class="detail-mobile-report-body">
-                {% for card in group.cards %}
-                {% set primary_attachment = card.attachments[0] if card.attachments else None %}
-                <details class="detail-mobile-report-item">
-                    <summary class="detail-mobile-report-item-summary">
-                        <div class="detail-mobile-report-copy">
-                            <strong>{{ card.unit_name }}</strong>
-                            <div class="detail-mobile-report-fileline" title="{{ primary_attachment.file_name if primary_attachment else ('Đã gửi báo cáo, chưa có tệp đính kèm' if card.has_report else 'Chưa có báo cáo') }}">
-                                <i class="fa-solid fa-paperclip"></i>
-                                <span>{{ primary_attachment.file_name if primary_attachment else ('Đã gửi báo cáo, chưa có tệp đính kèm' if card.has_report else 'Chưa có báo cáo') }}</span>
+                {% if group.key == 'reported' %}
+                    {% for card in group.cards %}
+                    {% set primary_attachment = card.attachments[0] if card.attachments else None %}
+                    <details class="detail-mobile-report-item">
+                        <summary class="detail-mobile-report-item-summary">
+                            <div class="detail-mobile-report-copy">
+                                <strong>{{ card.unit_name }}</strong>
+                                <div class="detail-mobile-report-fileline" title="{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp đính kèm' }}">
+                                    <i class="fa-solid fa-paperclip"></i>
+                                    <span>{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp đính kèm' }}</span>
+                                </div>
                             </div>
-                        </div>
-                        <div class="detail-mobile-report-actions">
-                            {% if primary_attachment %}
-                            <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=primary_attachment.user_id) }}" class="detail-mobile-report-download" title="Tải tệp" onclick="event.stopPropagation();">
-                                <i class="fa-solid fa-download"></i>
-                            </a>
+                            <div class="detail-mobile-report-actions">
+                                {% if primary_attachment %}
+                                <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=primary_attachment.user_id) }}" class="detail-mobile-report-download" title="Tải tệp" onclick="event.stopPropagation();">
+                                    <i class="fa-solid fa-download"></i>
+                                </a>
+                                {% endif %}
+                                <span class="detail-mobile-report-eye" title="Xem chi tiết">
+                                    <i class="fa-regular fa-eye"></i>
+                                </span>
+                            </div>
+                        </summary>
+                        <div class="detail-mobile-report-item-body">
+                            <div class="detail-mobile-report-meta">
+                                <div><i class="fa-regular fa-user"></i>{{ card.latest_report_user_name or 'Chưa có người gửi' }}</div>
+                                <div><i class="fa-regular fa-clock"></i>{{ card.latest_report_at.strftime('%d/%m/%Y %H:%M') if card.latest_report_at else 'Chưa có thời điểm báo cáo' }}</div>
+                            </div>
+                            {% if card.latest_report_excerpt_preview %}
+                            <div class="detail-mobile-report-excerpt">{{ card.latest_report_excerpt_preview }}</div>
+                            {% else %}
+                            <div class="detail-mobile-report-excerpt text-muted">Đơn vị đã gửi báo cáo nhưng chưa nhập nội dung chi tiết.</div>
                             {% endif %}
-                            <i class="fa-solid fa-chevron-down detail-mobile-report-caret"></i>
                         </div>
-                    </summary>
-                    <div class="detail-mobile-report-item-body">
-                        <div class="detail-mobile-status {% if card.status == 'Báo cáo đúng hạn' %}done{% elif card.status == 'Báo cáo quá hạn' %}todo{% elif card.status == 'Chưa báo cáo' %}doing{% else %}doing{% endif %}" style="margin-bottom:0;">
-                            {{ card.status }}
-                        </div>
-                        <div class="detail-mobile-report-meta">
-                            <div><i class="fa-regular fa-user"></i>{{ card.latest_report_user_name or 'Chưa có người gửi' }}</div>
-                            <div><i class="fa-regular fa-clock"></i>{{ card.latest_report_at.strftime('%d/%m/%Y %H:%M') if card.latest_report_at else 'Chưa có thời điểm báo cáo' }}</div>
-                            <div><i class="fa-solid fa-users"></i>{{ card.assignee_count }} đầu mối{% if card.assignee_preview %}: {{ card.assignee_preview }}{% endif %}</div>
-                        </div>
-                        {% if card.latest_report_excerpt_preview %}
-                        <div class="detail-mobile-report-excerpt">{{ card.latest_report_excerpt_preview }}</div>
-                        {% else %}
-                        <div class="detail-mobile-report-excerpt text-muted">{{ 'Đơn vị đã gửi báo cáo nhưng chưa nhập nội dung chi tiết.' if card.has_report else 'Đơn vị này chưa gửi báo cáo.' }}</div>
-                        {% endif %}
-                        {% if card.has_report and card.attachments|length > 1 %}
-                        <div class="detail-mobile-report-files">
-                            {% for attachment in card.attachments %}
-                            <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=attachment.user_id) }}" class="detail-mobile-report-file" title="{{ attachment.file_name }}">
-                                <i class="fa-solid fa-download"></i>
-                                <span>{{ attachment.user_name }} · {{ attachment.file_name }}</span>
-                            </a>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                    </div>
-                </details>
+                    </details>
+                    {% else %}
+                    <div class="text-muted small">Nhóm này hiện chưa có đơn vị phù hợp.</div>
+                    {% endfor %}
                 {% else %}
-                <div class="text-muted small">Nhóm này hiện chưa có đơn vị phù hợp.</div>
-                {% endfor %}
+                    <div class="detail-mobile-report-name-list">
+                        {% for card in group.cards %}
+                        <div class="detail-mobile-report-name-item">{{ card.unit_name }}</div>
+                        {% else %}
+                        <div class="text-muted small">Nhóm này hiện chưa có đơn vị phù hợp.</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </div>
         </details>
         {% endfor %}

@@ -625,13 +625,7 @@ def _build_unit_report_cards(task, assigns, comments):
         if not user:
             continue
 
-        unit_name = (
-            getattr(user, "unit_area_display", None)
-            or getattr(user, "unit_area", None)
-            or getattr(user, "fullname", None)
-            or getattr(user, "username", None)
-            or "Chưa có đơn vị"
-        )
+        unit_name = _task_assignee_unit_name(user) or "Chưa có đơn vị"
         unit_key = _user_unit_key(user) or extract_unit_key(unit_name) or unit_name.lower()
         card = unit_cards.setdefault(
             unit_key,
@@ -986,13 +980,7 @@ def _build_unit_report_summary(assigns, comments, deadline):
     for assignment, user in assigns or []:
         if not user:
             continue
-        unit_name = (
-            getattr(user, "unit_area_display", None)
-            or getattr(user, "unit_area", None)
-            or getattr(user, "fullname", None)
-            or getattr(user, "username", None)
-            or "Chưa có đơn vị"
-        )
+        unit_name = _task_assignee_unit_name(user) or "Chưa có đơn vị"
         unit_key = _user_unit_key(user) or extract_unit_key(unit_name) or unit_name.lower()
         row = unit_rows.setdefault(
             unit_key,
