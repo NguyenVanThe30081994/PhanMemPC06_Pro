@@ -509,7 +509,16 @@
         padding: 13px 14px;
     }
     .pc06-assignment-unit-summary strong {
+        flex: 1;
+        min-width: 0;
         color: var(--text-main, #0f172a);
+        line-height: 1.45;
+    }
+    .pc06-assignment-unit-summary-meta {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
     }
     .pc06-assignment-unit-summary i {
         color: var(--text-muted, #64748b);
@@ -536,6 +545,10 @@
         border-radius: 14px;
         background: rgba(255, 255, 255, 0.98);
         border: 1px solid rgba(226, 232, 240, 0.88);
+    }
+    .pc06-assignment-member > div:first-child {
+        flex: 1;
+        min-width: 0;
     }
     .pc06-assignment-member strong {
         display: block;
@@ -978,7 +991,7 @@
                     <details class="pc06-assignment-unit">
                         <summary class="pc06-assignment-unit-summary">
                             <strong>{{ card.unit_name }}</strong>
-                            <div class="d-flex align-items-center gap-2">
+                            <div class="pc06-assignment-unit-summary-meta">
                                 <span class="pc06-status-badge {% if card.status == 'Hoàn thành' %}done{% elif card.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
                                     {{ card.status }}
                                 </span>

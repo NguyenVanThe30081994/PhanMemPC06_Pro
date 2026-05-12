@@ -1117,11 +1117,15 @@ a.pc06-chip {
 .pc06-status-badge {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     padding: 10px 14px;
     border-radius: 999px;
     font-size: 0.78rem;
     font-weight: 900;
+    white-space: nowrap;
+    flex-shrink: 0;
+    text-align: center;
 }
 
 .pc06-status-badge.todo {

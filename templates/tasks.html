@@ -371,6 +371,46 @@
         display: block;
     }
 
+    .pc06-task-modal-dialog {
+        max-width: min(1140px, calc(100vw - 1.5rem));
+    }
+
+    .pc06-task-modal-shell {
+        max-height: calc(100vh - 2rem);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .pc06-task-modal-shell .modal-body {
+        min-height: 0;
+        overflow-y: auto;
+    }
+
+    .pc06-task-modal-body {
+        overscroll-behavior: contain;
+    }
+
+    .pc06-assignment-panel {
+        display: grid;
+        align-content: start;
+        gap: 18px;
+        height: 100%;
+    }
+
+    .pc06-assignment-panel .pc06-form-section,
+    .pc06-assignment-panel .pc06-mode-help {
+        margin: 0;
+    }
+
+    .pc06-assignment-option-list {
+        max-height: 320px;
+        overflow-y: auto;
+        padding: 8px;
+        border: 1px solid rgba(226, 232, 240, 0.92);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.96);
+    }
+
     @media (max-width: 1320px) {
         .pc06-task-compact-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -583,8 +623,8 @@
 
 {% if is_lead or is_admin %}
 <div class="modal fade" id="addTaskModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-        <div class="modal-content border-0 pc06-modal-shell">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl pc06-task-modal-dialog">
+        <div class="modal-content border-0 pc06-modal-shell pc06-task-modal-shell">
             <form method="POST" enctype="multipart/form-data">
                 <div class="modal-header border-0 pc06-modal-head">
                     <div>
@@ -593,7 +633,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
 
-                <div class="modal-body p-4 p-lg-5">
+                <div class="modal-body p-4 p-lg-5 pc06-task-modal-body">
                     <div class="row g-4">
                         <div class="col-lg-7">
                             <div class="pc06-form-panel">
@@ -721,7 +761,7 @@
                         </div>
 
                         <div class="col-lg-5">
-                            <div class="pc06-form-panel">
+                            <div class="pc06-form-panel pc06-assignment-panel">
                                 <div class="pc06-side-title">
                                     <h6>Luồng giao việc</h6>
                                     <p>Chọn đúng hình thức để hệ thống phân công đúng người nhận việc.</p>
@@ -747,7 +787,7 @@
 
                                 <div class="pc06-form-section d-none" id="roleAssignmentPanel">
                                     <label class="form-label fw-bold">Vai trò nhận việc</label>
-                                    <div class="pc06-user-picker-panel border rounded-4 p-2" style="display:block; max-height: 320px; overflow:auto;">
+                                    <div class="pc06-assignment-option-list">
                                         {% for role in roles %}
                                         <label class="pc06-user-option">
                                             <input type="checkbox" name="assignee_role_ids" value="{{ role.id }}">
