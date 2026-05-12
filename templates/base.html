@@ -74,41 +74,75 @@
         }
 
         .notif-trigger {
-            width: 44px;
-            height: 44px;
+            width: 52px;
+            height: 52px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             overflow: visible;
+            padding: 0 !important;
+            border: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
         }
 
         .notif-icon-wrap {
             position: relative;
-            width: 22px;
-            height: 22px;
+            width: 48px;
+            height: 48px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             overflow: visible;
+            border-radius: 999px;
+            background:
+                radial-gradient(circle at 30% 26%, rgba(255,255,255,0.95) 0 10%, transparent 11%),
+                linear-gradient(180deg, #ff9b68 0%, #ff7f50 55%, #f46a3d 100%);
+            box-shadow:
+                inset 0 -3px 0 rgba(212, 88, 38, 0.28),
+                0 10px 22px rgba(244, 106, 61, 0.26);
+        }
+
+        .notif-icon-wrap::before {
+            content: "";
+            position: absolute;
+            left: 12px;
+            top: 11px;
+            width: 8px;
+            height: 18px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.92);
+            transform: rotate(14deg);
+            filter: blur(0.1px);
+        }
+
+        .notif-bell-icon {
+            position: relative;
+            font-size: 24px;
+            color: #fff7ef;
+            text-shadow: 0 1px 0 rgba(204, 91, 42, 0.18);
         }
 
         .notif-badge {
             position: absolute;
-            top: -6px;
-            right: -10px;
-            min-width: 20px;
-            height: 20px;
-            padding: 0 5px;
+            top: -3px;
+            right: -4px;
+            min-width: 22px;
+            height: 22px;
+            padding: 0 6px;
             border-radius: 999px;
-            border: 2px solid #fff;
+            border: 3px solid #fff;
+            background: linear-gradient(180deg, #f46f43 0%, #dd5a31 100%) !important;
+            color: #fff !important;
             font-size: 11px;
-            font-weight: 700;
+            font-weight: 800;
             line-height: 1;
             display: none;
             align-items: center;
             justify-content: center;
             white-space: nowrap;
             box-sizing: border-box;
+            box-shadow: 0 6px 14px rgba(221, 90, 49, 0.24);
         }
 
         .toast-container {
@@ -800,7 +834,7 @@
                     <button class="btn btn-light position-relative rounded-pill p-2 notif-trigger" type="button"
                         data-bs-toggle="dropdown" id="bellBtn">
                         <span class="notif-icon-wrap">
-                            <i class="fa-regular fa-bell fs-5"></i>
+                            <i class="fa-solid fa-bell notif-bell-icon"></i>
                             <span class="badge bg-danger notif-badge" id="notifCount">0</span>
                         </span>
                     </button>

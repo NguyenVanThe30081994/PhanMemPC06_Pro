@@ -232,24 +232,63 @@
             position: relative;
             text-decoration: none;
             overflow: visible;
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            border: none;
+            background: transparent;
+        }
+        .mobile-bell-link .mobile-bell-wrap {
+            position: relative;
+            width: 44px;
+            height: 44px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background:
+                radial-gradient(circle at 32% 26%, rgba(255,255,255,0.96) 0 10%, transparent 11%),
+                linear-gradient(180deg, #ff9b68 0%, #ff7f50 55%, #f46a3d 100%);
+            box-shadow:
+                inset 0 -3px 0 rgba(212, 88, 38, 0.3),
+                0 10px 20px rgba(244, 106, 61, 0.22);
+        }
+        .mobile-bell-link .mobile-bell-wrap::before {
+            content: "";
+            position: absolute;
+            left: 11px;
+            top: 10px;
+            width: 7px;
+            height: 16px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.92);
+            transform: rotate(14deg);
+        }
+        .mobile-bell-icon {
+            font-size: 22px;
+            color: #fff7ef;
+            text-shadow: 0 1px 0 rgba(204, 91, 42, 0.18);
         }
         .mobile-notif-badge {
             position: absolute;
-            top: -4px;
-            right: -6px;
-            min-width: 20px;
-            height: 20px;
-            padding: 0 5px;
+            top: -3px;
+            right: -4px;
+            min-width: 22px;
+            height: 22px;
+            padding: 0 6px;
             border-radius: 999px;
-            border: 2px solid var(--bg-surface);
+            border: 3px solid var(--bg-surface);
+            background: linear-gradient(180deg, #f46f43 0%, #dd5a31 100%) !important;
+            color: #fff !important;
             font-size: 11px;
-            font-weight: 700;
+            font-weight: 800;
             line-height: 1;
             display: none;
             align-items: center;
             justify-content: center;
             white-space: nowrap;
             box-sizing: border-box;
+            box-shadow: 0 6px 14px rgba(221, 90, 49, 0.24);
         }
         
         .sidebar-profile {
@@ -370,7 +409,9 @@
         </div>
         <div class="header-right d-flex gap-2">
             <a href="/notifications" class="theme-toggle mobile-bell-link">
-                <i class="fa-regular fa-bell"></i>
+                <span class="mobile-bell-wrap">
+                    <i class="fa-solid fa-bell mobile-bell-icon"></i>
+                </span>
                 <span class="badge bg-danger mobile-notif-badge" id="notifCountMobile">0</span>
             </a>
             <button class="theme-toggle" id="themeToggler" type="button">
