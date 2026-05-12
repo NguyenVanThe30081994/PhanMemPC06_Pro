@@ -184,6 +184,9 @@ def _is_generic_task_unit_key(value):
     normalized = re.sub(r"\s+", "", remove_accents(value or "")).strip().lower()
     return normalized in {
         "",
+        "sobannganh",
+        "sobannganhcaptinh",
+        "khoisobannganh",
         "xa",
         "phuong",
         "huyen",
@@ -212,6 +215,9 @@ def _is_generic_task_unit_name(value):
     normalized = re.sub(r"\s+", "", remove_accents(value or "")).strip().lower()
     return normalized in {
         "",
+        "sobannganh",
+        "sobannganhcaptinh",
+        "khoisobannganh",
         "congancapxa",
         "congancaphuong",
         "congancaphuongxa",
@@ -233,7 +239,23 @@ def _looks_like_task_unit_name(value):
     normalized = re.sub(r"\s+", " ", remove_accents(value or "")).strip().lower()
     return any(
         token in normalized
-        for token in ["cong an", "ubnd", "doi ", "phong ", "ban ", "xa ", "phuong ", "thi tran", "huyen ", "quan "]
+        for token in [
+            "cong an",
+            "ubnd",
+            "doi ",
+            "phong ",
+            "ban ",
+            "so ",
+            "bao hiem xa hoi",
+            "chi cuc",
+            "truong ",
+            "vien ",
+            "xa ",
+            "phuong ",
+            "thi tran",
+            "huyen ",
+            "quan ",
+        ]
     )
 
 
@@ -669,6 +691,15 @@ def _build_unit_report_cards(task, assigns, comments):
             card["status"] = summary_row.get("status", card["status"])
         card["assignee_names"].sort()
         card["attachments"].sort(key=lambda item: item["file_name"].lower())
+        card["assignee_count"] = len(card["assignee_names"])
+        preview_names = card["assignee_names"][:3]
+        preview_text = ", ".join(preview_names)
+        remaining_count = max(card["assignee_count"] - len(preview_names), 0)
+        if remaining_count:
+            preview_text = f"{preview_text} +{remaining_count}" if preview_text else f"+{remaining_count}"
+        card["assignee_preview"] = preview_text
+        excerpt = (card.get("latest_report_excerpt") or "").strip()
+        card["latest_report_excerpt_preview"] = (excerpt[:220].rstrip() + "…") if len(excerpt) > 220 else excerpt
         cards.append(card)
 
     cards.sort(

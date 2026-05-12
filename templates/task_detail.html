@@ -306,9 +306,9 @@
         border-top: 1px solid rgba(226, 232, 240, 0.78);
     }
     .pc06-report-item-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px 14px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 8px 12px;
         margin-top: 10px;
         font-size: 0.84rem;
     }
@@ -321,6 +321,10 @@
         margin-top: 12px;
         color: var(--text-main, #0f172a);
         line-height: 1.6;
+        display: -webkit-box;
+        -webkit-line-clamp: 4;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
     .pc06-report-item-note {
         margin-top: 12px;
@@ -738,9 +742,9 @@
                                     <summary class="pc06-report-item-summary">
                                         <div class="pc06-report-item-copy">
                                             <strong>{{ card.unit_name }}</strong>
-                                            <div class="pc06-report-item-fileline" title="{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp minh chứng' }}">
+                                            <div class="pc06-report-item-fileline" title="{{ primary_attachment.file_name if primary_attachment else ('Đã gửi báo cáo, chưa có tệp đính kèm' if card.has_report else 'Chưa có báo cáo') }}">
                                                 <i class="fa-solid fa-paperclip"></i>
-                                                <span>{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp minh chứng' }}</span>
+                                                <span>{{ primary_attachment.file_name if primary_attachment else ('Đã gửi báo cáo, chưa có tệp đính kèm' if card.has_report else 'Chưa có báo cáo') }}</span>
                                             </div>
                                         </div>
                                         <div class="pc06-report-item-actions">
@@ -767,15 +771,15 @@
                                             </span>
                                             <span>
                                                 <i class="fa-solid fa-users"></i>
-                                                {{ card.assignee_names|join(', ') }}
+                                                {{ card.assignee_count }} đầu mối{% if card.assignee_preview %}: {{ card.assignee_preview }}{% endif %}
                                             </span>
                                         </div>
-                                        {% if card.latest_report_excerpt %}
-                                        <div class="pc06-report-item-excerpt">{{ card.latest_report_excerpt }}</div>
+                                        {% if card.latest_report_excerpt_preview %}
+                                        <div class="pc06-report-item-excerpt">{{ card.latest_report_excerpt_preview }}</div>
                                         {% else %}
-                                        <div class="pc06-report-item-note">Đơn vị này chưa gửi nội dung báo cáo.</div>
+                                        <div class="pc06-report-item-note">{{ 'Đơn vị đã gửi báo cáo nhưng chưa nhập nội dung chi tiết.' if card.has_report else 'Đơn vị này chưa gửi báo cáo.' }}</div>
                                         {% endif %}
-                                        {% if card.attachments|length > 1 %}
+                                        {% if card.has_report and card.attachments|length > 1 %}
                                         <div class="pc06-report-item-files">
                                             {% for attachment in card.attachments %}
                                             <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=attachment.user_id) }}" class="pc06-report-file-pill" title="{{ attachment.file_name }}">
@@ -816,9 +820,9 @@
                                     <summary class="pc06-report-item-summary">
                                         <div class="pc06-report-item-copy">
                                             <strong>{{ card.unit_name }}</strong>
-                                            <div class="pc06-report-item-fileline" title="{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp minh chứng' }}">
+                                            <div class="pc06-report-item-fileline" title="{{ primary_attachment.file_name if primary_attachment else ('Đã gửi báo cáo, chưa có tệp đính kèm' if card.has_report else 'Chưa có báo cáo') }}">
                                                 <i class="fa-solid fa-paperclip"></i>
-                                                <span>{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp minh chứng' }}</span>
+                                                <span>{{ primary_attachment.file_name if primary_attachment else ('Đã gửi báo cáo, chưa có tệp đính kèm' if card.has_report else 'Chưa có báo cáo') }}</span>
                                             </div>
                                         </div>
                                         <div class="pc06-report-item-actions">
@@ -845,15 +849,15 @@
                                             </span>
                                             <span>
                                                 <i class="fa-solid fa-users"></i>
-                                                {{ card.assignee_names|join(', ') }}
+                                                {{ card.assignee_count }} đầu mối{% if card.assignee_preview %}: {{ card.assignee_preview }}{% endif %}
                                             </span>
                                         </div>
-                                        {% if card.latest_report_excerpt %}
-                                        <div class="pc06-report-item-excerpt">{{ card.latest_report_excerpt }}</div>
+                                        {% if card.latest_report_excerpt_preview %}
+                                        <div class="pc06-report-item-excerpt">{{ card.latest_report_excerpt_preview }}</div>
                                         {% else %}
-                                        <div class="pc06-report-item-note">Đơn vị này chưa gửi nội dung báo cáo.</div>
+                                        <div class="pc06-report-item-note">{{ 'Đơn vị đã gửi báo cáo nhưng chưa nhập nội dung chi tiết.' if card.has_report else 'Đơn vị này chưa gửi báo cáo.' }}</div>
                                         {% endif %}
-                                        {% if card.attachments|length > 1 %}
+                                        {% if card.has_report and card.attachments|length > 1 %}
                                         <div class="pc06-report-item-files">
                                             {% for attachment in card.attachments %}
                                             <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=attachment.user_id) }}" class="pc06-report-file-pill" title="{{ attachment.file_name }}">

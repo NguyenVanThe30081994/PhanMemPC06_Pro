@@ -194,6 +194,9 @@ def _is_generic_unit_key(value):
     normalized = normalize_code(value)
     return normalized in {
         "",
+        "sobannganh",
+        "sobannganhcaptinh",
+        "khoisobannganh",
         "xa",
         "phuong",
         "huyen",
@@ -222,6 +225,9 @@ def _is_generic_unit_name(value):
     normalized = normalize_code(value)
     return normalized in {
         "",
+        "sobannganh",
+        "sobannganhcaptinh",
+        "khoisobannganh",
         "congancapxa",
         "congancaphuong",
         "congancaphuongxa",
