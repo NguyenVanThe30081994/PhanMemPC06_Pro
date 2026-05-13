@@ -1498,28 +1498,21 @@ def task_detail(tid):
     unit_report_groups = []
     discussion_threads = []
     assignment_role_groups = []
-    assignment_unit_progress = {"completed_units": 0, "total_units": 0}
+    assignment_unit_cards = _build_assignment_unit_cards(assigns)
+    assignment_unit_progress = {
+        "completed_units": sum(1 for card in assignment_unit_cards if card.get("status") == COMPLETED_STATUS),
+        "total_units": len(assignment_unit_cards),
+    }
     if can_manage_task_view:
         discussion_comments = [
             comment for comment in visible_comments
             if not (getattr(comment, "content", "") or "").startswith(REPORT_PREFIX)
         ]
-        assignment_unit_cards = _build_assignment_unit_cards(assigns)
-        assignment_unit_progress = {
-            "completed_units": sum(1 for card in assignment_unit_cards if card.get("status") == COMPLETED_STATUS),
-            "total_units": len(assignment_unit_cards),
-        }
         assignment_role_groups = _build_assignment_role_groups(assigns)
         unit_report_rows, unit_report_stats = _build_unit_report_summary(assigns, comments, task.deadline)
         unit_report_cards = _build_unit_report_cards(task, assigns, comments)
         unit_report_groups = _build_unit_report_groups(unit_report_cards)
         discussion_threads = [thread for thread in _build_discussion_threads(assigns, discussion_comments) if thread.get("comments")]
-    else:
-        assignment_unit_cards = _build_assignment_unit_cards(assigns)
-        assignment_unit_progress = {
-            "completed_units": sum(1 for card in assignment_unit_cards if card.get("status") == COMPLETED_STATUS),
-            "total_units": len(assignment_unit_cards),
-        }
     elif user_assign:
         discussion_comments = [
             comment for comment in visible_comments
