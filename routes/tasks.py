@@ -951,6 +951,82 @@ def _build_assignment_unit_cards(assigns):
     return output
 
 
+def _build_assignment_role_groups(assigns):
+    role_groups = {}
+    for assignment, user in assigns or []:
+        if not user:
+            continue
+
+        role_name = ((getattr(getattr(user, "role", None), "name", None) or "").strip() or "Chưa phân vai trò")
+        role_key = remove_accents(role_name).strip().lower() or "chua-phan-vai-tro"
+        group = role_groups.setdefault(
+            role_key,
+            {
+                "role_key": role_key,
+                "role_name": role_name,
+                "units": {},
+                "status": "Chưa tiếp nhận",
+                "completed_count": 0,
+                "accepted_count": 0,
+                "total_count": 0,
+                "unit_count": 0,
+            },
+        )
+
+        unit_identity = _task_unit_identity(user)
+        unit_name = unit_identity["unit_name"]
+        unit_key = unit_identity["unit_key"] or unit_name.lower()
+        unit_card = group["units"].setdefault(
+            unit_key,
+            {
+                "unit_key": unit_key,
+                "unit_name": unit_name,
+                "status": "Chưa tiếp nhận",
+                "completed_count": 0,
+                "accepted_count": 0,
+                "total_count": 0,
+                "progress_text": "0/0",
+            },
+        )
+
+        normalized_status = _normalize_status(getattr(assignment, "status", ""))
+        unit_card["total_count"] += 1
+        group["total_count"] += 1
+        if normalized_status != "Chưa tiếp nhận":
+            unit_card["accepted_count"] += 1
+            group["accepted_count"] += 1
+        if normalized_status == COMPLETED_STATUS:
+            unit_card["completed_count"] += 1
+            group["completed_count"] += 1
+
+    output = []
+    for group in role_groups.values():
+        units = []
+        for unit_card in group["units"].values():
+            if unit_card["completed_count"] == unit_card["total_count"] and unit_card["total_count"] > 0:
+                unit_card["status"] = COMPLETED_STATUS
+            elif unit_card["accepted_count"] > 0:
+                unit_card["status"] = IN_PROGRESS_STATUS
+            else:
+                unit_card["status"] = "Chưa tiếp nhận"
+            unit_card["progress_text"] = f"{unit_card['completed_count']}/{unit_card['total_count']}"
+            units.append(unit_card)
+
+        units.sort(key=lambda item: item["unit_name"].lower())
+        group["units"] = units
+        group["unit_count"] = len(units)
+        if group["completed_count"] == group["total_count"] and group["total_count"] > 0:
+            group["status"] = COMPLETED_STATUS
+        elif group["accepted_count"] > 0:
+            group["status"] = IN_PROGRESS_STATUS
+        else:
+            group["status"] = "Chưa tiếp nhận"
+        output.append(group)
+
+    output.sort(key=lambda item: item["role_name"].lower())
+    return output
+
+
 def _task_file_root():
     task_dir = current_app.config.get("TASK_FOLDER") or os.path.join(current_app.root_path, "task_files")
     os.makedirs(task_dir, exist_ok=True)
@@ -1421,17 +1497,29 @@ def task_detail(tid):
     unit_report_cards = []
     unit_report_groups = []
     discussion_threads = []
-    assignment_unit_cards = []
+    assignment_role_groups = []
+    assignment_unit_progress = {"completed_units": 0, "total_units": 0}
     if can_manage_task_view:
         discussion_comments = [
             comment for comment in visible_comments
             if not (getattr(comment, "content", "") or "").startswith(REPORT_PREFIX)
         ]
         assignment_unit_cards = _build_assignment_unit_cards(assigns)
+        assignment_unit_progress = {
+            "completed_units": sum(1 for card in assignment_unit_cards if card.get("status") == COMPLETED_STATUS),
+            "total_units": len(assignment_unit_cards),
+        }
+        assignment_role_groups = _build_assignment_role_groups(assigns)
         unit_report_rows, unit_report_stats = _build_unit_report_summary(assigns, comments, task.deadline)
         unit_report_cards = _build_unit_report_cards(task, assigns, comments)
         unit_report_groups = _build_unit_report_groups(unit_report_cards)
         discussion_threads = [thread for thread in _build_discussion_threads(assigns, discussion_comments) if thread.get("comments")]
+    else:
+        assignment_unit_cards = _build_assignment_unit_cards(assigns)
+        assignment_unit_progress = {
+            "completed_units": sum(1 for card in assignment_unit_cards if card.get("status") == COMPLETED_STATUS),
+            "total_units": len(assignment_unit_cards),
+        }
     elif user_assign:
         discussion_comments = [
             comment for comment in visible_comments
@@ -1497,7 +1585,8 @@ def task_detail(tid):
         unit_report_stats=unit_report_stats,
         unit_report_cards=unit_report_cards,
         unit_report_groups=unit_report_groups,
-        assignment_unit_cards=assignment_unit_cards,
+        assignment_role_groups=assignment_role_groups,
+        assignment_unit_progress=assignment_unit_progress,
         can_manage_task_view=can_manage_task_view,
         limited_assignment_view=limited_assignment_view,
         report_context=report_context,

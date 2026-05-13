@@ -484,59 +484,66 @@
     .pc06-thread-form .btn {
         margin-top: 10px;
     }
-    .pc06-assignment-unit-list {
+    .pc06-assignment-role-list {
         display: grid;
         gap: 10px;
     }
-    .pc06-assignment-unit {
+    .pc06-assignment-role {
         border: 1px solid rgba(226, 232, 240, 0.92);
         border-radius: 16px;
         background: rgba(248, 250, 252, 0.78);
         overflow: hidden;
     }
-    .pc06-assignment-unit summary {
+    .pc06-assignment-role summary {
         list-style: none;
         cursor: pointer;
     }
-    .pc06-assignment-unit summary::-webkit-details-marker {
+    .pc06-assignment-role summary::-webkit-details-marker {
         display: none;
     }
-    .pc06-assignment-unit-summary {
+    .pc06-assignment-role-summary {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 12px;
         padding: 13px 14px;
     }
-    .pc06-assignment-unit-summary strong {
+    .pc06-assignment-role-summary strong {
         flex: 1;
         min-width: 0;
         color: var(--text-main, #0f172a);
         line-height: 1.45;
     }
-    .pc06-assignment-unit-summary-meta {
+    .pc06-assignment-role-summary-meta {
         display: inline-flex;
         align-items: center;
         gap: 8px;
         flex-shrink: 0;
     }
-    .pc06-assignment-unit-summary i {
+    .pc06-assignment-role-summary i {
         color: var(--text-muted, #64748b);
         transition: transform 0.2s ease;
     }
-    .pc06-assignment-unit[open] .pc06-assignment-unit-summary i {
+    .pc06-assignment-role[open] .pc06-assignment-role-summary i {
         transform: rotate(180deg);
     }
-    .pc06-assignment-unit-body {
+    .pc06-assignment-role-body {
         padding: 0 14px 14px;
         border-top: 1px solid rgba(226, 232, 240, 0.82);
     }
-    .pc06-assignment-member-list {
+    .pc06-assignment-role-summary-copy {
+        display: grid;
+        gap: 3px;
+    }
+    .pc06-assignment-role-summary-copy span {
+        color: var(--text-muted, #64748b);
+        font-size: 0.8rem;
+    }
+    .pc06-assignment-unit-list {
         display: grid;
         gap: 10px;
-        margin-top: 12px;
     }
-    .pc06-assignment-member {
+    .pc06-assignment-unit {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -546,16 +553,16 @@
         background: rgba(255, 255, 255, 0.98);
         border: 1px solid rgba(226, 232, 240, 0.88);
     }
-    .pc06-assignment-member > div:first-child {
+    .pc06-assignment-unit > div:first-child {
         flex: 1;
         min-width: 0;
     }
-    .pc06-assignment-member strong {
+    .pc06-assignment-unit strong {
         display: block;
         color: var(--text-main, #0f172a);
         font-size: 0.9rem;
     }
-    .pc06-assignment-member span {
+    .pc06-assignment-unit span {
         display: block;
         margin-top: 4px;
         color: var(--text-muted, #64748b);
@@ -605,17 +612,16 @@
                         <strong>{{ progress_percent }}%</strong>
                     </span>
                     <span class="pc06-detail-hero-pill">
-                        <i class="fa-solid fa-circle-dot"></i>
-                        <strong>{{ display_status }}</strong>
+                        <i class="fa-solid fa-list-check"></i>
+                        <strong>{{ assignment_unit_progress.completed_units }}/{{ assignment_unit_progress.total_units }} đơn vị</strong>
                     </span>
                 </div>
                 <div class="pc06-task-tags">
-                    {% if task.category %}
                     <span class="pc06-soft-tag neutral">
                         <i class="fa-solid fa-layer-group"></i>
-                        {{ task.category_display }}
+                        {{ task.category_display or 'Chưa phân lĩnh vực' }}
                     </span>
-                    {% endif %}
+                    {% if false %}
                     <span class="pc06-soft-tag">
                         <i class="fa-solid fa-users"></i>
                         {{ task.domain_display or 'Chưa phân đơn vị' }}
@@ -631,6 +637,7 @@
                         <i class="fa-solid fa-flag"></i>
                         {{ task.priority_display }}
                     </span>
+                    {% endif %}
                     {% endif %}
                 </div>
                 </div>
@@ -986,28 +993,31 @@
                         <h2>Phân công thực hiện</h2>
                     </div>
                 </div>
-                <div class="pc06-assignment-unit-list">
-                    {% for card in assignment_unit_cards %}
-                    <details class="pc06-assignment-unit">
-                        <summary class="pc06-assignment-unit-summary">
-                            <strong>{{ card.unit_name }}</strong>
-                            <div class="pc06-assignment-unit-summary-meta">
-                                <span class="pc06-status-badge {% if card.status == 'Hoàn thành' %}done{% elif card.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
-                                    {{ card.status }}
+                <div class="pc06-assignment-role-list">
+                    {% for group in assignment_role_groups %}
+                    <details class="pc06-assignment-role">
+                        <summary class="pc06-assignment-role-summary">
+                            <div class="pc06-assignment-role-summary-copy">
+                                <strong>{{ group.role_name }}</strong>
+                                <span>{{ group.unit_count }} đơn vị · {{ group.completed_count }}/{{ group.total_count }} hoàn thành</span>
+                            </div>
+                            <div class="pc06-assignment-role-summary-meta">
+                                <span class="pc06-status-badge {% if group.status == 'Hoàn thành' %}done{% elif group.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
+                                    {{ group.status }}
                                 </span>
                                 <i class="fa-solid fa-chevron-down"></i>
                             </div>
                         </summary>
-                        <div class="pc06-assignment-unit-body">
-                            <div class="pc06-assignment-member-list">
-                                {% for member in card.members %}
-                                <article class="pc06-assignment-member">
+                        <div class="pc06-assignment-role-body">
+                            <div class="pc06-assignment-unit-list">
+                                {% for unit in group.units %}
+                                <article class="pc06-assignment-unit">
                                     <div>
-                                        <strong>{{ member.name }}</strong>
-                                        <span>{{ 'Đã nộp tệp minh chứng' if member.has_file else 'Chưa nộp tệp minh chứng' }}</span>
+                                        <strong>{{ unit.unit_name }}</strong>
+                                        <span>Tiến độ {{ unit.progress_text }} · Tiếp nhận {{ unit.accepted_count }}/{{ unit.total_count }}</span>
                                     </div>
-                                    <span class="pc06-status-badge {% if member.status == 'Hoàn thành' %}done{% elif member.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
-                                        {{ member.status }}
+                                    <span class="pc06-status-badge {% if unit.status == 'Hoàn thành' %}done{% elif unit.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
+                                        {{ unit.status }}
                                     </span>
                                 </article>
                                 {% endfor %}

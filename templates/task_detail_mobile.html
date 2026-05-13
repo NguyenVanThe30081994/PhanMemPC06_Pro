@@ -1,6 +1,6 @@
-{% extends "base_mobile.html" %}
+﻿{% extends "base_mobile.html" %}
 
-{% block title %}Chi tiết công việc{% endblock %}
+{% block title %}Chi tiáº¿t cÃ´ng viá»‡c{% endblock %}
 
 {% block head %}
 <style>
@@ -86,20 +86,22 @@
     .detail-mobile-thread-bubble small { display: block; margin-top: 3px; color: var(--text-muted); font-size: 0.74rem; }
     .detail-mobile-thread-bubble p { margin: 7px 0 0; white-space: pre-line; color: var(--text-main); line-height: 1.55; font-size: 0.9rem; }
     .detail-mobile-thread-form { padding: 12px 14px 14px; border-top: 1px solid var(--border); }
-    .detail-mobile-assignment-unit { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--bg-body); }
-    .detail-mobile-assignment-unit summary { list-style: none; cursor: pointer; }
-    .detail-mobile-assignment-unit summary::-webkit-details-marker { display: none; }
+    .detail-mobile-assignment-role { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--bg-body); }
+    .detail-mobile-assignment-role summary { list-style: none; cursor: pointer; }
+    .detail-mobile-assignment-role summary::-webkit-details-marker { display: none; }
     .detail-mobile-assignment-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; }
     .detail-mobile-assignment-summary strong { flex: 1; min-width: 0; color: var(--text-main); line-height: 1.45; }
+    .detail-mobile-assignment-summary-copy { display: grid; gap: 3px; }
+    .detail-mobile-assignment-summary-copy span { color: var(--text-muted); font-size: 0.74rem; }
     .detail-mobile-assignment-summary-meta { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
     .detail-mobile-assignment-summary i { color: var(--text-muted); transition: transform 0.2s ease; }
-    .detail-mobile-assignment-unit[open] .detail-mobile-assignment-summary i { transform: rotate(180deg); }
+    .detail-mobile-assignment-role[open] .detail-mobile-assignment-summary i { transform: rotate(180deg); }
     .detail-mobile-assignment-body { padding: 0 12px 12px; border-top: 1px solid var(--border); }
-    .detail-mobile-assignment-member { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--border); }
-    .detail-mobile-assignment-member:last-child { border-bottom: 0; }
-    .detail-mobile-assignment-member > div:first-child { flex: 1; min-width: 0; }
-    .detail-mobile-assignment-member strong { display: block; color: var(--text-main); font-size: 0.84rem; }
-    .detail-mobile-assignment-member span { display: block; margin-top: 3px; color: var(--text-muted); font-size: 0.74rem; }
+    .detail-mobile-assignment-unit-list { display: grid; gap: 8px; }
+    .detail-mobile-assignment-unit { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-radius: 14px; background: var(--bg-surface); border: 1px solid var(--border); }
+    .detail-mobile-assignment-unit > div:first-child { flex: 1; min-width: 0; }
+    .detail-mobile-assignment-unit strong { display: block; color: var(--text-main); font-size: 0.84rem; }
+    .detail-mobile-assignment-unit span { display: block; margin-top: 3px; color: var(--text-muted); font-size: 0.74rem; }
     .detail-mobile-info-list { display: grid; gap: 10px; }
     .detail-mobile-info-item { padding: 12px 14px; border-radius: 16px; background: var(--bg-body); }
     .detail-mobile-info-item span { display: block; font-size: 0.76rem; color: var(--text-muted); }
@@ -108,24 +110,25 @@
 {% endblock %}
 
 {% block content %}
-{% set display_status = task.display_status or (user_assign.status if user_assign else (task.initial_status or 'Chưa tiếp nhận')) %}
+{% set display_status = task.display_status or (user_assign.status if user_assign else (task.initial_status or 'ChÆ°a tiáº¿p nháº­n')) %}
 {% set report_file_name = report_context.result_file if report_context is defined else '' %}
 <section class="detail-mobile-hero">
-    <a href="{{ url_for('tasks_bp.tasks') }}" aria-label="Quay lại danh sách" title="Quay lại danh sách"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay lại danh sách</span></a>
+    <a href="{{ url_for('tasks_bp.tasks') }}" aria-label="Quay láº¡i danh sÃ¡ch" title="Quay láº¡i danh sÃ¡ch"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay láº¡i danh sÃ¡ch</span></a>
     <h1>{{ task.title }}</h1>
-    <p>{{ task.author_name }} • {{ task.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+    <p>{{ task.author_name }} â€¢ {{ task.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
     {% if can_edit_task %}
     <div class="mt-3">
-        <button type="button" class="btn btn-mobile" style="background:rgba(255,255,255,0.16);color:#fff;border:1px solid rgba(255,255,255,0.22);" data-bs-toggle="modal" data-bs-target="#editTaskMobileModal" aria-label="Sửa công việc" title="Sửa công việc">
+        <button type="button" class="btn btn-mobile" style="background:rgba(255,255,255,0.16);color:#fff;border:1px solid rgba(255,255,255,0.22);" data-bs-toggle="modal" data-bs-target="#editTaskMobileModal" aria-label="Sá»­a cÃ´ng viá»‡c" title="Sá»­a cÃ´ng viá»‡c">
             <i class="fa-solid fa-pen-to-square"></i>
-            <span class="visually-hidden">Sửa công việc</span>
+            <span class="visually-hidden">Sá»­a cÃ´ng viá»‡c</span>
         </button>
     </div>
     {% endif %}
     <div class="detail-mobile-summary-strip">
-        <span class="detail-mobile-summary-pill">Hạn <strong>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa có' }}</strong></span>
-        <span class="detail-mobile-summary-pill">Tiến độ <strong>{{ progress_percent }}%</strong></span>
-        <span class="detail-mobile-summary-pill">Trạng thái <strong>{{ display_status }}</strong></span>
+        <span class="detail-mobile-summary-pill">Háº¡n <strong>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'ChÆ°a cÃ³' }}</strong></span>
+        <span class="detail-mobile-summary-pill">Tiáº¿n Ä‘á»™ <strong>{{ progress_percent }}%</strong></span>
+        <span class="detail-mobile-summary-pill">ÄÆ¡n vá»‹ <strong>{{ assignment_unit_progress.completed_units }}/{{ assignment_unit_progress.total_units }}</strong></span>
+        <span class="detail-mobile-summary-pill">LÄ©nh vá»±c <strong>{{ task.category_display or 'ChÆ°a phÃ¢n lÄ©nh vá»±c' }}</strong></span>
     </div>
 </section>
 
@@ -136,29 +139,29 @@
             <form action="{{ url_for('tasks_bp.edit_task', tid=task.id) }}" method="POST" enctype="multipart/form-data">
                 <div class="modal-header border-0">
                     <div>
-                        <h5 class="modal-title fw-bold mb-1">Sửa công việc</h5>
-                        <p class="mb-0 text-muted small">Chỉ cập nhật thông tin công việc, không đổi danh sách người nhận.</p>
+                        <h5 class="modal-title fw-bold mb-1">Sá»­a cÃ´ng viá»‡c</h5>
+                        <p class="mb-0 text-muted small">Chá»‰ cáº­p nháº­t thÃ´ng tin cÃ´ng viá»‡c, khÃ´ng Ä‘á»•i danh sÃ¡ch ngÆ°á»i nháº­n.</p>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body pt-0">
                     <div class="mb-3">
-                        <label class="form-label fw-bold small">Tiêu đề</label>
+                        <label class="form-label fw-bold small">TiÃªu Ä‘á»</label>
                         <input type="text" name="title" class="form-control" value="{{ task.title }}" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold small">Lĩnh vực</label>
+                        <label class="form-label fw-bold small">LÄ©nh vá»±c</label>
                         <select name="category" class="form-select">
-                            <option value="">Chọn lĩnh vực</option>
+                            <option value="">Chá»n lÄ©nh vá»±c</option>
                             {% for item in task_fields %}
                             <option value="{{ item.value }}" {% if item.value == task.category %}selected{% endif %}>{{ item.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold small">Đơn vị nghiệp vụ</label>
+                        <label class="form-label fw-bold small">ÄÆ¡n vá»‹ nghiá»‡p vá»¥</label>
                         <select name="domain" class="form-select">
-                            <option value="">Chọn đơn vị</option>
+                            <option value="">Chá»n Ä‘Æ¡n vá»‹</option>
                             {% for unit in pro_units %}
                             <option value="{{ unit.value }}" {% if unit.value == task.domain %}selected{% endif %}>{{ unit.name }}</option>
                             {% endfor %}
@@ -166,18 +169,18 @@
                     </div>
                     <div class="row g-3">
                         <div class="col-6">
-                            <label class="form-label fw-bold small">Ưu tiên</label>
+                            <label class="form-label fw-bold small">Æ¯u tiÃªn</label>
                             <select name="priority" class="form-select">
-                                <option value="">Chọn mức độ</option>
+                                <option value="">Chá»n má»©c Ä‘á»™</option>
                                 {% for item in priority_items %}
                                 <option value="{{ item.value }}" {% if item.value == task.priority %}selected{% endif %}>{{ item.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div class="col-6">
-                            <label class="form-label fw-bold small">Loại việc</label>
+                            <label class="form-label fw-bold small">Loáº¡i viá»‡c</label>
                             <select name="task_type" class="form-select">
-                                <option value="">Thường xuyên</option>
+                                <option value="">ThÆ°á»ng xuyÃªn</option>
                                 {% for item in task_types %}
                                 <option value="{{ item.value }}" {% if item.value == task.task_type %}selected{% endif %}>{{ item.name }}</option>
                                 {% endfor %}
@@ -185,39 +188,39 @@
                         </div>
                     </div>
                     <div class="mt-3">
-                        <label class="form-label fw-bold small">Hạn xử lý</label>
+                        <label class="form-label fw-bold small">Háº¡n xá»­ lÃ½</label>
                         <input type="hidden" name="deadline_type" value="custom">
                         <input type="date" name="deadline" class="form-control" value="{{ task.deadline.strftime('%Y-%m-%d') if task.deadline else '' }}">
                     </div>
                     <div class="mt-3">
-                        <label class="form-label fw-bold small">Nội dung</label>
+                        <label class="form-label fw-bold small">Ná»™i dung</label>
                         <textarea name="content" rows="4" class="form-control">{{ task.content or '' }}</textarea>
                     </div>
                     <div class="mt-3">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" name="refresh_assignments" value="1" id="refreshAssignmentsMobile">
-                            <label class="form-check-label fw-bold small" for="refreshAssignmentsMobile">Cập nhật lại luồng giao việc</label>
+                            <label class="form-check-label fw-bold small" for="refreshAssignmentsMobile">Cáº­p nháº­t láº¡i luá»“ng giao viá»‡c</label>
                         </div>
                     </div>
                     <div class="mt-3">
-                        <label class="form-label fw-bold small">Cách giao việc</label>
+                        <label class="form-label fw-bold small">CÃ¡ch giao viá»‡c</label>
                         <select name="assign_type" id="mobileEditAssignType" class="form-select">
-                            <option value="unit" {% if assignment_context.mode == 'unit' %}selected{% endif %}>Theo đơn vị</option>
-                            <option value="role" {% if assignment_context.mode == 'role' %}selected{% endif %}>Theo vai trò</option>
-                            <option value="user" {% if assignment_context.mode == 'user' %}selected{% endif %}>Theo cá nhân</option>
+                            <option value="unit" {% if assignment_context.mode == 'unit' %}selected{% endif %}>Theo Ä‘Æ¡n vá»‹</option>
+                            <option value="role" {% if assignment_context.mode == 'role' %}selected{% endif %}>Theo vai trÃ²</option>
+                            <option value="user" {% if assignment_context.mode == 'user' %}selected{% endif %}>Theo cÃ¡ nhÃ¢n</option>
                         </select>
                     </div>
                     <div class="mt-3 {% if assignment_context.mode != 'role' %}d-none{% endif %}" id="mobileEditRolePanel">
-                        <label class="form-label fw-bold small">Vai trò nhận việc</label>
+                        <label class="form-label fw-bold small">Vai trÃ² nháº­n viá»‡c</label>
                         <select name="assignee_role_id" class="form-select">
-                            <option value="">Chọn vai trò</option>
+                            <option value="">Chá»n vai trÃ²</option>
                             {% for role in roles %}
                             <option value="{{ role.id }}" {% if assignment_context.role_id == role.id %}selected{% endif %}>{{ role.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="mt-3 {% if assignment_context.mode != 'user' %}d-none{% endif %}" id="mobileEditUserPanel">
-                        <label class="form-label fw-bold small">Cán bộ nhận việc</label>
+                        <label class="form-label fw-bold small">CÃ¡n bá»™ nháº­n viá»‡c</label>
                         <select name="target_users" class="form-select" multiple size="6">
                             {% for user in users %}
                             <option value="{{ user.id }}" {% if user.id in assignment_context.user_ids %}selected{% endif %}>{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</option>
@@ -225,18 +228,18 @@
                         </select>
                     </div>
                     <div class="mt-3">
-                        <label class="form-label fw-bold small">Tệp đính kèm mới</label>
+                        <label class="form-label fw-bold small">Tá»‡p Ä‘Ã­nh kÃ¨m má»›i</label>
                         <input type="file" name="task_file" class="form-control">
                         {% if task.file_path %}
-                        <div class="form-text">Đang dùng tệp: {{ task.file_path }}</div>
+                        <div class="form-text">Äang dÃ¹ng tá»‡p: {{ task.file_path }}</div>
                         {% endif %}
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal" aria-label="Đóng" title="Đóng"><i class="fa-solid fa-xmark"></i><span class="visually-hidden">Đóng</span></button>
-                    <button type="submit" class="btn btn-mobile btn-mobile-primary" aria-label="Lưu thay đổi" title="Lưu thay đổi">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal" aria-label="ÄÃ³ng" title="ÄÃ³ng"><i class="fa-solid fa-xmark"></i><span class="visually-hidden">ÄÃ³ng</span></button>
+                    <button type="submit" class="btn btn-mobile btn-mobile-primary" aria-label="LÆ°u thay Ä‘á»•i" title="LÆ°u thay Ä‘á»•i">
                         <i class="fa-solid fa-floppy-disk"></i>
-                        <span class="visually-hidden">Lưu thay đổi</span>
+                        <span class="visually-hidden">LÆ°u thay Ä‘á»•i</span>
                     </button>
                 </div>
             </form>
@@ -247,51 +250,51 @@
 
 {% if user_assign %}
 <section class="detail-mobile-card">
-    <h2>Trạng thái của bạn</h2>
-    <div class="detail-mobile-status {% if user_assign.status == 'Hoàn thành' %}done{% elif user_assign.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">{{ user_assign.status }}</div>
-    {% if user_assign.status in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+    <h2>Tráº¡ng thÃ¡i cá»§a báº¡n</h2>
+    <div class="detail-mobile-status {% if user_assign.status == 'HoÃ n thÃ nh' %}done{% elif user_assign.status == 'Äang thá»±c hiá»‡n' %}doing{% else %}todo{% endif %}">{{ user_assign.status }}</div>
+    {% if user_assign.status in ['ChÆ°a tiáº¿p nháº­n', 'ChÆ°a báº¯t Ä‘áº§u'] %}
     <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST">
         <input type="hidden" name="action" value="accept">
-        <button type="submit" class="btn btn-mobile btn-mobile-primary" aria-label="Tiếp nhận công việc" title="Tiếp nhận công việc"><i class="fa-solid fa-hand-point-right"></i><span class="visually-hidden">Tiếp nhận công việc</span></button>
+        <button type="submit" class="btn btn-mobile btn-mobile-primary" aria-label="Tiáº¿p nháº­n cÃ´ng viá»‡c" title="Tiáº¿p nháº­n cÃ´ng viá»‡c"><i class="fa-solid fa-hand-point-right"></i><span class="visually-hidden">Tiáº¿p nháº­n cÃ´ng viá»‡c</span></button>
     </form>
     {% endif %}
 </section>
 {% endif %}
 
 <section class="detail-mobile-card">
-    <h2>Nội dung công việc</h2>
-    <div class="detail-mobile-body">{{ task.content or 'Chưa có mô tả chi tiết.' }}</div>
+    <h2>Ná»™i dung cÃ´ng viá»‡c</h2>
+    <div class="detail-mobile-body">{{ task.content or 'ChÆ°a cÃ³ mÃ´ táº£ chi tiáº¿t.' }}</div>
     {% if task.file_path %}
     <div class="detail-mobile-file">
         <div class="detail-mobile-badge"><i class="fa-solid fa-paperclip"></i></div>
         <div class="detail-mobile-assignee-copy">
             <strong>{{ task.file_path }}</strong>
-            <span>Tệp đính kèm từ người giao việc</span>
+            <span>Tá»‡p Ä‘Ã­nh kÃ¨m tá»« ngÆ°á»i giao viá»‡c</span>
         </div>
-        <a href="{{ url_for('dl_file', fn=task.file_path) }}" class="btn btn-sm btn-outline-primary rounded-pill" aria-label="Tải tệp" title="Tải tệp"><i class="fa-solid fa-download"></i><span class="visually-hidden">Tải tệp</span></a>
+        <a href="{{ url_for('dl_file', fn=task.file_path) }}" class="btn btn-sm btn-outline-primary rounded-pill" aria-label="Táº£i tá»‡p" title="Táº£i tá»‡p"><i class="fa-solid fa-download"></i><span class="visually-hidden">Táº£i tá»‡p</span></a>
     </div>
     {% endif %}
 </section>
 
 {% if limited_assignment_view %}
 <section class="detail-mobile-card">
-    <h2>Thông tin báo cáo</h2>
+    <h2>ThÃ´ng tin bÃ¡o cÃ¡o</h2>
     <div class="detail-mobile-info-list">
-        <div class="detail-mobile-info-item"><span>Người giao</span><strong>{{ task.author_name }}</strong></div>
-        <div class="detail-mobile-info-item"><span>Đơn vị nghiệp vụ</span><strong>{{ task.domain_display or 'Chưa phân đơn vị' }}</strong></div>
-        <div class="detail-mobile-info-item"><span>Hạn xử lý</span><strong>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa có' }}</strong></div>
-        <div class="detail-mobile-info-item"><span>Trạng thái báo cáo</span><strong>{{ report_context.status }}</strong></div>
+        <div class="detail-mobile-info-item"><span>NgÆ°á»i giao</span><strong>{{ task.author_name }}</strong></div>
+        <div class="detail-mobile-info-item"><span>ÄÆ¡n vá»‹ nghiá»‡p vá»¥</span><strong>{{ task.domain_display or 'ChÆ°a phÃ¢n Ä‘Æ¡n vá»‹' }}</strong></div>
+        <div class="detail-mobile-info-item"><span>Háº¡n xá»­ lÃ½</span><strong>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'ChÆ°a cÃ³' }}</strong></div>
+        <div class="detail-mobile-info-item"><span>Tráº¡ng thÃ¡i bÃ¡o cÃ¡o</span><strong>{{ report_context.status }}</strong></div>
         <div class="detail-mobile-info-item">
-            <span>Tệp minh chứng đã nộp</span>
-            <strong>{{ report_file_name or 'Chưa tải lên' }}</strong>
+            <span>Tá»‡p minh chá»©ng Ä‘Ã£ ná»™p</span>
+            <strong>{{ report_file_name or 'ChÆ°a táº£i lÃªn' }}</strong>
             {% if report_file_name and user_assign %}
-            <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=user_assign.user_id) }}" class="btn btn-sm btn-outline-primary rounded-pill mt-2" aria-label="Tải tệp đã nộp" title="Tải tệp đã nộp">
+            <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=user_assign.user_id) }}" class="btn btn-sm btn-outline-primary rounded-pill mt-2" aria-label="Táº£i tá»‡p Ä‘Ã£ ná»™p" title="Táº£i tá»‡p Ä‘Ã£ ná»™p">
                 <i class="fa-solid fa-download"></i>
-                <span>Tải tệp</span>
+                <span>Táº£i tá»‡p</span>
             </a>
             {% endif %}
         </div>
-        <div class="detail-mobile-info-item"><span>Lần báo cáo gần nhất</span><strong>{{ report_context.latest_report_at.strftime('%d/%m/%Y %H:%M') if report_context.latest_report_at else 'Chưa gửi báo cáo' }}</strong></div>
+        <div class="detail-mobile-info-item"><span>Láº§n bÃ¡o cÃ¡o gáº§n nháº¥t</span><strong>{{ report_context.latest_report_at.strftime('%d/%m/%Y %H:%M') if report_context.latest_report_at else 'ChÆ°a gá»­i bÃ¡o cÃ¡o' }}</strong></div>
     </div>
 </section>
 {% endif %}
@@ -300,34 +303,34 @@
 <section class="detail-mobile-card">
     <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
         <div>
-            <h2>Báo cáo đơn vị</h2>
+            <h2>BÃ¡o cÃ¡o Ä‘Æ¡n vá»‹</h2>
         </div>
-        <a href="{{ url_for('tasks_bp.export_task_unit_report', tid=task.id) }}" class="btn btn-sm btn-outline-success rounded-pill" aria-label="Xuất Excel" title="Xuất Excel">
+        <a href="{{ url_for('tasks_bp.export_task_unit_report', tid=task.id) }}" class="btn btn-sm btn-outline-success rounded-pill" aria-label="Xuáº¥t Excel" title="Xuáº¥t Excel">
             <i class="fa-solid fa-file-excel"></i>
         </a>
     </div>
     <div class="detail-mobile-report-guidance">
-        Đi từ tổng quan đến chi tiết: xem số đơn vị theo từng trạng thái trước, sau đó mở nhóm và mở từng đơn vị khi cần kiểm tra sâu.
+        Äi tá»« tá»•ng quan Ä‘áº¿n chi tiáº¿t: xem sá»‘ Ä‘Æ¡n vá»‹ theo tá»«ng tráº¡ng thÃ¡i trÆ°á»›c, sau Ä‘Ã³ má»Ÿ nhÃ³m vÃ  má»Ÿ tá»«ng Ä‘Æ¡n vá»‹ khi cáº§n kiá»ƒm tra sÃ¢u.
     </div>
     <div class="detail-mobile-unit-stats">
         <article class="detail-mobile-unit-cluster">
             <div class="detail-mobile-unit-cluster-head">
-                <strong>Tiến độ báo cáo</strong>
-                <span>Tổng {{ unit_report_stats.total_units }} đơn vị</span>
+                <strong>Tiáº¿n Ä‘á»™ bÃ¡o cÃ¡o</strong>
+                <span>Tá»•ng {{ unit_report_stats.total_units }} Ä‘Æ¡n vá»‹</span>
             </div>
             <div class="detail-mobile-unit-cluster-grid">
-                <div class="detail-mobile-unit-stat"><span>Đã báo cáo</span><strong>{{ unit_report_stats.reported_units }}</strong></div>
-                <div class="detail-mobile-unit-stat"><span>Chưa báo cáo</span><strong>{{ unit_report_stats.unreported_units }}</strong></div>
+                <div class="detail-mobile-unit-stat"><span>ÄÃ£ bÃ¡o cÃ¡o</span><strong>{{ unit_report_stats.reported_units }}</strong></div>
+                <div class="detail-mobile-unit-stat"><span>ChÆ°a bÃ¡o cÃ¡o</span><strong>{{ unit_report_stats.unreported_units }}</strong></div>
             </div>
         </article>
         <article class="detail-mobile-unit-cluster">
             <div class="detail-mobile-unit-cluster-head">
-                <strong>Chất lượng thời hạn</strong>
-                <span>Theo hạn xử lý</span>
+                <strong>Cháº¥t lÆ°á»£ng thá»i háº¡n</strong>
+                <span>Theo háº¡n xá»­ lÃ½</span>
             </div>
             <div class="detail-mobile-unit-cluster-grid">
-                <div class="detail-mobile-unit-stat"><span>Đúng hạn</span><strong>{{ unit_report_stats.on_time_units }}</strong></div>
-                <div class="detail-mobile-unit-stat"><span>Quá hạn</span><strong>{{ unit_report_stats.overdue_units }}</strong></div>
+                <div class="detail-mobile-unit-stat"><span>ÄÃºng háº¡n</span><strong>{{ unit_report_stats.on_time_units }}</strong></div>
+                <div class="detail-mobile-unit-stat"><span>QuÃ¡ háº¡n</span><strong>{{ unit_report_stats.overdue_units }}</strong></div>
             </div>
         </article>
     </div>
@@ -338,7 +341,7 @@
                 <div>
                     <span>{{ group.label }}</span>
                     <strong>{{ group.count }}</strong>
-                    <span>Bấm để xem đơn vị</span>
+                    <span>Báº¥m Ä‘á»ƒ xem Ä‘Æ¡n vá»‹</span>
                 </div>
                 <i class="fa-solid fa-chevron-down detail-mobile-report-caret"></i>
             </summary>
@@ -350,43 +353,43 @@
                         <summary class="detail-mobile-report-item-summary">
                             <div class="detail-mobile-report-copy">
                                 <strong>{{ card.unit_name }}</strong>
-                                <div class="detail-mobile-report-fileline" title="{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp đính kèm' }}">
+                                <div class="detail-mobile-report-fileline" title="{{ primary_attachment.file_name if primary_attachment else 'ChÆ°a cÃ³ tá»‡p Ä‘Ã­nh kÃ¨m' }}">
                                     <i class="fa-solid fa-paperclip"></i>
-                                    <span>{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp đính kèm' }}</span>
+                                    <span>{{ primary_attachment.file_name if primary_attachment else 'ChÆ°a cÃ³ tá»‡p Ä‘Ã­nh kÃ¨m' }}</span>
                                 </div>
                             </div>
                             <div class="detail-mobile-report-actions">
                                 {% if primary_attachment %}
-                                <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=primary_attachment.user_id) }}" class="detail-mobile-report-download" title="Tải tệp" onclick="event.stopPropagation();">
+                                <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=primary_attachment.user_id) }}" class="detail-mobile-report-download" title="Táº£i tá»‡p" onclick="event.stopPropagation();">
                                     <i class="fa-solid fa-download"></i>
                                 </a>
                                 {% endif %}
-                                <span class="detail-mobile-report-eye" title="Xem chi tiết">
+                                <span class="detail-mobile-report-eye" title="Xem chi tiáº¿t">
                                     <i class="fa-regular fa-eye"></i>
                                 </span>
                             </div>
                         </summary>
                         <div class="detail-mobile-report-item-body">
                             <div class="detail-mobile-report-meta">
-                                <div><i class="fa-regular fa-user"></i>{{ card.latest_report_user_name or 'Chưa có người gửi' }}</div>
-                                <div><i class="fa-regular fa-clock"></i>{{ card.latest_report_at.strftime('%d/%m/%Y %H:%M') if card.latest_report_at else 'Chưa có thời điểm báo cáo' }}</div>
+                                <div><i class="fa-regular fa-user"></i>{{ card.latest_report_user_name or 'ChÆ°a cÃ³ ngÆ°á»i gá»­i' }}</div>
+                                <div><i class="fa-regular fa-clock"></i>{{ card.latest_report_at.strftime('%d/%m/%Y %H:%M') if card.latest_report_at else 'ChÆ°a cÃ³ thá»i Ä‘iá»ƒm bÃ¡o cÃ¡o' }}</div>
                             </div>
                             {% if card.latest_report_excerpt_preview %}
                             <div class="detail-mobile-report-excerpt">{{ card.latest_report_excerpt_preview }}</div>
                             {% else %}
-                            <div class="detail-mobile-report-excerpt text-muted">Đơn vị đã gửi báo cáo nhưng chưa nhập nội dung chi tiết.</div>
+                            <div class="detail-mobile-report-excerpt text-muted">ÄÆ¡n vá»‹ Ä‘Ã£ gá»­i bÃ¡o cÃ¡o nhÆ°ng chÆ°a nháº­p ná»™i dung chi tiáº¿t.</div>
                             {% endif %}
                         </div>
                     </details>
                     {% else %}
-                    <div class="text-muted small">Nhóm này hiện chưa có đơn vị phù hợp.</div>
+                    <div class="text-muted small">NhÃ³m nÃ y hiá»‡n chÆ°a cÃ³ Ä‘Æ¡n vá»‹ phÃ¹ há»£p.</div>
                     {% endfor %}
                 {% else %}
                     <div class="detail-mobile-report-name-list">
                         {% for card in group.cards %}
                         <div class="detail-mobile-report-name-item">{{ card.unit_name }}</div>
                         {% else %}
-                        <div class="text-muted small">Nhóm này hiện chưa có đơn vị phù hợp.</div>
+                        <div class="text-muted small">NhÃ³m nÃ y hiá»‡n chÆ°a cÃ³ Ä‘Æ¡n vá»‹ phÃ¹ há»£p.</div>
                         {% endfor %}
                     </div>
                 {% endif %}
@@ -397,34 +400,34 @@
 </section>
 {% endif %}
 
-{% if user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+{% if user_assign and user_assign.status not in ['ChÆ°a tiáº¿p nháº­n', 'ChÆ°a báº¯t Ä‘áº§u'] %}
 <section class="detail-mobile-card" id="report-section">
-    <h2>Báo cáo kết quả</h2>
+    <h2>BÃ¡o cÃ¡o káº¿t quáº£</h2>
     <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data">
-        <div class="mb-3"><textarea name="report_content" rows="4" class="form-control" placeholder="Nội dung báo cáo" required></textarea></div>
+        <div class="mb-3"><textarea name="report_content" rows="4" class="form-control" placeholder="Ná»™i dung bÃ¡o cÃ¡o" required></textarea></div>
         <div class="mb-3"><input type="file" name="report_file" class="form-control"></div>
         <label class="form-check mb-3">
             <input class="form-check-input" type="checkbox" name="mark_completed" value="1">
-            <span class="form-check-label">Đánh dấu hoàn thành</span>
+            <span class="form-check-label">ÄÃ¡nh dáº¥u hoÃ n thÃ nh</span>
         </label>
-        <button type="submit" class="btn btn-mobile btn-mobile-primary" aria-label="Gửi báo cáo" title="Gửi báo cáo"><i class="fa-solid fa-paper-plane"></i><span class="visually-hidden">Gửi báo cáo</span></button>
+        <button type="submit" class="btn btn-mobile btn-mobile-primary" aria-label="Gá»­i bÃ¡o cÃ¡o" title="Gá»­i bÃ¡o cÃ¡o"><i class="fa-solid fa-paper-plane"></i><span class="visually-hidden">Gá»­i bÃ¡o cÃ¡o</span></button>
     </form>
 </section>
 {% endif %}
 
 <section class="detail-mobile-card">
-    <h2>Trao đổi</h2>
+    <h2>Trao Ä‘á»•i</h2>
     <div class="detail-mobile-stack">
         {% for thread in discussion_threads %}
         <details class="detail-mobile-thread-card">
             <summary class="detail-mobile-thread-head">
                 <div>
                     <strong>{{ thread.unit_name }}</strong>
-                    <span>{{ thread.comment_count }} phản hồi · {{ thread.latest_comment_at.strftime('%d/%m/%Y %H:%M') if thread.latest_comment_at else 'Chưa có thời gian phản hồi' }}</span>
+                    <span>{{ thread.comment_count }} pháº£n há»“i Â· {{ thread.latest_comment_at.strftime('%d/%m/%Y %H:%M') if thread.latest_comment_at else 'ChÆ°a cÃ³ thá»i gian pháº£n há»“i' }}</span>
                     <small>{{ thread.latest_comment_user_name }}{% if thread.latest_comment_preview %}: {{ thread.latest_comment_preview }}{% endif %}</small>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <div class="detail-mobile-thread-badge">{{ thread.comment_count }} phản hồi</div>
+                    <div class="detail-mobile-thread-badge">{{ thread.comment_count }} pháº£n há»“i</div>
                     <i class="fa-solid fa-chevron-down detail-mobile-thread-caret"></i>
                 </div>
             </summary>
@@ -440,43 +443,48 @@
             </div>
             <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST" class="detail-mobile-thread-form">
                 <input type="hidden" name="assignee_id" value="{{ thread.primary_assignee_id }}">
-                <textarea name="content" rows="3" class="form-control" placeholder="Nhập phản hồi cho {{ thread.unit_name }}" required></textarea>
-                <button type="submit" class="btn btn-mobile btn-mobile-primary mt-3" aria-label="Gửi phản hồi" title="Gửi phản hồi"><i class="fa-solid fa-reply"></i><span class="visually-hidden">Gửi phản hồi</span></button>
+                <textarea name="content" rows="3" class="form-control" placeholder="Nháº­p pháº£n há»“i cho {{ thread.unit_name }}" required></textarea>
+                <button type="submit" class="btn btn-mobile btn-mobile-primary mt-3" aria-label="Gá»­i pháº£n há»“i" title="Gá»­i pháº£n há»“i"><i class="fa-solid fa-reply"></i><span class="visually-hidden">Gá»­i pháº£n há»“i</span></button>
             </form>
         </details>
         {% else %}
-        <div class="text-muted small">{{ 'Phản hồi sẽ được nhóm thành từng ô chat theo đơn vị khi bắt đầu trao đổi.' if can_manage_task_view else 'Ô chat của đơn vị sẽ hiển thị tại đây khi có trao đổi.' }}</div>
+        <div class="text-muted small">{{ 'Pháº£n há»“i sáº½ Ä‘Æ°á»£c nhÃ³m thÃ nh tá»«ng Ã´ chat theo Ä‘Æ¡n vá»‹ khi báº¯t Ä‘áº§u trao Ä‘á»•i.' if can_manage_task_view else 'Ã” chat cá»§a Ä‘Æ¡n vá»‹ sáº½ hiá»ƒn thá»‹ táº¡i Ä‘Ã¢y khi cÃ³ trao Ä‘á»•i.' }}</div>
         {% endfor %}
     </div>
 </section>
 
 {% if can_manage_task_view %}
 <section class="detail-mobile-card">
-    <h2>Người thực hiện</h2>
+    <h2>NgÆ°á»i thá»±c hiá»‡n</h2>
     <div class="detail-mobile-stack">
-        {% for card in assignment_unit_cards %}
-        <details class="detail-mobile-assignment-unit">
+        {% for group in assignment_role_groups %}
+        <details class="detail-mobile-assignment-role">
             <summary class="detail-mobile-assignment-summary">
-                <strong>{{ card.unit_name }}</strong>
+                <div class="detail-mobile-assignment-summary-copy">
+                    <strong>{{ group.role_name }}</strong>
+                    <span>{{ group.unit_count }} Ä‘Æ¡n vá»‹ Â· {{ group.completed_count }}/{{ group.total_count }} hoÃ n thÃ nh</span>
+                </div>
                 <div class="detail-mobile-assignment-summary-meta">
-                    <div class="detail-mobile-status {% if card.status == 'Hoàn thành' %}done{% elif card.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}" style="margin-bottom:0;">{{ card.status }}</div>
+                    <div class="detail-mobile-status {% if group.status == 'HoÃ n thÃ nh' %}done{% elif group.status == 'Äang thá»±c hiá»‡n' %}doing{% else %}todo{% endif %}" style="margin-bottom:0;">{{ group.status }}</div>
                     <i class="fa-solid fa-chevron-down"></i>
                 </div>
             </summary>
             <div class="detail-mobile-assignment-body">
-                {% for member in card.members %}
-                <article class="detail-mobile-assignment-member">
+                <div class="detail-mobile-assignment-unit-list">
+                {% for unit in group.units %}
+                <article class="detail-mobile-assignment-unit">
                     <div>
-                        <strong>{{ member.name }}</strong>
-                        <span>{{ 'Đã nộp tệp minh chứng' if member.has_file else 'Chưa nộp tệp minh chứng' }}</span>
+                        <strong>{{ unit.unit_name }}</strong>
+                        <span>Tiáº¿n Ä‘á»™ {{ unit.progress_text }} Â· Tiáº¿p nháº­n {{ unit.accepted_count }}/{{ unit.total_count }}</span>
                     </div>
-                    <div class="detail-mobile-status {% if member.status == 'Hoàn thành' %}done{% elif member.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}" style="margin-bottom:0;">{{ member.status }}</div>
+                    <div class="detail-mobile-status {% if unit.status == 'HoÃ n thÃ nh' %}done{% elif unit.status == 'Äang thá»±c hiá»‡n' %}doing{% else %}todo{% endif %}" style="margin-bottom:0;">{{ unit.status }}</div>
                 </article>
                 {% endfor %}
+                </div>
             </div>
         </details>
         {% else %}
-        <div class="text-muted small">Chưa có người nhận việc.</div>
+        <div class="text-muted small">ChÆ°a cÃ³ ngÆ°á»i nháº­n viá»‡c.</div>
         {% endfor %}
     </div>
 </section>
@@ -497,3 +505,6 @@
     syncMobileEditAssignType();
 </script>
 {% endblock %}
+
+
+
