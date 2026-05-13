@@ -2539,7 +2539,6 @@ def admin_dashboard():
         cycle_progress_map=cycle_progress_map,
     )
 
-    setattr(template, "professional_unit_display", _template_professional_unit(template))
     return render_template(
         "reporting_dashboard.html",
         templates=templates,
@@ -3071,6 +3070,7 @@ def delete_template(template_id):
     template = db.session.get(ReportTemplate, template_id)
     if not template:
         return "Not Found", 404
+    template_name = template.name
 
     versions = ReportTemplateVersion.query.filter_by(template_id=template.id).all()
     version_ids = [version.id for version in versions]
@@ -3078,6 +3078,15 @@ def delete_template(template_id):
         cycles = ReportCycle.query.filter(ReportCycle.template_version_id.in_(version_ids)).all()
         for cycle in cycles:
             _purge_cycle(cycle)
+
+    # Defensive cleanup for legacy/live schemas that still retain direct
+    # foreign-key references to the template outside the cycle/version chain.
+    orphan_submissions = ReportSubmission.query.filter_by(template_id=template.id).all()
+    for submission in orphan_submissions:
+        if db.session.get(ReportSubmission, submission.id):
+            _purge_submission(submission)
+
+    ReportInstance.query.filter_by(template_id=template.id).delete(synchronize_session=False)
     ReportingPeriod.query.filter_by(template_id=template.id).delete(synchronize_session=False)
 
     for version in versions:
@@ -3096,7 +3105,7 @@ def delete_template(template_id):
             pass
     db.session.delete(template)
     db.session.commit()
-    _audit("delete_template", "report_template", template_id, template.name)
+    _audit("delete_template", "report_template", template_id, template_name)
     flash("Đã xóa mẫu báo cáo.", "success")
     return redirect(url_for("reporting_bp.admin_dashboard"))
 
