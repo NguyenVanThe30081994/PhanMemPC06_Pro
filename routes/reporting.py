@@ -7,7 +7,7 @@ from datetime import date, datetime, time, timedelta
 from openpyxl import load_workbook
 from openpyxl.utils import column_index_from_string
 from flask import Blueprint, current_app, flash, g, jsonify, redirect, request, session, send_file, url_for
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, text
 from werkzeug.utils import secure_filename
 
 from models import (
@@ -1783,6 +1783,40 @@ def _purge_submission(submission):
     db.session.delete(submission)
 
 
+def _cleanup_sqlite_fk_rows(target_table, target_ids):
+    ids = [int(item) for item in set(target_ids or []) if item]
+    if not ids:
+        return
+    bind = db.session.get_bind()
+    if not bind or bind.dialect.name != "sqlite":
+        return
+    try:
+        table_rows = db.session.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+        ).fetchall()
+    except Exception:
+        return
+
+    id_list_sql = ", ".join(str(item) for item in ids)
+    for row in table_rows:
+        table_name = row[0] if isinstance(row, (tuple, list)) else row.name
+        if table_name == target_table:
+            continue
+        try:
+            fk_rows = db.session.execute(text(f'PRAGMA foreign_key_list("{table_name}")')).fetchall()
+        except Exception:
+            continue
+        for fk in fk_rows:
+            ref_table = fk[2]
+            from_col = fk[3]
+            to_col = fk[4]
+            if ref_table == target_table and to_col == "id" and from_col:
+                db.session.execute(
+                    text(f'DELETE FROM "{table_name}" WHERE "{from_col}" IN ({id_list_sql})')
+                )
+                break
+
+
 def _refresh_instance_status(instance):
     latest = _latest_submission(instance.id)
     if latest:
@@ -3097,13 +3131,17 @@ def delete_template(template_id):
                 pass
         ReportTemplateField.query.filter_by(version_id=version.id).delete(synchronize_session=False)
         ReportTemplateSheet.query.filter_by(version_id=version.id).delete(synchronize_session=False)
-        db.session.delete(version)
+    if version_ids:
+        _cleanup_sqlite_fk_rows("report_template_version", version_ids)
+        ReportTemplateVersion.query.filter(ReportTemplateVersion.id.in_(version_ids)).delete(synchronize_session=False)
+        db.session.flush()
     if template.directive_path and os.path.exists(template.directive_path):
         try:
             os.remove(template.directive_path)
         except Exception:
             pass
-    db.session.delete(template)
+    _cleanup_sqlite_fk_rows("report_template", [template.id])
+    ReportTemplate.query.filter_by(id=template.id).delete(synchronize_session=False)
     db.session.commit()
     _audit("delete_template", "report_template", template_id, template_name)
     flash("Đã xóa mẫu báo cáo.", "success")
