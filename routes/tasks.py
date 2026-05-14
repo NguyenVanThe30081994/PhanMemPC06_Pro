@@ -43,6 +43,21 @@ COMPLETED_STATUS = "Hoàn thành"
 REPORT_PREFIX = "[BÁO CÁO]"
 REPORT_ATTACHMENT_RE = re.compile(r"\s*\(Đính kèm:\s*([^)]+)\)\s*$")
 
+DA06_TASK_MARKERS = ("bao cao de an 06 thang", "bao cao de an06 thang", "bao cao da06 thang")
+DA06_TCT_ROLE_MARKERS = ("to cong tac cap xa",)
+DA06_TTPVHCC_USERNAME = "ttpvhcctq"
+DA06_SO_NGANH_RULES = [
+    {"unit_markers": ("bao hiem xa hoi", "bhxh"), "label": "Lĩnh vực Bảo hiểm xã hội", "dvc_titles": ["Giải quyết hưởng trợ cấp thất nghiệp", "Đăng ký tham gia đóng bảo hiểm xã hội tự nguyện", "Đăng ký đóng, cấp thẻ bảo hiểm y tế", "Giải quyết hưởng bảo hiểm xã hội một lần", "Giải quyết hưởng chế độ ốm đau, thai sản, trợ cấp dưỡng sức phục hồi sức khỏe"]},
+    {"unit_markers": ("thue",), "label": "Lĩnh vực Thuế", "dvc_titles": ["Đăng ký thuế lần đầu, đăng ký thay đổi thông tin đăng ký thuế đối với người nộp thuế là hộ gia đình, cá nhân", "Thanh toán nghĩa vụ tài chính trong thực hiện thủ tục hành chính về đất đai đối với hộ gia đình, cá nhân", "Thanh toán nghĩa vụ tài chính trong thực hiện thủ tục hành chính về đất đai đối với doanh nghiệp", "Nộp thuế, lệ phí trước bạ đối với doanh nghiệp", "Liên thông các thủ tục Đăng ký thành lập hợp tác xã/liên hiệp hợp tác xã và đăng ký thuế", "Nhóm thủ tục Đăng ký thành lập hộ kinh doanh và Đăng ký thuế", "Thanh toán trực tuyến nghĩa vụ tài chính nộp thuế, lệ phí trước bạ đối với hợp tác xã, doanh nghiệp trong thực hiện thủ tục hành chính về đất đai"]},
+    {"unit_markers": ("tu phap",), "label": "Lĩnh vực Tư pháp", "dvc_titles": ["Đăng ký khai sinh", "Đăng ký khai tử", "Đăng ký kết hôn", "Liên thông đăng ký khai sinh đăng ký thường trú - cấp thẻ bảo hiểm y tế cho trẻ dưới 6 tuổi", "Liên thông đăng ký khai tử - Xóa đăng ký thường trú - Trợ cấp mai táng phí", "Nhóm thủ tục cấp Giấy xác nhận tình trạng hôn nhân và Đăng ký kết hôn", "Nhóm thủ tục thay đổi, cải chính, bổ sung thông tin hộ tịch - Điều chỉnh thông tin về cư trú trong Cơ sở dữ liệu về cư trú - Cấp lại thẻ Căn cước công dân / Đổi thẻ Căn cước công dân"]},
+    {"unit_markers": ("giao duc", "dao tao"), "label": "Lĩnh vực Giáo dục và Đào tạo", "dvc_titles": ["Đăng kí dự thi tốt nghiệp THPT quốc gia và xét tuyển đại học, cao đẳng", "Công nhận bằng tốt nghiệp trung học cơ sở, bằng tốt nghiệp trung học phổ thông, giấy chứng nhận hoàn thành chương trình giáo dục phổ thông do cơ sở giáo dục nước ngoài cấp để sử dụng tại Việt Nam"]},
+    {"unit_markers": ("nong nghiep", "moi truong", "tai nguyen"), "label": "Lĩnh vực Nông nghiệp và Môi trường", "dvc_titles": ["Đăng ký biến động đối với trường hợp đổi tên hoặc thay đổi thông tin về người sử dụng đất", "Đăng ký biến động quyền sử dụng đất, quyền sở hữu tài sản gắn liền với đất trong các trường hợp chuyển đổi, chuyển nhượng, cho thuê, cho thuê lại, thừa kế, tặng cho, góp vốn bằng quyền sử dụng đất"]},
+    {"unit_markers": ("cong thuong", "dien luc"), "label": "Lĩnh vực Công Thương", "dvc_titles": ["Cấp điện mới từ lưới điện hạ áp (220/380V)", "Mở rộng việc kết nối, chia sẻ dữ liệu dân cư của Cơ sở dữ liệu quốc gia về dân cư để thực hiện các dịch vụ cung cấp điện còn lại", "Thay đổi chủ thể hợp đồng mua bán điện", "Kết nối, chia sẻ dữ liệu doanh nghiệp của Cơ sở dữ liệu quốc gia về đăng ký doanh nghiệp để thực hiện các dịch vụ cung cấp điện cho doanh nghiệp"]},
+    {"unit_markers": ("noi vu",), "label": "Lĩnh vực Nội vụ", "dvc_titles": ["Thăm viếng mộ liệt sĩ"]},
+    {"unit_markers": ("toa an",), "label": "Lĩnh vực Tòa án", "dvc_titles": ["Thu, nộp tạm ứng án phí, lệ phí tòa án"]},
+    {"unit_markers": ("y te",), "label": "Lĩnh vực Y tế", "dvc_titles": []},
+]
+
 
 def _task_domain_options():
     return module_category_options("tasks", "domain", "Đội nghiệp vụ")
@@ -1027,6 +1042,116 @@ def _build_assignment_role_groups(assigns):
     return output
 
 
+def _is_da06_month_task(task):
+    text = remove_accents(f"{getattr(task, 'title', '')} {getattr(task, 'content', '')}").strip().lower()
+    return any(marker in text for marker in DA06_TASK_MARKERS)
+
+
+def _normalized_text(value):
+    return remove_accents(value or "").strip().lower()
+
+
+def _da06_user_profile(user):
+    username = (getattr(user, "username", None) or "").strip().lower()
+    role_name = _normalized_text(getattr(getattr(user, "role", None), "name", None) or "")
+    unit_name = _normalized_text(getattr(user, "unit_area_display", None) or getattr(user, "unit_area", None) or "")
+    if username == DA06_TTPVHCC_USERNAME:
+        return {"kind": "tthcc", "label": "Trung tâm Phục vụ hành chính công"}
+    if any(marker in role_name for marker in DA06_TCT_ROLE_MARKERS):
+        return {"kind": "tct_xa", "label": "Tổ công tác cấp xã"}
+    for rule in DA06_SO_NGANH_RULES:
+        if any(marker in unit_name for marker in rule["unit_markers"]):
+            return {"kind": "so_nganh", "label": rule["label"], "rule": rule}
+    return {"kind": "so_nganh", "label": "Sở, ban, ngành", "rule": None}
+
+
+def _parse_assignment_payload(assignment):
+    raw_payload = getattr(assignment, "report_payload_json", None) or ""
+    if not raw_payload:
+        return {}
+    try:
+        payload = json.loads(raw_payload)
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _save_task_attachment(file_storage, task_id, user_id, label):
+    if not file_storage or not getattr(file_storage, "filename", ""):
+        return None
+    original_name = secure_filename(file_storage.filename)
+    if not original_name:
+        return None
+    base_name, ext = os.path.splitext(original_name)
+    attachment_name = secure_filename(
+        f"da06_{task_id}_{user_id}_{secure_filename(remove_accents(label or 'tep').replace(' ', '_'))}_{datetime.now().strftime('%Y%m%d%H%M%S')}{ext}"
+    )
+    file_storage.save(_task_file_path(attachment_name))
+    return attachment_name
+
+
+def _da06_tct_sections(payload):
+    attachments = payload.get("attachments", {}) if isinstance(payload.get("attachments"), dict) else {}
+    return [
+        {"key": "tuyen_truyen_total", "label": "Tổng số lượt tuyên truyền", "type": "number", "value": payload.get("tuyen_truyen_total", "")},
+        {"key": "tuyen_truyen_forms", "label": "Hình thức tuyên truyền", "type": "textarea", "value": payload.get("tuyen_truyen_forms", "")},
+        {"key": "current_tasks", "label": "Các nhiệm vụ hiện hành", "type": "textarea", "value": payload.get("current_tasks", "")},
+        {"key": "van_ban_y_kien_count", "label": "Số văn bản tham gia ý kiến", "type": "number", "value": payload.get("van_ban_y_kien_count", "")},
+        {"key": "van_ban_chi_dao", "label": "Các văn bản chỉ đạo triển khai thực hiện", "type": "textarea", "value": payload.get("van_ban_chi_dao", "")},
+        {"key": "tuyen_truyen_attachment", "label": "Tài liệu minh chứng tuyên truyền", "type": "file", "value": attachments.get("tuyen_truyen_attachment", "")},
+        {"key": "van_ban_y_kien_attachment", "label": "Tài liệu minh chứng văn bản tham gia ý kiến", "type": "file", "value": attachments.get("van_ban_y_kien_attachment", "")},
+        {"key": "van_ban_chi_dao_attachment", "label": "Tài liệu minh chứng văn bản chỉ đạo", "type": "file", "value": attachments.get("van_ban_chi_dao_attachment", "")},
+    ]
+
+
+def _da06_so_nganh_dvc_rows(rule, payload):
+    existing = payload.get("dvc_items", {}) if isinstance(payload.get("dvc_items"), dict) else {}
+    rows = []
+    for title in (rule or {}).get("dvc_titles", []):
+        item_payload = existing.get(title, {}) if isinstance(existing.get(title), dict) else {}
+        item_key = secure_filename(remove_accents(title).replace(" ", "_")) or f"dvc_{len(rows) + 1}"
+        rows.append(
+            {
+                "title": title,
+                "item_key": item_key,
+                "fields": [
+                    {"key": "total", "label": "Tổng số hồ sơ", "value": item_payload.get("total", "")},
+                    {"key": "online", "label": "Trực tuyến", "value": item_payload.get("online", "")},
+                    {"key": "rate", "label": "Tỷ lệ (%)", "value": item_payload.get("rate", "")},
+                    {"key": "data_source", "label": "Nguồn dữ liệu kết nối, chia sẻ", "value": item_payload.get("data_source", "")},
+                    {"key": "benefit", "label": "Người dân được hưởng lợi", "value": item_payload.get("benefit", "")},
+                    {"key": "issues", "label": "Tồn tại", "value": item_payload.get("issues", "")},
+                    {"key": "solution", "label": "Giải pháp", "value": item_payload.get("solution", "")},
+                ],
+            }
+        )
+    return rows
+
+
+def _build_da06_task_form(task, user_assign, current_user):
+    if not task or not user_assign or not current_user or not _is_da06_month_task(task):
+        return None
+    payload = _parse_assignment_payload(user_assign)
+    profile = _da06_user_profile(current_user)
+    form = {
+        "kind": profile["kind"],
+        "label": profile["label"],
+        "narrative_value": payload.get("narrative_report", ""),
+        "dvc_rows": [],
+        "tct_fields": [],
+        "tthcc_attachment": ((payload.get("attachments") or {}) if isinstance(payload.get("attachments"), dict) else {}).get("phu_luc_2_attachment", ""),
+        "updated_at": payload.get("updated_at", ""),
+    }
+    if profile["kind"] == "tct_xa":
+        form["tct_fields"] = _da06_tct_sections(payload)
+    elif profile["kind"] == "tthcc":
+        form["tthcc_note"] = payload.get("tthcc_note", "")
+    else:
+        rule = profile.get("rule")
+        form["dvc_rows"] = _da06_so_nganh_dvc_rows(rule, payload)
+    return form
+
+
 def _task_file_root():
     task_dir = current_app.config.get("TASK_FOLDER") or os.path.join(current_app.root_path, "task_files")
     os.makedirs(task_dir, exist_ok=True)
@@ -1525,6 +1650,7 @@ def task_detail(tid):
         ]
     report_context = _build_assignment_report_context(user_assign, visible_comments)
     limited_assignment_view = bool(user_assign and not can_manage_task_view)
+    da06_task_form = _build_da06_task_form(task, user_assign, current_user)
 
     if request.method == "POST":
         if not (can_manage_task_view or user_assign):
@@ -1583,7 +1709,124 @@ def task_detail(tid):
         can_manage_task_view=can_manage_task_view,
         limited_assignment_view=limited_assignment_view,
         report_context=report_context,
+        da06_task_form=da06_task_form,
     )
+
+
+@tasks_bp.route("/tasks/<int:tid>/da06-save", methods=["POST"])
+def save_da06_task_report(tid):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+    if not _is_da06_month_task(task):
+        flash("Công việc này không dùng biểu mẫu ĐA06 tháng.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    assign = TaskAssignment.query.filter_by(task_id=tid, user_id=session["uid"]).first()
+    if not assign:
+        flash("Bạn không có quyền cập nhật biểu mẫu của công việc này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    current_user = db.session.get(User, session["uid"])
+    profile = _da06_user_profile(current_user)
+    payload = _parse_assignment_payload(assign)
+    attachments = payload.get("attachments", {}) if isinstance(payload.get("attachments"), dict) else {}
+
+    if profile["kind"] == "tct_xa":
+        payload["tuyen_truyen_total"] = (request.form.get("tuyen_truyen_total") or "").strip()
+        payload["tuyen_truyen_forms"] = (request.form.get("tuyen_truyen_forms") or "").strip()
+        payload["current_tasks"] = (request.form.get("current_tasks") or "").strip()
+        payload["van_ban_y_kien_count"] = (request.form.get("van_ban_y_kien_count") or "").strip()
+        payload["van_ban_chi_dao"] = (request.form.get("van_ban_chi_dao") or "").strip()
+        for key, label in (
+            ("tuyen_truyen_attachment", "tuyen_truyen"),
+            ("van_ban_y_kien_attachment", "van_ban_y_kien"),
+            ("van_ban_chi_dao_attachment", "van_ban_chi_dao"),
+        ):
+            saved_name = _save_task_attachment(request.files.get(key), tid, session["uid"], label)
+            if saved_name:
+                attachments[key] = saved_name
+    elif profile["kind"] == "tthcc":
+        payload["tthcc_note"] = (request.form.get("tthcc_note") or "").strip()
+        saved_name = _save_task_attachment(request.files.get("phu_luc_2_attachment"), tid, session["uid"], "phu_luc_2")
+        if saved_name:
+            attachments["phu_luc_2_attachment"] = saved_name
+    else:
+        payload["narrative_report"] = (request.form.get("narrative_report") or "").strip()
+        dvc_items = {}
+        for rule_title in (profile.get("rule") or {}).get("dvc_titles", []):
+            item_key = secure_filename(remove_accents(rule_title).replace(" ", "_")) or f"dvc_{len(dvc_items)+1}"
+            dvc_items[rule_title] = {
+                "total": (request.form.get(f"{item_key}_total") or "").strip(),
+                "online": (request.form.get(f"{item_key}_online") or "").strip(),
+                "rate": (request.form.get(f"{item_key}_rate") or "").strip(),
+                "data_source": (request.form.get(f"{item_key}_data_source") or "").strip(),
+                "benefit": (request.form.get(f"{item_key}_benefit") or "").strip(),
+                "issues": (request.form.get(f"{item_key}_issues") or "").strip(),
+                "solution": (request.form.get(f"{item_key}_solution") or "").strip(),
+            }
+        payload["dvc_items"] = dvc_items
+
+    payload["attachments"] = attachments
+    payload["updated_at"] = datetime.now().strftime("%d/%m/%Y %H:%M")
+    assign.report_payload_json = json.dumps(payload, ensure_ascii=False)
+    if _normalize_status(assign.status) in PENDING_STATUSES:
+        assign.status = IN_PROGRESS_STATUS
+    db.session.commit()
+    flash("Đã lưu biểu mẫu ĐA06 tháng.", "success")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+@tasks_bp.route("/tasks/<int:tid>/da06-attachment/<string:attachment_key>")
+def download_da06_task_attachment(tid, attachment_key):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+
+    task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    perms = _current_perms()
+    is_lead = perms.get("p_task_lead") or session.get("is_admin")
+    can_manage_task_view = bool(is_lead or _can_edit_task(task))
+    if not _can_view_task(task, is_lead=is_lead):
+        flash("Báº¡n khÃ´ng cÃ³ quyá»n táº£i minh chá»©ng cá»§a cÃ´ng viá»‡c nÃ y.", "danger")
+        return redirect(url_for("tasks_bp.tasks"))
+
+    assign = TaskAssignment.query.filter_by(task_id=tid, user_id=session["uid"]).first()
+    if not can_manage_task_view and not assign:
+        flash("Báº¡n khÃ´ng cÃ³ quyá»n táº£i minh chá»©ng nÃ y.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    if can_manage_task_view and not assign:
+        assign = (
+            TaskAssignment.query.filter(
+                TaskAssignment.task_id == tid,
+                TaskAssignment.report_payload_json.isnot(None),
+            )
+            .order_by(TaskAssignment.updated_at.desc())
+            .first()
+        )
+
+    payload = _parse_assignment_payload(assign)
+    attachments = payload.get("attachments", {}) if isinstance(payload.get("attachments"), dict) else {}
+    file_name = (attachments.get(attachment_key) or "").strip()
+    if not file_name:
+        flash("KhÃ´ng tÃ¬m tháº¥y tá»‡p minh chá»©ng cáº§n táº£i.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    file_path = _task_file_path(file_name)
+    if not os.path.exists(file_path):
+        flash("Tá»‡p minh chá»©ng khÃ´ng cÃ²n tá»“n táº¡i trÃªn há»‡ thá»‘ng.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    return send_file(file_path, as_attachment=True, download_name=file_name)
 
 
 @tasks_bp.route("/tasks/<int:tid>/assignees/<int:user_id>/report-download")

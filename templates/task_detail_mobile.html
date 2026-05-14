@@ -106,6 +106,14 @@
     .detail-mobile-info-item { padding: 12px 14px; border-radius: 16px; background: var(--bg-body); }
     .detail-mobile-info-item span { display: block; font-size: 0.76rem; color: var(--text-muted); }
     .detail-mobile-info-item strong { display: block; margin-top: 4px; color: var(--text-main); }
+    .detail-mobile-da06-stack { display: grid; gap: 12px; }
+    .detail-mobile-da06-note { color: var(--text-muted); font-size: 0.82rem; line-height: 1.55; }
+    .detail-mobile-da06-field,
+    .detail-mobile-da06-card { padding: 12px; border-radius: 16px; background: var(--bg-body); border: 1px solid var(--border); }
+    .detail-mobile-da06-field label,
+    .detail-mobile-da06-card label { display: block; margin-bottom: 8px; font-size: 0.84rem; font-weight: 700; color: var(--text-main); }
+    .detail-mobile-da06-card h3 { margin: 0 0 10px; font-size: 0.92rem; color: var(--text-main); }
+    .detail-mobile-da06-link { display: inline-flex; align-items: center; gap: 7px; margin-top: 9px; color: #1d4ed8; text-decoration: none; font-size: 0.78rem; }
 </style>
 {% endblock %}
 
@@ -400,7 +408,70 @@
 </section>
 {% endif %}
 
-{% if user_assign and user_assign.status not in ['ChÆ°a tiáº¿p nháº­n', 'ChÆ°a báº¯t Ä‘áº§u'] %}
+{% if da06_task_form and user_assign and user_assign.status not in ['ChÆ°a tiáº¿p nháº­n', 'ChÆ°a báº¯t Ä‘áº§u'] %}
+<section class="detail-mobile-card" id="report-section">
+    <h2>Báo cáo ĐA06 tháng</h2>
+    <form action="{{ url_for('tasks_bp.save_da06_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data" class="detail-mobile-da06-stack">
+        <div class="detail-mobile-da06-note">{{ da06_task_form.label }}{% if da06_task_form.updated_at %} · Cập nhật gần nhất {{ da06_task_form.updated_at }}{% endif %}</div>
+        {% if da06_task_form.kind == 'tct_xa' %}
+            {% for field in da06_task_form.tct_fields %}
+            <div class="detail-mobile-da06-field">
+                <label for="{{ field.key }}">{{ field.label }}</label>
+                {% if field.type == 'textarea' %}
+                <textarea id="{{ field.key }}" name="{{ field.key }}" rows="4" class="form-control">{{ field.value }}</textarea>
+                {% elif field.type == 'file' %}
+                <input id="{{ field.key }}" type="file" name="{{ field.key }}" class="form-control">
+                {% if field.value %}
+                <a class="detail-mobile-da06-link" href="{{ url_for('tasks_bp.download_da06_task_attachment', tid=task.id, attachment_key=field.key) }}">
+                    <i class="fa-solid fa-paperclip"></i>{{ field.value }}
+                </a>
+                {% endif %}
+                {% else %}
+                <input id="{{ field.key }}" type="number" min="0" step="1" name="{{ field.key }}" value="{{ field.value }}" class="form-control">
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% elif da06_task_form.kind == 'tthcc' %}
+        <div class="detail-mobile-da06-card">
+            <label for="tthcc_note">Ghi chú tổng hợp</label>
+            <textarea id="tthcc_note" name="tthcc_note" rows="5" class="form-control">{{ da06_task_form.tthcc_note or '' }}</textarea>
+        </div>
+        <div class="detail-mobile-da06-card">
+            <label for="phu_luc_2_attachment">Phụ lục 2 BCĐA06</label>
+            <input id="phu_luc_2_attachment" type="file" name="phu_luc_2_attachment" class="form-control" accept=".xlsx,.xls,.xlsm">
+            {% if da06_task_form.tthcc_attachment %}
+            <a class="detail-mobile-da06-link" href="{{ url_for('tasks_bp.download_da06_task_attachment', tid=task.id, attachment_key='phu_luc_2_attachment') }}">
+                <i class="fa-solid fa-paperclip"></i>{{ da06_task_form.tthcc_attachment }}
+            </a>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="detail-mobile-da06-card">
+            <label for="narrative_report">Báo cáo lời theo lĩnh vực</label>
+            <textarea id="narrative_report" name="narrative_report" rows="6" class="form-control">{{ da06_task_form.narrative_value or '' }}</textarea>
+        </div>
+            {% for row in da06_task_form.dvc_rows %}
+            <div class="detail-mobile-da06-card">
+                <h3>{{ row.title }}</h3>
+                {% for field in row.fields %}
+                <div class="mb-3">
+                    <label for="{{ row.item_key }}_{{ field.key }}">{{ field.label }}</label>
+                    {% if field.key in ['benefit', 'issues', 'solution', 'data_source'] %}
+                    <textarea id="{{ row.item_key }}_{{ field.key }}" name="{{ row.item_key }}_{{ field.key }}" rows="3" class="form-control">{{ field.value }}</textarea>
+                    {% else %}
+                    <input id="{{ row.item_key }}_{{ field.key }}" type="text" name="{{ row.item_key }}_{{ field.key }}" value="{{ field.value }}" class="form-control">
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="detail-mobile-da06-note">Đơn vị này hiện chưa có danh mục DVC riêng, chỉ cần cập nhật phần báo cáo lời.</div>
+            {% endfor %}
+        {% endif %}
+        <button type="submit" class="btn btn-mobile btn-mobile-primary" aria-label="Lưu cập nhật" title="Lưu cập nhật"><i class="fa-solid fa-floppy-disk"></i><span class="visually-hidden">Lưu cập nhật</span></button>
+    </form>
+</section>
+{% elif user_assign and user_assign.status not in ['ChÆ°a tiáº¿p nháº­n', 'ChÆ°a báº¯t Ä‘áº§u'] %}
 <section class="detail-mobile-card" id="report-section">
     <h2>BÃ¡o cÃ¡o káº¿t quáº£</h2>
     <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data">

@@ -7,7 +7,7 @@ from datetime import date, datetime, time, timedelta
 from openpyxl import load_workbook
 from openpyxl.utils import column_index_from_string
 from flask import Blueprint, current_app, flash, g, jsonify, redirect, request, session, send_file, url_for
-from sqlalchemy import func, or_, text
+from sqlalchemy import func, or_
 from werkzeug.utils import secure_filename
 
 from models import (
@@ -49,6 +49,116 @@ PERIODIC_CYCLE_OPTIONS = [
 ]
 
 PERIODIC_CYCLE_LABELS = {code: label for code, label in PERIODIC_CYCLE_OPTIONS}
+
+DEA06_TEMPLATE_MARKERS = (
+    "de_an_06",
+    "da06",
+    "bao_cao_thang",
+)
+
+DEA06_TCT_XA_FIELD_MARKERS = (
+    "tong_so_luot_tuyen_truyen",
+    "hinh_thuc_tuyen_truyen",
+    "cac_nhiem_vu_hien_hanh",
+    "so_van_ban_tham_gia_y_kien",
+    "cac_van_ban_chi_dao_trien_khai_thuc_hien",
+    "tuyen_truyen",
+    "tham_gia_y_kien",
+    "chi_dao_trien_khai",
+    "minh_chung",
+)
+
+DEA06_SO_NGANH_SECTION_RULES = [
+    {
+        "unit_markers": ("bao_hiem_xa_hoi", "bhxh"),
+        "label": "Lĩnh vực Bảo hiểm xã hội",
+        "narrative_markers": ("bao_hiem_xa_hoi", "bhxh", "luong_huu", "tro_cap_that_nghiep"),
+        "dvc_titles": (
+            "giai quyet huong tro cap that nghiep",
+            "dang ky tham gia dong bao hiem xa hoi tu nguyen",
+            "dang ky dong cap the bao hiem y te",
+            "giai quyet huong bao hiem xa hoi mot lan",
+            "giai quyet huong che do om dau thai san",
+        ),
+    },
+    {
+        "unit_markers": ("thue",),
+        "label": "Lĩnh vực Thuế",
+        "narrative_markers": ("linh_vuc_thue", "hoa_don_dien_tu", "thuong_mai_dien_tu", "nghia_vu_tai_chinh"),
+        "dvc_titles": (
+            "dang ky thue lan dau",
+            "thanh toan nghia vu tai chinh trong thuc hien thu tuc hanh chinh ve dat dai doi voi ho gia dinh ca nhan",
+            "thanh toan nghia vu tai chinh trong thuc hien thu tuc hanh chinh ve dat dai doi voi doanh nghiep",
+            "nop thue le phi truoc ba doi voi doanh nghiep",
+            "lien thong cac thu tuc dang ky thanh lap hop tac xa",
+            "nhom thu tuc dang ky thanh lap ho kinh doanh va dang ky thue",
+            "thanh toan truc tuyen nghia vu tai chinh nop thue le phi truoc ba",
+        ),
+    },
+    {
+        "unit_markers": ("nong_nghiep", "moi_truong", "tai_nguyen"),
+        "label": "Lĩnh vực Nông nghiệp và Môi trường",
+        "narrative_markers": ("nong_nghiep_va_moi_truong", "dat_dai", "co_so_du_lieu_quoc_gia_ve_dat_dai"),
+        "dvc_titles": (
+            "dang ky bien dong doi voi truong hop doi ten hoac thay doi thong tin ve nguoi su dung dat",
+            "dang ky bien dong quyen su dung dat",
+            "cap doi giay chung nhan quyen su dung dat",
+            "xac dinh nghia vu tai chinh ve dat dai",
+        ),
+    },
+    {
+        "unit_markers": ("tu_phap",),
+        "label": "Lĩnh vực Tư pháp",
+        "narrative_markers": ("tu_phap", "phieu_ly_lich_tu_phap", "ho_tich"),
+        "dvc_titles": (
+            "dang ky khai sinh",
+            "dang ky khai tu",
+            "dang ky ket hon",
+            "lien thong dang ky khai sinh dang ky thuong tru",
+            "lien thong dang ky khai tu xoa dang ky thuong tru",
+            "nhom thu tuc cap giay xac nhan tinh trang hon nhan va dang ky ket hon",
+            "nhom thu tuc thay doi cai chinh bo sung thong tin ho tich",
+        ),
+    },
+    {
+        "unit_markers": ("giao_duc", "dao_tao"),
+        "label": "Lĩnh vực Giáo dục và Đào tạo",
+        "narrative_markers": ("giao_duc_va_dao_tao", "hoc_ba_so", "hoc_sinh"),
+        "dvc_titles": (
+            "dang ki du thi tot nghiep thpt quoc gia",
+            "cong nhan bang tot nghiep trung hoc co so",
+        ),
+    },
+    {
+        "unit_markers": ("cong_thuong", "dien_luc"),
+        "label": "Lĩnh vực Công Thương",
+        "narrative_markers": ("cong_thuong", "dien_luc", "thanh_toan_khong_dung_tien_mat"),
+        "dvc_titles": (
+            "cap dien moi tu luoi dien ha ap",
+            "mo rong viec ket noi chia se du lieu dan cu",
+            "thay doi chu the hop dong mua ban dien",
+            "ket noi chia se du lieu doanh nghiep cua co so du lieu quoc gia ve dang ky doanh nghiep de thuc hien cac dich vu cung cap dien cho doanh nghiep",
+        ),
+    },
+    {
+        "unit_markers": ("noi_vu",),
+        "label": "Lĩnh vực Nội vụ",
+        "narrative_markers": ("noi_vu",),
+        "dvc_titles": ("tham vieng mo liet si",),
+    },
+    {
+        "unit_markers": ("toa_an",),
+        "label": "Lĩnh vực Tòa án",
+        "narrative_markers": ("toa_an",),
+        "dvc_titles": ("thu nop tam ung an phi le phi toa an",),
+    },
+    {
+        "unit_markers": ("y_te",),
+        "label": "Lĩnh vực Y tế",
+        "narrative_markers": ("y_te", "kham_chua_benh", "so_suc_khoe_dien_tu", "kiosk_y_te"),
+        "dvc_titles": (),
+    },
+]
 
 
 def _ensure_report_schema():
@@ -1676,6 +1786,172 @@ def _cell_display_value(value):
     return str(value).strip()
 
 
+def _dea06_profile_enabled(template):
+    text = normalize_code(
+        f"{getattr(template, 'code', '')} {getattr(template, 'name', '')} {getattr(template, 'description', '')}"
+    )
+    return "bao_cao" in text and any(marker in text for marker in DEA06_TEMPLATE_MARKERS)
+
+
+def _normalize_match_text(value):
+    return normalize_code(str(value or "")).replace("__", "_")
+
+
+def _row_search_blob(row):
+    parts = [row.get("title", ""), row.get("sheet_name", "")]
+    for input_item in row.get("inputs", []):
+        parts.append(input_item.get("field_label", ""))
+        parts.append(input_item.get("field_path", ""))
+    return _normalize_match_text(" ".join(part for part in parts if part))
+
+
+def _sheet_search_blob(sheet):
+    return _normalize_match_text(sheet.get("sheet_name", ""))
+
+
+def _match_any_marker(text, markers):
+    normalized_text = _normalize_match_text(text)
+    return any(_normalize_match_text(marker) in normalized_text for marker in (markers or []))
+
+
+def _clone_sheet_with_rows(sheet, rows):
+    return {
+        **sheet,
+        "rows": rows,
+    }
+
+
+def _filter_rows_for_markers(sheet_views, markers, sheet_markers=None, include_when_empty=False):
+    filtered = []
+    for sheet in sheet_views or []:
+        sheet_blob = _sheet_search_blob(sheet)
+        rows = [row for row in (sheet.get("rows") or []) if _match_any_marker(_row_search_blob(row), markers)]
+        if rows:
+            filtered.append(_clone_sheet_with_rows(sheet, rows))
+            continue
+        if include_when_empty and sheet_markers and _match_any_marker(sheet_blob, sheet_markers):
+            filtered.append(_clone_sheet_with_rows(sheet, sheet.get("rows") or []))
+    return filtered
+
+
+def _filter_sheets_by_name(sheet_views, sheet_markers):
+    output = []
+    for sheet in sheet_views or []:
+        if _match_any_marker(_sheet_search_blob(sheet), sheet_markers):
+            output.append(_clone_sheet_with_rows(sheet, sheet.get("rows") or []))
+    return output
+
+
+def _report_user():
+    uid = session.get("uid")
+    return db.session.get(User, uid) if uid else None
+
+
+def _dea06_audience(template, unit, user):
+    if not _dea06_profile_enabled(template):
+        return ""
+    unit_text = _normalize_match_text(getattr(unit, "name", "") or "")
+    role_text = _normalize_match_text(getattr(getattr(user, "role", None), "name", "") or "")
+    if "trung_tam_phuc_vu_hanh_chinh_cong" in unit_text or "trungtamphucvuhanhchinhcong" in unit_text:
+        return "tthcc"
+    if any(marker in role_text for marker in ("tct_cap_xa", "to_cong_tac_cap_xa", "to_cong_tac_xa")):
+        return "tct_xa"
+    return "so_nganh"
+
+
+def _dea06_so_nganh_rule(unit):
+    unit_text = _normalize_match_text(getattr(unit, "name", "") or "")
+    for rule in DEA06_SO_NGANH_SECTION_RULES:
+        if any(_normalize_match_text(marker) in unit_text for marker in rule["unit_markers"]):
+            return rule
+    return None
+
+
+def _dea06_form_sections(template, unit, user, sheet_views):
+    if not _dea06_profile_enabled(template):
+        return []
+    audience = _dea06_audience(template, unit, user)
+    dvc_sheet_markers = ("dvc", "dich_vu_cong", "phu_luc_dvc")
+    tthcc_sheet_markers = ("phu_luc_2", "ket_qua_tthc", "tthc")
+    generic_sheet_markers = ("bao_cao", "bao_cao_thang", "noi_dung", "tong_hop", "de_an_06")
+    sections = []
+
+    if audience == "tct_xa":
+        rows = _filter_rows_for_markers(
+            sheet_views,
+            DEA06_TCT_XA_FIELD_MARKERS,
+            sheet_markers=generic_sheet_markers,
+            include_when_empty=True,
+        )
+        if rows:
+            sections.append(
+                {
+                    "key": "tct_xa",
+                    "title": "Báo cáo cục bộ cấp xã",
+                    "description": "Nhập các chỉ tiêu tuyên truyền, nhiệm vụ hiện hành, văn bản góp ý và văn bản chỉ đạo kèm minh chứng.",
+                    "sheets": rows,
+                }
+            )
+        return sections
+
+    if audience == "tthcc":
+        sheets = _filter_sheets_by_name(sheet_views, tthcc_sheet_markers)
+        if not sheets:
+            sheets = _filter_rows_for_markers(sheet_views, ("ho_so", "tthc", "truc_tuyen", "giai_quyet"), include_when_empty=False)
+        if sheets:
+            sections.append(
+                {
+                    "key": "tthcc",
+                    "title": "Phụ lục kết quả TTHC",
+                    "description": "Trung tâm Phục vụ hành chính công cập nhật số liệu theo Phụ lục 2 kết quả giải quyết TTHC.",
+                    "sheets": sheets,
+                }
+            )
+        return sections
+
+    rule = _dea06_so_nganh_rule(unit)
+    narrative_sheets = []
+    dvc_sheets = []
+    if rule:
+        narrative_sheets = _filter_rows_for_markers(
+            [sheet for sheet in sheet_views if not _match_any_marker(sheet.get("sheet_name", ""), dvc_sheet_markers + tthcc_sheet_markers)],
+            rule["narrative_markers"],
+            sheet_markers=generic_sheet_markers,
+            include_when_empty=True,
+        )
+        dvc_sheets = _filter_rows_for_markers(
+            sheet_views,
+            rule["dvc_titles"],
+            sheet_markers=dvc_sheet_markers,
+            include_when_empty=True,
+        )
+    if not narrative_sheets:
+        fallback = [sheet for sheet in sheet_views if not _match_any_marker(sheet.get("sheet_name", ""), dvc_sheet_markers + tthcc_sheet_markers)]
+        if fallback:
+            narrative_sheets = [_clone_sheet_with_rows(sheet, sheet.get("rows") or []) for sheet in fallback]
+    if not dvc_sheets:
+        dvc_sheets = _filter_sheets_by_name(sheet_views, dvc_sheet_markers)
+    if narrative_sheets:
+        sections.append(
+            {
+                "key": "narrative",
+                "title": "Báo cáo lời",
+                "description": f"Nhập nội dung báo cáo bằng lời cho {rule['label'] if rule else 'đơn vị'} theo mẫu báo cáo tháng.",
+                "sheets": narrative_sheets,
+            }
+        )
+    if dvc_sheets:
+        sections.append(
+            {
+                "key": "dvc",
+                "title": "Báo cáo DVC",
+                "description": "Cập nhật số liệu dịch vụ công theo phụ lục DVC được phân công cho đơn vị.",
+                "sheets": dvc_sheets,
+            }
+        )
+    return sections
+
+
 def _form_checked(name):
     return "1" in request.form.getlist(name)
 
@@ -1781,40 +2057,6 @@ def _purge_submission(submission):
     ReportSubmissionValue.query.filter_by(submission_id=submission.id).delete(synchronize_session=False)
     ReportSubmissionCell.query.filter_by(submission_id=submission.id).delete(synchronize_session=False)
     db.session.delete(submission)
-
-
-def _cleanup_sqlite_fk_rows(target_table, target_ids):
-    ids = [int(item) for item in set(target_ids or []) if item]
-    if not ids:
-        return
-    bind = db.session.get_bind()
-    if not bind or bind.dialect.name != "sqlite":
-        return
-    try:
-        table_rows = db.session.execute(
-            text("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
-        ).fetchall()
-    except Exception:
-        return
-
-    id_list_sql = ", ".join(str(item) for item in ids)
-    for row in table_rows:
-        table_name = row[0] if isinstance(row, (tuple, list)) else row.name
-        if table_name == target_table:
-            continue
-        try:
-            fk_rows = db.session.execute(text(f'PRAGMA foreign_key_list("{table_name}")')).fetchall()
-        except Exception:
-            continue
-        for fk in fk_rows:
-            ref_table = fk[2]
-            from_col = fk[3]
-            to_col = fk[4]
-            if ref_table == target_table and to_col == "id" and from_col:
-                db.session.execute(
-                    text(f'DELETE FROM "{table_name}" WHERE "{from_col}" IN ({id_list_sql})')
-                )
-                break
 
 
 def _refresh_instance_status(instance):
@@ -3104,24 +3346,12 @@ def delete_template(template_id):
     template = db.session.get(ReportTemplate, template_id)
     if not template:
         return "Not Found", 404
-    template_name = template.name
-
     versions = ReportTemplateVersion.query.filter_by(template_id=template.id).all()
     version_ids = [version.id for version in versions]
     if version_ids:
         cycles = ReportCycle.query.filter(ReportCycle.template_version_id.in_(version_ids)).all()
         for cycle in cycles:
             _purge_cycle(cycle)
-
-    # Defensive cleanup for legacy/live schemas that still retain direct
-    # foreign-key references to the template outside the cycle/version chain.
-    orphan_submissions = ReportSubmission.query.filter_by(template_id=template.id).all()
-    for submission in orphan_submissions:
-        if db.session.get(ReportSubmission, submission.id):
-            _purge_submission(submission)
-
-    ReportInstance.query.filter_by(template_id=template.id).delete(synchronize_session=False)
-    ReportingPeriod.query.filter_by(template_id=template.id).delete(synchronize_session=False)
 
     for version in versions:
         if version.source_path and os.path.exists(version.source_path):
@@ -3131,19 +3361,14 @@ def delete_template(template_id):
                 pass
         ReportTemplateField.query.filter_by(version_id=version.id).delete(synchronize_session=False)
         ReportTemplateSheet.query.filter_by(version_id=version.id).delete(synchronize_session=False)
-    if version_ids:
-        _cleanup_sqlite_fk_rows("report_template_version", version_ids)
-        ReportTemplateVersion.query.filter(ReportTemplateVersion.id.in_(version_ids)).delete(synchronize_session=False)
-        db.session.flush()
     if template.directive_path and os.path.exists(template.directive_path):
         try:
             os.remove(template.directive_path)
         except Exception:
             pass
-    _cleanup_sqlite_fk_rows("report_template", [template.id])
-    ReportTemplate.query.filter_by(id=template.id).delete(synchronize_session=False)
+    db.session.delete(template)
     db.session.commit()
-    _audit("delete_template", "report_template", template_id, template_name)
+    _audit("delete_template", "report_template", template_id, template.name)
     flash("Đã xóa mẫu báo cáo.", "success")
     return redirect(url_for("reporting_bp.admin_dashboard"))
 
@@ -3733,6 +3958,8 @@ def cycle_workspace(cycle_id):
                 "end_column": sheet_meta.get("end_column"),
             },
         })
+    form_user = _report_user()
+    form_sections = _dea06_form_sections(template, unit, form_user, sheet_views)
 
     return render_template(
         "report_cycle_form.html",
@@ -3752,6 +3979,7 @@ def cycle_workspace(cycle_id):
         available_units=available_units,
         editable=editable,
         view_locked=context.get("view_locked", False),
+        form_sections=form_sections,
     )
 
 

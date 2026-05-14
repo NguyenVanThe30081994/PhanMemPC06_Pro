@@ -72,6 +72,64 @@
     .pc06-report-form textarea {
         border-radius: 14px;
     }
+    .pc06-da06-stack {
+        display: grid;
+        gap: 14px;
+    }
+    .pc06-da06-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+    .pc06-da06-field,
+    .pc06-da06-card {
+        padding: 14px;
+        border-radius: 18px;
+        border: 1px solid rgba(226, 232, 240, 0.92);
+        background: rgba(248, 250, 252, 0.72);
+    }
+    .pc06-da06-card h3 {
+        margin: 0 0 12px;
+        font-size: 1rem;
+        color: var(--text-main, #0f172a);
+    }
+    .pc06-da06-field label,
+    .pc06-da06-card label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 700;
+        color: var(--text-main, #0f172a);
+    }
+    .pc06-da06-inline-file {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+        color: #1d4ed8;
+        font-size: 0.84rem;
+        text-decoration: none;
+    }
+    .pc06-da06-table {
+        display: grid;
+        gap: 12px;
+    }
+    .pc06-da06-table-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+    .pc06-da06-card textarea,
+    .pc06-da06-card input,
+    .pc06-da06-field textarea,
+    .pc06-da06-field input {
+        border-radius: 14px;
+    }
+    @media (max-width: 991px) {
+        .pc06-da06-grid,
+        .pc06-da06-table-grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
     .pc06-comment-card {
         border: 1px solid rgba(226, 232, 240, 0.9);
         border-radius: 16px;
@@ -876,7 +934,85 @@
             </section>
             {% endif %}
 
-            {% if user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+            {% if da06_task_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+            <section class="pc06-panel pc06-detail-panel-compact">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>Báo cáo ĐA06 tháng</h2>
+                    </div>
+                </div>
+                <form action="{{ url_for('tasks_bp.save_da06_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data" class="pc06-report-form pc06-da06-stack">
+                    <div class="pc06-detail-inline-note">{{ da06_task_form.label }}{% if da06_task_form.updated_at %} · Cập nhật gần nhất {{ da06_task_form.updated_at }}{% endif %}</div>
+                    {% if da06_task_form.kind == 'tct_xa' %}
+                    <div class="pc06-da06-grid">
+                        {% for field in da06_task_form.tct_fields %}
+                        <div class="pc06-da06-field">
+                            <label for="{{ field.key }}">{{ field.label }}</label>
+                            {% if field.type == 'textarea' %}
+                            <textarea id="{{ field.key }}" name="{{ field.key }}" rows="4" class="form-control">{{ field.value }}</textarea>
+                            {% elif field.type == 'file' %}
+                            <input id="{{ field.key }}" type="file" name="{{ field.key }}" class="form-control">
+                            {% if field.value %}
+                            <a class="pc06-da06-inline-file" href="{{ url_for('tasks_bp.download_da06_task_attachment', tid=task.id, attachment_key=field.key) }}">
+                                <i class="fa-solid fa-paperclip"></i>{{ field.value }}
+                            </a>
+                            {% endif %}
+                            {% else %}
+                            <input id="{{ field.key }}" type="number" min="0" step="1" name="{{ field.key }}" value="{{ field.value }}" class="form-control">
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% elif da06_task_form.kind == 'tthcc' %}
+                    <div class="pc06-da06-card">
+                        <label for="tthcc_note">Ghi chú tổng hợp</label>
+                        <textarea id="tthcc_note" name="tthcc_note" rows="5" class="form-control" placeholder="Nêu khái quát tình hình và lưu ý nếu có">{{ da06_task_form.tthcc_note or '' }}</textarea>
+                    </div>
+                    <div class="pc06-da06-card">
+                        <label for="phu_luc_2_attachment">Phụ lục 2 BCĐA06</label>
+                        <input id="phu_luc_2_attachment" type="file" name="phu_luc_2_attachment" class="form-control" accept=".xlsx,.xls,.xlsm">
+                        {% if da06_task_form.tthcc_attachment %}
+                        <a class="pc06-da06-inline-file" href="{{ url_for('tasks_bp.download_da06_task_attachment', tid=task.id, attachment_key='phu_luc_2_attachment') }}">
+                            <i class="fa-solid fa-paperclip"></i>{{ da06_task_form.tthcc_attachment }}
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="pc06-da06-card">
+                        <label for="narrative_report">Báo cáo lời theo lĩnh vực</label>
+                        <textarea id="narrative_report" name="narrative_report" rows="7" class="form-control" placeholder="Nhập nội dung báo cáo lời theo lĩnh vực của đơn vị">{{ da06_task_form.narrative_value or '' }}</textarea>
+                    </div>
+                    <div class="pc06-da06-table">
+                        {% for row in da06_task_form.dvc_rows %}
+                        <div class="pc06-da06-card">
+                            <h3>{{ row.title }}</h3>
+                            <div class="pc06-da06-table-grid">
+                                {% for field in row.fields %}
+                                <div>
+                                    <label for="{{ row.item_key }}_{{ field.key }}">{{ field.label }}</label>
+                                    {% if field.key in ['benefit', 'issues', 'solution', 'data_source'] %}
+                                    <textarea id="{{ row.item_key }}_{{ field.key }}" name="{{ row.item_key }}_{{ field.key }}" rows="3" class="form-control">{{ field.value }}</textarea>
+                                    {% else %}
+                                    <input id="{{ row.item_key }}_{{ field.key }}" type="text" name="{{ row.item_key }}_{{ field.key }}" value="{{ field.value }}" class="form-control">
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="pc06-detail-inline-note">Đơn vị này hiện chưa có danh mục DVC riêng, chỉ cần cập nhật phần báo cáo lời.</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <div class="pc06-report-footer">
+                        <button type="submit" class="btn btn-bdhvs primary">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            Lưu cập nhật
+                        </button>
+                    </div>
+                </form>
+            </section>
+            {% elif user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
             <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>

@@ -50,7 +50,17 @@
         <input type="hidden" name="unit_id" value="{{ current_unit.id }}">
         {% endif %}
 
-        {% for sheet in sheet_views %}
+        {% set sections = form_sections if form_sections else [{'key': 'default', 'title': '', 'description': '', 'sheets': sheet_views}] %}
+        {% for section in sections %}
+        {% if section.title %}
+        <section class="pc06-panel report-form-section">
+            <h2>{{ section.title }}</h2>
+            {% if section.description %}
+            <p>{{ section.description }}</p>
+            {% endif %}
+        </section>
+        {% endif %}
+        {% for sheet in section.sheets %}
         <section class="pc06-panel report-input-sheet report-sheet-panel" data-sheet="{{ sheet.sheet_name }}">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                 <h3 class="h6 fw-bold mb-0">{{ sheet.sheet_name }}</h3>
@@ -94,6 +104,7 @@
             </div>
         </section>
         {% endfor %}
+        {% endfor %}
     </form>
 
     <div class="report-form-toolbar-desktop">
@@ -135,6 +146,21 @@
         color: var(--text-main);
     }
     .report-input-sheet { margin-bottom: 18px; }
+    .report-form-section {
+        margin-bottom: 18px;
+        padding: 18px 20px;
+    }
+    .report-form-section h2 {
+        margin: 0;
+        font-size: 1.02rem;
+        font-weight: 800;
+        color: var(--text-main);
+    }
+    .report-form-section p {
+        margin: 8px 0 0;
+        color: var(--text-muted);
+        line-height: 1.55;
+    }
     .report-input-list { display: grid; gap: 16px; }
     .report-input-row {
         border: 1px solid rgba(148,163,184,0.16);
