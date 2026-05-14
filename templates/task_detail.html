@@ -118,6 +118,61 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 12px;
     }
+    .pc06-da06-manage-groups {
+        display: grid;
+        gap: 14px;
+    }
+    .pc06-da06-manage-group {
+        border: 1px solid rgba(226, 232, 240, 0.92);
+        border-radius: 18px;
+        background: rgba(248, 250, 252, 0.72);
+        padding: 16px;
+    }
+    .pc06-da06-manage-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+    }
+    .pc06-da06-manage-head strong {
+        display: block;
+        color: var(--text-main, #0f172a);
+        font-size: 1rem;
+    }
+    .pc06-da06-manage-head span {
+        color: var(--text-muted, #64748b);
+        font-size: 0.82rem;
+    }
+    .pc06-da06-manage-units {
+        display: grid;
+        gap: 10px;
+    }
+    .pc06-da06-manage-unit {
+        display: grid;
+        gap: 8px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        border: 1px solid rgba(226, 232, 240, 0.92);
+        background: rgba(255, 255, 255, 0.96);
+    }
+    .pc06-da06-manage-unit-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .pc06-da06-manage-unit-top strong {
+        color: var(--text-main, #0f172a);
+    }
+    .pc06-da06-manage-lines {
+        display: grid;
+        gap: 4px;
+        color: var(--text-muted, #64748b);
+        font-size: 0.82rem;
+    }
     .pc06-da06-card textarea,
     .pc06-da06-card input,
     .pc06-da06-field textarea,
@@ -777,7 +832,55 @@
                 {% endif %}
             </section>
 
-            {% if can_manage_task_view %}
+            {% if can_manage_task_view and da06_management_view %}
+            <section class="pc06-panel pc06-detail-panel-compact">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>Tổng hợp ĐA06 tháng</h2>
+                    </div>
+                </div>
+                <div class="pc06-report-guidance">
+                    Task này đang dùng biểu mẫu nội bộ ĐA06. Quản trị theo dõi theo từng nhóm đơn vị, mức độ cập nhật biểu mẫu và dữ liệu DVC thay cho báo cáo file thông thường.
+                </div>
+                <div class="pc06-da06-manage-groups">
+                    {% for group in da06_management_view %}
+                    <section class="pc06-da06-manage-group">
+                        <div class="pc06-da06-manage-head">
+                            <div>
+                                <strong>{{ group.label }}</strong>
+                                <span>{{ group.reported_units }}/{{ group.total_units }} đơn vị đã cập nhật</span>
+                            </div>
+                            <span class="pc06-soft-tag neutral">{{ group.total_units }} đơn vị</span>
+                        </div>
+                        <div class="pc06-da06-manage-units">
+                            {% for unit in group.units %}
+                            <article class="pc06-da06-manage-unit">
+                                <div class="pc06-da06-manage-unit-top">
+                                    <strong>{{ unit.unit_name }}</strong>
+                                    <span class="pc06-status-badge {% if unit.status == 'Hoàn thành' %}done{% elif unit.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
+                                        {{ unit.status }}
+                                    </span>
+                                </div>
+                                <div class="pc06-da06-manage-lines">
+                                    {% for line in unit.summary_lines %}
+                                    <span>{{ line }}</span>
+                                    {% endfor %}
+                                    <span>Cập nhật: {{ unit.updated_at.strftime('%d/%m/%Y %H:%M') if unit.updated_at else 'Chưa có dữ liệu' }}</span>
+                                </div>
+                            </article>
+                            {% else %}
+                            <div class="pc06-empty-state compact">
+                                <div class="pc06-empty-icon"><i class="fa-regular fa-folder-open"></i></div>
+                                <h3>Chưa có đơn vị</h3>
+                                <p>Nhóm này hiện chưa có đơn vị phù hợp.</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </section>
+                    {% endfor %}
+                </div>
+            </section>
+            {% elif can_manage_task_view %}
             <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>

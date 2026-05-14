@@ -307,7 +307,38 @@
 </section>
 {% endif %}
 
-{% if can_manage_task_view %}
+{% if can_manage_task_view and da06_management_view %}
+<section class="detail-mobile-card">
+    <h2>Tổng hợp ĐA06 tháng</h2>
+    <div class="detail-mobile-da06-note mb-3">
+        Task này đang dùng biểu mẫu nội bộ ĐA06. Quản trị theo dõi theo từng nhóm đơn vị và mức độ cập nhật dữ liệu thay cho báo cáo file thông thường.
+    </div>
+    <div class="detail-mobile-da06-stack">
+        {% for group in da06_management_view %}
+        <div class="detail-mobile-da06-card">
+            <h3>{{ group.label }}</h3>
+            <div class="detail-mobile-da06-note mb-3">{{ group.reported_units }}/{{ group.total_units }} đơn vị đã cập nhật</div>
+            {% for unit in group.units %}
+            <div class="detail-mobile-da06-field mb-3">
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                    <strong>{{ unit.unit_name }}</strong>
+                    <span class="detail-mobile-status {% if unit.status == 'Hoàn thành' %}done{% elif unit.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">{{ unit.status }}</span>
+                </div>
+                <div class="detail-mobile-da06-note">
+                    {% for line in unit.summary_lines %}
+                    <div>{{ line }}</div>
+                    {% endfor %}
+                    <div>Cập nhật: {{ unit.updated_at.strftime('%d/%m/%Y %H:%M') if unit.updated_at else 'Chưa có dữ liệu' }}</div>
+                </div>
+            </div>
+            {% else %}
+            <div class="detail-mobile-da06-note">Nhóm này hiện chưa có đơn vị phù hợp.</div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% elif can_manage_task_view %}
 <section class="detail-mobile-card">
     <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
         <div>

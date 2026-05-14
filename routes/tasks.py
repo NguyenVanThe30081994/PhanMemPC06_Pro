@@ -1152,6 +1152,118 @@ def _build_da06_task_form(task, user_assign, current_user):
     return form
 
 
+def _has_da06_value(value):
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, dict):
+        return any(_has_da06_value(item) for item in value.values())
+    if isinstance(value, (list, tuple, set)):
+        return any(_has_da06_value(item) for item in value)
+    return True
+
+
+def _build_da06_management_view(assigns):
+    group_map = {}
+    for assignment, user in assigns or []:
+        if not user:
+            continue
+
+        profile = _da06_user_profile(user)
+        unit_identity = _task_unit_identity(user)
+        unit_key = unit_identity["unit_key"] or unit_identity["unit_name"].lower()
+        group_key = profile["kind"]
+        group = group_map.setdefault(
+            group_key,
+            {
+                "key": group_key,
+                "label": profile["label"],
+                "units": {},
+                "total_units": 0,
+                "reported_units": 0,
+            },
+        )
+
+        payload = _parse_assignment_payload(assignment)
+        attachments = payload.get("attachments", {}) if isinstance(payload.get("attachments"), dict) else {}
+        unit = group["units"].setdefault(
+            unit_key,
+            {
+                "unit_name": unit_identity["unit_name"],
+                "status": "Chưa tiếp nhận",
+                "has_report": False,
+                "updated_at": None,
+                "summary_lines": [],
+            },
+        )
+
+        normalized_status = _normalize_status(getattr(assignment, "status", ""))
+        if normalized_status == COMPLETED_STATUS:
+            unit["status"] = COMPLETED_STATUS
+        elif normalized_status == IN_PROGRESS_STATUS and unit["status"] != COMPLETED_STATUS:
+            unit["status"] = IN_PROGRESS_STATUS
+
+        report_lines = []
+        has_report = False
+        if profile["kind"] == "tct_xa":
+            has_report = any(
+                _has_da06_value(payload.get(key))
+                for key in [
+                    "tuyen_truyen_total",
+                    "tuyen_truyen_forms",
+                    "current_tasks",
+                    "van_ban_y_kien_count",
+                    "van_ban_chi_dao",
+                ]
+            ) or bool(attachments)
+            attachment_count = sum(1 for key in ["tuyen_truyen_attachment", "van_ban_y_kien_attachment", "van_ban_chi_dao_attachment"] if attachments.get(key))
+            report_lines = [
+                f"Tuyên truyền: {payload.get('tuyen_truyen_total') or '0'} lượt",
+                f"Văn bản tham gia ý kiến: {payload.get('van_ban_y_kien_count') or '0'}",
+                f"Minh chứng: {attachment_count}/3 tệp",
+            ]
+        elif profile["kind"] == "tthcc":
+            note_ready = _has_da06_value(payload.get("tthcc_note"))
+            appendix_ready = bool(attachments.get("phu_luc_2_attachment"))
+            has_report = note_ready or appendix_ready
+            report_lines = [
+                f"Ghi chú tổng hợp: {'Đã cập nhật' if note_ready else 'Chưa cập nhật'}",
+                f"Phụ lục 2: {'Đã tải lên' if appendix_ready else 'Chưa tải lên'}",
+            ]
+        else:
+            dvc_items = payload.get("dvc_items", {}) if isinstance(payload.get("dvc_items"), dict) else {}
+            dvc_total = len((profile.get("rule") or {}).get("dvc_titles", []))
+            dvc_ready = 0
+            for item in dvc_items.values():
+                if isinstance(item, dict) and any(_has_da06_value(value) for value in item.values()):
+                    dvc_ready += 1
+            narrative_ready = _has_da06_value(payload.get("narrative_report"))
+            has_report = narrative_ready or dvc_ready > 0
+            report_lines = [
+                f"Báo cáo lời: {'Đã cập nhật' if narrative_ready else 'Chưa cập nhật'}",
+                f"DVC: {dvc_ready}/{dvc_total}" if dvc_total else "DVC: Không áp dụng",
+            ]
+
+        if has_report:
+            unit["has_report"] = True
+        updated_at = getattr(assignment, "updated_at", None)
+        if updated_at and (unit["updated_at"] is None or updated_at > unit["updated_at"]):
+            unit["updated_at"] = updated_at
+            unit["summary_lines"] = report_lines
+
+    groups = []
+    for group in group_map.values():
+        units = sorted(group["units"].values(), key=lambda item: item["unit_name"].lower())
+        group["units"] = units
+        group["total_units"] = len(units)
+        group["reported_units"] = sum(1 for item in units if item["has_report"])
+        groups.append(group)
+
+    groups.sort(key=lambda item: item["label"].lower())
+    return groups
+
+
 def _task_file_root():
     task_dir = current_app.config.get("TASK_FOLDER") or os.path.join(current_app.root_path, "task_files")
     os.makedirs(task_dir, exist_ok=True)
@@ -1623,6 +1735,7 @@ def task_detail(tid):
     unit_report_groups = []
     discussion_threads = []
     assignment_role_groups = []
+    da06_management_view = []
     assignment_unit_cards = _build_assignment_unit_cards(assigns)
     assignment_unit_progress = {
         "completed_units": sum(1 for card in assignment_unit_cards if card.get("status") == COMPLETED_STATUS),
@@ -1651,6 +1764,8 @@ def task_detail(tid):
     report_context = _build_assignment_report_context(user_assign, visible_comments)
     limited_assignment_view = bool(user_assign and not can_manage_task_view)
     da06_task_form = _build_da06_task_form(task, user_assign, current_user)
+    if _is_da06_month_task(task) and can_manage_task_view:
+        da06_management_view = _build_da06_management_view(assigns)
 
     if request.method == "POST":
         if not (can_manage_task_view or user_assign):
@@ -1710,6 +1825,7 @@ def task_detail(tid):
         limited_assignment_view=limited_assignment_view,
         report_context=report_context,
         da06_task_form=da06_task_form,
+        da06_management_view=da06_management_view,
     )
 
 
