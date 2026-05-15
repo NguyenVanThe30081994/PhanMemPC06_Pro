@@ -714,6 +714,12 @@
                     <i class="fa-solid fa-arrow-left"></i>
                     Quay lại danh sách
                 </a>
+                {% if parent_task %}
+                <a href="{{ url_for('tasks_bp.task_detail', tid=parent_task.id) }}" class="pc06-back-link mt-2">
+                    <i class="fa-solid fa-diagram-project"></i>
+                    Thuộc task cha: {{ parent_task.title }}
+                </a>
+                {% endif %}
                 <h1 class="pc06-page-title">{{ task.title }}</h1>
                 <div class="pc06-detail-hero-meta">
                     <span class="pc06-detail-hero-pill">
@@ -831,6 +837,76 @@
                 </div>
                 {% endif %}
             </section>
+
+            {% if can_manage_task_view %}
+            <section class="pc06-panel pc06-detail-panel-compact">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>Task con</h2>
+                        <div class="pc06-detail-inline-note">
+                            {{ child_task_stats.total }} task con · {{ child_task_stats.completed }} hoàn thành · {{ child_task_stats.in_progress }} đang thực hiện
+                        </div>
+                    </div>
+                    {% if can_edit_task %}
+                    <button type="button" class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#createChildTaskModal">
+                        <i class="fa-solid fa-plus"></i>
+                        Tạo task con
+                    </button>
+                    {% endif %}
+                </div>
+                {% if child_tasks %}
+                <div class="pc06-report-groups">
+                    {% for child in child_tasks %}
+                    {% set child_status_key = (child.display_status or '')|lower %}
+                    <article class="pc06-report-item">
+                        <div class="pc06-report-item-summary">
+                            <div class="pc06-report-item-copy">
+                                <strong>{{ child.title }}</strong>
+                                <div class="pc06-report-item-fileline">
+                                    <i class="fa-regular fa-calendar"></i>
+                                    <span>{{ child.deadline.strftime('%d/%m/%Y') if child.deadline else 'Chưa xác định hạn' }}</span>
+                                </div>
+                            </div>
+                            <div class="pc06-report-item-actions">
+                                <span class="pc06-status-badge {% if 'hoàn thành' in child_status_key %}done{% elif 'đang thực hiện' in child_status_key %}doing{% else %}todo{% endif %}">
+                                    {{ child.display_status }}
+                                </span>
+                                <a href="{{ url_for('tasks_bp.task_detail', tid=child.id) }}" class="pc06-report-download-icon" title="Mở task con">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="pc06-report-item-body">
+                            <div class="pc06-report-item-meta">
+                                <span>
+                                    <i class="fa-solid fa-users"></i>
+                                    {{ child.assignee_count }} người nhận
+                                </span>
+                                <span>
+                                    <i class="fa-solid fa-layer-group"></i>
+                                    {{ child.category_display or 'Chưa phân lĩnh vực' }}
+                                </span>
+                                <span>
+                                    <i class="fa-solid fa-building"></i>
+                                    {{ child.domain_display or 'Chưa phân đơn vị' }}
+                                </span>
+                            </div>
+                            {% if child.content %}
+                            <div class="pc06-report-item-excerpt">{{ child.content }}</div>
+                            {% endif %}
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="pc06-empty-state compact">
+                    <div class="pc06-empty-icon"><i class="fa-solid fa-diagram-project"></i></div>
+                    <h3>Chưa có task con</h3>
+                    <p>Tách từng nội dung báo cáo riêng thành task con để giao đúng vai trò hoặc tài khoản phụ trách.</p>
+                </div>
+                {% endif %}
+            </section>
+            {% endif %}
 
             {% if can_manage_task_view and da06_management_view %}
             <section class="pc06-panel pc06-detail-panel-compact">
@@ -1037,7 +1113,72 @@
             </section>
             {% endif %}
 
-            {% if da06_task_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+            {% if structured_task_report_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+            <section class="pc06-panel pc06-detail-panel-compact">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>Báo cáo theo nội dung task</h2>
+                    </div>
+                </div>
+                {% if structured_task_report_form.has_visible_content %}
+                <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data" class="pc06-report-form pc06-da06-stack">
+                    {% if structured_task_report_form.updated_at %}
+                    <div class="pc06-detail-inline-note">Cập nhật gần nhất {{ structured_task_report_form.updated_at }}</div>
+                    {% endif %}
+                    {% if structured_task_report_form.narrative.enabled %}
+                    <div class="pc06-da06-card">
+                        <label for="report_narrative">{{ structured_task_report_form.narrative.label }}</label>
+                        <textarea id="report_narrative" name="report_narrative" rows="6" class="form-control" placeholder="{{ structured_task_report_form.narrative.placeholder }}" {% if structured_task_report_form.narrative.required %}required{% endif %}>{{ structured_task_report_form.narrative.value }}</textarea>
+                    </div>
+                    {% endif %}
+                    {% if structured_task_report_form.fields %}
+                    <div class="pc06-da06-table">
+                        {% for field in structured_task_report_form.fields %}
+                        <div class="pc06-da06-card">
+                            <label for="report_field_{{ field.key }}">{{ field.label }}{% if field.required %} <span class="text-danger">*</span>{% endif %}</label>
+                            {% if field.type == 'textarea' %}
+                            <textarea id="report_field_{{ field.key }}" name="report_field_{{ field.key }}" rows="4" class="form-control" placeholder="{{ field.placeholder }}" {% if field.required %}required{% endif %}>{{ field.value }}</textarea>
+                            {% elif field.type == 'number' %}
+                            <input id="report_field_{{ field.key }}" type="number" step="any" name="report_field_{{ field.key }}" value="{{ field.value }}" class="form-control" placeholder="{{ field.placeholder }}" {% if field.required %}required{% endif %}>
+                            {% else %}
+                            <input id="report_field_{{ field.key }}" type="text" name="report_field_{{ field.key }}" value="{{ field.value }}" class="form-control" placeholder="{{ field.placeholder }}" {% if field.required %}required{% endif %}>
+                            {% endif %}
+                            {% if field.help_text %}
+                            <div class="form-text">{{ field.help_text }}</div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% if structured_task_report_form.attachment.enabled %}
+                    <div class="pc06-da06-card">
+                        <label for="report_file">{{ structured_task_report_form.attachment.label }}{% if structured_task_report_form.attachment.required %} <span class="text-danger">*</span>{% endif %}</label>
+                        <input id="report_file" type="file" name="report_file" class="form-control" {% if structured_task_report_form.attachment.required and not structured_task_report_form.attachment.value %}required{% endif %}>
+                        {% if structured_task_report_form.attachment.value and user_assign %}
+                        <a class="pc06-da06-inline-file" href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=user_assign.user_id) }}">
+                            <i class="fa-solid fa-paperclip"></i>{{ structured_task_report_form.attachment.value }}
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <div class="pc06-report-footer">
+                        <label class="form-check pc06-checkline">
+                            <input class="form-check-input" type="checkbox" name="mark_completed" value="1">
+                            <span class="form-check-label">Đánh dấu hoàn thành sau khi gửi báo cáo</span>
+                        </label>
+                        <button type="submit" class="btn btn-bdhvs primary">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            Gửi báo cáo
+                        </button>
+                    </div>
+                </form>
+                {% else %}
+                <div class="pc06-info-banner">
+                    Task này dùng biểu mẫu riêng nhưng hiện chưa có mục nào được giao cho tài khoản của bạn. Hãy mở task con hoặc liên hệ quản trị để điều chỉnh phân công.
+                </div>
+                {% endif %}
+            </section>
+            {% elif da06_task_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
             <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>
@@ -1211,7 +1352,7 @@
                     {% if limited_assignment_view %}
                     <div class="pc06-info-item"><span>Trạng thái báo cáo</span><strong>{{ report_context.status }}</strong></div>
                     <div class="pc06-info-item">
-                        <span>Tệp minh chứng đã nộp</span>
+                        <span>{{ report_context.attachment_label }} đã nộp</span>
                         <strong>{{ report_file_name or 'Chưa tải lên' }}</strong>
                         {% if report_file_name and user_assign %}
                         <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=user_assign.user_id) }}" class="pc06-inline-link mt-2 d-inline-flex align-items-center gap-2">
@@ -1220,6 +1361,16 @@
                         </a>
                         {% endif %}
                     </div>
+                    {% if report_context.summary_lines %}
+                    <div class="pc06-info-item">
+                        <span>Nội dung đã cập nhật</span>
+                        <div class="pc06-detail-inline-note">
+                            {% for line in report_context.summary_lines %}
+                            <div>{{ line }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
                     <div class="pc06-info-item"><span>Lần báo cáo gần nhất</span><strong>{{ report_context.latest_report_at.strftime('%d/%m/%Y %H:%M') if report_context.latest_report_at else 'Chưa gửi báo cáo' }}</strong></div>
                     {% endif %}
                 </div>
@@ -1393,6 +1544,182 @@
                             <div class="form-text">Giữ `Ctrl` hoặc `Cmd` để chọn nhiều cán bộ.</div>
                         </div>
                         <div class="col-12">
+                            <div class="pc06-form-section mb-0" data-task-report-builder data-report-schema-seed='{{ task_report_schema_seed|tojson|forceescape }}'>
+                                <div class="d-flex justify-content-between align-items-start gap-3">
+                                    <div>
+                                        <label class="form-label fw-bold mb-1">Biểu mẫu báo cáo của task</label>
+                                        <div class="form-text">Điều chỉnh phần báo cáo lời, số liệu và minh chứng ngay trên task đang sửa.</div>
+                                    </div>
+                                    <div class="form-check form-switch mt-1">
+                                        <input class="form-check-input" type="checkbox" name="report_schema_enabled" value="1" data-report-toggle>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="report_schema_json" data-report-schema-input>
+                                <div class="border rounded-4 p-3 mt-3 d-none" data-report-builder-body>
+                                    <div class="row g-3">
+                                        <div class="col-md-8">
+                                            <label class="form-label fw-bold mb-1">Phần báo cáo lời</label>
+                                            <input type="text" class="form-control" data-report-narrative-label placeholder="Ví dụ: Báo cáo lời tổng hợp">
+                                        </div>
+                                        <div class="col-md-4 d-flex align-items-end">
+                                            <div class="form-check form-switch mb-2">
+                                                <input class="form-check-input" type="checkbox" data-report-narrative-enabled>
+                                                <label class="form-check-label">Bật phần báo cáo lời</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-8">
+                                            <label class="form-label fw-bold mb-1">Gợi ý nhập báo cáo lời</label>
+                                            <input type="text" class="form-control" data-report-narrative-placeholder placeholder="Nêu rõ kết quả, tồn tại và kiến nghị nếu có">
+                                        </div>
+                                        <div class="col-md-4 d-flex align-items-end">
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" data-report-narrative-required>
+                                                <label class="form-check-label">Bắt buộc nhập</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold mb-1">Giao báo cáo lời cho</label>
+                                            <select class="form-select" data-report-narrative-target-type>
+                                                <option value="all">Tất cả người nhận</option>
+                                                <option value="role">Theo vai trò</option>
+                                                <option value="user">Theo tài khoản</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4 d-none" data-report-narrative-role-box>
+                                            <label class="form-label fw-bold mb-1">Vai trò áp dụng</label>
+                                            <select class="form-select" multiple size="4" data-report-narrative-role-ids>
+                                                {% for role in roles %}
+                                                <option value="{{ role.id }}">{{ role.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4 d-none" data-report-narrative-user-box>
+                                            <label class="form-label fw-bold mb-1">Tài khoản áp dụng</label>
+                                            <select class="form-select" multiple size="4" data-report-narrative-user-ids>
+                                                {% for user in users %}
+                                                <option value="{{ user.id }}">{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-8">
+                                            <label class="form-label fw-bold mb-1">Nhãn file minh chứng</label>
+                                            <input type="text" class="form-control" data-report-attachment-label placeholder="Ví dụ: Tệp minh chứng">
+                                        </div>
+                                        <div class="col-md-4 d-flex align-items-end">
+                                            <div class="form-check form-switch mb-2">
+                                                <input class="form-check-input" type="checkbox" data-report-attachment-enabled>
+                                                <label class="form-check-label">Cho phép đính kèm file</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" data-report-attachment-required>
+                                                <label class="form-check-label">Bắt buộc có file minh chứng</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold mb-1">Giao file minh chứng cho</label>
+                                            <select class="form-select" data-report-attachment-target-type>
+                                                <option value="all">Tất cả người nhận</option>
+                                                <option value="role">Theo vai trò</option>
+                                                <option value="user">Theo tài khoản</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4 d-none" data-report-attachment-role-box>
+                                            <label class="form-label fw-bold mb-1">Vai trò áp dụng</label>
+                                            <select class="form-select" multiple size="4" data-report-attachment-role-ids>
+                                                {% for role in roles %}
+                                                <option value="{{ role.id }}">{{ role.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4 d-none" data-report-attachment-user-box>
+                                            <label class="form-label fw-bold mb-1">Tài khoản áp dụng</label>
+                                            <select class="form-select" multiple size="4" data-report-attachment-user-ids>
+                                                {% for user in users %}
+                                                <option value="{{ user.id }}">{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mt-4 mb-2 gap-3">
+                                        <div>
+                                            <label class="form-label fw-bold mb-0">Chỉ tiêu và nội dung riêng</label>
+                                            <div class="form-text">Dùng khi task cần nhập số liệu, ghi chú riêng hoặc chia nội dung theo từng vai trò.</div>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-report-add-field>
+                                            <i class="fa-solid fa-plus"></i>
+                                            Thêm mục
+                                        </button>
+                                    </div>
+                                    <div class="d-grid gap-3" data-report-field-list></div>
+                                    <div class="text-muted small fst-italic mt-2" data-report-empty-state>Chưa có mục riêng. Bạn có thể chỉ dùng phần báo cáo lời hoặc thêm các chỉ tiêu số liệu.</div>
+                                </div>
+                                <template data-report-field-template>
+                                    <div class="border rounded-4 p-3" data-report-field-item>
+                                        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                                            <strong>Mục báo cáo</strong>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" data-report-remove-field>
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </div>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold mb-1">Tên mục</label>
+                                                <input type="text" class="form-control" data-field-label placeholder="Ví dụ: Số hồ sơ tiếp nhận">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold mb-1">Kiểu dữ liệu</label>
+                                                <select class="form-select" data-field-type>
+                                                    <option value="number">Số liệu</option>
+                                                    <option value="text">Văn bản ngắn</option>
+                                                    <option value="textarea">Đoạn văn</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3 d-flex align-items-end">
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" data-field-required>
+                                                    <label class="form-check-label">Bắt buộc</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold mb-1">Gợi ý nhập</label>
+                                                <input type="text" class="form-control" data-field-placeholder placeholder="Hiển thị trong ô nhập liệu">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold mb-1">Ghi chú cho người nhập</label>
+                                                <input type="text" class="form-control" data-field-help-text placeholder="Ví dụ: Nhập số lũy kế đến ngày báo cáo">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold mb-1">Áp dụng cho</label>
+                                                <select class="form-select" data-field-target-type>
+                                                    <option value="all">Tất cả người nhận</option>
+                                                    <option value="role">Theo vai trò</option>
+                                                    <option value="user">Theo tài khoản</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4 d-none" data-field-role-box>
+                                                <label class="form-label fw-bold mb-1">Vai trò áp dụng</label>
+                                                <select class="form-select" multiple size="4" data-field-role-ids>
+                                                    {% for role in roles %}
+                                                    <option value="{{ role.id }}">{{ role.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4 d-none" data-field-user-box>
+                                                <label class="form-label fw-bold mb-1">Tài khoản áp dụng</label>
+                                                <select class="form-select" multiple size="4" data-field-user-ids>
+                                                    {% for user in users %}
+                                                    <option value="{{ user.id }}">{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="col-12">
                             <label class="form-label fw-bold">Tệp đính kèm mới</label>
                             <input type="file" name="task_file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar">
                             {% if task.file_path %}
@@ -1412,12 +1739,639 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="createChildTaskModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl pc06-task-modal-dialog">
+        <div class="modal-content border-0 pc06-modal-shell pc06-task-modal-shell">
+            <form action="{{ url_for('tasks_bp.create_child_task', tid=task.id) }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="deadline_type" value="custom">
+                <div class="modal-header border-0 pc06-modal-head">
+                    <div>
+                        <div class="pc06-page-kicker mb-2">
+                            <i class="fa-solid fa-diagram-project"></i>
+                            Tạo task con
+                        </div>
+                        <h5 class="modal-title fw-bold mb-1">Tách nội dung cần giao riêng</h5>
+                        <p class="mb-0 text-white-50">Dùng task con để giao đúng vai trò hoặc tài khoản phụ trách một phần báo cáo cụ thể.</p>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 p-lg-5 pc06-task-modal-body">
+                    <div class="row g-4">
+                        <div class="col-lg-7">
+                            <div class="pc06-form-panel">
+                                <div class="pc06-form-section">
+                                    <label class="form-label fw-bold">Tiêu đề task con</label>
+                                    <input type="text" name="title" class="form-control form-control-lg" placeholder="Ví dụ: Báo cáo số liệu của Đội 1" required>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Lĩnh vực</label>
+                                        <select name="category" class="form-select form-select-lg">
+                                            <option value="">Chọn lĩnh vực</option>
+                                            {% for item in task_fields %}
+                                            <option value="{{ item.value }}" {% if item.value == task.category %}selected{% endif %}>{{ item.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Đơn vị nghiệp vụ</label>
+                                        <select name="unit_name" class="form-select form-select-lg">
+                                            <option value="">Chọn đơn vị</option>
+                                            {% for unit in pro_units %}
+                                            <option value="{{ unit.value }}" {% if unit.value == task.domain %}selected{% endif %}>{{ unit.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Hạn xử lý</label>
+                                        <input type="date" name="deadline" class="form-control form-control-lg" value="{{ task.deadline.strftime('%Y-%m-%d') if task.deadline else '' }}">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Mức độ ưu tiên</label>
+                                        <select name="priority" class="form-select form-select-lg">
+                                            <option value="">Chọn mức độ</option>
+                                            {% for item in priority_items %}
+                                            <option value="{{ item.value }}" {% if item.value == task.priority %}selected{% endif %}>{{ item.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Loại công việc</label>
+                                        <select name="task_type" class="form-select form-select-lg">
+                                            <option value="">Công việc thường xuyên</option>
+                                            {% for item in task_types %}
+                                            <option value="{{ item.value }}" {% if item.value == task.task_type %}selected{% endif %}>{{ item.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="pc06-form-section">
+                                    <label class="form-label fw-bold">Nội dung giao riêng</label>
+                                    <textarea name="description" rows="6" class="form-control" placeholder="Mô tả phần việc hoặc nội dung báo cáo mà task con này phụ trách"></textarea>
+                                </div>
+                                <div class="pc06-form-section" data-task-report-builder data-report-schema-seed='{{ task_report_schema_seed|tojson|forceescape }}'>
+                                    <div class="d-flex justify-content-between align-items-start gap-3">
+                                        <div>
+                                            <label class="form-label fw-bold mb-1">Biểu mẫu báo cáo của task con</label>
+                                            <div class="form-text">Mặc định kế thừa từ task cha. Bạn có thể chỉnh lại để đúng phần việc của vai trò hoặc tài khoản được giao.</div>
+                                        </div>
+                                        <div class="form-check form-switch mt-1">
+                                            <input class="form-check-input" type="checkbox" name="report_schema_enabled" value="1" data-report-toggle>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" name="report_schema_json" data-report-schema-input>
+                                    <div class="border rounded-4 p-3 mt-3 d-none" data-report-builder-body>
+                                        <div class="row g-3">
+                                            <div class="col-md-8">
+                                                <label class="form-label fw-bold mb-1">Phần báo cáo lời</label>
+                                                <input type="text" class="form-control" data-report-narrative-label placeholder="Ví dụ: Kết quả phần việc phụ trách">
+                                            </div>
+                                            <div class="col-md-4 d-flex align-items-end">
+                                                <div class="form-check form-switch mb-2">
+                                                    <input class="form-check-input" type="checkbox" data-report-narrative-enabled>
+                                                    <label class="form-check-label">Bật phần báo cáo lời</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-8">
+                                                <label class="form-label fw-bold mb-1">Gợi ý nhập báo cáo lời</label>
+                                                <input type="text" class="form-control" data-report-narrative-placeholder placeholder="Nêu rõ kết quả, tồn tại và đề xuất của phần việc này">
+                                            </div>
+                                            <div class="col-md-4 d-flex align-items-end">
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" data-report-narrative-required>
+                                                    <label class="form-check-label">Bắt buộc nhập</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold mb-1">Giao báo cáo lời cho</label>
+                                                <select class="form-select" data-report-narrative-target-type>
+                                                    <option value="all">Tất cả người nhận</option>
+                                                    <option value="role">Theo vai trò</option>
+                                                    <option value="user">Theo tài khoản</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4 d-none" data-report-narrative-role-box>
+                                                <label class="form-label fw-bold mb-1">Vai trò áp dụng</label>
+                                                <select class="form-select" multiple size="4" data-report-narrative-role-ids>
+                                                    {% for role in roles %}
+                                                    <option value="{{ role.id }}">{{ role.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4 d-none" data-report-narrative-user-box>
+                                                <label class="form-label fw-bold mb-1">Tài khoản áp dụng</label>
+                                                <select class="form-select" multiple size="4" data-report-narrative-user-ids>
+                                                    {% for user in users %}
+                                                    <option value="{{ user.id }}">{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-8">
+                                                <label class="form-label fw-bold mb-1">Nhãn file minh chứng</label>
+                                                <input type="text" class="form-control" data-report-attachment-label placeholder="Ví dụ: File minh chứng phần việc">
+                                            </div>
+                                            <div class="col-md-4 d-flex align-items-end">
+                                                <div class="form-check form-switch mb-2">
+                                                    <input class="form-check-input" type="checkbox" data-report-attachment-enabled>
+                                                    <label class="form-check-label">Cho phép đính kèm file</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-12">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" data-report-attachment-required>
+                                                    <label class="form-check-label">Bắt buộc có file minh chứng</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold mb-1">Giao file minh chứng cho</label>
+                                                <select class="form-select" data-report-attachment-target-type>
+                                                    <option value="all">Tất cả người nhận</option>
+                                                    <option value="role">Theo vai trò</option>
+                                                    <option value="user">Theo tài khoản</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4 d-none" data-report-attachment-role-box>
+                                                <label class="form-label fw-bold mb-1">Vai trò áp dụng</label>
+                                                <select class="form-select" multiple size="4" data-report-attachment-role-ids>
+                                                    {% for role in roles %}
+                                                    <option value="{{ role.id }}">{{ role.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4 d-none" data-report-attachment-user-box>
+                                                <label class="form-label fw-bold mb-1">Tài khoản áp dụng</label>
+                                                <select class="form-select" multiple size="4" data-report-attachment-user-ids>
+                                                    {% for user in users %}
+                                                    <option value="{{ user.id }}">{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mt-4 mb-2 gap-3">
+                                            <div>
+                                                <label class="form-label fw-bold mb-0">Chỉ tiêu và nội dung riêng</label>
+                                                <div class="form-text">Mỗi task con nên gom đúng một cụm nội dung cần nhập và người chịu trách nhiệm tương ứng.</div>
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" data-report-add-field>
+                                                <i class="fa-solid fa-plus"></i>
+                                                Thêm mục
+                                            </button>
+                                        </div>
+                                        <div class="d-grid gap-3" data-report-field-list></div>
+                                        <div class="text-muted small fst-italic mt-2" data-report-empty-state>Chưa có mục riêng. Bạn có thể giữ phần báo cáo lời hoặc thêm các chỉ tiêu số liệu cho task con này.</div>
+                                    </div>
+                                    <template data-report-field-template>
+                                        <div class="border rounded-4 p-3" data-report-field-item>
+                                            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                                                <strong>Mục báo cáo</strong>
+                                                <button type="button" class="btn btn-sm btn-outline-danger" data-report-remove-field>
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </div>
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-bold mb-1">Tên mục</label>
+                                                    <input type="text" class="form-control" data-field-label placeholder="Ví dụ: Số liệu của đội phụ trách">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-bold mb-1">Kiểu dữ liệu</label>
+                                                    <select class="form-select" data-field-type>
+                                                        <option value="number">Số liệu</option>
+                                                        <option value="text">Văn bản ngắn</option>
+                                                        <option value="textarea">Đoạn văn</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-3 d-flex align-items-end">
+                                                    <div class="form-check mb-2">
+                                                        <input class="form-check-input" type="checkbox" data-field-required>
+                                                        <label class="form-check-label">Bắt buộc</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-bold mb-1">Gợi ý nhập</label>
+                                                    <input type="text" class="form-control" data-field-placeholder placeholder="Hiển thị trong ô nhập liệu">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-bold mb-1">Ghi chú cho người nhập</label>
+                                                    <input type="text" class="form-control" data-field-help-text placeholder="Ví dụ: Chỉ nhập số liệu thuộc phạm vi phụ trách">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-bold mb-1">Áp dụng cho</label>
+                                                    <select class="form-select" data-field-target-type>
+                                                        <option value="all">Tất cả người nhận</option>
+                                                        <option value="role">Theo vai trò</option>
+                                                        <option value="user">Theo tài khoản</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4 d-none" data-field-role-box>
+                                                    <label class="form-label fw-bold mb-1">Vai trò áp dụng</label>
+                                                    <select class="form-select" multiple size="4" data-field-role-ids>
+                                                        {% for role in roles %}
+                                                        <option value="{{ role.id }}">{{ role.name }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4 d-none" data-field-user-box>
+                                                    <label class="form-label fw-bold mb-1">Tài khoản áp dụng</label>
+                                                    <select class="form-select" multiple size="4" data-field-user-ids>
+                                                        {% for user in users %}
+                                                        <option value="{{ user.id }}">{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                                <div class="pc06-form-section mb-0">
+                                    <label class="form-label fw-bold">Tài liệu đính kèm</label>
+                                    <input type="file" name="task_file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-5">
+                            <div class="pc06-form-panel pc06-assignment-panel">
+                                <div class="pc06-side-title">
+                                    <h6>Giao cho người phụ trách</h6>
+                                    <p>Task con nên ưu tiên giao theo vai trò hoặc cá nhân để gom đúng phần báo cáo cần nhập.</p>
+                                </div>
+                                <div class="pc06-segmented" id="childAssignmentModes">
+                                    <label class="pc06-radio-card">
+                                        <input type="radio" name="assign_type" value="unit">
+                                        <span class="pc06-radio-title">Theo đơn vị</span>
+                                        <small>Giao cho toàn bộ cán bộ đang hoạt động của đơn vị đã chọn.</small>
+                                    </label>
+                                    <label class="pc06-radio-card active">
+                                        <input type="radio" name="assign_type" value="role" checked>
+                                        <span class="pc06-radio-title">Theo vai trò</span>
+                                        <small>Giao cho nhóm vai trò phụ trách một nội dung báo cáo.</small>
+                                    </label>
+                                    <label class="pc06-radio-card">
+                                        <input type="radio" name="assign_type" value="user">
+                                        <span class="pc06-radio-title">Theo cá nhân</span>
+                                        <small>Giao trực tiếp cho tài khoản cụ thể.</small>
+                                    </label>
+                                </div>
+                                <div class="pc06-form-section" id="childRoleAssignmentPanel">
+                                    <label class="form-label fw-bold">Vai trò nhận việc</label>
+                                    <div class="pc06-assignment-option-list">
+                                        {% for role in roles %}
+                                        <label class="pc06-user-option">
+                                            <input type="checkbox" name="assignee_role_ids" value="{{ role.id }}">
+                                            <span class="fw-semibold">{{ role.name }}</span>
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="pc06-form-section d-none" id="childUserAssignmentPanel">
+                                    <label class="form-label fw-bold">Cán bộ nhận việc</label>
+                                    <div class="pc06-user-picker" data-user-picker>
+                                        <button type="button" class="pc06-user-picker-trigger" data-user-picker-trigger>
+                                            <div>
+                                                <strong data-user-picker-label>Chọn cán bộ</strong>
+                                                <small>Tìm kiếm và tích chọn một hoặc nhiều cá nhân</small>
+                                            </div>
+                                            <i class="fa-solid fa-chevron-down"></i>
+                                        </button>
+                                        <div class="pc06-user-picker-panel">
+                                            <input type="text" class="pc06-user-search" placeholder="Tìm theo họ tên hoặc đơn vị" data-user-picker-search>
+                                            <div class="pc06-user-option-list" data-user-picker-options>
+                                                {% for user in users %}
+                                                <label class="pc06-user-option" data-user-picker-option data-search="{{ (user.fullname ~ ' ' ~ (user.unit_area_display or user.unit_area or ''))|lower }}">
+                                                    <input type="checkbox" name="target_users" value="{{ user.id }}">
+                                                    <div>
+                                                        <strong>{{ user.fullname }}</strong>
+                                                        <small>{{ user.unit_area_display or 'Chưa có đơn vị' }}</small>
+                                                    </div>
+                                                </label>
+                                                {% endfor %}
+                                            </div>
+                                            <div class="pc06-user-picker-empty" data-user-picker-empty>Không tìm thấy cán bộ phù hợp.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="pc06-mode-help">
+                                    Nếu cần phần báo cáo riêng theo từng đầu việc, hãy tạo nhiều task con tương ứng thay vì dồn vào một form chung.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 px-4 px-lg-5 pb-4">
+                    <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-bdhvs primary">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        Tạo task con
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endif %}
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
+    function cloneTaskReportSchema(schema) {
+        return JSON.parse(JSON.stringify(schema || {}));
+    }
+
+    function parseTaskReportSchemaSeed(rawValue) {
+        if (!rawValue) return null;
+        try {
+            return JSON.parse(rawValue);
+        } catch (_error) {
+            return null;
+        }
+    }
+
+    function normalizeTaskReportState(schema) {
+        const seed = cloneTaskReportSchema(schema || {});
+        seed.enabled = Boolean(seed.enabled);
+        seed.narrative = seed.narrative || {};
+        seed.attachment = seed.attachment || {};
+        seed.fields = Array.isArray(seed.fields) ? seed.fields : [];
+        seed.narrative.enabled = seed.narrative.enabled !== false;
+        seed.narrative.label = seed.narrative.label || 'Báo cáo lời tổng hợp';
+        seed.narrative.placeholder = seed.narrative.placeholder || 'Nêu rõ kết quả, tồn tại và kiến nghị nếu có';
+        seed.narrative.required = seed.narrative.required !== false;
+        seed.narrative.target_type = seed.narrative.target_type || 'all';
+        seed.narrative.target_role_ids = Array.isArray(seed.narrative.target_role_ids) ? seed.narrative.target_role_ids : [];
+        seed.narrative.target_user_ids = Array.isArray(seed.narrative.target_user_ids) ? seed.narrative.target_user_ids : [];
+        seed.attachment.label = seed.attachment.label || 'Tệp minh chứng';
+        seed.attachment.enabled = Boolean(seed.attachment.enabled);
+        seed.attachment.required = Boolean(seed.attachment.required);
+        seed.attachment.target_type = seed.attachment.target_type || 'all';
+        seed.attachment.target_role_ids = Array.isArray(seed.attachment.target_role_ids) ? seed.attachment.target_role_ids : [];
+        seed.attachment.target_user_ids = Array.isArray(seed.attachment.target_user_ids) ? seed.attachment.target_user_ids : [];
+        seed.fields = seed.fields.map((field) => ({
+            key: field.key || '',
+            label: field.label || '',
+            type: ['number', 'text', 'textarea'].includes(field.type) ? field.type : 'number',
+            required: Boolean(field.required),
+            placeholder: field.placeholder || '',
+            help_text: field.help_text || '',
+            target_type: field.target_type || 'all',
+            target_role_ids: Array.isArray(field.target_role_ids) ? field.target_role_ids : [],
+            target_user_ids: Array.isArray(field.target_user_ids) ? field.target_user_ids : [],
+        }));
+        return seed;
+    }
+
+    function initTaskReportBuilder(builder) {
+        const schemaInput = builder.querySelector('[data-report-schema-input]');
+        const toggle = builder.querySelector('[data-report-toggle]');
+        const body = builder.querySelector('[data-report-builder-body]');
+        const narrativeEnabled = builder.querySelector('[data-report-narrative-enabled]');
+        const narrativeLabel = builder.querySelector('[data-report-narrative-label]');
+        const narrativeRequired = builder.querySelector('[data-report-narrative-required]');
+        const narrativePlaceholder = builder.querySelector('[data-report-narrative-placeholder]');
+        const narrativeTargetType = builder.querySelector('[data-report-narrative-target-type]');
+        const narrativeRoleBox = builder.querySelector('[data-report-narrative-role-box]');
+        const narrativeRoleIds = builder.querySelector('[data-report-narrative-role-ids]');
+        const narrativeUserBox = builder.querySelector('[data-report-narrative-user-box]');
+        const narrativeUserIds = builder.querySelector('[data-report-narrative-user-ids]');
+        const attachmentEnabled = builder.querySelector('[data-report-attachment-enabled]');
+        const attachmentLabel = builder.querySelector('[data-report-attachment-label]');
+        const attachmentRequired = builder.querySelector('[data-report-attachment-required]');
+        const attachmentTargetType = builder.querySelector('[data-report-attachment-target-type]');
+        const attachmentRoleBox = builder.querySelector('[data-report-attachment-role-box]');
+        const attachmentRoleIds = builder.querySelector('[data-report-attachment-role-ids]');
+        const attachmentUserBox = builder.querySelector('[data-report-attachment-user-box]');
+        const attachmentUserIds = builder.querySelector('[data-report-attachment-user-ids]');
+        const fieldList = builder.querySelector('[data-report-field-list]');
+        const emptyState = builder.querySelector('[data-report-empty-state]');
+        const fieldTemplate = builder.querySelector('[data-report-field-template]');
+        const addFieldButton = builder.querySelector('[data-report-add-field]');
+        const seed = normalizeTaskReportState(parseTaskReportSchemaSeed(builder.dataset.reportSchemaSeed));
+        let state = seed;
+
+        function selectedValues(select) {
+            return Array.from(select?.selectedOptions || []).map((option) => option.value);
+        }
+
+        function setSelectedValues(select, values) {
+            const allowed = new Set((values || []).map((value) => String(value)));
+            Array.from(select?.options || []).forEach((option) => {
+                option.selected = allowed.has(option.value);
+            });
+        }
+
+        function syncTargetBoxes(targetType, roleBox, userBox) {
+            roleBox?.classList.toggle('d-none', targetType !== 'role');
+            userBox?.classList.toggle('d-none', targetType !== 'user');
+        }
+
+        function syncHiddenInput() {
+            state.enabled = Boolean(toggle?.checked);
+            state.narrative.enabled = Boolean(narrativeEnabled?.checked);
+            state.narrative.label = narrativeLabel?.value?.trim() || 'Báo cáo lời tổng hợp';
+            state.narrative.required = Boolean(narrativeRequired?.checked);
+            state.narrative.placeholder = narrativePlaceholder?.value?.trim() || 'Nêu rõ kết quả, tồn tại và kiến nghị nếu có';
+            state.narrative.target_type = narrativeTargetType?.value || 'all';
+            state.narrative.target_role_ids = selectedValues(narrativeRoleIds);
+            state.narrative.target_user_ids = selectedValues(narrativeUserIds);
+            state.attachment.enabled = Boolean(attachmentEnabled?.checked);
+            state.attachment.label = attachmentLabel?.value?.trim() || 'Tệp minh chứng';
+            state.attachment.required = Boolean(attachmentRequired?.checked);
+            state.attachment.target_type = attachmentTargetType?.value || 'all';
+            state.attachment.target_role_ids = selectedValues(attachmentRoleIds);
+            state.attachment.target_user_ids = selectedValues(attachmentUserIds);
+            if (schemaInput) {
+                schemaInput.value = JSON.stringify(state);
+            }
+        }
+
+        function renderFieldRows() {
+            if (!fieldList || !fieldTemplate) return;
+            fieldList.innerHTML = '';
+            state.fields.forEach((field, index) => {
+                const fragment = fieldTemplate.content.cloneNode(true);
+                const item = fragment.querySelector('[data-report-field-item]');
+                const labelInput = fragment.querySelector('[data-field-label]');
+                const typeSelect = fragment.querySelector('[data-field-type]');
+                const requiredInput = fragment.querySelector('[data-field-required]');
+                const placeholderInput = fragment.querySelector('[data-field-placeholder]');
+                const helpTextInput = fragment.querySelector('[data-field-help-text]');
+                const targetTypeSelect = fragment.querySelector('[data-field-target-type]');
+                const roleBox = fragment.querySelector('[data-field-role-box]');
+                const roleIdsSelect = fragment.querySelector('[data-field-role-ids]');
+                const userBox = fragment.querySelector('[data-field-user-box]');
+                const userIdsSelect = fragment.querySelector('[data-field-user-ids]');
+                const removeButton = fragment.querySelector('[data-report-remove-field]');
+
+                if (labelInput) labelInput.value = field.label || '';
+                if (typeSelect) typeSelect.value = field.type || 'number';
+                if (requiredInput) requiredInput.checked = Boolean(field.required);
+                if (placeholderInput) placeholderInput.value = field.placeholder || '';
+                if (helpTextInput) helpTextInput.value = field.help_text || '';
+                if (targetTypeSelect) targetTypeSelect.value = field.target_type || 'all';
+                setSelectedValues(roleIdsSelect, field.target_role_ids || []);
+                setSelectedValues(userIdsSelect, field.target_user_ids || []);
+                syncTargetBoxes(field.target_type || 'all', roleBox, userBox);
+
+                labelInput?.addEventListener('input', (event) => {
+                    state.fields[index].label = event.target.value;
+                    syncHiddenInput();
+                });
+                typeSelect?.addEventListener('change', (event) => {
+                    state.fields[index].type = event.target.value;
+                    syncHiddenInput();
+                });
+                requiredInput?.addEventListener('change', (event) => {
+                    state.fields[index].required = event.target.checked;
+                    syncHiddenInput();
+                });
+                placeholderInput?.addEventListener('input', (event) => {
+                    state.fields[index].placeholder = event.target.value;
+                    syncHiddenInput();
+                });
+                helpTextInput?.addEventListener('input', (event) => {
+                    state.fields[index].help_text = event.target.value;
+                    syncHiddenInput();
+                });
+                targetTypeSelect?.addEventListener('change', (event) => {
+                    state.fields[index].target_type = event.target.value;
+                    syncTargetBoxes(event.target.value, roleBox, userBox);
+                    syncHiddenInput();
+                });
+                roleIdsSelect?.addEventListener('change', () => {
+                    state.fields[index].target_role_ids = selectedValues(roleIdsSelect);
+                    syncHiddenInput();
+                });
+                userIdsSelect?.addEventListener('change', () => {
+                    state.fields[index].target_user_ids = selectedValues(userIdsSelect);
+                    syncHiddenInput();
+                });
+                removeButton?.addEventListener('click', () => {
+                    state.fields.splice(index, 1);
+                    render();
+                });
+
+                fieldList.appendChild(item);
+            });
+
+            if (emptyState) emptyState.classList.toggle('d-none', state.fields.length > 0);
+        }
+
+        function render() {
+            if (toggle) toggle.checked = Boolean(state.enabled);
+            if (body) body.classList.toggle('d-none', !toggle?.checked);
+            if (narrativeEnabled) narrativeEnabled.checked = Boolean(state.narrative.enabled);
+            if (narrativeLabel) narrativeLabel.value = state.narrative.label || '';
+            if (narrativeRequired) narrativeRequired.checked = Boolean(state.narrative.required);
+            if (narrativePlaceholder) narrativePlaceholder.value = state.narrative.placeholder || '';
+            if (narrativeTargetType) narrativeTargetType.value = state.narrative.target_type || 'all';
+            setSelectedValues(narrativeRoleIds, state.narrative.target_role_ids || []);
+            setSelectedValues(narrativeUserIds, state.narrative.target_user_ids || []);
+            syncTargetBoxes(state.narrative.target_type || 'all', narrativeRoleBox, narrativeUserBox);
+            if (attachmentEnabled) attachmentEnabled.checked = Boolean(state.attachment.enabled);
+            if (attachmentLabel) attachmentLabel.value = state.attachment.label || '';
+            if (attachmentRequired) attachmentRequired.checked = Boolean(state.attachment.required);
+            if (attachmentTargetType) attachmentTargetType.value = state.attachment.target_type || 'all';
+            setSelectedValues(attachmentRoleIds, state.attachment.target_role_ids || []);
+            setSelectedValues(attachmentUserIds, state.attachment.target_user_ids || []);
+            syncTargetBoxes(state.attachment.target_type || 'all', attachmentRoleBox, attachmentUserBox);
+            renderFieldRows();
+            syncHiddenInput();
+        }
+
+        toggle?.addEventListener('change', render);
+        narrativeEnabled?.addEventListener('change', syncHiddenInput);
+        narrativeLabel?.addEventListener('input', syncHiddenInput);
+        narrativeRequired?.addEventListener('change', syncHiddenInput);
+        narrativePlaceholder?.addEventListener('input', syncHiddenInput);
+        narrativeTargetType?.addEventListener('change', () => {
+            syncTargetBoxes(narrativeTargetType.value, narrativeRoleBox, narrativeUserBox);
+            syncHiddenInput();
+        });
+        narrativeRoleIds?.addEventListener('change', syncHiddenInput);
+        narrativeUserIds?.addEventListener('change', syncHiddenInput);
+        attachmentEnabled?.addEventListener('change', syncHiddenInput);
+        attachmentLabel?.addEventListener('input', syncHiddenInput);
+        attachmentRequired?.addEventListener('change', syncHiddenInput);
+        attachmentTargetType?.addEventListener('change', () => {
+            syncTargetBoxes(attachmentTargetType.value, attachmentRoleBox, attachmentUserBox);
+            syncHiddenInput();
+        });
+        attachmentRoleIds?.addEventListener('change', syncHiddenInput);
+        attachmentUserIds?.addEventListener('change', syncHiddenInput);
+        addFieldButton?.addEventListener('click', () => {
+            state.fields.push({
+                key: '',
+                label: '',
+                type: 'number',
+                required: false,
+                placeholder: '',
+                help_text: '',
+                target_type: 'all',
+                target_role_ids: [],
+                target_user_ids: [],
+            });
+            if (toggle) toggle.checked = true;
+            state.enabled = true;
+            render();
+        });
+
+        render();
+    }
+
+    function initScopedUserPickers(scope) {
+        scope.querySelectorAll('[data-user-picker]').forEach((picker) => {
+            const trigger = picker.querySelector('[data-user-picker-trigger]');
+            const label = picker.querySelector('[data-user-picker-label]');
+            const searchInput = picker.querySelector('[data-user-picker-search]');
+            const options = Array.from(picker.querySelectorAll('[data-user-picker-option]'));
+            const emptyNode = picker.querySelector('[data-user-picker-empty]');
+
+            const updateLabel = () => {
+                const checked = options.filter((option) => option.querySelector('input')?.checked);
+                if (!label) return;
+                if (!checked.length) {
+                    label.textContent = 'Chọn cán bộ';
+                } else if (checked.length === 1) {
+                    label.textContent = checked[0].querySelector('strong')?.textContent?.trim() || '1 cán bộ';
+                } else {
+                    label.textContent = `${checked.length} cán bộ đã chọn`;
+                }
+            };
+
+            const applySearch = () => {
+                const keyword = searchInput?.value?.trim().toLowerCase() || '';
+                let visible = 0;
+                options.forEach((option) => {
+                    const haystack = option.dataset.search || '';
+                    const match = !keyword || haystack.includes(keyword);
+                    option.style.display = match ? '' : 'none';
+                    if (match) visible += 1;
+                });
+                emptyNode?.classList.toggle('active', visible === 0);
+            };
+
+            trigger?.addEventListener('click', () => {
+                picker.classList.toggle('is-open');
+                if (picker.classList.contains('is-open')) {
+                    searchInput?.focus();
+                }
+            });
+            searchInput?.addEventListener('input', applySearch);
+            options.forEach((option) => {
+                option.querySelector('input')?.addEventListener('change', updateLabel);
+            });
+            document.addEventListener('click', (event) => {
+                if (!picker.contains(event.target)) {
+                    picker.classList.remove('is-open');
+                }
+            });
+
+            updateLabel();
+            applySearch();
+        });
+    }
+
     function selectEditAssignmentMode(mode) {
         const target = document.querySelector(`#editTaskModal input[name="assign_type"][value="${mode}"]`);
         if (!target) return;
@@ -1442,6 +2396,25 @@
         document.getElementById('editUserAssignmentPanel')?.classList.toggle('d-none', selected !== 'user');
     }
 
+    function selectChildAssignmentMode(mode) {
+        const target = document.querySelector(`#createChildTaskModal input[name="assign_type"][value="${mode}"]`);
+        if (!target) return;
+        target.checked = true;
+        syncChildAssignmentMode();
+    }
+
+    function syncChildAssignmentMode() {
+        const selected = document.querySelector('#createChildTaskModal input[name="assign_type"]:checked')?.value || 'role';
+
+        document.querySelectorAll('#childAssignmentModes .pc06-radio-card').forEach((card) => {
+            const radio = card.querySelector('input[name="assign_type"]');
+            card.classList.toggle('active', !!radio?.checked);
+        });
+
+        document.getElementById('childRoleAssignmentPanel')?.classList.toggle('d-none', selected !== 'role');
+        document.getElementById('childUserAssignmentPanel')?.classList.toggle('d-none', selected !== 'user');
+    }
+
     document.querySelectorAll('#editTaskModal input[name="assign_type"]').forEach((radio) => {
         radio.addEventListener('change', syncEditAssignmentMode);
         radio.addEventListener('change', markEditAssignmentsDirty);
@@ -1463,6 +2436,19 @@
         markEditAssignmentsDirty();
     });
 
+    document.querySelectorAll('#createChildTaskModal input[name="assign_type"]').forEach((radio) => {
+        radio.addEventListener('change', syncChildAssignmentMode);
+    });
+    document.querySelectorAll('#createChildTaskModal input[name="assignee_role_ids"]').forEach((checkbox) => {
+        checkbox.addEventListener('change', () => selectChildAssignmentMode('role'));
+    });
+    document.querySelectorAll('#createChildTaskModal input[name="target_users"]').forEach((checkbox) => {
+        checkbox.addEventListener('change', () => selectChildAssignmentMode('user'));
+    });
+
+    initScopedUserPickers(document.getElementById('createChildTaskModal') || document);
+    document.querySelectorAll('[data-task-report-builder]').forEach(initTaskReportBuilder);
     syncEditAssignmentMode();
+    syncChildAssignmentMode();
 </script>
 {% endblock %}
