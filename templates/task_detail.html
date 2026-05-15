@@ -196,6 +196,54 @@
     .pc06-role-checklist .pc06-user-option {
         justify-content: flex-start;
     }
+    .pc06-assignment-option-list {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+        max-height: 320px;
+        overflow-y: auto;
+        padding: 8px;
+        border: 1px solid rgba(226, 232, 240, 0.92);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.96);
+    }
+    .pc06-assignment-option-list .pc06-user-option,
+    .pc06-role-checklist .pc06-user-option {
+        width: 100%;
+        min-width: 0;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 12px;
+        padding: 13px 14px;
+        border-radius: 16px;
+        transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+    }
+    .pc06-assignment-option-list .pc06-user-option:hover,
+    .pc06-role-checklist .pc06-user-option:hover {
+        border-color: rgba(37, 99, 235, 0.22);
+        background: rgba(239, 246, 255, 0.84);
+    }
+    .pc06-assignment-option-list .pc06-user-option input,
+    .pc06-role-checklist .pc06-user-option input {
+        width: 18px;
+        height: 18px;
+        margin: 0;
+        flex-shrink: 0;
+    }
+    .pc06-assignment-option-list .pc06-user-option .fw-semibold,
+    .pc06-role-checklist .pc06-user-option .fw-semibold {
+        display: block;
+        min-width: 0;
+        font-size: 0.98rem;
+        line-height: 1.45;
+        color: var(--text-main, #0f172a);
+        word-break: break-word;
+    }
+    .pc06-assignment-option-list .pc06-user-option:has(input:checked),
+    .pc06-role-checklist .pc06-user-option:has(input:checked) {
+        border-color: rgba(37, 99, 235, 0.3);
+        background: rgba(219, 234, 254, 0.72);
+    }
     .pc06-unit-report-stats {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1604,6 +1652,7 @@
                         </div>
                         <div class="col-md-6 {% if assignment_context.mode != 'role' %}d-none{% endif %}" id="editRoleAssignmentPanel">
                             <label class="form-label fw-bold">Vai trò nhận việc</label>
+                            <div class="form-text mb-2">Chọn đúng vai trò cần tham gia xử lý hoặc phản hồi cho task này.</div>
                             <div class="pc06-user-picker-panel pc06-role-checklist border rounded-4 p-2" style="display:block; max-height: 320px; overflow:auto;">
                                 {% for role in roles %}
                                 <label class="pc06-user-option">
@@ -1889,6 +1938,7 @@
                                 </div>
                                 <div class="pc06-form-section" id="childRoleAssignmentPanel">
                                     <label class="form-label fw-bold">Vai trò nhận việc</label>
+                                    <div class="form-text mb-2">Chọn đúng vai trò sẽ chịu trách nhiệm cho đầu mục báo cáo nhỏ này.</div>
                                     <div class="pc06-assignment-option-list">
                                         {% for role in roles %}
                                         <label class="pc06-user-option">
