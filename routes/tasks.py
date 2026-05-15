@@ -605,6 +605,22 @@ def _requested_linked_report_template_ids(form):
     return sorted({int(template_id) for template_id in form.getlist("linked_report_template_ids") if str(template_id).isdigit()})
 
 
+def _parse_bulk_child_task_titles(raw_value):
+    titles = []
+    seen = set()
+    for line in str(raw_value or "").splitlines():
+        cleaned = re.sub(r"^\s*(?:[-*+]|[0-9]+[.)])\s*", "", line).strip()
+        if not cleaned:
+            continue
+        normalized = re.sub(r"\s+", " ", cleaned)
+        dedupe_key = normalized.lower()
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        titles.append(normalized[:255])
+    return titles
+
+
 def _load_linked_report_template_ids(task):
     if not task:
         return []
@@ -2728,14 +2744,18 @@ def create_child_task(tid):
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
     title = (request.form.get("title") or "").strip()
-    content = (request.form.get("description") or request.form.get("content") or "").strip()
+    bulk_titles = _parse_bulk_child_task_titles(request.form.get("bulk_titles") or request.form.get("bulk_items"))
+    common_note = (request.form.get("description") or request.form.get("content") or "").strip()
     domain = parent_task.domain or ""
     assign_type = request.form.get("assign_type", "role")
     if assign_type not in {"role", "user"}:
         assign_type = "role"
 
-    if not title:
-        flash("Tiêu đề task con không được để trống.", "danger")
+    if title and not bulk_titles:
+        bulk_titles = [title]
+
+    if not bulk_titles:
+        flash("Cần nhập ít nhất một đầu mục để tạo task con.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
     assignees, error_message = _resolve_assignees(request.form, domain)
@@ -2749,44 +2769,55 @@ def create_child_task(tid):
         attachment_name = secure_filename(attachment.filename)
         attachment.save(_task_file_path(attachment_name))
 
-    child_task = Task(
-        category=parent_task.category,
-        domain=domain,
-        title=title,
-        content=content,
-        deadline=parent_task.deadline,
-        file_path=attachment_name,
-        author_id=session["uid"],
-        author_name=session.get("fullname", "Quản trị"),
-        priority=parent_task.priority,
-        task_type=parent_task.task_type,
-        initial_status="Chưa tiếp nhận",
-        parent_task_id=parent_task.id,
-        report_schema_json=None,
-    )
-    _store_assignment_scope(
-        child_task,
-        assign_type,
-        domain=domain,
-        role_ids=_requested_role_ids(request.form),
-        user_ids=_requested_user_ids(request.form),
-    )
-    db.session.add(child_task)
-    db.session.flush()
-    _sync_task_assignments(child_task, assignees)
+    created_tasks = []
+    requested_role_ids = _requested_role_ids(request.form)
+    requested_user_ids = _requested_user_ids(request.form)
+    for item_title in bulk_titles:
+        item_content = common_note or item_title
+        child_task = Task(
+            category=parent_task.category,
+            domain=domain,
+            title=item_title,
+            content=item_content,
+            deadline=parent_task.deadline,
+            file_path=attachment_name,
+            author_id=session["uid"],
+            author_name=session.get("fullname", "Quản trị"),
+            priority=parent_task.priority,
+            task_type=parent_task.task_type,
+            initial_status="Chưa tiếp nhận",
+            parent_task_id=parent_task.id,
+            report_schema_json=None,
+        )
+        _store_assignment_scope(
+            child_task,
+            assign_type,
+            domain=domain,
+            role_ids=requested_role_ids,
+            user_ids=requested_user_ids,
+        )
+        db.session.add(child_task)
+        db.session.flush()
+        _sync_task_assignments(child_task, assignees)
+        created_tasks.append(child_task)
     db.session.commit()
 
     for user in assignees:
-        push_notif(user.id, "Task con mới", f"Bạn vừa được giao task con: {child_task.title}", f"/tasks/{child_task.id}")
+        push_notif(
+            user.id,
+            "Task con mới",
+            f"Bạn vừa được giao {len(created_tasks)} task con trong công việc: {parent_task.title}",
+            f"/tasks/{parent_task.id}",
+        )
 
     log_action(
         session["uid"],
         session.get("fullname", "Quản trị"),
-        "Tạo task con",
+        "Tạo hàng loạt task con",
         "Công việc",
-        f"Task con #{child_task.id} | parent={parent_task.id} | {child_task.title}",
+        f"parent={parent_task.id} | so_luong={len(created_tasks)}",
     )
-    flash("Đã tạo và giao task con.", "success")
+    flash(f"Đã tạo và giao {len(created_tasks)} task con.", "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
 

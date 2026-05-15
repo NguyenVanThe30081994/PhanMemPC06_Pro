@@ -211,11 +211,13 @@
     .pc06-role-checklist .pc06-user-option {
         width: 100%;
         min-width: 0;
+        display: grid;
+        grid-template-columns: 18px minmax(0, 1fr);
         align-items: center;
         justify-content: flex-start;
-        gap: 12px;
-        padding: 13px 14px;
-        border-radius: 16px;
+        column-gap: 10px;
+        padding: 10px 12px;
+        border-radius: 14px;
         transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
     }
     .pc06-assignment-option-list .pc06-user-option:hover,
@@ -228,14 +230,15 @@
         width: 18px;
         height: 18px;
         margin: 0;
+        align-self: center;
         flex-shrink: 0;
     }
     .pc06-assignment-option-list .pc06-user-option .fw-semibold,
     .pc06-role-checklist .pc06-user-option .fw-semibold {
         display: block;
         min-width: 0;
-        font-size: 0.98rem;
-        line-height: 1.45;
+        font-size: 0.95rem;
+        line-height: 1.35;
         color: var(--text-main, #0f172a);
         word-break: break-word;
     }
@@ -1898,8 +1901,9 @@
                         <div class="col-lg-7">
                             <div class="pc06-form-panel">
                                 <div class="pc06-form-section">
-                                    <label class="form-label fw-bold">Tiêu đề task con</label>
-                                    <input type="text" name="title" class="form-control form-control-lg" placeholder="Ví dụ: Sở ngành tham mưu bao nhiêu văn bản" required>
+                                    <label class="form-label fw-bold">Danh sách đầu mục báo cáo</label>
+                                    <textarea name="bulk_titles" rows="10" class="form-control" placeholder="Mỗi dòng là một task con&#10;Ví dụ:&#10;Sở ngành tham mưu bao nhiêu văn bản&#10;Đơn vị đã ban hành bao nhiêu kế hoạch&#10;Kết quả xử lý hồ sơ trong kỳ" required></textarea>
+                                    <div class="form-text">Chọn vai trò hoặc tài khoản một lần, sau đó mỗi dòng trong danh sách sẽ được tạo thành một task con riêng.</div>
                                 </div>
                                 <div class="pc06-form-section">
                                     <div class="pc06-info-item">
@@ -1909,12 +1913,13 @@
                                     </div>
                                 </div>
                                 <div class="pc06-form-section">
-                                    <label class="form-label fw-bold">Nội dung cần báo cáo</label>
-                                    <textarea name="description" rows="8" class="form-control" placeholder="Ví dụ: Báo cáo số lượng văn bản đã tham mưu, nêu rõ số liệu và đính kèm file minh chứng tương ứng"></textarea>
+                                    <label class="form-label fw-bold">Ghi chú chung cho cả lô task con</label>
+                                    <textarea name="description" rows="5" class="form-control" placeholder="Ví dụ: Mỗi đầu mục cần nêu rõ số liệu và đính kèm minh chứng tương ứng. Nội dung này sẽ áp dụng chung cho toàn bộ task con được tạo trong lần này."></textarea>
                                 </div>
                                 <div class="pc06-form-section mb-0">
                                     <label class="form-label fw-bold">Tài liệu đính kèm</label>
                                     <input type="file" name="task_file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar">
+                                    <div class="form-text">Nếu có file đề cương hoặc hướng dẫn chung, hệ thống sẽ gắn cùng tệp này cho toàn bộ task con vừa tạo.</div>
                                 </div>
                             </div>
                         </div>
@@ -1976,7 +1981,7 @@
                                     </div>
                                 </div>
                                 <div class="pc06-mode-help">
-                                    Bạn có thể tạo liên tiếp nhiều task con, mỗi task là một dòng nội dung trong đề cương báo cáo lớn.
+                                    Cách này phù hợp khi cùng một đơn vị hoặc vai trò phải báo cáo hàng loạt đầu mục trong cùng một đề cương.
                                 </div>
                             </div>
                         </div>
@@ -1986,7 +1991,7 @@
                     <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Đóng</button>
                     <button type="submit" class="btn btn-bdhvs primary">
                         <i class="fa-solid fa-paper-plane"></i>
-                        Tạo task con
+                        Tạo hàng loạt task con
                     </button>
                 </div>
             </form>
