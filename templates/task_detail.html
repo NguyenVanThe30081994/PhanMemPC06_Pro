@@ -1120,7 +1120,7 @@
                 {% endif %}
             </section>
 
-            {% if can_manage_task_view %}
+            {% if can_manage_task_view or child_tasks %}
             <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>
@@ -1153,28 +1153,49 @@
                                 <span class="pc06-status-badge {% if 'hoàn thành' in child_status_key %}done{% elif 'đang thực hiện' in child_status_key %}doing{% else %}todo{% endif %}">
                                     {{ child.display_status }}
                                 </span>
+                                {% if child.viewer_assignment %}
+                                <button type="button" class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#childTaskReportModal{{ child.id }}">
+                                    {{ child.action_label }}
+                                </button>
+                                {% endif %}
+                                {% if can_manage_task_view %}
                                 <a href="{{ url_for('tasks_bp.task_detail', tid=child.id) }}" class="pc06-report-download-icon" title="Mở task con">
                                     <i class="fa-solid fa-arrow-up-right-from-square"></i>
                                 </a>
+                                {% endif %}
                             </div>
                         </div>
                         <div class="pc06-report-item-body">
                             <div class="pc06-report-item-meta">
                                 <span>
                                     <i class="fa-solid fa-users"></i>
-                                    {{ child.assignee_count }} người nhận
+                                    {{ child.reported_units }}/{{ child.total_units }} đơn vị đã báo cáo
                                 </span>
                                 <span>
-                                    <i class="fa-solid fa-layer-group"></i>
-                                    {{ child.category_display or 'Chưa phân lĩnh vực' }}
+                                    <i class="fa-solid fa-pen"></i>
+                                    {{ child.report_kind_label }}
                                 </span>
+                                {% if child.number_total %}
                                 <span>
-                                    <i class="fa-solid fa-building"></i>
-                                    {{ child.domain_display or 'Chưa phân đơn vị' }}
+                                    <i class="fa-solid fa-sigma"></i>
+                                    Tổng cộng: {{ child.number_total }}
+                                </span>
+                                {% endif %}
+                                <span>
+                                    <i class="fa-solid fa-paperclip"></i>
+                                    {% if child.attachment_required %}Yêu cầu minh chứng{% else %}Không yêu cầu tệp{% endif %}
                                 </span>
                             </div>
-                            {% if child.content %}
+                            {% if can_manage_task_view and child.content %}
                             <div class="pc06-report-item-excerpt">{{ child.content }}</div>
+                            {% elif child.viewer_assignment %}
+                            <div class="pc06-report-item-note">
+                                {% if child.report_kind == 'number' %}
+                                Mở thao tác để nhập một giá trị số cho đầu mục này{% if child.attachment_required %} và tải lên tệp minh chứng{% endif %}.
+                                {% else %}
+                                Mở thao tác để nhập nội dung báo cáo{% if child.attachment_required %} và tải lên tệp minh chứng{% endif %}.
+                                {% endif %}
+                            </div>
                             {% endif %}
                         </div>
                     </article>
@@ -1454,7 +1475,7 @@
             </section>
             {% endif %}
 
-            {% if not linked_report_templates and structured_task_report_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+            {% if not task_has_child_tasks and not linked_report_templates and structured_task_report_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
             <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>
@@ -1519,7 +1540,7 @@
                 </div>
                 {% endif %}
             </section>
-            {% elif not linked_report_templates and da06_task_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+            {% elif not task_has_child_tasks and not linked_report_templates and da06_task_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
             <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>
@@ -2118,12 +2139,7 @@
                 <input type="hidden" name="deadline_type" value="custom">
                 <div class="modal-header border-0 pc06-modal-head">
                     <div>
-                        <div class="pc06-page-kicker mb-2">
-                            <i class="fa-solid fa-diagram-project"></i>
-                            Tạo task con
-                        </div>
-                        <h5 class="modal-title fw-bold mb-1">Tách nội dung cần giao riêng</h5>
-                        <p class="mb-0 text-white-50">Dùng task con để giao đúng vai trò hoặc tài khoản phụ trách một phần báo cáo cụ thể.</p>
+                        <h5 class="modal-title fw-bold mb-0">Tách nội dung cần giao riêng</h5>
                     </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
@@ -2175,6 +2191,25 @@
                                 <div class="pc06-side-title">
                                     <h6>Giao cho người phụ trách</h6>
                                     <p>Mỗi task con nên gắn đúng một vai trò hoặc một vài tài khoản phụ trách một đầu mục trong đề cương báo cáo.</p>
+                                </div>
+                                <div class="pc06-form-section">
+                                    <label class="form-label fw-bold">Kiểu báo cáo của task con</label>
+                                    <div class="pc06-segmented">
+                                        <label class="pc06-radio-card active">
+                                            <input type="radio" name="child_report_kind" value="narrative" checked>
+                                            <span class="pc06-radio-title">Báo cáo lời</span>
+                                            <small>Đơn vị được giao nhập nội dung báo cáo ngắn gọn.</small>
+                                        </label>
+                                        <label class="pc06-radio-card">
+                                            <input type="radio" name="child_report_kind" value="number">
+                                            <span class="pc06-radio-title">Báo cáo số</span>
+                                            <small>Đơn vị được giao chỉ nhập số, hệ thống tự cộng tổng số từ các đơn vị.</small>
+                                        </label>
+                                    </div>
+                                    <label class="form-check pc06-checkline mt-3">
+                                        <input class="form-check-input" type="checkbox" name="child_attachment_required" value="1">
+                                        <span class="form-check-label">Yêu cầu gửi kèm file minh chứng</span>
+                                    </label>
                                 </div>
                                 <div class="pc06-segmented" id="childAssignmentModes">
                                     <label class="pc06-radio-card active">
@@ -2245,6 +2280,63 @@
         </div>
     </div>
 </div>
+{% for child in child_tasks if child.viewer_assignment %}
+<div class="modal fade" id="childTaskReportModal{{ child.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 pc06-modal-shell pc06-task-modal-shell">
+            <form action="{{ url_for('tasks_bp.submit_task_report', tid=child.id) }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-header border-0 pc06-modal-head">
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0">{{ child.title }}</h5>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="pc06-form-panel">
+                        {% if child.report_kind == 'number' and child.report_form and child.report_form.fields %}
+                        {% set number_field = child.report_form.fields[0] %}
+                        <div class="pc06-form-section">
+                            <label class="form-label fw-bold" for="childReportNumber{{ child.id }}">{{ number_field.label }}</label>
+                            <input id="childReportNumber{{ child.id }}" type="number" step="any" name="report_field_{{ number_field.key }}" value="{{ number_field.value }}" class="form-control form-control-lg" placeholder="{{ number_field.placeholder or 'Nhập số liệu' }}" required>
+                        </div>
+                        {% elif child.report_form and child.report_form.narrative.enabled %}
+                        <div class="pc06-form-section">
+                            <label class="form-label fw-bold" for="childReportNarrative{{ child.id }}">{{ child.report_form.narrative.label }}</label>
+                            <textarea id="childReportNarrative{{ child.id }}" name="report_narrative" rows="6" class="form-control" placeholder="{{ child.report_form.narrative.placeholder or 'Nhập nội dung báo cáo' }}" {% if child.report_form.narrative.required %}required{% endif %}>{{ child.report_form.narrative.value }}</textarea>
+                        </div>
+                        {% else %}
+                        <div class="pc06-form-section">
+                            <label class="form-label fw-bold" for="childReportFallback{{ child.id }}">Nội dung báo cáo</label>
+                            <textarea id="childReportFallback{{ child.id }}" name="report_content" rows="6" class="form-control" placeholder="Nhập nội dung báo cáo" required></textarea>
+                        </div>
+                        {% endif %}
+
+                        {% if child.report_form and child.report_form.attachment.enabled %}
+                        <div class="pc06-form-section mb-0">
+                            <label class="form-label fw-bold" for="childReportFile{{ child.id }}">{{ child.report_form.attachment.label }}{% if child.report_form.attachment.required %} <span class="text-danger">*</span>{% endif %}</label>
+                            <input id="childReportFile{{ child.id }}" type="file" name="report_file" class="form-control" {% if child.report_form.attachment.required and not child.report_form.attachment.value %}required{% endif %}>
+                            {% if child.report_form.attachment.value %}
+                            <a class="pc06-da06-inline-file" href="{{ url_for('tasks_bp.download_task_report_file', tid=child.id, user_id=child.viewer_assignment.user_id) }}">
+                                <i class="fa-solid fa-paperclip"></i>{{ child.report_form.attachment.value }}
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="modal-footer border-0 px-4 pb-4">
+                    <input type="hidden" name="mark_completed" value="1">
+                    <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-bdhvs primary">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        Gửi báo cáo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
 {% endif %}
 {% endblock %}
 
@@ -2712,6 +2804,12 @@
         document.getElementById('childUserAssignmentPanel')?.classList.toggle('d-none', selected !== 'user');
     }
 
+    function syncChildReportKind() {
+        document.querySelectorAll('#createChildTaskModal input[name="child_report_kind"]').forEach((radio) => {
+            radio.closest('.pc06-radio-card')?.classList.toggle('active', !!radio.checked);
+        });
+    }
+
     document.querySelectorAll('#editTaskModal input[name="assign_type"]').forEach((radio) => {
         radio.addEventListener('change', syncEditAssignmentMode);
         radio.addEventListener('change', markEditAssignmentsDirty);
@@ -2736,6 +2834,9 @@
     document.querySelectorAll('#createChildTaskModal input[name="assign_type"]').forEach((radio) => {
         radio.addEventListener('change', syncChildAssignmentMode);
     });
+    document.querySelectorAll('#createChildTaskModal input[name="child_report_kind"]').forEach((radio) => {
+        radio.addEventListener('change', syncChildReportKind);
+    });
     document.querySelectorAll('#createChildTaskModal input[name="assignee_role_ids"]').forEach((checkbox) => {
         checkbox.addEventListener('change', () => selectChildAssignmentMode('role'));
     });
@@ -2748,5 +2849,6 @@
     document.querySelectorAll('[data-task-report-builder]').forEach(initTaskReportBuilder);
     syncEditAssignmentMode();
     syncChildAssignmentMode();
+    syncChildReportKind();
 </script>
 {% endblock %}

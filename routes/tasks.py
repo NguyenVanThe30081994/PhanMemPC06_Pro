@@ -3,6 +3,7 @@ import json
 import io
 import os
 import re
+from decimal import Decimal, InvalidOperation
 from datetime import datetime, timedelta
 
 from flask import Blueprint, current_app, flash, g, has_request_context, redirect, request, session, url_for, send_file
@@ -78,6 +79,8 @@ DEFAULT_TASK_REPORT_SCHEMA = {
     },
     "fields": [],
 }
+CHILD_TASK_ALLOWED_REPORT_KINDS = {"narrative", "number"}
+CHILD_TASK_NUMBER_FIELD_KEY = "reported_value"
 
 DA06_TASK_MARKERS = ("bao cao de an 06 thang", "bao cao de an06 thang", "bao cao da06 thang")
 DA06_TCT_ROLE_MARKERS = ("to cong tac cap xa",)
@@ -811,7 +814,14 @@ def _can_view_task(task, is_lead=False):
         return False
     if session.get("is_admin") or is_lead or task.author_id == session.get("uid"):
         return True
-    return any(assignment.user_id == session.get("uid") for assignment in (task.assignments or []))
+    if any(assignment.user_id == session.get("uid") for assignment in (task.assignments or [])):
+        return True
+    return bool(
+        db.session.query(Task.id)
+        .join(TaskAssignment, Task.id == TaskAssignment.task_id)
+        .filter(Task.parent_task_id == task.id, TaskAssignment.user_id == session.get("uid"))
+        .first()
+    )
 
 
 def _filter_comments_for_viewer(task, comments, viewer, can_manage_all=False):
@@ -910,6 +920,28 @@ def _task_report_item_visible_for_user(item_config, user):
     return True
 
 
+def _normalize_child_task_report_meta(raw_meta, fields, attachment):
+    raw_meta = raw_meta if isinstance(raw_meta, dict) else {}
+    kind = str(raw_meta.get("kind") or "").strip().lower()
+    if kind != "simple_child_task":
+        return {}
+
+    report_kind = str(raw_meta.get("report_kind") or "").strip().lower()
+    if report_kind not in CHILD_TASK_ALLOWED_REPORT_KINDS:
+        report_kind = "number" if any(field.get("type") == "number" for field in fields) else "narrative"
+
+    number_field_key = ""
+    if report_kind == "number":
+        number_field_key = next((field.get("key") or "" for field in fields if field.get("type") == "number"), "")
+
+    return {
+        "kind": "simple_child_task",
+        "report_kind": report_kind,
+        "attachment_required": bool(attachment.get("enabled") and attachment.get("required")),
+        "number_field_key": number_field_key,
+    }
+
+
 def _normalize_task_report_schema(raw_schema):
     if not isinstance(raw_schema, dict):
         return None
@@ -965,6 +997,7 @@ def _normalize_task_report_schema(raw_schema):
         "narrative": narrative,
         "attachment": attachment,
         "fields": fields,
+        "meta": _normalize_child_task_report_meta(raw_schema.get("meta"), fields, attachment),
     }
 
 
@@ -1018,6 +1051,73 @@ def _parse_task_report_schema_from_request(form):
     return normalized
 
 
+def _parse_report_number(value):
+    text = str(value or "").strip().replace(",", "")
+    if not text:
+        return None
+    try:
+        return Decimal(text)
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError("Giá trị số không hợp lệ.") from exc
+
+
+def _format_report_number(value):
+    if value is None:
+        return ""
+    normalized = value.quantize(Decimal("1")) if value == value.to_integral() else value.normalize()
+    text = format(normalized, "f")
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    return text
+
+
+def _build_simple_child_task_schema(report_kind="narrative", attachment_required=False):
+    normalized_kind = str(report_kind or "narrative").strip().lower()
+    if normalized_kind not in CHILD_TASK_ALLOWED_REPORT_KINDS:
+        normalized_kind = "narrative"
+
+    raw_schema = {
+        "enabled": True,
+        "narrative": {
+            "enabled": normalized_kind == "narrative",
+            "label": "Nội dung báo cáo",
+            "required": normalized_kind == "narrative",
+            "placeholder": "Nhập nội dung báo cáo",
+            "target_type": "all",
+            "target_role_ids": [],
+            "target_user_ids": [],
+        },
+        "attachment": {
+            "enabled": bool(attachment_required),
+            "label": "Tệp minh chứng",
+            "required": bool(attachment_required),
+            "target_type": "all",
+            "target_role_ids": [],
+            "target_user_ids": [],
+        },
+        "fields": [],
+        "meta": {
+            "kind": "simple_child_task",
+            "report_kind": normalized_kind,
+        },
+    }
+    if normalized_kind == "number":
+        raw_schema["fields"] = [
+            {
+                "key": CHILD_TASK_NUMBER_FIELD_KEY,
+                "label": "Số liệu báo cáo",
+                "type": "number",
+                "required": True,
+                "placeholder": "Nhập số cần báo cáo",
+                "help_text": "",
+                "target_type": "all",
+                "target_role_ids": [],
+                "target_user_ids": [],
+            }
+        ]
+    return _normalize_task_report_schema(raw_schema)
+
+
 def _parse_structured_task_report_payload(assignment):
     payload = _parse_assignment_payload(assignment)
     if payload.get("mode") != "structured_task_report":
@@ -1052,6 +1152,123 @@ def _structured_task_report_summary_lines(schema, payload, limit=4):
             break
 
     return lines[:limit]
+
+
+def _task_report_meta(schema):
+    meta = (schema or {}).get("meta")
+    return meta if isinstance(meta, dict) else {}
+
+
+def _task_is_simple_child_report(task):
+    return _task_report_meta(_load_task_report_schema(task)).get("kind") == "simple_child_task"
+
+
+def _task_simple_child_report_kind(task):
+    meta = _task_report_meta(_load_task_report_schema(task))
+    kind = str(meta.get("report_kind") or "").strip().lower()
+    return kind if kind in CHILD_TASK_ALLOWED_REPORT_KINDS else ""
+
+
+def _structured_payload_has_content(payload):
+    if not isinstance(payload, dict):
+        return False
+    if str(payload.get("narrative") or "").strip():
+        return True
+    if str(payload.get("attachment_name") or "").strip():
+        return True
+    values = payload.get("values")
+    return bool(
+        isinstance(values, dict)
+        and any(str(value or "").strip() for value in values.values())
+    )
+
+
+def _assignment_has_report_submission(assignment):
+    payload = _parse_structured_task_report_payload(assignment)
+    if payload:
+        return _structured_payload_has_content(payload)
+    return bool((getattr(assignment, "report_payload_json", None) or "").strip() or (getattr(assignment, "result_file", None) or "").strip())
+
+
+def _child_task_numeric_total(task):
+    schema = _load_task_report_schema(task)
+    meta = _task_report_meta(schema)
+    if meta.get("kind") != "simple_child_task" or meta.get("report_kind") != "number":
+        return None
+
+    number_field_key = meta.get("number_field_key") or CHILD_TASK_NUMBER_FIELD_KEY
+    total = Decimal("0")
+    has_value = False
+    for assignment in task.assignments or []:
+        payload = _parse_structured_task_report_payload(assignment)
+        if not payload:
+            continue
+        values = payload.get("values")
+        raw_value = values.get(number_field_key) if isinstance(values, dict) else ""
+        try:
+            numeric_value = _parse_report_number(raw_value)
+        except ValueError:
+            numeric_value = None
+        if numeric_value is None:
+            continue
+        total += numeric_value
+        has_value = True
+    return _format_report_number(total) if has_value else None
+
+
+def _build_child_task_unit_summary(task):
+    unit_rows = {}
+    for assignment in task.assignments or []:
+        user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
+        if not user:
+            continue
+        unit_identity = _task_unit_identity(user)
+        unit_key = unit_identity.get("unit_key") or f"user_{user.id}"
+        row = unit_rows.setdefault(
+            unit_key,
+            {
+                "unit_name": unit_identity.get("unit_name") or getattr(user, "fullname", None) or f"UID {user.id}",
+                "latest_assignment": None,
+                "latest_report_at": None,
+            },
+        )
+        if not _assignment_has_report_submission(assignment):
+            continue
+        updated_at = getattr(assignment, "updated_at", None)
+        if row["latest_report_at"] is None or (updated_at and updated_at >= row["latest_report_at"]):
+            row["latest_report_at"] = updated_at
+            row["latest_assignment"] = assignment
+
+    total_units = len(unit_rows)
+    reported_units = sum(1 for row in unit_rows.values() if row.get("latest_assignment"))
+    numeric_total = None
+    if _task_simple_child_report_kind(task) == "number":
+        schema = _load_task_report_schema(task)
+        number_field_key = _task_report_meta(schema).get("number_field_key") or CHILD_TASK_NUMBER_FIELD_KEY
+        total = Decimal("0")
+        has_value = False
+        for row in unit_rows.values():
+            assignment = row.get("latest_assignment")
+            if not assignment:
+                continue
+            payload = _parse_structured_task_report_payload(assignment)
+            values = payload.get("values") if isinstance(payload, dict) else {}
+            raw_value = values.get(number_field_key) if isinstance(values, dict) else ""
+            try:
+                numeric_value = _parse_report_number(raw_value)
+            except ValueError:
+                numeric_value = None
+            if numeric_value is None:
+                continue
+            total += numeric_value
+            has_value = True
+        numeric_total = _format_report_number(total) if has_value else None
+
+    return {
+        "total_units": total_units or len(task.assignments or []),
+        "reported_units": reported_units,
+        "numeric_total": numeric_total,
+    }
 
 
 def _build_structured_task_report_comment(schema, payload):
@@ -2054,15 +2271,63 @@ def tasks():
     if current_domain != "ALL":
         query = query.filter_by(domain=current_domain)
 
+    all_candidate_tasks = query.order_by(Task.created_at.desc()).all()
     if is_lead:
-        all_tasks = query.order_by(Task.created_at.desc()).all()
+        all_tasks = [task for task in all_candidate_tasks if not task.parent_task_id]
     else:
-        all_tasks = (
-            query.join(TaskAssignment, Task.id == TaskAssignment.task_id)
-            .filter(TaskAssignment.user_id == session["uid"])
-            .order_by(Task.created_at.desc())
+        child_parent_ids = {
+            parent_id
+            for parent_id, in (
+                db.session.query(Task.parent_task_id)
+                .join(TaskAssignment, Task.id == TaskAssignment.task_id)
+                .filter(Task.parent_task_id.isnot(None), TaskAssignment.user_id == session["uid"])
+                .distinct()
+                .all()
+            )
+            if parent_id
+        }
+        all_tasks = []
+        visible_child_tasks_by_parent = {}
+        for child_task in (
+            Task.query.options(joinedload(Task.assignments))
+            .join(TaskAssignment, Task.id == TaskAssignment.task_id)
+            .filter(Task.parent_task_id.isnot(None), TaskAssignment.user_id == session["uid"])
+            .order_by(Task.created_at.asc())
             .all()
-        )
+        ):
+            visible_child_tasks_by_parent.setdefault(child_task.parent_task_id, []).append(child_task)
+
+        for task in all_candidate_tasks:
+            if task.parent_task_id:
+                continue
+            is_direct_assignment = any(assignment.user_id == session["uid"] for assignment in (task.assignments or []))
+            if not is_direct_assignment and task.id not in child_parent_ids:
+                continue
+            if not is_direct_assignment and task.id in visible_child_tasks_by_parent:
+                child_tasks_for_user = visible_child_tasks_by_parent.get(task.id) or []
+                total_children = len(child_tasks_for_user)
+                completed_children = 0
+                started_children = 0
+                for child_task in child_tasks_for_user:
+                    child_metrics = _decorate_task(child_task, session["uid"], False)
+                    child_status = child_metrics["display_status"]
+                    if child_status == COMPLETED_STATUS:
+                        completed_children += 1
+                        started_children += 1
+                    elif child_status != "Chưa tiếp nhận":
+                        started_children += 1
+                if total_children and completed_children == total_children:
+                    task.display_status = COMPLETED_STATUS
+                    task.progress_percent = 100
+                elif started_children:
+                    task.display_status = f"Đang thực hiện ({started_children}/{total_children})"
+                    task.progress_percent = round((completed_children / total_children) * 100) if total_children else 0
+                else:
+                    task.display_status = f"Chưa tiếp nhận (0/{total_children})"
+                    task.progress_percent = 0
+                task.current_user_status = task.display_status
+                task._visible_child_tasks_for_user = child_tasks_for_user
+            all_tasks.append(task)
 
     total_count = len(all_tasks)
     overdue_count = 0
@@ -2075,7 +2340,25 @@ def tasks():
     uncategorized_count = 0
 
     for task in all_tasks:
-        task_metrics = _decorate_task(task, session["uid"], is_lead)
+        if not is_lead and getattr(task, "_visible_child_tasks_for_user", None) is not None and not any(
+            assignment.user_id == session["uid"] for assignment in (task.assignments or [])
+        ):
+            task_metrics = {
+                "display_status": getattr(task, "display_status", "Chưa tiếp nhận"),
+                "progress_percent": getattr(task, "progress_percent", 0),
+                "is_overdue": bool(task.deadline and task.deadline < datetime.now().date() and getattr(task, "display_status", "") != COMPLETED_STATUS),
+                "total_assignments": len(task.assignments or []),
+                "accepted_assignments": 0,
+                "completed_assignments": 0,
+                "current_user_status": getattr(task, "current_user_status", None),
+                "user_assignment": None,
+            }
+            setattr(task, "is_overdue", task_metrics["is_overdue"])
+            setattr(task, "assignee_count", task_metrics["total_assignments"])
+            setattr(task, "accepted_assignments", task_metrics["accepted_assignments"])
+            setattr(task, "completed_assignments", task_metrics["completed_assignments"])
+        else:
+            task_metrics = _decorate_task(task, session["uid"], is_lead)
         setattr(task, "can_edit", _can_edit_task(task))
         category_meta = _decorate_task_categories(task, task_fields, pro_units, task_types, priority_items)
         if task_metrics["is_overdue"]:
@@ -2172,7 +2455,14 @@ def task_detail(tid):
     perms = _current_perms()
     is_lead = perms.get("p_task_lead") or session.get("is_admin")
     can_edit_task = _can_edit_task(task)
-    if not _can_view_task(task, is_lead=is_lead):
+    visible_child_tasks_for_user = (
+        Task.query.options(joinedload(Task.assignments))
+        .join(TaskAssignment, Task.id == TaskAssignment.task_id)
+        .filter(Task.parent_task_id == task.id, TaskAssignment.user_id == session["uid"])
+        .order_by(Task.created_at.asc())
+        .all()
+    ) if not (session.get("is_admin") or is_lead or task.author_id == session.get("uid")) else []
+    if not _can_view_task(task, is_lead=is_lead) and not visible_child_tasks_for_user:
         flash("Bạn không có quyền xem công việc này.", "danger")
         return redirect(url_for("tasks_bp.tasks"))
 
@@ -2198,7 +2488,7 @@ def task_detail(tid):
     task_metrics = _decorate_task(task, session["uid"], is_lead)
     user_assign = task_metrics["user_assignment"]
     can_manage_task_view = bool(is_lead or can_edit_task)
-    if not can_manage_task_view and not user_assign:
+    if not can_manage_task_view and not user_assign and not visible_child_tasks_for_user:
         flash("Bạn không có quyền xem công việc này.", "danger")
         return redirect(url_for("tasks_bp.tasks"))
 
@@ -2225,6 +2515,7 @@ def task_detail(tid):
         can_open_report_workspace=_can_open_report_workspace(),
     )
     child_tasks = []
+    task_has_child_tasks = False
     child_task_stats = {"total": 0, "completed": 0, "in_progress": 0}
     assignment_unit_cards = _build_assignment_unit_cards(assigns)
     assignment_unit_progress = {
@@ -2233,15 +2524,37 @@ def task_detail(tid):
     }
     if can_manage_task_view:
         child_tasks = Task.query.options(joinedload(Task.assignments)).filter_by(parent_task_id=task.id).order_by(Task.created_at.asc()).all()
+    elif visible_child_tasks_for_user:
+        child_tasks = visible_child_tasks_for_user
+
+    if child_tasks:
+        task_has_child_tasks = True
         sync_record_categories(child_tasks, task_fields, attr_name="category", prefer_stable=True)
         sync_record_categories(child_tasks, pro_units, attr_name="domain", prefer_stable=True)
         sync_record_categories(child_tasks, task_types, attr_name="task_type", prefer_stable=True)
         sync_record_categories(child_tasks, priority_items, attr_name="priority", prefer_stable=True)
         for child_task in child_tasks:
-            child_metrics = _decorate_task(child_task, session["uid"], is_lead)
+            child_metrics = _decorate_task(child_task, session["uid"], can_manage_task_view)
             _decorate_task_categories(child_task, task_fields, pro_units, task_types, priority_items)
             setattr(child_task, "can_edit", _can_edit_task(child_task))
             setattr(child_task, "current_user_status", child_metrics["current_user_status"])
+            child_viewer_assign = next(
+                (assignment for assignment in (child_task.assignments or []) if assignment.user_id == session["uid"]),
+                None,
+            )
+            child_schema = _load_task_report_schema(child_task)
+            child_meta = _task_report_meta(child_schema)
+            child_unit_summary = _build_child_task_unit_summary(child_task)
+            setattr(child_task, "report_kind", _task_simple_child_report_kind(child_task) or "narrative")
+            setattr(child_task, "report_kind_label", "Báo cáo số" if getattr(child_task, "report_kind", "") == "number" else "Báo cáo lời")
+            setattr(child_task, "attachment_required", bool(child_meta.get("attachment_required")))
+            setattr(child_task, "reported_assignments", sum(1 for assignment in (child_task.assignments or []) if _assignment_has_report_submission(assignment)))
+            setattr(child_task, "reported_units", child_unit_summary.get("reported_units", 0))
+            setattr(child_task, "total_units", child_unit_summary.get("total_units", 0))
+            setattr(child_task, "number_total", child_unit_summary.get("numeric_total"))
+            setattr(child_task, "viewer_assignment", child_viewer_assign)
+            setattr(child_task, "report_form", _build_structured_task_report_form(child_task, child_viewer_assign, current_user) if child_viewer_assign and child_schema else None)
+            setattr(child_task, "action_label", "Cập nhật" if child_viewer_assign and _assignment_has_report_submission(child_viewer_assign) else "Thực hiện")
             child_task_stats["total"] += 1
             if child_metrics["display_status"] == COMPLETED_STATUS:
                 child_task_stats["completed"] += 1
@@ -2335,6 +2648,7 @@ def task_detail(tid):
         parent_task=parent_task,
         child_tasks=child_tasks,
         child_task_stats=child_task_stats,
+        task_has_child_tasks=task_has_child_tasks,
         task_report_schema=task_report_schema,
         task_report_schema_seed=_task_report_schema_seed(task),
         linked_report_templates=linked_report_templates,
@@ -2750,6 +3064,11 @@ def create_child_task(tid):
     assign_type = request.form.get("assign_type", "role")
     if assign_type not in {"role", "user"}:
         assign_type = "role"
+    child_report_kind = str(request.form.get("child_report_kind") or "narrative").strip().lower()
+    if child_report_kind not in CHILD_TASK_ALLOWED_REPORT_KINDS:
+        child_report_kind = "narrative"
+    child_attachment_required = _report_checkbox_value(request.form.get("child_attachment_required"))
+    child_report_schema = _build_simple_child_task_schema(child_report_kind, child_attachment_required)
 
     if title and not bulk_titles:
         bulk_titles = [title]
@@ -2787,7 +3106,7 @@ def create_child_task(tid):
             task_type=parent_task.task_type,
             initial_status="Chưa tiếp nhận",
             parent_task_id=parent_task.id,
-            report_schema_json=None,
+            report_schema_json=json.dumps(child_report_schema, ensure_ascii=False) if child_report_schema else None,
         )
         _store_assignment_scope(
             child_task,
@@ -2815,7 +3134,7 @@ def create_child_task(tid):
         session.get("fullname", "Quản trị"),
         "Tạo hàng loạt task con",
         "Công việc",
-        f"parent={parent_task.id} | so_luong={len(created_tasks)}",
+        f"parent={parent_task.id} | so_luong={len(created_tasks)} | kieu={child_report_kind} | tep={int(child_attachment_required)}",
     )
     flash(f"Đã tạo và giao {len(created_tasks)} task con.", "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
@@ -2902,11 +3221,17 @@ def submit_task_report(tid):
 
         values = {}
         missing_labels = []
+        invalid_number_labels = []
         for field in report_schema.get("fields", []):
             if not _task_report_item_visible_for_user(field, current_user):
                 continue
             form_key = f"report_field_{field.get('key')}"
             raw_value = (request.form.get(form_key) or "").strip()
+            if field.get("type") == "number" and raw_value:
+                try:
+                    raw_value = _format_report_number(_parse_report_number(raw_value))
+                except ValueError:
+                    invalid_number_labels.append(field.get("label") or "Chỉ tiêu số liệu")
             values[field.get("key")] = raw_value
             if field.get("required") and not raw_value:
                 missing_labels.append(field.get("label"))
@@ -2924,6 +3249,9 @@ def submit_task_report(tid):
 
         if missing_labels:
             flash("Cần hoàn thiện các mục bắt buộc: " + ", ".join(missing_labels) + ".", "danger")
+            return redirect(url_for("tasks_bp.task_detail", tid=tid))
+        if invalid_number_labels:
+            flash("Các mục sau chỉ cho phép nhập số: " + ", ".join(invalid_number_labels) + ".", "danger")
             return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
         payload = {
@@ -2950,7 +3278,9 @@ def submit_task_report(tid):
             )
         )
 
-        if mark_completed == "1":
+        if task.parent_task_id and _task_is_simple_child_report(task):
+            assign.status = COMPLETED_STATUS
+        elif mark_completed == "1":
             assign.status = COMPLETED_STATUS
         elif _normalize_status(assign.status) == "Chưa tiếp nhận":
             assign.status = IN_PROGRESS_STATUS
@@ -2979,7 +3309,9 @@ def submit_task_report(tid):
             )
         )
 
-    if mark_completed == "1":
+    if task.parent_task_id:
+        assign.status = COMPLETED_STATUS
+    elif mark_completed == "1":
         assign.status = COMPLETED_STATUS
     elif _normalize_status(assign.status) == "Chưa tiếp nhận":
         assign.status = IN_PROGRESS_STATUS
