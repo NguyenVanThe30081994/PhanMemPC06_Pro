@@ -193,6 +193,73 @@
     .pc06-comment-card.report {
         background: rgba(240, 253, 244, 0.8);
     }
+    .pc06-bulk-entry-shell {
+        display: grid;
+        gap: 12px;
+    }
+    .pc06-bulk-entry-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+    }
+    .pc06-bulk-entry-list {
+        min-height: 132px;
+        padding: 14px;
+        border: 1px solid rgba(226, 232, 240, 0.96);
+        border-radius: 18px;
+        background: rgba(248, 250, 252, 0.76);
+    }
+    .pc06-bulk-entry-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .pc06-bulk-entry-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        max-width: 100%;
+        padding: 10px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(191, 219, 254, 0.95);
+        background: rgba(239, 246, 255, 0.92);
+        color: var(--text-main, #0f172a);
+        font-size: 0.93rem;
+        line-height: 1.35;
+    }
+    .pc06-bulk-entry-chip span {
+        min-width: 0;
+        word-break: break-word;
+    }
+    .pc06-bulk-entry-remove {
+        width: 24px;
+        height: 24px;
+        border: none;
+        border-radius: 999px;
+        background: rgba(59, 130, 246, 0.12);
+        color: #1d4ed8;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .pc06-bulk-entry-remove:hover {
+        background: rgba(59, 130, 246, 0.2);
+    }
+    .pc06-bulk-entry-empty {
+        color: var(--text-muted, #64748b);
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+    .pc06-bulk-entry-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        color: var(--text-muted, #64748b);
+        font-size: 0.84rem;
+    }
     .pc06-user-picker {
         position: relative;
     }
@@ -2017,8 +2084,24 @@
                             <div class="pc06-form-panel">
                                 <div class="pc06-form-section">
                                     <label class="form-label fw-bold">Danh sách đầu mục báo cáo</label>
-                                    <textarea name="bulk_titles" rows="10" class="form-control" placeholder="Mỗi dòng là một task con&#10;Ví dụ:&#10;Sở ngành tham mưu bao nhiêu văn bản&#10;Đơn vị đã ban hành bao nhiêu kế hoạch&#10;Kết quả xử lý hồ sơ trong kỳ" required></textarea>
-                                    <div class="form-text">Chọn vai trò hoặc tài khoản một lần, sau đó mỗi dòng trong danh sách sẽ được tạo thành một task con riêng.</div>
+                                    <div class="pc06-bulk-entry-shell" data-child-bulk-builder>
+                                        <div class="pc06-bulk-entry-row">
+                                            <input type="text" class="form-control" placeholder="Nhập một đầu mục rồi bấm dấu + hoặc Enter" data-child-bulk-input>
+                                            <button type="button" class="btn btn-outline-primary" data-child-bulk-add>
+                                                <i class="fa-solid fa-plus"></i>
+                                            </button>
+                                        </div>
+                                        <div class="pc06-bulk-entry-list">
+                                            <div class="pc06-bulk-entry-chips" data-child-bulk-list></div>
+                                            <div class="pc06-bulk-entry-empty" data-child-bulk-empty>Chưa có đầu mục nào. Mỗi lần thêm sẽ tạo thành một thẻ nhỏ để bạn dễ soát danh sách trước khi giao việc.</div>
+                                        </div>
+                                        <div class="pc06-bulk-entry-meta">
+                                            <span data-child-bulk-count>0 đầu mục</span>
+                                            <span>Có thể dán nhiều dòng hoặc ngăn cách bằng dấu phẩy, hệ thống sẽ tự tách.</span>
+                                        </div>
+                                        <textarea name="bulk_titles" class="d-none" data-child-bulk-hidden></textarea>
+                                    </div>
+                                    <div class="form-text">Chọn vai trò hoặc tài khoản một lần, sau đó từng đầu mục trong danh sách sẽ được tạo thành một task con riêng.</div>
                                 </div>
                                 <div class="pc06-form-section">
                                     <div class="pc06-info-item">
@@ -2416,6 +2499,127 @@
         });
     }
 
+    function initChildBulkBuilder(modal) {
+        const builder = modal?.querySelector('[data-child-bulk-builder]');
+        if (!builder) return;
+
+        const input = builder.querySelector('[data-child-bulk-input]');
+        const addButton = builder.querySelector('[data-child-bulk-add]');
+        const list = builder.querySelector('[data-child-bulk-list]');
+        const emptyState = builder.querySelector('[data-child-bulk-empty]');
+        const countNode = builder.querySelector('[data-child-bulk-count]');
+        const hiddenField = builder.querySelector('[data-child-bulk-hidden]');
+        const form = modal.querySelector('form');
+        const items = [];
+
+        const normalise = (value) => value.replace(/\s+/g, ' ').trim();
+
+        const syncHiddenField = () => {
+            if (!hiddenField) return;
+            hiddenField.value = items.join('\n');
+            input?.setCustomValidity('');
+        };
+
+        const render = () => {
+            if (!list) return;
+            list.innerHTML = '';
+            items.forEach((item, index) => {
+                const chip = document.createElement('div');
+                chip.className = 'pc06-bulk-entry-chip';
+                const text = document.createElement('span');
+                text.textContent = item;
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'pc06-bulk-entry-remove';
+                button.setAttribute('data-child-bulk-remove', String(index));
+                button.setAttribute('aria-label', 'Xoá đầu mục');
+                button.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                chip.appendChild(text);
+                chip.appendChild(button);
+                list.appendChild(chip);
+            });
+            emptyState?.classList.toggle('d-none', items.length > 0);
+            if (countNode) {
+                countNode.textContent = `${items.length} đầu mục`;
+            }
+            syncHiddenField();
+        };
+
+        const splitRawValues = (rawValue) => rawValue
+            .split(/\r?\n|,/)
+            .map(normalise)
+            .filter(Boolean);
+
+        const appendItems = (rawValue) => {
+            const values = splitRawValues(rawValue);
+            if (!values.length) return false;
+            let added = false;
+            values.forEach((value) => {
+                if (!items.includes(value)) {
+                    items.push(value);
+                    added = true;
+                }
+            });
+            render();
+            return added;
+        };
+
+        addButton?.addEventListener('click', () => {
+            if (appendItems(input?.value || '')) {
+                if (input) input.value = '';
+            }
+            input?.setCustomValidity('');
+            input?.focus();
+        });
+
+        input?.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            if (appendItems(input.value)) {
+                input.value = '';
+            }
+            input.setCustomValidity('');
+        });
+
+        input?.addEventListener('paste', (event) => {
+            const text = event.clipboardData?.getData('text') || '';
+            if (!/[\n,]/.test(text)) return;
+            event.preventDefault();
+            appendItems(text);
+            if (input) input.value = '';
+            input?.setCustomValidity('');
+        });
+
+        input?.addEventListener('input', () => {
+            input.setCustomValidity('');
+        });
+
+        list?.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-child-bulk-remove]');
+            if (!button) return;
+            const index = Number(button.getAttribute('data-child-bulk-remove'));
+            if (!Number.isInteger(index) || index < 0 || index >= items.length) return;
+            items.splice(index, 1);
+            render();
+        });
+
+        form?.addEventListener('submit', (event) => {
+            if (input?.value?.trim()) {
+                appendItems(input.value);
+                input.value = '';
+            }
+            if (!items.length && input) {
+                input.setCustomValidity('Hãy thêm ít nhất một đầu mục báo cáo.');
+                input.reportValidity();
+                event.preventDefault();
+                return;
+            }
+            input?.setCustomValidity('');
+        });
+
+        render();
+    }
+
     function selectEditAssignmentMode(mode) {
         const target = document.querySelector(`#editTaskModal input[name="assign_type"][value="${mode}"]`);
         if (!target) return;
@@ -2491,6 +2695,7 @@
     });
 
     initScopedUserPickers(document.getElementById('createChildTaskModal') || document);
+    initChildBulkBuilder(document.getElementById('createChildTaskModal'));
     document.querySelectorAll('[data-task-report-builder]').forEach(initTaskReportBuilder);
     syncEditAssignmentMode();
     syncChildAssignmentMode();
