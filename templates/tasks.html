@@ -934,6 +934,16 @@
                                     </template>
                                 </div>
 
+                                <div class="pc06-form-section">
+                                    <label class="form-label fw-bold">Biểu mẫu liên kết từ report</label>
+                                    <select name="linked_report_template_ids" class="form-select" size="6" multiple>
+                                        {% for template in report_templates %}
+                                        <option value="{{ template.id }}">{{ template.name }} - {{ template.report_type_display }}{% if template.professional_unit_display %} - {{ template.professional_unit_display }}{% endif %}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">Nếu task dùng số liệu từ module report, hãy chọn các biểu mẫu có sẵn ở đây để tổng hợp tiến độ và kết quả về task.</div>
+                                </div>
+
                                 <div class="pc06-form-section mb-0">
                                     <label class="form-label fw-bold">Tài liệu đính kèm</label>
                                     <input type="file" name="task_file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar">

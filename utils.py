@@ -329,6 +329,7 @@ def apply_migrations(app):
         ("task", "assign_type", "VARCHAR(20) DEFAULT 'unit'"),
         ("task", "assignment_scope_json", "TEXT"),
         ("task", "report_schema_json", "TEXT"),
+        ("task", "linked_report_templates_json", "TEXT"),
         ("task", "created_at", "DATETIME"),
         ("task_assignment", "report_payload_json", "TEXT"),
         ("short_link", "category", "VARCHAR(100)"),

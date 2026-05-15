@@ -22,7 +22,20 @@ from category_helpers import (
     stable_form_category_options,
     sync_record_categories,
 )
-from models import AppRole, RankingUnit, Task, TaskAssignment, TaskComment, User, db
+from models import (
+    AppRole,
+    RankingUnit,
+    ReportCycle,
+    ReportInstance,
+    ReportTemplate,
+    ReportType,
+    ReportTemplateVersion,
+    Task,
+    TaskAssignment,
+    TaskComment,
+    User,
+    db,
+)
 from utils import (
     apply_migrations,
     extract_unit_key,
@@ -98,6 +111,28 @@ def _task_priority_options():
     return module_category_options("tasks", "priority", "Mức độ ưu tiên")
 
 
+def _task_report_templates():
+    templates = (
+        ReportTemplate.query.filter_by(status="active")
+        .order_by(ReportTemplate.updated_at.desc())
+        .all()
+    )
+    report_types = {
+        item.id: item
+        for item in ReportType.query.filter(ReportType.id.in_([template.report_type_id for template in templates if template.report_type_id])).all()
+    } if templates else {}
+
+    for template in templates:
+        professional_unit = resolve_category_display(
+            getattr(template, "professional_unit", None),
+            _task_domain_options(),
+            fallback_label="Chưa phân đội",
+        ).get("display_name") or "Chưa phân đội"
+        setattr(template, "professional_unit_display", professional_unit)
+        setattr(template, "report_type_display", getattr(report_types.get(template.report_type_id), "name", "Chưa phân loại"))
+    return templates
+
+
 def _task_assignment_unit_options():
     if has_request_context():
         cached = getattr(g, "_task_assignment_unit_options", None)
@@ -156,6 +191,21 @@ def _current_perms():
         except Exception:
             return {}
     return {}
+
+
+def _can_manage_report_links():
+    perms = _current_perms()
+    return bool(session.get("is_admin") or perms.get("p_form_lead"))
+
+
+def _can_open_report_workspace():
+    perms = _current_perms()
+    return bool(
+        session.get("is_admin")
+        or perms.get("p_form_lead")
+        or perms.get("p_input_lead")
+        or perms.get("p_input_exec")
+    )
 
 
 def _normalize_status(status):
@@ -549,6 +599,111 @@ def _requested_role_ids(form):
 
 def _requested_user_ids(form):
     return sorted({int(uid) for uid in form.getlist("target_users") if str(uid).isdigit()})
+
+
+def _requested_linked_report_template_ids(form):
+    return sorted({int(template_id) for template_id in form.getlist("linked_report_template_ids") if str(template_id).isdigit()})
+
+
+def _load_linked_report_template_ids(task):
+    if not task:
+        return []
+    raw_value = getattr(task, "linked_report_templates_json", None) or ""
+    if not raw_value:
+        return []
+    try:
+        parsed = json.loads(raw_value)
+    except Exception:
+        return []
+    if not isinstance(parsed, list):
+        return []
+    return sorted({int(template_id) for template_id in parsed if str(template_id).isdigit()})
+
+
+def _task_template_current_cycle(template):
+    if not template:
+        return None
+    version_ids = [
+        row.id
+        for row in ReportTemplateVersion.query.filter_by(template_id=template.id).all()
+    ]
+    if not version_ids:
+        return None
+    cycles = (
+        ReportCycle.query.filter(ReportCycle.template_version_id.in_(version_ids))
+        .order_by(ReportCycle.created_at.desc())
+        .all()
+    )
+    for cycle in cycles:
+        if cycle.status != "closed":
+            return cycle
+    return cycles[0] if cycles else None
+
+
+def _build_linked_report_template_views(task, can_manage_report_admin=False, can_open_report_workspace=False):
+    template_ids = _load_linked_report_template_ids(task)
+    if not template_ids:
+        return []
+
+    templates = {
+        template.id: template
+        for template in ReportTemplate.query.filter(ReportTemplate.id.in_(template_ids)).all()
+    }
+    report_types = {
+        item.id: item
+        for item in ReportType.query.filter(
+            ReportType.id.in_([template.report_type_id for template in templates.values() if template.report_type_id])
+        ).all()
+    } if templates else {}
+
+    views = []
+    for template_id in template_ids:
+        template = templates.get(template_id)
+        if not template:
+            continue
+        cycle = _task_template_current_cycle(template)
+        instances = ReportInstance.query.filter_by(cycle_id=cycle.id).all() if cycle else []
+        total_units = len(instances)
+        submitted_units = sum(
+            1 for instance in instances
+            if (getattr(instance, "status", "") or "").strip().lower() == "submitted" or getattr(instance, "submitted_at", None)
+        )
+        draft_units = sum(
+            1 for instance in instances
+            if (getattr(instance, "status", "") or "").strip().lower() == "draft"
+        )
+        professional_unit_display = resolve_category_display(
+            getattr(template, "professional_unit", None),
+            _task_domain_options(),
+            fallback_label="Chưa phân đội",
+        ).get("display_name") or "Chưa phân đội"
+        report_type = report_types.get(template.report_type_id)
+        views.append(
+            {
+                "template_id": template.id,
+                "template_name": template.name,
+                "report_type_name": getattr(report_type, "name", "Chưa phân loại"),
+                "professional_unit_display": professional_unit_display,
+                "cycle_id": getattr(cycle, "id", None),
+                "cycle_name": getattr(cycle, "name", "") or "Chưa có đợt báo cáo",
+                "cycle_status": getattr(cycle, "status", "") or "draft",
+                "is_locked": bool(getattr(cycle, "is_locked", False)),
+                "due_at": getattr(cycle, "due_at", None),
+                "total_units": total_units,
+                "submitted_units": submitted_units,
+                "draft_units": draft_units,
+                "progress_percent": int(round((submitted_units / total_units) * 100)) if total_units else 0,
+                "manage_url": url_for("reporting_bp.admin_cycle_detail", cycle_id=cycle.id) if cycle and can_manage_report_admin else "",
+                "workspace_url": url_for("reporting_bp.cycle_workspace", cycle_id=cycle.id) if cycle and can_open_report_workspace else "",
+                "status_label": (
+                    "Đã đóng" if getattr(cycle, "status", "") == "closed"
+                    else "Đã khóa" if getattr(cycle, "is_locked", False)
+                    else "Đang mở" if cycle
+                    else "Chưa cấu hình đợt báo cáo"
+                ),
+            }
+        )
+    return views
 
 
 def _should_refresh_assignments(task, form, domain):
@@ -1807,6 +1962,7 @@ def tasks():
         except ValueError as exc:
             flash(str(exc), "danger")
             return redirect(url_for("tasks_bp.tasks"))
+        linked_report_template_ids = _requested_linked_report_template_ids(request.form)
 
         assignees, error_message = _resolve_assignees(request.form, domain)
         if error_message:
@@ -1832,6 +1988,7 @@ def tasks():
             task_type=task_type,
             initial_status="Chưa tiếp nhận",
             report_schema_json=json.dumps(report_schema, ensure_ascii=False) if report_schema else None,
+            linked_report_templates_json=json.dumps(linked_report_template_ids, ensure_ascii=False) if linked_report_template_ids else None,
         )
         _store_assignment_scope(
             new_task,
@@ -1948,6 +2105,7 @@ def tasks():
         is_lead=is_lead,
         is_admin=is_admin,
         default_task_report_schema=_task_report_schema_seed(),
+        report_templates=_task_report_templates(),
         stats={
             "total": total_count,
             "completed": completed_count,
@@ -2045,6 +2203,11 @@ def task_detail(tid):
     assignment_role_groups = []
     da06_management_view = []
     task_report_schema = _load_task_report_schema(task)
+    linked_report_templates = _build_linked_report_template_views(
+        task,
+        can_manage_report_admin=_can_manage_report_links(),
+        can_open_report_workspace=_can_open_report_workspace(),
+    )
     child_tasks = []
     child_task_stats = {"total": 0, "completed": 0, "in_progress": 0}
     assignment_unit_cards = _build_assignment_unit_cards(assigns)
@@ -2137,6 +2300,7 @@ def task_detail(tid):
         priority_items=stable_form_category_options(priority_items),
         users=active_users,
         roles=roles,
+        report_templates=_task_report_templates(),
         assignment_context=assignment_context,
         now_dt=datetime.now(),
         is_lead=is_lead,
@@ -2157,6 +2321,8 @@ def task_detail(tid):
         child_task_stats=child_task_stats,
         task_report_schema=task_report_schema,
         task_report_schema_seed=_task_report_schema_seed(task),
+        linked_report_templates=linked_report_templates,
+        linked_report_template_ids=_load_linked_report_template_ids(task),
         structured_task_report_form=structured_task_report_form,
         da06_task_form=da06_task_form,
         da06_management_view=da06_management_view,
@@ -2479,6 +2645,7 @@ def edit_task(tid):
     requested_assign_type = request.form.get("assign_type", _infer_assignment_context(task).get("mode") or "unit")
     requested_role_ids = _requested_role_ids(request.form)
     requested_user_ids = _requested_user_ids(request.form)
+    linked_report_template_ids = _requested_linked_report_template_ids(request.form)
     refreshed_assignee_count = None
     new_assignees_to_notify = []
     if _should_refresh_assignments(task, request.form, domain):
@@ -2504,6 +2671,9 @@ def edit_task(tid):
     task.task_type = task_type
     task.deadline = _parse_deadline(request.form)
     task.report_schema_json = json.dumps(report_schema, ensure_ascii=False) if report_schema else None
+    task.linked_report_templates_json = (
+        json.dumps(linked_report_template_ids, ensure_ascii=False) if linked_report_template_ids else None
+    )
     setattr(task, "_task_report_schema_cache", report_schema)
     if refreshed_assignee_count is None:
         current_scope = _load_assignment_scope(task)
@@ -2557,50 +2727,16 @@ def create_child_task(tid):
         flash("Bạn không có quyền tạo task con cho công việc này.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
-    pro_units = _task_domain_options()
-    task_fields = _task_field_options()
-    task_types = _task_type_options()
-    priority_items = _task_priority_options()
-
     title = (request.form.get("title") or "").strip()
-    category = canonicalize_category_value(
-        request.form.get("category") or parent_task.category or "",
-        task_fields,
-        prefer_stable=True,
-    )
-    domain = canonicalize_category_value(
-        request.form.get("unit_name") or request.form.get("domain") or parent_task.domain or "",
-        pro_units,
-        prefer_stable=True,
-    )
     content = (request.form.get("description") or request.form.get("content") or "").strip()
-    priority = canonicalize_category_value(
-        request.form.get("priority") or parent_task.priority or "Trung bình",
-        priority_items,
-        prefer_stable=True,
-    )
-    task_type = canonicalize_category_value(
-        request.form.get("task_type") or parent_task.task_type or "Công việc thường xuyên",
-        task_types,
-        prefer_stable=True,
-    )
+    domain = parent_task.domain or ""
+    assign_type = request.form.get("assign_type", "role")
+    if assign_type not in {"role", "user"}:
+        assign_type = "role"
 
     if not title:
         flash("Tiêu đề task con không được để trống.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    if task_fields and not category:
-        flash("Cần chọn lĩnh vực cho task con.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    if "report_schema_enabled" in request.form or "report_schema_json" in request.form:
-        try:
-            report_schema = _parse_task_report_schema_from_request(request.form)
-        except ValueError as exc:
-            flash(str(exc), "danger")
-            return redirect(url_for("tasks_bp.task_detail", tid=tid))
-    else:
-        report_schema = _load_task_report_schema(parent_task)
 
     assignees, error_message = _resolve_assignees(request.form, domain)
     if error_message:
@@ -2613,25 +2749,24 @@ def create_child_task(tid):
         attachment_name = secure_filename(attachment.filename)
         attachment.save(_task_file_path(attachment_name))
 
-    child_deadline = _parse_deadline(request.form) or parent_task.deadline
     child_task = Task(
-        category=category,
+        category=parent_task.category,
         domain=domain,
         title=title,
         content=content,
-        deadline=child_deadline,
+        deadline=parent_task.deadline,
         file_path=attachment_name,
         author_id=session["uid"],
         author_name=session.get("fullname", "Quản trị"),
-        priority=priority,
-        task_type=task_type,
+        priority=parent_task.priority,
+        task_type=parent_task.task_type,
         initial_status="Chưa tiếp nhận",
         parent_task_id=parent_task.id,
-        report_schema_json=json.dumps(report_schema, ensure_ascii=False) if report_schema else None,
+        report_schema_json=None,
     )
     _store_assignment_scope(
         child_task,
-        request.form.get("assign_type", "user"),
+        assign_type,
         domain=domain,
         role_ids=_requested_role_ids(request.form),
         user_ids=_requested_user_ids(request.form),

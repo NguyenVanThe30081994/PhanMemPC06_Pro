@@ -157,6 +157,7 @@ class Task(db.Model):
     assign_type = db.Column(db.String(20), default='unit')
     assignment_scope_json = db.Column(db.Text)
     report_schema_json = db.Column(db.Text)
+    linked_report_templates_json = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.now)
     assignments = db.relationship('TaskAssignment', backref='task', cascade='all, delete-orphan')
     child_tasks = db.relationship('Task', backref=db.backref('parent_task', remote_side=[id]))

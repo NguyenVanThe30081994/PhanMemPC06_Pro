@@ -1113,7 +1113,66 @@
             </section>
             {% endif %}
 
-            {% if structured_task_report_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+            {% if linked_report_templates %}
+            <section class="pc06-panel pc06-detail-panel-compact">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>Tổng hợp từ report</h2>
+                        <div class="pc06-detail-inline-note">Task này đang nhận số liệu và tiến độ trực tiếp từ các biểu mẫu đã liên kết bên module report.</div>
+                    </div>
+                </div>
+                <div class="pc06-report-groups">
+                    {% for item in linked_report_templates %}
+                    <article class="pc06-report-item">
+                        <div class="pc06-report-item-summary">
+                            <div class="pc06-report-item-copy">
+                                <strong>{{ item.template_name }}</strong>
+                                <div class="pc06-report-item-fileline">
+                                    <i class="fa-solid fa-table-cells-large"></i>
+                                    <span>{{ item.report_type_name }} · {{ item.professional_unit_display }}</span>
+                                </div>
+                            </div>
+                            <div class="pc06-report-item-actions">
+                                <span class="pc06-status-badge {% if item.status_label == 'Đã đóng' %}done{% elif item.status_label == 'Đang mở' %}doing{% else %}todo{% endif %}">
+                                    {{ item.status_label }}
+                                </span>
+                                {% if can_manage_task_view and item.manage_url %}
+                                <a href="{{ item.manage_url }}" class="pc06-report-download-icon" title="Mở tổng hợp báo cáo">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                </a>
+                                {% elif item.workspace_url %}
+                                <a href="{{ item.workspace_url }}" class="pc06-report-download-icon" title="Mở biểu mẫu báo cáo">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="pc06-report-item-body">
+                            <div class="pc06-report-item-meta">
+                                <span>
+                                    <i class="fa-solid fa-folder-open"></i>
+                                    {{ item.cycle_name }}
+                                </span>
+                                <span>
+                                    <i class="fa-regular fa-calendar"></i>
+                                    {{ item.due_at.strftime('%d/%m/%Y %H:%M') if item.due_at else 'Chưa đặt hạn gửi' }}
+                                </span>
+                                <span>
+                                    <i class="fa-solid fa-building"></i>
+                                    {{ item.submitted_units }}/{{ item.total_units }} đơn vị đã báo cáo
+                                </span>
+                            </div>
+                            <div class="pc06-detail-inline-note">
+                                Tiến độ {{ item.progress_percent }}%{% if item.total_units %} · Còn {{ item.total_units - item.submitted_units }} đơn vị chưa báo cáo{% endif %}
+                            </div>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+            {% if not linked_report_templates and structured_task_report_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
             <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>
@@ -1178,7 +1237,7 @@
                 </div>
                 {% endif %}
             </section>
-            {% elif da06_task_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+            {% elif not linked_report_templates and da06_task_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
             <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>
@@ -1255,6 +1314,17 @@
                         </button>
                     </div>
                 </form>
+            </section>
+            {% elif linked_report_templates and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+            <section class="pc06-panel pc06-detail-panel-compact">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>Báo cáo biểu mẫu</h2>
+                    </div>
+                </div>
+                <div class="pc06-info-banner">
+                    Task này lấy số liệu trực tiếp từ module report. Hãy mở biểu mẫu liên kết ở phía trên để nhập hoặc theo dõi báo cáo, không cần gửi thêm báo cáo số liệu tại task.
+                </div>
             </section>
             {% elif user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
             <section class="pc06-panel pc06-detail-panel-compact">
@@ -1350,6 +1420,14 @@
                     <div class="pc06-info-item"><span>Mức ưu tiên</span><strong>{{ task.priority_display or 'Trung bình' }}</strong></div>
                     <div class="pc06-info-item"><span>Người giao</span><strong>{{ task.author_name }}</strong></div>
                     {% if limited_assignment_view %}
+                    {% if linked_report_templates %}
+                    <div class="pc06-info-item"><span>Hình thức báo cáo</span><strong>Theo biểu mẫu report liên kết</strong></div>
+                    <div class="pc06-info-item">
+                        <span>Biểu mẫu đang theo dõi</span>
+                        <strong>{{ linked_report_templates|length }} biểu mẫu</strong>
+                        <div class="pc06-detail-inline-note mt-2">Số liệu và tiến độ của task này được lấy trực tiếp từ module report.</div>
+                    </div>
+                    {% else %}
                     <div class="pc06-info-item"><span>Trạng thái báo cáo</span><strong>{{ report_context.status }}</strong></div>
                     <div class="pc06-info-item">
                         <span>{{ report_context.attachment_label }} đã nộp</span>
@@ -1372,6 +1450,7 @@
                     </div>
                     {% endif %}
                     <div class="pc06-info-item"><span>Lần báo cáo gần nhất</span><strong>{{ report_context.latest_report_at.strftime('%d/%m/%Y %H:%M') if report_context.latest_report_at else 'Chưa gửi báo cáo' }}</strong></div>
+                    {% endif %}
                     {% endif %}
                 </div>
             </section>
@@ -1720,6 +1799,15 @@
                             </div>
                         </div>
                         <div class="col-12">
+                            <label class="form-label fw-bold">Biểu mẫu liên kết từ report</label>
+                            <select name="linked_report_template_ids" class="form-select" size="6" multiple>
+                                {% for template in report_templates %}
+                                <option value="{{ template.id }}" {% if template.id in linked_report_template_ids %}selected{% endif %}>{{ template.name }} - {{ template.report_type_display }}{% if template.professional_unit_display %} - {{ template.professional_unit_display }}{% endif %}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Các biểu mẫu được chọn sẽ tổng hợp tiến độ và số liệu từ module report về task này.</div>
+                        </div>
+                        <div class="col-12">
                             <label class="form-label fw-bold">Tệp đính kèm mới</label>
                             <input type="file" name="task_file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar">
                             {% if task.file_path %}
@@ -1762,227 +1850,18 @@
                             <div class="pc06-form-panel">
                                 <div class="pc06-form-section">
                                     <label class="form-label fw-bold">Tiêu đề task con</label>
-                                    <input type="text" name="title" class="form-control form-control-lg" placeholder="Ví dụ: Báo cáo số liệu của Đội 1" required>
+                                    <input type="text" name="title" class="form-control form-control-lg" placeholder="Ví dụ: Sở ngành tham mưu bao nhiêu văn bản" required>
                                 </div>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">Lĩnh vực</label>
-                                        <select name="category" class="form-select form-select-lg">
-                                            <option value="">Chọn lĩnh vực</option>
-                                            {% for item in task_fields %}
-                                            <option value="{{ item.value }}" {% if item.value == task.category %}selected{% endif %}>{{ item.name }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">Đơn vị nghiệp vụ</label>
-                                        <select name="unit_name" class="form-select form-select-lg">
-                                            <option value="">Chọn đơn vị</option>
-                                            {% for unit in pro_units %}
-                                            <option value="{{ unit.value }}" {% if unit.value == task.domain %}selected{% endif %}>{{ unit.name }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">Hạn xử lý</label>
-                                        <input type="date" name="deadline" class="form-control form-control-lg" value="{{ task.deadline.strftime('%Y-%m-%d') if task.deadline else '' }}">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">Mức độ ưu tiên</label>
-                                        <select name="priority" class="form-select form-select-lg">
-                                            <option value="">Chọn mức độ</option>
-                                            {% for item in priority_items %}
-                                            <option value="{{ item.value }}" {% if item.value == task.priority %}selected{% endif %}>{{ item.name }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">Loại công việc</label>
-                                        <select name="task_type" class="form-select form-select-lg">
-                                            <option value="">Công việc thường xuyên</option>
-                                            {% for item in task_types %}
-                                            <option value="{{ item.value }}" {% if item.value == task.task_type %}selected{% endif %}>{{ item.name }}</option>
-                                            {% endfor %}
-                                        </select>
+                                <div class="pc06-form-section">
+                                    <div class="pc06-info-item">
+                                        <span>Thời hạn task con</span>
+                                        <strong>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Theo task cha hiện chưa đặt hạn' }}</strong>
+                                        <div class="pc06-detail-inline-note mt-2">Task con tự động dùng đúng thời hạn của task cha để bạn tách nhỏ từng đầu mục trong đề cương báo cáo.</div>
                                     </div>
                                 </div>
                                 <div class="pc06-form-section">
-                                    <label class="form-label fw-bold">Nội dung giao riêng</label>
-                                    <textarea name="description" rows="6" class="form-control" placeholder="Mô tả phần việc hoặc nội dung báo cáo mà task con này phụ trách"></textarea>
-                                </div>
-                                <div class="pc06-form-section" data-task-report-builder data-report-schema-seed='{{ task_report_schema_seed|tojson|forceescape }}'>
-                                    <div class="d-flex justify-content-between align-items-start gap-3">
-                                        <div>
-                                            <label class="form-label fw-bold mb-1">Biểu mẫu báo cáo của task con</label>
-                                            <div class="form-text">Mặc định kế thừa từ task cha. Bạn có thể chỉnh lại để đúng phần việc của vai trò hoặc tài khoản được giao.</div>
-                                        </div>
-                                        <div class="form-check form-switch mt-1">
-                                            <input class="form-check-input" type="checkbox" name="report_schema_enabled" value="1" data-report-toggle>
-                                        </div>
-                                    </div>
-                                    <input type="hidden" name="report_schema_json" data-report-schema-input>
-                                    <div class="border rounded-4 p-3 mt-3 d-none" data-report-builder-body>
-                                        <div class="row g-3">
-                                            <div class="col-md-8">
-                                                <label class="form-label fw-bold mb-1">Phần báo cáo lời</label>
-                                                <input type="text" class="form-control" data-report-narrative-label placeholder="Ví dụ: Kết quả phần việc phụ trách">
-                                            </div>
-                                            <div class="col-md-4 d-flex align-items-end">
-                                                <div class="form-check form-switch mb-2">
-                                                    <input class="form-check-input" type="checkbox" data-report-narrative-enabled>
-                                                    <label class="form-check-label">Bật phần báo cáo lời</label>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-8">
-                                                <label class="form-label fw-bold mb-1">Gợi ý nhập báo cáo lời</label>
-                                                <input type="text" class="form-control" data-report-narrative-placeholder placeholder="Nêu rõ kết quả, tồn tại và đề xuất của phần việc này">
-                                            </div>
-                                            <div class="col-md-4 d-flex align-items-end">
-                                                <div class="form-check mb-2">
-                                                    <input class="form-check-input" type="checkbox" data-report-narrative-required>
-                                                    <label class="form-check-label">Bắt buộc nhập</label>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label fw-bold mb-1">Giao báo cáo lời cho</label>
-                                                <select class="form-select" data-report-narrative-target-type>
-                                                    <option value="all">Tất cả người nhận</option>
-                                                    <option value="role">Theo vai trò</option>
-                                                    <option value="user">Theo tài khoản</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-4 d-none" data-report-narrative-role-box>
-                                                <label class="form-label fw-bold mb-1">Vai trò áp dụng</label>
-                                                <select class="form-select" multiple size="4" data-report-narrative-role-ids>
-                                                    {% for role in roles %}
-                                                    <option value="{{ role.id }}">{{ role.name }}</option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-                                            <div class="col-md-4 d-none" data-report-narrative-user-box>
-                                                <label class="form-label fw-bold mb-1">Tài khoản áp dụng</label>
-                                                <select class="form-select" multiple size="4" data-report-narrative-user-ids>
-                                                    {% for user in users %}
-                                                    <option value="{{ user.id }}">{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-                                            <div class="col-md-8">
-                                                <label class="form-label fw-bold mb-1">Nhãn file minh chứng</label>
-                                                <input type="text" class="form-control" data-report-attachment-label placeholder="Ví dụ: File minh chứng phần việc">
-                                            </div>
-                                            <div class="col-md-4 d-flex align-items-end">
-                                                <div class="form-check form-switch mb-2">
-                                                    <input class="form-check-input" type="checkbox" data-report-attachment-enabled>
-                                                    <label class="form-check-label">Cho phép đính kèm file</label>
-                                                </div>
-                                            </div>
-                                            <div class="col-12">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" data-report-attachment-required>
-                                                    <label class="form-check-label">Bắt buộc có file minh chứng</label>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label fw-bold mb-1">Giao file minh chứng cho</label>
-                                                <select class="form-select" data-report-attachment-target-type>
-                                                    <option value="all">Tất cả người nhận</option>
-                                                    <option value="role">Theo vai trò</option>
-                                                    <option value="user">Theo tài khoản</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-4 d-none" data-report-attachment-role-box>
-                                                <label class="form-label fw-bold mb-1">Vai trò áp dụng</label>
-                                                <select class="form-select" multiple size="4" data-report-attachment-role-ids>
-                                                    {% for role in roles %}
-                                                    <option value="{{ role.id }}">{{ role.name }}</option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-                                            <div class="col-md-4 d-none" data-report-attachment-user-box>
-                                                <label class="form-label fw-bold mb-1">Tài khoản áp dụng</label>
-                                                <select class="form-select" multiple size="4" data-report-attachment-user-ids>
-                                                    {% for user in users %}
-                                                    <option value="{{ user.id }}">{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="d-flex justify-content-between align-items-center mt-4 mb-2 gap-3">
-                                            <div>
-                                                <label class="form-label fw-bold mb-0">Chỉ tiêu và nội dung riêng</label>
-                                                <div class="form-text">Mỗi task con nên gom đúng một cụm nội dung cần nhập và người chịu trách nhiệm tương ứng.</div>
-                                            </div>
-                                            <button type="button" class="btn btn-sm btn-outline-primary" data-report-add-field>
-                                                <i class="fa-solid fa-plus"></i>
-                                                Thêm mục
-                                            </button>
-                                        </div>
-                                        <div class="d-grid gap-3" data-report-field-list></div>
-                                        <div class="text-muted small fst-italic mt-2" data-report-empty-state>Chưa có mục riêng. Bạn có thể giữ phần báo cáo lời hoặc thêm các chỉ tiêu số liệu cho task con này.</div>
-                                    </div>
-                                    <template data-report-field-template>
-                                        <div class="border rounded-4 p-3" data-report-field-item>
-                                            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-                                                <strong>Mục báo cáo</strong>
-                                                <button type="button" class="btn btn-sm btn-outline-danger" data-report-remove-field>
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </button>
-                                            </div>
-                                            <div class="row g-3">
-                                                <div class="col-md-6">
-                                                    <label class="form-label fw-bold mb-1">Tên mục</label>
-                                                    <input type="text" class="form-control" data-field-label placeholder="Ví dụ: Số liệu của đội phụ trách">
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label fw-bold mb-1">Kiểu dữ liệu</label>
-                                                    <select class="form-select" data-field-type>
-                                                        <option value="number">Số liệu</option>
-                                                        <option value="text">Văn bản ngắn</option>
-                                                        <option value="textarea">Đoạn văn</option>
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-3 d-flex align-items-end">
-                                                    <div class="form-check mb-2">
-                                                        <input class="form-check-input" type="checkbox" data-field-required>
-                                                        <label class="form-check-label">Bắt buộc</label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label fw-bold mb-1">Gợi ý nhập</label>
-                                                    <input type="text" class="form-control" data-field-placeholder placeholder="Hiển thị trong ô nhập liệu">
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label fw-bold mb-1">Ghi chú cho người nhập</label>
-                                                    <input type="text" class="form-control" data-field-help-text placeholder="Ví dụ: Chỉ nhập số liệu thuộc phạm vi phụ trách">
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label class="form-label fw-bold mb-1">Áp dụng cho</label>
-                                                    <select class="form-select" data-field-target-type>
-                                                        <option value="all">Tất cả người nhận</option>
-                                                        <option value="role">Theo vai trò</option>
-                                                        <option value="user">Theo tài khoản</option>
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-4 d-none" data-field-role-box>
-                                                    <label class="form-label fw-bold mb-1">Vai trò áp dụng</label>
-                                                    <select class="form-select" multiple size="4" data-field-role-ids>
-                                                        {% for role in roles %}
-                                                        <option value="{{ role.id }}">{{ role.name }}</option>
-                                                        {% endfor %}
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-4 d-none" data-field-user-box>
-                                                    <label class="form-label fw-bold mb-1">Tài khoản áp dụng</label>
-                                                    <select class="form-select" multiple size="4" data-field-user-ids>
-                                                        {% for user in users %}
-                                                        <option value="{{ user.id }}">{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</option>
-                                                        {% endfor %}
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </template>
+                                    <label class="form-label fw-bold">Nội dung cần báo cáo</label>
+                                    <textarea name="description" rows="8" class="form-control" placeholder="Ví dụ: Báo cáo số lượng văn bản đã tham mưu, nêu rõ số liệu và đính kèm file minh chứng tương ứng"></textarea>
                                 </div>
                                 <div class="pc06-form-section mb-0">
                                     <label class="form-label fw-bold">Tài liệu đính kèm</label>
@@ -1994,23 +1873,18 @@
                             <div class="pc06-form-panel pc06-assignment-panel">
                                 <div class="pc06-side-title">
                                     <h6>Giao cho người phụ trách</h6>
-                                    <p>Task con nên ưu tiên giao theo vai trò hoặc cá nhân để gom đúng phần báo cáo cần nhập.</p>
+                                    <p>Mỗi task con nên gắn đúng một vai trò hoặc một vài tài khoản phụ trách một đầu mục trong đề cương báo cáo.</p>
                                 </div>
                                 <div class="pc06-segmented" id="childAssignmentModes">
-                                    <label class="pc06-radio-card">
-                                        <input type="radio" name="assign_type" value="unit">
-                                        <span class="pc06-radio-title">Theo đơn vị</span>
-                                        <small>Giao cho toàn bộ cán bộ đang hoạt động của đơn vị đã chọn.</small>
-                                    </label>
                                     <label class="pc06-radio-card active">
                                         <input type="radio" name="assign_type" value="role" checked>
                                         <span class="pc06-radio-title">Theo vai trò</span>
-                                        <small>Giao cho nhóm vai trò phụ trách một nội dung báo cáo.</small>
+                                        <small>Dùng khi cả nhóm cùng phụ trách một đầu mục báo cáo.</small>
                                     </label>
                                     <label class="pc06-radio-card">
                                         <input type="radio" name="assign_type" value="user">
                                         <span class="pc06-radio-title">Theo cá nhân</span>
-                                        <small>Giao trực tiếp cho tài khoản cụ thể.</small>
+                                        <small>Dùng khi muốn chỉ định rõ từng tài khoản phải báo cáo.</small>
                                     </label>
                                 </div>
                                 <div class="pc06-form-section" id="childRoleAssignmentPanel">
@@ -2052,7 +1926,7 @@
                                     </div>
                                 </div>
                                 <div class="pc06-mode-help">
-                                    Nếu cần phần báo cáo riêng theo từng đầu việc, hãy tạo nhiều task con tương ứng thay vì dồn vào một form chung.
+                                    Bạn có thể tạo liên tiếp nhiều task con, mỗi task là một dòng nội dung trong đề cương báo cáo lớn.
                                 </div>
                             </div>
                         </div>
