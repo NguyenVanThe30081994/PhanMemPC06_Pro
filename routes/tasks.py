@@ -58,6 +58,7 @@ REPORT_PREFIX = "[BÁO CÁO]"
 REPORT_ATTACHMENT_RE = re.compile(r"\s*\(Đính kèm:\s*([^)]+)\)\s*$")
 TASK_REPORT_ALLOWED_FIELD_TYPES = {"number", "text", "textarea"}
 TASK_REPORT_ALLOWED_TARGET_TYPES = {"all", "role", "user"}
+TASK_VIEWER_ALLOWED_MODES = {"none", "role", "user"}
 DEFAULT_TASK_REPORT_SCHEMA = {
     "enabled": False,
     "narrative": {
@@ -516,6 +517,23 @@ def _assignment_scope_payload(assign_type, domain="", role_ids=None, user_ids=No
     return payload
 
 
+def _viewer_scope_payload(mode="none", role_ids=None, user_ids=None):
+    normalized_mode = mode if mode in TASK_VIEWER_ALLOWED_MODES else "none"
+    payload = {
+        "mode": normalized_mode,
+        "role_ids": sorted({int(role_id) for role_id in (role_ids or []) if str(role_id).isdigit()}),
+        "user_ids": sorted({int(user_id) for user_id in (user_ids or []) if str(user_id).isdigit()}),
+    }
+    if normalized_mode == "role":
+        payload["user_ids"] = []
+    elif normalized_mode == "user":
+        payload["role_ids"] = []
+    else:
+        payload["role_ids"] = []
+        payload["user_ids"] = []
+    return payload
+
+
 def _load_assignment_scope(task):
     if not task:
         return {}
@@ -539,10 +557,36 @@ def _load_assignment_scope(task):
     return _assignment_scope_payload(assign_type, domain=domain, role_ids=role_ids, user_ids=user_ids)
 
 
+def _load_viewer_scope(task):
+    if not task:
+        return _viewer_scope_payload("none")
+
+    raw_payload = getattr(task, "viewer_scope_json", None)
+    if not raw_payload:
+        return _viewer_scope_payload("none")
+
+    try:
+        payload = json.loads(raw_payload) or {}
+    except Exception:
+        payload = {}
+
+    return _viewer_scope_payload(
+        payload.get("mode") or "none",
+        role_ids=payload.get("role_ids") or [],
+        user_ids=payload.get("user_ids") or [],
+    )
+
+
 def _store_assignment_scope(task, assign_type, domain="", role_ids=None, user_ids=None):
     payload = _assignment_scope_payload(assign_type, domain=domain, role_ids=role_ids, user_ids=user_ids)
     task.assign_type = payload["mode"]
     task.assignment_scope_json = json.dumps(payload, ensure_ascii=False)
+    return payload
+
+
+def _store_viewer_scope(task, mode="none", role_ids=None, user_ids=None):
+    payload = _viewer_scope_payload(mode, role_ids=role_ids, user_ids=user_ids)
+    task.viewer_scope_json = json.dumps(payload, ensure_ascii=False)
     return payload
 
 
@@ -591,6 +635,15 @@ def _infer_assignment_context(task):
     return context
 
 
+def _infer_viewer_context(task):
+    stored_scope = _load_viewer_scope(task)
+    return {
+        "mode": stored_scope.get("mode") or "none",
+        "role_ids": stored_scope.get("role_ids") or [],
+        "user_ids": stored_scope.get("user_ids") or [],
+    }
+
+
 def _requested_role_ids(form):
     role_ids = [int(role_id) for role_id in form.getlist("assignee_role_ids") if str(role_id).isdigit()]
     if not role_ids:
@@ -602,6 +655,14 @@ def _requested_role_ids(form):
 
 def _requested_user_ids(form):
     return sorted({int(uid) for uid in form.getlist("target_users") if str(uid).isdigit()})
+
+
+def _requested_viewer_role_ids(form):
+    return sorted({int(role_id) for role_id in form.getlist("viewer_role_ids") if str(role_id).isdigit()})
+
+
+def _requested_viewer_user_ids(form):
+    return sorted({int(uid) for uid in form.getlist("viewer_user_ids") if str(uid).isdigit()})
 
 
 def _requested_linked_report_template_ids(form):
@@ -784,6 +845,37 @@ def _resolve_assignees(form, domain):
     return _dedupe_users(users), None
 
 
+def _resolve_viewers(form):
+    mode = form.get("viewer_scope_mode", "none")
+    role_ids = _requested_viewer_role_ids(form)
+    user_ids = _requested_viewer_user_ids(form)
+
+    if mode == "role":
+        if not role_ids:
+            return [], "Cần chọn ít nhất một vai trò xem việc."
+        users = []
+        for role_id in role_ids:
+            users.extend(_resolve_role_assignees(role_id))
+        users = _dedupe_users(users)
+        if not users:
+            return [], "Không có cán bộ hoạt động nào thuộc các vai trò xem việc đã chọn."
+        return users, None
+
+    if mode == "user":
+        if not user_ids:
+            return [], "Cần chọn ít nhất một tài khoản xem việc."
+        users = (
+            User.query.filter(User.id.in_(user_ids), User.is_active.is_(True))
+            .order_by(User.fullname.asc())
+            .all()
+        )
+        if not users:
+            return [], "Danh sách tài khoản xem việc không hợp lệ hoặc đã bị khóa."
+        return _dedupe_users(users), None
+
+    return [], None
+
+
 def _sync_task_assignments(task, assignees):
     existing_assignments = {assignment.user_id: assignment for assignment in task.assignments}
     new_assignee_ids = {user.id for user in assignees}
@@ -809,12 +901,50 @@ def _can_edit_task(task):
     return bool(session.get("is_admin")) or task.author_id == session.get("uid")
 
 
+def _can_delete_task(task, is_lead=False):
+    if not task or not session.get("uid"):
+        return False
+    if bool(session.get("is_admin")) or task.author_id == session.get("uid"):
+        return True
+    if is_lead:
+        return True
+    perms = _current_perms()
+    return bool(perms.get("p_task_lead"))
+
+
+def _can_watch_task(task, user=None):
+    if not task:
+        return False
+
+    if user is None:
+        uid = session.get("uid")
+        user = db.session.get(User, uid) if uid else None
+    if not user:
+        return False
+
+    viewer_scope = _load_viewer_scope(task)
+    mode = viewer_scope.get("mode") or "none"
+    if mode == "role" and getattr(user, "role_id", None) in (viewer_scope.get("role_ids") or []):
+        return True
+    if mode == "user" and getattr(user, "id", None) in (viewer_scope.get("user_ids") or []):
+        return True
+
+    parent_task = getattr(task, "parent_task", None)
+    if not parent_task and getattr(task, "parent_task_id", None):
+        parent_task = Task.query.filter_by(id=task.parent_task_id).first()
+    if parent_task:
+        return _can_watch_task(parent_task, user=user)
+    return False
+
+
 def _can_view_task(task, is_lead=False):
     if not task or not session.get("uid"):
         return False
     if session.get("is_admin") or is_lead or task.author_id == session.get("uid"):
         return True
     if any(assignment.user_id == session.get("uid") for assignment in (task.assignments or [])):
+        return True
+    if _can_watch_task(task):
         return True
     return bool(
         db.session.query(Task.id)
@@ -2147,6 +2277,7 @@ def tasks():
     perms = _current_perms()
     is_lead = perms.get("p_task_lead") or session.get("is_admin")
     is_admin = bool(session.get("is_admin"))
+    current_user = db.session.get(User, session["uid"])
 
     active_users = User.query.filter_by(is_active=True).order_by(User.unit_area.asc(), User.fullname.asc()).all()
     active_users = apply_reference_display(
@@ -2201,6 +2332,10 @@ def tasks():
         if error_message:
             flash(error_message, "danger")
             return redirect(url_for("tasks_bp.tasks"))
+        viewers, viewer_error_message = _resolve_viewers(request.form)
+        if viewer_error_message:
+            flash(viewer_error_message, "danger")
+            return redirect(url_for("tasks_bp.tasks"))
 
         attachment = request.files.get("task_file") or request.files.get("file")
         attachment_name = ""
@@ -2230,6 +2365,12 @@ def tasks():
             role_ids=_requested_role_ids(request.form),
             user_ids=_requested_user_ids(request.form),
         )
+        _store_viewer_scope(
+            new_task,
+            request.form.get("viewer_scope_mode", "none"),
+            role_ids=_requested_viewer_role_ids(request.form),
+            user_ids=_requested_viewer_user_ids(request.form),
+        )
         db.session.add(new_task)
         db.session.flush()
 
@@ -2247,6 +2388,11 @@ def tasks():
         )
         for user in assignees:
             push_notif(user.id, "Công việc mới", notify_message, f"/tasks/{new_task.id}")
+        assignee_ids = {user.id for user in assignees}
+        for user in viewers:
+            if user.id in assignee_ids:
+                continue
+            push_notif(user.id, "Theo dõi công việc", f"Bạn được thêm vào danh sách xem việc: {new_task.title}", f"/tasks/{new_task.id}")
 
         log_action(
             session["uid"],
@@ -2301,7 +2447,8 @@ def tasks():
             if task.parent_task_id:
                 continue
             is_direct_assignment = any(assignment.user_id == session["uid"] for assignment in (task.assignments or []))
-            if not is_direct_assignment and task.id not in child_parent_ids:
+            is_viewer = _can_watch_task(task, user=current_user)
+            if not is_direct_assignment and task.id not in child_parent_ids and not is_viewer:
                 continue
             if not is_direct_assignment and task.id in visible_child_tasks_by_parent:
                 child_tasks_for_user = visible_child_tasks_by_parent.get(task.id) or []
@@ -2327,6 +2474,8 @@ def tasks():
                     task.progress_percent = 0
                 task.current_user_status = task.display_status
                 task._visible_child_tasks_for_user = child_tasks_for_user
+            if is_viewer:
+                task._viewer_observe_task = True
             all_tasks.append(task)
 
     total_count = len(all_tasks)
@@ -2357,9 +2506,14 @@ def tasks():
             setattr(task, "assignee_count", task_metrics["total_assignments"])
             setattr(task, "accepted_assignments", task_metrics["accepted_assignments"])
             setattr(task, "completed_assignments", task_metrics["completed_assignments"])
+        elif not is_lead and getattr(task, "_viewer_observe_task", False) and not any(
+            assignment.user_id == session["uid"] for assignment in (task.assignments or [])
+        ):
+            task_metrics = _decorate_task(task, session["uid"], True)
         else:
             task_metrics = _decorate_task(task, session["uid"], is_lead)
         setattr(task, "can_edit", _can_edit_task(task))
+        setattr(task, "can_delete", _can_delete_task(task, is_lead=is_lead))
         category_meta = _decorate_task_categories(task, task_fields, pro_units, task_types, priority_items)
         if task_metrics["is_overdue"]:
             overdue_count += 1
@@ -2455,6 +2609,9 @@ def task_detail(tid):
     perms = _current_perms()
     is_lead = perms.get("p_task_lead") or session.get("is_admin")
     can_edit_task = _can_edit_task(task)
+    can_delete_task = _can_delete_task(task, is_lead=is_lead)
+    current_user = db.session.get(User, session["uid"])
+    can_watch_task_view = _can_watch_task(task, user=current_user)
     visible_child_tasks_for_user = (
         Task.query.options(joinedload(Task.assignments))
         .join(TaskAssignment, Task.id == TaskAssignment.task_id)
@@ -2473,7 +2630,6 @@ def task_detail(tid):
         .order_by(TaskAssignment.updated_at.desc(), User.fullname.asc())
         .all()
     )
-    current_user = db.session.get(User, session["uid"])
     assign_users = [user for _, user in assigns]
     unit_options = module_category_options("contacts", "unit_name", "Đơn vị")
     sync_record_categories(assign_users, unit_options, attr_name="unit_area", prefer_stable=True)
@@ -2488,13 +2644,15 @@ def task_detail(tid):
     task_metrics = _decorate_task(task, session["uid"], is_lead)
     user_assign = task_metrics["user_assignment"]
     can_manage_task_view = bool(is_lead or can_edit_task)
-    if not can_manage_task_view and not user_assign and not visible_child_tasks_for_user:
+    can_observe_task_view = bool(can_manage_task_view or can_watch_task_view)
+    if not can_manage_task_view and not can_watch_task_view and not user_assign and not visible_child_tasks_for_user:
         flash("Bạn không có quyền xem công việc này.", "danger")
         return redirect(url_for("tasks_bp.tasks"))
 
     comments = TaskComment.query.filter_by(task_id=tid).order_by(TaskComment.created_at.desc()).all()
-    visible_comments = _filter_comments_for_viewer(task, comments, current_user, can_manage_all=can_manage_task_view)
+    visible_comments = _filter_comments_for_viewer(task, comments, current_user, can_manage_all=can_observe_task_view)
     assignment_context = _infer_assignment_context(task)
+    viewer_context = _infer_viewer_context(task)
     discussion_comments = visible_comments
     unit_report_rows, unit_report_stats = ([], {
         "total_units": 0,
@@ -2522,7 +2680,7 @@ def task_detail(tid):
         "completed_units": sum(1 for card in assignment_unit_cards if card.get("status") == COMPLETED_STATUS),
         "total_units": len(assignment_unit_cards),
     }
-    if can_manage_task_view:
+    if can_observe_task_view:
         child_tasks = Task.query.options(joinedload(Task.assignments)).filter_by(parent_task_id=task.id).order_by(Task.created_at.asc()).all()
     elif visible_child_tasks_for_user:
         child_tasks = visible_child_tasks_for_user
@@ -2534,9 +2692,10 @@ def task_detail(tid):
         sync_record_categories(child_tasks, task_types, attr_name="task_type", prefer_stable=True)
         sync_record_categories(child_tasks, priority_items, attr_name="priority", prefer_stable=True)
         for child_task in child_tasks:
-            child_metrics = _decorate_task(child_task, session["uid"], can_manage_task_view)
+            child_metrics = _decorate_task(child_task, session["uid"], can_observe_task_view)
             _decorate_task_categories(child_task, task_fields, pro_units, task_types, priority_items)
             setattr(child_task, "can_edit", _can_edit_task(child_task))
+            setattr(child_task, "can_delete", _can_delete_task(child_task, is_lead=is_lead))
             setattr(child_task, "current_user_status", child_metrics["current_user_status"])
             child_viewer_assign = next(
                 (assignment for assignment in (child_task.assignments or []) if assignment.user_id == session["uid"]),
@@ -2560,7 +2719,7 @@ def task_detail(tid):
                 child_task_stats["completed"] += 1
             elif child_metrics["display_status"] != "Chưa tiếp nhận":
                 child_task_stats["in_progress"] += 1
-    if can_manage_task_view:
+    if can_observe_task_view:
         discussion_comments = [
             comment for comment in visible_comments
             if not (getattr(comment, "content", "") or "").startswith(REPORT_PREFIX)
@@ -2584,7 +2743,7 @@ def task_detail(tid):
     limited_assignment_view = bool(user_assign and not can_manage_task_view)
     structured_task_report_form = _build_structured_task_report_form(task, user_assign, current_user)
     da06_task_form = _build_da06_task_form(task, user_assign, current_user)
-    if _is_da06_month_task(task) and can_manage_task_view:
+    if _is_da06_month_task(task) and can_observe_task_view:
         da06_management_view = _build_da06_management_view(assigns)
 
     if request.method == "POST":
@@ -2631,9 +2790,11 @@ def task_detail(tid):
         roles=roles,
         report_templates=_task_report_templates(),
         assignment_context=assignment_context,
+        viewer_context=viewer_context,
         now_dt=datetime.now(),
         is_lead=is_lead,
         can_edit_task=can_edit_task,
+        can_delete_task=can_delete_task,
         user_assign=user_assign,
         progress_percent=task_metrics["progress_percent"],
         unit_report_rows=unit_report_rows,
@@ -2643,6 +2804,7 @@ def task_detail(tid):
         assignment_role_groups=assignment_role_groups,
         assignment_unit_progress=assignment_unit_progress,
         can_manage_task_view=can_manage_task_view,
+        can_observe_task_view=can_observe_task_view,
         limited_assignment_view=limited_assignment_view,
         report_context=report_context,
         parent_task=parent_task,
@@ -2741,16 +2903,17 @@ def download_da06_task_attachment(tid, attachment_key):
     perms = _current_perms()
     is_lead = perms.get("p_task_lead") or session.get("is_admin")
     can_manage_task_view = bool(is_lead or _can_edit_task(task))
+    can_watch_task_view = _can_watch_task(task)
     if not _can_view_task(task, is_lead=is_lead):
         flash("Báº¡n khÃ´ng cÃ³ quyá»n táº£i minh chá»©ng cá»§a cÃ´ng viá»‡c nÃ y.", "danger")
         return redirect(url_for("tasks_bp.tasks"))
 
     assign = TaskAssignment.query.filter_by(task_id=tid, user_id=session["uid"]).first()
-    if not can_manage_task_view and not assign:
+    if not can_manage_task_view and not can_watch_task_view and not assign:
         flash("Báº¡n khÃ´ng cÃ³ quyá»n táº£i minh chá»©ng nÃ y.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
-    if can_manage_task_view and not assign:
+    if (can_manage_task_view or can_watch_task_view) and not assign:
         assign = (
             TaskAssignment.query.filter(
                 TaskAssignment.task_id == tid,
@@ -2789,11 +2952,12 @@ def download_task_report_file(tid, user_id):
     perms = _current_perms()
     is_lead = perms.get("p_task_lead") or session.get("is_admin")
     can_manage_task_view = bool(is_lead or _can_edit_task(task))
+    can_watch_task_view = _can_watch_task(task)
     if not _can_view_task(task, is_lead=is_lead):
         flash("Bạn không có quyền tải tệp của công việc này.", "danger")
         return redirect(url_for("tasks_bp.tasks"))
 
-    if not can_manage_task_view and session.get("uid") != user_id:
+    if not can_manage_task_view and not can_watch_task_view and session.get("uid") != user_id:
         flash("Bạn chỉ có thể tải tệp báo cáo của mình.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
@@ -2975,9 +3139,28 @@ def edit_task(tid):
     requested_assign_type = request.form.get("assign_type", _infer_assignment_context(task).get("mode") or "unit")
     requested_role_ids = _requested_role_ids(request.form)
     requested_user_ids = _requested_user_ids(request.form)
+    requested_viewer_mode = request.form.get("viewer_scope_mode", _infer_viewer_context(task).get("mode") or "none")
+    requested_viewer_role_ids = _requested_viewer_role_ids(request.form)
+    requested_viewer_user_ids = _requested_viewer_user_ids(request.form)
     linked_report_template_ids = _requested_linked_report_template_ids(request.form)
     refreshed_assignee_count = None
     new_assignees_to_notify = []
+    old_viewer_scope = _load_viewer_scope(task)
+    old_viewers = []
+    if old_viewer_scope.get("mode") == "role":
+        for role_id in old_viewer_scope.get("role_ids") or []:
+            old_viewers.extend(_resolve_role_assignees(role_id))
+        old_viewers = _dedupe_users(old_viewers)
+    elif old_viewer_scope.get("mode") == "user" and old_viewer_scope.get("user_ids"):
+        old_viewers = (
+            User.query.filter(User.id.in_(old_viewer_scope.get("user_ids") or []), User.is_active.is_(True))
+            .order_by(User.fullname.asc())
+            .all()
+        )
+    viewers, viewer_error_message = _resolve_viewers(request.form)
+    if viewer_error_message:
+        flash(viewer_error_message, "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
     if _should_refresh_assignments(task, request.form, domain):
         assignees, error_message = _resolve_assignees(request.form, domain)
         if error_message:
@@ -3005,6 +3188,12 @@ def edit_task(tid):
         json.dumps(linked_report_template_ids, ensure_ascii=False) if linked_report_template_ids else None
     )
     setattr(task, "_task_report_schema_cache", report_schema)
+    _store_viewer_scope(
+        task,
+        requested_viewer_mode,
+        role_ids=requested_viewer_role_ids,
+        user_ids=requested_viewer_user_ids,
+    )
     if refreshed_assignee_count is None:
         current_scope = _load_assignment_scope(task)
         _store_assignment_scope(
@@ -3025,6 +3214,12 @@ def edit_task(tid):
 
     for user in new_assignees_to_notify:
         push_notif(user.id, "Cập nhật công việc", f"Bạn vừa được bổ sung vào công việc: {task.title}", f"/tasks/{task.id}")
+    old_viewer_ids = {user.id for user in (old_viewers or [])}
+    assignee_ids = {assignment.user_id for assignment in (task.assignments or []) if assignment.user_id}
+    for user in viewers:
+        if user.id in old_viewer_ids or user.id in assignee_ids:
+            continue
+        push_notif(user.id, "Theo dõi công việc", f"Bạn được thêm vào danh sách xem việc: {task.title}", f"/tasks/{task.id}")
 
     log_action(
         session["uid"],
@@ -3151,7 +3346,9 @@ def delete_task(tid):
     if not task:
         return "Not Found", 404
 
-    if not _can_edit_task(task):
+    perms = _current_perms()
+    is_lead = perms.get("p_task_lead") or session.get("is_admin")
+    if not _can_delete_task(task, is_lead=is_lead):
         flash("Bạn không có quyền xóa công việc này.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 

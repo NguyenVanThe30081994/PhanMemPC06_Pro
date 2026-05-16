@@ -1042,18 +1042,22 @@
                     {% endif %}
                 </div>
                 </div>
-                {% if can_edit_task %}
+                {% if can_edit_task or can_delete_task %}
                 <div class="pc06-detail-hero-actions">
+                    {% if can_edit_task %}
                     <button type="button" class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#editTaskModal">
                         <i class="fa-solid fa-pen-to-square"></i>
                         Sửa công việc
                     </button>
+                    {% endif %}
+                    {% if can_delete_task %}
                     <form action="{{ url_for('tasks_bp.delete_task', tid=task.id) }}" method="POST" onsubmit="return confirm('Xóa công việc này? Toàn bộ phân công, phản hồi và tệp đính kèm liên quan sẽ bị xóa.')" class="m-0">
                         <button type="submit" class="btn btn-bdhvs light text-danger">
                             <i class="fa-solid fa-trash"></i>
                             Xóa công việc
                         </button>
                     </form>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>
@@ -1158,6 +1162,13 @@
                                     {{ child.action_label }}
                                 </button>
                                 {% endif %}
+                                {% if child.can_delete %}
+                                <form action="{{ url_for('tasks_bp.delete_task', tid=child.id) }}" method="POST" onsubmit="return confirm('Xóa task con này? Toàn bộ phân công, phản hồi và tệp đính kèm liên quan sẽ bị xóa.')" class="m-0">
+                                    <button type="submit" class="pc06-report-download-icon text-danger border-0 bg-transparent" title="Xóa task con" aria-label="Xóa task con">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
                                 {% if can_manage_task_view %}
                                 <a href="{{ url_for('tasks_bp.task_detail', tid=child.id) }}" class="pc06-report-download-icon" title="Mở task con">
                                     <i class="fa-solid fa-arrow-up-right-from-square"></i>
@@ -1211,7 +1222,7 @@
             </section>
             {% endif %}
 
-            {% if can_manage_task_view and da06_management_view %}
+            {% if can_observe_task_view and da06_management_view %}
             <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>
@@ -1259,7 +1270,7 @@
                     {% endfor %}
                 </div>
             </section>
-            {% elif can_manage_task_view %}
+            {% elif can_observe_task_view %}
             <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>
@@ -1689,6 +1700,7 @@
                             </article>
                             {% endfor %}
                         </div>
+                        {% if can_manage_task_view or user_assign %}
                         <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST" class="pc06-thread-form">
                             <input type="hidden" name="assignee_id" value="{{ thread.primary_assignee_id }}">
                             <textarea name="content" class="form-control" rows="3" placeholder="Nhập phản hồi cho {{ thread.unit_name }}" required></textarea>
@@ -1697,6 +1709,7 @@
                                 Gửi phản hồi
                             </button>
                         </form>
+                        {% endif %}
                     </details>
                     {% else %}
                     <div class="pc06-empty-state compact">
@@ -1758,7 +1771,7 @@
                 </div>
             </section>
 
-            {% if can_manage_task_view %}
+            {% if can_observe_task_view %}
             <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>
@@ -1925,6 +1938,47 @@
                                 {% endfor %}
                             </select>
                             <div class="form-text">Giữ `Ctrl` hoặc `Cmd` để chọn nhiều cán bộ.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Xem việc</label>
+                            <div class="pc06-segmented" id="editViewerModes">
+                                <label class="pc06-radio-card {% if viewer_context.mode == 'none' %}active{% endif %}">
+                                    <input type="radio" name="viewer_scope_mode" value="none" {% if viewer_context.mode == 'none' %}checked{% endif %}>
+                                    <span class="pc06-radio-title">Không thêm</span>
+                                    <small>Chỉ người giao và người thực hiện được xem công việc.</small>
+                                </label>
+                                <label class="pc06-radio-card {% if viewer_context.mode == 'role' %}active{% endif %}">
+                                    <input type="radio" name="viewer_scope_mode" value="role" {% if viewer_context.mode == 'role' %}checked{% endif %}>
+                                    <span class="pc06-radio-title">Theo vai trò</span>
+                                    <small>Thêm vai trò lãnh đạo hoặc theo dõi để xem tiến độ công việc.</small>
+                                </label>
+                                <label class="pc06-radio-card {% if viewer_context.mode == 'user' %}active{% endif %}">
+                                    <input type="radio" name="viewer_scope_mode" value="user" {% if viewer_context.mode == 'user' %}checked{% endif %}>
+                                    <span class="pc06-radio-title">Theo cá nhân</span>
+                                    <small>Chỉ định rõ tài khoản được quyền xem việc.</small>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 {% if viewer_context.mode != 'role' %}d-none{% endif %}" id="editViewerRolePanel">
+                            <label class="form-label fw-bold">Vai trò xem việc</label>
+                            <div class="form-text mb-2">Các vai trò này có thể vào xem công việc và theo dõi tiến độ, nhưng không tham gia thực hiện.</div>
+                            <div class="pc06-user-picker-panel pc06-role-checklist border rounded-4 p-2" style="display:block; max-height: 320px; overflow:auto;">
+                                {% for role in roles %}
+                                <label class="pc06-user-option">
+                                    <input type="checkbox" name="viewer_role_ids" value="{{ role.id }}" {% if role.id in viewer_context.role_ids %}checked{% endif %}>
+                                    <span class="fw-semibold">{{ role.name }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-12 {% if viewer_context.mode != 'user' %}d-none{% endif %}" id="editViewerUserPanel">
+                            <label class="form-label fw-bold">Tài khoản xem việc</label>
+                            <select name="viewer_user_ids" class="form-select" size="8" multiple>
+                                {% for user in users %}
+                                <option value="{{ user.id }}" {% if user.id in viewer_context.user_ids %}selected{% endif %}>{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Giữ `Ctrl` hoặc `Cmd` để chọn nhiều tài khoản xem việc.</div>
                         </div>
                         <div class="col-12">
                             <div class="pc06-form-section mb-0" data-task-report-builder data-report-schema-seed='{{ task_report_schema_seed|tojson|forceescape }}'>
@@ -2785,6 +2839,25 @@
         document.getElementById('editUserAssignmentPanel')?.classList.toggle('d-none', selected !== 'user');
     }
 
+    function selectEditViewerMode(mode) {
+        const target = document.querySelector(`#editTaskModal input[name="viewer_scope_mode"][value="${mode}"]`);
+        if (!target) return;
+        target.checked = true;
+        syncEditViewerMode();
+    }
+
+    function syncEditViewerMode() {
+        const selected = document.querySelector('#editTaskModal input[name="viewer_scope_mode"]:checked')?.value || 'none';
+
+        document.querySelectorAll('#editViewerModes .pc06-radio-card').forEach((card) => {
+            const radio = card.querySelector('input[name="viewer_scope_mode"]');
+            card.classList.toggle('active', !!radio?.checked);
+        });
+
+        document.getElementById('editViewerRolePanel')?.classList.toggle('d-none', selected !== 'role');
+        document.getElementById('editViewerUserPanel')?.classList.toggle('d-none', selected !== 'user');
+    }
+
     function selectChildAssignmentMode(mode) {
         const target = document.querySelector(`#createChildTaskModal input[name="assign_type"][value="${mode}"]`);
         if (!target) return;
@@ -2830,6 +2903,18 @@
         selectEditAssignmentMode('user');
         markEditAssignmentsDirty();
     });
+    document.querySelectorAll('#editTaskModal input[name="viewer_scope_mode"]').forEach((radio) => {
+        radio.addEventListener('change', syncEditViewerMode);
+    });
+    document.querySelectorAll('#editTaskModal input[name="viewer_role_ids"]').forEach((checkbox) => {
+        checkbox.addEventListener('change', () => selectEditViewerMode('role'));
+    });
+    document.querySelector('#editTaskModal select[name="viewer_user_ids"]')?.addEventListener('change', () => {
+        selectEditViewerMode('user');
+    });
+    document.querySelector('#editTaskModal select[name="viewer_user_ids"]')?.addEventListener('focus', () => {
+        selectEditViewerMode('user');
+    });
 
     document.querySelectorAll('#createChildTaskModal input[name="assign_type"]').forEach((radio) => {
         radio.addEventListener('change', syncChildAssignmentMode);
@@ -2848,6 +2933,7 @@
     initChildBulkBuilder(document.getElementById('createChildTaskModal'));
     document.querySelectorAll('[data-task-report-builder]').forEach(initTaskReportBuilder);
     syncEditAssignmentMode();
+    syncEditViewerMode();
     syncChildAssignmentMode();
     syncChildReportKind();
 </script>

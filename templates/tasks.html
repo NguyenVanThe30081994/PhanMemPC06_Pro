@@ -674,7 +674,7 @@
                                 <i class="fa-solid fa-arrow-right"></i>
                                 Chi tiết
                             </a>
-                            {% if t.can_edit %}
+                            {% if t.can_delete %}
                             <form action="{{ url_for('tasks_bp.delete_task', tid=t.id) }}" method="POST" onsubmit="return confirm('Xóa công việc này? Toàn bộ phân công, phản hồi và tệp đính kèm liên quan sẽ bị xóa.')">
                                 <button type="submit" class="btn btn-bdhvs light text-danger pc06-task-delete-btn" title="Xóa công việc" aria-label="Xóa công việc">
                                     <i class="fa-solid fa-trash"></i>
@@ -1069,7 +1069,7 @@
 
                                 <div class="pc06-form-section d-none" id="userAssignmentPanel">
                                     <label class="form-label fw-bold">Cán bộ nhận việc</label>
-                                    <div class="pc06-user-picker" data-user-picker>
+                                    <div class="pc06-user-picker" data-user-picker data-user-picker-mode-target="assignment">
                                         <button type="button" class="pc06-user-picker-trigger" data-user-picker-trigger>
                                             <div>
                                                 <strong data-user-picker-label>Chọn cán bộ</strong>
@@ -1091,6 +1091,68 @@
                                                 {% endfor %}
                                             </div>
                                             <div class="pc06-user-picker-empty" data-user-picker-empty>Không tìm thấy cán bộ phù hợp.</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="pc06-form-section">
+                                    <label class="form-label fw-bold">Xem việc</label>
+                                    <div class="form-text mb-2">Dùng khi cần thêm lãnh đạo hoặc tài khoản theo dõi công việc mà không tham gia thực hiện.</div>
+                                    <div class="pc06-segmented" id="viewerModes">
+                                        <label class="pc06-radio-card active">
+                                            <input type="radio" name="viewer_scope_mode" value="none" checked>
+                                            <span class="pc06-radio-title">Không thêm</span>
+                                            <small>Chỉ người giao và người thực hiện được xem.</small>
+                                        </label>
+                                        <label class="pc06-radio-card">
+                                            <input type="radio" name="viewer_scope_mode" value="role">
+                                            <span class="pc06-radio-title">Theo vai trò</span>
+                                            <small>Gán quyền xem cho nhóm vai trò lãnh đạo hoặc theo dõi.</small>
+                                        </label>
+                                        <label class="pc06-radio-card">
+                                            <input type="radio" name="viewer_scope_mode" value="user">
+                                            <span class="pc06-radio-title">Theo cá nhân</span>
+                                            <small>Gán quyền xem cho tài khoản cụ thể.</small>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="pc06-form-section d-none" id="viewerRolePanel">
+                                    <label class="form-label fw-bold">Vai trò xem việc</label>
+                                    <div class="pc06-assignment-option-list">
+                                        {% for role in roles %}
+                                        <label class="pc06-user-option">
+                                            <input type="checkbox" name="viewer_role_ids" value="{{ role.id }}">
+                                            <span class="fw-semibold">{{ role.name }}</span>
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+
+                                <div class="pc06-form-section d-none" id="viewerUserPanel">
+                                    <label class="form-label fw-bold">Tài khoản xem việc</label>
+                                    <div class="pc06-user-picker" data-user-picker data-user-picker-mode-target="viewer">
+                                        <button type="button" class="pc06-user-picker-trigger" data-user-picker-trigger>
+                                            <div>
+                                                <strong data-user-picker-label>Chọn tài khoản</strong>
+                                                <small>Tìm kiếm và tích chọn người được quyền xem</small>
+                                            </div>
+                                            <i class="fa-solid fa-chevron-down"></i>
+                                        </button>
+                                        <div class="pc06-user-picker-panel">
+                                            <input type="text" class="pc06-user-search" placeholder="Tìm theo họ tên hoặc đơn vị" data-user-picker-search>
+                                            <div class="pc06-user-option-list" data-user-picker-options>
+                                                {% for user in users %}
+                                                <label class="pc06-user-option" data-user-picker-option data-search="{{ (user.fullname ~ ' ' ~ (user.unit_area_display or user.unit_area or ''))|lower }}">
+                                                    <input type="checkbox" name="viewer_user_ids" value="{{ user.id }}">
+                                                    <div>
+                                                        <strong>{{ user.fullname }}</strong>
+                                                        <small>{{ user.unit_area_display or 'Chưa có đơn vị' }}</small>
+                                                    </div>
+                                                </label>
+                                                {% endfor %}
+                                            </div>
+                                            <div class="pc06-user-picker-empty" data-user-picker-empty>Không tìm thấy tài khoản phù hợp.</div>
                                         </div>
                                     </div>
                                 </div>
@@ -1453,6 +1515,25 @@
         syncAssignmentMode();
     }
 
+    function syncViewerMode() {
+        const selected = document.querySelector('input[name="viewer_scope_mode"]:checked')?.value || 'none';
+
+        document.querySelectorAll('#viewerModes .pc06-radio-card').forEach((card) => {
+            const radio = card.querySelector('input[name="viewer_scope_mode"]');
+            card.classList.toggle('active', !!radio?.checked);
+        });
+
+        document.getElementById('viewerRolePanel')?.classList.toggle('d-none', selected !== 'role');
+        document.getElementById('viewerUserPanel')?.classList.toggle('d-none', selected !== 'user');
+    }
+
+    function selectViewerMode(mode) {
+        const target = document.querySelector(`input[name="viewer_scope_mode"][value="${mode}"]`);
+        if (!target) return;
+        target.checked = true;
+        syncViewerMode();
+    }
+
     function initUserPickers() {
         document.querySelectorAll('[data-user-picker]').forEach((picker) => {
             const trigger = picker.querySelector('[data-user-picker-trigger]');
@@ -1460,6 +1541,7 @@
             const searchInput = picker.querySelector('[data-user-picker-search]');
             const options = Array.from(picker.querySelectorAll('[data-user-picker-option]'));
             const emptyNode = picker.querySelector('[data-user-picker-empty]');
+            const modeTarget = picker.dataset.userPickerModeTarget || '';
 
             const updateLabel = () => {
                 const checked = options.filter((option) => option.querySelector('input')?.checked);
@@ -1497,7 +1579,11 @@
             searchInput?.addEventListener('input', applySearch);
             options.forEach((option) => {
                 option.querySelector('input')?.addEventListener('change', () => {
-                    selectAssignmentMode('user');
+                    if (modeTarget === 'assignment') {
+                        selectAssignmentMode('user');
+                    } else if (modeTarget === 'viewer') {
+                        selectViewerMode('user');
+                    }
                     updateLabel();
                 });
             });
@@ -1519,9 +1605,16 @@
     document.querySelectorAll('input[name="assignee_role_ids"]').forEach((checkbox) => {
         checkbox.addEventListener('change', () => selectAssignmentMode('role'));
     });
+    document.querySelectorAll('input[name="viewer_scope_mode"]').forEach((radio) => {
+        radio.addEventListener('change', syncViewerMode);
+    });
+    document.querySelectorAll('input[name="viewer_role_ids"]').forEach((checkbox) => {
+        checkbox.addEventListener('change', () => selectViewerMode('role'));
+    });
 
     toggleDeadlineFields();
     syncAssignmentMode();
+    syncViewerMode();
     initUserPickers();
     document.querySelectorAll('[data-task-report-builder]').forEach(initTaskReportBuilder);
 </script>
