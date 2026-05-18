@@ -67,8 +67,8 @@
                 <div class="d-flex gap-2 flex-wrap">
                     <a href="{{ url_for('reporting_bp.cycle_history', cycle_id=cycle.id, report_date=report_date.strftime('%Y-%m-%d')) if report_date else url_for('reporting_bp.cycle_history', cycle_id=cycle.id) }}" class="btn btn-bdhvs light">LỊCH SỬ</a>
                     <a href="{{ url_for('reporting_bp.cycle_preview', cycle_id=cycle.id, report_date=report_date.strftime('%Y-%m-%d')) if report_date else url_for('reporting_bp.cycle_preview', cycle_id=cycle.id) }}" class="btn btn-bdhvs light">XEM BÁO CÁO</a>
-                    {% if latest_submission and (latest_submission.processed_file_path or latest_submission.file_path) %}
-                    <a href="{{ url_for('reporting_bp.download_submission', submission_id=latest_submission.id) }}" class="btn btn-bdhvs light">TẢI FILE</a>
+                    {% if download_url %}
+                    <a href="{{ download_url }}" class="btn btn-bdhvs light">TẢI FILE</a>
                     {% endif %}
                     {% if editable %}
                     <button type="button" class="btn btn-bdhvs light" onclick="submitReport('{{ url_for('reporting_bp.save_cycle', cycle_id=cycle.id) }}')">LƯU NHÁP</button>
@@ -109,8 +109,8 @@
 
     <div class="report-form-toolbar-desktop">
         <a class="btn btn-bdhvs light" href="{{ url_for('reporting_bp.cycle_history', cycle_id=cycle.id, report_date=report_date.strftime('%Y-%m-%d')) if report_date else url_for('reporting_bp.cycle_history', cycle_id=cycle.id) }}">LỊCH SỬ</a>
-        {% if latest_submission and (latest_submission.processed_file_path or latest_submission.file_path) %}
-        <a class="btn btn-bdhvs light" href="{{ url_for('reporting_bp.download_submission', submission_id=latest_submission.id) }}">TẢI FILE</a>
+        {% if download_url %}
+        <a class="btn btn-bdhvs light" href="{{ download_url }}">TẢI FILE</a>
         {% endif %}
         {% if editable %}
         <button type="button" class="btn btn-bdhvs light" onclick="submitReport('{{ url_for('reporting_bp.save_cycle', cycle_id=cycle.id) }}')">LƯU NHÁP</button>

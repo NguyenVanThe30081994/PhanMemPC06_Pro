@@ -2,12 +2,13 @@
 import calendar
 import json
 import os
+import re
 from datetime import date, datetime, time, timedelta
 
 from openpyxl import load_workbook
 from openpyxl.utils import column_index_from_string
-from flask import Blueprint, current_app, flash, g, jsonify, redirect, request, session, send_file, url_for
-from sqlalchemy import func, or_
+from flask import Blueprint, current_app, flash, g, has_request_context, jsonify, redirect, request, session, send_file, url_for
+from sqlalchemy import func, or_, text
 from werkzeug.utils import secure_filename
 
 from models import (
@@ -37,7 +38,16 @@ from category_helpers import (
     stable_form_category_options,
 )
 from report_engine import build_preview_workbook, normalize_code, parse_workbook, render_sheet_html, safe_filename, write_workbook_copy
-from utils import apply_migrations, extract_unit_key, is_unit_match, log_action, normalize_permission_payload, push_notif, render_auto_template as render_template
+from utils import (
+    apply_migrations,
+    extract_unit_key,
+    has_module_permission,
+    is_unit_match,
+    log_action,
+    normalize_permission_payload,
+    push_notif,
+    render_auto_template as render_template,
+)
 
 reporting_bp = Blueprint("reporting_bp", __name__)
 
@@ -163,6 +173,26 @@ DEA06_SO_NGANH_SECTION_RULES = [
 
 def _ensure_report_schema():
     apply_migrations(current_app)
+    _ensure_default_types()
+    runtime_flags = current_app.extensions.setdefault("pc06_runtime_flags", {})
+    if runtime_flags.get("report_schema_bridge_done"):
+        return
+    _sync_report_legacy_bridge()
+    runtime_flags["report_schema_bridge_done"] = True
+    current_app.logger.info(
+        "Report schema bridge completed: templates=%s versions=%s",
+        ReportTemplate.query.count(),
+        ReportTemplateVersion.query.count(),
+    )
+
+
+def _mark_report_schema_bridge_dirty(sync_now=False):
+    runtime_flags = current_app.extensions.setdefault("pc06_runtime_flags", {})
+    runtime_flags.pop("report_schema_bridge_done", None)
+    if not sync_now:
+        return
+    _sync_report_legacy_bridge()
+    runtime_flags["report_schema_bridge_done"] = True
 
 
 def _is_admin():
@@ -188,22 +218,33 @@ def _has_report_permission(*perm_names):
 
 
 def _can_manage_report_templates():
-    return _has_report_permission("p_form_process", "p_form_lead")
+    return has_module_permission(_current_report_perms(), "form", "process", is_admin=_is_admin())
 
 
 def _can_access_report_workspace():
-    return _has_report_permission(
-        "p_form_view", "p_form_process", "p_form_lead",
-        "p_input_view", "p_input_process", "p_input_lead", "p_input_exec",
-        "p_stat_view", "p_stat_lead", "p_stat_exec",
+    perms = _current_report_perms()
+    return bool(
+        has_module_permission(perms, "form", "view", is_admin=_is_admin())
+        or has_module_permission(perms, "input", "view", is_admin=_is_admin())
+        or has_module_permission(perms, "input", "process", is_admin=_is_admin())
+        or has_module_permission(perms, "input", "exec", is_admin=_is_admin())
+        or has_module_permission(perms, "stat", "view", is_admin=_is_admin())
+        or has_module_permission(perms, "stat", "process", is_admin=_is_admin())
+        or has_module_permission(perms, "stat", "exec", is_admin=_is_admin())
     )
 
 
 def _can_view_report_progress():
-    return _has_report_permission(
-        "p_form_view", "p_form_process", "p_form_lead",
-        "p_input_view", "p_input_process", "p_input_lead", "p_input_exec",
-        "p_stat_view", "p_stat_process", "p_stat_lead", "p_stat_exec",
+    perms = _current_report_perms()
+    return bool(
+        has_module_permission(perms, "form", "view", is_admin=_is_admin())
+        or has_module_permission(perms, "form", "process", is_admin=_is_admin())
+        or has_module_permission(perms, "input", "view", is_admin=_is_admin())
+        or has_module_permission(perms, "input", "process", is_admin=_is_admin())
+        or has_module_permission(perms, "input", "exec", is_admin=_is_admin())
+        or has_module_permission(perms, "stat", "view", is_admin=_is_admin())
+        or has_module_permission(perms, "stat", "process", is_admin=_is_admin())
+        or has_module_permission(perms, "stat", "exec", is_admin=_is_admin())
     )
 
 
@@ -217,7 +258,6 @@ def _role_perms_payload(role):
 
 
 def _report_manager_users():
-    perm_names = {"p_form_process", "p_form_lead", "p_input_process", "p_input_lead", "p_stat_process", "p_stat_lead"}
     users = (
         User.query.filter(User.is_active.is_(True))
         .order_by(User.fullname.asc())
@@ -229,8 +269,13 @@ def _report_manager_users():
             continue
         if session.get("is_admin") and user.id == session.get("uid"):
             continue
-        perms = _role_perms_payload(getattr(user, "role", None))
-        if any(perms.get(name) for name in perm_names):
+        role = getattr(user, "role", None)
+        perms = normalize_permission_payload(_role_perms_payload(role), role_name=getattr(role, "name", ""))
+        if (
+            has_module_permission(perms, "form", "process")
+            or has_module_permission(perms, "input", "process")
+            or has_module_permission(perms, "stat", "process")
+        ):
             recipients.append(user)
     return recipients
 
@@ -263,6 +308,424 @@ def _notify_report_submission(cycle, cycle_name, unit_name):
             f"{unit_name or 'Đơn vị'} vừa gửi báo cáo cho {cycle_name}.",
             f"/admin/reports/cycles/{cycle.id}",
         )
+
+
+def _legacy_table_exists(table_name):
+    row = db.session.execute(
+        text("SELECT name FROM sqlite_master WHERE type = 'table' AND name = :name"),
+        {"name": table_name},
+    ).fetchone()
+    return bool(row)
+
+
+def _current_actor_id():
+    if has_request_context():
+        return session.get("uid")
+    return None
+
+
+def _legacy_report_bridge_ready():
+    return all(
+        _legacy_table_exists(table_name)
+        for table_name in ("form_template", "form_version", "report_template", "report_template_version")
+    )
+
+
+def _parse_legacy_version_no(raw_value):
+    text_value = str(raw_value or "").strip()
+    match = re.search(r"(\d+)", text_value)
+    if not match:
+        return 1
+    try:
+        return max(1, int(match.group(1)))
+    except Exception:
+        return 1
+
+
+def _legacy_form_row(template_id):
+    if not _legacy_report_bridge_ready():
+        return None
+    return db.session.execute(
+        text(
+            """
+            SELECT id, code, name, description, category, report_type, frequency, deadline_rule,
+                   excel_template_blob, is_active, created_by, created_at, updated_at, department
+            FROM form_template
+            WHERE id = :template_id
+            """
+        ),
+        {"template_id": template_id},
+    ).mappings().first()
+
+
+def _legacy_version_row(version_id):
+    if not _legacy_report_bridge_ready():
+        return None
+    return db.session.execute(
+        text(
+            """
+            SELECT id, template_id, version_number, metadata_json, is_published,
+                   effective_from, effective_to, created_at, created_by
+            FROM form_version
+            WHERE id = :version_id
+            """
+        ),
+        {"version_id": version_id},
+    ).mappings().first()
+
+
+def _report_type_id_from_legacy(report_type_code=None, frequency_code=None):
+    candidates = [
+        str(report_type_code or "").strip().lower(),
+        str(frequency_code or "").strip().lower(),
+    ]
+    for candidate in candidates:
+        if not candidate:
+            continue
+        if candidate in {"daily", "hang_ngay", "hằng ngày", "hang ngay"}:
+            report_type = ReportType.query.filter_by(code="daily").first()
+            return report_type.id if report_type else None
+        if candidate in {"ad_hoc", "dot_xuat", "đột xuất", "dot xuat"}:
+            report_type = ReportType.query.filter_by(code="ad_hoc").first()
+            return report_type.id if report_type else None
+        if candidate in {"periodic", "monthly", "quarterly", "half_year", "yearly", "dinh_ky", "định kỳ", "dinh ky"}:
+            report_type = ReportType.query.filter_by(code="periodic").first()
+            return report_type.id if report_type else None
+    report_type = ReportType.query.filter_by(code="periodic").first()
+    return report_type.id if report_type else None
+
+
+def _legacy_source_filename(template_row, version_row):
+    code = normalize_code(template_row.get("code") or template_row.get("name") or "legacy_report") or "legacy_report"
+    version_no = _parse_legacy_version_no(version_row.get("version_number"))
+    return safe_filename(f"{code}_v{version_no}.xlsx")
+
+
+def _legacy_source_path(template_row, version_row):
+    return os.path.join(current_app.config["REPORT_TEMPLATE_FOLDER"], _legacy_source_filename(template_row, version_row))
+
+
+def _ensure_legacy_blob_file(template_row, version_row):
+    source_path = _legacy_source_path(template_row, version_row)
+    blob = template_row.get("excel_template_blob")
+    if blob and (not os.path.exists(source_path) or os.path.getsize(source_path) != len(blob)):
+        with open(source_path, "wb") as handle:
+            handle.write(blob)
+    return source_path if os.path.exists(source_path) else ""
+
+
+def _legacy_parse_defaults(metadata, source_path):
+    payload = {}
+    if isinstance(metadata, str):
+        try:
+            payload = json.loads(metadata or "{}")
+        except Exception:
+            payload = {}
+    elif isinstance(metadata, dict):
+        payload = metadata
+
+    workbook = load_workbook(source_path, read_only=True, data_only=False)
+    sheet = workbook[workbook.sheetnames[0]]
+    max_row = max(int(getattr(sheet, "max_row", 1) or 1), 1)
+    max_col = max(int(getattr(sheet, "max_column", 1) or 1), 1)
+    workbook.close()
+
+    scan_summary = payload.get("scan_summary") if isinstance(payload, dict) else {}
+    if not isinstance(scan_summary, dict):
+        scan_summary = {}
+    header_rows = scan_summary.get("header_rows") or []
+    summary_rows = scan_summary.get("summary_rows") or []
+    used_range = str(scan_summary.get("used_range") or "")
+    start_column = "A"
+    end_column = "A"
+    if ":" in used_range:
+        start_ref, end_ref = used_range.split(":", 1)
+        start_column = "".join(ch for ch in start_ref if ch.isalpha()).upper() or "A"
+        end_column = "".join(ch for ch in end_ref if ch.isalpha()).upper() or start_column
+    else:
+        from openpyxl.utils import get_column_letter
+        end_column = get_column_letter(max_col)
+
+    header_start_row = int(header_rows[0]) if header_rows else 1
+    header_end_row = int(header_rows[-1]) if header_rows else int(payload.get("header_rows") or 1)
+    data_start_row = int(scan_summary.get("data_start_row") or payload.get("data_start_row") or max(header_end_row + 1, 2))
+    data_end_row = max_row
+    if summary_rows:
+        summary_start = int(summary_rows[0])
+        if summary_start > data_start_row:
+            data_end_row = summary_start - 1
+    if data_end_row < data_start_row:
+        data_end_row = data_start_row
+    total_start_row = int(summary_rows[0]) if summary_rows else data_end_row
+    total_end_row = int(summary_rows[-1]) if summary_rows else total_start_row
+    return {
+        "header_rows": max(1, header_end_row - header_start_row + 1),
+        "header_start_row": header_start_row,
+        "header_end_row": max(header_start_row, header_end_row),
+        "data_start_row": data_start_row,
+        "data_end_row": data_end_row,
+        "total_start_row": total_start_row,
+        "total_end_row": total_end_row,
+        "start_column": start_column,
+        "end_column": end_column,
+    }
+
+
+def _upsert_legacy_form_template(template, version=None):
+    if not _legacy_report_bridge_ready() or not template:
+        return
+    report_type = db.session.get(ReportType, template.report_type_id) if getattr(template, "report_type_id", None) else None
+    report_type_code = (report_type.code if report_type else "periodic") or "periodic"
+    frequency = template.periodic_cycle_type if report_type_code == "periodic" and template.periodic_cycle_type else report_type_code
+    deadline_rule = _periodic_schedule_rule_text(template) if report_type_code == "periodic" else ""
+    existing = _legacy_form_row(template.id)
+    source_blob = None
+    if version and getattr(version, "source_path", None) and os.path.exists(version.source_path):
+        with open(version.source_path, "rb") as handle:
+            source_blob = handle.read()
+    params = {
+        "id": template.id,
+        "code": template.code,
+        "name": template.name,
+        "description": template.description,
+        "category": template.professional_unit,
+        "report_type": report_type_code,
+        "frequency": frequency,
+        "deadline_rule": deadline_rule,
+        "excel_template_blob": source_blob if source_blob is not None else (existing.get("excel_template_blob") if existing else None),
+        "is_active": 1 if (template.status or "active") != "archived" else 0,
+        "created_by": _current_actor_id(),
+        "created_at": template.created_at,
+        "updated_at": template.updated_at or template.created_at,
+        "department": template.professional_unit,
+    }
+    if existing:
+        db.session.execute(
+            text(
+                """
+                UPDATE form_template
+                SET code = :code,
+                    name = :name,
+                    description = :description,
+                    category = :category,
+                    report_type = :report_type,
+                    frequency = :frequency,
+                    deadline_rule = :deadline_rule,
+                    excel_template_blob = :excel_template_blob,
+                    is_active = :is_active,
+                    created_by = COALESCE(created_by, :created_by),
+                    created_at = COALESCE(created_at, :created_at),
+                    updated_at = :updated_at,
+                    department = :department
+                WHERE id = :id
+                """
+            ),
+            params,
+        )
+    else:
+        db.session.execute(
+            text(
+                """
+                INSERT INTO form_template (
+                    id, code, name, description, category, report_type, frequency,
+                    deadline_rule, excel_template_blob, is_active, created_by, created_at,
+                    updated_at, department
+                ) VALUES (
+                    :id, :code, :name, :description, :category, :report_type, :frequency,
+                    :deadline_rule, :excel_template_blob, :is_active, :created_by, :created_at,
+                    :updated_at, :department
+                )
+                """
+            ),
+            params,
+        )
+
+
+def _upsert_legacy_form_version(version):
+    if not _legacy_report_bridge_ready() or not version:
+        return
+    template = db.session.get(ReportTemplate, version.template_id)
+    if not template:
+        return
+    _upsert_legacy_form_template(template, version=version)
+    existing = _legacy_version_row(version.id)
+    params = {
+        "id": version.id,
+        "template_id": template.id,
+        "version_number": f"v{int(version.version_no or 1)}.0",
+        "metadata_json": version.metadata_json or "{}",
+        "is_published": 1 if version.is_current else 0,
+        "effective_from": None,
+        "effective_to": None,
+        "created_at": version.created_at,
+        "created_by": _current_actor_id(),
+    }
+    if existing:
+        db.session.execute(
+            text(
+                """
+                UPDATE form_version
+                SET template_id = :template_id,
+                    version_number = :version_number,
+                    metadata_json = :metadata_json,
+                    is_published = :is_published,
+                    effective_from = :effective_from,
+                    effective_to = :effective_to,
+                    created_at = COALESCE(created_at, :created_at),
+                    created_by = COALESCE(created_by, :created_by)
+                WHERE id = :id
+                """
+            ),
+            params,
+        )
+    else:
+        db.session.execute(
+            text(
+                """
+                INSERT INTO form_version (
+                    id, template_id, version_number, metadata_json, is_published,
+                    effective_from, effective_to, created_at, created_by
+                ) VALUES (
+                    :id, :template_id, :version_number, :metadata_json, :is_published,
+                    :effective_from, :effective_to, :created_at, :created_by
+                )
+                """
+            ),
+            params,
+        )
+
+
+def _delete_legacy_form_version(version_id):
+    if _legacy_report_bridge_ready():
+        db.session.execute(text("DELETE FROM form_version WHERE id = :id"), {"id": version_id})
+
+
+def _delete_legacy_form_template(template_id):
+    if _legacy_report_bridge_ready():
+        db.session.execute(text("DELETE FROM form_template WHERE id = :id"), {"id": template_id})
+
+
+def _import_legacy_templates_into_report_schema():
+    if not _legacy_report_bridge_ready():
+        return
+    rows = db.session.execute(
+        text(
+            """
+            SELECT id, code, name, description, category, report_type, frequency,
+                   deadline_rule, is_active, created_at, updated_at, department
+            FROM form_template
+            ORDER BY id ASC
+            """
+        )
+    ).mappings().all()
+    for row in rows:
+        template = db.session.get(ReportTemplate, row["id"])
+        report_type_id = _report_type_id_from_legacy(row["report_type"], row["frequency"])
+        professional_unit = row["department"] or row["category"] or ""
+        if not template:
+            template = ReportTemplate(
+                id=row["id"],
+                code=row["code"],
+                name=row["name"] or row["code"] or f"report_{row['id']}",
+                description=row["description"],
+                report_type_id=report_type_id,
+                professional_unit=professional_unit,
+                assignment_scope_json=json.dumps(_empty_scope_payload(), ensure_ascii=False),
+                periodic_cycle_type=row["frequency"] if row["report_type"] == "periodic" else None,
+                status="active" if row["is_active"] else "draft",
+                created_at=_parse_dt(row["created_at"]) or datetime.now(),
+                updated_at=_parse_dt(row["updated_at"]) or datetime.now(),
+            )
+            db.session.add(template)
+        else:
+            if not template.code:
+                template.code = row["code"]
+            if not template.name:
+                template.name = row["name"] or row["code"]
+            if not template.description:
+                template.description = row["description"]
+            if not template.report_type_id and report_type_id:
+                template.report_type_id = report_type_id
+            if not template.professional_unit and professional_unit:
+                template.professional_unit = professional_unit
+            if not template.assignment_scope_json:
+                template.assignment_scope_json = json.dumps(_empty_scope_payload(), ensure_ascii=False)
+            if not template.status:
+                template.status = "active" if row["is_active"] else "draft"
+        db.session.flush()
+
+    version_rows = db.session.execute(
+        text(
+            """
+            SELECT id, template_id, version_number, metadata_json, is_published,
+                   effective_from, effective_to, created_at, created_by
+            FROM form_version
+            ORDER BY id ASC
+            """
+        )
+    ).mappings().all()
+    for row in version_rows:
+        template = db.session.get(ReportTemplate, row["template_id"])
+        template_row = _legacy_form_row(row["template_id"])
+        if not template or not template_row:
+            continue
+        source_path = _ensure_legacy_blob_file(template_row, row)
+        source_filename = os.path.basename(source_path) if source_path else _legacy_source_filename(template_row, row)
+        version = db.session.get(ReportTemplateVersion, row["id"])
+        if not version:
+            version = ReportTemplateVersion(
+                id=row["id"],
+                template_id=template.id,
+                version_no=_parse_legacy_version_no(row["version_number"]),
+                source_filename=source_filename,
+                source_path=source_path,
+                metadata_json=row["metadata_json"] or "{}",
+                notes=template.description or "",
+                is_current=bool(row["is_published"]),
+                created_at=_parse_dt(row["created_at"]) or datetime.now(),
+            )
+            db.session.add(version)
+            db.session.flush()
+        else:
+            parsed_version_no = _parse_legacy_version_no(row["version_number"])
+            if version.version_no != parsed_version_no:
+                version.version_no = parsed_version_no
+            if source_path and version.source_path != source_path:
+                version.source_path = source_path
+            if source_filename and version.source_filename != source_filename:
+                version.source_filename = source_filename
+            if not version.source_path and source_path:
+                version.source_path = source_path
+            if not version.source_filename and source_filename:
+                version.source_filename = source_filename
+            if row["metadata_json"] and version.metadata_json != row["metadata_json"]:
+                version.metadata_json = row["metadata_json"]
+            if row["is_published"] is not None:
+                version.is_current = bool(row["is_published"])
+
+        has_fields = ReportTemplateField.query.filter_by(version_id=version.id).first() is not None
+        if source_path and os.path.exists(source_path) and not has_fields:
+            parse_options = _legacy_parse_defaults(row["metadata_json"], source_path)
+            _apply_version_structure(
+                version,
+                source_path,
+                source_filename,
+                parse_options,
+                notes=template.description or "",
+            )
+
+
+def _sync_report_legacy_bridge():
+    if not _legacy_report_bridge_ready():
+        return
+    _import_legacy_templates_into_report_schema()
+    db.session.flush()
+    for template in ReportTemplate.query.order_by(ReportTemplate.id.asc()).all():
+        _upsert_legacy_form_template(template, version=_template_version(template))
+    db.session.flush()
+    for version in ReportTemplateVersion.query.order_by(ReportTemplateVersion.id.asc()).all():
+        _upsert_legacy_form_version(version)
+    db.session.flush()
 
 
 def _require_login():
@@ -1289,6 +1752,18 @@ def _merged_submission_cell_values(submissions):
     return values
 
 
+def _has_effective_report_values(values):
+    for cells in (values or {}).values():
+        if not isinstance(cells, dict):
+            continue
+        for raw_value in cells.values():
+            if raw_value is None:
+                continue
+            if str(raw_value).strip():
+                return True
+    return False
+
+
 def _resolve_working_submission_state(instance, template_version, report_type=None, report_date=None):
     if not instance or not template_version:
         return {
@@ -1394,6 +1869,80 @@ def _resolve_effective_instance_state(instance, cycle, template_version, report_
     state["report_date"] = None
     state["mode"] = "latest_snapshot"
     return state
+
+
+def _cycle_view_export_context(context):
+    cycle = context["cycle"]
+    template_version = context["template_version"]
+    exportable = bool(
+        template_version
+        and getattr(template_version, "source_path", None)
+        and os.path.exists(template_version.source_path)
+    )
+    report_type = context["report_type"]
+    report_admin_mode = _can_manage_report_templates()
+    report_date = context["report_date"]
+    admin_all_units = report_admin_mode and not request.args.get("unit_id")
+
+    if admin_all_units:
+        instances = ReportInstance.query.filter_by(cycle_id=cycle.id).order_by(ReportInstance.report_unit_id.asc()).all()
+        latest_submissions = []
+        if report_type and report_type.code == "daily" and report_date:
+            existing_values = {}
+            for instance in instances:
+                submissions = _daily_snapshot_submissions_through_date(instance.id, report_date)
+                if not submissions:
+                    continue
+                latest_submissions.append(submissions[-1])
+                unit_values = _effective_daily_cell_values(submissions, template_version.id)
+                for sheet_name, cells in unit_values.items():
+                    existing_values.setdefault(sheet_name, {}).update(cells)
+            mode = "daily_cumulative"
+        else:
+            latest_submissions = [
+                submission
+                for instance in instances
+                for submission in [_latest_submission(instance.id)]
+                if submission
+            ]
+            existing_values = _merged_submission_cell_values(latest_submissions)
+            mode = "latest_snapshot"
+        effective_at = max(
+            (
+                submission.submitted_at or submission.created_at
+                for submission in latest_submissions
+                if submission and (submission.submitted_at or submission.created_at)
+            ),
+            default=None,
+        )
+        return {
+            "template_version": template_version,
+            "report_type": report_type,
+            "report_date": report_date,
+            "existing_values": existing_values,
+            "latest_submission": latest_submissions[-1] if latest_submissions else None,
+            "has_data": exportable,
+            "mode": mode,
+            "scope_label": "toan_bo_don_vi",
+            "effective_at": effective_at,
+            "admin_all_units": True,
+        }
+
+    unit = context["unit"]
+    latest_submission = context["view_submission"]
+    existing_values = context.get("working_values", {}) or {}
+    return {
+        "template_version": template_version,
+        "report_type": report_type,
+        "report_date": report_date,
+        "existing_values": existing_values,
+        "latest_submission": latest_submission,
+        "has_data": exportable,
+        "mode": "daily_cumulative" if report_type and report_type.code == "daily" and report_date else "latest_snapshot",
+        "scope_label": normalize_code(unit.name) if unit else "khong_xac_dinh",
+        "effective_at": (latest_submission.submitted_at or latest_submission.created_at) if latest_submission else None,
+        "admin_all_units": False,
+    }
 
 
 def _export_effective_values(cycle, instance, template_version, effective_values, suffix="effective"):
@@ -2935,6 +3484,8 @@ def upload_template():
     )
 
     db.session.commit()
+    _mark_report_schema_bridge_dirty(sync_now=True)
+    db.session.commit()
     _audit("upload_template", "report_template", template.id, name)
     flash("Đã tạo biểu mẫu. Tiếp theo cấu hình chi tiết cho từng sheet.", "success")
     return redirect(url_for("reporting_bp.template_settings", template_id=template.id))
@@ -3109,6 +3660,8 @@ def save_template_settings(template_id):
     db.session.commit()
     _sync_units_from_users()
     active_cycle = _ensure_active_cycle_for_template(template, version, report_type)
+    _mark_report_schema_bridge_dirty(sync_now=True)
+    db.session.commit()
     _audit("save_template_settings", "report_template", template.id, template.name)
     flash("Đã lưu cấu hình biểu mẫu.", "success")
     return redirect(url_for("reporting_bp.admin_cycle_detail", cycle_id=active_cycle.id))
@@ -3146,6 +3699,8 @@ def save_template_config(template_id):
         field.is_editable = field.is_visible and _form_checked(f"field_{field.id}_editable")
 
     db.session.commit()
+    _mark_report_schema_bridge_dirty(sync_now=True)
+    db.session.commit()
     _audit("save_template_config", "report_template", template.id, template.name)
     flash("Đã lưu cấu hình trường dữ liệu.", "success")
     return redirect(url_for("reporting_bp.template_detail", template_id=template.id))
@@ -3180,6 +3735,8 @@ def update_field_display_name(template_id, field_id):
         field.path_code = " > ".join(levels)
     field.display_name = display_name
     db.session.commit()
+    _mark_report_schema_bridge_dirty(sync_now=True)
+    db.session.commit()
     _audit("update_field_display_name", "report_template_field", field.id, display_name)
     flash("Đã cập nhật tên hiển thị trường dữ liệu.", "success")
     return redirect(url_for("reporting_bp.template_detail", template_id=template_id))
@@ -3197,6 +3754,8 @@ def activate_version(template_id, version_id):
     version = db.session.get(ReportTemplateVersion, version_id)
     if version:
         version.is_current = True
+        db.session.commit()
+        _mark_report_schema_bridge_dirty(sync_now=True)
         db.session.commit()
         _audit("activate_version", "report_template_version", version.id, f"template={template_id}")
         flash("Đã chuyển sang bản mẫu này.", "success")
@@ -3321,6 +3880,7 @@ def delete_version(template_id, version_id):
 
     ReportTemplateField.query.filter_by(version_id=version.id).delete(synchronize_session=False)
     ReportTemplateSheet.query.filter_by(version_id=version.id).delete(synchronize_session=False)
+    _delete_legacy_form_version(version.id)
     db.session.delete(version)
 
     if remaining_versions:
@@ -3332,9 +3892,12 @@ def delete_version(template_id, version_id):
     else:
         template = db.session.get(ReportTemplate, template_id)
         if template:
+            _delete_legacy_form_template(template.id)
             db.session.delete(template)
         message = "Đã xóa mẫu báo cáo vì không còn bản nào."
 
+    db.session.commit()
+    _mark_report_schema_bridge_dirty(sync_now=True)
     db.session.commit()
     _audit("delete_version", "report_template_version", version_id, f"template={template_id}")
     flash(message, "success")
@@ -3369,12 +3932,16 @@ def delete_template(template_id):
                 pass
         ReportTemplateField.query.filter_by(version_id=version.id).delete(synchronize_session=False)
         ReportTemplateSheet.query.filter_by(version_id=version.id).delete(synchronize_session=False)
+        _delete_legacy_form_version(version.id)
     if template.directive_path and os.path.exists(template.directive_path):
         try:
             os.remove(template.directive_path)
         except Exception:
             pass
+    _delete_legacy_form_template(template.id)
     db.session.delete(template)
+    db.session.commit()
+    _mark_report_schema_bridge_dirty(sync_now=True)
     db.session.commit()
     _audit("delete_template", "report_template", template_id, template.name)
     flash("Đã xóa mẫu báo cáo.", "success")
@@ -3905,9 +4472,10 @@ def cycle_workspace(cycle_id):
     metadata = json.loads(template_version.metadata_json or "{}")
     workbook = load_workbook(template_version.source_path, data_only=False)
     report_date = context["report_date"]
-    latest_submission = context["latest_submission"]
-    submission_history = context["submission_history"]
+    latest_submission = context["view_submission"]
+    submission_history = context["view_history"]
     existing_values = context.get("working_values", {}) if report_type and report_type.code == "daily" else context.get("entry_values", {})
+    export_context = _cycle_view_export_context(context)
     report_admin_mode = _can_manage_report_templates()
     available_units = _cycle_units(cycle) if report_admin_mode else []
     sheet_views = []
@@ -3979,6 +4547,11 @@ def cycle_workspace(cycle_id):
         instance=instance,
         sheet_views=sheet_views,
         latest_submission=latest_submission,
+        download_url=(
+            url_for("reporting_bp.download_cycle_effective_view", **_workspace_route_values(cycle, unit=unit, report_date=report_date))
+            if export_context.get("has_data")
+            else ""
+        ),
         latest_timeliness=_submission_timeliness(cycle, latest_submission, report_type=report_type),
         submission_history=submission_history,
         report_date=report_date,
@@ -4002,7 +4575,7 @@ def cycle_preview(cycle_id):
     _ensure_default_types()
     _sync_units_from_users()
 
-    context = _resolve_cycle_context(cycle_id)
+    context = _resolve_cycle_context(cycle_id, prefer_all_units=True)
     if not context:
         return "Not Found", 404
     cycle = context["cycle"]
@@ -4010,43 +4583,20 @@ def cycle_preview(cycle_id):
     template_version = context["template_version"]
     template = context["template"]
     report_type = context["report_type"]
-    latest_submission = context["view_submission"]
     report_date = context["report_date"]
     metadata = json.loads(template_version.metadata_json or "{}")
     report_admin_mode = _can_manage_report_templates()
-    admin_all_units = report_admin_mode and not request.args.get("unit_id")
-    is_daily_cumulative = bool(report_type and report_type.code == "daily" and report_date)
-    if admin_all_units:
-        instances = ReportInstance.query.filter_by(cycle_id=cycle.id).order_by(ReportInstance.report_unit_id.asc()).all()
-        if is_daily_cumulative:
-            existing_values = {}
-            latest_submissions = []
-            for instance in instances:
-                submissions = _daily_snapshot_submissions_through_date(instance.id, report_date)
-                if submissions:
-                    latest_submissions.append(submissions[-1])
-                    unit_values = _effective_daily_cell_values(submissions, template_version.id)
-                    for sheet_name, cells in unit_values.items():
-                        existing_values.setdefault(sheet_name, {}).update(cells)
-            latest_submission = latest_submissions[0] if latest_submissions else None
-        else:
-            latest_submissions = []
-            for instance in instances:
-                submission = _latest_submission(instance.id)
-                if submission:
-                    latest_submissions.append(submission)
-            existing_values = _merged_submission_cell_values(latest_submissions)
-            latest_submission = latest_submissions[0] if latest_submissions else None
-        unit = None
-    elif is_daily_cumulative:
-        existing_values = context.get("working_values", {})
-        submissions = context.get("daily_submissions", [])
-        latest_submission = submissions[-1] if submissions else None
-    else:
-        existing_values = context.get("working_values", {})
+    export_context = _cycle_view_export_context(context)
+    existing_values = export_context["existing_values"]
+    latest_submission = export_context["latest_submission"]
+    admin_all_units = export_context["admin_all_units"]
+    unit = None if admin_all_units else unit
     download_url = (
-        url_for("reporting_bp.download_submission", submission_id=latest_submission.id)
-        if latest_submission and not admin_all_units and not is_daily_cumulative
+        url_for(
+            "reporting_bp.download_cycle_effective_view",
+            **_workspace_route_values(cycle, unit=None if admin_all_units else unit, report_date=report_date),
+        )
+        if export_context.get("has_data")
         else ""
     )
     if g.get("is_mobile"):
@@ -4161,15 +4711,16 @@ def _workspace_route_values(cycle, unit=None, report_date=None):
     return values
 
 
-def _resolve_cycle_context(cycle_id):
+def _resolve_cycle_context(cycle_id, prefer_all_units=False):
     cycle = db.session.get(ReportCycle, cycle_id)
     if not cycle:
         return None
-    unit = _resolve_cycle_unit(cycle)
+    admin_all_units = prefer_all_units and _can_manage_report_templates() and not request.values.get("unit_id")
+    unit = None if admin_all_units else _resolve_cycle_unit(cycle)
     if not _cycle_accessible(cycle, unit.id if unit else None, _can_manage_report_templates()):
         return None
     user = db.session.get(User, session.get("uid"))
-    instance = _get_cycle_instance(cycle, unit, user)
+    instance = None if admin_all_units else _get_cycle_instance(cycle, unit, user)
     template_version = db.session.get(ReportTemplateVersion, cycle.template_version_id)
     template = db.session.get(ReportTemplate, template_version.template_id)
     report_type = _report_type(cycle)
@@ -4278,6 +4829,45 @@ def submit_cycle(cycle_id):
     _audit("submit_report", "report_submission", submission.id, f"cycle={cycle.id}")
     flash("Đã gửi báo cáo.", "success")
     return redirect(url_for("reporting_bp.cycle_workspace", **workspace_values))
+
+
+@reporting_bp.route("/reports/cycles/<int:cycle_id>/download-effective")
+def download_cycle_effective_view(cycle_id):
+    if not _require_login():
+        return redirect(url_for("auth_bp.login"))
+    if not _can_access_report_workspace():
+        flash("Bạn không có quyền tải báo cáo này.", "warning")
+        return redirect(url_for("admin_bp.index"))
+    _ensure_report_schema()
+    _ensure_default_types()
+    _sync_units_from_users()
+
+    context = _resolve_cycle_context(cycle_id, prefer_all_units=True)
+    if not context:
+        return "Not Found", 404
+
+    cycle = context["cycle"]
+    export_context = _cycle_view_export_context(context)
+    template_version = export_context["template_version"]
+    report_date = export_context["report_date"]
+    route_values = _workspace_route_values(
+        cycle,
+        unit=context["unit"],
+        report_date=report_date,
+    )
+    if not export_context.get("has_data"):
+        flash("Chưa có dữ liệu để tải báo cáo.", "warning")
+        return redirect(url_for("reporting_bp.cycle_workspace", **route_values))
+
+    report_type = export_context["report_type"]
+    type_code = (report_type.code if report_type else "report") or "report"
+    date_suffix = report_date.strftime("%Y%m%d") if report_date else datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_name = safe_filename(
+        f"{template_version.template_id}_cycle_{cycle.id}_{type_code}_{export_context['scope_label']}_{date_suffix}_{export_context['mode']}.xlsx"
+    )
+    output_path = os.path.join(current_app.config["REPORT_EXPORT_FOLDER"], output_name)
+    write_workbook_copy(template_version.source_path, output_path, export_context.get("existing_values") or {})
+    return send_file(output_path, as_attachment=True, download_name=os.path.basename(output_path))
 
 
 @reporting_bp.route("/reports/submissions/<int:submission_id>/download")

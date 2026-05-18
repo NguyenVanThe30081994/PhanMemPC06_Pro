@@ -124,8 +124,8 @@
 
 <div class="report-form-mobile-toolbar">
     <a class="btn btn-light border" href="{{ url_for('reporting_bp.cycle_history', cycle_id=cycle.id, report_date=report_date.strftime('%Y-%m-%d')) if report_date else url_for('reporting_bp.cycle_history', cycle_id=cycle.id) }}" aria-label="Lịch sử" title="Lịch sử"><i class="fa-solid fa-clock-rotate-left"></i><span>Lịch sử</span></a>
-    {% if latest_submission and (latest_submission.processed_file_path or latest_submission.file_path) %}
-    <a class="btn btn-light border" href="{{ url_for('reporting_bp.download_submission', submission_id=latest_submission.id) }}" aria-label="Tải file báo cáo" title="Tải file báo cáo"><i class="fa-solid fa-download"></i><span>Tải file</span></a>
+    {% if download_url %}
+    <a class="btn btn-light border" href="{{ download_url }}" aria-label="Tải file báo cáo" title="Tải file báo cáo"><i class="fa-solid fa-download"></i><span>Tải file</span></a>
     {% else %}
     <button type="button" class="btn btn-light border" disabled aria-label="Chưa có file báo cáo" title="Chưa có file báo cáo"><i class="fa-solid fa-download"></i><span>Chưa có file</span></button>
     {% endif %}

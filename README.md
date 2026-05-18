@@ -15,6 +15,16 @@
 # http://localhost:5000
 ```
 
+## 🛠 Migration & Verify
+
+```bash
+python3 migrate.py --dry-run
+python3 migrate.py
+PYTHONPYCACHEPREFIX=/private/tmp/pc06_pycache python3 -m unittest tests.test_proposal_runtime -v
+```
+
+`migrate.py` hiện kiểm tra và backfill các lớp runtime mới của đề án: `task_item`, `task_participant`, `task_submission`, `task_report_link`.
+
 ## 📄 Tài liệu
 
 - **CHANGELOG.md** - Timeline gộp toàn bộ ghi chú thay đổi

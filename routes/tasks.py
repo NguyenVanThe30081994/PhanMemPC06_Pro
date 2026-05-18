@@ -38,6 +38,7 @@ from models import (
     Task,
     TaskAssignment,
     TaskComment,
+    TaskItem,
     TaskParticipant,
     TaskReportLink,
     TaskSubmission,
@@ -47,6 +48,7 @@ from models import (
 from utils import (
     apply_migrations,
     extract_unit_key,
+    has_module_permission,
     log_action,
     is_unit_match,
     normalize_permission_payload,
@@ -208,67 +210,42 @@ def _current_perms():
 
 def _can_view_task_module(perms=None):
     perms = perms or _current_perms()
-    return bool(
-        session.get("is_admin")
-        or perms.get("p_task_view")
-        or perms.get("p_task_process")
-        or perms.get("p_task_lead")
-        or perms.get("p_task_exec")
-    )
+    return has_module_permission(perms, "task", "view", is_admin=session.get("is_admin"))
 
 
 def _can_process_task_module(perms=None):
     perms = perms or _current_perms()
-    return bool(
-        session.get("is_admin")
-        or perms.get("p_task_process")
-        or perms.get("p_task_lead")
-    )
+    return has_module_permission(perms, "task", "process", is_admin=session.get("is_admin"))
 
 
 def _can_view_all_tasks(perms=None):
     perms = perms or _current_perms()
-    return bool(
-        session.get("is_admin")
-        or perms.get("p_task_view")
-        or perms.get("p_task_process")
-        or perms.get("p_task_lead")
-    )
+    return has_module_permission(perms, "task", "view", is_admin=session.get("is_admin"))
 
 
 def _can_execute_task_module(perms=None):
     perms = perms or _current_perms()
     return bool(
-        session.get("is_admin")
-        or perms.get("p_task_exec")
-        or perms.get("p_task_process")
-        or perms.get("p_task_lead")
+        has_module_permission(perms, "task", "exec", is_admin=session.get("is_admin"))
+        or has_module_permission(perms, "task", "process", is_admin=session.get("is_admin"))
     )
 
 
 def _can_manage_report_links():
     perms = _current_perms()
-    return bool(
-        session.get("is_admin")
-        or perms.get("p_form_process")
-        or perms.get("p_form_lead")
-    )
+    return has_module_permission(perms, "form", "process", is_admin=session.get("is_admin"))
 
 
 def _can_open_report_workspace():
     perms = _current_perms()
     return bool(
-        session.get("is_admin")
-        or perms.get("p_form_view")
-        or perms.get("p_form_process")
-        or perms.get("p_form_lead")
-        or perms.get("p_input_view")
-        or perms.get("p_input_lead")
-        or perms.get("p_input_exec")
-        or perms.get("p_stat_view")
-        or perms.get("p_stat_process")
-        or perms.get("p_stat_lead")
-        or perms.get("p_stat_exec")
+        has_module_permission(perms, "form", "view", is_admin=session.get("is_admin"))
+        or has_module_permission(perms, "input", "view", is_admin=session.get("is_admin"))
+        or has_module_permission(perms, "input", "process", is_admin=session.get("is_admin"))
+        or has_module_permission(perms, "input", "exec", is_admin=session.get("is_admin"))
+        or has_module_permission(perms, "stat", "view", is_admin=session.get("is_admin"))
+        or has_module_permission(perms, "stat", "process", is_admin=session.get("is_admin"))
+        or has_module_permission(perms, "stat", "exec", is_admin=session.get("is_admin"))
     )
 
 
@@ -685,8 +662,8 @@ def _store_manager_scope(task, mode="none", role_ids=None, user_ids=None):
 
 
 def _infer_assignment_context(task):
-    assignments = task.assignments or []
-    assigned_user_ids = [assignment.user_id for assignment in assignments if assignment.user_id]
+    assignment_rows = _task_assignment_rows(task, ensure_bridge=False)
+    assigned_user_ids = [assignment.user_id for assignment, _user in assignment_rows if assignment.user_id]
     stored_scope = _load_assignment_scope(task)
     if stored_scope.get("mode") in {"unit", "role", "user"}:
         return {
@@ -945,6 +922,16 @@ def _query_task_scope(model, task):
     return query.filter(model.task_item_id.is_(None))
 
 
+def _task_assignment_records(task):
+    if not task or not getattr(task, "id", None):
+        return []
+    return (
+        TaskAssignment.query.filter_by(task_id=task.id)
+        .order_by(TaskAssignment.updated_at.desc(), TaskAssignment.id.desc())
+        .all()
+    )
+
+
 def _task_executor_user_ids(task):
     if not task:
         return []
@@ -964,13 +951,30 @@ def _task_executor_user_ids(task):
 
     return sorted({
         assignment.user_id
-        for assignment in (task.assignments or [])
+        for assignment in _task_assignment_records(task)
         if getattr(assignment, "user_id", None)
     })
 
 
 def _task_user_is_executor(task, user_id):
     return bool(user_id and user_id in _task_executor_user_ids(task))
+
+
+def _visible_child_tasks_for_user(parent_task_id, user_id):
+    if not parent_task_id or not user_id:
+        return []
+    child_tasks = (
+        Task.query.options(joinedload(Task.assignments))
+        .filter_by(parent_task_id=parent_task_id)
+        .order_by(Task.created_at.asc())
+        .all()
+    )
+    visible_tasks = []
+    for child_task in child_tasks:
+        _ensure_task_runtime_bridge(child_task)
+        if _task_user_is_executor(child_task, user_id):
+            visible_tasks.append(child_task)
+    return visible_tasks
 
 
 def _load_linked_report_template_ids(task):
@@ -1010,7 +1014,11 @@ def _sync_task_participants(task, assignees=None, managers=None, viewers=None):
     assignment_scope = _load_assignment_scope(task)
     manager_scope = _load_manager_scope(task)
     viewer_scope = _load_viewer_scope(task)
-    assignees = _dedupe_users(assignees if assignees is not None else [assignment.user for assignment in (task.assignments or []) if getattr(assignment, "user", None)])
+    assignees = _dedupe_users(
+        assignees
+        if assignees is not None
+        else [assignment.user for assignment in _task_assignment_records(task) if getattr(assignment, "user", None)]
+    )
     managers = _dedupe_users(managers if managers is not None else _resolve_scope_users(manager_scope.get("mode"), role_ids=manager_scope.get("role_ids"), user_ids=manager_scope.get("user_ids")))
     viewers = _dedupe_users(viewers if viewers is not None else _resolve_scope_users(viewer_scope.get("mode"), role_ids=viewer_scope.get("role_ids"), user_ids=viewer_scope.get("user_ids")))
 
@@ -1113,9 +1121,22 @@ def _upsert_task_submission_from_assignment(task, assignment, payload=None):
         db.session.add(submission)
 
     attachment_name = (getattr(assignment, "result_file", None) or "").strip() or (payload.get("attachment_name") if isinstance(payload, dict) else "") or ""
+    has_payload_content = False
+    if isinstance(payload, dict):
+        if payload.get("mode") == "structured_task_report":
+            has_payload_content = _structured_payload_has_content(payload)
+        else:
+            has_payload_content = bool(
+                str(payload.get("narrative") or payload.get("narrative_report") or "").strip()
+                or str(payload.get("attachment_name") or "").strip()
+                or (
+                    isinstance(payload.get("values"), dict)
+                    and any(str(value or "").strip() for value in payload.get("values", {}).values())
+                )
+            )
     submission.participant_id = getattr(participant, "id", None)
     submission.submission_type = _infer_submission_type(task, payload)
-    submission.status = "submitted" if _assignment_has_report_submission_legacy(assignment) else "draft"
+    submission.status = "submitted" if (has_payload_content or attachment_name) else "draft"
     submission.narrative_content = (
         (payload.get("narrative") if isinstance(payload, dict) else None)
         or (payload.get("narrative_report") if isinstance(payload, dict) else None)
@@ -1125,12 +1146,16 @@ def _upsert_task_submission_from_assignment(task, assignment, payload=None):
     submission.payload_json = json.dumps(payload, ensure_ascii=False) if payload else None
     submission.attachment_name = attachment_name or None
     submission.attachment_path = attachment_name or None
-    submission.submitted_at = getattr(assignment, "updated_at", None) if _assignment_has_report_submission_legacy(assignment) else None
+    submission.submitted_at = (
+        getattr(assignment, "updated_at", None)
+        if (has_payload_content or attachment_name)
+        else None
+    )
     return submission
 
 
 def _sync_task_submissions(task):
-    for assignment in task.assignments or []:
+    for assignment in _task_assignment_records(task):
         _upsert_task_submission_from_assignment(task, assignment)
 
 
@@ -1162,15 +1187,277 @@ def _sync_task_report_links(task, template_ids=None):
     return touched
 
 
+def _task_item_status_from_task(task):
+    assignment_records = _task_assignment_records(task)
+    if not assignment_records:
+        return _normalize_status(getattr(task, "initial_status", None)) or "Chưa tiếp nhận"
+    statuses = [_normalize_status(assignment.status) for assignment in assignment_records]
+    if statuses and all(status == COMPLETED_STATUS for status in statuses):
+        return COMPLETED_STATUS
+    if any(status != "Chưa tiếp nhận" for status in statuses):
+        return IN_PROGRESS_STATUS
+    return "Chưa tiếp nhận"
+
+
+def _sync_task_items(task):
+    if not task or not getattr(task, "id", None):
+        return []
+
+    root_task = task.parent_task or task
+    if getattr(root_task, "parent_task_id", None):
+        root_task = Task.query.filter_by(id=root_task.parent_task_id).first() or root_task
+
+    child_tasks = (
+        Task.query.options(joinedload(Task.assignments))
+        .filter_by(parent_task_id=root_task.id)
+        .order_by(Task.created_at.asc(), Task.id.asc())
+        .all()
+    )
+    existing = {
+        item.source_task_id: item
+        for item in TaskItem.query.filter_by(task_id=root_task.id).all()
+        if getattr(item, "source_task_id", None)
+    }
+    touched = []
+    for sort_order, child_task in enumerate(child_tasks, start=1):
+        child_schema = _load_task_report_schema(child_task)
+        child_meta = _task_report_meta(child_schema)
+        report_kind = _task_simple_child_report_kind(child_task) or child_meta.get("report_kind") or "narrative"
+        item = existing.pop(child_task.id, None)
+        if not item:
+            item = TaskItem(task_id=root_task.id, source_task_id=child_task.id)
+            db.session.add(item)
+        item.title = child_task.title
+        item.content = child_task.content
+        item.report_kind = report_kind
+        item.attachment_required = bool(child_meta.get("attachment_required"))
+        item.status = _task_item_status_from_task(child_task)
+        item.deadline = child_task.deadline
+        item.sort_order = sort_order
+        touched.append(item)
+
+    for obsolete in existing.values():
+        db.session.delete(obsolete)
+
+    return touched
+
+
 def _sync_task_runtime_models(task, assignees=None, managers=None, viewers=None, linked_report_template_ids=None, include_children=False):
     if not task:
         return
+    _sync_task_items(task)
     _sync_task_participants(task, assignees=assignees, managers=managers, viewers=viewers)
     _sync_task_submissions(task)
     _sync_task_report_links(task, template_ids=linked_report_template_ids)
     if include_children:
         for child_task in task.child_tasks or []:
             _sync_task_runtime_models(child_task)
+
+
+def _ensure_task_assignment_bridge(task):
+    if not task or not getattr(task, "id", None):
+        return False
+
+    participant_user_ids = [
+        participant.user_id
+        for participant in _query_task_scope(TaskParticipant, task)
+        .filter(
+            TaskParticipant.participant_type == "executor",
+            TaskParticipant.is_active.is_(True),
+        )
+        .all()
+        if getattr(participant, "user_id", None)
+    ]
+    if not participant_user_ids:
+        return False
+
+    existing_assignments = {
+        assignment.user_id: assignment
+        for assignment in _task_assignment_records(task)
+        if getattr(assignment, "user_id", None)
+    }
+    changed = False
+    initial_status = _normalize_status(getattr(task, "initial_status", None)) or "Chưa tiếp nhận"
+    for user_id in sorted(set(participant_user_ids)):
+        if user_id in existing_assignments:
+            continue
+        task.assignments.append(
+            TaskAssignment(
+                task_id=task.id,
+                user_id=user_id,
+                status=initial_status,
+            )
+        )
+        changed = True
+    return changed
+
+
+def _task_runtime_expected_counts(task):
+    if not task:
+        return {"task_items": 0, "executor_participants": 0, "submissions": 0, "report_links": 0}
+
+    assignment_records = _task_assignment_records(task)
+    executor_participants = len({
+        assignment.user_id
+        for assignment in assignment_records
+        if getattr(assignment, "user_id", None)
+    })
+    submissions = len(assignment_records)
+    report_links = len(_load_linked_report_template_ids_legacy(task))
+    task_items = Task.query.filter_by(parent_task_id=task.id).count() if not getattr(task, "parent_task_id", None) else 0
+    return {
+        "task_items": task_items,
+        "executor_participants": executor_participants,
+        "submissions": submissions,
+        "report_links": report_links,
+    }
+
+
+def _task_runtime_bridge_needs_sync(task):
+    if not task or not getattr(task, "id", None):
+        return False
+
+    expected = _task_runtime_expected_counts(task)
+    task_item_count = TaskItem.query.filter_by(task_id=task.id).count() if not getattr(task, "parent_task_id", None) else 0
+    participant_count = _query_task_scope(TaskParticipant, task).filter(
+        TaskParticipant.participant_type == "executor",
+        TaskParticipant.is_active.is_(True),
+    ).count()
+    submission_count = _query_task_scope(TaskSubmission, task).count()
+    link_count = _query_task_scope(TaskReportLink, task).count()
+
+    if expected["task_items"] and task_item_count < expected["task_items"]:
+        return True
+    if expected["executor_participants"] and participant_count < expected["executor_participants"]:
+        return True
+    if expected["submissions"] and submission_count < expected["submissions"]:
+        return True
+    if expected["report_links"] and link_count < expected["report_links"]:
+        return True
+    return False
+
+
+def _ensure_task_runtime_bridge(task, include_children=False):
+    if not task:
+        return False
+
+    changed = False
+    if _ensure_task_assignment_bridge(task):
+        changed = True
+    if _task_runtime_bridge_needs_sync(task):
+        _sync_task_runtime_models(task)
+        changed = True
+
+    if include_children:
+        child_tasks = getattr(task, "child_tasks", None)
+        if child_tasks is None:
+            child_tasks = (
+                Task.query.options(joinedload(Task.assignments))
+                .filter_by(parent_task_id=task.id)
+                .order_by(Task.created_at.asc())
+                .all()
+            )
+        for child_task in child_tasks or []:
+            if _ensure_task_runtime_bridge(child_task, include_children=False):
+                changed = True
+    return changed
+
+
+def _task_assignment_for_user(task, user_id, create_from_executor=False):
+    if not task or not user_id:
+        return None
+
+    for assignment in _task_assignment_records(task):
+        if getattr(assignment, "user_id", None) == user_id:
+            return assignment
+
+    if create_from_executor and _task_user_is_executor(task, user_id):
+        if _ensure_task_assignment_bridge(task):
+            db.session.flush()
+        for assignment in _task_assignment_records(task):
+            if getattr(assignment, "user_id", None) == user_id:
+                return assignment
+
+    return TaskAssignment.query.filter_by(task_id=task.id, user_id=user_id).first()
+
+
+def _task_latest_reporting_assignment(task):
+    if not task:
+        return None
+
+    reporting_assignments = [
+        assignment
+        for assignment in _task_assignment_records(task)
+        if _assignment_has_report_submission(assignment)
+    ]
+    if not reporting_assignments:
+        return None
+    return max(
+        reporting_assignments,
+        key=lambda assignment: _assignment_report_snapshot(assignment).get("latest_report_at") or getattr(assignment, "updated_at", None) or datetime.min,
+    )
+
+
+def _task_assignment_rows(task, ensure_bridge=False):
+    if not task:
+        return []
+
+    if ensure_bridge and _ensure_task_runtime_bridge(task):
+        db.session.flush()
+
+    rows = []
+    for assignment in _task_assignment_records(task):
+        user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
+        if not user:
+            continue
+        rows.append((assignment, user))
+
+    rows.sort(
+        key=lambda item: (
+            -(getattr(item[0], "updated_at", None) or datetime.min).timestamp()
+            if (getattr(item[0], "updated_at", None) or None)
+            else float("inf"),
+            (getattr(item[1], "fullname", None) or getattr(item[1], "username", None) or "").lower(),
+        )
+    )
+    return rows
+
+
+def _backfill_task_runtime_models(batch_size=250):
+    normalized_batch_size = max(int(batch_size or 0), 1)
+    scanned_count = 0
+    changed_count = 0
+    last_task_id = 0
+
+    while True:
+        tasks = (
+            Task.query.options(joinedload(Task.assignments))
+            .filter(Task.id > last_task_id)
+            .order_by(Task.id.asc())
+            .limit(normalized_batch_size)
+            .all()
+        )
+        if not tasks:
+            break
+
+        batch_changed = False
+        for task in tasks:
+            scanned_count += 1
+            last_task_id = max(last_task_id, task.id or 0)
+            if _ensure_task_runtime_bridge(task):
+                changed_count += 1
+                batch_changed = True
+
+        if batch_changed:
+            db.session.commit()
+
+        if len(tasks) < normalized_batch_size:
+            break
+
+    return {
+        "scanned": scanned_count,
+        "changed": changed_count,
+    }
 
 
 def _task_template_current_cycle(template):
@@ -1381,11 +1668,12 @@ def _resolve_managers(form):
 
 
 def _sync_task_assignments(task, assignees):
-    existing_assignments = {assignment.user_id: assignment for assignment in task.assignments}
+    assignment_records = _task_assignment_records(task)
+    existing_assignments = {assignment.user_id: assignment for assignment in assignment_records}
     new_assignee_ids = {user.id for user in assignees}
     new_assignees_to_notify = []
 
-    for assignment in list(task.assignments):
+    for assignment in assignment_records:
         if assignment.user_id not in new_assignee_ids:
             db.session.delete(assignment)
 
@@ -1476,13 +1764,7 @@ def _can_view_task(task, is_lead=False):
         return True
     if _can_watch_task(task):
         return True
-    child_tasks = (
-        Task.query.options(joinedload(Task.assignments))
-        .filter_by(parent_task_id=task.id)
-        .order_by(Task.created_at.asc())
-        .all()
-    )
-    return any(_task_user_is_executor(child_task, session.get("uid")) for child_task in child_tasks)
+    return bool(_visible_child_tasks_for_user(task.id, session.get("uid")))
 
 
 def _filter_comments_for_viewer(task, comments, viewer, can_manage_all=False):
@@ -1813,6 +2095,12 @@ def _parse_task_submission_payload(submission):
 
 def _latest_assignment_submission(assignment):
     submission_records = getattr(assignment, "submission_records", None) or []
+    if not submission_records and getattr(assignment, "id", None):
+        submission_records = (
+            TaskSubmission.query.filter_by(assignment_id=assignment.id)
+            .order_by(TaskSubmission.updated_at.desc(), TaskSubmission.id.desc())
+            .all()
+        )
     if not submission_records:
         return None
     return sorted(
@@ -2066,7 +2354,7 @@ def _child_task_numeric_total(task):
 
     total = Decimal("0")
     has_value = False
-    for assignment in task.assignments or []:
+    for assignment, _user in _task_assignment_rows(task, ensure_bridge=True):
         numeric_value = _assignment_numeric_report_value(task, assignment)
         if numeric_value is None:
             continue
@@ -2077,10 +2365,8 @@ def _child_task_numeric_total(task):
 
 def _build_child_task_unit_summary(task):
     unit_rows = {}
-    for assignment in task.assignments or []:
-        user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
-        if not user:
-            continue
+    assignment_rows = _task_assignment_rows(task, ensure_bridge=True)
+    for assignment, user in assignment_rows:
         unit_identity = _task_unit_identity(user)
         unit_key = unit_identity.get("unit_key") or f"user_{user.id}"
         row = unit_rows.setdefault(
@@ -2119,9 +2405,107 @@ def _build_child_task_unit_summary(task):
         numeric_total = _format_report_number(total) if has_value else None
 
     return {
-        "total_units": total_units or len(task.assignments or []),
+        "total_units": total_units or len(assignment_rows),
         "reported_units": reported_units,
         "numeric_total": numeric_total,
+    }
+
+
+def _build_child_task_reporting_matrix(child_tasks):
+    task_rows = []
+    unit_rows = {}
+
+    for child_task in child_tasks or []:
+        assignment_rows = _task_assignment_rows(child_task, ensure_bridge=True)
+        expected_units = {}
+        reported_units = {}
+
+        for assignment, user in assignment_rows:
+            unit_identity = _task_unit_identity(user)
+            unit_key = unit_identity.get("unit_key") or f"user_{user.id}"
+            expected_unit = expected_units.setdefault(
+                unit_key,
+                {
+                    "unit_key": unit_key,
+                    "unit_name": unit_identity.get("unit_name") or getattr(user, "fullname", None) or f"UID {user.id}",
+                    "latest_report_at": None,
+                },
+            )
+            report_snapshot = _assignment_report_snapshot(assignment)
+            if not report_snapshot.get("has_report"):
+                continue
+            report_time = report_snapshot.get("reported_at")
+            current_reported = reported_units.get(unit_key)
+            if current_reported is None or (
+                report_time and (current_reported.get("latest_report_at") is None or report_time >= current_reported.get("latest_report_at"))
+            ):
+                expected_unit["latest_report_at"] = report_time
+                reported_units[unit_key] = {
+                    "unit_key": unit_key,
+                    "unit_name": expected_unit["unit_name"],
+                    "latest_report_at": report_time,
+                }
+
+        missing_units = [
+            item for key, item in expected_units.items()
+            if key not in reported_units
+        ]
+        reported_unit_items = list(reported_units.values())
+        reported_unit_items.sort(key=lambda item: item["unit_name"].lower())
+        missing_units.sort(key=lambda item: item["unit_name"].lower())
+
+        task_rows.append(
+            {
+                "task_id": child_task.id,
+                "title": child_task.title,
+                "reported_units": len(reported_unit_items),
+                "total_units": len(expected_units),
+                "missing_units": len(missing_units),
+                "numeric_total": getattr(child_task, "number_total", None),
+                "reported_unit_items": reported_unit_items,
+                "missing_unit_items": missing_units,
+            }
+        )
+
+        for unit_key, item in expected_units.items():
+            unit_row = unit_rows.setdefault(
+                unit_key,
+                {
+                    "unit_key": unit_key,
+                    "unit_name": item["unit_name"],
+                    "reported_count": 0,
+                    "total_count": 0,
+                    "reported_items": [],
+                    "missing_items": [],
+                },
+            )
+            unit_row["total_count"] += 1
+            unit_item = {
+                "task_id": child_task.id,
+                "task_title": child_task.title,
+            }
+            if unit_key in reported_units:
+                unit_row["reported_count"] += 1
+                unit_row["reported_items"].append(
+                    {
+                        **unit_item,
+                        "reported_at": reported_units[unit_key].get("latest_report_at"),
+                    }
+                )
+            else:
+                unit_row["missing_items"].append(unit_item)
+
+    task_rows.sort(key=lambda item: (item["missing_units"] == 0, item["title"].lower()))
+    unit_row_items = list(unit_rows.values())
+    for unit_row in unit_row_items:
+        unit_row["missing_count"] = max(unit_row["total_count"] - unit_row["reported_count"], 0)
+        unit_row["reported_items"].sort(key=lambda item: item["task_title"].lower())
+        unit_row["missing_items"].sort(key=lambda item: item["task_title"].lower())
+    unit_row_items.sort(key=lambda item: (-item["missing_count"], item["unit_name"].lower()))
+
+    return {
+        "task_rows": task_rows,
+        "unit_rows": unit_row_items,
     }
 
 
@@ -2580,6 +2964,11 @@ def _da06_user_profile(user):
 
 
 def _parse_assignment_payload(assignment):
+    latest_submission = _latest_assignment_submission(assignment)
+    if latest_submission:
+        payload = _parse_task_submission_payload(latest_submission)
+        if payload:
+            return payload
     raw_payload = getattr(assignment, "report_payload_json", None) or ""
     if not raw_payload:
         return {}
@@ -2806,9 +3195,16 @@ def _purge_task(task):
     if task.file_path:
         file_names.add(task.file_path)
 
-    for assignment in task.assignments or []:
+    for assignment in _task_assignment_records(task):
         if assignment.result_file:
             file_names.add(assignment.result_file)
+    for submission in _query_task_scope(TaskSubmission, task).all():
+        attachment_name = (
+            str(getattr(submission, "attachment_name", "") or "").strip()
+            or str(getattr(submission, "attachment_path", "") or "").strip()
+        )
+        if attachment_name:
+            file_names.add(attachment_name)
 
     for file_name in file_names:
         file_path = _task_file_path(file_name)
@@ -2830,9 +3226,13 @@ def _purge_task(task):
         participant_query = participant_query.filter(TaskParticipant.task_item_id.is_(None))
         submission_query = submission_query.filter(TaskSubmission.task_item_id.is_(None))
         link_query = link_query.filter(TaskReportLink.task_item_id.is_(None))
-    participant_query.delete(synchronize_session=False)
     submission_query.delete(synchronize_session=False)
+    participant_query.delete(synchronize_session=False)
     link_query.delete(synchronize_session=False)
+    if getattr(task, "parent_task_id", None):
+        TaskItem.query.filter_by(source_task_id=task.id).delete(synchronize_session=False)
+    else:
+        TaskItem.query.filter_by(task_id=task.id).delete(synchronize_session=False)
     TaskComment.query.filter_by(task_id=task.id).delete(synchronize_session=False)
     db.session.delete(task)
 
@@ -2842,10 +3242,23 @@ def _ensure_task_schema():
         apply_migrations(current_app)
     except Exception as migration_error:
         current_app.logger.warning(f"TASKS migration safeguard failed: {migration_error}")
+    runtime_flags = current_app.extensions.setdefault("pc06_runtime_flags", {})
+    if runtime_flags.get("task_runtime_backfill_done"):
+        return
+    try:
+        backfill_result = _backfill_task_runtime_models()
+        runtime_flags["task_runtime_backfill_done"] = True
+        current_app.logger.info(
+            "Task runtime backfill completed: scanned=%s changed=%s",
+            backfill_result.get("scanned", 0),
+            backfill_result.get("changed", 0),
+        )
+    except Exception as backfill_error:
+        current_app.logger.warning(f"TASKS runtime backfill failed: {backfill_error}")
 
 
 def _decorate_task(task, current_uid, is_lead):
-    assignments = task.assignments or []
+    assignments = [assignment for assignment, _user in _task_assignment_rows(task, ensure_bridge=False)]
     normalized_statuses = [_normalize_status(a.status) for a in assignments]
     total_assignments = len(assignments)
     accepted_assignments = sum(status != "Chưa tiếp nhận" for status in normalized_statuses)
@@ -3156,19 +3569,21 @@ def tasks():
         query = query.filter_by(domain=current_domain)
 
     all_candidate_tasks = query.order_by(Task.created_at.desc()).all()
+    runtime_bridge_changed = False
+    for candidate_task in all_candidate_tasks:
+        if _ensure_task_runtime_bridge(candidate_task):
+            runtime_bridge_changed = True
+    if runtime_bridge_changed:
+        db.session.commit()
+
     if can_view_all_tasks:
         all_tasks = [task for task in all_candidate_tasks if not task.parent_task_id]
     else:
         visible_child_tasks_by_parent = {}
-        for child_task in (
-            Task.query.options(joinedload(Task.assignments))
-            .filter(Task.parent_task_id.isnot(None))
-            .order_by(Task.created_at.asc())
-            .all()
-        ):
-            if not _task_user_is_executor(child_task, session["uid"]):
-                continue
-            visible_child_tasks_by_parent.setdefault(child_task.parent_task_id, []).append(child_task)
+        for parent_task in (task for task in all_candidate_tasks if not task.parent_task_id):
+            child_tasks_for_user = _visible_child_tasks_for_user(parent_task.id, session["uid"])
+            if child_tasks_for_user:
+                visible_child_tasks_by_parent[parent_task.id] = child_tasks_for_user
         child_parent_ids = set(visible_child_tasks_by_parent.keys())
         all_tasks = []
         for task in all_candidate_tasks:
@@ -3226,7 +3641,7 @@ def tasks():
                 "display_status": getattr(task, "display_status", "Chưa tiếp nhận"),
                 "progress_percent": getattr(task, "progress_percent", 0),
                 "is_overdue": bool(task.deadline and task.deadline < datetime.now().date() and getattr(task, "display_status", "") != COMPLETED_STATUS),
-                "total_assignments": len(task.assignments or []),
+                "total_assignments": len(_task_assignment_rows(task, ensure_bridge=False)),
                 "accepted_assignments": 0,
                 "completed_assignments": 0,
                 "current_user_status": getattr(task, "current_user_status", None),
@@ -3343,30 +3758,18 @@ def task_detail(tid):
     can_manager_task_view = _can_manage_task(task, user=current_user)
     can_watch_task_view = _can_watch_task(task, user=current_user)
     visible_child_tasks_for_user = (
-        Task.query.options(joinedload(Task.assignments))
-        .join(TaskAssignment, Task.id == TaskAssignment.task_id)
-        .filter(Task.parent_task_id == task.id, TaskAssignment.user_id == session["uid"])
-        .order_by(Task.created_at.asc())
-        .all()
-    ) if not (session.get("is_admin") or can_view_all_tasks or task.author_id == session.get("uid")) else []
+        _visible_child_tasks_for_user(task.id, session["uid"])
+        if not (session.get("is_admin") or can_view_all_tasks or task.author_id == session.get("uid"))
+        else []
+    )
     if not _can_view_task(task, is_lead=can_view_all_tasks) and not visible_child_tasks_for_user:
         flash("Bạn không có quyền xem công việc này.", "danger")
         return redirect(url_for("tasks_bp.tasks"))
 
-    participant_count = _query_task_scope(TaskParticipant, task).count()
-    submission_count = _query_task_scope(TaskSubmission, task).count()
-    link_count = _query_task_scope(TaskReportLink, task).count()
-    if participant_count == 0 or (task.assignments and submission_count == 0) or (_load_linked_report_template_ids_legacy(task) and link_count == 0):
-        _sync_task_runtime_models(task, include_children=True)
+    if _ensure_task_runtime_bridge(task, include_children=True):
         db.session.commit()
 
-    assigns = (
-        db.session.query(TaskAssignment, User)
-        .join(User, TaskAssignment.user_id == User.id)
-        .filter(TaskAssignment.task_id == tid)
-        .order_by(TaskAssignment.updated_at.desc(), User.fullname.asc())
-        .all()
-    )
+    assigns = _task_assignment_rows(task, ensure_bridge=False)
     assign_users = [user for _, user in assigns]
     unit_options = module_category_options("contacts", "unit_name", "Đơn vị")
     sync_record_categories(assign_users, unit_options, attr_name="unit_area", prefer_stable=True)
@@ -3450,6 +3853,7 @@ def task_detail(tid):
     child_tasks = []
     task_has_child_tasks = False
     child_task_stats = {"total": 0, "completed": 0, "in_progress": 0}
+    child_task_reporting_matrix = {"task_rows": [], "unit_rows": []}
     assignment_unit_cards = _build_assignment_unit_cards(assigns)
     assignment_unit_progress = {
         "completed_units": sum(1 for card in assignment_unit_cards if card.get("status") == COMPLETED_STATUS),
@@ -3461,6 +3865,12 @@ def task_detail(tid):
         child_tasks = visible_child_tasks_for_user
 
     if child_tasks:
+        child_bridge_changed = False
+        for child_task in child_tasks:
+            if _ensure_task_runtime_bridge(child_task):
+                child_bridge_changed = True
+        if child_bridge_changed:
+            db.session.commit()
         task_has_child_tasks = True
         sync_record_categories(child_tasks, task_fields, attr_name="category", prefer_stable=True)
         sync_record_categories(child_tasks, pro_units, attr_name="domain", prefer_stable=True)
@@ -3472,17 +3882,14 @@ def task_detail(tid):
             setattr(child_task, "can_edit", _can_edit_task(child_task))
             setattr(child_task, "can_delete", _can_delete_task(child_task, is_lead=is_lead))
             setattr(child_task, "current_user_status", child_metrics["current_user_status"])
-            child_viewer_assign = next(
-                (assignment for assignment in (child_task.assignments or []) if assignment.user_id == session["uid"]),
-                None,
-            )
+            child_viewer_assign = _task_assignment_for_user(child_task, session["uid"], create_from_executor=True)
             child_schema = _load_task_report_schema(child_task)
             child_meta = _task_report_meta(child_schema)
             child_unit_summary = _build_child_task_unit_summary(child_task)
             setattr(child_task, "report_kind", _task_simple_child_report_kind(child_task) or "narrative")
             setattr(child_task, "report_kind_label", "Báo cáo số" if getattr(child_task, "report_kind", "") == "number" else "Báo cáo lời")
             setattr(child_task, "attachment_required", bool(child_meta.get("attachment_required")))
-            setattr(child_task, "reported_assignments", sum(1 for assignment in (child_task.assignments or []) if _assignment_has_report_submission(assignment)))
+            setattr(child_task, "reported_assignments", sum(1 for assignment, _user in _task_assignment_rows(child_task, ensure_bridge=False) if _assignment_has_report_submission(assignment)))
             setattr(child_task, "reported_units", child_unit_summary.get("reported_units", 0))
             setattr(child_task, "total_units", child_unit_summary.get("total_units", 0))
             setattr(child_task, "number_total", child_unit_summary.get("numeric_total"))
@@ -3494,6 +3901,7 @@ def task_detail(tid):
                 child_task_stats["completed"] += 1
             elif child_metrics["display_status"] != "Chưa tiếp nhận":
                 child_task_stats["in_progress"] += 1
+        child_task_reporting_matrix = _build_child_task_reporting_matrix(child_tasks)
     if can_observe_task_view:
         discussion_comments = [
             comment for comment in visible_comments
@@ -3588,6 +3996,7 @@ def task_detail(tid):
         parent_task=parent_task,
         child_tasks=child_tasks,
         child_task_stats=child_task_stats,
+        child_task_reporting_matrix=child_task_reporting_matrix,
         task_has_child_tasks=task_has_child_tasks,
         task_report_schema=task_report_schema,
         task_report_schema_seed=_task_report_schema_seed(task),
@@ -3608,11 +4017,13 @@ def save_da06_task_report(tid):
     task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
     if not task:
         return "Not Found", 404
+    if _ensure_task_runtime_bridge(task):
+        db.session.commit()
     if not _is_da06_month_task(task):
         flash("Công việc này không dùng biểu mẫu ĐA06 tháng.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
-    assign = TaskAssignment.query.filter_by(task_id=tid, user_id=session["uid"]).first()
+    assign = _task_assignment_for_user(task, session["uid"], create_from_executor=True)
     if not assign:
         flash("Bạn không có quyền cập nhật biểu mẫu của công việc này.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
@@ -3678,6 +4089,8 @@ def download_da06_task_attachment(tid, attachment_key):
     task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
     if not task:
         return "Not Found", 404
+    if _ensure_task_runtime_bridge(task):
+        db.session.commit()
 
     perms = _current_perms()
     is_lead = _can_process_task_module(perms)
@@ -3688,20 +4101,13 @@ def download_da06_task_attachment(tid, attachment_key):
         flash("Báº¡n khÃ´ng cÃ³ quyá»n táº£i minh chá»©ng cá»§a cÃ´ng viá»‡c nÃ y.", "danger")
         return redirect(url_for("tasks_bp.tasks"))
 
-    assign = TaskAssignment.query.filter_by(task_id=tid, user_id=session["uid"]).first()
+    assign = _task_assignment_for_user(task, session["uid"], create_from_executor=True)
     if not can_manage_task_view and not can_watch_task_view and not can_view_all_tasks and not assign:
         flash("Báº¡n khÃ´ng cÃ³ quyá»n táº£i minh chá»©ng nÃ y.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
     if (can_manage_task_view or can_watch_task_view or can_view_all_tasks) and not assign:
-        assign = (
-            TaskAssignment.query.filter(
-                TaskAssignment.task_id == tid,
-                TaskAssignment.report_payload_json.isnot(None),
-            )
-            .order_by(TaskAssignment.updated_at.desc())
-            .first()
-        )
+        assign = _task_latest_reporting_assignment(task)
 
     payload = _parse_assignment_payload(assign)
     attachments = payload.get("attachments", {}) if isinstance(payload.get("attachments"), dict) else {}
@@ -3728,6 +4134,8 @@ def download_task_report_file(tid, user_id):
     task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
     if not task:
         return "Not Found", 404
+    if _ensure_task_runtime_bridge(task):
+        db.session.commit()
 
     perms = _current_perms()
     is_lead = _can_process_task_module(perms)
@@ -3742,7 +4150,7 @@ def download_task_report_file(tid, user_id):
         flash("Bạn chỉ có thể tải tệp báo cáo của mình.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
-    assign = TaskAssignment.query.filter_by(task_id=tid, user_id=user_id).first()
+    assign = _task_assignment_for_user(task, user_id)
     file_name = _assignment_report_snapshot(assign).get("attachment_name") if assign else ""
     if not assign or not file_name:
         flash("Không tìm thấy tệp báo cáo cần tải.", "danger")
@@ -3791,13 +4199,7 @@ def export_task_unit_report(tid):
         flash("Bạn không có quyền xuất thống kê báo cáo của công việc này.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
-    assigns = (
-        db.session.query(TaskAssignment, User)
-        .join(User, TaskAssignment.user_id == User.id)
-        .filter(TaskAssignment.task_id == tid)
-        .order_by(TaskAssignment.updated_at.desc(), User.fullname.asc())
-        .all()
-    )
+    assigns = _task_assignment_rows(task, ensure_bridge=True)
     assign_users = [user for _, user in assigns]
     unit_options = module_category_options("contacts", "unit_name", "Đơn vị")
     sync_record_categories(assign_users, unit_options, attr_name="unit_area", prefer_stable=True)
@@ -3928,7 +4330,7 @@ def edit_task(tid):
     requested_viewer_role_ids = _requested_viewer_role_ids(request.form)
     requested_viewer_user_ids = _requested_viewer_user_ids(request.form)
     linked_report_template_ids = _requested_linked_report_template_ids(request.form)
-    assignees = [assignment.user for assignment in (task.assignments or []) if getattr(assignment, "user", None)]
+    assignees = [user for _assignment, user in _task_assignment_rows(task, ensure_bridge=True)]
     refreshed_assignee_count = None
     new_assignees_to_notify = []
     old_manager_scope = _load_manager_scope(task)
@@ -4031,7 +4433,7 @@ def edit_task(tid):
         push_notif(user.id, "Cập nhật công việc", f"Bạn vừa được bổ sung vào công việc: {task.title}", f"/tasks/{task.id}")
     old_manager_ids = {user.id for user in (old_managers or [])}
     old_viewer_ids = {user.id for user in (old_viewers or [])}
-    assignee_ids = {assignment.user_id for assignment in (task.assignments or []) if assignment.user_id}
+    assignee_ids = {assignment.user_id for assignment, _user in _task_assignment_rows(task, ensure_bridge=False) if assignment.user_id}
     manager_ids = {user.id for user in managers}
     for user in managers:
         if user.id in old_manager_ids or user.id in assignee_ids:
@@ -4236,7 +4638,12 @@ def update_task_status(tid):
     _ensure_task_schema()
 
     action = request.form.get("action")
-    assign = TaskAssignment.query.filter_by(task_id=tid, user_id=session["uid"]).first()
+    task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+    if _ensure_task_runtime_bridge(task):
+        db.session.commit()
+    assign = _task_assignment_for_user(task, session["uid"], create_from_executor=True)
 
     if not assign:
         flash("Bạn không được giao công việc này.", "danger")
@@ -4260,10 +4667,12 @@ def submit_task_report(tid):
     task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
     if not task:
         return "Not Found", 404
+    if _ensure_task_runtime_bridge(task):
+        db.session.commit()
 
     mark_completed = request.form.get("mark_completed")
 
-    assign = TaskAssignment.query.filter_by(task_id=tid, user_id=session["uid"]).first()
+    assign = _task_assignment_for_user(task, session["uid"], create_from_executor=True)
     if not assign:
         flash("Bạn không được giao công việc này.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))

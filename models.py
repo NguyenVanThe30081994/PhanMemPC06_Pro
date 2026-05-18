@@ -162,10 +162,30 @@ class Task(db.Model):
     linked_report_templates_json = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.now)
     assignments = db.relationship('TaskAssignment', backref='task', cascade='all, delete-orphan')
+    task_items = db.relationship('TaskItem', backref='task', cascade='all, delete-orphan', foreign_keys='TaskItem.task_id')
     participants = db.relationship('TaskParticipant', backref='task', cascade='all, delete-orphan', foreign_keys='TaskParticipant.task_id')
     submissions = db.relationship('TaskSubmission', backref='task', cascade='all, delete-orphan', foreign_keys='TaskSubmission.task_id')
     report_links = db.relationship('TaskReportLink', backref='task', cascade='all, delete-orphan', foreign_keys='TaskReportLink.task_id')
     child_tasks = db.relationship('Task', backref=db.backref('parent_task', remote_side=[id]))
+
+
+class TaskItem(db.Model):
+    __tablename__ = 'task_item'
+
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False, index=True)
+    source_task_id = db.Column(db.Integer, db.ForeignKey('task.id'), index=True)
+    title = db.Column(db.String(255))
+    content = db.Column(db.Text)
+    report_kind = db.Column(db.String(30), default='narrative')
+    attachment_required = db.Column(db.Boolean, default=False)
+    status = db.Column(db.String(50), default='Chưa tiếp nhận')
+    deadline = db.Column(db.Date)
+    sort_order = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    source_task = db.relationship('Task', foreign_keys=[source_task_id], backref='task_item_rows')
 
 
 class TaskAssignment(db.Model):

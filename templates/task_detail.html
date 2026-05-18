@@ -865,6 +865,75 @@
         font-weight: 700;
         line-height: 1.45;
     }
+    .pc06-child-report-matrix {
+        display: grid;
+        gap: 12px;
+    }
+    .pc06-child-report-row {
+        padding: 14px;
+        border-radius: 16px;
+        border: 1px solid rgba(226, 232, 240, 0.92);
+        background: rgba(255, 255, 255, 0.98);
+        display: grid;
+        gap: 10px;
+    }
+    .pc06-child-report-row-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    .pc06-child-report-row-head strong {
+        color: var(--text-main, #0f172a);
+        font-size: 0.96rem;
+    }
+    .pc06-child-report-inline-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .pc06-child-report-inline-stats span {
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(191, 219, 254, 0.92);
+        background: rgba(239, 246, 255, 0.9);
+        color: #1d4ed8;
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+    .pc06-child-report-name-columns {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+    .pc06-child-report-name-columns > div {
+        display: grid;
+        gap: 8px;
+    }
+    .pc06-child-report-name-columns h4 {
+        margin: 0;
+        color: var(--text-muted, #64748b);
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+    .pc06-child-report-name-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .pc06-child-report-name-badges span {
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(226, 232, 240, 0.92);
+        background: rgba(248, 250, 252, 0.88);
+        color: var(--text-main, #0f172a);
+        font-size: 0.8rem;
+    }
+    .pc06-child-report-name-badges span.is-missing {
+        border-color: rgba(254, 202, 202, 0.96);
+        background: rgba(254, 242, 242, 0.94);
+        color: #b91c1c;
+    }
     .pc06-report-eye-icon {
         width: 34px;
         height: 34px;
@@ -1071,6 +1140,9 @@
             grid-template-columns: 1fr;
         }
         .pc06-unit-report-cluster-grid {
+            grid-template-columns: 1fr;
+        }
+        .pc06-child-report-name-columns {
             grid-template-columns: 1fr;
         }
         .pc06-report-item-summary {
@@ -1280,6 +1352,111 @@
                     <p>Tạo đầu mục mới.</p>
                 </div>
                 {% endif %}
+            </section>
+            {% endif %}
+
+            {% if can_observe_task_view and child_task_reporting_matrix.task_rows %}
+            <section class="pc06-panel pc06-detail-panel-compact">
+                <div class="pc06-panel-head">
+                    <div>
+                        <h2>Theo dõi task con</h2>
+                    </div>
+                </div>
+                <div class="pc06-report-groups">
+                    <details class="pc06-report-group" open>
+                        <summary class="pc06-report-group-summary">
+                            <div>
+                                <span>Theo task con</span>
+                                <strong>{{ child_task_reporting_matrix.task_rows|length }}</strong>
+                            </div>
+                            <i class="fa-solid fa-chevron-down pc06-report-caret"></i>
+                        </summary>
+                        <div class="pc06-report-group-body">
+                            <div class="pc06-child-report-matrix">
+                                {% for row in child_task_reporting_matrix.task_rows %}
+                                <article class="pc06-child-report-row">
+                                    <div class="pc06-child-report-row-head">
+                                        <strong>{{ row.title }}</strong>
+                                        <div class="pc06-child-report-inline-stats">
+                                            <span>{{ row.reported_units }}/{{ row.total_units }} đơn vị</span>
+                                            {% if row.numeric_total %}
+                                            <span>Tổng {{ row.numeric_total }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="pc06-child-report-name-columns">
+                                        <div>
+                                            <h4>Đã báo</h4>
+                                            <div class="pc06-child-report-name-badges">
+                                                {% for item in row.reported_unit_items %}
+                                                <span>{{ item.unit_name }}</span>
+                                                {% else %}
+                                                <span>Chưa có</span>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h4>Chưa báo</h4>
+                                            <div class="pc06-child-report-name-badges">
+                                                {% for item in row.missing_unit_items %}
+                                                <span class="is-missing">{{ item.unit_name }}</span>
+                                                {% else %}
+                                                <span>Không còn thiếu</span>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </article>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </details>
+                    <details class="pc06-report-group">
+                        <summary class="pc06-report-group-summary">
+                            <div>
+                                <span>Theo đơn vị</span>
+                                <strong>{{ child_task_reporting_matrix.unit_rows|length }}</strong>
+                            </div>
+                            <i class="fa-solid fa-chevron-down pc06-report-caret"></i>
+                        </summary>
+                        <div class="pc06-report-group-body">
+                            <div class="pc06-child-report-matrix">
+                                {% for row in child_task_reporting_matrix.unit_rows %}
+                                <article class="pc06-child-report-row">
+                                    <div class="pc06-child-report-row-head">
+                                        <strong>{{ row.unit_name }}</strong>
+                                        <div class="pc06-child-report-inline-stats">
+                                            <span>{{ row.reported_count }}/{{ row.total_count }} task</span>
+                                        </div>
+                                    </div>
+                                    <div class="pc06-child-report-name-columns">
+                                        <div>
+                                            <h4>Đã báo</h4>
+                                            <div class="pc06-child-report-name-badges">
+                                                {% for item in row.reported_items %}
+                                                <span>{{ item.task_title }}</span>
+                                                {% else %}
+                                                <span>Chưa có</span>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h4>Chưa báo</h4>
+                                            <div class="pc06-child-report-name-badges">
+                                                {% for item in row.missing_items %}
+                                                <span class="is-missing">{{ item.task_title }}</span>
+                                                {% else %}
+                                                <span>Không còn thiếu</span>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </article>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </details>
+                </div>
             </section>
             {% endif %}
 

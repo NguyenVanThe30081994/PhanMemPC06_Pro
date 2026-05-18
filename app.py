@@ -24,7 +24,14 @@ from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from models import db, AppRole
 from storage import bootstrap_storage, build_storage_layout
-from utils import init_db, get_perms_labels, is_mobile_device, normalize_permission_payload
+from utils import (
+    get_perms_labels,
+    has_any_module_permission,
+    has_module_permission,
+    init_db,
+    is_mobile_device,
+    normalize_permission_payload,
+)
 
 # --- RELIABLE PATH RESOLUTION (Improved for Mắt Bão/Passenger) ---
 basedir = os.path.dirname(os.path.abspath(__file__))
@@ -258,11 +265,47 @@ def check_auth():
 
 @app.context_processor
 def inject_global_data():
-    if not session.get('uid'):
-        return {'perms': {}}
-    perms = {}
     is_admin = session.get('is_admin', False)
     role_name = "Thành viên"
+    perms = {}
+
+    def can_module(module_code, tier='view'):
+        return has_module_permission(perms, module_code, tier=tier, is_admin=is_admin, role_name=role_name)
+
+    def can_any_module(module_codes, tier='view'):
+        return has_any_module_permission(perms, module_codes, tier=tier, is_admin=is_admin, role_name=role_name)
+
+    def can_manage_with_system(module_code):
+        return bool(can_module(module_code, 'process') or can_module('sys', 'process'))
+
+    def can_access_report_center():
+        return bool(
+            can_module('form', 'view')
+            or can_module('input', 'view')
+            or can_module('input', 'process')
+            or can_module('input', 'exec')
+            or can_module('stat', 'view')
+            or can_module('stat', 'process')
+            or can_module('stat', 'exec')
+        )
+
+    def report_center_url():
+        return '/admin/reports' if can_module('form', 'process') else '/reports'
+
+    if not session.get('uid'):
+        return dict(
+            perms=perms,
+            role_name=role_name,
+            fullname='',
+            is_admin=is_admin,
+            version="3.5.0",
+            get_labels=get_perms_labels,
+            can_module=can_module,
+            can_any_module=can_any_module,
+            can_manage_with_system=can_manage_with_system,
+            can_access_report_center=can_access_report_center,
+            report_center_url=report_center_url,
+        )
     
     # 1. Fetch properties from DB role if available
     try:
@@ -277,7 +320,19 @@ def inject_global_data():
 
     perms = normalize_permission_payload(perms, is_admin=is_admin, role_name=role_name)
 
-    return dict(perms=perms, role_name=role_name, fullname=session.get('fullname', ''), is_admin=is_admin, version="3.5.0", get_labels=get_perms_labels)
+    return dict(
+        perms=perms,
+        role_name=role_name,
+        fullname=session.get('fullname', ''),
+        is_admin=is_admin,
+        version="3.5.0",
+        get_labels=get_perms_labels,
+        can_module=can_module,
+        can_any_module=can_any_module,
+        can_manage_with_system=can_manage_with_system,
+        can_access_report_center=can_access_report_center,
+        report_center_url=report_center_url,
+    )
 
 # --- JINJA HELPERS ---
 @app.template_filter('camel_to_kebab')

@@ -74,7 +74,7 @@
     {% endfor %}
 </section>
 
-{% if perms.get('p_news_process') or perms.get('p_news_lead') or perms.get('p_sys_process') or perms.get('p_sys_lead') or is_admin %}
+{% if can_manage_with_system('news') %}
 <button class="mobile-news-fab" data-bs-toggle="modal" data-bs-target="#addNewsModal"><i class="fa-solid fa-plus"></i></button>
 {% endif %}
 

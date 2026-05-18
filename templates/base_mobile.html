@@ -478,7 +478,7 @@
         </div>
         
         <div class="offcanvas-body p-3 pt-0">
-            {% set can_access_reports = session.get('is_admin') or perms.get('p_form_view') or perms.get('p_form_lead') or perms.get('p_input_view') or perms.get('p_input_lead') or perms.get('p_input_exec') or perms.get('p_stat_view') or perms.get('p_stat_lead') or perms.get('p_stat_exec') %}
+            {% set can_access_reports = can_access_report_center() %}
             <div class="sidebar-section">
                 <div class="sidebar-section-label">
                     <i class="fa-solid fa-compass"></i>
@@ -489,7 +489,7 @@
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-house"></i></span>
                         <span class="sidebar-nav-text">Tổng quan</span>
                     </a>
-                    {% if perms.get('p_task_view') or perms.get('p_task_lead') or perms.get('p_task_exec') %}
+                    {% if can_module('task', 'view') %}
                     <a href="/tasks" class="sidebar-nav-link {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-list-check"></i></span>
                         <span class="sidebar-nav-text">Nhiệm vụ</span>
@@ -499,7 +499,7 @@
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-ranking-star"></i></span>
                         <span class="sidebar-nav-text">Xếp hạng</span>
                     </a>
-                    {% if perms.get('p_news_view') or perms.get('p_news_lead') or perms.get('p_news_exec') %}
+                    {% if can_module('news', 'view') %}
                     <a href="/news" class="sidebar-nav-link {% if request.endpoint == 'portal_bp.news' %}active{% endif %}">
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-newspaper"></i></span>
                         <span class="sidebar-nav-text">Bảng tin</span>
@@ -515,7 +515,7 @@
                     <span>Báo cáo</span>
                 </div>
                 <div class="sidebar-nav-list">
-                    <a href="{{ '/admin/reports' if session.get('is_admin') or perms.get('p_form_process') or perms.get('p_form_lead') else '/reports' }}" class="sidebar-nav-link {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">
+                    <a href="{{ report_center_url() }}" class="sidebar-nav-link {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-chart-line"></i></span>
                         <span class="sidebar-nav-text">Trung tâm báo cáo</span>
                     </a>
@@ -529,13 +529,13 @@
                     <span>Tiện ích</span>
                 </div>
                 <div class="sidebar-nav-list">
-                    {% if perms.get('p_lib_view') or perms.get('p_lib_lead') or perms.get('p_lib_exec') %}
+                    {% if can_module('lib', 'view') %}
                     <a href="/library" class="sidebar-nav-link {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-book-open"></i></span>
                         <span class="sidebar-nav-text">Thư viện tài liệu</span>
                     </a>
                     {% endif %}
-                    {% if perms.get('p_contact_view') or perms.get('p_contact_lead') or perms.get('p_contact_exec') %}
+                    {% if can_module('contact', 'view') %}
                     <a href="/contacts" class="sidebar-nav-link {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-address-book"></i></span>
                         <span class="sidebar-nav-text">Danh bạ đơn vị</span>
@@ -552,20 +552,20 @@
                 </div>
             </div>
 
-            {% if session.get('is_admin') or perms.get('p_user_view') or perms.get('p_user_lead') or perms.get('p_sys_view') or perms.get('p_sys_lead') %}
+            {% if can_module('user', 'view') or can_module('sys', 'view') %}
             <div class="sidebar-section">
                 <div class="sidebar-section-label">
                     <i class="fa-solid fa-gears"></i>
                     <span>Quản trị</span>
                 </div>
                 <div class="sidebar-nav-list">
-                    {% if session.get('is_admin') or perms.get('p_user_view') or perms.get('p_user_lead') %}
+                    {% if can_module('user', 'view') %}
                     <a href="/roles" class="sidebar-nav-link {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-user-shield"></i></span>
                         <span class="sidebar-nav-text">Tài khoản & Vai trò</span>
                     </a>
                     {% endif %}
-                    {% if session.get('is_admin') or perms.get('p_sys_view') or perms.get('p_sys_lead') %}
+                    {% if can_module('sys', 'view') %}
                     <a href="/admin/module-categories" class="sidebar-nav-link {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-table-cells-large"></i></span>
                         <span class="sidebar-nav-text">Thiết lập danh mục</span>

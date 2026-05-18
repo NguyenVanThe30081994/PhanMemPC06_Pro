@@ -28,6 +28,7 @@ from utils import (
     build_role_account_username,
     clear_logs,
     extract_unit_key,
+    has_module_permission,
     init_db,
     log_action,
     normalize_permission_payload,
@@ -567,7 +568,7 @@ def db_manage():
 def roles():
     perms = _get_admin_perms()
     is_admin = bool(session.get('is_admin'))
-    can_view_roles = is_admin or perms.get('p_user_view') or perms.get('p_user_lead')
+    can_view_roles = has_module_permission(perms, 'user', 'view', is_admin=is_admin)
 
     if not can_view_roles:
         flash('Bạn không có quyền truy cập trang tài khoản và vai trò.', 'warning')

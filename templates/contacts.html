@@ -138,7 +138,7 @@
             <div>
                 <div class="pc06-contacts-title-row">
                     <h1 class="pc06-page-title">Danh bạ</h1>
-                    {% if perms.get('p_contact_process') or perms.get('p_contact_lead') or perms.get('p_sys_process') or perms.get('p_sys_lead') or is_admin %}
+                    {% if can_manage_with_system('contact') %}
                     <div class="pc06-action-cluster">
                         <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importContactModal">
                             <i class="fa-solid fa-file-excel"></i>
@@ -190,7 +190,7 @@
 
                     <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
                         <span class="pc06-toolbar-count" id="contactVisibleCount">{{ contacts|length }} liên hệ</span>
-                        {% if perms.get('p_contact_process') or perms.get('p_contact_lead') or is_admin %}
+                        {% if can_module('contact', 'process') %}
                         <div class="pc06-contacts-bulk-bar">
                             <button type="button" class="btn btn-bdhvs light" onclick="toggleAllContacts()">
                                 <i class="fa-solid fa-check-double"></i>
@@ -211,7 +211,7 @@
                     <table class="table table-hover align-middle mb-0">
                         <thead class="pill-thead">
                             <tr>
-                                {% if perms.get('p_contact_process') or perms.get('p_contact_lead') or is_admin %}
+                                {% if can_module('contact', 'process') %}
                                 <th class="ps-4" style="width: 54px;">
                                     <input type="checkbox" class="form-check-input" id="contactCheckAll" onchange="handleCheckAllChange()">
                                 </th>
@@ -226,7 +226,7 @@
                         <tbody id="contactTable">
                             {% for c in contacts %}
                             <tr class="contact-row" data-category="{{ c.contact_group_filter }}">
-                                {% if perms.get('p_contact_process') or perms.get('p_contact_lead') or is_admin %}
+                                {% if can_module('contact', 'process') %}
                                 <td class="ps-4">
                                     <input type="checkbox" class="form-check-input contact-row-check" value="{{ c.id }}" onchange="updateBulkSelectionState()">
                                 </td>
@@ -250,7 +250,7 @@
                                         <a href="tel:{{ c.phone }}" class="btn btn-light btn-circle btn-circle-sm border shadow-sm">
                                             <i class="fa-solid fa-phone text-success tiny"></i>
                                         </a>
-                                        {% if perms.get('p_contact_process') or perms.get('p_contact_lead') or is_admin %}
+                                        {% if can_module('contact', 'process') %}
                                         <form method="POST" action="{{ url_for('portal_bp.contact_delete', cid=c.id) }}" class="d-inline m-0" onsubmit="return confirm('Xóa liên hệ này?')">
                                             <button type="submit" class="btn btn-light btn-circle btn-circle-sm border shadow-sm text-danger">
                                                 <i class="fa-solid fa-trash tiny"></i>
@@ -277,7 +277,7 @@
     </div>
 </div>
 
-{% if perms.get('p_contact_process') or perms.get('p_contact_lead') or is_admin %}
+{% if can_module('contact', 'process') %}
 <form method="POST" action="{{ url_for('portal_bp.contact_delete_bulk') }}" id="bulkDeleteForm" class="d-none">
     <input type="hidden" name="selected_ids" id="bulkDeleteSelectedIds">
 </form>
@@ -318,7 +318,7 @@
                                 </select>
                             </div>
                         </div>
-                        {% if perms.get('p_contact_process') or perms.get('p_contact_lead') or is_admin %}
+                        {% if can_module('contact', 'process') %}
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Đơn vị</label>
                             <div data-category-picker data-module="contacts" data-field="unit_name" data-value-mode="stable" data-placeholder="Chọn đơn vị" data-storage-key="modal.contacts.unit">

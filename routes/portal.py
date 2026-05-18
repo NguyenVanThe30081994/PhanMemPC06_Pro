@@ -21,7 +21,14 @@ from category_helpers import (
     stable_form_category_options as shared_stable_form_category_options,
     sync_record_categories as shared_sync_record_categories,
 )
-from utils import infer_notification_source, log_action, normalize_permission_payload, push_global_notif, render_auto_template as render_template
+from utils import (
+    has_module_permission,
+    infer_notification_source,
+    log_action,
+    normalize_permission_payload,
+    push_global_notif,
+    render_auto_template as render_template,
+)
 import requests
 try:
     from security_utils.file_validator import validate_file_upload
@@ -120,10 +127,8 @@ def _can_manage_news(perms=None, is_admin=None):
     perms = perms or {}
     is_admin = bool(session.get('is_admin')) if is_admin is None else bool(is_admin)
     return bool(
-        perms.get('p_news_process')
-        or perms.get('p_news_lead')
-        or perms.get('p_sys_process')
-        or perms.get('p_sys_lead')
+        has_module_permission(perms, 'news', 'process', is_admin=is_admin)
+        or has_module_permission(perms, 'sys', 'process', is_admin=is_admin)
         or is_admin
     )
 
@@ -132,10 +137,8 @@ def _can_manage_library(perms=None, is_admin=None):
     perms = perms or {}
     is_admin = bool(session.get('is_admin')) if is_admin is None else bool(is_admin)
     return bool(
-        perms.get('p_lib_process')
-        or perms.get('p_lib_lead')
-        or perms.get('p_sys_process')
-        or perms.get('p_sys_lead')
+        has_module_permission(perms, 'lib', 'process', is_admin=is_admin)
+        or has_module_permission(perms, 'sys', 'process', is_admin=is_admin)
         or is_admin
     )
 
@@ -144,8 +147,8 @@ def _can_manage_contacts(perms=None, is_admin=None):
     perms = perms or {}
     is_admin = bool(session.get('is_admin')) if is_admin is None else bool(is_admin)
     return bool(
-        perms.get('p_contact_process')
-        or perms.get('p_contact_lead')
+        has_module_permission(perms, 'contact', 'process', is_admin=is_admin)
+        or has_module_permission(perms, 'sys', 'process', is_admin=is_admin)
         or is_admin
     )
 

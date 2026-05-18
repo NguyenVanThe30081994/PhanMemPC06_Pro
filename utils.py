@@ -576,6 +576,22 @@ def apply_migrations(app):
         )
         """,
         """
+        CREATE TABLE IF NOT EXISTS task_item (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id INTEGER NOT NULL,
+            source_task_id INTEGER,
+            title VARCHAR(255),
+            content TEXT,
+            report_kind VARCHAR(30) DEFAULT 'narrative',
+            attachment_required BOOLEAN DEFAULT 0,
+            status VARCHAR(50) DEFAULT 'Chưa tiếp nhận',
+            deadline DATE,
+            sort_order INTEGER DEFAULT 0,
+            created_at DATETIME,
+            updated_at DATETIME
+        )
+        """,
+        """
         CREATE TABLE IF NOT EXISTS task_submission (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             task_id INTEGER NOT NULL,
@@ -935,6 +951,39 @@ def normalize_permission_payload(perms_json, is_admin=False, role_name=""):
             normalized[legacy_key] = 1
 
     return normalized
+
+
+def module_permission_flags(perms_json, module_code, is_admin=False, role_name=""):
+    normalized = normalize_permission_payload(perms_json, is_admin=is_admin, role_name=role_name)
+    module = (module_code or "").strip().lower()
+    if not module:
+        return {"view": False, "process": False, "exec": False, "any": False}
+    flags = {
+        "view": bool(normalized.get(f"p_{module}_view")),
+        "process": bool(normalized.get(f"p_{module}_process")),
+        "exec": bool(normalized.get(f"p_{module}_exec")),
+    }
+    flags["any"] = bool(flags["view"] or flags["process"] or flags["exec"])
+    return flags
+
+
+def has_module_permission(perms_json, module_code, tier="view", is_admin=False, role_name=""):
+    flags = module_permission_flags(perms_json, module_code, is_admin=is_admin, role_name=role_name)
+    normalized_tier = (tier or "view").strip().lower()
+    if normalized_tier in {"any", "access"}:
+        return flags["any"]
+    if normalized_tier in {"manage", "process"}:
+        return flags["process"]
+    if normalized_tier in {"execute", "exec"}:
+        return flags["exec"]
+    return flags["view"]
+
+
+def has_any_module_permission(perms_json, module_codes, tier="view", is_admin=False, role_name=""):
+    return any(
+        has_module_permission(perms_json, module_code, tier=tier, is_admin=is_admin, role_name=role_name)
+        for module_code in (module_codes or [])
+    )
 
 def get_perms_labels(perms_json):
     if not perms_json: return ""
