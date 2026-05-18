@@ -1178,6 +1178,98 @@
         color: #166534;
         font-weight: 700;
     }
+    .pc06-combined-report-sections {
+        display: grid;
+        gap: 14px;
+    }
+    .pc06-combined-report-section {
+        padding: 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(226, 232, 240, 0.92);
+        background: rgba(248, 250, 252, 0.78);
+        display: grid;
+        gap: 14px;
+    }
+    .pc06-combined-report-section-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+    }
+    .pc06-combined-report-section-head strong {
+        color: var(--text-main, #0f172a);
+        font-size: 1rem;
+    }
+    .pc06-combined-report-section-head span {
+        color: var(--text-muted, #64748b);
+        font-size: 0.8rem;
+    }
+    .pc06-combined-report-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+    }
+    .pc06-combined-report-card {
+        padding: 14px;
+        border-radius: 16px;
+        border: 1px solid rgba(226, 232, 240, 0.92);
+        background: rgba(255, 255, 255, 0.98);
+        display: grid;
+        gap: 12px;
+    }
+    .pc06-combined-report-card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+    }
+    .pc06-combined-report-card-copy {
+        display: grid;
+        gap: 4px;
+    }
+    .pc06-combined-report-card-copy strong {
+        color: var(--text-main, #0f172a);
+        font-size: 0.95rem;
+    }
+    .pc06-combined-report-card-copy span {
+        color: var(--text-muted, #64748b);
+        font-size: 0.79rem;
+        line-height: 1.5;
+    }
+    .pc06-combined-report-card-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 38px;
+        height: 38px;
+        padding: 0 12px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.08);
+        color: var(--text-main, #0f172a);
+        font-size: 0.9rem;
+        font-weight: 800;
+        flex-shrink: 0;
+    }
+    .pc06-combined-report-card-preview {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .pc06-combined-report-card-preview span {
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(248, 250, 252, 0.88);
+        border: 1px solid rgba(226, 232, 240, 0.92);
+        color: var(--text-main, #0f172a);
+        font-size: 0.78rem;
+    }
+    .pc06-combined-report-card-preview span.empty {
+        color: var(--text-muted, #64748b);
+    }
+    .pc06-combined-report-card-actions {
+        display: flex;
+        justify-content: flex-end;
+    }
     .pc06-report-eye-icon {
         width: 34px;
         height: 34px;
@@ -1379,6 +1471,9 @@
     @media (max-width: 991.98px) {
         .pc06-unit-report-overview {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .pc06-combined-report-grid {
+            grid-template-columns: 1fr;
         }
         .pc06-report-groups {
             grid-template-columns: 1fr;
@@ -1609,212 +1704,94 @@
             </section>
             {% endif %}
 
-            {% if can_observe_task_view and child_task_reporting_matrix.task_rows %}
-            {% set child_report_stats = namespace(open_tasks=0, open_units=0, missing_total=0) %}
-            {% for row in child_task_reporting_matrix.task_rows %}
-                {% if row.missing_units %}
-                    {% set child_report_stats.open_tasks = child_report_stats.open_tasks + 1 %}
-                {% endif %}
-                {% set child_report_stats.missing_total = child_report_stats.missing_total + row.missing_units %}
-            {% endfor %}
-            {% for row in child_task_reporting_matrix.unit_rows %}
-                {% if row.missing_count %}
-                    {% set child_report_stats.open_units = child_report_stats.open_units + 1 %}
-                {% endif %}
-            {% endfor %}
+            {% if can_observe_task_view and child_task_tracking.total_units %}
             <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>
-                        <h2>Theo dõi task con</h2>
+                        <h2>Theo dõi báo cáo task con</h2>
                     </div>
                 </div>
-                <div class="pc06-child-report-dashboard">
-                    <div class="pc06-child-report-facts">
-                        <div class="pc06-child-report-fact">
-                            <span>Task con cần gỡ</span>
-                            <strong>{{ child_report_stats.open_tasks }}</strong>
-                        </div>
-                        <div class="pc06-child-report-fact">
-                            <span>Đơn vị cần nhắc</span>
-                            <strong>{{ child_report_stats.open_units }}</strong>
-                        </div>
-                        <div class="pc06-child-report-fact">
-                            <span>Lượt tồn</span>
-                            <strong>{{ child_report_stats.missing_total }}</strong>
-                        </div>
+                <div class="pc06-child-report-facts">
+                    <div class="pc06-child-report-fact">
+                        <span>Tổng task con</span>
+                        <strong>{{ child_task_tracking.total_child_tasks }}</strong>
                     </div>
-                    <div class="pc06-child-report-banner">
-                        {% if child_report_stats.missing_total %}
-                        Tập trung xử lý <strong>{{ child_report_stats.open_tasks }}</strong> task con đang còn thiếu báo cáo, chủ yếu nằm ở <strong>{{ child_report_stats.open_units }}</strong> đơn vị chưa hoàn tất.
-                        {% else %}
-                        Toàn bộ task con đã đủ báo cáo. Khối này giờ chỉ còn vai trò tra cứu nhanh khi cần rà lại theo task hoặc theo đơn vị.
-                        {% endif %}
+                    <div class="pc06-child-report-fact">
+                        <span>Đơn vị tham gia</span>
+                        <strong>{{ child_task_tracking.total_units }}</strong>
                     </div>
-                    <div class="pc06-child-report-spotlights">
-                        <article class="pc06-child-report-spotlight">
-                            <div class="pc06-child-report-spotlight-head">
-                                <div>
-                                    <span>Ưu tiên theo task con</span>
-                                    <strong>Đầu việc đang tắc</strong>
-                                </div>
-                                <span class="pc06-child-report-spotlight-badge">{{ child_report_stats.open_tasks }}</span>
-                            </div>
-                            <div class="pc06-child-report-spotlight-list">
-                                {% for row in child_task_reporting_matrix.task_rows|sort(attribute='missing_units', reverse=true) if row.missing_units %}
-                                <article class="pc06-child-report-spotlight-item">
-                                    <div class="pc06-child-report-spotlight-copy">
-                                        <strong>{{ row.title }}</strong>
-                                        <small>{{ row.reported_units }}/{{ row.total_units }} đơn vị đã báo, còn thiếu {{ row.missing_units }} đơn vị</small>
-                                    </div>
-                                    <div class="pc06-child-report-spotlight-stats">
-                                        <span class="pc06-child-report-stat-pill">{{ row.reported_units }}/{{ row.total_units }} đơn vị</span>
-                                        <span class="pc06-child-report-stat-pill is-missing">{{ row.missing_units }} chưa báo</span>
-                                        {% if row.numeric_total %}
-                                        <span class="pc06-child-report-stat-pill">Tổng {{ row.numeric_total }}</span>
-                                        {% endif %}
-                                    </div>
-                                    <div class="pc06-child-report-preview-badges">
-                                        {% for item in row.missing_unit_items[:4] %}
-                                        <span>{{ item.unit_name }}</span>
-                                        {% endfor %}
-                                        {% if row.missing_units > 4 %}
-                                        <span class="pc06-child-report-preview-more">+{{ row.missing_units - 4 }} đơn vị</span>
-                                        {% endif %}
-                                    </div>
-                                </article>
-                                {% else %}
-                                <div class="pc06-child-report-empty">Không còn task con nào bị thiếu báo cáo.</div>
-                                {% endfor %}
-                            </div>
-                        </article>
-                        <article class="pc06-child-report-spotlight">
-                            <div class="pc06-child-report-spotlight-head">
-                                <div>
-                                    <span>Ưu tiên theo đơn vị</span>
-                                    <strong>Đơn vị cần nhắc trước</strong>
-                                </div>
-                                <span class="pc06-child-report-spotlight-badge">{{ child_report_stats.open_units }}</span>
-                            </div>
-                            <div class="pc06-child-report-spotlight-list">
-                                {% for row in child_task_reporting_matrix.unit_rows if row.missing_count %}
-                                <article class="pc06-child-report-spotlight-item">
-                                    <div class="pc06-child-report-spotlight-copy">
-                                        <strong>{{ row.unit_name }}</strong>
-                                        <small>{{ row.reported_count }}/{{ row.total_count }} task đã báo, còn thiếu {{ row.missing_count }} task</small>
-                                    </div>
-                                    <div class="pc06-child-report-spotlight-stats">
-                                        <span class="pc06-child-report-stat-pill">{{ row.reported_count }}/{{ row.total_count }} task</span>
-                                        <span class="pc06-child-report-stat-pill is-missing">{{ row.missing_count }} chưa báo</span>
-                                    </div>
-                                    <div class="pc06-child-report-preview-badges">
-                                        {% for item in row.missing_items[:4] %}
-                                        <span>{{ item.task_title }}</span>
-                                        {% endfor %}
-                                        {% if row.missing_count > 4 %}
-                                        <span class="pc06-child-report-preview-more">+{{ row.missing_count - 4 }} task</span>
-                                        {% endif %}
-                                    </div>
-                                </article>
-                                {% else %}
-                                <div class="pc06-child-report-empty">Không còn đơn vị nào đang treo task con chưa báo.</div>
-                                {% endfor %}
-                            </div>
-                        </article>
+                    <div class="pc06-child-report-fact">
+                        <span>Task quá hạn</span>
+                        <strong>{{ child_task_tracking.total_overdue_tasks }}</strong>
                     </div>
-                    <div class="pc06-child-report-full">
-                        <details class="pc06-report-group">
-                            <summary class="pc06-report-group-summary">
-                                <div class="pc06-child-report-group-summary-copy">
-                                    <span>Xem chi tiết theo task con</span>
-                                    <strong>{{ child_task_reporting_matrix.task_rows|length }}</strong>
-                                    <small>Chỉ bung sâu khi cần rà toàn bộ danh sách</small>
+                </div>
+                <div class="pc06-child-report-banner">
+                    Khối này gộp chung <strong>tiến độ báo cáo</strong> và <strong>chất lượng báo cáo</strong> theo từng đơn vị. Mỗi điều kiện chỉ hiển thị số lượng, kèm nút Excel để tải danh sách chi tiết đúng theo nhóm.
+                </div>
+                <div class="pc06-combined-report-sections">
+                    <section class="pc06-combined-report-section">
+                        <div class="pc06-combined-report-section-head">
+                            <strong>Tiến độ báo cáo</strong>
+                            <span>Phân loại theo mức hoàn thành báo cáo task con</span>
+                        </div>
+                        <div class="pc06-combined-report-grid">
+                            {% for group in child_task_tracking.progress_groups %}
+                            <article class="pc06-combined-report-card">
+                                <div class="pc06-combined-report-card-head">
+                                    <div class="pc06-combined-report-card-copy">
+                                        <strong>{{ group.label }}</strong>
+                                        <span>{{ group.description }}</span>
+                                    </div>
+                                    <span class="pc06-combined-report-card-count">{{ group.count }}</span>
                                 </div>
-                                <span class="pc06-child-report-group-badge"><strong>{{ child_report_stats.missing_total }}</strong> lượt tồn</span>
-                                <i class="fa-solid fa-chevron-down pc06-report-caret"></i>
-                            </summary>
-                            <div class="pc06-report-group-body">
-                                <div class="pc06-child-report-section-note">Mỗi dòng tập trung vào phần còn thiếu để bạn nhìn đúng chỗ cần nhắc ngay.</div>
-                                <div class="pc06-child-report-matrix">
-                                    {% for row in child_task_reporting_matrix.task_rows|sort(attribute='missing_units', reverse=true) %}
-                                    <details class="pc06-report-item pc06-child-report-item">
-                                        <summary class="pc06-child-report-item-summary">
-                                            <div class="pc06-child-report-item-copy">
-                                                <strong>{{ row.title }}</strong>
-                                                <small>{{ row.reported_units }}/{{ row.total_units }} đơn vị đã báo{% if row.missing_units %}, còn thiếu {{ row.missing_units }} đơn vị{% else %}, đã hoàn tất{% endif %}</small>
-                                            </div>
-                                            <div class="pc06-child-report-item-actions">
-                                                <span class="pc06-child-report-stat-pill">{{ row.reported_units }}/{{ row.total_units }} đơn vị</span>
-                                                {% if row.numeric_total %}
-                                                <span class="pc06-child-report-stat-pill">Tổng {{ row.numeric_total }}</span>
-                                                {% endif %}
-                                                {% if row.missing_units %}
-                                                <span class="pc06-child-report-stat-pill is-missing">{{ row.missing_units }} chưa báo</span>
-                                                {% endif %}
-                                                <i class="fa-solid fa-chevron-down pc06-report-caret"></i>
-                                            </div>
-                                        </summary>
-                                        <div class="pc06-child-report-item-body">
-                                            {% if row.missing_units %}
-                                            <div class="pc06-child-report-focus-line">Đơn vị chưa báo</div>
-                                            <div class="pc06-child-report-name-badges">
-                                                {% for item in row.missing_unit_items %}
-                                                <span class="is-missing">{{ item.unit_name }}</span>
-                                                {% endfor %}
-                                            </div>
-                                            {% else %}
-                                            <div class="pc06-child-report-focus-line is-good">Task này đã đủ báo cáo từ toàn bộ đơn vị.</div>
-                                            {% endif %}
-                                        </div>
-                                    </details>
+                                <div class="pc06-combined-report-card-preview">
+                                    {% for unit in group.units[:3] %}
+                                    <span>{{ unit.unit_name }}</span>
+                                    {% else %}
+                                    <span class="empty">Chưa có đơn vị</span>
                                     {% endfor %}
                                 </div>
-                            </div>
-                        </details>
-                        <details class="pc06-report-group">
-                            <summary class="pc06-report-group-summary">
-                                <div class="pc06-child-report-group-summary-copy">
-                                    <span>Xem chi tiết theo đơn vị</span>
-                                    <strong>{{ child_task_reporting_matrix.unit_rows|length }}</strong>
-                                    <small>Rà nhanh nơi nào còn vướng nhiều task nhất</small>
+                                <div class="pc06-combined-report-card-actions">
+                                    <a href="{{ url_for('tasks_bp.export_child_task_report_condition', tid=task.id, dimension='progress', condition=group.code) }}" class="btn btn-bdhvs light{% if not group.count %} disabled{% endif %}">
+                                        <i class="fa-solid fa-file-excel"></i>
+                                        Xuất Excel
+                                    </a>
                                 </div>
-                                <span class="pc06-child-report-group-badge"><strong>{{ child_report_stats.open_units }}</strong> đơn vị cần nhắc</span>
-                                <i class="fa-solid fa-chevron-down pc06-report-caret"></i>
-                            </summary>
-                            <div class="pc06-report-group-body">
-                                <div class="pc06-child-report-section-note">Mỗi dòng gom toàn bộ task chưa báo của một đơn vị để tránh phải kéo dọc quá nhiều.</div>
-                                <div class="pc06-child-report-matrix">
-                                    {% for row in child_task_reporting_matrix.unit_rows %}
-                                    <details class="pc06-report-item pc06-child-report-item">
-                                        <summary class="pc06-child-report-item-summary">
-                                            <div class="pc06-child-report-item-copy">
-                                                <strong>{{ row.unit_name }}</strong>
-                                                <small>{{ row.reported_count }}/{{ row.total_count }} task đã báo{% if row.missing_count %}, còn thiếu {{ row.missing_count }} task{% else %}, đã hoàn tất{% endif %}</small>
-                                            </div>
-                                            <div class="pc06-child-report-item-actions">
-                                                <span class="pc06-child-report-stat-pill">{{ row.reported_count }}/{{ row.total_count }} task</span>
-                                                {% if row.missing_count %}
-                                                <span class="pc06-child-report-stat-pill is-missing">{{ row.missing_count }} chưa báo</span>
-                                                {% endif %}
-                                                <i class="fa-solid fa-chevron-down pc06-report-caret"></i>
-                                            </div>
-                                        </summary>
-                                        <div class="pc06-child-report-item-body">
-                                            {% if row.missing_count %}
-                                            <div class="pc06-child-report-focus-line">Task chưa báo</div>
-                                            <div class="pc06-child-report-name-badges">
-                                                {% for item in row.missing_items %}
-                                                <span class="is-missing">{{ item.task_title }}</span>
-                                                {% endfor %}
-                                            </div>
-                                            {% else %}
-                                            <div class="pc06-child-report-focus-line is-good">Đơn vị này đã hoàn tất toàn bộ task con.</div>
-                                            {% endif %}
-                                        </div>
-                                    </details>
+                            </article>
+                            {% endfor %}
+                        </div>
+                    </section>
+                    <section class="pc06-combined-report-section">
+                        <div class="pc06-combined-report-section-head">
+                            <strong>Chất lượng báo cáo</strong>
+                            <span>Phân loại theo mức quá hạn trên toàn bộ task con của từng đơn vị</span>
+                        </div>
+                        <div class="pc06-combined-report-grid">
+                            {% for group in child_task_tracking.quality_groups %}
+                            <article class="pc06-combined-report-card">
+                                <div class="pc06-combined-report-card-head">
+                                    <div class="pc06-combined-report-card-copy">
+                                        <strong>{{ group.label }}</strong>
+                                        <span>{{ group.description }}</span>
+                                    </div>
+                                    <span class="pc06-combined-report-card-count">{{ group.count }}</span>
+                                </div>
+                                <div class="pc06-combined-report-card-preview">
+                                    {% for unit in group.units[:3] %}
+                                    <span>{{ unit.unit_name }}</span>
+                                    {% else %}
+                                    <span class="empty">Chưa có đơn vị</span>
                                     {% endfor %}
                                 </div>
-                            </div>
-                        </details>
+                                <div class="pc06-combined-report-card-actions">
+                                    <a href="{{ url_for('tasks_bp.export_child_task_report_condition', tid=task.id, dimension='quality', condition=group.code) }}" class="btn btn-bdhvs light{% if not group.count %} disabled{% endif %}">
+                                        <i class="fa-solid fa-file-excel"></i>
+                                        Xuất Excel
+                                    </a>
+                                </div>
+                            </article>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
             </section>
@@ -1868,7 +1845,7 @@
                     {% endfor %}
                 </div>
             </section>
-            {% elif can_observe_task_view %}
+            {% elif can_observe_task_view and not child_task_tracking.total_units %}
             <section class="pc06-panel pc06-detail-panel-compact">
                 <div class="pc06-panel-head">
                     <div>
@@ -2389,7 +2366,7 @@
                         <summary class="pc06-assignment-role-summary">
                             <div class="pc06-assignment-role-summary-copy">
                                 <strong>{{ group.role_name }}</strong>
-                                <span>{{ group.unit_count }} đơn vị · {{ group.completed_count }}/{{ group.total_count }} hoàn thành</span>
+                                <span>{{ group.unit_count }} đơn vị · Giao {{ group.child_task_count }} task con · {{ group.completed_count }}/{{ group.total_count }} hoàn thành</span>
                             </div>
                             <div class="pc06-assignment-role-summary-meta">
                                 <span class="pc06-status-badge {% if group.status == 'Hoàn thành' %}done{% elif group.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
@@ -2404,7 +2381,7 @@
                                 <article class="pc06-assignment-unit">
                                     <div>
                                         <strong>{{ unit.unit_name }}</strong>
-                                        <span>Tiến độ {{ unit.progress_text }} · Tiếp nhận {{ unit.accepted_count }}/{{ unit.total_count }}</span>
+                                        <span>Giao {{ unit.child_task_count }} task con · Tiến độ {{ unit.progress_text }} · Tiếp nhận {{ unit.accepted_count }}/{{ unit.total_count }}</span>
                                     </div>
                                     <span class="pc06-status-badge {% if unit.status == 'Hoàn thành' %}done{% elif unit.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
                                         {{ unit.status }}

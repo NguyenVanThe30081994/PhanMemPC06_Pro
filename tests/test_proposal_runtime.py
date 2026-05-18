@@ -28,6 +28,7 @@ from models import (
     db,
 )
 from routes.tasks import (
+    _build_child_task_report_dashboard,
     _extract_submission_numeric_value,
     _query_task_scope,
     _sync_task_runtime_models,
@@ -418,6 +419,80 @@ class ProposalRuntimeTests(unittest.TestCase):
                 TaskItem.query.filter_by(task_id=task_id).delete(synchronize_session=False)
                 TaskAssignment.query.filter_by(task_id=task_id).delete(synchronize_session=False)
                 Task.query.filter_by(id=task_id).delete(synchronize_session=False)
+                db.session.commit()
+
+    def test_child_task_report_dashboard_classifies_progress_and_quality(self):
+        with app.app_context():
+            user = User.query.filter_by(is_active=True).order_by(User.id.asc()).first()
+            self.assertIsNotNone(user, "Cần có ít nhất một user active để test dashboard task con.")
+            now_token = datetime.now().strftime("%Y%m%d%H%M%S%f")
+
+            parent_task = Task(
+                title=f"[TEST] child dashboard {now_token}",
+                content="Task cha phục vụ test dashboard",
+                deadline=datetime.now().date() + timedelta(days=3),
+                author_id=user.id,
+                author_name=user.fullname,
+                priority="Cao",
+                task_type="Công việc thường xuyên",
+                initial_status="Đang thực hiện",
+                created_at=datetime.now(),
+            )
+            db.session.add(parent_task)
+            db.session.commit()
+
+            child_specs = [
+                ("Đầu việc 1", datetime.now().date() + timedelta(days=1), "Hoàn thành", {"narrative": "Đã báo cáo"}, datetime.now()),
+                ("Đầu việc 2", datetime.now().date() - timedelta(days=1), "Đang thực hiện", None, datetime.now()),
+                ("Đầu việc 3", datetime.now().date() + timedelta(days=2), "Chưa tiếp nhận", None, datetime.now()),
+            ]
+            child_ids = []
+            try:
+                for title, deadline, status, payload, updated_at in child_specs:
+                    child_task = Task(
+                        title=f"[TEST] {title} {now_token}",
+                        content="Task con phục vụ test dashboard",
+                        deadline=deadline,
+                        author_id=user.id,
+                        author_name=user.fullname,
+                        priority="Trung bình",
+                        task_type="Công việc thường xuyên",
+                        initial_status=status,
+                        parent_task_id=parent_task.id,
+                        created_at=datetime.now(),
+                    )
+                    db.session.add(child_task)
+                    db.session.flush()
+                    assignment = TaskAssignment(
+                        task_id=child_task.id,
+                        user_id=user.id,
+                        status=status,
+                        report_payload_json=json.dumps(payload, ensure_ascii=False) if payload else None,
+                        updated_at=updated_at,
+                    )
+                    db.session.add(assignment)
+                    child_ids.append(child_task.id)
+                db.session.commit()
+
+                child_tasks = Task.query.filter(Task.id.in_(child_ids)).order_by(Task.id.asc()).all()
+                dashboard = _build_child_task_report_dashboard(child_tasks)
+
+                self.assertEqual(dashboard["total_units"], 1)
+                self.assertEqual(dashboard["total_child_tasks"], 3)
+                self.assertEqual(dashboard["total_overdue_tasks"], 1)
+                self.assertEqual(dashboard["progress_groups"][1]["count"], 1)
+                self.assertEqual(dashboard["quality_groups"][1]["count"], 1)
+
+                unit_row = dashboard["unit_rows"][0]
+                self.assertEqual(unit_row["progress_code"], "reporting_in_progress")
+                self.assertEqual(unit_row["quality_code"], "partial_overdue")
+                self.assertEqual(unit_row["child_task_count"], 3)
+                self.assertEqual(unit_row["missing_count"], 2)
+                self.assertEqual(unit_row["overdue_count"], 1)
+            finally:
+                TaskAssignment.query.filter(TaskAssignment.task_id.in_(child_ids)).delete(synchronize_session=False)
+                Task.query.filter(Task.id.in_(child_ids)).delete(synchronize_session=False)
+                Task.query.filter_by(id=parent_task.id).delete(synchronize_session=False)
                 db.session.commit()
 
     def test_numeric_submission_extractor_returns_none_for_blank_value(self):

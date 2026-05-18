@@ -93,6 +93,46 @@ DEFAULT_TASK_REPORT_SCHEMA = {
 }
 CHILD_TASK_ALLOWED_REPORT_KINDS = {"narrative", "number"}
 CHILD_TASK_NUMBER_FIELD_KEY = "reported_value"
+CHILD_TASK_PROGRESS_CONDITIONS = (
+    {
+        "code": "reported_complete",
+        "label": "Đã báo cáo",
+        "description": "Hoàn thành báo cáo toàn bộ task con",
+        "filename_suffix": "tien_do_da_bao_cao",
+    },
+    {
+        "code": "reporting_in_progress",
+        "label": "Đang báo cáo",
+        "description": "Chưa hoàn thành toàn bộ task con",
+        "filename_suffix": "tien_do_dang_bao_cao",
+    },
+    {
+        "code": "not_reported",
+        "label": "Chưa báo cáo",
+        "description": "Chưa tiếp nhận",
+        "filename_suffix": "tien_do_chua_bao_cao",
+    },
+)
+CHILD_TASK_QUALITY_CONDITIONS = (
+    {
+        "code": "on_time",
+        "label": "Đúng hạn",
+        "description": "100% task con đúng hạn",
+        "filename_suffix": "chat_luong_dung_han",
+    },
+    {
+        "code": "partial_overdue",
+        "label": "Quá hạn một phần",
+        "description": "Một phần task con quá hạn",
+        "filename_suffix": "chat_luong_qua_han_mot_phan",
+    },
+    {
+        "code": "fully_overdue",
+        "label": "Quá hạn báo cáo",
+        "description": "100% task con quá hạn",
+        "filename_suffix": "chat_luong_qua_han_bao_cao",
+    },
+)
 
 DA06_TASK_MARKERS = ("bao cao de an 06 thang", "bao cao de an06 thang", "bao cao da06 thang")
 DA06_TCT_ROLE_MARKERS = ("to cong tac cap xa",)
@@ -2628,6 +2668,170 @@ def _build_child_task_reporting_matrix(child_tasks):
     }
 
 
+def _child_task_condition_meta(dimension, code):
+    catalog = CHILD_TASK_PROGRESS_CONDITIONS if dimension == "progress" else CHILD_TASK_QUALITY_CONDITIONS
+    for item in catalog:
+        if item["code"] == code:
+            return item
+    return None
+
+
+def _build_child_task_report_dashboard(child_tasks):
+    now_date = datetime.now().date()
+    unit_rows = {}
+
+    for child_task in child_tasks or []:
+        assignment_rows = _task_assignment_rows(child_task, ensure_bridge=False)
+        task_units = {}
+
+        for assignment, user in assignment_rows:
+            if not user:
+                continue
+            unit_identity = _task_unit_identity(user)
+            unit_key = unit_identity.get("unit_key") or f"user_{user.id}"
+            task_unit = task_units.setdefault(
+                unit_key,
+                {
+                    "unit_key": unit_key,
+                    "unit_name": unit_identity.get("unit_name") or getattr(user, "fullname", None) or f"UID {user.id}",
+                    "accepted": False,
+                    "reported": False,
+                    "reported_at": None,
+                },
+            )
+
+            normalized_status = _normalize_status(getattr(assignment, "status", ""))
+            if normalized_status != "Chưa tiếp nhận":
+                task_unit["accepted"] = True
+
+            report_snapshot = _assignment_report_snapshot(assignment)
+            if not report_snapshot.get("has_report"):
+                continue
+            report_time = report_snapshot.get("reported_at") or report_snapshot.get("first_report_at")
+            if task_unit["reported_at"] is None or (report_time and report_time >= task_unit["reported_at"]):
+                task_unit["reported"] = True
+                task_unit["reported_at"] = report_time
+
+        for task_unit in task_units.values():
+            deadline = getattr(child_task, "deadline", None)
+            is_overdue = False
+            if deadline:
+                if task_unit["reported"] and task_unit["reported_at"]:
+                    is_overdue = task_unit["reported_at"].date() > deadline
+                else:
+                    is_overdue = deadline < now_date
+
+            unit_row = unit_rows.setdefault(
+                task_unit["unit_key"],
+                {
+                    "unit_key": task_unit["unit_key"],
+                    "unit_name": task_unit["unit_name"],
+                    "child_task_count": 0,
+                    "accepted_count": 0,
+                    "reported_count": 0,
+                    "missing_count": 0,
+                    "overdue_count": 0,
+                    "on_time_count": 0,
+                    "reported_items": [],
+                    "missing_items": [],
+                    "overdue_items": [],
+                    "all_items": [],
+                },
+            )
+
+            unit_row["child_task_count"] += 1
+            if task_unit["accepted"]:
+                unit_row["accepted_count"] += 1
+            if task_unit["reported"]:
+                unit_row["reported_count"] += 1
+            else:
+                unit_row["missing_count"] += 1
+            if is_overdue:
+                unit_row["overdue_count"] += 1
+            else:
+                unit_row["on_time_count"] += 1
+
+            task_item = {
+                "task_id": child_task.id,
+                "task_title": child_task.title,
+                "deadline": deadline,
+                "accepted": task_unit["accepted"],
+                "reported": task_unit["reported"],
+                "reported_at": task_unit["reported_at"],
+                "is_overdue": is_overdue,
+            }
+            unit_row["all_items"].append(task_item)
+            if task_unit["reported"]:
+                unit_row["reported_items"].append(task_item)
+            else:
+                unit_row["missing_items"].append(task_item)
+            if is_overdue:
+                unit_row["overdue_items"].append(task_item)
+
+    unit_row_items = []
+    for unit_row in unit_rows.values():
+        total_count = unit_row["child_task_count"]
+        if unit_row["reported_count"] == total_count and total_count > 0:
+            unit_row["progress_code"] = "reported_complete"
+        elif unit_row["accepted_count"] == 0:
+            unit_row["progress_code"] = "not_reported"
+        else:
+            unit_row["progress_code"] = "reporting_in_progress"
+
+        if unit_row["overdue_count"] == 0:
+            unit_row["quality_code"] = "on_time"
+        elif unit_row["overdue_count"] == total_count and total_count > 0:
+            unit_row["quality_code"] = "fully_overdue"
+        else:
+            unit_row["quality_code"] = "partial_overdue"
+
+        progress_meta = _child_task_condition_meta("progress", unit_row["progress_code"]) or {}
+        quality_meta = _child_task_condition_meta("quality", unit_row["quality_code"]) or {}
+        unit_row["progress_label"] = progress_meta.get("label", "")
+        unit_row["progress_description"] = progress_meta.get("description", "")
+        unit_row["quality_label"] = quality_meta.get("label", "")
+        unit_row["quality_description"] = quality_meta.get("description", "")
+        unit_row["reported_items"].sort(key=lambda item: item["task_title"].lower())
+        unit_row["missing_items"].sort(key=lambda item: item["task_title"].lower())
+        unit_row["overdue_items"].sort(key=lambda item: item["task_title"].lower())
+        unit_row["all_items"].sort(key=lambda item: item["task_title"].lower())
+        unit_row_items.append(unit_row)
+
+    unit_row_items.sort(
+        key=lambda item: (
+            item["progress_code"] == "reported_complete",
+            item["quality_code"] == "on_time",
+            -item["missing_count"],
+            -item["overdue_count"],
+            item["unit_name"].lower(),
+        )
+    )
+
+    progress_groups = []
+    for item in CHILD_TASK_PROGRESS_CONDITIONS:
+        matched_units = [unit_row for unit_row in unit_row_items if unit_row["progress_code"] == item["code"]]
+        progress_groups.append({**item, "count": len(matched_units), "units": matched_units})
+
+    quality_groups = []
+    for item in CHILD_TASK_QUALITY_CONDITIONS:
+        matched_units = [unit_row for unit_row in unit_row_items if unit_row["quality_code"] == item["code"]]
+        quality_groups.append({**item, "count": len(matched_units), "units": matched_units})
+
+    return {
+        "total_units": len(unit_row_items),
+        "total_child_tasks": sum(unit_row["child_task_count"] for unit_row in unit_row_items),
+        "total_missing_tasks": sum(unit_row["missing_count"] for unit_row in unit_row_items),
+        "total_overdue_tasks": sum(unit_row["overdue_count"] for unit_row in unit_row_items),
+        "unit_rows": unit_row_items,
+        "progress_groups": progress_groups,
+        "quality_groups": quality_groups,
+        "child_task_count_by_unit": {
+            unit_row["unit_key"]: unit_row["child_task_count"]
+            for unit_row in unit_row_items
+        },
+    }
+
+
 def _build_structured_task_report_comment(schema, payload):
     summary_lines = _structured_task_report_summary_lines(schema, payload, limit=5)
     if summary_lines:
@@ -2983,7 +3187,8 @@ def _build_assignment_unit_cards(assigns, report_snapshots=None):
     return output
 
 
-def _build_assignment_role_groups(assigns):
+def _build_assignment_role_groups(assigns, child_task_counts_by_unit=None):
+    child_task_counts_by_unit = child_task_counts_by_unit or {}
     role_groups = {}
     for assignment, user in assigns or []:
         if not user:
@@ -3002,6 +3207,7 @@ def _build_assignment_role_groups(assigns):
                 "accepted_count": 0,
                 "total_count": 0,
                 "unit_count": 0,
+                "child_task_count": 0,
             },
         )
 
@@ -3018,6 +3224,7 @@ def _build_assignment_role_groups(assigns):
                 "accepted_count": 0,
                 "total_count": 0,
                 "progress_text": "0/0",
+                "child_task_count": child_task_counts_by_unit.get(unit_key, 0),
             },
         )
 
@@ -3047,6 +3254,7 @@ def _build_assignment_role_groups(assigns):
         units.sort(key=lambda item: item["unit_name"].lower())
         group["units"] = units
         group["unit_count"] = len(units)
+        group["child_task_count"] = sum(unit_card.get("child_task_count", 0) for unit_card in units)
         if group["completed_count"] == group["total_count"] and group["total_count"] > 0:
             group["status"] = COMPLETED_STATUS
         elif group["accepted_count"] > 0:
@@ -3979,6 +4187,16 @@ def task_detail(tid):
     unit_report_groups = []
     discussion_threads = []
     assignment_role_groups = []
+    child_task_tracking = {
+        "total_units": 0,
+        "total_child_tasks": 0,
+        "total_missing_tasks": 0,
+        "total_overdue_tasks": 0,
+        "unit_rows": [],
+        "progress_groups": [],
+        "quality_groups": [],
+        "child_task_count_by_unit": {},
+    }
     da06_management_view = []
     task_report_schema = _load_task_report_schema(task)
     linked_report_templates = _build_linked_report_template_views(
@@ -4033,12 +4251,16 @@ def task_detail(tid):
             elif child_metrics["display_status"] != "Chưa tiếp nhận":
                 child_task_stats["in_progress"] += 1
         child_task_reporting_matrix = _build_child_task_reporting_matrix(child_tasks)
+        child_task_tracking = _build_child_task_report_dashboard(child_tasks)
     if can_observe_task_view:
         discussion_comments = [
             comment for comment in visible_comments
             if not (getattr(comment, "content", "") or "").startswith(REPORT_PREFIX)
         ]
-        assignment_role_groups = _build_assignment_role_groups(assigns)
+        assignment_role_groups = _build_assignment_role_groups(
+            assigns,
+            child_task_counts_by_unit=child_task_tracking.get("child_task_count_by_unit", {}),
+        )
         unit_report_rows, unit_report_stats = _build_unit_report_summary(
             assigns,
             comments,
@@ -4130,6 +4352,7 @@ def task_detail(tid):
         unit_report_groups=unit_report_groups,
         assignment_role_groups=assignment_role_groups,
         assignment_unit_progress=assignment_unit_progress,
+        child_task_tracking=child_task_tracking,
         can_manage_task_view=can_manage_task_view,
         can_observe_task_view=can_observe_task_view,
         limited_assignment_view=limited_assignment_view,
@@ -4314,6 +4537,110 @@ def download_task_report_file(tid, user_id):
     unit_name = _task_assignee_unit_name(target_user)
     download_name = _task_report_download_name(task, unit_name, file_name)
     return send_file(file_path, as_attachment=True, download_name=download_name)
+
+
+@tasks_bp.route("/tasks/<int:tid>/child-report-export/<string:dimension>/<string:condition>")
+def export_child_task_report_condition(tid, dimension, condition):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+
+    if Workbook is None:
+        flash("Máy chủ chưa cài thư viện xuất Excel.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    perms = _current_perms()
+    is_lead = _can_process_task_module(perms)
+    can_view_all_tasks = _can_view_all_tasks(perms)
+    current_user = db.session.get(User, session["uid"])
+    if not (
+        can_view_all_tasks
+        or is_lead
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+        or _can_watch_task(task, user=current_user)
+    ):
+        flash("Bạn không có quyền xuất danh sách theo dõi task con của công việc này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    child_tasks = (
+        Task.query.options(joinedload(Task.assignments).joinedload(TaskAssignment.user))
+        .filter_by(parent_task_id=task.id)
+        .order_by(Task.created_at.asc(), Task.id.asc())
+        .all()
+    )
+    tracking = _build_child_task_report_dashboard(child_tasks)
+    meta = _child_task_condition_meta(dimension, condition)
+    if dimension == "progress":
+        groups = tracking.get("progress_groups", [])
+    elif dimension == "quality":
+        groups = tracking.get("quality_groups", [])
+    else:
+        groups = []
+        meta = None
+
+    if not meta:
+        flash("Điều kiện xuất danh sách không hợp lệ.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    matched_group = next((group for group in groups if group["code"] == condition), None)
+    matched_units = (matched_group or {}).get("units", [])
+    if not matched_units:
+        flash("Hiện chưa có đơn vị phù hợp với điều kiện đã chọn.", "warning")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Danh sach"
+    sheet.append(["Công việc", task.title])
+    sheet.append(["Nhóm điều kiện", "Tiến độ báo cáo" if dimension == "progress" else "Chất lượng báo cáo"])
+    sheet.append(["Điều kiện", meta["label"]])
+    sheet.append(["Diễn giải", meta["description"]])
+    sheet.append(["Ngày xuất", datetime.now().strftime("%d/%m/%Y %H:%M")])
+    sheet.append([])
+    sheet.append([
+        "Đơn vị",
+        "Task con được giao",
+        "Đã tiếp nhận",
+        "Đã báo cáo",
+        "Chưa báo cáo",
+        "Task quá hạn",
+        "Tiến độ báo cáo",
+        "Chất lượng báo cáo",
+        "Task chưa báo",
+        "Task quá hạn",
+    ])
+
+    for unit_row in matched_units:
+        sheet.append([
+            unit_row["unit_name"],
+            unit_row["child_task_count"],
+            unit_row["accepted_count"],
+            unit_row["reported_count"],
+            unit_row["missing_count"],
+            unit_row["overdue_count"],
+            unit_row["progress_label"],
+            unit_row["quality_label"],
+            ", ".join(item["task_title"] for item in unit_row["missing_items"]),
+            ", ".join(item["task_title"] for item in unit_row["overdue_items"]),
+        ])
+
+    output = io.BytesIO()
+    workbook.save(output)
+    output.seek(0)
+    task_slug = _task_download_slug(getattr(task, "title", ""), f"task_{task.id}")
+    filename = f"{meta['filename_suffix']}_{task_slug}_{task.id}.xlsx"
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
 
 @tasks_bp.route("/tasks/<int:tid>/unit-report-export")
