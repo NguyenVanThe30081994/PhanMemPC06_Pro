@@ -1092,6 +1092,8 @@ def _extract_submission_numeric_value(task, payload):
         parsed = _parse_report_number(raw_value)
     except ValueError:
         return None
+    if parsed is None:
+        return None
     return float(parsed)
 
 

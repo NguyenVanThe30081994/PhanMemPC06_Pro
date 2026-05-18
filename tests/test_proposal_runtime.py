@@ -5,7 +5,12 @@ from datetime import date, datetime
 
 from app import app
 from models import ReportTemplate, Task, TaskAssignment, TaskItem, TaskParticipant, TaskReportLink, TaskSubmission, User, db
-from routes.tasks import _query_task_scope, _sync_task_runtime_models, _task_runtime_bridge_needs_sync
+from routes.tasks import (
+    _extract_submission_numeric_value,
+    _query_task_scope,
+    _sync_task_runtime_models,
+    _task_runtime_bridge_needs_sync,
+)
 from utils import has_module_permission, normalize_permission_payload
 
 
@@ -159,6 +164,44 @@ class ProposalRuntimeTests(unittest.TestCase):
                 TaskReportLink.query.filter_by(task_id=task.id).delete(synchronize_session=False)
                 TaskItem.query.filter_by(task_id=task.id).delete(synchronize_session=False)
                 TaskAssignment.query.filter_by(task_id=task.id).delete(synchronize_session=False)
+                Task.query.filter_by(id=task.id).delete(synchronize_session=False)
+                db.session.commit()
+
+    def test_numeric_submission_extractor_returns_none_for_blank_value(self):
+        with app.app_context():
+            user = User.query.filter_by(is_active=True).order_by(User.id.asc()).first()
+            self.assertIsNotNone(user, "Cần có ít nhất một user active để test numeric extractor.")
+            now_token = datetime.now().strftime("%Y%m%d%H%M%S%f")
+
+            task = Task(
+                title=f"[TEST] numeric blank {now_token}",
+                content="Task phục vụ test payload số rỗng",
+                deadline=date.today(),
+                author_id=user.id,
+                author_name=user.fullname,
+                priority="Cao",
+                task_type="Công việc thường xuyên",
+                initial_status="Đang thực hiện",
+                report_schema_json=json.dumps(
+                    {
+                        "enabled": True,
+                        "meta": {
+                            "kind": "simple_child_task",
+                            "report_kind": "number",
+                            "attachment_required": False,
+                        },
+                    },
+                    ensure_ascii=False,
+                ),
+                created_at=datetime.now(),
+            )
+            db.session.add(task)
+            db.session.commit()
+
+            try:
+                payload = {"values": {"child_task_number": None}}
+                self.assertIsNone(_extract_submission_numeric_value(task, payload))
+            finally:
                 Task.query.filter_by(id=task.id).delete(synchronize_session=False)
                 db.session.commit()
 
