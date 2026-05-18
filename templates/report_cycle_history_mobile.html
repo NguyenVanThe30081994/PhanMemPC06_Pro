@@ -25,7 +25,7 @@
                 {% endif %}
             </p>
         </div>
-        <a href="{{ url_for('reporting_bp.user_dashboard') if not is_admin else url_for('reporting_bp.admin_cycle_detail', cycle_id=cycle.id) }}" aria-label="Quay lại" title="Quay lại"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay lại</span></a>
+        <a href="{{ back_url }}" aria-label="Quay lại" title="Quay lại"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay lại</span></a>
     </div>
 </section>
 

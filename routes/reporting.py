@@ -4478,6 +4478,26 @@ def cycle_workspace(cycle_id):
     export_context = _cycle_view_export_context(context)
     report_admin_mode = _can_manage_report_templates()
     available_units = _cycle_units(cycle) if report_admin_mode else []
+    back_url = _safe_back_url(request.args.get("back")) or _default_cycle_back_url(
+        cycle,
+        report_date=report_date,
+        is_admin=report_admin_mode,
+    )
+    workspace_url = url_for("reporting_bp.cycle_workspace", **_workspace_route_values(cycle, unit=unit, report_date=report_date))
+    preview_url = _route_with_back(
+        "reporting_bp.cycle_preview",
+        cycle,
+        back_url=workspace_url,
+        unit=unit,
+        report_date=report_date,
+    )
+    history_url = _route_with_back(
+        "reporting_bp.cycle_history",
+        cycle,
+        back_url=workspace_url,
+        unit=unit,
+        report_date=report_date,
+    )
     sheet_views = []
     for sheet_meta in metadata.get("sheets", []):
         ws = workbook[sheet_meta["sheet_name"]]
@@ -4561,6 +4581,9 @@ def cycle_workspace(cycle_id):
         editable=editable,
         view_locked=context.get("view_locked", False),
         form_sections=form_sections,
+        back_url=back_url,
+        preview_url=preview_url,
+        history_url=history_url,
     )
 
 
@@ -4591,6 +4614,11 @@ def cycle_preview(cycle_id):
     latest_submission = export_context["latest_submission"]
     admin_all_units = export_context["admin_all_units"]
     unit = None if admin_all_units else unit
+    back_url = _safe_back_url(request.args.get("back")) or _default_cycle_back_url(
+        cycle,
+        report_date=report_date,
+        is_admin=report_admin_mode,
+    )
     download_url = (
         url_for(
             "reporting_bp.download_cycle_effective_view",
@@ -4604,12 +4632,7 @@ def cycle_preview(cycle_id):
             flash("Trên mobile, hệ thống sẽ tải file báo cáo để xem kết quả.", "info")
             return redirect(download_url)
         flash("Trên mobile, giao diện xem báo cáo đã được ẩn. Vui lòng theo dõi tiến độ hoặc tải file khi có sẵn.", "info")
-        if report_admin_mode:
-            fallback_values = {}
-            if report_date:
-                fallback_values["report_date"] = report_date.strftime("%Y-%m-%d")
-            return redirect(url_for("reporting_bp.admin_cycle_detail", cycle_id=cycle.id, **fallback_values))
-        return redirect(url_for("reporting_bp.user_dashboard"))
+        return redirect(back_url)
     workbook, formula_values = build_preview_workbook(template_version.source_path, existing_values)
     preview_sheets = []
     for sheet_meta in metadata.get("sheets", []):
@@ -4651,6 +4674,7 @@ def cycle_preview(cycle_id):
         current_unit=unit,
         is_admin=report_admin_mode,
         download_url=download_url,
+        back_url=back_url,
     )
 
 
@@ -4668,6 +4692,11 @@ def cycle_history(cycle_id):
     context = _resolve_cycle_context(cycle_id)
     if not context:
         return "Not Found", 404
+    back_url = _safe_back_url(request.args.get("back")) or _default_cycle_back_url(
+        context["cycle"],
+        report_date=context["report_date"],
+        is_admin=_can_manage_report_templates(),
+    )
     history_rows = _history_rows_for_submissions(
         context["view_history"],
         context["template_version"],
@@ -4687,6 +4716,7 @@ def cycle_history(cycle_id):
         latest_submission=context["view_submission"],
         history_rows=history_rows,
         is_admin=_can_manage_report_templates(),
+        back_url=back_url,
     )
 
 
@@ -4709,6 +4739,29 @@ def _workspace_route_values(cycle, unit=None, report_date=None):
     if report_date:
         values["report_date"] = report_date.strftime("%Y-%m-%d")
     return values
+
+
+def _safe_back_url(raw_value):
+    value = str(raw_value or "").strip()
+    if not value or not value.startswith("/") or value.startswith("//"):
+        return ""
+    return value
+
+
+def _default_cycle_back_url(cycle, report_date=None, is_admin=False):
+    if is_admin:
+        values = {}
+        if report_date:
+            values["report_date"] = report_date.strftime("%Y-%m-%d")
+        return url_for("reporting_bp.admin_cycle_detail", cycle_id=cycle.id, **values)
+    return url_for("reporting_bp.user_dashboard")
+
+
+def _route_with_back(endpoint, cycle, back_url="", unit=None, report_date=None):
+    values = _workspace_route_values(cycle, unit=unit, report_date=report_date)
+    if back_url:
+        values["back"] = back_url
+    return url_for(endpoint, **values)
 
 
 def _resolve_cycle_context(cycle_id, prefer_all_units=False):

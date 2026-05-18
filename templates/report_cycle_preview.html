@@ -14,11 +14,7 @@
                 </div>
             </div>
             <div class="pc06-action-cluster">
-                {% if is_admin and report_date %}
-                <a href="{{ url_for('reporting_bp.admin_cycle_detail', cycle_id=cycle.id, report_date=report_date.strftime('%Y-%m-%d')) }}" class="btn btn-bdhvs light">
-                {% else %}
-                <a href="{{ url_for('reporting_bp.user_dashboard') if not is_admin else url_for('reporting_bp.admin_cycle_detail', cycle_id=cycle.id) }}" class="btn btn-bdhvs light">
-                {% endif %}
+                <a href="{{ back_url }}" class="btn btn-bdhvs light">
                     <i class="fa-solid fa-arrow-left"></i>
                     Quay lại
                 </a>

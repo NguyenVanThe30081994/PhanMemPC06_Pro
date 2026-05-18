@@ -80,6 +80,20 @@
     .detail-mobile-child-badges { display: flex; flex-wrap: wrap; gap: 8px; }
     .detail-mobile-child-badges span { display: inline-flex; align-items: center; padding: 7px 10px; border-radius: 999px; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-main); font-size: 0.78rem; }
     .detail-mobile-child-badges span.is-missing { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+    .detail-mobile-child-overview { display: grid; gap: 10px; margin-bottom: 12px; }
+    .detail-mobile-child-summary { color: var(--text-muted); font-size: 0.8rem; line-height: 1.55; }
+    .detail-mobile-child-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .detail-mobile-child-fact { padding: 12px; border-radius: 14px; background: var(--bg-body); border: 1px solid var(--border); }
+    .detail-mobile-child-fact span { display: block; color: var(--text-muted); font-size: 0.72rem; }
+    .detail-mobile-child-fact strong { display: block; margin-top: 5px; color: var(--text-main); font-size: 0.96rem; }
+    .detail-mobile-child-item-summary { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 12px; }
+    .detail-mobile-child-item-copy { min-width: 0; flex: 1; }
+    .detail-mobile-child-item-copy strong { display: block; color: var(--text-main); }
+    .detail-mobile-child-item-copy small { display: block; margin-top: 4px; color: var(--text-muted); font-size: 0.76rem; line-height: 1.5; }
+    .detail-mobile-child-item-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; flex-shrink: 0; }
+    .detail-mobile-child-pill { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-size: 0.74rem; font-weight: 700; }
+    .detail-mobile-child-pill.is-missing { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+    .detail-mobile-child-item-body { padding: 0 12px 12px; border-top: 1px solid var(--border); }
     .detail-mobile-thread-card { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--bg-body); }
     .detail-mobile-thread-card summary { list-style: none; cursor: pointer; }
     .detail-mobile-thread-card summary::-webkit-details-marker { display: none; }
@@ -319,54 +333,94 @@
 {% endif %}
 
 {% if can_observe_task_view and child_task_reporting_matrix.task_rows %}
+{% set child_report_stats = namespace(open_tasks=0, open_units=0, missing_total=0) %}
+{% for row in child_task_reporting_matrix.task_rows %}
+    {% if row.missing_units %}
+        {% set child_report_stats.open_tasks = child_report_stats.open_tasks + 1 %}
+    {% endif %}
+    {% set child_report_stats.missing_total = child_report_stats.missing_total + row.missing_units %}
+{% endfor %}
+{% for row in child_task_reporting_matrix.unit_rows %}
+    {% if row.missing_count %}
+        {% set child_report_stats.open_units = child_report_stats.open_units + 1 %}
+    {% endif %}
+{% endfor %}
 <section class="detail-mobile-card">
     <h2>Theo dõi task con</h2>
+    <div class="detail-mobile-child-overview">
+        <div class="detail-mobile-child-summary">
+            Theo dõi theo task và theo đơn vị để biết nhanh đầu việc nào còn thiếu báo cáo trước khi mở sâu từng dòng.
+        </div>
+        <div class="detail-mobile-child-facts">
+            <div class="detail-mobile-child-fact">
+                <span>Task con</span>
+                <strong>{{ child_task_reporting_matrix.task_rows|length }}</strong>
+            </div>
+            <div class="detail-mobile-child-fact">
+                <span>Đơn vị</span>
+                <strong>{{ child_task_reporting_matrix.unit_rows|length }}</strong>
+            </div>
+            <div class="detail-mobile-child-fact">
+                <span>Chưa báo</span>
+                <strong>{{ child_report_stats.missing_total }}</strong>
+            </div>
+        </div>
+    </div>
     <div class="detail-mobile-stack">
         <details class="detail-mobile-report-group" open>
             <summary class="detail-mobile-report-group-summary">
                 <div>
                     <span>Theo task con</span>
                     <strong>{{ child_task_reporting_matrix.task_rows|length }}</strong>
-                    <span>Bấm để xem tiến độ từng đầu việc</span>
+                    <span>{{ child_report_stats.open_tasks }} task còn thiếu báo cáo</span>
                 </div>
                 <i class="fa-solid fa-chevron-down detail-mobile-report-caret"></i>
             </summary>
             <div class="detail-mobile-report-body">
                 <div class="detail-mobile-child-matrix">
                     {% for row in child_task_reporting_matrix.task_rows %}
-                    <article class="detail-mobile-child-card">
-                        <div class="detail-mobile-child-head">
-                            <strong>{{ row.title }}</strong>
-                            <div class="detail-mobile-child-stats">
-                                <span>{{ row.reported_units }}/{{ row.total_units }} đơn vị</span>
+                    <details class="detail-mobile-report-item">
+                        <summary class="detail-mobile-child-item-summary">
+                            <div class="detail-mobile-child-item-copy">
+                                <strong>{{ row.title }}</strong>
+                                <small>{{ row.reported_units }}/{{ row.total_units }} đơn vị đã báo{% if row.missing_units %}, còn thiếu {{ row.missing_units }} đơn vị{% else %}, đã hoàn tất{% endif %}</small>
+                            </div>
+                            <div class="detail-mobile-child-item-actions">
+                                <span class="detail-mobile-child-pill">{{ row.reported_units }}/{{ row.total_units }} đơn vị</span>
                                 {% if row.numeric_total %}
-                                <span>Tổng {{ row.numeric_total }}</span>
+                                <span class="detail-mobile-child-pill">Tổng {{ row.numeric_total }}</span>
                                 {% endif %}
+                                {% if row.missing_units %}
+                                <span class="detail-mobile-child-pill is-missing">{{ row.missing_units }} chưa báo</span>
+                                {% endif %}
+                                <i class="fa-solid fa-chevron-down detail-mobile-report-caret"></i>
                             </div>
-                        </div>
-                        <div class="detail-mobile-child-columns">
-                            <div class="detail-mobile-child-column">
-                                <h3>Đã báo</h3>
-                                <div class="detail-mobile-child-badges">
-                                    {% for item in row.reported_unit_items %}
-                                    <span>{{ item.unit_name }}</span>
-                                    {% else %}
-                                    <span>Chưa có</span>
-                                    {% endfor %}
+                        </summary>
+                        <div class="detail-mobile-child-item-body">
+                            <div class="detail-mobile-child-columns">
+                                <div class="detail-mobile-child-column">
+                                    <h3>Đã báo</h3>
+                                    <div class="detail-mobile-child-badges">
+                                        {% for item in row.reported_unit_items %}
+                                        <span>{{ item.unit_name }}</span>
+                                        {% else %}
+                                        <span>Chưa có</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="detail-mobile-child-column">
+                                    <h3>Chưa báo</h3>
+                                    <div class="detail-mobile-child-badges">
+                                        {% for item in row.missing_unit_items %}
+                                        <span class="is-missing">{{ item.unit_name }}</span>
+                                        {% else %}
+                                        <span>Không còn thiếu</span>
+                                        {% endfor %}
+                                    </div>
                                 </div>
                             </div>
-                            <div class="detail-mobile-child-column">
-                                <h3>Chưa báo</h3>
-                                <div class="detail-mobile-child-badges">
-                                    {% for item in row.missing_unit_items %}
-                                    <span class="is-missing">{{ item.unit_name }}</span>
-                                    {% else %}
-                                    <span>Không còn thiếu</span>
-                                    {% endfor %}
-                                </div>
-                            </div>
                         </div>
-                    </article>
+                    </details>
                     {% endfor %}
                 </div>
             </div>
@@ -376,43 +430,52 @@
                 <div>
                     <span>Theo đơn vị</span>
                     <strong>{{ child_task_reporting_matrix.unit_rows|length }}</strong>
-                    <span>Bấm để xem đơn vị còn thiếu task nào</span>
+                    <span>{{ child_report_stats.open_units }} đơn vị còn task chưa báo</span>
                 </div>
                 <i class="fa-solid fa-chevron-down detail-mobile-report-caret"></i>
             </summary>
             <div class="detail-mobile-report-body">
                 <div class="detail-mobile-child-matrix">
                     {% for row in child_task_reporting_matrix.unit_rows %}
-                    <article class="detail-mobile-child-card">
-                        <div class="detail-mobile-child-head">
-                            <strong>{{ row.unit_name }}</strong>
-                            <div class="detail-mobile-child-stats">
-                                <span>{{ row.reported_count }}/{{ row.total_count }} task</span>
+                    <details class="detail-mobile-report-item">
+                        <summary class="detail-mobile-child-item-summary">
+                            <div class="detail-mobile-child-item-copy">
+                                <strong>{{ row.unit_name }}</strong>
+                                <small>{{ row.reported_count }}/{{ row.total_count }} task đã báo{% if row.missing_count %}, còn thiếu {{ row.missing_count }} task{% else %}, đã hoàn tất{% endif %}</small>
                             </div>
-                        </div>
-                        <div class="detail-mobile-child-columns">
-                            <div class="detail-mobile-child-column">
-                                <h3>Đã báo</h3>
-                                <div class="detail-mobile-child-badges">
-                                    {% for item in row.reported_items %}
-                                    <span>{{ item.task_title }}</span>
-                                    {% else %}
-                                    <span>Chưa có</span>
-                                    {% endfor %}
+                            <div class="detail-mobile-child-item-actions">
+                                <span class="detail-mobile-child-pill">{{ row.reported_count }}/{{ row.total_count }} task</span>
+                                {% if row.missing_count %}
+                                <span class="detail-mobile-child-pill is-missing">{{ row.missing_count }} chưa báo</span>
+                                {% endif %}
+                                <i class="fa-solid fa-chevron-down detail-mobile-report-caret"></i>
+                            </div>
+                        </summary>
+                        <div class="detail-mobile-child-item-body">
+                            <div class="detail-mobile-child-columns">
+                                <div class="detail-mobile-child-column">
+                                    <h3>Đã báo</h3>
+                                    <div class="detail-mobile-child-badges">
+                                        {% for item in row.reported_items %}
+                                        <span>{{ item.task_title }}</span>
+                                        {% else %}
+                                        <span>Chưa có</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="detail-mobile-child-column">
+                                    <h3>Chưa báo</h3>
+                                    <div class="detail-mobile-child-badges">
+                                        {% for item in row.missing_items %}
+                                        <span class="is-missing">{{ item.task_title }}</span>
+                                        {% else %}
+                                        <span>Không còn thiếu</span>
+                                        {% endfor %}
+                                    </div>
                                 </div>
                             </div>
-                            <div class="detail-mobile-child-column">
-                                <h3>Chưa báo</h3>
-                                <div class="detail-mobile-child-badges">
-                                    {% for item in row.missing_items %}
-                                    <span class="is-missing">{{ item.task_title }}</span>
-                                    {% else %}
-                                    <span>Không còn thiếu</span>
-                                    {% endfor %}
-                                </div>
-                            </div>
                         </div>
-                    </article>
+                    </details>
                     {% endfor %}
                 </div>
             </div>

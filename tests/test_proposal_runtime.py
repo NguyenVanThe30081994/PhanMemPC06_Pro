@@ -1,10 +1,32 @@
 # -*- coding: utf-8 -*-
+import os
 import json
+import tempfile
 import unittest
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from html import escape
+from urllib.parse import quote
 
+from openpyxl import Workbook
 from app import app
-from models import ReportTemplate, Task, TaskAssignment, TaskItem, TaskParticipant, TaskReportLink, TaskSubmission, User, db
+from models import (
+    ReportCycle,
+    ReportInstance,
+    ReportingPeriod,
+    ReportTemplate,
+    ReportTemplateField,
+    ReportTemplateVersion,
+    ReportType,
+    ReportUnit,
+    Task,
+    TaskAssignment,
+    TaskItem,
+    TaskParticipant,
+    TaskReportLink,
+    TaskSubmission,
+    User,
+    db,
+)
 from routes.tasks import (
     _extract_submission_numeric_value,
     _query_task_scope,
@@ -15,6 +37,181 @@ from utils import has_module_permission, normalize_permission_payload
 
 
 class ProposalRuntimeTests(unittest.TestCase):
+    def _login_admin_client(self):
+        with app.app_context():
+            user = User.query.filter_by(username='admin').first() or User.query.filter_by(is_active=True).order_by(User.id.asc()).first()
+            self.assertIsNotNone(user, "Cần có ít nhất một user active để test.")
+        client = app.test_client()
+        with client.session_transaction() as sess:
+            sess['uid'] = user.id
+            sess['username'] = user.username
+            sess['fullname'] = user.fullname
+            sess['unit'] = user.unit_area or ''
+            sess['unit_area'] = user.unit_area or ''
+            sess['unit_area_ref'] = user.unit_area or ''
+            sess['unit_key'] = user.unit_key or ''
+            sess['role_id'] = user.role_id
+            sess['must_change'] = False
+            sess['is_admin'] = True
+            sess['last_active'] = datetime.now().timestamp()
+        return client, user
+
+    def _build_report_cycle_fixture(self, report_type_code="daily"):
+        with app.app_context():
+            report_type = ReportType.query.filter_by(code=report_type_code).first()
+            if report_type is None:
+                report_type = ReportType(
+                    code=report_type_code,
+                    name="Báo cáo ngày" if report_type_code == "daily" else "Báo cáo định kỳ",
+                    frequency=report_type_code,
+                    is_active=True,
+                )
+                db.session.add(report_type)
+                db.session.flush()
+
+            now_token = datetime.now().strftime("%Y%m%d%H%M%S%f")
+            unit = ReportUnit(
+                code=f"test_unit_{now_token}",
+                name=f"Đơn vị test {now_token}",
+                source="test",
+                is_active=True,
+            )
+            db.session.add(unit)
+            db.session.flush()
+
+            workbook = Workbook()
+            sheet = workbook.active
+            sheet.title = "Sheet1"
+            sheet["A1"] = "Đơn vị"
+            sheet["B1"] = "Số liệu"
+            sheet["A2"] = unit.name
+            sheet["B2"] = 1
+
+            handle = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx", dir="/private/tmp")
+            handle.close()
+            workbook.save(handle.name)
+
+            metadata = {
+                "sheets": [
+                    {
+                        "sheet_name": "Sheet1",
+                        "order_index": 0,
+                        "header_rows": 1,
+                        "header_start_row": 1,
+                        "header_end_row": 1,
+                        "data_start_row": 2,
+                        "data_end_row": 2,
+                        "unit_start_row": 2,
+                        "unit_end_row": 2,
+                        "total_start_row": 2,
+                        "total_end_row": 2,
+                        "start_column": "A",
+                        "end_column": "B",
+                        "fields": [
+                            {
+                                "field_code": "so_lieu",
+                                "field_name": "Số liệu",
+                                "column_index": 2,
+                                "column_letter": "B",
+                                "data_type": "number",
+                                "input_mode": "text",
+                                "is_required": False,
+                                "is_visible": True,
+                                "is_editable": True,
+                                "default_value": "",
+                                "validation_rule": "",
+                                "dictionary_source": "",
+                                "formula_expression": "",
+                                "aggregation_type": "",
+                                "display_order": 1,
+                                "path_code": "",
+                            }
+                        ],
+                    }
+                ]
+            }
+
+            template = ReportTemplate(
+                code=f"test_template_{now_token}",
+                name=f"Template test {now_token}",
+                report_type_id=report_type.id,
+                professional_unit="PC06",
+                status="active",
+            )
+            db.session.add(template)
+            db.session.flush()
+
+            version = ReportTemplateVersion(
+                template_id=template.id,
+                version_no=1,
+                source_filename=os.path.basename(handle.name),
+                source_path=handle.name,
+                metadata_json=json.dumps(metadata, ensure_ascii=False),
+                is_current=True,
+            )
+            db.session.add(version)
+            db.session.flush()
+
+            db.session.add(
+                ReportTemplateField(
+                    version_id=version.id,
+                    sheet_name="Sheet1",
+                    field_code="so_lieu",
+                    field_name="Số liệu",
+                    display_name="Số liệu",
+                    column_index=2,
+                    column_letter="B",
+                    data_type="number",
+                    input_mode="text",
+                    is_required=False,
+                    is_visible=True,
+                    is_editable=True,
+                    default_value="",
+                    validation_rule="",
+                    dictionary_source="",
+                    formula_expression="",
+                    aggregation_type="",
+                    display_order=1,
+                    path_code="",
+                )
+            )
+
+            cycle = ReportCycle(
+                template_version_id=version.id,
+                report_type_id=report_type.id,
+                name=f"Cycle test {now_token}",
+                open_at=datetime.now(),
+                due_at=datetime.now() + timedelta(days=1),
+                status="open",
+                scope_json=json.dumps({"unit_ids": [unit.id], "mode": "targeted"}, ensure_ascii=False),
+                is_locked=False,
+            )
+            db.session.add(cycle)
+            db.session.commit()
+
+            return {
+                "cycle_id": cycle.id,
+                "template_id": template.id,
+                "version_id": version.id,
+                "unit_id": unit.id,
+                "report_type_id": report_type.id,
+                "workbook_path": handle.name,
+            }
+
+    def _cleanup_report_cycle_fixture(self, fixture):
+        with app.app_context():
+            ReportInstance.query.filter_by(cycle_id=fixture["cycle_id"]).delete(synchronize_session=False)
+            ReportingPeriod.query.filter_by(template_id=fixture["template_id"]).delete(synchronize_session=False)
+            ReportCycle.query.filter_by(id=fixture["cycle_id"]).delete(synchronize_session=False)
+            ReportTemplateField.query.filter_by(version_id=fixture["version_id"]).delete(synchronize_session=False)
+            ReportTemplateVersion.query.filter_by(id=fixture["version_id"]).delete(synchronize_session=False)
+            ReportTemplate.query.filter_by(id=fixture["template_id"]).delete(synchronize_session=False)
+            ReportUnit.query.filter_by(id=fixture["unit_id"]).delete(synchronize_session=False)
+            db.session.commit()
+        workbook_path = fixture.get("workbook_path")
+        if workbook_path and os.path.exists(workbook_path):
+            os.remove(workbook_path)
+
     def test_permission_normalization_supports_view_process_exec(self):
         legacy_payload = {
             "p_task_lead": 1,
@@ -204,6 +401,97 @@ class ProposalRuntimeTests(unittest.TestCase):
             finally:
                 Task.query.filter_by(id=task.id).delete(synchronize_session=False)
                 db.session.commit()
+
+    def test_delete_child_task_redirects_back_to_parent_detail(self):
+        client, user = self._login_admin_client()
+        with app.app_context():
+            now_token = datetime.now().strftime("%Y%m%d%H%M%S%f")
+            parent_task = Task(
+                title=f"[TEST] parent redirect {now_token}",
+                content="Task cha phục vụ test redirect",
+                deadline=date.today(),
+                author_id=user.id,
+                author_name=user.fullname,
+                priority="Cao",
+                task_type="Công việc thường xuyên",
+                initial_status="Chưa tiếp nhận",
+                created_at=datetime.now(),
+            )
+            db.session.add(parent_task)
+            db.session.commit()
+
+            child_task = Task(
+                title=f"[TEST] child redirect {now_token}",
+                content="Task con phục vụ test redirect",
+                deadline=date.today(),
+                author_id=user.id,
+                author_name=user.fullname,
+                priority="Cao",
+                task_type="Công việc thường xuyên",
+                initial_status="Chưa tiếp nhận",
+                parent_task_id=parent_task.id,
+                created_at=datetime.now(),
+            )
+            db.session.add(child_task)
+            db.session.commit()
+            parent_id = parent_task.id
+            child_id = child_task.id
+
+        try:
+            response = client.post(f"/tasks/{child_id}/delete", follow_redirects=False)
+            self.assertEqual(response.status_code, 302)
+            self.assertTrue(response.headers.get("Location", "").endswith(f"/tasks/{parent_id}"))
+        finally:
+            with app.app_context():
+                Task.query.filter_by(parent_task_id=parent_id).delete(synchronize_session=False)
+                Task.query.filter_by(id=parent_id).delete(synchronize_session=False)
+                db.session.commit()
+
+    def test_report_workspace_preview_and_history_preserve_workspace_return_url(self):
+        client, _user = self._login_admin_client()
+        fixture = self._build_report_cycle_fixture(report_type_code="daily")
+        report_date = date.today().strftime("%Y-%m-%d")
+        workspace_url = f"/reports/cycles/{fixture['cycle_id']}?unit_id={fixture['unit_id']}&report_date={report_date}"
+        encoded_back = quote(workspace_url, safe="/")
+
+        try:
+            response = client.get(workspace_url)
+            self.assertEqual(response.status_code, 200)
+            html = response.get_data(as_text=True)
+            self.assertIn(
+                f"/reports/cycles/{fixture['cycle_id']}/view?unit_id={fixture['unit_id']}&amp;report_date={report_date}&amp;back=/reports/cycles/{fixture['cycle_id']}",
+                html,
+            )
+            self.assertIn(
+                f"/reports/cycles/{fixture['cycle_id']}/history?unit_id={fixture['unit_id']}&amp;report_date={report_date}&amp;back=/reports/cycles/{fixture['cycle_id']}",
+                html,
+            )
+            self.assertIn(f"unit_id%3D{fixture['unit_id']}%26report_date%3D{report_date}", html)
+        finally:
+            self._cleanup_report_cycle_fixture(fixture)
+
+    def test_report_preview_and_history_back_button_return_to_workspace(self):
+        client, _user = self._login_admin_client()
+        fixture = self._build_report_cycle_fixture(report_type_code="daily")
+        report_date = date.today().strftime("%Y-%m-%d")
+        workspace_url = f"/reports/cycles/{fixture['cycle_id']}?unit_id={fixture['unit_id']}&report_date={report_date}"
+        encoded_back = quote(workspace_url, safe="/")
+        escaped_workspace_url = escape(workspace_url, quote=True)
+
+        try:
+            preview_response = client.get(
+                f"/reports/cycles/{fixture['cycle_id']}/view?unit_id={fixture['unit_id']}&report_date={report_date}&back={encoded_back}"
+            )
+            self.assertEqual(preview_response.status_code, 200)
+            self.assertIn(f'href="{escaped_workspace_url}"', preview_response.get_data(as_text=True))
+
+            history_response = client.get(
+                f"/reports/cycles/{fixture['cycle_id']}/history?unit_id={fixture['unit_id']}&report_date={report_date}&back={encoded_back}"
+            )
+            self.assertEqual(history_response.status_code, 200)
+            self.assertIn(f'href="{escaped_workspace_url}"', history_response.get_data(as_text=True))
+        finally:
+            self._cleanup_report_cycle_fixture(fixture)
 
 
 if __name__ == "__main__":

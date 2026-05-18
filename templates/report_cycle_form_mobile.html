@@ -50,7 +50,7 @@
             <h1>{{ cycle.name }}</h1>
             <p>{{ template.name }} • {{ current_unit.name if current_unit else 'Không có đơn vị' }}</p>
         </div>
-        <a href="{{ url_for('reporting_bp.user_dashboard') if not is_admin else url_for('reporting_bp.admin_cycle_detail', cycle_id=cycle.id) }}" aria-label="Quay lại" title="Quay lại"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay lại</span></a>
+        <a href="{{ back_url }}" aria-label="Quay lại" title="Quay lại"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay lại</span></a>
     </div>
 </section>
 
@@ -123,7 +123,7 @@
 </form>
 
 <div class="report-form-mobile-toolbar">
-    <a class="btn btn-light border" href="{{ url_for('reporting_bp.cycle_history', cycle_id=cycle.id, report_date=report_date.strftime('%Y-%m-%d')) if report_date else url_for('reporting_bp.cycle_history', cycle_id=cycle.id) }}" aria-label="Lịch sử" title="Lịch sử"><i class="fa-solid fa-clock-rotate-left"></i><span>Lịch sử</span></a>
+    <a class="btn btn-light border" href="{{ history_url }}" aria-label="Lịch sử" title="Lịch sử"><i class="fa-solid fa-clock-rotate-left"></i><span>Lịch sử</span></a>
     {% if download_url %}
     <a class="btn btn-light border" href="{{ download_url }}" aria-label="Tải file báo cáo" title="Tải file báo cáo"><i class="fa-solid fa-download"></i><span>Tải file</span></a>
     {% else %}

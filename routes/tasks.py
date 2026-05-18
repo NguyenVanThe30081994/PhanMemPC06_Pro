@@ -4627,6 +4627,7 @@ def delete_task(tid):
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
     task_title = task.title
+    parent_task_id = task.parent_task_id
     _purge_task(task)
     db.session.commit()
 
@@ -4638,6 +4639,8 @@ def delete_task(tid):
         f"Task #{tid} | {task_title}",
     )
     flash("Đã xóa công việc đã giao.", "success")
+    if parent_task_id:
+        return redirect(url_for("tasks_bp.task_detail", tid=parent_task_id))
     return redirect(url_for("tasks_bp.tasks"))
 
 

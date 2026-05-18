@@ -12,7 +12,7 @@
                 {% endif %}
             </p>
         </div>
-        <a href="{{ url_for('reporting_bp.user_dashboard') if not is_admin else url_for('reporting_bp.admin_cycle_detail', cycle_id=cycle.id) }}" class="btn btn-light rounded-pill px-4">Quay lại</a>
+        <a href="{{ back_url }}" class="btn btn-light rounded-pill px-4">Quay lại</a>
     </div>
 </div>
 

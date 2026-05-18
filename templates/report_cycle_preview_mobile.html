@@ -73,7 +73,7 @@
                 {% if report_date_str %} • {{ report_date_str }}{% endif %}
             </p>
         </div>
-        <a href="{{ url_for('reporting_bp.admin_cycle_detail', cycle_id=cycle.id, report_date=report_date.strftime('%Y-%m-%d')) if is_admin and report_date else (url_for('reporting_bp.user_dashboard') if not is_admin else url_for('reporting_bp.admin_cycle_detail', cycle_id=cycle.id)) }}" aria-label="Quay lại" title="Quay lại"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay lại</span></a>
+        <a href="{{ back_url }}" aria-label="Quay lại" title="Quay lại"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay lại</span></a>
     </div>
     <div class="report-preview-mobile-actions">
         <button type="button" class="btn btn-light border" onclick="togglePreviewFullscreen()" aria-label="Toàn màn hình" title="Toàn màn hình"><i class="fa-solid fa-expand"></i><span class="visually-hidden">Toàn màn hình</span></button>
