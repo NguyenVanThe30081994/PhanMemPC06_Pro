@@ -106,6 +106,7 @@ app.config['SESSION_COOKIE_SECURE'] = SESSION_COOKIE_SECURE  # Set True if using
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent XSS stealing cookies
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=SESSION_LIFETIME)  # 30 min timeout
+app.config['PC06_SESSION_TIMEOUT_SECONDS'] = SESSION_LIFETIME
 
 # CSRF Protection
 app.config['WTF_CSRF_ENABLED'] = True
@@ -247,15 +248,24 @@ def check_auth():
     # 0. Device Detection
     g.is_mobile = is_mobile_device()
 
-    # 1. Inactivity Check (30 mins = 1800 seconds)
+    # 1. Inactivity Check
     if session.get('uid'):
         import time
         last_active = session.get('last_active')
         now = time.time()
-        if last_active and (now - last_active) > 1800:  # 30 mins
+        session_timeout = int(app.config.get('PC06_SESSION_TIMEOUT_SECONDS') or SESSION_LIFETIME or 1800)
+        if last_active and (now - last_active) > session_timeout:
             session.clear()
             return redirect(url_for('auth_bp.login'))
         session['last_active'] = now
+
+
+def build_session_activity_marker():
+    uid = session.get('uid')
+    login_nonce = session.get('login_nonce')
+    if not uid or not login_nonce:
+        return ''
+    return f"{uid}:{login_nonce}"
 
     allowed = ['auth_bp.login', 'static', 'dl_file', 'shortlink_bp.redirect_short_link', 'shortlink_bp.get_qr', 'favicon']
     if not session.get('uid') and request.endpoint not in allowed and not (request.endpoint and request.endpoint.startswith('static')):
@@ -299,6 +309,8 @@ def inject_global_data():
             fullname='',
             is_admin=is_admin,
             version="3.5.0",
+            session_timeout_ms=int(app.config.get('PC06_SESSION_TIMEOUT_SECONDS', SESSION_LIFETIME)) * 1000,
+            session_activity_marker='',
             get_labels=get_perms_labels,
             can_module=can_module,
             can_any_module=can_any_module,
@@ -326,6 +338,8 @@ def inject_global_data():
         fullname=session.get('fullname', ''),
         is_admin=is_admin,
         version="3.5.0",
+        session_timeout_ms=int(app.config.get('PC06_SESSION_TIMEOUT_SECONDS', SESSION_LIFETIME)) * 1000,
+        session_activity_marker=build_session_activity_marker(),
         get_labels=get_perms_labels,
         can_module=can_module,
         can_any_module=can_any_module,

@@ -54,6 +54,7 @@ class ProposalRuntimeTests(unittest.TestCase):
             sess['must_change'] = False
             sess['is_admin'] = True
             sess['last_active'] = datetime.now().timestamp()
+            sess['login_nonce'] = 'test-session-token'
         return client, user
 
     def _build_report_cycle_fixture(self, report_type_code="daily"):
@@ -547,6 +548,19 @@ class ProposalRuntimeTests(unittest.TestCase):
             self.assertIn(f'href="{escaped_workspace_url}"', history_response.get_data(as_text=True))
         finally:
             self._cleanup_report_cycle_fixture(fixture)
+
+    def test_session_timeout_uses_configured_lifetime_and_renders_session_scoped_activity_key(self):
+        client, user = self._login_admin_client()
+        with client.session_transaction() as sess:
+            sess['last_active'] = datetime.now().timestamp() - 1900
+            sess['login_nonce'] = 'scoped-activity-key'
+
+        response = client.get("/tasks")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn(f'const SESSION_MARKER = "{user.id}:scoped-activity-key";', html)
+        self.assertIn("pc06_last_activity:${SESSION_MARKER}", html)
+        self.assertNotIn("const SYNC_KEY = 'pc06_last_activity';", html)
 
 
 if __name__ == "__main__":

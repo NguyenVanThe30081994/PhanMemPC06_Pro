@@ -94,6 +94,24 @@
     .detail-mobile-child-pill { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-size: 0.74rem; font-weight: 700; }
     .detail-mobile-child-pill.is-missing { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
     .detail-mobile-child-item-body { padding: 0 12px 12px; border-top: 1px solid var(--border); }
+    .detail-mobile-child-banner { padding: 12px 14px; border-radius: 16px; background: linear-gradient(135deg, #eff6ff, #f8fafc); border: 1px solid #bfdbfe; color: #1e3a8a; font-size: 0.82rem; line-height: 1.6; }
+    .detail-mobile-child-banner strong { color: var(--text-main); }
+    .detail-mobile-child-spotlights { display: grid; gap: 10px; }
+    .detail-mobile-child-spotlight { padding: 12px; border-radius: 16px; background: var(--bg-body); border: 1px solid var(--border); display: grid; gap: 12px; }
+    .detail-mobile-child-spotlight-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .detail-mobile-child-spotlight-head span { display: block; color: var(--text-muted); font-size: 0.74rem; }
+    .detail-mobile-child-spotlight-head strong { display: block; margin-top: 4px; color: var(--text-main); font-size: 0.94rem; }
+    .detail-mobile-child-spotlight-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 10px; border-radius: 999px; background: rgba(15, 23, 42, 0.08); color: var(--text-main); font-size: 0.76rem; font-weight: 800; }
+    .detail-mobile-child-spotlight-list { display: grid; gap: 8px; }
+    .detail-mobile-child-spotlight-item { padding: 12px; border-radius: 14px; background: var(--bg-surface); border: 1px solid var(--border); display: grid; gap: 8px; }
+    .detail-mobile-child-spotlight-copy strong { display: block; color: var(--text-main); }
+    .detail-mobile-child-spotlight-copy small { display: block; margin-top: 4px; color: var(--text-muted); font-size: 0.75rem; line-height: 1.5; }
+    .detail-mobile-child-preview-badges { display: flex; flex-wrap: wrap; gap: 8px; }
+    .detail-mobile-child-preview-badges span { display: inline-flex; align-items: center; padding: 7px 10px; border-radius: 999px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-size: 0.74rem; }
+    .detail-mobile-child-preview-badges span.detail-mobile-child-preview-more { background: var(--bg-surface); border-color: var(--border); color: var(--text-muted); font-weight: 700; }
+    .detail-mobile-child-empty { padding: 12px; border-radius: 14px; background: #fff; border: 1px dashed #bfdbfe; color: var(--text-muted); font-size: 0.78rem; line-height: 1.55; }
+    .detail-mobile-child-focus { color: var(--text-muted); font-size: 0.76rem; line-height: 1.55; margin-bottom: 8px; }
+    .detail-mobile-child-focus.is-good { color: #166534; font-weight: 700; }
     .detail-mobile-thread-card { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--bg-body); }
     .detail-mobile-thread-card summary { list-style: none; cursor: pointer; }
     .detail-mobile-thread-card summary::-webkit-details-marker { display: none; }
@@ -348,37 +366,112 @@
 <section class="detail-mobile-card">
     <h2>Theo dõi task con</h2>
     <div class="detail-mobile-child-overview">
-        <div class="detail-mobile-child-summary">
-            Theo dõi theo task và theo đơn vị để biết nhanh đầu việc nào còn thiếu báo cáo trước khi mở sâu từng dòng.
-        </div>
         <div class="detail-mobile-child-facts">
             <div class="detail-mobile-child-fact">
-                <span>Task con</span>
-                <strong>{{ child_task_reporting_matrix.task_rows|length }}</strong>
+                <span>Task cần gỡ</span>
+                <strong>{{ child_report_stats.open_tasks }}</strong>
             </div>
             <div class="detail-mobile-child-fact">
-                <span>Đơn vị</span>
-                <strong>{{ child_task_reporting_matrix.unit_rows|length }}</strong>
+                <span>Đơn vị cần nhắc</span>
+                <strong>{{ child_report_stats.open_units }}</strong>
             </div>
             <div class="detail-mobile-child-fact">
-                <span>Chưa báo</span>
+                <span>Lượt tồn</span>
                 <strong>{{ child_report_stats.missing_total }}</strong>
             </div>
         </div>
     </div>
-    <div class="detail-mobile-stack">
-        <details class="detail-mobile-report-group" open>
+    <div class="detail-mobile-child-banner">
+        {% if child_report_stats.missing_total %}
+        Cần ưu tiên <strong>{{ child_report_stats.open_tasks }}</strong> task con đang thiếu báo cáo, tập trung vào <strong>{{ child_report_stats.open_units }}</strong> đơn vị chưa hoàn tất.
+        {% else %}
+        Toàn bộ task con đã đủ báo cáo. Mở chi tiết bên dưới khi cần rà lại theo task hoặc theo đơn vị.
+        {% endif %}
+    </div>
+    <div class="detail-mobile-child-spotlights mt-3">
+        <article class="detail-mobile-child-spotlight">
+            <div class="detail-mobile-child-spotlight-head">
+                <div>
+                    <span>Ưu tiên theo task con</span>
+                    <strong>Đầu việc đang tắc</strong>
+                </div>
+                <span class="detail-mobile-child-spotlight-badge">{{ child_report_stats.open_tasks }}</span>
+            </div>
+            <div class="detail-mobile-child-spotlight-list">
+                {% for row in child_task_reporting_matrix.task_rows|sort(attribute='missing_units', reverse=true) if row.missing_units %}
+                <article class="detail-mobile-child-spotlight-item">
+                    <div class="detail-mobile-child-spotlight-copy">
+                        <strong>{{ row.title }}</strong>
+                        <small>{{ row.reported_units }}/{{ row.total_units }} đơn vị đã báo, còn thiếu {{ row.missing_units }} đơn vị</small>
+                    </div>
+                    <div class="detail-mobile-child-item-actions">
+                        <span class="detail-mobile-child-pill">{{ row.reported_units }}/{{ row.total_units }} đơn vị</span>
+                        <span class="detail-mobile-child-pill is-missing">{{ row.missing_units }} chưa báo</span>
+                        {% if row.numeric_total %}
+                        <span class="detail-mobile-child-pill">Tổng {{ row.numeric_total }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="detail-mobile-child-preview-badges">
+                        {% for item in row.missing_unit_items[:3] %}
+                        <span>{{ item.unit_name }}</span>
+                        {% endfor %}
+                        {% if row.missing_units > 3 %}
+                        <span class="detail-mobile-child-preview-more">+{{ row.missing_units - 3 }} đơn vị</span>
+                        {% endif %}
+                    </div>
+                </article>
+                {% else %}
+                <div class="detail-mobile-child-empty">Không còn task con nào bị thiếu báo cáo.</div>
+                {% endfor %}
+            </div>
+        </article>
+        <article class="detail-mobile-child-spotlight">
+            <div class="detail-mobile-child-spotlight-head">
+                <div>
+                    <span>Ưu tiên theo đơn vị</span>
+                    <strong>Đơn vị cần nhắc trước</strong>
+                </div>
+                <span class="detail-mobile-child-spotlight-badge">{{ child_report_stats.open_units }}</span>
+            </div>
+            <div class="detail-mobile-child-spotlight-list">
+                {% for row in child_task_reporting_matrix.unit_rows if row.missing_count %}
+                <article class="detail-mobile-child-spotlight-item">
+                    <div class="detail-mobile-child-spotlight-copy">
+                        <strong>{{ row.unit_name }}</strong>
+                        <small>{{ row.reported_count }}/{{ row.total_count }} task đã báo, còn thiếu {{ row.missing_count }} task</small>
+                    </div>
+                    <div class="detail-mobile-child-item-actions">
+                        <span class="detail-mobile-child-pill">{{ row.reported_count }}/{{ row.total_count }} task</span>
+                        <span class="detail-mobile-child-pill is-missing">{{ row.missing_count }} chưa báo</span>
+                    </div>
+                    <div class="detail-mobile-child-preview-badges">
+                        {% for item in row.missing_items[:3] %}
+                        <span>{{ item.task_title }}</span>
+                        {% endfor %}
+                        {% if row.missing_count > 3 %}
+                        <span class="detail-mobile-child-preview-more">+{{ row.missing_count - 3 }} task</span>
+                        {% endif %}
+                    </div>
+                </article>
+                {% else %}
+                <div class="detail-mobile-child-empty">Không còn đơn vị nào đang treo task con chưa báo.</div>
+                {% endfor %}
+            </div>
+        </article>
+    </div>
+    <div class="detail-mobile-stack mt-3">
+        <details class="detail-mobile-report-group">
             <summary class="detail-mobile-report-group-summary">
                 <div>
-                    <span>Theo task con</span>
+                    <span>Xem chi tiết theo task con</span>
                     <strong>{{ child_task_reporting_matrix.task_rows|length }}</strong>
-                    <span>{{ child_report_stats.open_tasks }} task còn thiếu báo cáo</span>
+                    <span>Chỉ mở khi cần rà hết danh sách</span>
                 </div>
                 <i class="fa-solid fa-chevron-down detail-mobile-report-caret"></i>
             </summary>
             <div class="detail-mobile-report-body">
                 <div class="detail-mobile-child-matrix">
-                    {% for row in child_task_reporting_matrix.task_rows %}
+                    {% for row in child_task_reporting_matrix.task_rows|sort(attribute='missing_units', reverse=true) %}
                     <details class="detail-mobile-report-item">
                         <summary class="detail-mobile-child-item-summary">
                             <div class="detail-mobile-child-item-copy">
@@ -397,28 +490,16 @@
                             </div>
                         </summary>
                         <div class="detail-mobile-child-item-body">
-                            <div class="detail-mobile-child-columns">
-                                <div class="detail-mobile-child-column">
-                                    <h3>Đã báo</h3>
-                                    <div class="detail-mobile-child-badges">
-                                        {% for item in row.reported_unit_items %}
-                                        <span>{{ item.unit_name }}</span>
-                                        {% else %}
-                                        <span>Chưa có</span>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                                <div class="detail-mobile-child-column">
-                                    <h3>Chưa báo</h3>
-                                    <div class="detail-mobile-child-badges">
-                                        {% for item in row.missing_unit_items %}
-                                        <span class="is-missing">{{ item.unit_name }}</span>
-                                        {% else %}
-                                        <span>Không còn thiếu</span>
-                                        {% endfor %}
-                                    </div>
-                                </div>
+                            {% if row.missing_units %}
+                            <div class="detail-mobile-child-focus">Đơn vị chưa báo</div>
+                            <div class="detail-mobile-child-badges">
+                                {% for item in row.missing_unit_items %}
+                                <span class="is-missing">{{ item.unit_name }}</span>
+                                {% endfor %}
                             </div>
+                            {% else %}
+                            <div class="detail-mobile-child-focus is-good">Task này đã đủ báo cáo từ toàn bộ đơn vị.</div>
+                            {% endif %}
                         </div>
                     </details>
                     {% endfor %}
@@ -428,9 +509,9 @@
         <details class="detail-mobile-report-group">
             <summary class="detail-mobile-report-group-summary">
                 <div>
-                    <span>Theo đơn vị</span>
+                    <span>Xem chi tiết theo đơn vị</span>
                     <strong>{{ child_task_reporting_matrix.unit_rows|length }}</strong>
-                    <span>{{ child_report_stats.open_units }} đơn vị còn task chưa báo</span>
+                    <span>Gom các task chưa báo theo từng đơn vị</span>
                 </div>
                 <i class="fa-solid fa-chevron-down detail-mobile-report-caret"></i>
             </summary>
@@ -452,28 +533,16 @@
                             </div>
                         </summary>
                         <div class="detail-mobile-child-item-body">
-                            <div class="detail-mobile-child-columns">
-                                <div class="detail-mobile-child-column">
-                                    <h3>Đã báo</h3>
-                                    <div class="detail-mobile-child-badges">
-                                        {% for item in row.reported_items %}
-                                        <span>{{ item.task_title }}</span>
-                                        {% else %}
-                                        <span>Chưa có</span>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                                <div class="detail-mobile-child-column">
-                                    <h3>Chưa báo</h3>
-                                    <div class="detail-mobile-child-badges">
-                                        {% for item in row.missing_items %}
-                                        <span class="is-missing">{{ item.task_title }}</span>
-                                        {% else %}
-                                        <span>Không còn thiếu</span>
-                                        {% endfor %}
-                                    </div>
-                                </div>
+                            {% if row.missing_count %}
+                            <div class="detail-mobile-child-focus">Task chưa báo</div>
+                            <div class="detail-mobile-child-badges">
+                                {% for item in row.missing_items %}
+                                <span class="is-missing">{{ item.task_title }}</span>
+                                {% endfor %}
                             </div>
+                            {% else %}
+                            <div class="detail-mobile-child-focus is-good">Đơn vị này đã hoàn tất toàn bộ task con.</div>
+                            {% endif %}
                         </div>
                     </details>
                     {% endfor %}

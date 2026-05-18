@@ -1205,9 +1205,10 @@
 
         // --- SECURITY: AUTO LOGOUT SYSTEM (30 MINS) ---
         (function () {
-            const TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+            const TIMEOUT_MS = {{ session_timeout_ms|default(28800000)|int|tojson }};
             const WARNING_MS = 60 * 1000;      // 1 minute warning
-            const SYNC_KEY = 'pc06_last_activity';
+            const SESSION_MARKER = {{ session_activity_marker|default('')|tojson }};
+            const SYNC_KEY = SESSION_MARKER ? `pc06_last_activity:${SESSION_MARKER}` : 'pc06_last_activity';
             let warningVisible = false;
 
             function updateActivity() {

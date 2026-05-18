@@ -250,6 +250,11 @@
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('clear_storage') === 'true') {
             localStorage.removeItem('pc06_last_activity');
+            Object.keys(localStorage).forEach((key) => {
+                if (key.startsWith('pc06_last_activity:')) {
+                    localStorage.removeItem(key);
+                }
+            });
         }
 
         function togglePasswordVisibility() {

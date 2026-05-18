@@ -4,6 +4,7 @@ from models import db, User, AppRole
 from utils import extract_unit_key, log_action, render_auto_template as render_template
 from category_helpers import module_category_options, resolve_category_display
 import re
+import secrets
 try:
     from security_utils.security_helpers import log_security_event
 except ImportError:
@@ -29,6 +30,7 @@ def login():
         elif not usr.check_password(password):
             flash('Mật khẩu nhập vào không chính xác!', 'danger')
         else:
+            session.clear()
             unit_display = resolve_category_display(
                 usr.unit_area,
                 module_category_options('contacts', 'unit_name', 'Đơn vị'),
@@ -54,6 +56,7 @@ def login():
             # Init activity timestamp for security monitor
             import time
             session['last_active'] = time.time()
+            session['login_nonce'] = secrets.token_urlsafe(16)
             session.permanent = True  # Keep session persistent with PERMANENT_SESSION_LIFETIME (30 mins)
 
             
