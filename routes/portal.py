@@ -21,7 +21,7 @@ from category_helpers import (
     stable_form_category_options as shared_stable_form_category_options,
     sync_record_categories as shared_sync_record_categories,
 )
-from utils import infer_notification_source, log_action, push_global_notif, render_auto_template as render_template
+from utils import infer_notification_source, log_action, normalize_permission_payload, push_global_notif, render_auto_template as render_template
 import requests
 try:
     from security_utils.file_validator import validate_file_upload
@@ -103,25 +103,8 @@ def _get_current_user_unit():
 
 
 def _normalized_portal_perms(perms=None, is_admin=None, role_name=''):
-    normalized = dict(perms or {})
     is_admin = bool(session.get('is_admin')) if is_admin is None else bool(is_admin)
-    role_name = (role_name or '').strip().lower()
-
-    # Tương thích vai trò cũ chỉ có key dạng p_task/p_lib/... nhưng topbar mới đọc lead/exec.
-    for module_code in ['dash', 'task', 'lib', 'news', 'contact', 'form', 'sys', 'input', 'stat', 'user']:
-        legacy_key = f'p_{module_code}'
-        if normalized.get(legacy_key):
-            normalized.setdefault(f'p_{module_code}_lead', 1)
-            normalized.setdefault(f'p_{module_code}_exec', 1)
-
-    # Đồng bộ cách mở rộng quyền như context processor toàn cục.
-    if is_admin or role_name == 'quản trị hệ thống' or role_name == 'admin_system':
-        for module_code in ['dash', 'task', 'lib', 'news', 'contact', 'form', 'sys', 'input', 'stat', 'user']:
-            normalized[f'p_{module_code}_lead'] = 1
-            normalized[f'p_{module_code}_exec'] = 1
-            normalized[f'p_{module_code}'] = 1
-
-    return normalized
+    return normalize_permission_payload(perms or {}, is_admin=is_admin, role_name=role_name)
 
 
 def _current_portal_permissions():
@@ -136,19 +119,35 @@ def _current_portal_permissions():
 def _can_manage_news(perms=None, is_admin=None):
     perms = perms or {}
     is_admin = bool(session.get('is_admin')) if is_admin is None else bool(is_admin)
-    return bool(perms.get('p_news_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin)
+    return bool(
+        perms.get('p_news_process')
+        or perms.get('p_news_lead')
+        or perms.get('p_sys_process')
+        or perms.get('p_sys_lead')
+        or is_admin
+    )
 
 
 def _can_manage_library(perms=None, is_admin=None):
     perms = perms or {}
     is_admin = bool(session.get('is_admin')) if is_admin is None else bool(is_admin)
-    return bool(perms.get('p_lib_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin)
+    return bool(
+        perms.get('p_lib_process')
+        or perms.get('p_lib_lead')
+        or perms.get('p_sys_process')
+        or perms.get('p_sys_lead')
+        or is_admin
+    )
 
 
 def _can_manage_contacts(perms=None, is_admin=None):
     perms = perms or {}
     is_admin = bool(session.get('is_admin')) if is_admin is None else bool(is_admin)
-    return bool(perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin)
+    return bool(
+        perms.get('p_contact_process')
+        or perms.get('p_contact_lead')
+        or is_admin
+    )
 
 
 def _save_uploaded_file(file_storage, folder_name, existing_filename=''):
@@ -901,8 +900,8 @@ def contact_delete(cid):
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
     
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
-    perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
-    is_contact_lead = perms.get('p_contact_lead') or perms.get('p_contact_exec') or session.get('is_admin')
+    perms = _normalized_portal_perms(json.loads(role_obj.perms) if role_obj and role_obj.perms else {}, role_name=role_obj.name if role_obj else '')
+    is_contact_lead = _can_manage_contacts(perms, session.get('is_admin'))
     user_unit = _get_current_user_unit()
 
     c = Contact.query.get_or_404(cid)
@@ -926,8 +925,8 @@ def contact_delete_bulk():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
 
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
-    perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
-    is_contact_lead = perms.get('p_contact_lead') or perms.get('p_contact_exec') or session.get('is_admin')
+    perms = _normalized_portal_perms(json.loads(role_obj.perms) if role_obj and role_obj.perms else {}, role_name=role_obj.name if role_obj else '')
+    is_contact_lead = _can_manage_contacts(perms, session.get('is_admin'))
 
     if not is_contact_lead:
         flash('Bạn không có quyền xóa danh bạ hàng loạt!', 'danger')
@@ -974,8 +973,8 @@ def contact_add():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
     
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
-    perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
-    is_contact_lead = perms.get('p_contact_lead') or perms.get('p_contact_exec') or session.get('is_admin')
+    perms = _normalized_portal_perms(json.loads(role_obj.perms) if role_obj and role_obj.perms else {}, role_name=role_obj.name if role_obj else '')
+    is_contact_lead = _can_manage_contacts(perms, session.get('is_admin'))
     user_unit = _get_current_user_unit()
 
     name = request.form.get('name')
@@ -1038,9 +1037,9 @@ def contact_preview_import():
     if not session.get('uid'): return {'error': 'Unauthorized'}, 401
     
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
-    perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
+    perms = _normalized_portal_perms(json.loads(role_obj.perms) if role_obj and role_obj.perms else {}, role_name=role_obj.name if role_obj else '')
     is_admin = session.get('is_admin')
-    can_import_contacts = perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin
+    can_import_contacts = _can_manage_contacts(perms, is_admin)
     if not can_import_contacts:
         return {'error': 'Permission denied'}, 403
     
@@ -1070,7 +1069,7 @@ def contact_import():
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
     is_admin = session.get('is_admin')
-    can_import_contacts = perms.get('p_contact_lead') or perms.get('p_contact_exec') or is_admin
+    can_import_contacts = _can_manage_contacts(perms, is_admin)
 
     if not can_import_contacts:
         flash('Chỉ PC06 mới có quyền nhập danh bạ hàng loạt!', 'danger')

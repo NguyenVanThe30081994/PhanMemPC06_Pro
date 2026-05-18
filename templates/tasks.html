@@ -1096,6 +1096,69 @@
                                 </div>
 
                                 <div class="pc06-form-section">
+                                    <label class="form-label fw-bold">Xử lý việc</label>
+                                    <div class="form-text mb-2">Dùng khi cần giao quyền điều phối, chỉnh sửa và theo dõi tiến độ cho lãnh đạo hoặc cán bộ phụ trách riêng task này.</div>
+                                    <div class="pc06-segmented" id="managerModes">
+                                        <label class="pc06-radio-card active">
+                                            <input type="radio" name="manager_scope_mode" value="none" checked>
+                                            <span class="pc06-radio-title">Không thêm</span>
+                                            <small>Chỉ người giao việc hoặc quản trị hệ thống được xử lý task.</small>
+                                        </label>
+                                        <label class="pc06-radio-card">
+                                            <input type="radio" name="manager_scope_mode" value="role">
+                                            <span class="pc06-radio-title">Theo vai trò</span>
+                                            <small>Giao quyền xử lý cho nhóm vai trò phụ trách điều phối.</small>
+                                        </label>
+                                        <label class="pc06-radio-card">
+                                            <input type="radio" name="manager_scope_mode" value="user">
+                                            <span class="pc06-radio-title">Theo cá nhân</span>
+                                            <small>Chỉ định rõ tài khoản được quyền xử lý task này.</small>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="pc06-form-section d-none" id="managerRolePanel">
+                                    <label class="form-label fw-bold">Vai trò xử lý</label>
+                                    <div class="form-text mb-2">Các vai trò này được quyền điều phối và cập nhật task, nhưng không mặc định trở thành người thực hiện.</div>
+                                    <div class="pc06-assignment-option-list">
+                                        {% for role in roles %}
+                                        <label class="pc06-user-option">
+                                            <input type="checkbox" name="manager_role_ids" value="{{ role.id }}">
+                                            <span class="fw-semibold">{{ role.name }}</span>
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+
+                                <div class="pc06-form-section d-none" id="managerUserPanel">
+                                    <label class="form-label fw-bold">Tài khoản xử lý</label>
+                                    <div class="pc06-user-picker" data-user-picker data-user-picker-mode-target="manager">
+                                        <button type="button" class="pc06-user-picker-trigger" data-user-picker-trigger>
+                                            <div>
+                                                <strong data-user-picker-label>Chọn tài khoản xử lý</strong>
+                                                <small>Tìm kiếm và tích chọn cán bộ có quyền điều phối task</small>
+                                            </div>
+                                            <i class="fa-solid fa-chevron-down"></i>
+                                        </button>
+                                        <div class="pc06-user-picker-panel">
+                                            <input type="text" class="pc06-user-search" placeholder="Tìm theo họ tên hoặc đơn vị" data-user-picker-search>
+                                            <div class="pc06-user-option-list" data-user-picker-options>
+                                                {% for user in users %}
+                                                <label class="pc06-user-option" data-user-picker-option data-search="{{ (user.fullname ~ ' ' ~ (user.unit_area_display or user.unit_area or ''))|lower }}">
+                                                    <input type="checkbox" name="manager_user_ids" value="{{ user.id }}">
+                                                    <div>
+                                                        <strong>{{ user.fullname }}</strong>
+                                                        <small>{{ user.unit_area_display or 'Chưa có đơn vị' }}</small>
+                                                    </div>
+                                                </label>
+                                                {% endfor %}
+                                            </div>
+                                            <div class="pc06-user-picker-empty" data-user-picker-empty>Không tìm thấy tài khoản phù hợp.</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="pc06-form-section">
                                     <label class="form-label fw-bold">Xem việc</label>
                                     <div class="form-text mb-2">Dùng khi cần thêm lãnh đạo hoặc tài khoản theo dõi công việc mà không tham gia thực hiện.</div>
                                     <div class="pc06-segmented" id="viewerModes">
@@ -1515,6 +1578,25 @@
         syncAssignmentMode();
     }
 
+    function syncManagerMode() {
+        const selected = document.querySelector('input[name="manager_scope_mode"]:checked')?.value || 'none';
+
+        document.querySelectorAll('#managerModes .pc06-radio-card').forEach((card) => {
+            const radio = card.querySelector('input[name="manager_scope_mode"]');
+            card.classList.toggle('active', !!radio?.checked);
+        });
+
+        document.getElementById('managerRolePanel')?.classList.toggle('d-none', selected !== 'role');
+        document.getElementById('managerUserPanel')?.classList.toggle('d-none', selected !== 'user');
+    }
+
+    function selectManagerMode(mode) {
+        const target = document.querySelector(`input[name="manager_scope_mode"][value="${mode}"]`);
+        if (!target) return;
+        target.checked = true;
+        syncManagerMode();
+    }
+
     function syncViewerMode() {
         const selected = document.querySelector('input[name="viewer_scope_mode"]:checked')?.value || 'none';
 
@@ -1546,15 +1628,16 @@
             const updateLabel = () => {
                 const checked = options.filter((option) => option.querySelector('input')?.checked);
                 if (!label) return;
+                const defaultLabel = modeTarget === 'manager' ? 'Chọn tài khoản xử lý' : 'Chọn cán bộ';
                 if (!checked.length) {
-                    label.textContent = 'Chọn cán bộ';
+                    label.textContent = defaultLabel;
                     return;
                 }
                 if (checked.length === 1) {
-                    label.textContent = checked[0].querySelector('strong')?.textContent?.trim() || '1 cán bộ';
+                    label.textContent = checked[0].querySelector('strong')?.textContent?.trim() || (modeTarget === 'manager' ? '1 tài khoản' : '1 cán bộ');
                     return;
                 }
-                label.textContent = `${checked.length} cán bộ đã chọn`;
+                label.textContent = `${checked.length} ${modeTarget === 'manager' ? 'tài khoản' : 'cán bộ'} đã chọn`;
             };
 
             const applySearch = () => {
@@ -1581,6 +1664,8 @@
                 option.querySelector('input')?.addEventListener('change', () => {
                     if (modeTarget === 'assignment') {
                         selectAssignmentMode('user');
+                    } else if (modeTarget === 'manager') {
+                        selectManagerMode('user');
                     } else if (modeTarget === 'viewer') {
                         selectViewerMode('user');
                     }
@@ -1605,6 +1690,12 @@
     document.querySelectorAll('input[name="assignee_role_ids"]').forEach((checkbox) => {
         checkbox.addEventListener('change', () => selectAssignmentMode('role'));
     });
+    document.querySelectorAll('input[name="manager_scope_mode"]').forEach((radio) => {
+        radio.addEventListener('change', syncManagerMode);
+    });
+    document.querySelectorAll('input[name="manager_role_ids"]').forEach((checkbox) => {
+        checkbox.addEventListener('change', () => selectManagerMode('role'));
+    });
     document.querySelectorAll('input[name="viewer_scope_mode"]').forEach((radio) => {
         radio.addEventListener('change', syncViewerMode);
     });
@@ -1614,6 +1705,7 @@
 
     toggleDeadlineFields();
     syncAssignmentMode();
+    syncManagerMode();
     syncViewerMode();
     initUserPickers();
     document.querySelectorAll('[data-task-report-builder]').forEach(initTaskReportBuilder);

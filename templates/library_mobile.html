@@ -189,7 +189,7 @@
     </div>
 </section>
 
-{% if perms.get('p_lib_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
+{% if perms.get('p_lib_process') or perms.get('p_lib_lead') or perms.get('p_sys_process') or perms.get('p_sys_lead') or is_admin %}
 <button class="mobile-library-fab" data-bs-toggle="modal" data-bs-target="#addLibraryModal"><i class="fa-solid fa-plus"></i></button>
 {% endif %}
 

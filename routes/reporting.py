@@ -37,7 +37,7 @@ from category_helpers import (
     stable_form_category_options,
 )
 from report_engine import build_preview_workbook, normalize_code, parse_workbook, render_sheet_html, safe_filename, write_workbook_copy
-from utils import apply_migrations, extract_unit_key, is_unit_match, log_action, push_notif, render_auto_template as render_template
+from utils import apply_migrations, extract_unit_key, is_unit_match, log_action, normalize_permission_payload, push_notif, render_auto_template as render_template
 
 reporting_bp = Blueprint("reporting_bp", __name__)
 
@@ -174,7 +174,7 @@ def _current_report_perms():
     role = db.session.get(AppRole, role_id) if role_id else None
     if role and role.perms:
         try:
-            return json.loads(role.perms)
+            return normalize_permission_payload(role.perms, is_admin=session.get("is_admin"), role_name=getattr(role, "name", ""))
         except Exception:
             return {}
     return {}
@@ -188,15 +188,23 @@ def _has_report_permission(*perm_names):
 
 
 def _can_manage_report_templates():
-    return _has_report_permission("p_form_lead")
+    return _has_report_permission("p_form_process", "p_form_lead")
 
 
 def _can_access_report_workspace():
-    return _has_report_permission("p_form_lead", "p_input_lead", "p_input_exec")
+    return _has_report_permission(
+        "p_form_view", "p_form_process", "p_form_lead",
+        "p_input_view", "p_input_process", "p_input_lead", "p_input_exec",
+        "p_stat_view", "p_stat_lead", "p_stat_exec",
+    )
 
 
 def _can_view_report_progress():
-    return _has_report_permission("p_form_lead", "p_input_lead", "p_stat_lead", "p_stat_exec")
+    return _has_report_permission(
+        "p_form_view", "p_form_process", "p_form_lead",
+        "p_input_view", "p_input_process", "p_input_lead", "p_input_exec",
+        "p_stat_view", "p_stat_process", "p_stat_lead", "p_stat_exec",
+    )
 
 
 def _role_perms_payload(role):
@@ -209,7 +217,7 @@ def _role_perms_payload(role):
 
 
 def _report_manager_users():
-    perm_names = {"p_form_lead", "p_input_lead", "p_stat_lead", "p_stat_exec"}
+    perm_names = {"p_form_process", "p_form_lead", "p_input_process", "p_input_lead", "p_stat_process", "p_stat_lead"}
     users = (
         User.query.filter(User.is_active.is_(True))
         .order_by(User.fullname.asc())

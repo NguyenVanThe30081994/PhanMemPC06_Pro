@@ -306,7 +306,7 @@
             <div>
                 <div class="pc06-library-title-row">
                     <h1 class="pc06-page-title">Thư viện</h1>
-                    {% if perms.get('p_lib_lead') or perms.get('p_sys_exec') or perms.get('p_sys_lead') or is_admin %}
+                    {% if perms.get('p_lib_process') or perms.get('p_lib_lead') or perms.get('p_sys_process') or perms.get('p_sys_lead') or is_admin %}
                     <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLibraryModal">
                         <i class="fa-solid fa-upload"></i>
                         Tải tài liệu lên

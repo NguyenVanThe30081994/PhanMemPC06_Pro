@@ -1735,6 +1735,16 @@
                     <div class="pc06-info-item"><span>Loại công việc</span><strong>{{ task.task_type_display or 'Công việc thường xuyên' }}</strong></div>
                     <div class="pc06-info-item"><span>Mức ưu tiên</span><strong>{{ task.priority_display or 'Trung bình' }}</strong></div>
                     <div class="pc06-info-item"><span>Người giao</span><strong>{{ task.author_name }}</strong></div>
+                    <div class="pc06-info-item">
+                        <span>Xử lý việc</span>
+                        <strong>{{ manager_scope_summary.mode_label }}</strong>
+                        <div class="pc06-detail-inline-note mt-2">{{ manager_scope_summary.value_label }}</div>
+                    </div>
+                    <div class="pc06-info-item">
+                        <span>Xem việc</span>
+                        <strong>{{ viewer_scope_summary.mode_label }}</strong>
+                        <div class="pc06-detail-inline-note mt-2">{{ viewer_scope_summary.value_label }}</div>
+                    </div>
                     {% if limited_assignment_view %}
                     {% if linked_report_templates %}
                     <div class="pc06-info-item"><span>Hình thức báo cáo</span><strong>Theo biểu mẫu report liên kết</strong></div>
@@ -1938,6 +1948,47 @@
                                 {% endfor %}
                             </select>
                             <div class="form-text">Giữ `Ctrl` hoặc `Cmd` để chọn nhiều cán bộ.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Xử lý việc</label>
+                            <div class="pc06-segmented" id="editManagerModes">
+                                <label class="pc06-radio-card {% if manager_context.mode == 'none' %}active{% endif %}">
+                                    <input type="radio" name="manager_scope_mode" value="none" {% if manager_context.mode == 'none' %}checked{% endif %}>
+                                    <span class="pc06-radio-title">Không thêm</span>
+                                    <small>Chỉ người giao việc hoặc quản trị hệ thống được xử lý task.</small>
+                                </label>
+                                <label class="pc06-radio-card {% if manager_context.mode == 'role' %}active{% endif %}">
+                                    <input type="radio" name="manager_scope_mode" value="role" {% if manager_context.mode == 'role' %}checked{% endif %}>
+                                    <span class="pc06-radio-title">Theo vai trò</span>
+                                    <small>Giao quyền xử lý cho nhóm vai trò phụ trách điều phối task.</small>
+                                </label>
+                                <label class="pc06-radio-card {% if manager_context.mode == 'user' %}active{% endif %}">
+                                    <input type="radio" name="manager_scope_mode" value="user" {% if manager_context.mode == 'user' %}checked{% endif %}>
+                                    <span class="pc06-radio-title">Theo cá nhân</span>
+                                    <small>Chỉ định rõ tài khoản được quyền xử lý task này.</small>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 {% if manager_context.mode != 'role' %}d-none{% endif %}" id="editManagerRolePanel">
+                            <label class="form-label fw-bold">Vai trò xử lý</label>
+                            <div class="form-text mb-2">Các vai trò này có thể điều phối và chỉnh sửa task mà không mặc định trở thành người thực hiện.</div>
+                            <div class="pc06-user-picker-panel pc06-role-checklist border rounded-4 p-2" style="display:block; max-height: 320px; overflow:auto;">
+                                {% for role in roles %}
+                                <label class="pc06-user-option">
+                                    <input type="checkbox" name="manager_role_ids" value="{{ role.id }}" {% if role.id in manager_context.role_ids %}checked{% endif %}>
+                                    <span class="fw-semibold">{{ role.name }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-12 {% if manager_context.mode != 'user' %}d-none{% endif %}" id="editManagerUserPanel">
+                            <label class="form-label fw-bold">Tài khoản xử lý</label>
+                            <select name="manager_user_ids" class="form-select" size="8" multiple>
+                                {% for user in users %}
+                                <option value="{{ user.id }}" {% if user.id in manager_context.user_ids %}selected{% endif %}>{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Giữ `Ctrl` hoặc `Cmd` để chọn nhiều tài khoản xử lý.</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-bold">Xem việc</label>
@@ -2839,6 +2890,25 @@
         document.getElementById('editUserAssignmentPanel')?.classList.toggle('d-none', selected !== 'user');
     }
 
+    function selectEditManagerMode(mode) {
+        const target = document.querySelector(`#editTaskModal input[name="manager_scope_mode"][value="${mode}"]`);
+        if (!target) return;
+        target.checked = true;
+        syncEditManagerMode();
+    }
+
+    function syncEditManagerMode() {
+        const selected = document.querySelector('#editTaskModal input[name="manager_scope_mode"]:checked')?.value || 'none';
+
+        document.querySelectorAll('#editManagerModes .pc06-radio-card').forEach((card) => {
+            const radio = card.querySelector('input[name="manager_scope_mode"]');
+            card.classList.toggle('active', !!radio?.checked);
+        });
+
+        document.getElementById('editManagerRolePanel')?.classList.toggle('d-none', selected !== 'role');
+        document.getElementById('editManagerUserPanel')?.classList.toggle('d-none', selected !== 'user');
+    }
+
     function selectEditViewerMode(mode) {
         const target = document.querySelector(`#editTaskModal input[name="viewer_scope_mode"][value="${mode}"]`);
         if (!target) return;
@@ -2903,6 +2973,18 @@
         selectEditAssignmentMode('user');
         markEditAssignmentsDirty();
     });
+    document.querySelectorAll('#editTaskModal input[name="manager_scope_mode"]').forEach((radio) => {
+        radio.addEventListener('change', syncEditManagerMode);
+    });
+    document.querySelectorAll('#editTaskModal input[name="manager_role_ids"]').forEach((checkbox) => {
+        checkbox.addEventListener('change', () => selectEditManagerMode('role'));
+    });
+    document.querySelector('#editTaskModal select[name="manager_user_ids"]')?.addEventListener('change', () => {
+        selectEditManagerMode('user');
+    });
+    document.querySelector('#editTaskModal select[name="manager_user_ids"]')?.addEventListener('focus', () => {
+        selectEditManagerMode('user');
+    });
     document.querySelectorAll('#editTaskModal input[name="viewer_scope_mode"]').forEach((radio) => {
         radio.addEventListener('change', syncEditViewerMode);
     });
@@ -2933,6 +3015,7 @@
     initChildBulkBuilder(document.getElementById('createChildTaskModal'));
     document.querySelectorAll('[data-task-report-builder]').forEach(initTaskReportBuilder);
     syncEditAssignmentMode();
+    syncEditManagerMode();
     syncEditViewerMode();
     syncChildAssignmentMode();
     syncChildReportKind();

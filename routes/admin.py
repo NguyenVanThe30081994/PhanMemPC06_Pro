@@ -19,7 +19,22 @@ except ImportError:
     HAS_PANDAS = False
     pd = None
 from datetime import datetime, timedelta
-from utils import build_account_username, build_commander_username, build_role_account_username, clear_logs, extract_unit_key, init_db, log_action, render_auto_template as render_template
+from utils import (
+    DEFAULT_ROLE_MODULE_CODES,
+    PERMISSION_MODULES,
+    build_account_username,
+    build_commander_username,
+    build_default_role_permissions,
+    build_role_account_username,
+    clear_logs,
+    extract_unit_key,
+    init_db,
+    log_action,
+    normalize_permission_payload,
+    role_permission_form_payload,
+    render_auto_template as render_template,
+    role_default_permission_tier,
+)
 from category_helpers import (
     apply_reference_display,
     canonicalize_category_value,
@@ -219,7 +234,7 @@ def _get_admin_perms():
     role = db.session.get(AppRole, role_id) if role_id else None
     if role and role.perms:
         try:
-            return json.loads(role.perms)
+            return normalize_permission_payload(role.perms, is_admin=session.get('is_admin'), role_name=getattr(role, 'name', ''))
         except Exception:
             return {}
     return {}
@@ -552,7 +567,7 @@ def db_manage():
 def roles():
     perms = _get_admin_perms()
     is_admin = bool(session.get('is_admin'))
-    can_view_roles = is_admin or perms.get('p_user_lead')
+    can_view_roles = is_admin or perms.get('p_user_view') or perms.get('p_user_lead')
 
     if not can_view_roles:
         flash('Bạn không có quyền truy cập trang tài khoản và vai trò.', 'warning')
@@ -630,6 +645,10 @@ def roles():
     selected_unit = canonicalize_category_value(selected_unit, unit_options, prefer_stable=True) if selected_unit else ''
 
     roles = AppRole.query.order_by(AppRole.name.asc()).all()
+    for role in roles:
+        form_perms = role_permission_form_payload(role.perms, role_name=role.name)
+        setattr(role, 'form_perms_json', json.dumps(form_perms, ensure_ascii=False))
+        setattr(role, 'default_permission_tier', role_default_permission_tier(role.name))
     selected_role, users_query = _build_role_user_query(
         selected_role_id=selected_role_id,
         selected_unit=selected_unit,
@@ -671,6 +690,9 @@ def roles():
         role_user_counts=role_user_counts,
         total_role_count=len(roles),
         total_user_count=sum(role_user_counts.values()),
+        permission_modules=PERMISSION_MODULES,
+        default_role_permission_map=json.dumps(build_default_role_permissions(''), ensure_ascii=False),
+        default_role_module_codes=json.dumps(list(DEFAULT_ROLE_MODULE_CODES), ensure_ascii=False),
         units=[u[0] for u in db.session.query(MasterData.name).distinct().all() if u[0]],
         unit_cats=stable_form_category_options(unit_options)
     )

@@ -307,7 +307,7 @@
 </section>
 {% endif %}
 
-{% if can_manage_task_view and da06_management_view %}
+{% if can_observe_task_view and da06_management_view %}
 <section class="detail-mobile-card">
     <h2>Tổng hợp ĐA06 tháng</h2>
     <div class="detail-mobile-da06-note mb-3">
@@ -338,7 +338,7 @@
         {% endfor %}
     </div>
 </section>
-{% elif can_manage_task_view %}
+{% elif can_observe_task_view %}
 <section class="detail-mobile-card">
     <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
         <div>
@@ -543,11 +543,13 @@
                 </article>
                 {% endfor %}
             </div>
+            {% if can_manage_task_view or user_assign %}
             <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST" class="detail-mobile-thread-form">
                 <input type="hidden" name="assignee_id" value="{{ thread.primary_assignee_id }}">
                 <textarea name="content" rows="3" class="form-control" placeholder="Nháº­p pháº£n há»“i cho {{ thread.unit_name }}" required></textarea>
                 <button type="submit" class="btn btn-mobile btn-mobile-primary mt-3" aria-label="Gá»­i pháº£n há»“i" title="Gá»­i pháº£n há»“i"><i class="fa-solid fa-reply"></i><span class="visually-hidden">Gá»­i pháº£n há»“i</span></button>
             </form>
+            {% endif %}
         </details>
         {% else %}
         <div class="text-muted small">{{ 'Pháº£n há»“i sáº½ Ä‘Æ°á»£c nhÃ³m thÃ nh tá»«ng Ã´ chat theo Ä‘Æ¡n vá»‹ khi báº¯t Ä‘áº§u trao Ä‘á»•i.' if can_manage_task_view else 'Ã” chat cá»§a Ä‘Æ¡n vá»‹ sáº½ hiá»ƒn thá»‹ táº¡i Ä‘Ã¢y khi cÃ³ trao Ä‘á»•i.' }}</div>
@@ -555,7 +557,7 @@
     </div>
 </section>
 
-{% if can_manage_task_view %}
+{% if can_observe_task_view %}
 <section class="detail-mobile-card">
     <h2>NgÆ°á»i thá»±c hiá»‡n</h2>
     <div class="detail-mobile-stack">
@@ -607,6 +609,5 @@
     syncMobileEditAssignType();
 </script>
 {% endblock %}
-
 
 

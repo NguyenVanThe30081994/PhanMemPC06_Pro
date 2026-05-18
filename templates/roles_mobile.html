@@ -38,7 +38,7 @@
                 <div class="tiny text-muted mt-1">{{ get_labels(r.perms) or 'Chưa phân quyền' }}</div>
             </div>
             {% if can_manage_roles %}
-            <button class="btn btn-sm btn-outline-primary rounded-pill" type="button" aria-label="Sửa quyền" title="Sửa quyền" onclick='openEditPerms({{ r.id }}, "{{ r.name }}", {{ r.perms|safe if r.perms else "{}" }})'><i class="fa-solid fa-key"></i><span class="visually-hidden">Sửa quyền</span></button>
+            <button class="btn btn-sm btn-outline-primary rounded-pill" type="button" aria-label="Sửa quyền" title="Sửa quyền" onclick='openEditPerms({{ r.id }}, {{ r.name|tojson }}, {{ r.form_perms_json|safe }})'><i class="fa-solid fa-key"></i><span class="visually-hidden">Sửa quyền</span></button>
             {% endif %}
         </div>
     </div>
@@ -124,18 +124,22 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Tên vai trò</label>
-                        <input type="text" name="name" class="form-control" required>
+                        <input type="text" name="name" class="form-control" required data-role-name-input>
+                        <div class="small text-muted mt-2">Mặc định: Lãnh đạo/Chỉ huy PC06 là xem, Cán bộ PC06 là xử lý, các vai trò khác là thực hiện.</div>
                     </div>
-                    {% for k, v in [('dash','Tổng quan'),('task','Công việc'),('lib','Thư viện'),('news','Bảng tin'),('contact','Danh bạ'),('form','Quản lý báo cáo'),('input','Nhập và gửi báo cáo'),('stat','Tiến độ báo cáo'),('user','Tài khoản')] %}
+                    {% for k, v in permission_modules %}
                     <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
                         <span class="small fw-bold">{{ v }}</span>
-                        <div class="d-flex gap-3">
-                            <label class="small"><input class="form-check-input me-1" type="checkbox" name="perms" value="p_{{ k }}_lead">Chỉ đạo</label>
-                            <label class="small"><input class="form-check-input me-1" type="checkbox" name="perms" value="p_{{ k }}_exec">Thực hiện</label>
+                        <div class="d-flex gap-3 flex-wrap justify-content-end">
+                            <label class="small"><input class="form-check-input me-1 role-perm-input" type="checkbox" name="perms" value="p_{{ k }}_view" data-perm-module="{{ k }}" data-perm-tier="view">Xem</label>
+                            <label class="small"><input class="form-check-input me-1 role-perm-input" type="checkbox" name="perms" value="p_{{ k }}_process" data-perm-module="{{ k }}" data-perm-tier="process">Xử lý</label>
+                            <label class="small"><input class="form-check-input me-1 role-perm-input" type="checkbox" name="perms" value="p_{{ k }}_exec" data-perm-module="{{ k }}" data-perm-tier="exec">Thực hiện</label>
                         </div>
                     </div>
                     {% endfor %}
                     <div class="small text-muted mt-3">
+                        Mặc định tự động chỉ áp dụng cho các module nghiệp vụ vận hành. `Tài khoản`, `Hệ thống` và `Quản lý báo cáo` cần được cấp riêng khi thật sự cần.
+                        <br>
                         <code>Quản lý báo cáo</code>: quản lý biểu mẫu, chu kỳ, thời hạn và dữ liệu tổng hợp.
                         <code>Nhập và gửi báo cáo</code>: lưu nháp, gửi báo cáo, xem lịch sử và tải tệp của đơn vị.
                         <code>Tiến độ báo cáo</code>: xem tiến độ, trạng thái và mức độ hoàn thành của các đơn vị.
@@ -158,11 +162,12 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    {% for k, v in [('dash','Tổng quan'),('task','Công việc'),('lib','Thư viện'),('news','Bảng tin'),('contact','Danh bạ'),('form','Quản lý báo cáo'),('input','Nhập và gửi báo cáo'),('stat','Tiến độ báo cáo'),('user','Tài khoản')] %}
+                    {% for k, v in permission_modules %}
                     <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
                         <span class="small fw-bold">{{ v }}</span>
-                        <div class="d-flex gap-3">
-                            <label class="small"><input class="form-check-input perm-check me-1" type="checkbox" name="perms" value="p_{{ k }}_lead">Chỉ đạo</label>
+                        <div class="d-flex gap-3 flex-wrap justify-content-end">
+                            <label class="small"><input class="form-check-input perm-check me-1" type="checkbox" name="perms" value="p_{{ k }}_view">Xem</label>
+                            <label class="small"><input class="form-check-input perm-check me-1" type="checkbox" name="perms" value="p_{{ k }}_process">Xử lý</label>
                             <label class="small"><input class="form-check-input perm-check me-1" type="checkbox" name="perms" value="p_{{ k }}_exec">Thực hiện</label>
                         </div>
                     </div>
@@ -258,6 +263,32 @@
 </div>
 
 <script>
+const defaultRoleModuleCodes = new Set({{ default_role_module_codes|safe }});
+
+function inferRolePermissionTier(roleName) {
+    const normalized = String(roleName || '').trim().toLowerCase();
+    if (!normalized) return 'exec';
+    if (normalized.includes('lãnh đạo') || normalized.includes('lanh dao') || normalized.includes('chỉ huy') || normalized.includes('chi huy')) {
+        return 'view';
+    }
+    if (normalized.includes('pc06') && (normalized.includes('cán bộ') || normalized.includes('can bo'))) {
+        return 'process';
+    }
+    return 'exec';
+}
+
+function applyRolePermissionDefaults(form) {
+    if (!form) return;
+    const nameInput = form.querySelector('[data-role-name-input]');
+    if (!nameInput) return;
+    const tier = inferRolePermissionTier(nameInput.value);
+    form.querySelectorAll('.role-perm-input').forEach((input) => {
+        const moduleCode = input.dataset.permModule || '';
+        const inputTier = input.dataset.permTier || '';
+        input.checked = defaultRoleModuleCodes.has(moduleCode) && inputTier === tier;
+    });
+}
+
 function openEditPerms(rid, name, perms) {
     document.getElementById('edit_rid').value = rid;
     document.getElementById('edit_role_name').innerText = "Sửa quyền: " + name;
@@ -319,6 +350,22 @@ function submitMobileBulkPasswordReset() {
     document.getElementById('mobileBulkPasswordResetSelectedIds').value = JSON.stringify(resettableIds);
     document.getElementById('mobileBulkPasswordResetForm').submit();
 }
+
+document.querySelectorAll('form').forEach((form) => {
+    const nameInput = form.querySelector('[data-role-name-input]');
+    if (!nameInput) return;
+    let manuallyChanged = false;
+    form.querySelectorAll('.role-perm-input').forEach((input) => {
+        input.addEventListener('change', () => {
+            manuallyChanged = true;
+        });
+    });
+    const syncDefaults = () => {
+        if (!manuallyChanged) applyRolePermissionDefaults(form);
+    };
+    nameInput.addEventListener('input', syncDefaults);
+    syncDefaults();
+});
 
 updateMobileUserBulkSelectionState();
 </script>

@@ -162,7 +162,7 @@
                                 Xem tài khoản
                             </a>
                             {% if can_manage_roles %}
-                            <button class="btn btn-bdhvs primary" onclick='openEditPerms({{ r.id }}, "{{ r.name }}", {{ r.perms|safe if r.perms else "{}" }})'>
+                            <button class="btn btn-bdhvs primary" onclick='openEditPerms({{ r.id }}, {{ r.name|tojson }}, {{ r.form_perms_json|safe }})'>
                                 <i class="fa-solid fa-user-gear"></i>
                                 Phân quyền
                             </button>
@@ -199,29 +199,34 @@
                 <div class="modal-body p-4">
                     <div class="mb-4">
                         <label class="form-label fw-bold text-dark small">TÊN VAI TRÒ</label>
-                        <input type="text" name="name" class="form-control py-2 shadow-sm border-light" placeholder="VD: Quản trị tài liệu..." required>
+                        <input type="text" name="name" class="form-control py-2 shadow-sm border-light" placeholder="VD: Quản trị tài liệu..." required data-role-name-input>
+                        <div class="form-text mt-2">Mặc định: `Lãnh đạo`, `Chỉ huy PC06` chọn quyền xem; `Cán bộ PC06` chọn quyền xử lý; các vai trò khác chọn quyền thực hiện.</div>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-sm table-borderless align-middle">
                             <thead class="tiny text-muted text-uppercase">
                                 <tr>
                                     <th>Chức năng</th>
-                                    <th class="text-center">Chỉ đạo</th>
+                                    <th class="text-center">Xem</th>
+                                    <th class="text-center">Xử lý</th>
                                     <th class="text-center">Thực hiện</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for k, v in [('dash','Tổng quan'),('task','Công việc'),('lib','Thư viện'),('news','Bảng tin'),('contact','Danh bạ'),('form','Quản lý báo cáo'),('input','Nhập và gửi báo cáo'),('stat','Tiến độ báo cáo'),('user','Tài khoản')] %}
+                                {% for k, v in permission_modules %}
                                 <tr>
                                     <td class="small fw-bold">{{ v }}</td>
-                                    <td class="text-center"><div class="form-check d-inline-block"><input class="form-check-input" type="checkbox" name="perms" value="p_{{ k }}_lead" id="p_lead_{{ k }}"></div></td>
-                                    <td class="text-center"><div class="form-check d-inline-block"><input class="form-check-input" type="checkbox" name="perms" value="p_{{ k }}_exec" id="p_exec_{{ k }}"></div></td>
+                                    <td class="text-center"><div class="form-check d-inline-block"><input class="form-check-input role-perm-input" type="checkbox" name="perms" value="p_{{ k }}_view" id="p_view_{{ k }}" data-perm-module="{{ k }}" data-perm-tier="view"></div></td>
+                                    <td class="text-center"><div class="form-check d-inline-block"><input class="form-check-input role-perm-input" type="checkbox" name="perms" value="p_{{ k }}_process" id="p_process_{{ k }}" data-perm-module="{{ k }}" data-perm-tier="process"></div></td>
+                                    <td class="text-center"><div class="form-check d-inline-block"><input class="form-check-input role-perm-input" type="checkbox" name="perms" value="p_{{ k }}_exec" id="p_exec_{{ k }}" data-perm-module="{{ k }}" data-perm-tier="exec"></div></td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
                     <div class="alert alert-light border rounded-4 small text-muted mt-3 mb-0">
+                        Mặc định tự động chỉ áp dụng cho các module nghiệp vụ vận hành. `Tài khoản`, `Hệ thống` và `Quản lý báo cáo` cần quản trị chủ động cấp riêng khi thật sự cần.
+                        <br>
                         <code>Quản lý báo cáo</code>: quản lý biểu mẫu, chu kỳ, thời hạn và dữ liệu tổng hợp.
                         <code>Nhập và gửi báo cáo</code>: lưu nháp, gửi báo cáo, xem lịch sử và tải tệp của đơn vị.
                         <code>Tiến độ báo cáo</code>: xem tiến độ, trạng thái và mức độ hoàn thành của các đơn vị.
@@ -252,15 +257,17 @@
                             <thead class="tiny text-muted text-uppercase">
                                 <tr>
                                     <th>Chức năng</th>
-                                    <th class="text-center">Chỉ đạo</th>
+                                    <th class="text-center">Xem</th>
+                                    <th class="text-center">Xử lý</th>
                                     <th class="text-center">Thực hiện</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for k, v in [('dash','Tổng quan'),('task','Công việc'),('lib','Thư viện'),('news','Bảng tin'),('contact','Danh bạ'),('form','Quản lý báo cáo'),('input','Nhập và gửi báo cáo'),('stat','Tiến độ báo cáo'),('user','Tài khoản')] %}
+                                {% for k, v in permission_modules %}
                                 <tr>
                                     <td class="small fw-bold">{{ v }}</td>
-                                    <td class="text-center"><div class="form-check d-inline-block"><input class="form-check-input perm-check" type="checkbox" name="perms" value="p_{{ k }}_lead" id="edit_p_lead_{{ k }}"></div></td>
+                                    <td class="text-center"><div class="form-check d-inline-block"><input class="form-check-input perm-check" type="checkbox" name="perms" value="p_{{ k }}_view" id="edit_p_view_{{ k }}"></div></td>
+                                    <td class="text-center"><div class="form-check d-inline-block"><input class="form-check-input perm-check" type="checkbox" name="perms" value="p_{{ k }}_process" id="edit_p_process_{{ k }}"></div></td>
                                     <td class="text-center"><div class="form-check d-inline-block"><input class="form-check-input perm-check" type="checkbox" name="perms" value="p_{{ k }}_exec" id="edit_p_exec_{{ k }}"></div></td>
                                 </tr>
                                 {% endfor %}
@@ -431,6 +438,32 @@
 </div>
 
 <script>
+const defaultRoleModuleCodes = new Set({{ default_role_module_codes|safe }});
+
+function inferRolePermissionTier(roleName) {
+    const normalized = String(roleName || '').trim().toLowerCase();
+    if (!normalized) return 'exec';
+    if (normalized.includes('lãnh đạo') || normalized.includes('lanh dao') || normalized.includes('chỉ huy') || normalized.includes('chi huy')) {
+        return 'view';
+    }
+    if (normalized.includes('pc06') && (normalized.includes('cán bộ') || normalized.includes('can bo'))) {
+        return 'process';
+    }
+    return 'exec';
+}
+
+function applyRolePermissionDefaults(form) {
+    if (!form) return;
+    const nameInput = form.querySelector('[data-role-name-input]');
+    if (!nameInput) return;
+    const tier = inferRolePermissionTier(nameInput.value);
+    form.querySelectorAll('.role-perm-input').forEach((input) => {
+        const moduleCode = input.dataset.permModule || '';
+        const inputTier = input.dataset.permTier || '';
+        input.checked = defaultRoleModuleCodes.has(moduleCode) && inputTier === tier;
+    });
+}
+
 function openEditPerms(rid, name, perms) {
     document.getElementById('edit_rid').value = rid;
     document.getElementById('edit_role_name').innerText = "SỬA QUYỀN: " + name;
@@ -508,6 +541,22 @@ document.querySelectorAll('.toggle-password').forEach(btn => {
 });
 
 updateUserBulkSelectionState();
+
+document.querySelectorAll('form').forEach((form) => {
+    const nameInput = form.querySelector('[data-role-name-input]');
+    if (!nameInput) return;
+    let manuallyChanged = false;
+    form.querySelectorAll('.role-perm-input').forEach((input) => {
+        input.addEventListener('change', () => {
+            manuallyChanged = true;
+        });
+    });
+    const syncDefaults = () => {
+        if (!manuallyChanged) applyRolePermissionDefaults(form);
+    };
+    nameInput.addEventListener('input', syncDefaults);
+    syncDefaults();
+});
 </script>
 
 {% endif %}

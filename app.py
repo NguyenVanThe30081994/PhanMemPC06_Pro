@@ -24,7 +24,7 @@ from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from models import db, AppRole
 from storage import bootstrap_storage, build_storage_layout
-from utils import init_db, get_perms_labels, is_mobile_device
+from utils import init_db, get_perms_labels, is_mobile_device, normalize_permission_payload
 
 # --- RELIABLE PATH RESOLUTION (Improved for Mắt Bão/Passenger) ---
 basedir = os.path.dirname(os.path.abspath(__file__))
@@ -275,14 +275,7 @@ def inject_global_data():
     except Exception:
         pass
 
-    # 2. Overlap with Admin permissions if flag is set
-    if is_admin or role_name == 'Quản trị hệ thống':
-        modules = ["dash", "task", "lib", "news", "contact", "form", "sys", "input", "stat", "user"]
-        for m in modules:
-            perms[f"p_{m}_lead"] = 1
-            perms[f"p_{m}_exec"] = 1
-        # Backward compatibility keys
-        perms.update({f"p_{m}": 1 for m in modules})
+    perms = normalize_permission_payload(perms, is_admin=is_admin, role_name=role_name)
 
     return dict(perms=perms, role_name=role_name, fullname=session.get('fullname', ''), is_admin=is_admin, version="3.5.0", get_labels=get_perms_labels)
 

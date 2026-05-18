@@ -329,6 +329,7 @@ def apply_migrations(app):
         ("task", "assign_type", "VARCHAR(20) DEFAULT 'unit'"),
         ("task", "assignment_scope_json", "TEXT"),
         ("task", "viewer_scope_json", "TEXT"),
+        ("task", "manager_scope_json", "TEXT"),
         ("task", "report_schema_json", "TEXT"),
         ("task", "linked_report_templates_json", "TEXT"),
         ("task", "created_at", "DATETIME"),
@@ -558,6 +559,55 @@ def apply_migrations(app):
             alias_name VARCHAR(255) NOT NULL,
             alias_slug VARCHAR(255)
         )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS task_participant (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id INTEGER NOT NULL,
+            task_item_id INTEGER,
+            user_id INTEGER NOT NULL,
+            role_id INTEGER,
+            participant_type VARCHAR(30) DEFAULT 'executor',
+            source_type VARCHAR(30) DEFAULT 'direct',
+            source_ref VARCHAR(255),
+            is_active BOOLEAN DEFAULT 1,
+            created_at DATETIME,
+            updated_at DATETIME
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS task_submission (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id INTEGER NOT NULL,
+            task_item_id INTEGER,
+            participant_id INTEGER,
+            assignment_id INTEGER,
+            submitted_by INTEGER NOT NULL,
+            submission_type VARCHAR(30) DEFAULT 'narrative',
+            status VARCHAR(30) DEFAULT 'draft',
+            narrative_content TEXT,
+            numeric_value REAL,
+            payload_json TEXT,
+            attachment_name VARCHAR(255),
+            attachment_path VARCHAR(500),
+            submitted_at DATETIME,
+            created_at DATETIME,
+            updated_at DATETIME
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS task_report_link (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id INTEGER NOT NULL,
+            task_item_id INTEGER,
+            report_template_id INTEGER,
+            report_cycle_id INTEGER,
+            report_type_id INTEGER,
+            sync_mode VARCHAR(30) DEFAULT 'template',
+            is_primary BOOLEAN DEFAULT 1,
+            created_at DATETIME,
+            updated_at DATETIME
+        )
         """
     ]
     for stmt in create_table_statements:
@@ -747,31 +797,159 @@ def eval_f(formula_str, data_dict):
         # Silently fail for formulas to avoid crashing the whole report
         return 0.0
 
+PERMISSION_MODULES = [
+    ("dash", "Tổng quan"),
+    ("task", "Công việc"),
+    ("lib", "Thư viện"),
+    ("news", "Bảng tin"),
+    ("contact", "Danh bạ"),
+    ("form", "Quản lý báo cáo"),
+    ("input", "Nhập và gửi báo cáo"),
+    ("stat", "Tiến độ báo cáo"),
+    ("user", "Tài khoản"),
+    ("sys", "Hệ thống"),
+]
+
+DEFAULT_ROLE_MODULE_CODES = (
+    "dash",
+    "task",
+    "lib",
+    "news",
+    "contact",
+    "input",
+    "stat",
+)
+
+
+def role_default_permission_tier(role_name):
+    normalized_name = (role_name or "").strip().lower()
+    if not normalized_name:
+        return "exec"
+    if any(marker in normalized_name for marker in ("lãnh đạo", "lanh dao", "chỉ huy", "chi huy")):
+        return "view"
+    if "pc06" in normalized_name and "cán bộ" in normalized_name:
+        return "process"
+    if "pc06" in normalized_name and "can bo" in normalized_name:
+        return "process"
+    return "exec"
+
+
+def build_default_role_permissions(role_name, module_codes=None):
+    selected_tier = role_default_permission_tier(role_name)
+    payload = {}
+    allowed_modules = set(module_codes or DEFAULT_ROLE_MODULE_CODES)
+    for module_code, _label in PERMISSION_MODULES:
+        if module_code not in allowed_modules:
+            continue
+        payload[f"p_{module_code}_{selected_tier}"] = 1
+    return payload
+
+
+def role_permission_form_payload(perms_json, is_admin=False, role_name=""):
+    try:
+        source = json.loads(perms_json) if isinstance(perms_json, str) else dict(perms_json or {})
+    except Exception:
+        source = {}
+
+    payload = {}
+    role_name_normalized = (role_name or "").strip().lower()
+    is_super_role = bool(is_admin or role_name_normalized in {"quản trị hệ thống", "admin_system"})
+
+    for module_code, _label in PERMISSION_MODULES:
+        legacy_key = f"p_{module_code}"
+        lead_key = f"p_{module_code}_lead"
+        view_key = f"p_{module_code}_view"
+        process_key = f"p_{module_code}_process"
+        exec_key = f"p_{module_code}_exec"
+
+        if is_super_role:
+            payload[view_key] = 1
+            payload[process_key] = 1
+            payload[exec_key] = 1
+            continue
+
+        has_view = bool(source.get(view_key))
+        has_process = bool(source.get(process_key) or source.get(lead_key))
+        has_exec = bool(source.get(exec_key))
+
+        if source.get(legacy_key) and not (has_view or has_process or has_exec):
+            has_view = True
+            has_process = True
+            has_exec = True
+
+        if has_view:
+            payload[view_key] = 1
+        if has_process:
+            payload[process_key] = 1
+        if has_exec:
+            payload[exec_key] = 1
+
+    return payload
+
+
+def normalize_permission_payload(perms_json, is_admin=False, role_name=""):
+    normalized = role_permission_form_payload(perms_json, is_admin=is_admin, role_name=role_name)
+    role_name_normalized = (role_name or "").strip().lower()
+    is_super_role = bool(is_admin or role_name_normalized in {"quản trị hệ thống", "admin_system"})
+
+    for module_code, _label in PERMISSION_MODULES:
+        legacy_key = f"p_{module_code}"
+        lead_key = f"p_{module_code}_lead"
+        view_key = f"p_{module_code}_view"
+        process_key = f"p_{module_code}_process"
+        exec_key = f"p_{module_code}_exec"
+
+        has_view = bool(normalized.get(view_key))
+        has_process = bool(normalized.get(process_key) or normalized.get(lead_key))
+        has_exec = bool(normalized.get(exec_key))
+
+        if normalized.get(legacy_key):
+            has_view = True
+            has_process = True
+            has_exec = True
+
+        if normalized.get(lead_key):
+            has_view = True
+            has_process = True
+
+        if normalized.get(exec_key):
+            has_view = True
+            has_exec = True
+
+        if is_super_role:
+            has_view = True
+            has_process = True
+            has_exec = True
+
+        if has_process or has_exec:
+            has_view = True
+
+        if has_view:
+            normalized[view_key] = 1
+        if has_process:
+            normalized[process_key] = 1
+            normalized[lead_key] = 1
+        if has_exec:
+            normalized[exec_key] = 1
+        if has_view or has_process or has_exec:
+            normalized[legacy_key] = 1
+
+    return normalized
+
 def get_perms_labels(perms_json):
     if not perms_json: return ""
-    labels_map = {
-        "dash": "Tổng quan", "task": "Công việc", "lib": "Thư viện", 
-        "news": "Bảng tin", "contact": "Danh bạ", "form": "Quản lý báo cáo", 
-        "sys": "Hệ thống", "input": "Nhập và gửi báo cáo", "stat": "Tiến độ báo cáo", "user": "Tài khoản"
-    }
+    labels_map = {code: label for code, label in PERMISSION_MODULES}
     try:
-        p = json.loads(perms_json) if isinstance(perms_json, str) else perms_json
+        p = role_permission_form_payload(perms_json)
         if not p: return ""
         res = []
-        for k, v in p.items():
-            if v == 1:
-                # New format: p_module_lead/exec
-                if k.startswith('p_') and (k.endswith('_lead') or k.endswith('_exec')):
-                    parts = k.split('_')
-                    if len(parts) >= 3:
-                        mod = parts[1]
-                        suf = " (Chỉ đạo)" if parts[2] == 'lead' else " (Thực hiện)"
-                        res.append(f"{labels_map.get(mod, mod)}{suf}")
-                # Old/Legacy formats
-                elif k.startswith('p_') and k[2:] in labels_map:
-                    res.append(labels_map[k[2:]])
-                elif k in labels_map:
-                    res.append(labels_map[k])
+        for module_code, module_label in PERMISSION_MODULES:
+            if p.get(f"p_{module_code}_view"):
+                res.append(f"{module_label} (Xem)")
+            if p.get(f"p_{module_code}_process"):
+                res.append(f"{module_label} (Xử lý)")
+            if p.get(f"p_{module_code}_exec"):
+                res.append(f"{module_label} (Thực hiện)")
         return ", ".join(res)
     except Exception as e:
         print(f"Perms Label Error: {e}")

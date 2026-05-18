@@ -157,10 +157,14 @@ class Task(db.Model):
     assign_type = db.Column(db.String(20), default='unit')
     assignment_scope_json = db.Column(db.Text)
     viewer_scope_json = db.Column(db.Text)
+    manager_scope_json = db.Column(db.Text)
     report_schema_json = db.Column(db.Text)
     linked_report_templates_json = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.now)
     assignments = db.relationship('TaskAssignment', backref='task', cascade='all, delete-orphan')
+    participants = db.relationship('TaskParticipant', backref='task', cascade='all, delete-orphan', foreign_keys='TaskParticipant.task_id')
+    submissions = db.relationship('TaskSubmission', backref='task', cascade='all, delete-orphan', foreign_keys='TaskSubmission.task_id')
+    report_links = db.relationship('TaskReportLink', backref='task', cascade='all, delete-orphan', foreign_keys='TaskReportLink.task_id')
     child_tasks = db.relationship('Task', backref=db.backref('parent_task', remote_side=[id]))
 
 
@@ -173,6 +177,72 @@ class TaskAssignment(db.Model):
     report_payload_json = db.Column(db.Text)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     user = db.relationship('User', backref='task_assignments')
+
+
+class TaskParticipant(db.Model):
+    __tablename__ = 'task_participant'
+
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False, index=True)
+    task_item_id = db.Column(db.Integer, db.ForeignKey('task.id'), index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    role_id = db.Column(db.Integer, db.ForeignKey('app_role.id'), index=True)
+    participant_type = db.Column(db.String(30), default='executor', index=True)
+    source_type = db.Column(db.String(30), default='direct')
+    source_ref = db.Column(db.String(255))
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    user = db.relationship('User', backref='task_participants')
+    role = db.relationship('AppRole', backref='task_participants')
+    task_item = db.relationship('Task', foreign_keys=[task_item_id])
+
+
+class TaskSubmission(db.Model):
+    __tablename__ = 'task_submission'
+
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False, index=True)
+    task_item_id = db.Column(db.Integer, db.ForeignKey('task.id'), index=True)
+    participant_id = db.Column(db.Integer, db.ForeignKey('task_participant.id'), index=True)
+    assignment_id = db.Column(db.Integer, db.ForeignKey('task_assignment.id'), index=True)
+    submitted_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    submission_type = db.Column(db.String(30), default='narrative')
+    status = db.Column(db.String(30), default='draft')
+    narrative_content = db.Column(db.Text)
+    numeric_value = db.Column(db.Float)
+    payload_json = db.Column(db.Text)
+    attachment_name = db.Column(db.String(255))
+    attachment_path = db.Column(db.String(500))
+    submitted_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    participant = db.relationship('TaskParticipant', backref='submissions')
+    assignment = db.relationship('TaskAssignment', backref='submission_records')
+    submitter = db.relationship('User', backref='task_submissions')
+    task_item = db.relationship('Task', foreign_keys=[task_item_id])
+
+
+class TaskReportLink(db.Model):
+    __tablename__ = 'task_report_link'
+
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False, index=True)
+    task_item_id = db.Column(db.Integer, db.ForeignKey('task.id'), index=True)
+    report_template_id = db.Column(db.Integer, db.ForeignKey('report_template.id'), index=True)
+    report_cycle_id = db.Column(db.Integer, db.ForeignKey('report_cycle.id'), index=True)
+    report_type_id = db.Column(db.Integer, db.ForeignKey('report_type.id'), index=True)
+    sync_mode = db.Column(db.String(30), default='template')
+    is_primary = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    task_item = db.relationship('Task', foreign_keys=[task_item_id])
+    report_template = db.relationship('ReportTemplate', backref='task_links')
+    report_cycle = db.relationship('ReportCycle', backref='task_links')
+    report_type = db.relationship('ReportType', backref='task_links')
 
 
 class TaskComment(db.Model):
