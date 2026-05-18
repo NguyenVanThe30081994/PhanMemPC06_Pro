@@ -127,6 +127,10 @@ def _task_priority_options():
 
 
 def _task_report_templates():
+    if has_request_context():
+        cached = getattr(g, "_task_report_templates_cache", None)
+        if cached is not None:
+            return cached
     templates = (
         ReportTemplate.query.filter_by(status="active")
         .order_by(ReportTemplate.updated_at.desc())
@@ -145,6 +149,8 @@ def _task_report_templates():
         ).get("display_name") or "Chưa phân đội"
         setattr(template, "professional_unit_display", professional_unit)
         setattr(template, "report_type_display", getattr(report_types.get(template.report_type_id), "name", "Chưa phân loại"))
+    if has_request_context():
+        g._task_report_templates_cache = templates
     return templates
 
 
@@ -199,12 +205,21 @@ def _decorate_task_categories(task, field_options, domain_options, type_options,
 
 
 def _current_perms():
+    if has_request_context():
+        cached = getattr(g, "_task_current_perms_cache", None)
+        if cached is not None:
+            return cached
     role = db.session.get(AppRole, session.get("role_id")) if session.get("role_id") else None
     if role and role.perms:
         try:
-            return normalize_permission_payload(role.perms, is_admin=session.get("is_admin"), role_name=getattr(role, "name", ""))
+            perms = normalize_permission_payload(role.perms, is_admin=session.get("is_admin"), role_name=getattr(role, "name", ""))
+            if has_request_context():
+                g._task_current_perms_cache = perms
+            return perms
         except Exception:
             return {}
+    if has_request_context():
+        g._task_current_perms_cache = {}
     return {}
 
 
@@ -907,11 +922,16 @@ def _load_linked_report_template_ids_legacy(task):
 def _task_scope_identity(task):
     if not task:
         return None, None
+    cached = getattr(task, "_task_scope_identity_cache", None)
+    if cached is not None:
+        return cached
     root_task = task.parent_task or task
     if getattr(root_task, "parent_task_id", None):
         root_task = Task.query.filter_by(id=root_task.parent_task_id).first() or root_task
     task_item_id = task.id if getattr(task, "parent_task_id", None) else None
-    return root_task.id, task_item_id
+    cached = (root_task.id, task_item_id)
+    setattr(task, "_task_scope_identity_cache", cached)
+    return cached
 
 
 def _query_task_scope(model, task):
@@ -925,6 +945,16 @@ def _query_task_scope(model, task):
 def _task_assignment_records(task):
     if not task or not getattr(task, "id", None):
         return []
+    assignment_records = getattr(task, "assignments", None)
+    if assignment_records is not None:
+        return sorted(
+            assignment_records,
+            key=lambda assignment: (
+                getattr(assignment, "updated_at", None) or datetime.min,
+                getattr(assignment, "id", 0) or 0,
+            ),
+            reverse=True,
+        )
     return (
         TaskAssignment.query.filter_by(task_id=task.id)
         .order_by(TaskAssignment.updated_at.desc(), TaskAssignment.id.desc())
@@ -935,6 +965,9 @@ def _task_assignment_records(task):
 def _task_executor_user_ids(task):
     if not task:
         return []
+    cached = getattr(task, "_task_executor_user_ids_cache", None)
+    if cached is not None:
+        return cached
 
     participant_ids = [
         participant.user_id
@@ -947,13 +980,17 @@ def _task_executor_user_ids(task):
         if getattr(participant, "user_id", None)
     ]
     if participant_ids:
-        return sorted(set(participant_ids))
+        cached = sorted(set(participant_ids))
+        setattr(task, "_task_executor_user_ids_cache", cached)
+        return cached
 
-    return sorted({
+    cached = sorted({
         assignment.user_id
         for assignment in _task_assignment_records(task)
         if getattr(assignment, "user_id", None)
     })
+    setattr(task, "_task_executor_user_ids_cache", cached)
+    return cached
 
 
 def _task_user_is_executor(task, user_id):
@@ -964,22 +1001,42 @@ def _visible_child_tasks_for_user(parent_task_id, user_id):
     if not parent_task_id or not user_id:
         return []
     child_tasks = (
-        Task.query.options(joinedload(Task.assignments))
+        Task.query.options(joinedload(Task.assignments).joinedload(TaskAssignment.user))
         .filter_by(parent_task_id=parent_task_id)
         .order_by(Task.created_at.asc())
         .all()
     )
     visible_tasks = []
     for child_task in child_tasks:
-        _ensure_task_runtime_bridge(child_task)
         if _task_user_is_executor(child_task, user_id):
             visible_tasks.append(child_task)
     return visible_tasks
 
 
+def _visible_child_tasks_by_parent_for_user(parent_task_ids, user_id):
+    normalized_parent_ids = sorted({int(parent_id) for parent_id in (parent_task_ids or []) if str(parent_id).isdigit()})
+    if not normalized_parent_ids or not user_id:
+        return {}
+
+    child_tasks = (
+        Task.query.options(joinedload(Task.assignments).joinedload(TaskAssignment.user))
+        .filter(Task.parent_task_id.in_(normalized_parent_ids))
+        .order_by(Task.parent_task_id.asc(), Task.created_at.asc(), Task.id.asc())
+        .all()
+    )
+    visible_by_parent = {}
+    for child_task in child_tasks:
+        if any(getattr(assignment, "user_id", None) == user_id for assignment in _task_assignment_records(child_task)):
+            visible_by_parent.setdefault(child_task.parent_task_id, []).append(child_task)
+    return visible_by_parent
+
+
 def _load_linked_report_template_ids(task):
     if not task:
         return []
+    cached = getattr(task, "_linked_report_template_ids_cache", None)
+    if cached is not None:
+        return cached
 
     ids = [
         int(link.report_template_id)
@@ -987,8 +1044,12 @@ def _load_linked_report_template_ids(task):
         if getattr(link, "report_template_id", None)
     ]
     if ids:
-        return sorted(set(ids))
-    return _load_linked_report_template_ids_legacy(task)
+        cached = sorted(set(ids))
+        setattr(task, "_linked_report_template_ids_cache", cached)
+        return cached
+    cached = _load_linked_report_template_ids_legacy(task)
+    setattr(task, "_linked_report_template_ids_cache", cached)
+    return cached
 
 
 def _resolve_scope_users(mode, role_ids=None, user_ids=None):
@@ -1374,6 +1435,26 @@ def _ensure_task_runtime_bridge(task, include_children=False):
     return changed
 
 
+def _lazy_repair_task_runtime(task, include_children=False, child_tasks=None, commit=True):
+    if not task:
+        return False
+
+    changed = _ensure_task_runtime_bridge(task, include_children=include_children)
+    if child_tasks and not include_children:
+        for child_task in child_tasks:
+            if _ensure_task_runtime_bridge(child_task, include_children=False):
+                changed = True
+
+    if not changed:
+        return False
+
+    if commit:
+        db.session.commit()
+    else:
+        db.session.flush()
+    return True
+
+
 def _task_assignment_for_user(task, user_id, create_from_executor=False):
     if not task or not user_id:
         return None
@@ -1415,6 +1496,12 @@ def _task_assignment_rows(task, ensure_bridge=False):
 
     if ensure_bridge and _ensure_task_runtime_bridge(task):
         db.session.flush()
+        setattr(task, "_task_assignment_rows_cache", None)
+
+    if not ensure_bridge:
+        cached_rows = getattr(task, "_task_assignment_rows_cache", None)
+        if cached_rows is not None:
+            return cached_rows
 
     rows = []
     for assignment in _task_assignment_records(task):
@@ -1431,6 +1518,8 @@ def _task_assignment_rows(task, ensure_bridge=False):
             (getattr(item[1], "fullname", None) or getattr(item[1], "username", None) or "").lower(),
         )
     )
+    if not ensure_bridge:
+        setattr(task, "_task_assignment_rows_cache", rows)
     return rows
 
 
@@ -2174,6 +2263,10 @@ def _assignment_report_snapshot(assignment, comments=None):
     }
     if not assignment:
         return empty_snapshot
+    if comments is None:
+        cached_snapshot = getattr(assignment, "_task_report_snapshot_cache", None)
+        if cached_snapshot is not None:
+            return cached_snapshot
 
     latest_submission = _latest_assignment_submission(assignment)
     if latest_submission and _submission_has_report_content(latest_submission):
@@ -2192,7 +2285,7 @@ def _assignment_report_snapshot(assignment, comments=None):
         reported_at = _task_submission_sort_key(latest_submission)
         if reported_at == datetime.min:
             reported_at = None
-        return {
+        snapshot = {
             "source": "submission",
             "payload": payload,
             "attachment_name": attachment_name,
@@ -2203,6 +2296,9 @@ def _assignment_report_snapshot(assignment, comments=None):
             "submission": latest_submission,
             "has_report": True,
         }
+        if comments is None:
+            setattr(assignment, "_task_report_snapshot_cache", snapshot)
+        return snapshot
 
     latest_comment, first_comment_at = _assignment_report_comment_snapshots(
         comments,
@@ -2240,7 +2336,7 @@ def _assignment_report_snapshot(assignment, comments=None):
         or summary_text
         or _assignment_has_report_submission_legacy(assignment)
     )
-    return {
+    snapshot = {
         "source": "legacy_comment" if latest_comment else ("legacy_payload" if has_report else ""),
         "payload": legacy_payload,
         "attachment_name": attachment_name,
@@ -2251,6 +2347,18 @@ def _assignment_report_snapshot(assignment, comments=None):
         "submission": None,
         "has_report": has_report,
     }
+    if comments is None:
+        setattr(assignment, "_task_report_snapshot_cache", snapshot)
+    return snapshot
+
+
+def _assignment_report_snapshot_map(assigns, comments=None):
+    snapshot_map = {}
+    for assignment, _user in assigns or []:
+        if not assignment or not getattr(assignment, "id", None):
+            continue
+        snapshot_map[assignment.id] = _assignment_report_snapshot(assignment, comments=comments)
+    return snapshot_map
 
 
 def _assignment_numeric_report_value(task, assignment):
@@ -2365,7 +2473,7 @@ def _child_task_numeric_total(task):
 
     total = Decimal("0")
     has_value = False
-    for assignment, _user in _task_assignment_rows(task, ensure_bridge=True):
+    for assignment, _user in _task_assignment_rows(task, ensure_bridge=False):
         numeric_value = _assignment_numeric_report_value(task, assignment)
         if numeric_value is None:
             continue
@@ -2376,7 +2484,7 @@ def _child_task_numeric_total(task):
 
 def _build_child_task_unit_summary(task):
     unit_rows = {}
-    assignment_rows = _task_assignment_rows(task, ensure_bridge=True)
+    assignment_rows = _task_assignment_rows(task, ensure_bridge=False)
     for assignment, user in assignment_rows:
         unit_identity = _task_unit_identity(user)
         unit_key = unit_identity.get("unit_key") or f"user_{user.id}"
@@ -2427,7 +2535,7 @@ def _build_child_task_reporting_matrix(child_tasks):
     unit_rows = {}
 
     for child_task in child_tasks or []:
-        assignment_rows = _task_assignment_rows(child_task, ensure_bridge=True)
+        assignment_rows = _task_assignment_rows(child_task, ensure_bridge=False)
         expected_units = {}
         reported_units = {}
 
@@ -2635,7 +2743,7 @@ def _task_report_download_name(task, unit_name, original_name):
     return f"{unit_slug}_{task_slug}{ext}"
 
 
-def _build_unit_report_cards(task, assigns, comments):
+def _build_unit_report_cards(task, assigns, comments, report_snapshots=None):
     unit_cards = {}
     for assignment, user in assigns or []:
         if not user:
@@ -2667,7 +2775,7 @@ def _build_unit_report_cards(task, assigns, comments):
         if user.id not in card["assignee_user_ids"]:
             card["assignee_user_ids"].append(user.id)
 
-        report_item = _assignment_report_snapshot(assignment, comments=comments)
+        report_item = (report_snapshots or {}).get(getattr(assignment, "id", None)) or _assignment_report_snapshot(assignment, comments=comments)
         file_name = report_item.get("attachment_name") or ""
         if file_name:
             download_name = _task_report_download_name(task, unit_name, file_name)
@@ -2689,7 +2797,7 @@ def _build_unit_report_cards(task, assigns, comments):
                 card["latest_report_user_name"] = display_name
                 card["latest_report_excerpt"] = report_item.get("summary_text") or report_item.get("excerpt") or ""
 
-    summary_rows, _summary_stats = _build_unit_report_summary(assigns, comments, task.deadline)
+    summary_rows, _summary_stats = _build_unit_report_summary(assigns, comments, task.deadline, report_snapshots=report_snapshots)
     summary_by_unit = {
         (row.get("unit_key") or row.get("unit_name", "").lower()): row
         for row in summary_rows
@@ -2822,7 +2930,7 @@ def _build_discussion_threads(assigns, comments):
     return output
 
 
-def _build_assignment_unit_cards(assigns):
+def _build_assignment_unit_cards(assigns, report_snapshots=None):
     unit_cards = {}
     for assignment, user in assigns or []:
         if not user:
@@ -2851,7 +2959,7 @@ def _build_assignment_unit_cards(assigns):
                 "user_id": user.id,
                 "name": display_name,
                 "status": normalized_status,
-                "has_file": bool(_assignment_report_snapshot(assignment).get("attachment_name")),
+                "has_file": bool(((report_snapshots or {}).get(getattr(assignment, "id", None)) or _assignment_report_snapshot(assignment)).get("attachment_name")),
             }
         )
         card["total_count"] += 1
@@ -3248,11 +3356,13 @@ def _purge_task(task):
     db.session.delete(task)
 
 
-def _ensure_task_schema():
+def _ensure_task_schema(run_runtime_backfill=False):
     try:
         apply_migrations(current_app)
     except Exception as migration_error:
         current_app.logger.warning(f"TASKS migration safeguard failed: {migration_error}")
+    if not run_runtime_backfill:
+        return
     runtime_flags = current_app.extensions.setdefault("pc06_runtime_flags", {})
     if runtime_flags.get("task_runtime_backfill_done"):
         return
@@ -3326,7 +3436,7 @@ def _decorate_task(task, current_uid, is_lead):
     }
 
 
-def _build_unit_report_summary(assigns, comments, deadline):
+def _build_unit_report_summary(assigns, comments, deadline, report_snapshots=None):
     unit_rows = {}
     for assignment, user in assigns or []:
         if not user:
@@ -3348,7 +3458,8 @@ def _build_unit_report_summary(assigns, comments, deadline):
         if display_name not in row["assignee_names"]:
             row["assignee_names"].append(display_name)
 
-        report_at = _assignment_report_snapshot(assignment, comments=comments).get("first_report_at")
+        report_item = (report_snapshots or {}).get(getattr(assignment, "id", None)) or _assignment_report_snapshot(assignment, comments=comments)
+        report_at = report_item.get("first_report_at")
         if report_at:
             if display_name not in row["reporter_names"]:
                 row["reporter_names"].append(display_name)
@@ -3418,15 +3529,18 @@ def tasks():
     is_admin = bool(session.get("is_admin"))
     current_user = db.session.get(User, session["uid"])
 
-    active_users = User.query.filter_by(is_active=True).order_by(User.unit_area.asc(), User.fullname.asc()).all()
-    active_users = apply_reference_display(
-        sync_record_categories(active_users, module_category_options("contacts", "unit_name", "Đơn vị"), attr_name="unit_area", prefer_stable=True),
-        "unit_area",
-        module_category_options("contacts", "unit_name", "Đơn vị"),
-        display_attr="unit_area_display",
-        fallback_label="Chưa có đơn vị",
-    )
-    roles = AppRole.query.order_by(AppRole.name.asc()).all()
+    active_users = []
+    roles = []
+    if is_lead or is_admin:
+        active_users = User.query.filter_by(is_active=True).order_by(User.unit_area.asc(), User.fullname.asc()).all()
+        active_users = apply_reference_display(
+            sync_record_categories(active_users, module_category_options("contacts", "unit_name", "Đơn vị"), attr_name="unit_area", prefer_stable=True),
+            "unit_area",
+            module_category_options("contacts", "unit_name", "Đơn vị"),
+            display_attr="unit_area_display",
+            fallback_label="Chưa có đơn vị",
+        )
+        roles = AppRole.query.order_by(AppRole.name.asc()).all()
 
     if request.method == "POST" and is_lead:
         title = (request.form.get("title") or "").strip()
@@ -3573,28 +3687,19 @@ def tasks():
         flash(f"Đã giao công việc cho {len(assignees)} cán bộ.", "success")
         return redirect(url_for("tasks_bp.tasks"))
 
-    query = Task.query.options(joinedload(Task.assignments))
+    query = Task.query.options(joinedload(Task.assignments).joinedload(TaskAssignment.user))
     if current_field != "ALL":
         query = query.filter_by(category=current_field)
     if current_domain != "ALL":
         query = query.filter_by(domain=current_domain)
 
     all_candidate_tasks = query.order_by(Task.created_at.desc()).all()
-    runtime_bridge_changed = False
-    for candidate_task in all_candidate_tasks:
-        if _ensure_task_runtime_bridge(candidate_task):
-            runtime_bridge_changed = True
-    if runtime_bridge_changed:
-        db.session.commit()
 
     if can_view_all_tasks:
         all_tasks = [task for task in all_candidate_tasks if not task.parent_task_id]
     else:
-        visible_child_tasks_by_parent = {}
-        for parent_task in (task for task in all_candidate_tasks if not task.parent_task_id):
-            child_tasks_for_user = _visible_child_tasks_for_user(parent_task.id, session["uid"])
-            if child_tasks_for_user:
-                visible_child_tasks_by_parent[parent_task.id] = child_tasks_for_user
+        parent_task_ids = [task.id for task in all_candidate_tasks if not task.parent_task_id and getattr(task, "id", None)]
+        visible_child_tasks_by_parent = _visible_child_tasks_by_parent_for_user(parent_task_ids, session["uid"])
         child_parent_ids = set(visible_child_tasks_by_parent.keys())
         all_tasks = []
         for task in all_candidate_tasks:
@@ -3711,8 +3816,8 @@ def tasks():
         now_dt=now_dt,
         is_lead=is_lead,
         is_admin=is_admin,
-        default_task_report_schema=_task_report_schema_seed(),
-        report_templates=_task_report_templates(),
+        default_task_report_schema=_task_report_schema_seed() if (is_lead or is_admin) else {},
+        report_templates=_task_report_templates() if (is_lead or is_admin) else [],
         stats={
             "total": total_count,
             "completed": completed_count,
@@ -3729,9 +3834,47 @@ def task_detail(tid):
 
     _ensure_task_schema()
 
-    task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
+    task = Task.query.options(joinedload(Task.assignments).joinedload(TaskAssignment.user)).filter_by(id=tid).first()
     if not task:
         return "Not Found", 404
+
+    perms = _current_perms()
+    is_lead = _can_process_task_module(perms)
+    can_view_all_tasks = _can_view_all_tasks(perms)
+    is_admin = bool(session.get("is_admin"))
+    current_user = db.session.get(User, session["uid"])
+    can_manager_task_view = _can_manage_task(task, user=current_user)
+    can_watch_task_view = _can_watch_task(task, user=current_user)
+    visible_child_tasks_for_user = (
+        _visible_child_tasks_for_user(task.id, session["uid"])
+        if not (session.get("is_admin") or can_view_all_tasks or task.author_id == session.get("uid"))
+        else []
+    )
+    if not _can_view_task(task, is_lead=can_view_all_tasks) and not visible_child_tasks_for_user:
+        flash("Bạn không có quyền xem công việc này.", "danger")
+        return redirect(url_for("tasks_bp.tasks"))
+
+    can_edit_task = _can_edit_task(task)
+    can_delete_task = _can_delete_task(task, is_lead=is_lead)
+    can_manage_task_view = bool(is_lead or can_edit_task or can_manager_task_view)
+    can_observe_task_view = bool(can_manage_task_view or can_watch_task_view or can_view_all_tasks)
+    if _lazy_repair_task_runtime(
+        task,
+        include_children=can_observe_task_view,
+        child_tasks=visible_child_tasks_for_user if visible_child_tasks_for_user and not can_observe_task_view else None,
+    ):
+        task = Task.query.options(joinedload(Task.assignments).joinedload(TaskAssignment.user)).filter_by(id=tid).first()
+        can_edit_task = _can_edit_task(task)
+        can_delete_task = _can_delete_task(task, is_lead=is_lead)
+        can_manager_task_view = _can_manage_task(task, user=current_user)
+        can_watch_task_view = _can_watch_task(task, user=current_user)
+        can_manage_task_view = bool(is_lead or can_edit_task or can_manager_task_view)
+        can_observe_task_view = bool(can_manage_task_view or can_watch_task_view or can_view_all_tasks)
+        visible_child_tasks_for_user = (
+            _visible_child_tasks_for_user(task.id, session["uid"])
+            if not (session.get("is_admin") or can_view_all_tasks or task.author_id == session.get("uid"))
+            else []
+        )
 
     pro_units = _task_domain_options()
     task_fields = _task_field_options()
@@ -3751,34 +3894,6 @@ def task_detail(tid):
             sync_record_categories([parent_task], task_types, attr_name="task_type", prefer_stable=True)
             sync_record_categories([parent_task], priority_items, attr_name="priority", prefer_stable=True)
             _decorate_task_categories(parent_task, task_fields, pro_units, task_types, priority_items)
-    active_users = User.query.filter_by(is_active=True).order_by(User.unit_area.asc(), User.fullname.asc()).all()
-    active_users = apply_reference_display(
-        sync_record_categories(active_users, module_category_options("contacts", "unit_name", "Đơn vị"), attr_name="unit_area", prefer_stable=True),
-        "unit_area",
-        module_category_options("contacts", "unit_name", "Đơn vị"),
-        display_attr="unit_area_display",
-        fallback_label="Chưa có đơn vị",
-    )
-    roles = AppRole.query.order_by(AppRole.name.asc()).all()
-    perms = _current_perms()
-    is_lead = _can_process_task_module(perms)
-    can_view_all_tasks = _can_view_all_tasks(perms)
-    can_edit_task = _can_edit_task(task)
-    can_delete_task = _can_delete_task(task, is_lead=is_lead)
-    current_user = db.session.get(User, session["uid"])
-    can_manager_task_view = _can_manage_task(task, user=current_user)
-    can_watch_task_view = _can_watch_task(task, user=current_user)
-    visible_child_tasks_for_user = (
-        _visible_child_tasks_for_user(task.id, session["uid"])
-        if not (session.get("is_admin") or can_view_all_tasks or task.author_id == session.get("uid"))
-        else []
-    )
-    if not _can_view_task(task, is_lead=can_view_all_tasks) and not visible_child_tasks_for_user:
-        flash("Bạn không có quyền xem công việc này.", "danger")
-        return redirect(url_for("tasks_bp.tasks"))
-
-    if _ensure_task_runtime_bridge(task, include_children=True):
-        db.session.commit()
 
     assigns = _task_assignment_rows(task, ensure_bridge=False)
     assign_users = [user for _, user in assigns]
@@ -3794,8 +3909,18 @@ def task_detail(tid):
 
     task_metrics = _decorate_task(task, session["uid"], can_view_all_tasks)
     user_assign = task_metrics["user_assignment"]
-    can_manage_task_view = bool(is_lead or can_edit_task or can_manager_task_view)
-    can_observe_task_view = bool(can_manage_task_view or can_watch_task_view or can_view_all_tasks)
+    active_users = []
+    roles = []
+    if can_manage_task_view or is_admin or is_lead:
+        active_users = User.query.filter_by(is_active=True).order_by(User.unit_area.asc(), User.fullname.asc()).all()
+        active_users = apply_reference_display(
+            sync_record_categories(active_users, module_category_options("contacts", "unit_name", "Đơn vị"), attr_name="unit_area", prefer_stable=True),
+            "unit_area",
+            module_category_options("contacts", "unit_name", "Đơn vị"),
+            display_attr="unit_area_display",
+            fallback_label="Chưa có đơn vị",
+        )
+        roles = AppRole.query.order_by(AppRole.name.asc()).all()
     if not can_manage_task_view and not can_watch_task_view and not can_view_all_tasks and not user_assign and not visible_child_tasks_for_user:
         flash("Bạn không có quyền xem công việc này.", "danger")
         return redirect(url_for("tasks_bp.tasks"))
@@ -3865,23 +3990,18 @@ def task_detail(tid):
     task_has_child_tasks = False
     child_task_stats = {"total": 0, "completed": 0, "in_progress": 0}
     child_task_reporting_matrix = {"task_rows": [], "unit_rows": []}
-    assignment_unit_cards = _build_assignment_unit_cards(assigns)
+    assignment_report_snapshots = _assignment_report_snapshot_map(assigns, comments=comments)
+    assignment_unit_cards = _build_assignment_unit_cards(assigns, report_snapshots=assignment_report_snapshots)
     assignment_unit_progress = {
         "completed_units": sum(1 for card in assignment_unit_cards if card.get("status") == COMPLETED_STATUS),
         "total_units": len(assignment_unit_cards),
     }
     if can_observe_task_view:
-        child_tasks = Task.query.options(joinedload(Task.assignments)).filter_by(parent_task_id=task.id).order_by(Task.created_at.asc()).all()
+        child_tasks = Task.query.options(joinedload(Task.assignments).joinedload(TaskAssignment.user)).filter_by(parent_task_id=task.id).order_by(Task.created_at.asc()).all()
     elif visible_child_tasks_for_user:
         child_tasks = visible_child_tasks_for_user
 
     if child_tasks:
-        child_bridge_changed = False
-        for child_task in child_tasks:
-            if _ensure_task_runtime_bridge(child_task):
-                child_bridge_changed = True
-        if child_bridge_changed:
-            db.session.commit()
         task_has_child_tasks = True
         sync_record_categories(child_tasks, task_fields, attr_name="category", prefer_stable=True)
         sync_record_categories(child_tasks, pro_units, attr_name="domain", prefer_stable=True)
@@ -3919,8 +4039,18 @@ def task_detail(tid):
             if not (getattr(comment, "content", "") or "").startswith(REPORT_PREFIX)
         ]
         assignment_role_groups = _build_assignment_role_groups(assigns)
-        unit_report_rows, unit_report_stats = _build_unit_report_summary(assigns, comments, task.deadline)
-        unit_report_cards = _build_unit_report_cards(task, assigns, comments)
+        unit_report_rows, unit_report_stats = _build_unit_report_summary(
+            assigns,
+            comments,
+            task.deadline,
+            report_snapshots=assignment_report_snapshots,
+        )
+        unit_report_cards = _build_unit_report_cards(
+            task,
+            assigns,
+            comments,
+            report_snapshots=assignment_report_snapshots,
+        )
         unit_report_groups = _build_unit_report_groups(unit_report_cards)
         discussion_threads = [thread for thread in _build_discussion_threads(assigns, discussion_comments) if thread.get("comments")]
     elif user_assign:
@@ -4028,8 +4158,7 @@ def save_da06_task_report(tid):
     task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
     if not task:
         return "Not Found", 404
-    if _ensure_task_runtime_bridge(task):
-        db.session.commit()
+    _lazy_repair_task_runtime(task)
     if not _is_da06_month_task(task):
         flash("Công việc này không dùng biểu mẫu ĐA06 tháng.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
@@ -4100,8 +4229,7 @@ def download_da06_task_attachment(tid, attachment_key):
     task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
     if not task:
         return "Not Found", 404
-    if _ensure_task_runtime_bridge(task):
-        db.session.commit()
+    _lazy_repair_task_runtime(task)
 
     perms = _current_perms()
     is_lead = _can_process_task_module(perms)
@@ -4145,8 +4273,7 @@ def download_task_report_file(tid, user_id):
     task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
     if not task:
         return "Not Found", 404
-    if _ensure_task_runtime_bridge(task):
-        db.session.commit()
+    _lazy_repair_task_runtime(task)
 
     perms = _current_perms()
     is_lead = _can_process_task_module(perms)
@@ -4203,6 +4330,7 @@ def export_task_unit_report(tid):
     task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
     if not task:
         return "Not Found", 404
+    _lazy_repair_task_runtime(task)
 
     perms = _current_perms()
     is_lead = _can_process_task_module(perms)
@@ -4210,7 +4338,7 @@ def export_task_unit_report(tid):
         flash("Bạn không có quyền xuất thống kê báo cáo của công việc này.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
-    assigns = _task_assignment_rows(task, ensure_bridge=True)
+    assigns = _task_assignment_rows(task, ensure_bridge=False)
     assign_users = [user for _, user in assigns]
     unit_options = module_category_options("contacts", "unit_name", "Đơn vị")
     sync_record_categories(assign_users, unit_options, attr_name="unit_area", prefer_stable=True)
@@ -4655,8 +4783,7 @@ def update_task_status(tid):
     task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
     if not task:
         return "Not Found", 404
-    if _ensure_task_runtime_bridge(task):
-        db.session.commit()
+    _lazy_repair_task_runtime(task)
     assign = _task_assignment_for_user(task, session["uid"], create_from_executor=True)
 
     if not assign:
@@ -4681,8 +4808,7 @@ def submit_task_report(tid):
     task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
     if not task:
         return "Not Found", 404
-    if _ensure_task_runtime_bridge(task):
-        db.session.commit()
+    _lazy_repair_task_runtime(task)
 
     mark_completed = request.form.get("mark_completed")
 

@@ -364,6 +364,61 @@ class ProposalRuntimeTests(unittest.TestCase):
                 Task.query.filter_by(id=task.id).delete(synchronize_session=False)
                 db.session.commit()
 
+    def test_task_list_stays_read_only_but_task_detail_lazy_repairs_runtime(self):
+        client, user = self._login_admin_client()
+        with app.app_context():
+            now_token = datetime.now().strftime("%Y%m%d%H%M%S%f")
+            task = Task(
+                title=f"[TEST] lazy repair {now_token}",
+                content="Task phục vụ test lazy repair runtime",
+                deadline=date.today(),
+                author_id=user.id,
+                author_name=user.fullname,
+                priority="Cao",
+                task_type="Công việc thường xuyên",
+                initial_status="Đang thực hiện",
+                created_at=datetime.now(),
+            )
+            db.session.add(task)
+            db.session.commit()
+
+            assignment = TaskAssignment(
+                task_id=task.id,
+                user_id=user.id,
+                status="Đang thực hiện",
+                report_payload_json=json.dumps({"narrative": "Đã có báo cáo cũ."}, ensure_ascii=False),
+                updated_at=datetime.now(),
+            )
+            db.session.add(assignment)
+            db.session.commit()
+            task_id = task.id
+
+        try:
+            list_response = client.get("/tasks")
+            self.assertEqual(list_response.status_code, 200)
+            with app.app_context():
+                task = db.session.get(Task, task_id)
+                self.assertEqual(_query_task_scope(TaskParticipant, task).count(), 0)
+                self.assertEqual(_query_task_scope(TaskSubmission, task).count(), 0)
+                self.assertTrue(_task_runtime_bridge_needs_sync(task))
+
+            detail_response = client.get(f"/tasks/{task_id}")
+            self.assertEqual(detail_response.status_code, 200)
+            with app.app_context():
+                task = db.session.get(Task, task_id)
+                self.assertEqual(_query_task_scope(TaskParticipant, task).count(), 1)
+                self.assertEqual(_query_task_scope(TaskSubmission, task).count(), 1)
+                self.assertFalse(_task_runtime_bridge_needs_sync(task))
+        finally:
+            with app.app_context():
+                TaskSubmission.query.filter_by(task_id=task_id).delete(synchronize_session=False)
+                TaskParticipant.query.filter_by(task_id=task_id).delete(synchronize_session=False)
+                TaskReportLink.query.filter_by(task_id=task_id).delete(synchronize_session=False)
+                TaskItem.query.filter_by(task_id=task_id).delete(synchronize_session=False)
+                TaskAssignment.query.filter_by(task_id=task_id).delete(synchronize_session=False)
+                Task.query.filter_by(id=task_id).delete(synchronize_session=False)
+                db.session.commit()
+
     def test_numeric_submission_extractor_returns_none_for_blank_value(self):
         with app.app_context():
             user = User.query.filter_by(is_active=True).order_by(User.id.asc()).first()

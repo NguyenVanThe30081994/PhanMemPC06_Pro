@@ -200,13 +200,22 @@ def _is_admin():
 
 
 def _current_report_perms():
+    if has_request_context():
+        cached = getattr(g, "_report_current_perms_cache", None)
+        if cached is not None:
+            return cached
     role_id = session.get("role_id")
     role = db.session.get(AppRole, role_id) if role_id else None
     if role and role.perms:
         try:
-            return normalize_permission_payload(role.perms, is_admin=session.get("is_admin"), role_name=getattr(role, "name", ""))
+            perms = normalize_permission_payload(role.perms, is_admin=session.get("is_admin"), role_name=getattr(role, "name", ""))
+            if has_request_context():
+                g._report_current_perms_cache = perms
+            return perms
         except Exception:
             return {}
+    if has_request_context():
+        g._report_current_perms_cache = {}
     return {}
 
 
@@ -886,6 +895,10 @@ def _sync_units_from_users():
 
 
 def _current_user_report_unit():
+    if has_request_context():
+        cached = getattr(g, "_current_user_report_unit_cache", None)
+        if cached is not None:
+            return cached
     if not session.get("uid"):
         return None
     user = db.session.get(User, session.get("uid"))
@@ -896,12 +909,18 @@ def _current_user_report_unit():
     if key:
         unit = ReportUnit.query.filter_by(code=key, is_active=True).first()
         if unit:
+            if has_request_context():
+                g._current_user_report_unit_cache = unit
             return unit
     if preferred_name:
         key = normalize_code(preferred_name)
         unit = ReportUnit.query.filter_by(code=key, is_active=True).first()
         if unit:
+            if has_request_context():
+                g._current_user_report_unit_cache = unit
             return unit
+    if has_request_context():
+        g._current_user_report_unit_cache = None
     return None
 
 
@@ -1060,11 +1079,21 @@ def _unit_matches_group(unit, group_name):
 
 
 def _resolve_scope_units(scope_payload):
+    if has_request_context():
+        cache = getattr(g, "_report_scope_units_cache", None)
+        if cache is None:
+            cache = {}
+            g._report_scope_units_cache = cache
+        cache_key = json.dumps(scope_payload or {}, sort_keys=True, ensure_ascii=False)
+        if cache_key in cache:
+            return cache[cache_key]
     all_units = ReportUnit.query.filter_by(is_active=True).order_by(ReportUnit.name.asc()).all()
     has_explicit_scope = bool(
         scope_payload.get("unit_ids") or scope_payload.get("role_ids") or scope_payload.get("unit_groups")
     )
     if scope_payload.get("mode") == "all" and not has_explicit_scope:
+        if has_request_context():
+            cache[cache_key] = all_units
         return all_units
 
     selected_ids = set(int(v) for v in scope_payload.get("unit_ids", []) if str(v).isdigit())
@@ -1088,7 +1117,10 @@ def _resolve_scope_units(scope_payload):
         return all_units
     if not selected_ids:
         return []
-    return [unit for unit in all_units if unit.id in selected_ids]
+    resolved_units = [unit for unit in all_units if unit.id in selected_ids]
+    if has_request_context():
+        cache[cache_key] = resolved_units
+    return resolved_units
 
 
 def _template_current_cycle(template):
@@ -1553,11 +1585,21 @@ def _get_cycle_instance(cycle, unit, user):
 
 
 def _latest_submission(instance_id):
-    return (
+    if has_request_context():
+        cache = getattr(g, "_report_latest_submission_cache", None)
+        if cache is None:
+            cache = {}
+            g._report_latest_submission_cache = cache
+        if instance_id in cache:
+            return cache[instance_id]
+    submission = (
         ReportSubmission.query.filter_by(instance_id=instance_id)
         .order_by(ReportSubmission.version_no.desc(), ReportSubmission.created_at.desc())
         .first()
     )
+    if has_request_context():
+        cache[instance_id] = submission
+    return submission
 
 
 def _submission_metadata(submission):
@@ -2580,7 +2622,13 @@ def _preferred_sticky_column(sheet_meta, ws, editable_values=None):
 
 
 def _cycle_units(cycle):
-    return _resolve_scope_units(_parse_scope_payload(cycle.scope_json))
+    cached = getattr(cycle, "_cycle_units_cache", None) if cycle else None
+    if cached is not None:
+        return cached
+    units = _resolve_scope_units(_parse_scope_payload(cycle.scope_json))
+    if cycle:
+        setattr(cycle, "_cycle_units_cache", units)
+    return units
 
 
 def _resolve_cycle_unit(cycle):
@@ -2629,7 +2677,14 @@ def _refresh_instance_status(instance):
 
 
 def _report_type(cycle):
-    return db.session.get(ReportType, cycle.report_type_id) if cycle and cycle.report_type_id else None
+    if not cycle or not cycle.report_type_id:
+        return None
+    cached = getattr(cycle, "_report_type_cache", None)
+    if cached is not None:
+        return cached
+    report_type = db.session.get(ReportType, cycle.report_type_id)
+    setattr(cycle, "_report_type_cache", report_type)
+    return report_type
 
 
 def _submission_timeliness(cycle, submission, report_type=None):
