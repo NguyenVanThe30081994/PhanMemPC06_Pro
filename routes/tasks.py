@@ -6,13 +6,17 @@ import re
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, timedelta
 
-from flask import Blueprint, current_app, flash, g, has_request_context, redirect, request, session, url_for, send_file
+from flask import Blueprint, current_app, flash, g, has_request_context, jsonify, redirect, request, session, url_for, send_file
 from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 try:
     from openpyxl import Workbook
 except ImportError:
     Workbook = None
+try:
+    from docx import Document as DocxDocument
+except ImportError:
+    DocxDocument = None
 
 from category_helpers import (
     apply_reference_display,
@@ -63,6 +67,7 @@ REPORT_ATTACHMENT_RE = re.compile(r"\s*\(Đính kèm:\s*([^)]+)\)\s*$")
 TASK_REPORT_ALLOWED_FIELD_TYPES = {"number", "text", "textarea"}
 TASK_REPORT_ALLOWED_TARGET_TYPES = {"all", "role", "user"}
 TASK_SCOPE_ALLOWED_MODES = {"none", "role", "user"}
+TASK_OUTLINE_ALLOWED_EXTENSIONS = {".docx", ".txt"}
 DEFAULT_TASK_REPORT_SCHEMA = {
     "enabled": False,
     "narrative": {
@@ -833,6 +838,80 @@ def _parse_bulk_child_task_titles(raw_value):
     return titles
 
 
+def _clean_outline_title(raw_value):
+    cleaned = str(raw_value or "").strip()
+    if not cleaned:
+        return ""
+    cleaned = re.sub(r"^\s*(?:[-*+•]|[0-9]{1,3}[.)]|[A-Za-z][.)]|[IVXLCDMivxlcdm]+[.)])\s*", "", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" .:-")
+    return cleaned
+
+
+def _parse_outline_docx_titles(file_storage):
+    if DocxDocument is None:
+        raise ValueError("Máy chủ chưa cài thư viện đọc file Word (.docx).")
+
+    try:
+        file_storage.stream.seek(0)
+        file_bytes = file_storage.stream.read()
+        document = DocxDocument(io.BytesIO(file_bytes))
+    except Exception:
+        raise ValueError("Không đọc được file đề cương Word. Hãy thử lại với file .docx rõ nội dung đầu mục.")
+
+    candidates = []
+    fallback_lines = []
+    for paragraph in document.paragraphs:
+        raw_text = str(getattr(paragraph, "text", "") or "").strip()
+        if not raw_text:
+            continue
+        cleaned = _clean_outline_title(raw_text)
+        if len(cleaned) < 3:
+            continue
+        fallback_lines.append(cleaned)
+        style_name = str(getattr(getattr(paragraph, "style", None), "name", "") or "").strip().lower()
+        is_outline_like = bool(
+            re.match(r"^\s*(?:[-*+•]|[0-9]{1,3}[.)]|[A-Za-z][.)]|[IVXLCDMivxlcdm]+[.)])\s*", raw_text)
+            or any(token in style_name for token in ("heading", "list", "bullet", "number"))
+        )
+        if is_outline_like:
+            candidates.append(cleaned)
+
+    chosen_lines = candidates or fallback_lines
+    return _parse_bulk_child_task_titles("\n".join(chosen_lines))
+
+
+def _parse_outline_text_titles(file_storage):
+    try:
+        file_storage.stream.seek(0)
+        raw_bytes = file_storage.stream.read()
+    except Exception:
+        raise ValueError("Không đọc được file đề cương văn bản.")
+
+    raw_text = ""
+    for encoding in ("utf-8", "utf-8-sig", "cp1258"):
+        try:
+            raw_text = raw_bytes.decode(encoding)
+            break
+        except Exception:
+            raw_text = ""
+    if not raw_text:
+        raise ValueError("File đề cương văn bản không đúng định dạng UTF-8.")
+    return _parse_bulk_child_task_titles(raw_text)
+
+
+def _parse_outline_upload_titles(file_storage):
+    if not file_storage or not getattr(file_storage, "filename", ""):
+        return []
+
+    extension = os.path.splitext(file_storage.filename or "")[1].lower()
+    if extension not in TASK_OUTLINE_ALLOWED_EXTENSIONS:
+        raise ValueError("Chỉ hỗ trợ đề cương dạng .docx hoặc .txt.")
+
+    if extension == ".docx":
+        return _parse_outline_docx_titles(file_storage)
+    return _parse_outline_text_titles(file_storage)
+
+
 def _load_linked_report_template_ids_legacy(task):
     if not task:
         return []
@@ -864,6 +943,34 @@ def _query_task_scope(model, task):
     if task_item_id:
         return query.filter(model.task_item_id == task_item_id)
     return query.filter(model.task_item_id.is_(None))
+
+
+def _task_executor_user_ids(task):
+    if not task:
+        return []
+
+    participant_ids = [
+        participant.user_id
+        for participant in _query_task_scope(TaskParticipant, task)
+        .filter(
+            TaskParticipant.participant_type == "executor",
+            TaskParticipant.is_active.is_(True),
+        )
+        .all()
+        if getattr(participant, "user_id", None)
+    ]
+    if participant_ids:
+        return sorted(set(participant_ids))
+
+    return sorted({
+        assignment.user_id
+        for assignment in (task.assignments or [])
+        if getattr(assignment, "user_id", None)
+    })
+
+
+def _task_user_is_executor(task, user_id):
+    return bool(user_id and user_id in _task_executor_user_ids(task))
 
 
 def _load_linked_report_template_ids(task):
@@ -1363,18 +1470,19 @@ def _can_view_task(task, is_lead=False):
         return False
     if session.get("is_admin") or is_lead or task.author_id == session.get("uid"):
         return True
-    if any(assignment.user_id == session.get("uid") for assignment in (task.assignments or [])):
+    if _task_user_is_executor(task, session.get("uid")):
         return True
     if _can_manage_task(task):
         return True
     if _can_watch_task(task):
         return True
-    return bool(
-        db.session.query(Task.id)
-        .join(TaskAssignment, Task.id == TaskAssignment.task_id)
-        .filter(Task.parent_task_id == task.id, TaskAssignment.user_id == session.get("uid"))
-        .first()
+    child_tasks = (
+        Task.query.options(joinedload(Task.assignments))
+        .filter_by(parent_task_id=task.id)
+        .order_by(Task.created_at.asc())
+        .all()
     )
+    return any(_task_user_is_executor(child_task, session.get("uid")) for child_task in child_tasks)
 
 
 def _filter_comments_for_viewer(task, comments, viewer, can_manage_all=False):
@@ -1672,25 +1780,199 @@ def _build_simple_child_task_schema(report_kind="narrative", attachment_required
 
 
 def _parse_structured_task_report_payload(assignment):
-    submission_records = getattr(assignment, "submission_records", None) or []
-    if submission_records:
-        latest_submission = sorted(
-            submission_records,
-            key=lambda item: getattr(item, "updated_at", None) or getattr(item, "created_at", None) or datetime.min,
-            reverse=True,
-        )[0]
-        raw_payload = getattr(latest_submission, "payload_json", None) or ""
-        if raw_payload:
-            try:
-                payload = json.loads(raw_payload)
-            except Exception:
-                payload = {}
-            if isinstance(payload, dict) and payload.get("mode") == "structured_task_report":
-                return payload
+    latest_submission = _latest_assignment_submission(assignment)
+    if latest_submission:
+        payload = _parse_task_submission_payload(latest_submission)
+        if payload.get("mode") == "structured_task_report":
+            return payload
     payload = _parse_assignment_payload(assignment)
     if payload.get("mode") != "structured_task_report":
         return None
     return payload
+
+
+def _task_submission_sort_key(submission):
+    return (
+        getattr(submission, "submitted_at", None)
+        or getattr(submission, "updated_at", None)
+        or getattr(submission, "created_at", None)
+        or datetime.min
+    )
+
+
+def _parse_task_submission_payload(submission):
+    raw_payload = getattr(submission, "payload_json", None) or ""
+    if not raw_payload:
+        return {}
+    try:
+        payload = json.loads(raw_payload)
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _latest_assignment_submission(assignment):
+    submission_records = getattr(assignment, "submission_records", None) or []
+    if not submission_records:
+        return None
+    return sorted(
+        submission_records,
+        key=_task_submission_sort_key,
+        reverse=True,
+    )[0]
+
+
+def _submission_has_report_content(submission):
+    if not submission:
+        return False
+    payload = _parse_task_submission_payload(submission)
+    if payload.get("mode") == "structured_task_report":
+        return _structured_payload_has_content(payload)
+    if (
+        str(getattr(submission, "narrative_content", "") or "").strip()
+        or getattr(submission, "numeric_value", None) is not None
+        or str(getattr(submission, "attachment_name", "") or "").strip()
+    ):
+        return True
+    if str(payload.get("narrative") or payload.get("narrative_report") or "").strip():
+        return True
+    if isinstance(payload.get("values"), dict) and any(
+        str(value or "").strip() for value in payload.get("values", {}).values()
+    ):
+        return True
+    return bool(str(payload.get("attachment_name") or "").strip())
+
+
+def _assignment_report_comment_snapshots(comments, user_id):
+    latest_item = None
+    first_time = None
+    for comment in comments or []:
+        if getattr(comment, "user_id", None) != user_id:
+            continue
+        if not (getattr(comment, "content", "") or "").startswith(REPORT_PREFIX):
+            continue
+        created_at = getattr(comment, "created_at", None)
+        if created_at and (first_time is None or created_at < first_time):
+            first_time = created_at
+        if latest_item is None or (
+            created_at and created_at > getattr(latest_item, "created_at", None)
+        ):
+            latest_item = comment
+    return latest_item, first_time
+
+
+def _assignment_report_snapshot(assignment, comments=None):
+    empty_snapshot = {
+        "source": "",
+        "payload": {},
+        "attachment_name": "",
+        "reported_at": None,
+        "first_report_at": None,
+        "excerpt": "",
+        "summary_text": "",
+        "submission": None,
+        "has_report": False,
+    }
+    if not assignment:
+        return empty_snapshot
+
+    latest_submission = _latest_assignment_submission(assignment)
+    if latest_submission and _submission_has_report_content(latest_submission):
+        payload = _parse_task_submission_payload(latest_submission)
+        attachment_name = (
+            str(getattr(latest_submission, "attachment_name", "") or "").strip()
+            or str(payload.get("attachment_name") or "").strip()
+            or str(getattr(assignment, "result_file", "") or "").strip()
+        )
+        excerpt = str(
+            getattr(latest_submission, "narrative_content", None)
+            or payload.get("narrative")
+            or payload.get("narrative_report")
+            or ""
+        ).strip()
+        reported_at = _task_submission_sort_key(latest_submission)
+        if reported_at == datetime.min:
+            reported_at = None
+        return {
+            "source": "submission",
+            "payload": payload,
+            "attachment_name": attachment_name,
+            "reported_at": reported_at,
+            "first_report_at": reported_at,
+            "excerpt": excerpt,
+            "summary_text": excerpt,
+            "submission": latest_submission,
+            "has_report": True,
+        }
+
+    latest_comment, first_comment_at = _assignment_report_comment_snapshots(
+        comments,
+        getattr(assignment, "user_id", None),
+    )
+    legacy_payload = _parse_assignment_payload(assignment)
+    attachment_name = (
+        str(legacy_payload.get("attachment_name") or "").strip()
+        or str(getattr(assignment, "result_file", "") or "").strip()
+    )
+    excerpt = str(
+        legacy_payload.get("narrative")
+        or legacy_payload.get("narrative_report")
+        or ""
+    ).strip()
+    summary_text = excerpt
+    latest_report_at = None
+    if latest_comment:
+        summary_text, comment_attachment_name = _parse_report_comment_content(
+            getattr(latest_comment, "content", "") or ""
+        )
+        if not attachment_name:
+            attachment_name = comment_attachment_name
+        if not excerpt:
+            excerpt = summary_text
+        latest_report_at = getattr(latest_comment, "created_at", None)
+
+    if not latest_report_at and _assignment_has_report_submission_legacy(assignment):
+        latest_report_at = getattr(assignment, "updated_at", None)
+
+    has_report = bool(
+        latest_report_at
+        or attachment_name
+        or excerpt
+        or summary_text
+        or _assignment_has_report_submission_legacy(assignment)
+    )
+    return {
+        "source": "legacy_comment" if latest_comment else ("legacy_payload" if has_report else ""),
+        "payload": legacy_payload,
+        "attachment_name": attachment_name,
+        "reported_at": latest_report_at,
+        "first_report_at": first_comment_at or latest_report_at,
+        "excerpt": excerpt,
+        "summary_text": summary_text,
+        "submission": None,
+        "has_report": has_report,
+    }
+
+
+def _assignment_numeric_report_value(task, assignment):
+    schema = _load_task_report_schema(task)
+    number_field_key = (
+        _task_report_meta(schema).get("number_field_key")
+        or CHILD_TASK_NUMBER_FIELD_KEY
+    )
+    latest_submission = _latest_assignment_submission(assignment)
+    if latest_submission and getattr(latest_submission, "numeric_value", None) is not None:
+        try:
+            return Decimal(str(latest_submission.numeric_value))
+        except Exception:
+            pass
+    payload = _parse_structured_task_report_payload(assignment)
+    values = payload.get("values") if isinstance(payload, dict) else {}
+    raw_value = values.get(number_field_key) if isinstance(values, dict) else ""
+    try:
+        return _parse_report_number(raw_value)
+    except ValueError:
+        return None
 
 
 def _task_report_value_preview(value, limit=120):
@@ -1752,27 +2034,27 @@ def _structured_payload_has_content(payload):
 
 
 def _assignment_has_report_submission_legacy(assignment):
-    payload = _parse_structured_task_report_payload(assignment)
-    if payload:
+    payload = _parse_assignment_payload(assignment)
+    if payload.get("mode") == "structured_task_report":
         return _structured_payload_has_content(payload)
-    return bool((getattr(assignment, "report_payload_json", None) or "").strip() or (getattr(assignment, "result_file", None) or "").strip())
+    if str(payload.get("narrative") or payload.get("narrative_report") or "").strip():
+        return True
+    if isinstance(payload.get("values"), dict) and any(
+        str(value or "").strip() for value in payload.get("values", {}).values()
+    ):
+        return True
+    if str(payload.get("attachment_name") or "").strip():
+        return True
+    return bool(
+        (getattr(assignment, "report_payload_json", None) or "").strip()
+        or (getattr(assignment, "result_file", None) or "").strip()
+    )
 
 
 def _assignment_has_report_submission(assignment):
-    submission_records = getattr(assignment, "submission_records", None) or []
-    if submission_records:
-        latest_submission = sorted(
-            submission_records,
-            key=lambda item: getattr(item, "updated_at", None) or getattr(item, "created_at", None) or datetime.min,
-            reverse=True,
-        )[0]
-        if (
-            str(getattr(latest_submission, "narrative_content", "") or "").strip()
-            or getattr(latest_submission, "numeric_value", None) is not None
-            or str(getattr(latest_submission, "attachment_name", "") or "").strip()
-            or str(getattr(latest_submission, "payload_json", "") or "").strip()
-        ):
-            return True
+    latest_submission = _latest_assignment_submission(assignment)
+    if latest_submission and _submission_has_report_content(latest_submission):
+        return True
     return _assignment_has_report_submission_legacy(assignment)
 
 
@@ -1782,19 +2064,10 @@ def _child_task_numeric_total(task):
     if meta.get("kind") != "simple_child_task" or meta.get("report_kind") != "number":
         return None
 
-    number_field_key = meta.get("number_field_key") or CHILD_TASK_NUMBER_FIELD_KEY
     total = Decimal("0")
     has_value = False
     for assignment in task.assignments or []:
-        payload = _parse_structured_task_report_payload(assignment)
-        if not payload:
-            continue
-        values = payload.get("values")
-        raw_value = values.get(number_field_key) if isinstance(values, dict) else ""
-        try:
-            numeric_value = _parse_report_number(raw_value)
-        except ValueError:
-            numeric_value = None
+        numeric_value = _assignment_numeric_report_value(task, assignment)
         if numeric_value is None:
             continue
         total += numeric_value
@@ -1815,35 +2088,30 @@ def _build_child_task_unit_summary(task):
             {
                 "unit_name": unit_identity.get("unit_name") or getattr(user, "fullname", None) or f"UID {user.id}",
                 "latest_assignment": None,
+                "latest_snapshot": None,
                 "latest_report_at": None,
             },
         )
-        if not _assignment_has_report_submission(assignment):
+        snapshot = _assignment_report_snapshot(assignment)
+        if not snapshot.get("has_report"):
             continue
-        updated_at = getattr(assignment, "updated_at", None)
+        updated_at = snapshot.get("reported_at")
         if row["latest_report_at"] is None or (updated_at and updated_at >= row["latest_report_at"]):
             row["latest_report_at"] = updated_at
             row["latest_assignment"] = assignment
+            row["latest_snapshot"] = snapshot
 
     total_units = len(unit_rows)
     reported_units = sum(1 for row in unit_rows.values() if row.get("latest_assignment"))
     numeric_total = None
     if _task_simple_child_report_kind(task) == "number":
-        schema = _load_task_report_schema(task)
-        number_field_key = _task_report_meta(schema).get("number_field_key") or CHILD_TASK_NUMBER_FIELD_KEY
         total = Decimal("0")
         has_value = False
         for row in unit_rows.values():
             assignment = row.get("latest_assignment")
             if not assignment:
                 continue
-            payload = _parse_structured_task_report_payload(assignment)
-            values = payload.get("values") if isinstance(payload, dict) else {}
-            raw_value = values.get(number_field_key) if isinstance(values, dict) else ""
-            try:
-                numeric_value = _parse_report_number(raw_value)
-            except ValueError:
-                numeric_value = None
+            numeric_value = _assignment_numeric_report_value(task, assignment)
             if numeric_value is None:
                 continue
             total += numeric_value
@@ -1869,9 +2137,13 @@ def _build_structured_task_report_form(task, user_assign, current_user):
     if not task or not user_assign or not schema or not current_user:
         return None
 
+    report_snapshot = _assignment_report_snapshot(user_assign)
     payload = _parse_structured_task_report_payload(user_assign) or {}
     values = payload.get("values") if isinstance(payload.get("values"), dict) else {}
-    attachment_name = (payload.get("attachment_name") or getattr(user_assign, "result_file", "") or "").strip()
+    attachment_name = (
+        str(payload.get("attachment_name") or "").strip()
+        or str(report_snapshot.get("attachment_name") or "").strip()
+    )
     fields = []
     for field in schema.get("fields", []):
         fields.append(
@@ -1910,34 +2182,32 @@ def _build_structured_task_report_form(task, user_assign, current_user):
             "value": attachment_name,
         },
         "fields": visible_fields,
-        "updated_at": payload.get("updated_at", ""),
+        "updated_at": payload.get("updated_at", "") or (
+            report_snapshot["reported_at"].strftime("%d/%m/%Y %H:%M")
+            if report_snapshot.get("reported_at")
+            else ""
+        ),
         "summary_lines": _structured_task_report_summary_lines(schema, payload, limit=6),
         "has_visible_content": has_visible_content,
     }
 
 
 def _build_assignment_report_context(user_assign, comments, task=None):
-    latest_report = next(
-        (
-            comment
-            for comment in comments
-            if getattr(comment, "user_id", None) == getattr(user_assign, "user_id", None)
-            and (getattr(comment, "content", "") or "").startswith("[BÁO CÁO]")
-        ),
-        None,
-    ) if user_assign else None
-
+    report_snapshot = _assignment_report_snapshot(user_assign, comments=comments)
     report_schema = _load_task_report_schema(task)
     structured_payload = _parse_structured_task_report_payload(user_assign) if user_assign and report_schema else None
     attachment_label = ((report_schema or {}).get("attachment") or {}).get("label") or "Tệp minh chứng"
+    summary_lines = _structured_task_report_summary_lines(report_schema, structured_payload, limit=4)
+    if not summary_lines and report_snapshot.get("summary_text"):
+        summary_lines = [_task_report_value_preview(report_snapshot.get("summary_text"), 180)]
 
     return {
-        "latest_report_at": getattr(latest_report, "created_at", None),
-        "latest_report_content": getattr(latest_report, "content", "") if latest_report else "",
-        "result_file": getattr(user_assign, "result_file", "") if user_assign else "",
+        "latest_report_at": report_snapshot.get("reported_at"),
+        "latest_report_content": report_snapshot.get("summary_text", ""),
+        "result_file": report_snapshot.get("attachment_name", ""),
         "status": _normalize_status(getattr(user_assign, "status", "")) if user_assign else "Chưa tiếp nhận",
         "attachment_label": attachment_label,
-        "summary_lines": _structured_task_report_summary_lines(report_schema, structured_payload, limit=4),
+        "summary_lines": summary_lines,
         "has_structured_payload": bool(structured_payload),
     }
 
@@ -1971,23 +2241,6 @@ def _task_report_download_name(task, unit_name, original_name):
 
 
 def _build_unit_report_cards(task, assigns, comments):
-    latest_reports_by_user = {}
-    for comment in comments or []:
-        if not (getattr(comment, "content", "") or "").startswith(REPORT_PREFIX):
-            continue
-        if not getattr(comment, "user_id", None):
-            continue
-
-        body_text, attachment_name = _parse_report_comment_content(getattr(comment, "content", "") or "")
-        current_item = latest_reports_by_user.get(comment.user_id)
-        if current_item is None or getattr(comment, "created_at", None) and comment.created_at > current_item["created_at"]:
-            latest_reports_by_user[comment.user_id] = {
-                "created_at": getattr(comment, "created_at", None),
-                "body_text": body_text,
-                "attachment_name": attachment_name,
-                "user_name": getattr(comment, "user_name", "") or "",
-            }
-
     unit_cards = {}
     for assignment, user in assigns or []:
         if not user:
@@ -2019,8 +2272,8 @@ def _build_unit_report_cards(task, assigns, comments):
         if user.id not in card["assignee_user_ids"]:
             card["assignee_user_ids"].append(user.id)
 
-        report_item = latest_reports_by_user.get(user.id)
-        file_name = (report_item or {}).get("attachment_name") or getattr(assignment, "result_file", "") or ""
+        report_item = _assignment_report_snapshot(assignment, comments=comments)
+        file_name = report_item.get("attachment_name") or ""
         if file_name:
             download_name = _task_report_download_name(task, unit_name, file_name)
             if not any(item["file_name"] == file_name and item["user_id"] == user.id for item in card["attachments"]):
@@ -2033,13 +2286,13 @@ def _build_unit_report_cards(task, assigns, comments):
                     }
                 )
 
-        if report_item:
+        if report_item.get("has_report"):
             card["has_report"] = True
-            report_time = report_item.get("created_at")
+            report_time = report_item.get("reported_at")
             if report_time and (card["latest_report_at"] is None or report_time > card["latest_report_at"]):
                 card["latest_report_at"] = report_time
-                card["latest_report_user_name"] = report_item.get("user_name") or display_name
-                card["latest_report_excerpt"] = report_item.get("body_text") or ""
+                card["latest_report_user_name"] = display_name
+                card["latest_report_excerpt"] = report_item.get("summary_text") or report_item.get("excerpt") or ""
 
     summary_rows, _summary_stats = _build_unit_report_summary(assigns, comments, task.deadline)
     summary_by_unit = {
@@ -2203,7 +2456,7 @@ def _build_assignment_unit_cards(assigns):
                 "user_id": user.id,
                 "name": display_name,
                 "status": normalized_status,
-                "has_file": bool(getattr(assignment, "result_file", "")),
+                "has_file": bool(_assignment_report_snapshot(assignment).get("attachment_name")),
             }
         )
         card["total_count"] += 1
@@ -2650,16 +2903,6 @@ def _decorate_task(task, current_uid, is_lead):
 
 
 def _build_unit_report_summary(assigns, comments, deadline):
-    report_times_by_user = {}
-    for comment in comments or []:
-        if not (getattr(comment, "content", "") or "").startswith("[BÁO CÁO]"):
-            continue
-        if not getattr(comment, "user_id", None) or not getattr(comment, "created_at", None):
-            continue
-        current_first = report_times_by_user.get(comment.user_id)
-        if current_first is None or comment.created_at < current_first:
-            report_times_by_user[comment.user_id] = comment.created_at
-
     unit_rows = {}
     for assignment, user in assigns or []:
         if not user:
@@ -2681,7 +2924,7 @@ def _build_unit_report_summary(assigns, comments, deadline):
         if display_name not in row["assignee_names"]:
             row["assignee_names"].append(display_name)
 
-        report_at = report_times_by_user.get(user.id)
+        report_at = _assignment_report_snapshot(assignment, comments=comments).get("first_report_at")
         if report_at:
             if display_name not in row["reporter_names"]:
                 row["reporter_names"].append(display_name)
@@ -2916,32 +3159,22 @@ def tasks():
     if can_view_all_tasks:
         all_tasks = [task for task in all_candidate_tasks if not task.parent_task_id]
     else:
-        child_parent_ids = {
-            parent_id
-            for parent_id, in (
-                db.session.query(Task.parent_task_id)
-                .join(TaskAssignment, Task.id == TaskAssignment.task_id)
-                .filter(Task.parent_task_id.isnot(None), TaskAssignment.user_id == session["uid"])
-                .distinct()
-                .all()
-            )
-            if parent_id
-        }
-        all_tasks = []
         visible_child_tasks_by_parent = {}
         for child_task in (
             Task.query.options(joinedload(Task.assignments))
-            .join(TaskAssignment, Task.id == TaskAssignment.task_id)
-            .filter(Task.parent_task_id.isnot(None), TaskAssignment.user_id == session["uid"])
+            .filter(Task.parent_task_id.isnot(None))
             .order_by(Task.created_at.asc())
             .all()
         ):
+            if not _task_user_is_executor(child_task, session["uid"]):
+                continue
             visible_child_tasks_by_parent.setdefault(child_task.parent_task_id, []).append(child_task)
-
+        child_parent_ids = set(visible_child_tasks_by_parent.keys())
+        all_tasks = []
         for task in all_candidate_tasks:
             if task.parent_task_id:
                 continue
-            is_direct_assignment = any(assignment.user_id == session["uid"] for assignment in (task.assignments or []))
+            is_direct_assignment = _task_user_is_executor(task, session["uid"])
             is_manager = _can_manage_task(task, user=current_user)
             is_viewer = _can_watch_task(task, user=current_user)
             if not is_direct_assignment and task.id not in child_parent_ids and not is_viewer and not is_manager:
@@ -2987,9 +3220,8 @@ def tasks():
     uncategorized_count = 0
 
     for task in all_tasks:
-        if not can_view_all_tasks and getattr(task, "_visible_child_tasks_for_user", None) is not None and not any(
-            assignment.user_id == session["uid"] for assignment in (task.assignments or [])
-        ):
+        is_executor_view = _task_user_is_executor(task, session["uid"])
+        if not can_view_all_tasks and getattr(task, "_visible_child_tasks_for_user", None) is not None and not is_executor_view:
             task_metrics = {
                 "display_status": getattr(task, "display_status", "Chưa tiếp nhận"),
                 "progress_percent": getattr(task, "progress_percent", 0),
@@ -3004,9 +3236,7 @@ def tasks():
             setattr(task, "assignee_count", task_metrics["total_assignments"])
             setattr(task, "accepted_assignments", task_metrics["accepted_assignments"])
             setattr(task, "completed_assignments", task_metrics["completed_assignments"])
-        elif not can_view_all_tasks and (getattr(task, "_viewer_observe_task", False) or getattr(task, "_manager_observe_task", False)) and not any(
-            assignment.user_id == session["uid"] for assignment in (task.assignments or [])
-        ):
+        elif not can_view_all_tasks and (getattr(task, "_viewer_observe_task", False) or getattr(task, "_manager_observe_task", False)) and not is_executor_view:
             task_metrics = _decorate_task(task, session["uid"], True)
         else:
             task_metrics = _decorate_task(task, session["uid"], can_view_all_tasks)
@@ -3513,11 +3743,12 @@ def download_task_report_file(tid, user_id):
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
     assign = TaskAssignment.query.filter_by(task_id=tid, user_id=user_id).first()
-    if not assign or not assign.result_file:
+    file_name = _assignment_report_snapshot(assign).get("attachment_name") if assign else ""
+    if not assign or not file_name:
         flash("Không tìm thấy tệp báo cáo cần tải.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
-    file_path = _task_file_path(assign.result_file)
+    file_path = _task_file_path(file_name)
     if not os.path.exists(file_path):
         flash("Tệp báo cáo không còn tồn tại trên hệ thống.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
@@ -3535,7 +3766,7 @@ def download_task_report_file(tid, user_id):
         )
 
     unit_name = _task_assignee_unit_name(target_user)
-    download_name = _task_report_download_name(task, unit_name, assign.result_file)
+    download_name = _task_report_download_name(task, unit_name, file_name)
     return send_file(file_path, as_attachment=True, download_name=download_name)
 
 
@@ -3845,9 +4076,18 @@ def create_child_task(tid):
     title = (request.form.get("title") or "").strip()
     bulk_titles = _parse_bulk_child_task_titles(request.form.get("bulk_titles") or request.form.get("bulk_items"))
     common_note = (request.form.get("description") or request.form.get("content") or "").strip()
-    domain = parent_task.domain or ""
+    outline_file = request.files.get("outline_file")
+    if outline_file and outline_file.filename:
+        try:
+            bulk_titles.extend(_parse_outline_upload_titles(outline_file))
+        except ValueError as outline_error:
+            flash(str(outline_error), "danger")
+            return redirect(url_for("tasks_bp.task_detail", tid=tid))
+        bulk_titles = _parse_bulk_child_task_titles("\n".join(bulk_titles))
+
+    domain = (request.form.get("child_domain") or parent_task.domain or "").strip()
     assign_type = request.form.get("assign_type", "role")
-    if assign_type not in {"role", "user"}:
+    if assign_type not in {"unit", "role", "user"}:
         assign_type = "role"
     child_report_kind = str(request.form.get("child_report_kind") or "narrative").strip().lower()
     if child_report_kind not in CHILD_TASK_ALLOWED_REPORT_KINDS:
@@ -3924,6 +4164,36 @@ def create_child_task(tid):
     )
     flash(f"Đã tạo và giao {len(created_tasks)} task con.", "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+@tasks_bp.route("/tasks/<int:tid>/children/outline-preview", methods=["POST"])
+def preview_child_task_outline(tid):
+    if not session.get("uid"):
+        return jsonify({"ok": False, "message": "Bạn cần đăng nhập lại."}), 401
+
+    _ensure_task_schema()
+
+    parent_task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
+    if not parent_task:
+        return jsonify({"ok": False, "message": "Không tìm thấy công việc cha."}), 404
+
+    if not _can_edit_task(parent_task):
+        return jsonify({"ok": False, "message": "Bạn không có quyền đọc đề cương cho công việc này."}), 403
+
+    outline_file = request.files.get("outline_file")
+    if not outline_file or not getattr(outline_file, "filename", ""):
+        return jsonify({"ok": False, "message": "Hãy chọn file đề cương trước."}), 400
+
+    try:
+        titles = _parse_outline_upload_titles(outline_file)
+    except ValueError as outline_error:
+        return jsonify({"ok": False, "message": str(outline_error)}), 400
+
+    return jsonify({
+        "ok": True,
+        "count": len(titles),
+        "titles": titles,
+    })
 
 
 @tasks_bp.route("/tasks/<int:tid>/delete", methods=["POST"])

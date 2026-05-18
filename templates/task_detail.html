@@ -184,6 +184,10 @@
         .pc06-da06-table-grid {
             grid-template-columns: minmax(0, 1fr);
         }
+        .pc06-bulk-entry-toolbar,
+        .pc06-task-quick-grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
     }
     .pc06-comment-card {
         border: 1px solid rgba(226, 232, 240, 0.9);
@@ -196,6 +200,12 @@
     .pc06-bulk-entry-shell {
         display: grid;
         gap: 12px;
+    }
+    .pc06-bulk-entry-toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+        gap: 12px;
+        align-items: start;
     }
     .pc06-bulk-entry-row {
         display: grid;
@@ -247,6 +257,21 @@
     .pc06-bulk-entry-remove:hover {
         background: rgba(59, 130, 246, 0.2);
     }
+    .pc06-bulk-entry-edit {
+        width: 24px;
+        height: 24px;
+        border: none;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.08);
+        color: var(--text-main, #0f172a);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .pc06-bulk-entry-edit:hover {
+        background: rgba(15, 23, 42, 0.16);
+    }
     .pc06-bulk-entry-empty {
         color: var(--text-muted, #64748b);
         font-size: 0.9rem;
@@ -259,6 +284,33 @@
         gap: 12px;
         color: var(--text-muted, #64748b);
         font-size: 0.84rem;
+    }
+    .pc06-outline-upload {
+        display: grid;
+        gap: 8px;
+        padding: 14px;
+        border-radius: 18px;
+        border: 1px dashed rgba(148, 163, 184, 0.9);
+        background: rgba(248, 250, 252, 0.76);
+    }
+    .pc06-outline-upload strong {
+        color: var(--text-main, #0f172a);
+        font-size: 0.95rem;
+    }
+    .pc06-outline-upload small {
+        color: var(--text-muted, #64748b);
+        line-height: 1.45;
+    }
+    .pc06-outline-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .pc06-outline-status {
+        color: var(--text-muted, #64748b);
+        font-size: 0.82rem;
+        line-height: 1.45;
     }
     .pc06-user-picker {
         position: relative;
@@ -478,6 +530,20 @@
         border-color: rgba(37, 99, 235, 0.3);
         background: rgba(219, 234, 254, 0.72);
     }
+    .pc06-task-quick-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+    .pc06-select-box {
+        display: grid;
+        gap: 8px;
+    }
+    .pc06-select-box .form-select,
+    .pc06-select-box .form-control {
+        min-height: 48px;
+        border-radius: 16px;
+    }
     .pc06-unit-report-stats {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -642,10 +708,17 @@
         gap: 12px;
         padding: 12px 14px;
     }
+    .pc06-report-item-summary.simple {
+        align-items: center;
+        gap: 14px;
+    }
     .pc06-report-item-copy {
         min-width: 0;
         display: grid;
         gap: 4px;
+    }
+    .pc06-report-item-copy.simple {
+        gap: 0;
     }
     .pc06-report-item-copy strong {
         font-size: 0.98rem;
@@ -675,6 +748,11 @@
         align-items: center;
         gap: 8px;
         flex-shrink: 0;
+    }
+    .pc06-report-item-actions.simple {
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
     }
     .pc06-report-download-icon {
         width: 34px;
@@ -725,6 +803,28 @@
         margin-top: 12px;
         font-size: 0.88rem;
         line-height: 1.55;
+    }
+    .pc06-child-report-facts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+    .pc06-child-report-fact {
+        display: grid;
+        gap: 4px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        border: 1px solid rgba(226, 232, 240, 0.92);
+        background: rgba(248, 250, 252, 0.88);
+    }
+    .pc06-child-report-fact span {
+        font-size: 0.8rem;
+        color: var(--text-muted, #64748b);
+    }
+    .pc06-child-report-fact strong {
+        font-size: 0.96rem;
+        color: var(--text-main, #0f172a);
     }
     .pc06-report-item-files {
         display: flex;
@@ -1129,9 +1229,6 @@
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Task con</h2>
-                        <div class="pc06-detail-inline-note">
-                            {{ child_task_stats.total }} task con · {{ child_task_stats.completed }} hoàn thành · {{ child_task_stats.in_progress }} đang thực hiện
-                        </div>
                     </div>
                     {% if can_edit_task %}
                     <button type="button" class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#createChildTaskModal">
@@ -1143,24 +1240,21 @@
                 {% if child_tasks %}
                 <div class="pc06-report-groups">
                     {% for child in child_tasks %}
-                    {% set child_status_key = (child.display_status or '')|lower %}
                     <article class="pc06-report-item">
-                        <div class="pc06-report-item-summary">
-                            <div class="pc06-report-item-copy">
+                        <div class="pc06-report-item-summary simple">
+                            <div class="pc06-report-item-copy simple">
                                 <strong>{{ child.title }}</strong>
-                                <div class="pc06-report-item-fileline">
-                                    <i class="fa-regular fa-calendar"></i>
-                                    <span>{{ child.deadline.strftime('%d/%m/%Y') if child.deadline else 'Chưa xác định hạn' }}</span>
-                                </div>
                             </div>
-                            <div class="pc06-report-item-actions">
-                                <span class="pc06-status-badge {% if 'hoàn thành' in child_status_key %}done{% elif 'đang thực hiện' in child_status_key %}doing{% else %}todo{% endif %}">
-                                    {{ child.display_status }}
-                                </span>
+                            <div class="pc06-report-item-actions simple">
                                 {% if child.viewer_assignment %}
                                 <button type="button" class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#childTaskReportModal{{ child.id }}">
                                     {{ child.action_label }}
                                 </button>
+                                {% endif %}
+                                {% if child.can_edit %}
+                                <a href="{{ url_for('tasks_bp.task_detail', tid=child.id) }}" class="pc06-report-download-icon" title="Sửa task con" aria-label="Sửa task con">
+                                    <i class="fa-solid fa-pen"></i>
+                                </a>
                                 {% endif %}
                                 {% if child.can_delete %}
                                 <form action="{{ url_for('tasks_bp.delete_task', tid=child.id) }}" method="POST" onsubmit="return confirm('Xóa task con này? Toàn bộ phân công, phản hồi và tệp đính kèm liên quan sẽ bị xóa.')" class="m-0">
@@ -1169,45 +1263,12 @@
                                     </button>
                                 </form>
                                 {% endif %}
-                                {% if can_manage_task_view %}
+                                {% if can_manage_task_view and not child.can_edit %}
                                 <a href="{{ url_for('tasks_bp.task_detail', tid=child.id) }}" class="pc06-report-download-icon" title="Mở task con">
                                     <i class="fa-solid fa-arrow-up-right-from-square"></i>
                                 </a>
                                 {% endif %}
                             </div>
-                        </div>
-                        <div class="pc06-report-item-body">
-                            <div class="pc06-report-item-meta">
-                                <span>
-                                    <i class="fa-solid fa-users"></i>
-                                    {{ child.reported_units }}/{{ child.total_units }} đơn vị đã báo cáo
-                                </span>
-                                <span>
-                                    <i class="fa-solid fa-pen"></i>
-                                    {{ child.report_kind_label }}
-                                </span>
-                                {% if child.number_total %}
-                                <span>
-                                    <i class="fa-solid fa-sigma"></i>
-                                    Tổng cộng: {{ child.number_total }}
-                                </span>
-                                {% endif %}
-                                <span>
-                                    <i class="fa-solid fa-paperclip"></i>
-                                    {% if child.attachment_required %}Yêu cầu minh chứng{% else %}Không yêu cầu tệp{% endif %}
-                                </span>
-                            </div>
-                            {% if can_manage_task_view and child.content %}
-                            <div class="pc06-report-item-excerpt">{{ child.content }}</div>
-                            {% elif child.viewer_assignment %}
-                            <div class="pc06-report-item-note">
-                                {% if child.report_kind == 'number' %}
-                                Mở thao tác để nhập một giá trị số cho đầu mục này{% if child.attachment_required %} và tải lên tệp minh chứng{% endif %}.
-                                {% else %}
-                                Mở thao tác để nhập nội dung báo cáo{% if child.attachment_required %} và tải lên tệp minh chứng{% endif %}.
-                                {% endif %}
-                            </div>
-                            {% endif %}
                         </div>
                     </article>
                     {% endfor %}
@@ -1216,7 +1277,7 @@
                 <div class="pc06-empty-state compact">
                     <div class="pc06-empty-icon"><i class="fa-solid fa-diagram-project"></i></div>
                     <h3>Chưa có task con</h3>
-                    <p>Tách từng nội dung báo cáo riêng thành task con để giao đúng vai trò hoặc tài khoản phụ trách.</p>
+                    <p>Tạo đầu mục mới.</p>
                 </div>
                 {% endif %}
             </section>
@@ -1280,9 +1341,6 @@
                         <i class="fa-solid fa-file-excel"></i>
                         Xuất Excel
                     </a>
-                </div>
-                <div class="pc06-report-guidance">
-                    Xem theo thứ tự từ tổng quan đến chi tiết: nhìn số đơn vị ở từng trạng thái, chọn nhóm cần kiểm tra, sau đó mở từng đơn vị để xem nội dung và tải tệp.
                 </div>
                 <div class="pc06-unit-report-overview">
                     <article class="pc06-unit-report-cluster">
@@ -2244,7 +2302,7 @@
                 <input type="hidden" name="deadline_type" value="custom">
                 <div class="modal-header border-0 pc06-modal-head">
                     <div>
-                        <h5 class="modal-title fw-bold mb-0">Tách nội dung cần giao riêng</h5>
+                        <h5 class="modal-title fw-bold mb-0">Tạo task con</h5>
                     </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
@@ -2253,84 +2311,110 @@
                         <div class="col-lg-7">
                             <div class="pc06-form-panel">
                                 <div class="pc06-form-section">
-                                    <label class="form-label fw-bold">Danh sách đầu mục báo cáo</label>
+                                    <label class="form-label fw-bold">Đầu mục</label>
                                     <div class="pc06-bulk-entry-shell" data-child-bulk-builder>
-                                        <div class="pc06-bulk-entry-row">
-                                            <input type="text" class="form-control" placeholder="Nhập một đầu mục rồi bấm dấu + hoặc Enter" data-child-bulk-input>
-                                            <button type="button" class="btn btn-outline-primary" data-child-bulk-add>
-                                                <i class="fa-solid fa-plus"></i>
-                                            </button>
+                                        <div class="pc06-bulk-entry-toolbar">
+                                            <div class="pc06-bulk-entry-row">
+                                                <input type="text" class="form-control" placeholder="Nhập đầu mục rồi bấm +" data-child-bulk-input>
+                                                <button type="button" class="btn btn-outline-primary" data-child-bulk-add>
+                                                    <i class="fa-solid fa-plus"></i>
+                                                </button>
+                                            </div>
+                                            <label class="pc06-outline-upload">
+                                                <strong>Tải đề cương</strong>
+                                                <input type="file" name="outline_file" class="form-control" accept=".docx,.txt" data-child-outline-input>
+                                                <div class="pc06-outline-actions">
+                                                    <button type="button" class="btn btn-outline-primary btn-sm" data-child-outline-preview>Đọc đề cương</button>
+                                                    <small>.docx, .txt</small>
+                                                </div>
+                                                <div class="pc06-outline-status" data-child-outline-status></div>
+                                            </label>
                                         </div>
                                         <div class="pc06-bulk-entry-list">
                                             <div class="pc06-bulk-entry-chips" data-child-bulk-list></div>
-                                            <div class="pc06-bulk-entry-empty" data-child-bulk-empty>Chưa có đầu mục nào. Mỗi lần thêm sẽ tạo thành một thẻ nhỏ để bạn dễ soát danh sách trước khi giao việc.</div>
+                                            <div class="pc06-bulk-entry-empty" data-child-bulk-empty>Chưa có đầu mục.</div>
                                         </div>
                                         <div class="pc06-bulk-entry-meta">
                                             <span data-child-bulk-count>0 đầu mục</span>
-                                            <span>Có thể dán nhiều dòng hoặc ngăn cách bằng dấu phẩy, hệ thống sẽ tự tách.</span>
+                                            <span>Có thể dán nhiều dòng hoặc dấu phẩy.</span>
                                         </div>
                                         <textarea name="bulk_titles" class="d-none" data-child-bulk-hidden></textarea>
                                     </div>
-                                    <div class="form-text">Chọn vai trò hoặc tài khoản một lần, sau đó từng đầu mục trong danh sách sẽ được tạo thành một task con riêng.</div>
                                 </div>
-                                <div class="pc06-form-section">
+                                <div class="pc06-form-section pc06-task-quick-grid">
                                     <div class="pc06-info-item">
-                                        <span>Thời hạn task con</span>
-                                        <strong>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Theo task cha hiện chưa đặt hạn' }}</strong>
-                                        <div class="pc06-detail-inline-note mt-2">Task con tự động dùng đúng thời hạn của task cha để bạn tách nhỏ từng đầu mục trong đề cương báo cáo.</div>
+                                        <span>Thời hạn</span>
+                                        <strong>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa đặt hạn' }}</strong>
+                                    </div>
+                                    <div class="pc06-info-item">
+                                        <span>Cách tạo</span>
+                                        <strong>Mỗi đầu mục = 1 task con</strong>
                                     </div>
                                 </div>
                                 <div class="pc06-form-section">
-                                    <label class="form-label fw-bold">Ghi chú chung cho cả lô task con</label>
-                                    <textarea name="description" rows="5" class="form-control" placeholder="Ví dụ: Mỗi đầu mục cần nêu rõ số liệu và đính kèm minh chứng tương ứng. Nội dung này sẽ áp dụng chung cho toàn bộ task con được tạo trong lần này."></textarea>
+                                    <label class="form-label fw-bold">Nội dung chung</label>
+                                    <textarea name="description" rows="5" class="form-control" placeholder="Nội dung này sẽ áp dụng cho toàn bộ task con tạo trong lần này."></textarea>
                                 </div>
                                 <div class="pc06-form-section mb-0">
-                                    <label class="form-label fw-bold">Tài liệu đính kèm</label>
+                                    <label class="form-label fw-bold">Tệp chung</label>
                                     <input type="file" name="task_file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar">
-                                    <div class="form-text">Nếu có file đề cương hoặc hướng dẫn chung, hệ thống sẽ gắn cùng tệp này cho toàn bộ task con vừa tạo.</div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-lg-5">
                             <div class="pc06-form-panel pc06-assignment-panel">
                                 <div class="pc06-side-title">
-                                    <h6>Giao cho người phụ trách</h6>
-                                    <p>Mỗi task con nên gắn đúng một vai trò hoặc một vài tài khoản phụ trách một đầu mục trong đề cương báo cáo.</p>
+                                    <h6>Người nhận</h6>
                                 </div>
                                 <div class="pc06-form-section">
-                                    <label class="form-label fw-bold">Kiểu báo cáo của task con</label>
+                                    <label class="form-label fw-bold">Kiểu báo cáo</label>
                                     <div class="pc06-segmented">
                                         <label class="pc06-radio-card active">
                                             <input type="radio" name="child_report_kind" value="narrative" checked>
                                             <span class="pc06-radio-title">Báo cáo lời</span>
-                                            <small>Đơn vị được giao nhập nội dung báo cáo ngắn gọn.</small>
+                                            <small>Nhập nội dung.</small>
                                         </label>
                                         <label class="pc06-radio-card">
                                             <input type="radio" name="child_report_kind" value="number">
                                             <span class="pc06-radio-title">Báo cáo số</span>
-                                            <small>Đơn vị được giao chỉ nhập số, hệ thống tự cộng tổng số từ các đơn vị.</small>
+                                            <small>Chỉ nhập số.</small>
                                         </label>
                                     </div>
                                     <label class="form-check pc06-checkline mt-3">
                                         <input class="form-check-input" type="checkbox" name="child_attachment_required" value="1">
-                                        <span class="form-check-label">Yêu cầu gửi kèm file minh chứng</span>
+                                        <span class="form-check-label">Bắt buộc file minh chứng</span>
                                     </label>
                                 </div>
                                 <div class="pc06-segmented" id="childAssignmentModes">
+                                    <label class="pc06-radio-card">
+                                        <input type="radio" name="assign_type" value="unit" {% if task.domain %}checked{% endif %}>
+                                        <span class="pc06-radio-title">Theo đơn vị</span>
+                                        <small>Giao theo đơn vị.</small>
+                                    </label>
                                     <label class="pc06-radio-card active">
-                                        <input type="radio" name="assign_type" value="role" checked>
+                                        <input type="radio" name="assign_type" value="role" {% if not task.domain %}checked{% endif %}>
                                         <span class="pc06-radio-title">Theo vai trò</span>
-                                        <small>Dùng khi cả nhóm cùng phụ trách một đầu mục báo cáo.</small>
+                                        <small>Giao theo vai trò.</small>
                                     </label>
                                     <label class="pc06-radio-card">
                                         <input type="radio" name="assign_type" value="user">
                                         <span class="pc06-radio-title">Theo cá nhân</span>
-                                        <small>Dùng khi muốn chỉ định rõ từng tài khoản phải báo cáo.</small>
+                                        <small>Giao theo tài khoản.</small>
                                     </label>
+                                </div>
+                                <div class="pc06-form-section {% if not task.domain %}d-none{% endif %}" id="childUnitAssignmentPanel">
+                                    <label class="form-label fw-bold">Đơn vị nhận việc</label>
+                                    <div class="pc06-select-box">
+                                        <select name="child_domain" class="form-select">
+                                            <option value="">Chọn đơn vị</option>
+                                            {% for unit in pro_units %}
+                                            <option value="{{ unit.value }}" {% if task.domain == unit.value %}selected{% endif %}>{{ unit.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
                                 </div>
                                 <div class="pc06-form-section" id="childRoleAssignmentPanel">
                                     <label class="form-label fw-bold">Vai trò nhận việc</label>
-                                    <div class="form-text mb-2">Chọn đúng vai trò sẽ chịu trách nhiệm cho đầu mục báo cáo nhỏ này.</div>
                                     <div class="pc06-assignment-option-list">
                                         {% for role in roles %}
                                         <label class="pc06-user-option">
@@ -2346,7 +2430,7 @@
                                         <button type="button" class="pc06-user-picker-trigger" data-user-picker-trigger>
                                             <div>
                                                 <strong data-user-picker-label>Chọn cán bộ</strong>
-                                                <small>Tìm kiếm và tích chọn một hoặc nhiều cá nhân</small>
+                                                <small>Chọn một hoặc nhiều tài khoản</small>
                                             </div>
                                             <i class="fa-solid fa-chevron-down"></i>
                                         </button>
@@ -2363,12 +2447,9 @@
                                                 </label>
                                                 {% endfor %}
                                             </div>
-                                            <div class="pc06-user-picker-empty" data-user-picker-empty>Không tìm thấy cán bộ phù hợp.</div>
+                                            <div class="pc06-user-picker-empty" data-user-picker-empty>Không tìm thấy tài khoản.</div>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="pc06-mode-help">
-                                    Cách này phù hợp khi cùng một đơn vị hoặc vai trò phải báo cáo hàng loạt đầu mục trong cùng một đề cương.
                                 </div>
                             </div>
                         </div>
@@ -2378,7 +2459,7 @@
                     <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Đóng</button>
                     <button type="submit" class="btn btn-bdhvs primary">
                         <i class="fa-solid fa-paper-plane"></i>
-                        Tạo hàng loạt task con
+                        Tạo task con
                     </button>
                 </div>
             </form>
@@ -2398,6 +2479,16 @@
                 </div>
                 <div class="modal-body p-4">
                     <div class="pc06-form-panel">
+                        <div class="pc06-child-report-facts">
+                            <div class="pc06-child-report-fact">
+                                <span>Thời hạn</span>
+                                <strong>{{ child.deadline.strftime('%d/%m/%Y') if child.deadline else 'Chưa đặt hạn' }}</strong>
+                            </div>
+                            <div class="pc06-child-report-fact">
+                                <span>Tệp đính kèm</span>
+                                <strong>{% if child.attachment_required %}Bắt buộc{% else %}Không bắt buộc{% endif %}</strong>
+                            </div>
+                        </div>
                         {% if child.report_kind == 'number' and child.report_form and child.report_form.fields %}
                         {% set number_field = child.report_form.fields[0] %}
                         <div class="pc06-form-section">
@@ -2750,6 +2841,9 @@
         if (!builder) return;
 
         const input = builder.querySelector('[data-child-bulk-input]');
+        const outlineInput = modal.querySelector('[data-child-outline-input]');
+        const outlinePreviewButton = modal.querySelector('[data-child-outline-preview]');
+        const outlineStatus = modal.querySelector('[data-child-outline-status]');
         const addButton = builder.querySelector('[data-child-bulk-add]');
         const list = builder.querySelector('[data-child-bulk-list]');
         const emptyState = builder.querySelector('[data-child-bulk-empty]');
@@ -2757,8 +2851,14 @@
         const hiddenField = builder.querySelector('[data-child-bulk-hidden]');
         const form = modal.querySelector('form');
         const items = [];
+        const previewUrl = form?.getAttribute('action')?.replace('/create', '/outline-preview') || '';
 
         const normalise = (value) => value.replace(/\s+/g, ' ').trim();
+        const setOutlineStatus = (message = '', tone = '') => {
+            if (!outlineStatus) return;
+            outlineStatus.textContent = message;
+            outlineStatus.style.color = tone === 'danger' ? '#dc2626' : '';
+        };
 
         const syncHiddenField = () => {
             if (!hiddenField) return;
@@ -2774,6 +2874,12 @@
                 chip.className = 'pc06-bulk-entry-chip';
                 const text = document.createElement('span');
                 text.textContent = item;
+                const editButton = document.createElement('button');
+                editButton.type = 'button';
+                editButton.className = 'pc06-bulk-entry-edit';
+                editButton.setAttribute('data-child-bulk-edit', String(index));
+                editButton.setAttribute('aria-label', 'Sửa đầu mục');
+                editButton.innerHTML = '<i class="fa-solid fa-pen"></i>';
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'pc06-bulk-entry-remove';
@@ -2781,6 +2887,7 @@
                 button.setAttribute('aria-label', 'Xoá đầu mục');
                 button.innerHTML = '<i class="fa-solid fa-xmark"></i>';
                 chip.appendChild(text);
+                chip.appendChild(editButton);
                 chip.appendChild(button);
                 list.appendChild(chip);
             });
@@ -2810,6 +2917,36 @@
             return added;
         };
 
+        const extractOutlinePreview = async () => {
+            if (!outlineInput?.files?.length) {
+                setOutlineStatus('Hãy chọn file đề cương trước.', 'danger');
+                return;
+            }
+            if (!previewUrl) return;
+            setOutlineStatus('Đang đọc đề cương...');
+            outlinePreviewButton?.setAttribute('disabled', 'disabled');
+            const formData = new FormData();
+            formData.append('outline_file', outlineInput.files[0]);
+            try {
+                const response = await fetch(previewUrl, {
+                    method: 'POST',
+                    body: formData,
+                });
+                const result = await response.json();
+                if (!response.ok || !result?.ok) {
+                    throw new Error(result?.message || 'Không đọc được đề cương.');
+                }
+                const beforeCount = items.length;
+                appendItems((result.titles || []).join('\n'));
+                const addedCount = items.length - beforeCount;
+                setOutlineStatus(`Đã nạp ${result.count || 0} đầu mục, thêm mới ${addedCount}.`);
+            } catch (error) {
+                setOutlineStatus(error.message || 'Không đọc được đề cương.', 'danger');
+            } finally {
+                outlinePreviewButton?.removeAttribute('disabled');
+            }
+        };
+
         addButton?.addEventListener('click', () => {
             if (appendItems(input?.value || '')) {
                 if (input) input.value = '';
@@ -2817,6 +2954,7 @@
             input?.setCustomValidity('');
             input?.focus();
         });
+        outlinePreviewButton?.addEventListener('click', extractOutlinePreview);
 
         input?.addEventListener('keydown', (event) => {
             if (event.key !== 'Enter') return;
@@ -2839,8 +2977,24 @@
         input?.addEventListener('input', () => {
             input.setCustomValidity('');
         });
+        outlineInput?.addEventListener('change', () => {
+            setOutlineStatus('');
+        });
 
         list?.addEventListener('click', (event) => {
+            const editButton = event.target.closest('[data-child-bulk-edit]');
+            if (editButton) {
+                const index = Number(editButton.getAttribute('data-child-bulk-edit'));
+                if (!Number.isInteger(index) || index < 0 || index >= items.length) return;
+                const currentValue = items[index];
+                items.splice(index, 1);
+                render();
+                if (input) {
+                    input.value = currentValue;
+                    input.focus();
+                }
+                return;
+            }
             const button = event.target.closest('[data-child-bulk-remove]');
             if (!button) return;
             const index = Number(button.getAttribute('data-child-bulk-remove'));
@@ -2854,8 +3008,8 @@
                 appendItems(input.value);
                 input.value = '';
             }
-            if (!items.length && input) {
-                input.setCustomValidity('Hãy thêm ít nhất một đầu mục báo cáo.');
+            if (!items.length && !outlineInput?.files?.length && input) {
+                input.setCustomValidity('Hãy nhập đầu mục hoặc tải đề cương.');
                 input.reportValidity();
                 event.preventDefault();
                 return;
@@ -2943,6 +3097,7 @@
             card.classList.toggle('active', !!radio?.checked);
         });
 
+        document.getElementById('childUnitAssignmentPanel')?.classList.toggle('d-none', selected !== 'unit');
         document.getElementById('childRoleAssignmentPanel')?.classList.toggle('d-none', selected !== 'role');
         document.getElementById('childUserAssignmentPanel')?.classList.toggle('d-none', selected !== 'user');
     }
@@ -3006,6 +3161,12 @@
     });
     document.querySelectorAll('#createChildTaskModal input[name="assignee_role_ids"]').forEach((checkbox) => {
         checkbox.addEventListener('change', () => selectChildAssignmentMode('role'));
+    });
+    document.querySelector('#createChildTaskModal select[name="child_domain"]')?.addEventListener('change', () => {
+        selectChildAssignmentMode('unit');
+    });
+    document.querySelector('#createChildTaskModal select[name="child_domain"]')?.addEventListener('focus', () => {
+        selectChildAssignmentMode('unit');
     });
     document.querySelectorAll('#createChildTaskModal input[name="target_users"]').forEach((checkbox) => {
         checkbox.addEventListener('change', () => selectChildAssignmentMode('user'));
