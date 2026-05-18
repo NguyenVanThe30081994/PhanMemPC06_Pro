@@ -117,6 +117,51 @@ class ProposalRuntimeTests(unittest.TestCase):
                 Task.query.filter_by(id=task.id).delete(synchronize_session=False)
                 db.session.commit()
 
+    def test_task_runtime_backfill_skips_assignment_without_user(self):
+        with app.app_context():
+            user = User.query.filter_by(is_active=True).order_by(User.id.asc()).first()
+            self.assertIsNotNone(user, "Cần có ít nhất một user active để test runtime bridge.")
+            now_token = datetime.now().strftime("%Y%m%d%H%M%S%f")
+
+            task = Task(
+                title=f"[TEST] orphan assignment {now_token}",
+                content="Task phục vụ test assignment lỗi",
+                deadline=date.today(),
+                author_id=user.id,
+                author_name=user.fullname,
+                priority="Cao",
+                task_type="Công việc thường xuyên",
+                initial_status="Chưa tiếp nhận",
+                created_at=datetime.now(),
+            )
+            db.session.add(task)
+            db.session.commit()
+
+            broken_assignment = TaskAssignment(
+                task_id=task.id,
+                user_id=None,
+                status="Chưa tiếp nhận",
+                updated_at=datetime.now(),
+            )
+            db.session.add(broken_assignment)
+            db.session.commit()
+
+            try:
+                task = db.session.get(Task, task.id)
+                _sync_task_runtime_models(task)
+                db.session.commit()
+                submission_count = _query_task_scope(TaskSubmission, task).count()
+                self.assertEqual(submission_count, 0)
+                self.assertFalse(_task_runtime_bridge_needs_sync(task))
+            finally:
+                TaskSubmission.query.filter_by(task_id=task.id).delete(synchronize_session=False)
+                TaskParticipant.query.filter_by(task_id=task.id).delete(synchronize_session=False)
+                TaskReportLink.query.filter_by(task_id=task.id).delete(synchronize_session=False)
+                TaskItem.query.filter_by(task_id=task.id).delete(synchronize_session=False)
+                TaskAssignment.query.filter_by(task_id=task.id).delete(synchronize_session=False)
+                Task.query.filter_by(id=task.id).delete(synchronize_session=False)
+                db.session.commit()
+
 
 if __name__ == "__main__":
     unittest.main()

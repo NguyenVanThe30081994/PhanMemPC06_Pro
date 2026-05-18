@@ -1098,6 +1098,13 @@ def _extract_submission_numeric_value(task, payload):
 def _upsert_task_submission_from_assignment(task, assignment, payload=None):
     if not task or not assignment:
         return None
+    if not getattr(assignment, "user_id", None):
+        current_app.logger.warning(
+            "Skip task submission backfill for assignment without user_id: task=%s assignment=%s",
+            getattr(task, "id", None),
+            getattr(assignment, "id", None),
+        )
+        return None
 
     task_id, task_item_id = _task_scope_identity(task)
     payload = payload if payload is not None else _parse_assignment_payload(assignment)
@@ -1156,6 +1163,8 @@ def _upsert_task_submission_from_assignment(task, assignment, payload=None):
 
 def _sync_task_submissions(task):
     for assignment in _task_assignment_records(task):
+        if not getattr(assignment, "user_id", None):
+            continue
         _upsert_task_submission_from_assignment(task, assignment)
 
 
@@ -1302,7 +1311,7 @@ def _task_runtime_expected_counts(task):
         for assignment in assignment_records
         if getattr(assignment, "user_id", None)
     })
-    submissions = len(assignment_records)
+    submissions = sum(1 for assignment in assignment_records if getattr(assignment, "user_id", None))
     report_links = len(_load_linked_report_template_ids_legacy(task))
     task_items = Task.query.filter_by(parent_task_id=task.id).count() if not getattr(task, "parent_task_id", None) else 0
     return {
