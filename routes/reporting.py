@@ -3738,7 +3738,8 @@ def save_template_config(template_id):
 
     fields = ReportTemplateField.query.filter_by(version_id=version.id).order_by(ReportTemplateField.sheet_name.asc(), ReportTemplateField.display_order.asc()).all()
     for field in fields:
-        field_label = (request.form.get(f"field_{field.id}_display_name") or "").strip()
+        default_field_label = (field.field_name or field.display_name or field.field_code or "").strip()
+        field_label = (request.form.get(f"field_{field.id}_display_name") or "").strip() or default_field_label
         group_path_raw = (request.form.get(f"field_{field.id}_group_path") or "").strip()
         if field_label or group_path_raw:
             group_levels = [part.strip() for part in re.split(r"\s*>\s*", group_path_raw) if part.strip()]
