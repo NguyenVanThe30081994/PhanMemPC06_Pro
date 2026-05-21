@@ -68,6 +68,85 @@
     .pc06-detail-side .pc06-panel {
         box-shadow: none;
     }
+    .pc06-task-workspace {
+        display: grid;
+        gap: 18px;
+    }
+    .pc06-task-menu-shell {
+        display: grid;
+        gap: 12px;
+        padding: 16px 18px;
+        border-radius: 22px;
+        border: 1px solid rgba(226, 232, 240, 0.92);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.92));
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+    }
+    .pc06-task-menu-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .pc06-task-menu-head strong {
+        display: block;
+        color: var(--text-main, #0f172a);
+        font-size: 1rem;
+    }
+    .pc06-task-menu-head span {
+        color: var(--text-muted, #64748b);
+        font-size: 0.84rem;
+        line-height: 1.5;
+    }
+    .pc06-task-menu {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .pc06-task-menu-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 44px;
+        padding: 10px 14px;
+        border-radius: 16px;
+        border: 1px solid rgba(191, 219, 254, 0.84);
+        background: rgba(239, 246, 255, 0.72);
+        color: #1e3a8a;
+        font-weight: 700;
+        transition: 0.2s ease;
+    }
+    .pc06-task-menu-tab:hover {
+        background: rgba(219, 234, 254, 0.92);
+        color: #1d4ed8;
+    }
+    .pc06-task-menu-tab.is-active {
+        border-color: #2563eb;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #fff;
+        box-shadow: 0 12px 22px rgba(37, 99, 235, 0.22);
+    }
+    .pc06-task-pane-shell {
+        display: grid;
+    }
+    .pc06-task-pane {
+        display: none;
+        gap: 16px;
+    }
+    .pc06-task-pane.is-active {
+        display: grid;
+    }
+    .pc06-task-pane-grid {
+        display: grid;
+        gap: 16px;
+    }
+    .pc06-task-pane-grid.two-up {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .pc06-task-pane-anchor {
+        position: relative;
+        top: -90px;
+    }
     .pc06-comment-form textarea,
     .pc06-report-form textarea {
         border-radius: 14px;
@@ -180,6 +259,18 @@
         border-radius: 14px;
     }
     @media (max-width: 991px) {
+        .pc06-task-menu {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            margin-bottom: -4px;
+        }
+        .pc06-task-menu-tab {
+            flex: 0 0 auto;
+        }
+        .pc06-task-pane-grid.two-up {
+            grid-template-columns: minmax(0, 1fr);
+        }
         .pc06-da06-grid,
         .pc06-da06-table-grid {
             grid-template-columns: minmax(0, 1fr);
@@ -1550,6 +1641,11 @@
 {% set display_status = task.display_status or (user_assign.status if user_assign else (task.initial_status or 'Chưa tiếp nhận')) %}
 {% set status_key = display_status|lower %}
 {% set report_file_name = report_context.result_file if report_context is defined else '' %}
+{% set show_child_task_pane = can_manage_task_view or child_tasks %}
+{% set can_submit_report = user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+{% set show_tracking_pane = can_observe_task_view %}
+{% set show_report_pane = limited_assignment_view or linked_report_templates or (not task_has_child_tasks and not linked_report_templates and structured_task_report_form and can_submit_report) or (not task_has_child_tasks and not linked_report_templates and da06_task_form and can_submit_report) or can_submit_report %}
+{% set show_assignment_pane = can_observe_task_view %}
 <div class="pc06-page-shell">
     <section class="pc06-hero-card detail-hero">
         <div class="pc06-detail-hero-minimal">
@@ -1630,370 +1726,478 @@
         </div>
     </section>
 
-    <div class="pc06-detail-grid">
-        <div class="pc06-detail-main">
-            {% if user_assign %}
-            <section class="pc06-panel pc06-detail-panel-compact">
-                <div class="pc06-panel-head">
-                    <div>
-                        <h2>Trạng thái của bạn</h2>
+    <section class="pc06-task-workspace" data-task-pane-container data-default-pane="overview">
+        <div class="pc06-task-menu-shell">
+            <div class="pc06-task-menu-head">
+                <strong>Menu trong task</strong>
+                <span>Chuyển theo từng khu vực để tập trung xử lý, thay vì phải cuộn qua toàn bộ các thẻ trên một màn hình dài.</span>
+            </div>
+            <div class="pc06-task-menu" role="tablist" aria-label="Các khu vực chức năng của task">
+                <button type="button" class="btn pc06-task-menu-tab is-active" data-task-pane-target="overview" role="tab" aria-selected="true">
+                    <i class="fa-solid fa-house"></i>
+                    Tổng quan
+                </button>
+                {% if show_child_task_pane %}
+                <button type="button" class="btn pc06-task-menu-tab" data-task-pane-target="children" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-diagram-project"></i>
+                    Task con
+                </button>
+                {% endif %}
+                {% if show_tracking_pane %}
+                <button type="button" class="btn pc06-task-menu-tab" data-task-pane-target="tracking" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-chart-column"></i>
+                    Theo dõi
+                </button>
+                {% endif %}
+                {% if show_report_pane %}
+                <button type="button" class="btn pc06-task-menu-tab" data-task-pane-target="report" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-file-lines"></i>
+                    Báo cáo
+                </button>
+                {% endif %}
+                <button type="button" class="btn pc06-task-menu-tab" data-task-pane-target="discussion" role="tab" aria-selected="false">
+                    <i class="fa-regular fa-comments"></i>
+                    Trao đổi
+                </button>
+                {% if show_assignment_pane %}
+                <button type="button" class="btn pc06-task-menu-tab" data-task-pane-target="assignment" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-users"></i>
+                    Phân công
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="pc06-task-pane-shell">
+            <div class="pc06-task-pane is-active" data-task-pane="overview">
+                {% if user_assign %}
+                <section class="pc06-panel pc06-detail-panel-compact">
+                    <div class="pc06-panel-head">
+                        <div>
+                            <h2>Trạng thái của bạn</h2>
+                        </div>
+                        <span class="pc06-status-badge {% if user_assign.status == 'Hoàn thành' %}done{% elif user_assign.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
+                            {{ user_assign.status }}
+                        </span>
                     </div>
-                    <span class="pc06-status-badge {% if user_assign.status == 'Hoàn thành' %}done{% elif user_assign.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
-                        {{ user_assign.status }}
-                    </span>
-                </div>
-                {% if user_assign.status in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
-                <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST" class="pc06-inline-form">
-                    <input type="hidden" name="action" value="accept">
-                    <button type="submit" class="btn btn-bdhvs primary">
-                        <i class="fa-solid fa-hand-point-right"></i>
-                        Tiếp nhận công việc
-                    </button>
-                </form>
-                {% else %}
-                <div class="pc06-info-banner">
-                    {% if user_assign.status == 'Hoàn thành' %}
-                    Công việc của bạn đã được đánh dấu hoàn thành.
+                    {% if user_assign.status in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+                    <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST" class="pc06-inline-form">
+                        <input type="hidden" name="action" value="accept">
+                        <button type="submit" class="btn btn-bdhvs primary">
+                            <i class="fa-solid fa-hand-point-right"></i>
+                            Tiếp nhận công việc
+                        </button>
+                    </form>
                     {% else %}
-                    Bạn đã tiếp nhận công việc, có thể cập nhật báo cáo ở khối bên dưới.
+                    <div class="pc06-info-banner">
+                        {% if user_assign.status == 'Hoàn thành' %}
+                        Công việc của bạn đã được đánh dấu hoàn thành.
+                        {% else %}
+                        Bạn đã tiếp nhận công việc, có thể cập nhật báo cáo ở khối bên dưới.
+                        {% endif %}
+                    </div>
                     {% endif %}
-                </div>
+                </section>
                 {% endif %}
-            </section>
-            {% endif %}
 
-            <section class="pc06-panel pc06-detail-panel-compact">
-                <div class="pc06-panel-head">
-                    <div>
-                        <h2>Nội dung công việc</h2>
+                <section class="pc06-panel pc06-detail-panel-compact">
+                    <div class="pc06-panel-head">
+                        <div>
+                            <h2>Nội dung công việc</h2>
+                        </div>
                     </div>
-                </div>
-                <div class="pc06-rich-content">
-                    {{ task.content or 'Chưa có mô tả chi tiết cho công việc này.' }}
-                </div>
+                    <div class="pc06-rich-content">
+                        {{ task.content or 'Chưa có mô tả chi tiết cho công việc này.' }}
+                    </div>
 
-                {% if task.file_path %}
-                <div class="pc06-file-card">
-                    <div class="pc06-file-icon"><i class="fa-solid fa-paperclip"></i></div>
-                    <div class="pc06-file-copy">
-                        <strong>{{ task.file_path }}</strong>
-                        <span>Tài liệu đính kèm từ người giao việc</span>
+                    {% if task.file_path %}
+                    <div class="pc06-file-card">
+                        <div class="pc06-file-icon"><i class="fa-solid fa-paperclip"></i></div>
+                        <div class="pc06-file-copy">
+                            <strong>{{ task.file_path }}</strong>
+                            <span>Tài liệu đính kèm từ người giao việc</span>
+                        </div>
+                        <a href="{{ url_for('dl_file', fn=task.file_path) }}" class="btn btn-bdhvs light">
+                            <i class="fa-solid fa-download"></i>
+                            Tải xuống
+                        </a>
                     </div>
-                    <a href="{{ url_for('dl_file', fn=task.file_path) }}" class="btn btn-bdhvs light">
-                        <i class="fa-solid fa-download"></i>
-                        Tải xuống
-                    </a>
-                </div>
-                {% endif %}
-            </section>
-
-            {% if can_manage_task_view or child_tasks %}
-            <section class="pc06-panel pc06-detail-panel-compact">
-                <div class="pc06-panel-head">
-                    <div>
-                        <h2>Task con</h2>
-                    </div>
-                    {% if can_edit_task %}
-                    <button type="button" class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#createChildTaskModal">
-                        <i class="fa-solid fa-plus"></i>
-                        Tạo task con
-                    </button>
                     {% endif %}
-                </div>
-                {% if child_tasks %}
-                <div class="pc06-report-groups">
-                    {% for child in child_tasks %}
-                    <article class="pc06-report-item">
-                        <div class="pc06-report-item-summary simple">
-                            <div class="pc06-report-item-copy simple">
-                                <strong>{{ child.title }}</strong>
+                </section>
+
+                {% if not limited_assignment_view %}
+                <section class="pc06-panel pc06-detail-panel-compact">
+                    <div class="pc06-panel-head">
+                        <div>
+                            <h2>Thông tin nhanh</h2>
+                        </div>
+                    </div>
+                    <div class="pc06-task-pane-grid two-up">
+                        <div class="pc06-info-list">
+                            <div class="pc06-info-item"><span>Lĩnh vực</span><strong>{{ task.category_display or 'Chưa phân lĩnh vực' }}</strong></div>
+                            <div class="pc06-info-item"><span>Đơn vị nghiệp vụ</span><strong>{{ task.domain_display or 'Chưa phân đơn vị' }}</strong></div>
+                            <div class="pc06-info-item"><span>Loại công việc</span><strong>{{ task.task_type_display or 'Công việc thường xuyên' }}</strong></div>
+                            <div class="pc06-info-item"><span>Mức ưu tiên</span><strong>{{ task.priority_display or 'Trung bình' }}</strong></div>
+                        </div>
+                        <div class="pc06-info-list">
+                            <div class="pc06-info-item"><span>Người giao</span><strong>{{ task.author_name }}</strong></div>
+                            <div class="pc06-info-item">
+                                <span>Xử lý việc</span>
+                                <strong>{{ manager_scope_summary.mode_label }}</strong>
+                                <div class="pc06-detail-inline-note mt-2">{{ manager_scope_summary.value_label }}</div>
                             </div>
-                            <div class="pc06-report-item-actions simple">
-                                {% if child.viewer_assignment %}
-                                <button type="button" class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#childTaskReportModal{{ child.id }}">
-                                    {{ child.action_label }}
-                                </button>
-                                {% endif %}
-                                {% if child.can_edit %}
-                                <a href="{{ url_for('tasks_bp.task_detail', tid=child.id) }}" class="pc06-report-download-icon" title="Sửa task con" aria-label="Sửa task con">
-                                    <i class="fa-solid fa-pen"></i>
-                                </a>
-                                {% endif %}
-                                {% if child.can_delete %}
-                                <form action="{{ url_for('tasks_bp.delete_task', tid=child.id) }}" method="POST" onsubmit="return confirm('Xóa task con này? Toàn bộ phân công, phản hồi và tệp đính kèm liên quan sẽ bị xóa.')" class="m-0">
-                                    <button type="submit" class="pc06-report-download-icon text-danger border-0 bg-transparent" title="Xóa task con" aria-label="Xóa task con">
-                                        <i class="fa-solid fa-trash"></i>
+                            <div class="pc06-info-item">
+                                <span>Xem việc</span>
+                                <strong>{{ viewer_scope_summary.mode_label }}</strong>
+                                <div class="pc06-detail-inline-note mt-2">{{ viewer_scope_summary.value_label }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                {% endif %}
+            </div>
+
+            {% if show_child_task_pane %}
+            <div class="pc06-task-pane" data-task-pane="children">
+                <span class="pc06-task-pane-anchor" id="child-task-section"></span>
+                <section class="pc06-panel pc06-detail-panel-compact">
+                    <div class="pc06-panel-head">
+                        <div>
+                            <h2>Task con</h2>
+                        </div>
+                        {% if can_edit_task %}
+                        <button type="button" class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#createChildTaskModal">
+                            <i class="fa-solid fa-plus"></i>
+                            Tạo task con
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% if child_tasks %}
+                    <div class="pc06-report-groups">
+                        {% for child in child_tasks %}
+                        <article class="pc06-report-item">
+                            <div class="pc06-report-item-summary simple">
+                                <div class="pc06-report-item-copy simple">
+                                    <strong>{{ child.title }}</strong>
+                                </div>
+                                <div class="pc06-report-item-actions simple">
+                                    {% if child.viewer_assignment %}
+                                    <button type="button" class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#childTaskReportModal{{ child.id }}">
+                                        {{ child.action_label }}
                                     </button>
-                                </form>
-                                {% endif %}
-                                {% if can_manage_task_view and not child.can_edit %}
-                                <a href="{{ url_for('tasks_bp.task_detail', tid=child.id) }}" class="pc06-report-download-icon" title="Mở task con">
-                                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                                </a>
-                                {% endif %}
+                                    {% endif %}
+                                    {% if child.can_edit %}
+                                    <a href="{{ url_for('tasks_bp.task_detail', tid=child.id) }}" class="pc06-report-download-icon" title="Sửa task con" aria-label="Sửa task con">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% if child.can_delete %}
+                                    <form action="{{ url_for('tasks_bp.delete_task', tid=child.id) }}" method="POST" onsubmit="return confirm('Xóa task con này? Toàn bộ phân công, phản hồi và tệp đính kèm liên quan sẽ bị xóa.')" class="m-0">
+                                        <button type="submit" class="pc06-report-download-icon text-danger border-0 bg-transparent" title="Xóa task con" aria-label="Xóa task con">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    {% if can_manage_task_view and not child.can_edit %}
+                                    <a href="{{ url_for('tasks_bp.task_detail', tid=child.id) }}" class="pc06-report-download-icon" title="Mở task con">
+                                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
                             </div>
-                        </div>
-                    </article>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="pc06-empty-state compact">
-                    <div class="pc06-empty-icon"><i class="fa-solid fa-diagram-project"></i></div>
-                    <h3>Chưa có task con</h3>
-                    <p>Tạo đầu mục mới.</p>
-                </div>
-                {% endif %}
-            </section>
+                        </article>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="pc06-empty-state compact">
+                        <div class="pc06-empty-icon"><i class="fa-solid fa-diagram-project"></i></div>
+                        <h3>Chưa có task con</h3>
+                        <p>Tạo đầu mục mới.</p>
+                    </div>
+                    {% endif %}
+                </section>
+            </div>
             {% endif %}
 
-            {% if can_observe_task_view and child_task_tracking.total_units %}
-            <section class="pc06-panel pc06-detail-panel-compact">
-                <div class="pc06-panel-head">
-                    <div>
-                        <h2>Theo dõi báo cáo task con</h2>
-                    </div>
-                </div>
-                <div class="pc06-child-report-facts">
-                    <div class="pc06-child-report-fact">
-                        <span>Tổng task con</span>
-                        <strong>{{ child_task_tracking.total_child_tasks }}</strong>
-                    </div>
-                    <div class="pc06-child-report-fact">
-                        <span>Đơn vị tham gia</span>
-                        <strong>{{ child_task_tracking.total_units }}</strong>
-                    </div>
-                    <div class="pc06-child-report-fact">
-                        <span>Task quá hạn</span>
-                        <strong>{{ child_task_tracking.total_overdue_tasks }}</strong>
-                    </div>
-                </div>
-                <div class="pc06-child-report-banner">
-                    Khối này gộp chung <strong>tiến độ báo cáo</strong> và <strong>chất lượng báo cáo</strong> theo từng đơn vị. Mỗi điều kiện chỉ hiển thị số lượng, kèm nút Excel để tải danh sách chi tiết đúng theo nhóm.
-                </div>
-                <div class="pc06-combined-report-sections">
-                    <section class="pc06-combined-report-section">
-                        <div class="pc06-combined-report-section-head">
-                            <strong>Tiến độ báo cáo</strong>
-                            <span>Phân loại theo mức hoàn thành báo cáo task con</span>
-                        </div>
-                        <div class="pc06-combined-report-grid">
-                            {% for group in child_task_tracking.progress_groups %}
-                            <article class="pc06-combined-report-card is-{{ group.code|replace('_', '-') }}">
-                                <div class="pc06-combined-report-card-head">
-                                    <div class="pc06-combined-report-card-copy">
-                                        <strong>{{ group.label }}</strong>
-                                        <span>{{ group.description }}</span>
-                                    </div>
-                                    <span class="pc06-combined-report-card-count">{{ group.count }}</span>
-                                </div>
-                                <div class="pc06-combined-report-card-preview">
-                                    {% for unit in group.units[:3] %}
-                                    <span>{{ unit.unit_name }}</span>
-                                    {% else %}
-                                    <span class="empty">Chưa có đơn vị</span>
-                                    {% endfor %}
-                                </div>
-                                <div class="pc06-combined-report-card-actions">
-                                    <a href="{{ url_for('tasks_bp.export_child_task_report_condition', tid=task.id, dimension='progress', condition=group.code) }}" class="btn btn-bdhvs light{% if not group.count %} disabled{% endif %}">
-                                        <i class="fa-solid fa-file-excel"></i>
-                                        Xuất Excel
-                                    </a>
-                                </div>
-                            </article>
-                            {% endfor %}
-                        </div>
-                    </section>
-                    <section class="pc06-combined-report-section">
-                        <div class="pc06-combined-report-section-head">
-                            <strong>Chất lượng báo cáo</strong>
-                            <span>Phân loại theo mức quá hạn trên toàn bộ task con của từng đơn vị</span>
-                        </div>
-                        <div class="pc06-combined-report-grid">
-                            {% for group in child_task_tracking.quality_groups %}
-                            <article class="pc06-combined-report-card is-{{ group.code|replace('_', '-') }}">
-                                <div class="pc06-combined-report-card-head">
-                                    <div class="pc06-combined-report-card-copy">
-                                        <strong>{{ group.label }}</strong>
-                                        <span>{{ group.description }}</span>
-                                    </div>
-                                    <span class="pc06-combined-report-card-count">{{ group.count }}</span>
-                                </div>
-                                <div class="pc06-combined-report-card-preview">
-                                    {% for unit in group.units[:3] %}
-                                    <span>{{ unit.unit_name }}</span>
-                                    {% else %}
-                                    <span class="empty">Chưa có đơn vị</span>
-                                    {% endfor %}
-                                </div>
-                                <div class="pc06-combined-report-card-actions">
-                                    <a href="{{ url_for('tasks_bp.export_child_task_report_condition', tid=task.id, dimension='quality', condition=group.code) }}" class="btn btn-bdhvs light{% if not group.count %} disabled{% endif %}">
-                                        <i class="fa-solid fa-file-excel"></i>
-                                        Xuất Excel
-                                    </a>
-                                </div>
-                            </article>
-                            {% endfor %}
+            {% if show_tracking_pane %}
+            <div class="pc06-task-pane" data-task-pane="tracking">
+                <span class="pc06-task-pane-anchor" id="tracking-section"></span>
+                {% if can_observe_task_view and child_task_tracking.total_units %}
+                <section class="pc06-panel pc06-detail-panel-compact">
+                    <div class="pc06-panel-head">
+                        <div>
+                            <h2>Theo dõi báo cáo task con</h2>
                         </div>
                     </div>
-                </div>
-            </section>
-            {% endif %}
-
-            {% if can_observe_task_view and da06_management_view %}
-            <section class="pc06-panel pc06-detail-panel-compact">
-                <div class="pc06-panel-head">
-                    <div>
-                        <h2>Tổng hợp ĐA06 tháng</h2>
+                    <div class="pc06-child-report-facts">
+                        <div class="pc06-child-report-fact">
+                            <span>Tổng task con</span>
+                            <strong>{{ child_task_tracking.total_child_tasks }}</strong>
+                        </div>
+                        <div class="pc06-child-report-fact">
+                            <span>Đơn vị tham gia</span>
+                            <strong>{{ child_task_tracking.total_units }}</strong>
+                        </div>
+                        <div class="pc06-child-report-fact">
+                            <span>Task quá hạn</span>
+                            <strong>{{ child_task_tracking.total_overdue_tasks }}</strong>
+                        </div>
                     </div>
-                </div>
-                <div class="pc06-report-guidance">
-                    Task này đang dùng biểu mẫu nội bộ ĐA06. Quản trị theo dõi theo từng nhóm đơn vị, mức độ cập nhật biểu mẫu và dữ liệu DVC thay cho báo cáo file thông thường.
-                </div>
-                <div class="pc06-da06-manage-groups">
-                    {% for group in da06_management_view %}
-                    <section class="pc06-da06-manage-group">
-                        <div class="pc06-da06-manage-head">
-                            <div>
-                                <strong>{{ group.label }}</strong>
-                                <span>{{ group.reported_units }}/{{ group.total_units }} đơn vị đã cập nhật</span>
+                    <div class="pc06-child-report-banner">
+                        Khối này gộp chung <strong>tiến độ báo cáo</strong> và <strong>chất lượng báo cáo</strong> theo từng đơn vị. Mỗi điều kiện chỉ hiển thị số lượng, kèm nút Excel để tải danh sách chi tiết đúng theo nhóm.
+                    </div>
+                    <div class="pc06-combined-report-sections">
+                        <section class="pc06-combined-report-section">
+                            <div class="pc06-combined-report-section-head">
+                                <strong>Tiến độ báo cáo</strong>
+                                <span>Phân loại theo mức hoàn thành báo cáo task con</span>
                             </div>
-                            <span class="pc06-soft-tag neutral">{{ group.total_units }} đơn vị</span>
-                        </div>
-                        <div class="pc06-da06-manage-units">
-                            {% for unit in group.units %}
-                            <article class="pc06-da06-manage-unit">
-                                <div class="pc06-da06-manage-unit-top">
-                                    <strong>{{ unit.unit_name }}</strong>
-                                    <span class="pc06-status-badge {% if unit.status == 'Hoàn thành' %}done{% elif unit.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
-                                        {{ unit.status }}
-                                    </span>
-                                </div>
-                                <div class="pc06-da06-manage-lines">
-                                    {% for line in unit.summary_lines %}
-                                    <span>{{ line }}</span>
-                                    {% endfor %}
-                                    <span>Cập nhật: {{ unit.updated_at.strftime('%d/%m/%Y %H:%M') if unit.updated_at else 'Chưa có dữ liệu' }}</span>
-                                </div>
-                            </article>
-                            {% else %}
-                            <div class="pc06-empty-state compact">
-                                <div class="pc06-empty-icon"><i class="fa-regular fa-folder-open"></i></div>
-                                <h3>Chưa có đơn vị</h3>
-                                <p>Nhóm này hiện chưa có đơn vị phù hợp.</p>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </section>
-                    {% endfor %}
-                </div>
-            </section>
-            {% elif can_observe_task_view and not child_task_tracking.total_units %}
-            <section class="pc06-panel pc06-detail-panel-compact">
-                <div class="pc06-panel-head">
-                    <div>
-                        <h2>Báo cáo đơn vị</h2>
-                    </div>
-                    <a href="{{ url_for('tasks_bp.export_task_unit_report', tid=task.id) }}" class="btn btn-bdhvs light">
-                        <i class="fa-solid fa-file-excel"></i>
-                        Xuất Excel
-                    </a>
-                </div>
-                <div class="pc06-unit-report-overview">
-                    <article class="pc06-unit-report-cluster">
-                        <div class="pc06-unit-report-cluster-head">
-                            <strong>Tiến độ báo cáo</strong>
-                            <span>Tổng {{ unit_report_stats.total_units }} đơn vị</span>
-                        </div>
-                        <div class="pc06-unit-report-cluster-grid">
-                            <div class="pc06-unit-report-stat">
-                                <span>Đã báo cáo</span>
-                                <strong>{{ unit_report_stats.reported_units }}</strong>
-                            </div>
-                            <div class="pc06-unit-report-stat">
-                                <span>Chưa báo cáo</span>
-                                <strong>{{ unit_report_stats.unreported_units }}</strong>
-                            </div>
-                        </div>
-                    </article>
-                    <article class="pc06-unit-report-cluster">
-                        <div class="pc06-unit-report-cluster-head">
-                            <strong>Chất lượng thời hạn</strong>
-                            <span>Theo hạn xử lý</span>
-                        </div>
-                        <div class="pc06-unit-report-cluster-grid">
-                            <div class="pc06-unit-report-stat">
-                                <span>Đúng hạn</span>
-                                <strong>{{ unit_report_stats.on_time_units }}</strong>
-                            </div>
-                            <div class="pc06-unit-report-stat">
-                                <span>Quá hạn</span>
-                                <strong>{{ unit_report_stats.overdue_units }}</strong>
-                            </div>
-                        </div>
-                    </article>
-                </div>
-                <div class="pc06-report-groups">
-                    <div class="pc06-report-group-column">
-                        {% for group in unit_report_groups if group.key in ['reported', 'unreported'] %}
-                        <details class="pc06-report-group">
-                            <summary class="pc06-report-group-summary">
-                                <div>
-                                    <span>{{ group.label }}</span>
-                                    <strong>{{ group.count }}</strong>
-                                    <small>Bấm để xem danh sách đơn vị</small>
-                                </div>
-                                <i class="fa-solid fa-chevron-down pc06-report-caret"></i>
-                            </summary>
-                            <div class="pc06-report-group-body">
-                                {% if group.key == 'reported' %}
-                                    {% for card in group.cards %}
-                                    {% set primary_attachment = card.attachments[0] if card.attachments else None %}
-                                    <details class="pc06-report-item">
-                                        <summary class="pc06-report-item-summary">
-                                            <div class="pc06-report-item-copy">
-                                                <strong>{{ card.unit_name }}</strong>
-                                                <div class="pc06-report-item-fileline" title="{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp đính kèm' }}">
-                                                    <i class="fa-solid fa-paperclip"></i>
-                                                    <span>{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp đính kèm' }}</span>
-                                                </div>
-                                            </div>
-                                            <div class="pc06-report-item-actions">
-                                                {% if primary_attachment %}
-                                                <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=primary_attachment.user_id) }}" class="pc06-report-download-icon" title="Tải tệp" onclick="event.stopPropagation();">
-                                                    <i class="fa-solid fa-download"></i>
-                                                </a>
-                                                {% endif %}
-                                                <span class="pc06-report-eye-icon" title="Xem chi tiết">
-                                                    <i class="fa-regular fa-eye"></i>
-                                                </span>
-                                            </div>
-                                        </summary>
-                                        <div class="pc06-report-item-body">
-                                            <div class="pc06-report-item-meta">
-                                                <span>
-                                                    <i class="fa-regular fa-user"></i>
-                                                    {{ card.latest_report_user_name or 'Chưa có người gửi' }}
-                                                </span>
-                                                <span>
-                                                    <i class="fa-regular fa-clock"></i>
-                                                    {{ card.latest_report_at.strftime('%d/%m/%Y %H:%M') if card.latest_report_at else 'Chưa có thời điểm báo cáo' }}
-                                                </span>
-                                            </div>
-                                            {% if card.latest_report_excerpt_preview %}
-                                            <div class="pc06-report-item-excerpt">{{ card.latest_report_excerpt_preview }}</div>
-                                            {% else %}
-                                            <div class="pc06-report-item-note">Đơn vị đã gửi báo cáo nhưng chưa nhập nội dung chi tiết.</div>
-                                            {% endif %}
+                            <div class="pc06-combined-report-grid">
+                                {% for group in child_task_tracking.progress_groups %}
+                                <article class="pc06-combined-report-card is-{{ group.code|replace('_', '-') }}">
+                                    <div class="pc06-combined-report-card-head">
+                                        <div class="pc06-combined-report-card-copy">
+                                            <strong>{{ group.label }}</strong>
+                                            <span>{{ group.description }}</span>
                                         </div>
-                                    </details>
-                                    {% else %}
-                                    <div class="pc06-empty-state compact">
-                                        <div class="pc06-empty-icon"><i class="fa-regular fa-folder-open"></i></div>
-                                        <h3>Chưa có đơn vị</h3>
-                                        <p>Nhóm này hiện chưa có đơn vị phù hợp.</p>
+                                        <span class="pc06-combined-report-card-count">{{ group.count }}</span>
                                     </div>
-                                    {% endfor %}
+                                    <div class="pc06-combined-report-card-preview">
+                                        {% for unit in group.units[:3] %}
+                                        <span>{{ unit.unit_name }}</span>
+                                        {% else %}
+                                        <span class="empty">Chưa có đơn vị</span>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="pc06-combined-report-card-actions">
+                                        <a href="{{ url_for('tasks_bp.export_child_task_report_condition', tid=task.id, dimension='progress', condition=group.code) }}" class="btn btn-bdhvs light{% if not group.count %} disabled{% endif %}">
+                                            <i class="fa-solid fa-file-excel"></i>
+                                            Xuất Excel
+                                        </a>
+                                    </div>
+                                </article>
+                                {% endfor %}
+                            </div>
+                        </section>
+                        <section class="pc06-combined-report-section">
+                            <div class="pc06-combined-report-section-head">
+                                <strong>Chất lượng báo cáo</strong>
+                                <span>Phân loại theo mức quá hạn trên toàn bộ task con của từng đơn vị</span>
+                            </div>
+                            <div class="pc06-combined-report-grid">
+                                {% for group in child_task_tracking.quality_groups %}
+                                <article class="pc06-combined-report-card is-{{ group.code|replace('_', '-') }}">
+                                    <div class="pc06-combined-report-card-head">
+                                        <div class="pc06-combined-report-card-copy">
+                                            <strong>{{ group.label }}</strong>
+                                            <span>{{ group.description }}</span>
+                                        </div>
+                                        <span class="pc06-combined-report-card-count">{{ group.count }}</span>
+                                    </div>
+                                    <div class="pc06-combined-report-card-preview">
+                                        {% for unit in group.units[:3] %}
+                                        <span>{{ unit.unit_name }}</span>
+                                        {% else %}
+                                        <span class="empty">Chưa có đơn vị</span>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="pc06-combined-report-card-actions">
+                                        <a href="{{ url_for('tasks_bp.export_child_task_report_condition', tid=task.id, dimension='quality', condition=group.code) }}" class="btn btn-bdhvs light{% if not group.count %} disabled{% endif %}">
+                                            <i class="fa-solid fa-file-excel"></i>
+                                            Xuất Excel
+                                        </a>
+                                    </div>
+                                </article>
+                                {% endfor %}
+                            </div>
+                        </section>
+                    </div>
+                </section>
+                {% endif %}
+
+                {% if can_observe_task_view and da06_management_view %}
+                <section class="pc06-panel pc06-detail-panel-compact">
+                    <div class="pc06-panel-head">
+                        <div>
+                            <h2>Tổng hợp ĐA06 tháng</h2>
+                        </div>
+                    </div>
+                    <div class="pc06-report-guidance">
+                        Task này đang dùng biểu mẫu nội bộ ĐA06. Quản trị theo dõi theo từng nhóm đơn vị, mức độ cập nhật biểu mẫu và dữ liệu DVC thay cho báo cáo file thông thường.
+                    </div>
+                    <div class="pc06-da06-manage-groups">
+                        {% for group in da06_management_view %}
+                        <section class="pc06-da06-manage-group">
+                            <div class="pc06-da06-manage-head">
+                                <div>
+                                    <strong>{{ group.label }}</strong>
+                                    <span>{{ group.reported_units }}/{{ group.total_units }} đơn vị đã cập nhật</span>
+                                </div>
+                                <span class="pc06-soft-tag neutral">{{ group.total_units }} đơn vị</span>
+                            </div>
+                            <div class="pc06-da06-manage-units">
+                                {% for unit in group.units %}
+                                <article class="pc06-da06-manage-unit">
+                                    <div class="pc06-da06-manage-unit-top">
+                                        <strong>{{ unit.unit_name }}</strong>
+                                        <span class="pc06-status-badge {% if unit.status == 'Hoàn thành' %}done{% elif unit.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
+                                            {{ unit.status }}
+                                        </span>
+                                    </div>
+                                    <div class="pc06-da06-manage-lines">
+                                        {% for line in unit.summary_lines %}
+                                        <span>{{ line }}</span>
+                                        {% endfor %}
+                                        <span>Cập nhật: {{ unit.updated_at.strftime('%d/%m/%Y %H:%M') if unit.updated_at else 'Chưa có dữ liệu' }}</span>
+                                    </div>
+                                </article>
                                 {% else %}
+                                <div class="pc06-empty-state compact">
+                                    <div class="pc06-empty-icon"><i class="fa-regular fa-folder-open"></i></div>
+                                    <h3>Chưa có đơn vị</h3>
+                                    <p>Nhóm này hiện chưa có đơn vị phù hợp.</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </section>
+                        {% endfor %}
+                    </div>
+                </section>
+                {% elif can_observe_task_view and not child_task_tracking.total_units %}
+                <section class="pc06-panel pc06-detail-panel-compact">
+                    <div class="pc06-panel-head">
+                        <div>
+                            <h2>Báo cáo đơn vị</h2>
+                        </div>
+                        <a href="{{ url_for('tasks_bp.export_task_unit_report', tid=task.id) }}" class="btn btn-bdhvs light">
+                            <i class="fa-solid fa-file-excel"></i>
+                            Xuất Excel
+                        </a>
+                    </div>
+                    <div class="pc06-unit-report-overview">
+                        <article class="pc06-unit-report-cluster">
+                            <div class="pc06-unit-report-cluster-head">
+                                <strong>Tiến độ báo cáo</strong>
+                                <span>Tổng {{ unit_report_stats.total_units }} đơn vị</span>
+                            </div>
+                            <div class="pc06-unit-report-cluster-grid">
+                                <div class="pc06-unit-report-stat">
+                                    <span>Đã báo cáo</span>
+                                    <strong>{{ unit_report_stats.reported_units }}</strong>
+                                </div>
+                                <div class="pc06-unit-report-stat">
+                                    <span>Chưa báo cáo</span>
+                                    <strong>{{ unit_report_stats.unreported_units }}</strong>
+                                </div>
+                            </div>
+                        </article>
+                        <article class="pc06-unit-report-cluster">
+                            <div class="pc06-unit-report-cluster-head">
+                                <strong>Chất lượng thời hạn</strong>
+                                <span>Theo hạn xử lý</span>
+                            </div>
+                            <div class="pc06-unit-report-cluster-grid">
+                                <div class="pc06-unit-report-stat">
+                                    <span>Đúng hạn</span>
+                                    <strong>{{ unit_report_stats.on_time_units }}</strong>
+                                </div>
+                                <div class="pc06-unit-report-stat">
+                                    <span>Quá hạn</span>
+                                    <strong>{{ unit_report_stats.overdue_units }}</strong>
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+                    <div class="pc06-report-groups">
+                        <div class="pc06-report-group-column">
+                            {% for group in unit_report_groups if group.key in ['reported', 'unreported'] %}
+                            <details class="pc06-report-group">
+                                <summary class="pc06-report-group-summary">
+                                    <div>
+                                        <span>{{ group.label }}</span>
+                                        <strong>{{ group.count }}</strong>
+                                        <small>Bấm để xem danh sách đơn vị</small>
+                                    </div>
+                                    <i class="fa-solid fa-chevron-down pc06-report-caret"></i>
+                                </summary>
+                                <div class="pc06-report-group-body">
+                                    {% if group.key == 'reported' %}
+                                        {% for card in group.cards %}
+                                        {% set primary_attachment = card.attachments[0] if card.attachments else None %}
+                                        <details class="pc06-report-item">
+                                            <summary class="pc06-report-item-summary">
+                                                <div class="pc06-report-item-copy">
+                                                    <strong>{{ card.unit_name }}</strong>
+                                                    <div class="pc06-report-item-fileline" title="{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp đính kèm' }}">
+                                                        <i class="fa-solid fa-paperclip"></i>
+                                                        <span>{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp đính kèm' }}</span>
+                                                    </div>
+                                                </div>
+                                                <div class="pc06-report-item-actions">
+                                                    {% if primary_attachment %}
+                                                    <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=primary_attachment.user_id) }}" class="pc06-report-download-icon" title="Tải tệp" onclick="event.stopPropagation();">
+                                                        <i class="fa-solid fa-download"></i>
+                                                    </a>
+                                                    {% endif %}
+                                                    <span class="pc06-report-eye-icon" title="Xem chi tiết">
+                                                        <i class="fa-regular fa-eye"></i>
+                                                    </span>
+                                                </div>
+                                            </summary>
+                                            <div class="pc06-report-item-body">
+                                                <div class="pc06-report-item-meta">
+                                                    <span>
+                                                        <i class="fa-regular fa-user"></i>
+                                                        {{ card.latest_report_user_name or 'Chưa có người gửi' }}
+                                                    </span>
+                                                    <span>
+                                                        <i class="fa-regular fa-clock"></i>
+                                                        {{ card.latest_report_at.strftime('%d/%m/%Y %H:%M') if card.latest_report_at else 'Chưa có thời điểm báo cáo' }}
+                                                    </span>
+                                                </div>
+                                                {% if card.latest_report_excerpt_preview %}
+                                                <div class="pc06-report-item-excerpt">{{ card.latest_report_excerpt_preview }}</div>
+                                                {% else %}
+                                                <div class="pc06-report-item-note">Đơn vị đã gửi báo cáo nhưng chưa nhập nội dung chi tiết.</div>
+                                                {% endif %}
+                                            </div>
+                                        </details>
+                                        {% else %}
+                                        <div class="pc06-empty-state compact">
+                                            <div class="pc06-empty-icon"><i class="fa-regular fa-folder-open"></i></div>
+                                            <h3>Chưa có đơn vị</h3>
+                                            <p>Nhóm này hiện chưa có đơn vị phù hợp.</p>
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="pc06-report-name-list">
+                                            {% for card in group.cards %}
+                                            <div class="pc06-report-name-item">{{ card.unit_name }}</div>
+                                            {% else %}
+                                            <div class="pc06-empty-state compact">
+                                                <div class="pc06-empty-icon"><i class="fa-regular fa-folder-open"></i></div>
+                                                <h3>Chưa có đơn vị</h3>
+                                                <p>Nhóm này hiện chưa có đơn vị phù hợp.</p>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </details>
+                            {% endfor %}
+                        </div>
+                        <div class="pc06-report-group-column">
+                            {% for group in unit_report_groups if group.key in ['on_time', 'overdue'] %}
+                            <details class="pc06-report-group">
+                                <summary class="pc06-report-group-summary">
+                                    <div>
+                                        <span>{{ group.label }}</span>
+                                        <strong>{{ group.count }}</strong>
+                                        <small>Bấm để xem danh sách đơn vị</small>
+                                    </div>
+                                    <i class="fa-solid fa-chevron-down pc06-report-caret"></i>
+                                </summary>
+                                <div class="pc06-report-group-body">
                                     <div class="pc06-report-name-list">
                                         {% for card in group.cards %}
                                         <div class="pc06-report-name-item">{{ card.unit_name }}</div>
@@ -2005,447 +2209,433 @@
                                         </div>
                                         {% endfor %}
                                     </div>
-                                {% endif %}
+                                </div>
+                            </details>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </section>
+                {% endif %}
+
+                {% if linked_report_templates %}
+                <section class="pc06-panel pc06-detail-panel-compact">
+                    <div class="pc06-panel-head">
+                        <div>
+                            <h2>Tổng hợp từ report</h2>
+                            <div class="pc06-detail-inline-note">Task này đang nhận số liệu và tiến độ trực tiếp từ các biểu mẫu đã liên kết bên module report.</div>
+                        </div>
+                    </div>
+                    <div class="pc06-report-groups">
+                        {% for item in linked_report_templates %}
+                        <article class="pc06-report-item">
+                            <div class="pc06-report-item-summary">
+                                <div class="pc06-report-item-copy">
+                                    <strong>{{ item.template_name }}</strong>
+                                    <div class="pc06-report-item-fileline">
+                                        <i class="fa-solid fa-table-cells-large"></i>
+                                        <span>{{ item.report_type_name }} · {{ item.professional_unit_display }}</span>
+                                    </div>
+                                </div>
+                                <div class="pc06-report-item-actions">
+                                    <span class="pc06-status-badge {% if item.status_label == 'Đã đóng' %}done{% elif item.status_label == 'Đang mở' %}doing{% else %}todo{% endif %}">
+                                        {{ item.status_label }}
+                                    </span>
+                                    {% if can_manage_task_view and item.manage_url %}
+                                    <a href="{{ item.manage_url }}" class="pc06-report-download-icon" title="Mở tổng hợp báo cáo">
+                                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                    </a>
+                                    {% elif item.workspace_url %}
+                                    <a href="{{ item.workspace_url }}" class="pc06-report-download-icon" title="Mở biểu mẫu báo cáo">
+                                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
                             </div>
-                        </details>
+                            <div class="pc06-report-item-body">
+                                <div class="pc06-report-item-meta">
+                                    <span>
+                                        <i class="fa-solid fa-folder-open"></i>
+                                        {{ item.cycle_name }}
+                                    </span>
+                                    <span>
+                                        <i class="fa-regular fa-calendar"></i>
+                                        {{ item.due_at.strftime('%d/%m/%Y %H:%M') if item.due_at else 'Chưa đặt hạn gửi' }}
+                                    </span>
+                                    <span>
+                                        <i class="fa-solid fa-building"></i>
+                                        {{ item.submitted_units }}/{{ item.total_units }} đơn vị đã báo cáo
+                                    </span>
+                                </div>
+                                <div class="pc06-detail-inline-note">
+                                    Tiến độ {{ item.progress_percent }}%{% if item.total_units %} · Còn {{ item.total_units - item.submitted_units }} đơn vị chưa báo cáo{% endif %}
+                                </div>
+                            </div>
+                        </article>
                         {% endfor %}
                     </div>
-                    <div class="pc06-report-group-column">
-                        {% for group in unit_report_groups if group.key in ['on_time', 'overdue'] %}
-                        <details class="pc06-report-group">
-                            <summary class="pc06-report-group-summary">
-                                <div>
-                                    <span>{{ group.label }}</span>
-                                    <strong>{{ group.count }}</strong>
-                                    <small>Bấm để xem danh sách đơn vị</small>
+                </section>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if show_report_pane %}
+            <div class="pc06-task-pane" data-task-pane="report">
+                <span class="pc06-task-pane-anchor" id="report-section"></span>
+                <section class="pc06-panel pc06-detail-panel-compact">
+                    <div class="pc06-panel-head">
+                        <div>
+                            <h2>{{ 'Thông tin báo cáo' if limited_assignment_view else 'Thông tin công việc' }}</h2>
+                        </div>
+                    </div>
+                    <div class="pc06-task-pane-grid two-up">
+                        <div class="pc06-info-list">
+                            <div class="pc06-info-item"><span>Lĩnh vực</span><strong>{{ task.category_display or 'Chưa phân lĩnh vực' }}</strong></div>
+                            <div class="pc06-info-item"><span>Đơn vị nghiệp vụ</span><strong>{{ task.domain_display or 'Chưa phân đơn vị' }}</strong></div>
+                            <div class="pc06-info-item"><span>Loại công việc</span><strong>{{ task.task_type_display or 'Công việc thường xuyên' }}</strong></div>
+                            <div class="pc06-info-item"><span>Mức ưu tiên</span><strong>{{ task.priority_display or 'Trung bình' }}</strong></div>
+                        </div>
+                        <div class="pc06-info-list">
+                            <div class="pc06-info-item"><span>Người giao</span><strong>{{ task.author_name }}</strong></div>
+                            <div class="pc06-info-item">
+                                <span>Xử lý việc</span>
+                                <strong>{{ manager_scope_summary.mode_label }}</strong>
+                                <div class="pc06-detail-inline-note mt-2">{{ manager_scope_summary.value_label }}</div>
+                            </div>
+                            <div class="pc06-info-item">
+                                <span>Xem việc</span>
+                                <strong>{{ viewer_scope_summary.mode_label }}</strong>
+                                <div class="pc06-detail-inline-note mt-2">{{ viewer_scope_summary.value_label }}</div>
+                            </div>
+                            {% if limited_assignment_view %}
+                            {% if linked_report_templates %}
+                            <div class="pc06-info-item"><span>Hình thức báo cáo</span><strong>Theo biểu mẫu report liên kết</strong></div>
+                            <div class="pc06-info-item">
+                                <span>Biểu mẫu đang theo dõi</span>
+                                <strong>{{ linked_report_templates|length }} biểu mẫu</strong>
+                                <div class="pc06-detail-inline-note mt-2">Số liệu và tiến độ của task này được lấy trực tiếp từ module report.</div>
+                            </div>
+                            {% else %}
+                            <div class="pc06-info-item"><span>Trạng thái báo cáo</span><strong>{{ report_context.status }}</strong></div>
+                            <div class="pc06-info-item">
+                                <span>{{ report_context.attachment_label }} đã nộp</span>
+                                <strong>{{ report_file_name or 'Chưa tải lên' }}</strong>
+                                {% if report_file_name and user_assign %}
+                                <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=user_assign.user_id) }}" class="pc06-inline-link mt-2 d-inline-flex align-items-center gap-2">
+                                    <i class="fa-solid fa-download"></i>
+                                    Tải tệp đã nộp
+                                </a>
+                                {% endif %}
+                            </div>
+                            {% if report_context.summary_lines %}
+                            <div class="pc06-info-item">
+                                <span>Nội dung đã cập nhật</span>
+                                <div class="pc06-detail-inline-note">
+                                    {% for line in report_context.summary_lines %}
+                                    <div>{{ line }}</div>
+                                    {% endfor %}
                                 </div>
-                                <i class="fa-solid fa-chevron-down pc06-report-caret"></i>
-                            </summary>
-                            <div class="pc06-report-group-body">
-                                <div class="pc06-report-name-list">
-                                    {% for card in group.cards %}
-                                    <div class="pc06-report-name-item">{{ card.unit_name }}</div>
-                                    {% else %}
-                                    <div class="pc06-empty-state compact">
-                                        <div class="pc06-empty-icon"><i class="fa-regular fa-folder-open"></i></div>
-                                        <h3>Chưa có đơn vị</h3>
-                                        <p>Nhóm này hiện chưa có đơn vị phù hợp.</p>
+                            </div>
+                            {% endif %}
+                            <div class="pc06-info-item"><span>Lần báo cáo gần nhất</span><strong>{{ report_context.latest_report_at.strftime('%d/%m/%Y %H:%M') if report_context.latest_report_at else 'Chưa gửi báo cáo' }}</strong></div>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </section>
+
+                {% if not task_has_child_tasks and not linked_report_templates and structured_task_report_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+                <section class="pc06-panel pc06-detail-panel-compact">
+                    <div class="pc06-panel-head">
+                        <div>
+                            <h2>Báo cáo theo nội dung task</h2>
+                        </div>
+                    </div>
+                    {% if structured_task_report_form.has_visible_content %}
+                    <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data" class="pc06-report-form pc06-da06-stack">
+                        {% if structured_task_report_form.updated_at %}
+                        <div class="pc06-detail-inline-note">Cập nhật gần nhất {{ structured_task_report_form.updated_at }}</div>
+                        {% endif %}
+                        {% if structured_task_report_form.narrative.enabled %}
+                        <div class="pc06-da06-card">
+                            <label for="report_narrative">{{ structured_task_report_form.narrative.label }}</label>
+                            <textarea id="report_narrative" name="report_narrative" rows="6" class="form-control" placeholder="{{ structured_task_report_form.narrative.placeholder }}" {% if structured_task_report_form.narrative.required %}required{% endif %}>{{ structured_task_report_form.narrative.value }}</textarea>
+                        </div>
+                        {% endif %}
+                        {% if structured_task_report_form.fields %}
+                        <div class="pc06-da06-table">
+                            {% for field in structured_task_report_form.fields %}
+                            <div class="pc06-da06-card">
+                                <label for="report_field_{{ field.key }}">{{ field.label }}{% if field.required %} <span class="text-danger">*</span>{% endif %}</label>
+                                {% if field.type == 'textarea' %}
+                                <textarea id="report_field_{{ field.key }}" name="report_field_{{ field.key }}" rows="4" class="form-control" placeholder="{{ field.placeholder }}" {% if field.required %}required{% endif %}>{{ field.value }}</textarea>
+                                {% elif field.type == 'number' %}
+                                <input id="report_field_{{ field.key }}" type="number" step="any" name="report_field_{{ field.key }}" value="{{ field.value }}" class="form-control" placeholder="{{ field.placeholder }}" {% if field.required %}required{% endif %}>
+                                {% else %}
+                                <input id="report_field_{{ field.key }}" type="text" name="report_field_{{ field.key }}" value="{{ field.value }}" class="form-control" placeholder="{{ field.placeholder }}" {% if field.required %}required{% endif %}>
+                                {% endif %}
+                                {% if field.help_text %}
+                                <div class="form-text">{{ field.help_text }}</div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if structured_task_report_form.attachment.enabled %}
+                        <div class="pc06-da06-card">
+                            <label for="report_file">{{ structured_task_report_form.attachment.label }}{% if structured_task_report_form.attachment.required %} <span class="text-danger">*</span>{% endif %}</label>
+                            <input id="report_file" type="file" name="report_file" class="form-control" {% if structured_task_report_form.attachment.required and not structured_task_report_form.attachment.value %}required{% endif %}>
+                            {% if structured_task_report_form.attachment.value and user_assign %}
+                            <a class="pc06-da06-inline-file" href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=user_assign.user_id) }}">
+                                <i class="fa-solid fa-paperclip"></i>{{ structured_task_report_form.attachment.value }}
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        <div class="pc06-report-footer">
+                            <label class="form-check pc06-checkline">
+                                <input class="form-check-input" type="checkbox" name="mark_completed" value="1">
+                                <span class="form-check-label">Đánh dấu hoàn thành sau khi gửi báo cáo</span>
+                            </label>
+                            <button type="submit" class="btn btn-bdhvs primary">
+                                <i class="fa-solid fa-paper-plane"></i>
+                                Gửi báo cáo
+                            </button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="pc06-info-banner">
+                        Task này dùng biểu mẫu riêng nhưng hiện chưa có mục nào được giao cho tài khoản của bạn. Hãy mở task con hoặc liên hệ quản trị để điều chỉnh phân công.
+                    </div>
+                    {% endif %}
+                </section>
+                {% elif not task_has_child_tasks and not linked_report_templates and da06_task_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+                <section class="pc06-panel pc06-detail-panel-compact">
+                    <div class="pc06-panel-head">
+                        <div>
+                            <h2>Báo cáo ĐA06 tháng</h2>
+                        </div>
+                    </div>
+                    <form action="{{ url_for('tasks_bp.save_da06_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data" class="pc06-report-form pc06-da06-stack">
+                        <div class="pc06-detail-inline-note">{{ da06_task_form.label }}{% if da06_task_form.updated_at %} · Cập nhật gần nhất {{ da06_task_form.updated_at }}{% endif %}</div>
+                        {% if da06_task_form.kind == 'tct_xa' %}
+                        <div class="pc06-da06-grid">
+                            {% for field in da06_task_form.tct_fields %}
+                            <div class="pc06-da06-field">
+                                <label for="{{ field.key }}">{{ field.label }}</label>
+                                {% if field.type == 'textarea' %}
+                                <textarea id="{{ field.key }}" name="{{ field.key }}" rows="4" class="form-control">{{ field.value }}</textarea>
+                                {% elif field.type == 'file' %}
+                                <input id="{{ field.key }}" type="file" name="{{ field.key }}" class="form-control">
+                                {% if field.value %}
+                                <a class="pc06-da06-inline-file" href="{{ url_for('tasks_bp.download_da06_task_attachment', tid=task.id, attachment_key=field.key) }}">
+                                    <i class="fa-solid fa-paperclip"></i>{{ field.value }}
+                                </a>
+                                {% endif %}
+                                {% else %}
+                                <input id="{{ field.key }}" type="number" min="0" step="1" name="{{ field.key }}" value="{{ field.value }}" class="form-control">
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% elif da06_task_form.kind == 'tthcc' %}
+                        <div class="pc06-da06-card">
+                            <label for="tthcc_note">Ghi chú tổng hợp</label>
+                            <textarea id="tthcc_note" name="tthcc_note" rows="5" class="form-control" placeholder="Nêu khái quát tình hình và lưu ý nếu có">{{ da06_task_form.tthcc_note or '' }}</textarea>
+                        </div>
+                        <div class="pc06-da06-card">
+                            <label for="phu_luc_2_attachment">Phụ lục 2 BCĐA06</label>
+                            <input id="phu_luc_2_attachment" type="file" name="phu_luc_2_attachment" class="form-control" accept=".xlsx,.xls,.xlsm">
+                            {% if da06_task_form.tthcc_attachment %}
+                            <a class="pc06-da06-inline-file" href="{{ url_for('tasks_bp.download_da06_task_attachment', tid=task.id, attachment_key='phu_luc_2_attachment') }}">
+                                <i class="fa-solid fa-paperclip"></i>{{ da06_task_form.tthcc_attachment }}
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div class="pc06-da06-card">
+                            <label for="narrative_report">Báo cáo lời theo lĩnh vực</label>
+                            <textarea id="narrative_report" name="narrative_report" rows="7" class="form-control" placeholder="Nhập nội dung báo cáo lời theo lĩnh vực của đơn vị">{{ da06_task_form.narrative_value or '' }}</textarea>
+                        </div>
+                        <div class="pc06-da06-table">
+                            {% for row in da06_task_form.dvc_rows %}
+                            <div class="pc06-da06-card">
+                                <h3>{{ row.title }}</h3>
+                                <div class="pc06-da06-table-grid">
+                                    {% for field in row.fields %}
+                                    <div>
+                                        <label for="{{ row.item_key }}_{{ field.key }}">{{ field.label }}</label>
+                                        {% if field.key in ['benefit', 'issues', 'solution', 'data_source'] %}
+                                        <textarea id="{{ row.item_key }}_{{ field.key }}" name="{{ row.item_key }}_{{ field.key }}" rows="3" class="form-control">{{ field.value }}</textarea>
+                                        {% else %}
+                                        <input id="{{ row.item_key }}_{{ field.key }}" type="text" name="{{ row.item_key }}_{{ field.key }}" value="{{ field.value }}" class="form-control">
+                                        {% endif %}
                                     </div>
                                     {% endfor %}
                                 </div>
                             </div>
-                        </details>
-                        {% endfor %}
-                    </div>
-                </div>
-            </section>
-            {% endif %}
-
-            {% if linked_report_templates %}
-            <section class="pc06-panel pc06-detail-panel-compact">
-                <div class="pc06-panel-head">
-                    <div>
-                        <h2>Tổng hợp từ report</h2>
-                        <div class="pc06-detail-inline-note">Task này đang nhận số liệu và tiến độ trực tiếp từ các biểu mẫu đã liên kết bên module report.</div>
-                    </div>
-                </div>
-                <div class="pc06-report-groups">
-                    {% for item in linked_report_templates %}
-                    <article class="pc06-report-item">
-                        <div class="pc06-report-item-summary">
-                            <div class="pc06-report-item-copy">
-                                <strong>{{ item.template_name }}</strong>
-                                <div class="pc06-report-item-fileline">
-                                    <i class="fa-solid fa-table-cells-large"></i>
-                                    <span>{{ item.report_type_name }} · {{ item.professional_unit_display }}</span>
-                                </div>
-                            </div>
-                            <div class="pc06-report-item-actions">
-                                <span class="pc06-status-badge {% if item.status_label == 'Đã đóng' %}done{% elif item.status_label == 'Đang mở' %}doing{% else %}todo{% endif %}">
-                                    {{ item.status_label }}
-                                </span>
-                                {% if can_manage_task_view and item.manage_url %}
-                                <a href="{{ item.manage_url }}" class="pc06-report-download-icon" title="Mở tổng hợp báo cáo">
-                                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                                </a>
-                                {% elif item.workspace_url %}
-                                <a href="{{ item.workspace_url }}" class="pc06-report-download-icon" title="Mở biểu mẫu báo cáo">
-                                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                                </a>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="pc06-report-item-body">
-                            <div class="pc06-report-item-meta">
-                                <span>
-                                    <i class="fa-solid fa-folder-open"></i>
-                                    {{ item.cycle_name }}
-                                </span>
-                                <span>
-                                    <i class="fa-regular fa-calendar"></i>
-                                    {{ item.due_at.strftime('%d/%m/%Y %H:%M') if item.due_at else 'Chưa đặt hạn gửi' }}
-                                </span>
-                                <span>
-                                    <i class="fa-solid fa-building"></i>
-                                    {{ item.submitted_units }}/{{ item.total_units }} đơn vị đã báo cáo
-                                </span>
-                            </div>
-                            <div class="pc06-detail-inline-note">
-                                Tiến độ {{ item.progress_percent }}%{% if item.total_units %} · Còn {{ item.total_units - item.submitted_units }} đơn vị chưa báo cáo{% endif %}
-                            </div>
-                        </div>
-                    </article>
-                    {% endfor %}
-                </div>
-            </section>
-            {% endif %}
-
-            {% if not task_has_child_tasks and not linked_report_templates and structured_task_report_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
-            <section class="pc06-panel pc06-detail-panel-compact">
-                <div class="pc06-panel-head">
-                    <div>
-                        <h2>Báo cáo theo nội dung task</h2>
-                    </div>
-                </div>
-                {% if structured_task_report_form.has_visible_content %}
-                <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data" class="pc06-report-form pc06-da06-stack">
-                    {% if structured_task_report_form.updated_at %}
-                    <div class="pc06-detail-inline-note">Cập nhật gần nhất {{ structured_task_report_form.updated_at }}</div>
-                    {% endif %}
-                    {% if structured_task_report_form.narrative.enabled %}
-                    <div class="pc06-da06-card">
-                        <label for="report_narrative">{{ structured_task_report_form.narrative.label }}</label>
-                        <textarea id="report_narrative" name="report_narrative" rows="6" class="form-control" placeholder="{{ structured_task_report_form.narrative.placeholder }}" {% if structured_task_report_form.narrative.required %}required{% endif %}>{{ structured_task_report_form.narrative.value }}</textarea>
-                    </div>
-                    {% endif %}
-                    {% if structured_task_report_form.fields %}
-                    <div class="pc06-da06-table">
-                        {% for field in structured_task_report_form.fields %}
-                        <div class="pc06-da06-card">
-                            <label for="report_field_{{ field.key }}">{{ field.label }}{% if field.required %} <span class="text-danger">*</span>{% endif %}</label>
-                            {% if field.type == 'textarea' %}
-                            <textarea id="report_field_{{ field.key }}" name="report_field_{{ field.key }}" rows="4" class="form-control" placeholder="{{ field.placeholder }}" {% if field.required %}required{% endif %}>{{ field.value }}</textarea>
-                            {% elif field.type == 'number' %}
-                            <input id="report_field_{{ field.key }}" type="number" step="any" name="report_field_{{ field.key }}" value="{{ field.value }}" class="form-control" placeholder="{{ field.placeholder }}" {% if field.required %}required{% endif %}>
                             {% else %}
-                            <input id="report_field_{{ field.key }}" type="text" name="report_field_{{ field.key }}" value="{{ field.value }}" class="form-control" placeholder="{{ field.placeholder }}" {% if field.required %}required{% endif %}>
-                            {% endif %}
-                            {% if field.help_text %}
-                            <div class="form-text">{{ field.help_text }}</div>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                    {% if structured_task_report_form.attachment.enabled %}
-                    <div class="pc06-da06-card">
-                        <label for="report_file">{{ structured_task_report_form.attachment.label }}{% if structured_task_report_form.attachment.required %} <span class="text-danger">*</span>{% endif %}</label>
-                        <input id="report_file" type="file" name="report_file" class="form-control" {% if structured_task_report_form.attachment.required and not structured_task_report_form.attachment.value %}required{% endif %}>
-                        {% if structured_task_report_form.attachment.value and user_assign %}
-                        <a class="pc06-da06-inline-file" href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=user_assign.user_id) }}">
-                            <i class="fa-solid fa-paperclip"></i>{{ structured_task_report_form.attachment.value }}
-                        </a>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                    <div class="pc06-report-footer">
-                        <label class="form-check pc06-checkline">
-                            <input class="form-check-input" type="checkbox" name="mark_completed" value="1">
-                            <span class="form-check-label">Đánh dấu hoàn thành sau khi gửi báo cáo</span>
-                        </label>
-                        <button type="submit" class="btn btn-bdhvs primary">
-                            <i class="fa-solid fa-paper-plane"></i>
-                            Gửi báo cáo
-                        </button>
-                    </div>
-                </form>
-                {% else %}
-                <div class="pc06-info-banner">
-                    Task này dùng biểu mẫu riêng nhưng hiện chưa có mục nào được giao cho tài khoản của bạn. Hãy mở task con hoặc liên hệ quản trị để điều chỉnh phân công.
-                </div>
-                {% endif %}
-            </section>
-            {% elif not task_has_child_tasks and not linked_report_templates and da06_task_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
-            <section class="pc06-panel pc06-detail-panel-compact">
-                <div class="pc06-panel-head">
-                    <div>
-                        <h2>Báo cáo ĐA06 tháng</h2>
-                    </div>
-                </div>
-                <form action="{{ url_for('tasks_bp.save_da06_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data" class="pc06-report-form pc06-da06-stack">
-                    <div class="pc06-detail-inline-note">{{ da06_task_form.label }}{% if da06_task_form.updated_at %} · Cập nhật gần nhất {{ da06_task_form.updated_at }}{% endif %}</div>
-                    {% if da06_task_form.kind == 'tct_xa' %}
-                    <div class="pc06-da06-grid">
-                        {% for field in da06_task_form.tct_fields %}
-                        <div class="pc06-da06-field">
-                            <label for="{{ field.key }}">{{ field.label }}</label>
-                            {% if field.type == 'textarea' %}
-                            <textarea id="{{ field.key }}" name="{{ field.key }}" rows="4" class="form-control">{{ field.value }}</textarea>
-                            {% elif field.type == 'file' %}
-                            <input id="{{ field.key }}" type="file" name="{{ field.key }}" class="form-control">
-                            {% if field.value %}
-                            <a class="pc06-da06-inline-file" href="{{ url_for('tasks_bp.download_da06_task_attachment', tid=task.id, attachment_key=field.key) }}">
-                                <i class="fa-solid fa-paperclip"></i>{{ field.value }}
-                            </a>
-                            {% endif %}
-                            {% else %}
-                            <input id="{{ field.key }}" type="number" min="0" step="1" name="{{ field.key }}" value="{{ field.value }}" class="form-control">
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% elif da06_task_form.kind == 'tthcc' %}
-                    <div class="pc06-da06-card">
-                        <label for="tthcc_note">Ghi chú tổng hợp</label>
-                        <textarea id="tthcc_note" name="tthcc_note" rows="5" class="form-control" placeholder="Nêu khái quát tình hình và lưu ý nếu có">{{ da06_task_form.tthcc_note or '' }}</textarea>
-                    </div>
-                    <div class="pc06-da06-card">
-                        <label for="phu_luc_2_attachment">Phụ lục 2 BCĐA06</label>
-                        <input id="phu_luc_2_attachment" type="file" name="phu_luc_2_attachment" class="form-control" accept=".xlsx,.xls,.xlsm">
-                        {% if da06_task_form.tthcc_attachment %}
-                        <a class="pc06-da06-inline-file" href="{{ url_for('tasks_bp.download_da06_task_attachment', tid=task.id, attachment_key='phu_luc_2_attachment') }}">
-                            <i class="fa-solid fa-paperclip"></i>{{ da06_task_form.tthcc_attachment }}
-                        </a>
-                        {% endif %}
-                    </div>
-                    {% else %}
-                    <div class="pc06-da06-card">
-                        <label for="narrative_report">Báo cáo lời theo lĩnh vực</label>
-                        <textarea id="narrative_report" name="narrative_report" rows="7" class="form-control" placeholder="Nhập nội dung báo cáo lời theo lĩnh vực của đơn vị">{{ da06_task_form.narrative_value or '' }}</textarea>
-                    </div>
-                    <div class="pc06-da06-table">
-                        {% for row in da06_task_form.dvc_rows %}
-                        <div class="pc06-da06-card">
-                            <h3>{{ row.title }}</h3>
-                            <div class="pc06-da06-table-grid">
-                                {% for field in row.fields %}
-                                <div>
-                                    <label for="{{ row.item_key }}_{{ field.key }}">{{ field.label }}</label>
-                                    {% if field.key in ['benefit', 'issues', 'solution', 'data_source'] %}
-                                    <textarea id="{{ row.item_key }}_{{ field.key }}" name="{{ row.item_key }}_{{ field.key }}" rows="3" class="form-control">{{ field.value }}</textarea>
-                                    {% else %}
-                                    <input id="{{ row.item_key }}_{{ field.key }}" type="text" name="{{ row.item_key }}_{{ field.key }}" value="{{ field.value }}" class="form-control">
-                                    {% endif %}
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        {% else %}
-                        <div class="pc06-detail-inline-note">Đơn vị này hiện chưa có danh mục DVC riêng, chỉ cần cập nhật phần báo cáo lời.</div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                    <div class="pc06-report-footer">
-                        <button type="submit" class="btn btn-bdhvs primary">
-                            <i class="fa-solid fa-floppy-disk"></i>
-                            Lưu cập nhật
-                        </button>
-                    </div>
-                </form>
-            </section>
-            {% elif linked_report_templates and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
-            <section class="pc06-panel pc06-detail-panel-compact">
-                <div class="pc06-panel-head">
-                    <div>
-                        <h2>Báo cáo biểu mẫu</h2>
-                    </div>
-                </div>
-                <div class="pc06-info-banner">
-                    Task này lấy số liệu trực tiếp từ module report. Hãy mở biểu mẫu liên kết ở phía trên để nhập hoặc theo dõi báo cáo, không cần gửi thêm báo cáo số liệu tại task.
-                </div>
-            </section>
-            {% elif user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
-            <section class="pc06-panel pc06-detail-panel-compact">
-                <div class="pc06-panel-head">
-                    <div>
-                        <h2>Báo cáo kết quả</h2>
-                    </div>
-                </div>
-                <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data" class="pc06-report-form">
-                    <div class="pc06-form-section">
-                        <label class="form-label fw-bold">Nội dung báo cáo</label>
-                        <textarea name="report_content" rows="5" class="form-control" placeholder="Nêu rõ kết quả, tồn tại và kiến nghị nếu có" required></textarea>
-                    </div>
-                    <div class="pc06-form-section">
-                        <label class="form-label fw-bold">Tệp minh chứng</label>
-                        <input type="file" name="report_file" class="form-control">
-                    </div>
-                    <div class="pc06-report-footer">
-                        <label class="form-check pc06-checkline">
-                            <input class="form-check-input" type="checkbox" name="mark_completed" value="1">
-                            <span class="form-check-label">Đánh dấu hoàn thành sau khi gửi báo cáo</span>
-                        </label>
-                        <button type="submit" class="btn btn-bdhvs primary">
-                            <i class="fa-solid fa-paper-plane"></i>
-                            Gửi báo cáo
-                        </button>
-                    </div>
-                </form>
-            </section>
-            {% endif %}
-
-            <section class="pc06-panel pc06-detail-panel-compact">
-                <div class="pc06-panel-head">
-                    <div>
-                        <h2>Trao đổi và phản hồi</h2>
-                    </div>
-                </div>
-                <div class="pc06-thread-grid">
-                    {% for thread in discussion_threads %}
-                    <details class="pc06-thread-card">
-                        <summary class="pc06-thread-head">
-                            <div>
-                                <strong>{{ thread.unit_name }}</strong>
-                                <span>{{ thread.comment_count }} phản hồi · {{ thread.latest_comment_at.strftime('%d/%m/%Y %H:%M') if thread.latest_comment_at else 'Chưa có thời gian phản hồi' }}</span>
-                                <small>{{ thread.latest_comment_user_name }}{% if thread.latest_comment_preview %}: {{ thread.latest_comment_preview }}{% endif %}</small>
-                            </div>
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="pc06-soft-tag neutral">{{ thread.comment_count }} phản hồi</span>
-                                <i class="fa-solid fa-chevron-down pc06-thread-caret"></i>
-                            </div>
-                        </summary>
-                        <div class="pc06-thread-stack">
-                            {% for c in thread.comments %}
-                            {% set is_reply = can_manage_task_view and c.user_id == task.author_id %}
-                            <article class="pc06-thread-bubble {% if is_reply %}reply{% endif %}">
-                                <strong>{{ c.user_name }}</strong>
-                                <small>{{ c.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
-                                <p>{{ c.content }}</p>
-                            </article>
+                            <div class="pc06-detail-inline-note">Đơn vị này hiện chưa có danh mục DVC riêng, chỉ cần cập nhật phần báo cáo lời.</div>
                             {% endfor %}
                         </div>
-                        {% if can_manage_task_view or user_assign %}
-                        <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST" class="pc06-thread-form">
-                            <input type="hidden" name="assignee_id" value="{{ thread.primary_assignee_id }}">
-                            <textarea name="content" class="form-control" rows="3" placeholder="Nhập phản hồi cho {{ thread.unit_name }}" required></textarea>
+                        {% endif %}
+                        <div class="pc06-report-footer">
                             <button type="submit" class="btn btn-bdhvs primary">
-                                <i class="fa-solid fa-reply"></i>
-                                Gửi phản hồi
+                                <i class="fa-solid fa-floppy-disk"></i>
+                                Lưu cập nhật
                             </button>
-                        </form>
-                        {% endif %}
-                    </details>
-                    {% else %}
-                    <div class="pc06-empty-state compact">
-                        <div class="pc06-empty-icon"><i class="fa-regular fa-comment-dots"></i></div>
-                        <h3>Chưa có phản hồi theo đơn vị</h3>
-                        <p>{{ 'Phản hồi sẽ được nhóm thành từng ô chat riêng theo đơn vị khi bắt đầu trao đổi.' if can_manage_task_view else 'Ô chat của đơn vị sẽ hiển thị tại đây khi có trao đổi.' }}</p>
-                    </div>
-                    {% endfor %}
-                </div>
-            </section>
-        </div>
-
-        <aside class="pc06-detail-side">
-            <section class="pc06-panel pc06-detail-panel-compact">
-                <div class="pc06-panel-head">
-                    <div>
-                        <h2>{{ 'Thông tin báo cáo' if limited_assignment_view else 'Thông tin nhanh' }}</h2>
-                    </div>
-                </div>
-                <div class="pc06-info-list">
-                    <div class="pc06-info-item"><span>Lĩnh vực</span><strong>{{ task.category_display or 'Chưa phân lĩnh vực' }}</strong></div>
-                    <div class="pc06-info-item"><span>Đơn vị nghiệp vụ</span><strong>{{ task.domain_display or 'Chưa phân đơn vị' }}</strong></div>
-                    <div class="pc06-info-item"><span>Loại công việc</span><strong>{{ task.task_type_display or 'Công việc thường xuyên' }}</strong></div>
-                    <div class="pc06-info-item"><span>Mức ưu tiên</span><strong>{{ task.priority_display or 'Trung bình' }}</strong></div>
-                    <div class="pc06-info-item"><span>Người giao</span><strong>{{ task.author_name }}</strong></div>
-                    <div class="pc06-info-item">
-                        <span>Xử lý việc</span>
-                        <strong>{{ manager_scope_summary.mode_label }}</strong>
-                        <div class="pc06-detail-inline-note mt-2">{{ manager_scope_summary.value_label }}</div>
-                    </div>
-                    <div class="pc06-info-item">
-                        <span>Xem việc</span>
-                        <strong>{{ viewer_scope_summary.mode_label }}</strong>
-                        <div class="pc06-detail-inline-note mt-2">{{ viewer_scope_summary.value_label }}</div>
-                    </div>
-                    {% if limited_assignment_view %}
-                    {% if linked_report_templates %}
-                    <div class="pc06-info-item"><span>Hình thức báo cáo</span><strong>Theo biểu mẫu report liên kết</strong></div>
-                    <div class="pc06-info-item">
-                        <span>Biểu mẫu đang theo dõi</span>
-                        <strong>{{ linked_report_templates|length }} biểu mẫu</strong>
-                        <div class="pc06-detail-inline-note mt-2">Số liệu và tiến độ của task này được lấy trực tiếp từ module report.</div>
-                    </div>
-                    {% else %}
-                    <div class="pc06-info-item"><span>Trạng thái báo cáo</span><strong>{{ report_context.status }}</strong></div>
-                    <div class="pc06-info-item">
-                        <span>{{ report_context.attachment_label }} đã nộp</span>
-                        <strong>{{ report_file_name or 'Chưa tải lên' }}</strong>
-                        {% if report_file_name and user_assign %}
-                        <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=user_assign.user_id) }}" class="pc06-inline-link mt-2 d-inline-flex align-items-center gap-2">
-                            <i class="fa-solid fa-download"></i>
-                            Tải tệp đã nộp
-                        </a>
-                        {% endif %}
-                    </div>
-                    {% if report_context.summary_lines %}
-                    <div class="pc06-info-item">
-                        <span>Nội dung đã cập nhật</span>
-                        <div class="pc06-detail-inline-note">
-                            {% for line in report_context.summary_lines %}
-                            <div>{{ line }}</div>
-                            {% endfor %}
+                        </div>
+                    </form>
+                </section>
+                {% elif linked_report_templates and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+                <section class="pc06-panel pc06-detail-panel-compact">
+                    <div class="pc06-panel-head">
+                        <div>
+                            <h2>Báo cáo biểu mẫu</h2>
                         </div>
                     </div>
-                    {% endif %}
-                    <div class="pc06-info-item"><span>Lần báo cáo gần nhất</span><strong>{{ report_context.latest_report_at.strftime('%d/%m/%Y %H:%M') if report_context.latest_report_at else 'Chưa gửi báo cáo' }}</strong></div>
-                    {% endif %}
-                    {% endif %}
-                </div>
-            </section>
-
-            {% if can_observe_task_view %}
-            <section class="pc06-panel pc06-detail-panel-compact">
-                <div class="pc06-panel-head">
-                    <div>
-                        <h2>Phân công thực hiện</h2>
+                    <div class="pc06-info-banner">
+                        Task này lấy số liệu trực tiếp từ module report. Hãy mở biểu mẫu liên kết ở phía trên để nhập hoặc theo dõi báo cáo, không cần gửi thêm báo cáo số liệu tại task.
                     </div>
-                </div>
-                <div class="pc06-assignment-role-list">
-                    {% for group in assignment_role_groups %}
-                    <details class="pc06-assignment-role">
-                        <summary class="pc06-assignment-role-summary">
-                            <div class="pc06-assignment-role-summary-copy">
-                                <strong>{{ group.role_name }}</strong>
-                                <span>{{ group.unit_count }} đơn vị · Giao {{ group.child_task_count }} task con · {{ group.completed_count }}/{{ group.total_count }} hoàn thành</span>
-                            </div>
-                            <div class="pc06-assignment-role-summary-meta">
-                                <span class="pc06-status-badge {% if group.status == 'Hoàn thành' %}done{% elif group.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
-                                    {{ group.status }}
-                                </span>
-                                <i class="fa-solid fa-chevron-down"></i>
-                            </div>
-                        </summary>
-                        <div class="pc06-assignment-role-body">
-                            <div class="pc06-assignment-unit-list">
-                                {% for unit in group.units %}
-                                <article class="pc06-assignment-unit">
-                                    <div>
-                                        <strong>{{ unit.unit_name }}</strong>
-                                        <span>Giao {{ unit.child_task_count }} task con · Tiến độ {{ unit.progress_text }} · Tiếp nhận {{ unit.accepted_count }}/{{ unit.total_count }}</span>
-                                    </div>
-                                    <span class="pc06-status-badge {% if unit.status == 'Hoàn thành' %}done{% elif unit.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
-                                        {{ unit.status }}
-                                    </span>
+                </section>
+                {% elif user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+                <section class="pc06-panel pc06-detail-panel-compact">
+                    <div class="pc06-panel-head">
+                        <div>
+                            <h2>Báo cáo kết quả</h2>
+                        </div>
+                    </div>
+                    <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data" class="pc06-report-form">
+                        <div class="pc06-form-section">
+                            <label class="form-label fw-bold">Nội dung báo cáo</label>
+                            <textarea name="report_content" rows="5" class="form-control" placeholder="Nêu rõ kết quả, tồn tại và kiến nghị nếu có" required></textarea>
+                        </div>
+                        <div class="pc06-form-section">
+                            <label class="form-label fw-bold">Tệp minh chứng</label>
+                            <input type="file" name="report_file" class="form-control">
+                        </div>
+                        <div class="pc06-report-footer">
+                            <label class="form-check pc06-checkline">
+                                <input class="form-check-input" type="checkbox" name="mark_completed" value="1">
+                                <span class="form-check-label">Đánh dấu hoàn thành sau khi gửi báo cáo</span>
+                            </label>
+                            <button type="submit" class="btn btn-bdhvs primary">
+                                <i class="fa-solid fa-paper-plane"></i>
+                                Gửi báo cáo
+                            </button>
+                        </div>
+                    </form>
+                </section>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="pc06-task-pane" data-task-pane="discussion">
+                <span class="pc06-task-pane-anchor" id="discussion-section"></span>
+                <section class="pc06-panel pc06-detail-panel-compact">
+                    <div class="pc06-panel-head">
+                        <div>
+                            <h2>Trao đổi và phản hồi</h2>
+                        </div>
+                    </div>
+                    <div class="pc06-thread-grid">
+                        {% for thread in discussion_threads %}
+                        <details class="pc06-thread-card">
+                            <summary class="pc06-thread-head">
+                                <div>
+                                    <strong>{{ thread.unit_name }}</strong>
+                                    <span>{{ thread.comment_count }} phản hồi · {{ thread.latest_comment_at.strftime('%d/%m/%Y %H:%M') if thread.latest_comment_at else 'Chưa có thời gian phản hồi' }}</span>
+                                    <small>{{ thread.latest_comment_user_name }}{% if thread.latest_comment_preview %}: {{ thread.latest_comment_preview }}{% endif %}</small>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="pc06-soft-tag neutral">{{ thread.comment_count }} phản hồi</span>
+                                    <i class="fa-solid fa-chevron-down pc06-thread-caret"></i>
+                                </div>
+                            </summary>
+                            <div class="pc06-thread-stack">
+                                {% for c in thread.comments %}
+                                {% set is_reply = can_manage_task_view and c.user_id == task.author_id %}
+                                <article class="pc06-thread-bubble {% if is_reply %}reply{% endif %}">
+                                    <strong>{{ c.user_name }}</strong>
+                                    <small>{{ c.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                                    <p>{{ c.content }}</p>
                                 </article>
                                 {% endfor %}
                             </div>
+                            {% if can_manage_task_view or user_assign %}
+                            <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST" class="pc06-thread-form">
+                                <input type="hidden" name="assignee_id" value="{{ thread.primary_assignee_id }}">
+                                <textarea name="content" class="form-control" rows="3" placeholder="Nhập phản hồi cho {{ thread.unit_name }}" required></textarea>
+                                <button type="submit" class="btn btn-bdhvs primary">
+                                    <i class="fa-solid fa-reply"></i>
+                                    Gửi phản hồi
+                                </button>
+                            </form>
+                            {% endif %}
+                        </details>
+                        {% else %}
+                        <div class="pc06-empty-state compact">
+                            <div class="pc06-empty-icon"><i class="fa-regular fa-comment-dots"></i></div>
+                            <h3>Chưa có phản hồi theo đơn vị</h3>
+                            <p>{{ 'Phản hồi sẽ được nhóm thành từng ô chat riêng theo đơn vị khi bắt đầu trao đổi.' if can_manage_task_view else 'Ô chat của đơn vị sẽ hiển thị tại đây khi có trao đổi.' }}</p>
                         </div>
-                    </details>
-                    {% else %}
-                    <div class="pc06-empty-state compact">
-                        <div class="pc06-empty-icon"><i class="fa-solid fa-users-slash"></i></div>
-                        <h3>Chưa có người nhận</h3>
-                        <p>Công việc này chưa được gán cho cá nhân hoặc đơn vị cụ thể.</p>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
-                </div>
-            </section>
+                </section>
+            </div>
 
+            {% if show_assignment_pane %}
+            <div class="pc06-task-pane" data-task-pane="assignment">
+                <span class="pc06-task-pane-anchor" id="assignment-section"></span>
+                <section class="pc06-panel pc06-detail-panel-compact">
+                    <div class="pc06-panel-head">
+                        <div>
+                            <h2>Phân công thực hiện</h2>
+                        </div>
+                    </div>
+                    <div class="pc06-assignment-role-list">
+                        {% for group in assignment_role_groups %}
+                        <details class="pc06-assignment-role">
+                            <summary class="pc06-assignment-role-summary">
+                                <div class="pc06-assignment-role-summary-copy">
+                                    <strong>{{ group.role_name }}</strong>
+                                    <span>{{ group.unit_count }} đơn vị · Giao {{ group.child_task_count }} task con · {{ group.completed_count }}/{{ group.total_count }} hoàn thành</span>
+                                </div>
+                                <div class="pc06-assignment-role-summary-meta">
+                                    <span class="pc06-status-badge {% if group.status == 'Hoàn thành' %}done{% elif group.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
+                                        {{ group.status }}
+                                    </span>
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </div>
+                            </summary>
+                            <div class="pc06-assignment-role-body">
+                                <div class="pc06-assignment-unit-list">
+                                    {% for unit in group.units %}
+                                    <article class="pc06-assignment-unit">
+                                        <div>
+                                            <strong>{{ unit.unit_name }}</strong>
+                                            <span>Giao {{ unit.child_task_count }} task con · Tiến độ {{ unit.progress_text }} · Tiếp nhận {{ unit.accepted_count }}/{{ unit.total_count }}</span>
+                                        </div>
+                                        <span class="pc06-status-badge {% if unit.status == 'Hoàn thành' %}done{% elif unit.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
+                                            {{ unit.status }}
+                                        </span>
+                                    </article>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </details>
+                        {% else %}
+                        <div class="pc06-empty-state compact">
+                            <div class="pc06-empty-icon"><i class="fa-solid fa-users-slash"></i></div>
+                            <h3>Chưa có người nhận</h3>
+                            <p>Công việc này chưa được gán cho cá nhân hoặc đơn vị cụ thể.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </section>
+            </div>
             {% endif %}
-        </aside>
-    </div>
+        </div>
+    </section>
 </div>
 
 {% if can_edit_task %}
@@ -3392,6 +3582,50 @@
         });
     }
 
+    function activateTaskPane(container, target, syncHash = false) {
+        const tabs = Array.from(container.querySelectorAll('[data-task-pane-target]'));
+        const panes = Array.from(container.querySelectorAll('[data-task-pane]'));
+        tabs.forEach((tab) => {
+            const isActive = tab.dataset.taskPaneTarget === target;
+            tab.classList.toggle('is-active', isActive);
+            tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+        panes.forEach((pane) => {
+            const isActive = pane.dataset.taskPane === target;
+            pane.classList.toggle('is-active', isActive);
+        });
+        if (syncHash) {
+            window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#pane-${target}`);
+        }
+    }
+
+    function initTaskPaneContainer(container) {
+        const tabs = Array.from(container.querySelectorAll('[data-task-pane-target]'));
+        if (!tabs.length) return;
+        const validTargets = new Set(tabs.map((tab) => tab.dataset.taskPaneTarget));
+        const hash = window.location.hash || '';
+        const aliasMap = {
+            '#child-task-section': 'children',
+            '#tracking-section': 'tracking',
+            '#report-section': 'report',
+            '#discussion-section': 'discussion',
+            '#assignment-section': 'assignment',
+        };
+        let initialTarget = container.dataset.defaultPane || tabs[0].dataset.taskPaneTarget;
+        if (hash.startsWith('#pane-')) {
+            const requested = hash.replace('#pane-', '');
+            if (validTargets.has(requested)) initialTarget = requested;
+        } else if (aliasMap[hash] && validTargets.has(aliasMap[hash])) {
+            initialTarget = aliasMap[hash];
+        }
+        activateTaskPane(container, initialTarget, false);
+        tabs.forEach((tab) => {
+            tab.addEventListener('click', () => {
+                activateTaskPane(container, tab.dataset.taskPaneTarget, true);
+            });
+        });
+    }
+
     function initChildBulkBuilder(modal) {
         const builder = modal?.querySelector('[data-child-bulk-builder]');
         if (!builder) return;
@@ -3728,6 +3962,7 @@
         checkbox.addEventListener('change', () => selectChildAssignmentMode('user'));
     });
 
+    document.querySelectorAll('[data-task-pane-container]').forEach(initTaskPaneContainer);
     initScopedUserPickers(document.getElementById('createChildTaskModal') || document);
     initChildBulkBuilder(document.getElementById('createChildTaskModal'));
     document.querySelectorAll('[data-task-report-builder]').forEach(initTaskReportBuilder);

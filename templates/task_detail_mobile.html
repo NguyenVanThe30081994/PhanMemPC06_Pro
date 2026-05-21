@@ -11,6 +11,16 @@
     .detail-mobile-summary-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
     .detail-mobile-summary-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); font-size: 0.74rem; color: rgba(255, 255, 255, 0.82); }
     .detail-mobile-summary-pill strong { color: #fff; font-size: 0.8rem; }
+    .detail-mobile-menu-shell { display: grid; gap: 10px; margin-bottom: 12px; padding: 12px; border-radius: 18px; background: var(--bg-surface); border: 1px solid var(--border); box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04); }
+    .detail-mobile-menu-copy strong { display: block; color: var(--text-main); font-size: 0.96rem; }
+    .detail-mobile-menu-copy span { display: block; margin-top: 4px; color: var(--text-muted); font-size: 0.78rem; line-height: 1.5; }
+    .detail-mobile-menu { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: -4px; }
+    .detail-mobile-menu-tab { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 9px 12px; border-radius: 14px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1e3a8a; font-size: 0.78rem; font-weight: 700; }
+    .detail-mobile-menu-tab.is-active { border-color: #2563eb; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; box-shadow: 0 10px 18px rgba(37, 99, 235, 0.2); }
+    .detail-mobile-pane-shell { display: grid; }
+    .detail-mobile-pane { display: none; }
+    .detail-mobile-pane.is-active { display: block; }
+    .detail-mobile-pane-anchor { position: relative; top: -70px; display: block; }
     .detail-mobile-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 18px; padding: 14px; margin-bottom: 12px; box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04); }
     .detail-mobile-card h2 { margin: 0 0 8px; font-size: 1rem; font-weight: 800; color: var(--text-main); }
     .detail-mobile-card p.helper { display: none; }
@@ -190,6 +200,11 @@
 {% block content %}
 {% set display_status = task.display_status or (user_assign.status if user_assign else (task.initial_status or 'Chưa tiếp nhận')) %}
 {% set report_file_name = report_context.result_file if report_context is defined else '' %}
+{% set show_child_task_pane = can_manage_task_view or child_tasks %}
+{% set can_submit_report = user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+{% set show_tracking_pane = can_observe_task_view %}
+{% set show_report_pane = limited_assignment_view or (linked_report_templates and can_submit_report) or (da06_task_form and can_submit_report) or can_submit_report %}
+{% set show_assignment_pane = can_observe_task_view %}
 <section class="detail-mobile-hero">
     <a href="{{ url_for('tasks_bp.tasks') }}" aria-label="Quay lại danh sách" title="Quay lại danh sách"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay lại danh sách</span></a>
     <h1>{{ task.title }}</h1>
@@ -209,6 +224,42 @@
         <span class="detail-mobile-summary-pill">Lĩnh vực <strong>{{ task.category_display or 'Chưa phân lĩnh vực' }}</strong></span>
     </div>
 </section>
+
+<div data-task-pane-container data-default-pane="overview">
+    <section class="detail-mobile-menu-shell">
+        <div class="detail-mobile-menu-copy">
+            <strong>Menu trong task</strong>
+            <span>Chuyển theo từng khu vực để xem tập trung, không phải cuộn qua toàn bộ nội dung trong một màn hình dài.</span>
+        </div>
+        <div class="detail-mobile-menu" role="tablist" aria-label="Các khu vực chức năng của task">
+            <button type="button" class="btn detail-mobile-menu-tab is-active" data-task-pane-target="overview" role="tab" aria-selected="true">
+                <i class="fa-solid fa-house"></i>
+                Tổng quan
+            </button>
+            {% if show_tracking_pane %}
+            <button type="button" class="btn detail-mobile-menu-tab" data-task-pane-target="tracking" role="tab" aria-selected="false">
+                <i class="fa-solid fa-chart-column"></i>
+                Theo dõi
+            </button>
+            {% endif %}
+            {% if show_report_pane %}
+            <button type="button" class="btn detail-mobile-menu-tab" data-task-pane-target="report" role="tab" aria-selected="false">
+                <i class="fa-solid fa-file-lines"></i>
+                Báo cáo
+            </button>
+            {% endif %}
+            <button type="button" class="btn detail-mobile-menu-tab" data-task-pane-target="discussion" role="tab" aria-selected="false">
+                <i class="fa-regular fa-comments"></i>
+                Trao đổi
+            </button>
+            {% if show_assignment_pane %}
+            <button type="button" class="btn detail-mobile-menu-tab" data-task-pane-target="assignment" role="tab" aria-selected="false">
+                <i class="fa-solid fa-users"></i>
+                Phân công
+            </button>
+            {% endif %}
+        </div>
+    </section>
 
 {% if can_edit_task %}
 <div class="modal fade" id="editTaskMobileModal" tabindex="-1" aria-hidden="true">
@@ -326,448 +377,518 @@
 </div>
 {% endif %}
 
-{% if user_assign %}
-<section class="detail-mobile-card">
-    <h2>Trạng thái của bạn</h2>
-    <div class="detail-mobile-status {% if user_assign.status == 'Hoàn thành' %}done{% elif user_assign.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">{{ user_assign.status }}</div>
-    {% if user_assign.status in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
-    <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST">
-        <input type="hidden" name="action" value="accept">
-        <button type="submit" class="btn btn-mobile btn-mobile-primary" aria-label="Tiếp nhận công việc" title="Tiếp nhận công việc"><i class="fa-solid fa-hand-point-right"></i><span class="visually-hidden">Tiếp nhận công việc</span></button>
-    </form>
-    {% endif %}
-</section>
-{% endif %}
-
-<section class="detail-mobile-card">
-    <h2>Nội dung công việc</h2>
-    <div class="detail-mobile-body">{{ task.content or 'Chưa có mô tả chi tiết.' }}</div>
-    {% if task.file_path %}
-    <div class="detail-mobile-file">
-        <div class="detail-mobile-badge"><i class="fa-solid fa-paperclip"></i></div>
-        <div class="detail-mobile-assignee-copy">
-            <strong>{{ task.file_path }}</strong>
-            <span>Tệp đính kèm từ người giao việc</span>
-        </div>
-        <a href="{{ url_for('dl_file', fn=task.file_path) }}" class="btn btn-sm btn-outline-primary rounded-pill" aria-label="Tải tệp" title="Tải tệp"><i class="fa-solid fa-download"></i><span class="visually-hidden">Tải tệp</span></a>
-    </div>
-    {% endif %}
-</section>
-
-{% if limited_assignment_view %}
-<section class="detail-mobile-card">
-    <h2>Thông tin báo cáo</h2>
-    <div class="detail-mobile-info-list">
-        <div class="detail-mobile-info-item"><span>Người giao</span><strong>{{ task.author_name }}</strong></div>
-        <div class="detail-mobile-info-item"><span>Đơn vị nghiệp vụ</span><strong>{{ task.domain_display or 'Chưa phân đơn vị' }}</strong></div>
-        <div class="detail-mobile-info-item"><span>Hạn xử lý</span><strong>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa có' }}</strong></div>
-        <div class="detail-mobile-info-item"><span>Trạng thái báo cáo</span><strong>{{ report_context.status }}</strong></div>
-        <div class="detail-mobile-info-item">
-            <span>Tệp minh chứng đã nộp</span>
-            <strong>{{ report_file_name or 'Chưa tải lên' }}</strong>
-            {% if report_file_name and user_assign %}
-            <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=user_assign.user_id) }}" class="btn btn-sm btn-outline-primary rounded-pill mt-2" aria-label="Tải tệp đã nộp" title="Tải tệp đã nộp">
-                <i class="fa-solid fa-download"></i>
-                <span>Tải tệp</span>
-            </a>
-            {% endif %}
-        </div>
-        <div class="detail-mobile-info-item"><span>Lần báo cáo gần nhất</span><strong>{{ report_context.latest_report_at.strftime('%d/%m/%Y %H:%M') if report_context.latest_report_at else 'Chưa gửi báo cáo' }}</strong></div>
-    </div>
-</section>
-{% endif %}
-
-{% if can_observe_task_view and child_task_tracking.total_units %}
-<section class="detail-mobile-card">
-    <h2>Theo dõi báo cáo task con</h2>
-    <div class="detail-mobile-child-overview">
-        <div class="detail-mobile-child-facts">
-            <div class="detail-mobile-child-fact">
-                <span>Tổng task con</span>
-                <strong>{{ child_task_tracking.total_child_tasks }}</strong>
-            </div>
-            <div class="detail-mobile-child-fact">
-                <span>Đơn vị tham gia</span>
-                <strong>{{ child_task_tracking.total_units }}</strong>
-            </div>
-            <div class="detail-mobile-child-fact">
-                <span>Task quá hạn</span>
-                <strong>{{ child_task_tracking.total_overdue_tasks }}</strong>
-            </div>
-        </div>
-    </div>
-    <div class="detail-mobile-child-banner">
-        Khối này gộp chung <strong>tiến độ báo cáo</strong> và <strong>chất lượng báo cáo</strong> theo từng đơn vị. Mỗi điều kiện chỉ hiển thị số lượng, kèm nút Excel để tải danh sách chi tiết đúng theo nhóm.
-    </div>
-    <div class="detail-mobile-combined-report-stack mt-3">
-        <section class="detail-mobile-combined-report-section">
-            <div class="detail-mobile-combined-report-head">
-                <div>
-                    <strong>Tiến độ báo cáo</strong>
-                    <span>Phân loại theo mức hoàn thành báo cáo task con</span>
-                </div>
-            </div>
-            <div class="detail-mobile-combined-report-grid">
-                {% for group in child_task_tracking.progress_groups %}
-                <article class="detail-mobile-combined-report-card is-{{ group.code|replace('_', '-') }}">
-                    <div class="detail-mobile-combined-report-card-top">
-                        <div>
-                            <strong>{{ group.label }}</strong>
-                            <span>{{ group.description }}</span>
-                        </div>
-                        <span class="detail-mobile-combined-report-count">{{ group.count }}</span>
-                    </div>
-                    <div class="detail-mobile-combined-report-preview">
-                        {% for unit in group.units[:3] %}
-                        <span>{{ unit.unit_name }}</span>
-                        {% else %}
-                        <span class="empty">Chưa có đơn vị</span>
-                        {% endfor %}
-                    </div>
-                    <div class="detail-mobile-combined-report-actions">
-                        <a href="{{ url_for('tasks_bp.export_child_task_report_condition', tid=task.id, dimension='progress', condition=group.code) }}" class="btn btn-sm btn-outline-success rounded-pill{% if not group.count %} disabled{% endif %}" aria-label="Xuất Excel" title="Xuất Excel">
-                            <i class="fa-solid fa-file-excel"></i>
-                        </a>
-                    </div>
-                </article>
-                {% endfor %}
-            </div>
-        </section>
-        <section class="detail-mobile-combined-report-section">
-            <div class="detail-mobile-combined-report-head">
-                <div>
-                    <strong>Chất lượng báo cáo</strong>
-                    <span>Phân loại theo mức quá hạn trên toàn bộ task con của từng đơn vị</span>
-                </div>
-            </div>
-            <div class="detail-mobile-combined-report-grid">
-                {% for group in child_task_tracking.quality_groups %}
-                <article class="detail-mobile-combined-report-card is-{{ group.code|replace('_', '-') }}">
-                    <div class="detail-mobile-combined-report-card-top">
-                        <div>
-                            <strong>{{ group.label }}</strong>
-                            <span>{{ group.description }}</span>
-                        </div>
-                        <span class="detail-mobile-combined-report-count">{{ group.count }}</span>
-                    </div>
-                    <div class="detail-mobile-combined-report-preview">
-                        {% for unit in group.units[:3] %}
-                        <span>{{ unit.unit_name }}</span>
-                        {% else %}
-                        <span class="empty">Chưa có đơn vị</span>
-                        {% endfor %}
-                    </div>
-                    <div class="detail-mobile-combined-report-actions">
-                        <a href="{{ url_for('tasks_bp.export_child_task_report_condition', tid=task.id, dimension='quality', condition=group.code) }}" class="btn btn-sm btn-outline-success rounded-pill{% if not group.count %} disabled{% endif %}" aria-label="Xuất Excel" title="Xuất Excel">
-                            <i class="fa-solid fa-file-excel"></i>
-                        </a>
-                    </div>
-                </article>
-                {% endfor %}
-            </div>
-        </section>
-    </div>
-</section>
-{% endif %}
-
-{% if can_observe_task_view and da06_management_view %}
-<section class="detail-mobile-card">
-    <h2>Tổng hợp ĐA06 tháng</h2>
-    <div class="detail-mobile-da06-note mb-3">
-        Task này đang dùng biểu mẫu nội bộ ĐA06. Quản trị theo dõi theo từng nhóm đơn vị và mức độ cập nhật dữ liệu thay cho báo cáo file thông thường.
-    </div>
-    <div class="detail-mobile-da06-stack">
-        {% for group in da06_management_view %}
-        <div class="detail-mobile-da06-card">
-            <h3>{{ group.label }}</h3>
-            <div class="detail-mobile-da06-note mb-3">{{ group.reported_units }}/{{ group.total_units }} đơn vị đã cập nhật</div>
-            {% for unit in group.units %}
-            <div class="detail-mobile-da06-field mb-3">
-                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-                    <strong>{{ unit.unit_name }}</strong>
-                    <span class="detail-mobile-status {% if unit.status == 'Hoàn thành' %}done{% elif unit.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">{{ unit.status }}</span>
-                </div>
-                <div class="detail-mobile-da06-note">
-                    {% for line in unit.summary_lines %}
-                    <div>{{ line }}</div>
-                    {% endfor %}
-                    <div>Cập nhật: {{ unit.updated_at.strftime('%d/%m/%Y %H:%M') if unit.updated_at else 'Chưa có dữ liệu' }}</div>
-                </div>
-            </div>
-            {% else %}
-            <div class="detail-mobile-da06-note">Nhóm này hiện chưa có đơn vị phù hợp.</div>
-            {% endfor %}
-        </div>
-        {% endfor %}
-    </div>
-</section>
-{% elif can_observe_task_view and not child_task_tracking.total_units %}
-<section class="detail-mobile-card">
-    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-        <div>
-            <h2>Báo cáo đơn vị</h2>
-        </div>
-        <a href="{{ url_for('tasks_bp.export_task_unit_report', tid=task.id) }}" class="btn btn-sm btn-outline-success rounded-pill" aria-label="Xuất Excel" title="Xuất Excel">
-            <i class="fa-solid fa-file-excel"></i>
-        </a>
-    </div>
-    <div class="detail-mobile-report-guidance">
-        Đi từ tổng quan đến chi tiết: xem số đơn vị theo từng trạng thái trước, sau đó mở nhóm và mở từng đơn vị khi cần kiểm tra sâu.
-    </div>
-    <div class="detail-mobile-unit-stats">
-        <article class="detail-mobile-unit-cluster">
-            <div class="detail-mobile-unit-cluster-head">
-                <strong>Tiến độ báo cáo</strong>
-                <span>Tổng {{ unit_report_stats.total_units }} đơn vị</span>
-            </div>
-            <div class="detail-mobile-unit-cluster-grid">
-                <div class="detail-mobile-unit-stat"><span>Đã báo cáo</span><strong>{{ unit_report_stats.reported_units }}</strong></div>
-                <div class="detail-mobile-unit-stat"><span>Chưa báo cáo</span><strong>{{ unit_report_stats.unreported_units }}</strong></div>
-            </div>
-        </article>
-        <article class="detail-mobile-unit-cluster">
-            <div class="detail-mobile-unit-cluster-head">
-                <strong>Chất lượng thời hạn</strong>
-                <span>Theo hạn xử lý</span>
-            </div>
-            <div class="detail-mobile-unit-cluster-grid">
-                <div class="detail-mobile-unit-stat"><span>Đúng hạn</span><strong>{{ unit_report_stats.on_time_units }}</strong></div>
-                <div class="detail-mobile-unit-stat"><span>Quá hạn</span><strong>{{ unit_report_stats.overdue_units }}</strong></div>
-            </div>
-        </article>
-    </div>
-    <div class="detail-mobile-stack">
-        {% for group in unit_report_groups if group.key in ['reported', 'unreported', 'on_time', 'overdue'] %}
-        <details class="detail-mobile-report-group">
-            <summary class="detail-mobile-report-group-summary">
-                <div>
-                    <span>{{ group.label }}</span>
-                    <strong>{{ group.count }}</strong>
-                    <span>Bấm để xem đơn vị</span>
-                </div>
-                <i class="fa-solid fa-chevron-down detail-mobile-report-caret"></i>
-            </summary>
-            <div class="detail-mobile-report-body">
-                {% if group.key == 'reported' %}
-                    {% for card in group.cards %}
-                    {% set primary_attachment = card.attachments[0] if card.attachments else None %}
-                    <details class="detail-mobile-report-item">
-                        <summary class="detail-mobile-report-item-summary">
-                            <div class="detail-mobile-report-copy">
-                                <strong>{{ card.unit_name }}</strong>
-                                <div class="detail-mobile-report-fileline" title="{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp đính kèm' }}">
-                                    <i class="fa-solid fa-paperclip"></i>
-                                    <span>{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp đính kèm' }}</span>
-                                </div>
-                            </div>
-                            <div class="detail-mobile-report-actions">
-                                {% if primary_attachment %}
-                                <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=primary_attachment.user_id) }}" class="detail-mobile-report-download" title="Tải tệp" onclick="event.stopPropagation();">
-                                    <i class="fa-solid fa-download"></i>
-                                </a>
-                                {% endif %}
-                                <span class="detail-mobile-report-eye" title="Xem chi tiết">
-                                    <i class="fa-regular fa-eye"></i>
-                                </span>
-                            </div>
-                        </summary>
-                        <div class="detail-mobile-report-item-body">
-                            <div class="detail-mobile-report-meta">
-                                <div><i class="fa-regular fa-user"></i>{{ card.latest_report_user_name or 'Chưa có người gửi' }}</div>
-                                <div><i class="fa-regular fa-clock"></i>{{ card.latest_report_at.strftime('%d/%m/%Y %H:%M') if card.latest_report_at else 'Chưa có thời điểm báo cáo' }}</div>
-                            </div>
-                            {% if card.latest_report_excerpt_preview %}
-                            <div class="detail-mobile-report-excerpt">{{ card.latest_report_excerpt_preview }}</div>
-                            {% else %}
-                            <div class="detail-mobile-report-excerpt text-muted">Đơn vị đã gửi báo cáo nhưng chưa nhập nội dung chi tiết.</div>
-                            {% endif %}
-                        </div>
-                    </details>
-                    {% else %}
-                    <div class="text-muted small">Nhóm này hiện chưa có đơn vị phù hợp.</div>
-                    {% endfor %}
-                {% else %}
-                    <div class="detail-mobile-report-name-list">
-                        {% for card in group.cards %}
-                        <div class="detail-mobile-report-name-item">{{ card.unit_name }}</div>
-                        {% else %}
-                        <div class="text-muted small">Nhóm này hiện chưa có đơn vị phù hợp.</div>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            </div>
-        </details>
-        {% endfor %}
-    </div>
-</section>
-{% endif %}
-
-{% if da06_task_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
-<section class="detail-mobile-card" id="report-section">
-    <h2>Báo cáo ĐA06 tháng</h2>
-    <form action="{{ url_for('tasks_bp.save_da06_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data" class="detail-mobile-da06-stack">
-        <div class="detail-mobile-da06-note">{{ da06_task_form.label }}{% if da06_task_form.updated_at %} · Cập nhật gần nhất {{ da06_task_form.updated_at }}{% endif %}</div>
-        {% if da06_task_form.kind == 'tct_xa' %}
-            {% for field in da06_task_form.tct_fields %}
-            <div class="detail-mobile-da06-field">
-                <label for="{{ field.key }}">{{ field.label }}</label>
-                {% if field.type == 'textarea' %}
-                <textarea id="{{ field.key }}" name="{{ field.key }}" rows="4" class="form-control">{{ field.value }}</textarea>
-                {% elif field.type == 'file' %}
-                <input id="{{ field.key }}" type="file" name="{{ field.key }}" class="form-control">
-                {% if field.value %}
-                <a class="detail-mobile-da06-link" href="{{ url_for('tasks_bp.download_da06_task_attachment', tid=task.id, attachment_key=field.key) }}">
-                    <i class="fa-solid fa-paperclip"></i>{{ field.value }}
-                </a>
-                {% endif %}
-                {% else %}
-                <input id="{{ field.key }}" type="number" min="0" step="1" name="{{ field.key }}" value="{{ field.value }}" class="form-control">
-                {% endif %}
-            </div>
-            {% endfor %}
-        {% elif da06_task_form.kind == 'tthcc' %}
-        <div class="detail-mobile-da06-card">
-            <label for="tthcc_note">Ghi chú tổng hợp</label>
-            <textarea id="tthcc_note" name="tthcc_note" rows="5" class="form-control">{{ da06_task_form.tthcc_note or '' }}</textarea>
-        </div>
-        <div class="detail-mobile-da06-card">
-            <label for="phu_luc_2_attachment">Phụ lục 2 BCĐA06</label>
-            <input id="phu_luc_2_attachment" type="file" name="phu_luc_2_attachment" class="form-control" accept=".xlsx,.xls,.xlsm">
-            {% if da06_task_form.tthcc_attachment %}
-            <a class="detail-mobile-da06-link" href="{{ url_for('tasks_bp.download_da06_task_attachment', tid=task.id, attachment_key='phu_luc_2_attachment') }}">
-                <i class="fa-solid fa-paperclip"></i>{{ da06_task_form.tthcc_attachment }}
-            </a>
-            {% endif %}
-        </div>
-        {% else %}
-        <div class="detail-mobile-da06-card">
-            <label for="narrative_report">Báo cáo lời theo lĩnh vực</label>
-            <textarea id="narrative_report" name="narrative_report" rows="6" class="form-control">{{ da06_task_form.narrative_value or '' }}</textarea>
-        </div>
-            {% for row in da06_task_form.dvc_rows %}
-            <div class="detail-mobile-da06-card">
-                <h3>{{ row.title }}</h3>
-                {% for field in row.fields %}
-                <div class="mb-3">
-                    <label for="{{ row.item_key }}_{{ field.key }}">{{ field.label }}</label>
-                    {% if field.key in ['benefit', 'issues', 'solution', 'data_source'] %}
-                    <textarea id="{{ row.item_key }}_{{ field.key }}" name="{{ row.item_key }}_{{ field.key }}" rows="3" class="form-control">{{ field.value }}</textarea>
-                    {% else %}
-                    <input id="{{ row.item_key }}_{{ field.key }}" type="text" name="{{ row.item_key }}_{{ field.key }}" value="{{ field.value }}" class="form-control">
-                    {% endif %}
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="detail-mobile-da06-note">Đơn vị này hiện chưa có danh mục DVC riêng, chỉ cần cập nhật phần báo cáo lời.</div>
-            {% endfor %}
-        {% endif %}
-        <button type="submit" class="btn btn-mobile btn-mobile-primary" aria-label="Lưu cập nhật" title="Lưu cập nhật"><i class="fa-solid fa-floppy-disk"></i><span class="visually-hidden">Lưu cập nhật</span></button>
-    </form>
-</section>
-{% elif user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
-<section class="detail-mobile-card" id="report-section">
-    <h2>Báo cáo kết quả</h2>
-    <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data">
-        <div class="mb-3"><textarea name="report_content" rows="4" class="form-control" placeholder="Nội dung báo cáo" required></textarea></div>
-        <div class="mb-3"><input type="file" name="report_file" class="form-control"></div>
-        <label class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" name="mark_completed" value="1">
-            <span class="form-check-label">Đánh dấu hoàn thành</span>
-        </label>
-        <button type="submit" class="btn btn-mobile btn-mobile-primary" aria-label="Gửi báo cáo" title="Gửi báo cáo"><i class="fa-solid fa-paper-plane"></i><span class="visually-hidden">Gửi báo cáo</span></button>
-    </form>
-</section>
-{% endif %}
-
-<section class="detail-mobile-card">
-    <h2>Trao đổi</h2>
-    <div class="detail-mobile-stack">
-        {% for thread in discussion_threads %}
-        <details class="detail-mobile-thread-card">
-            <summary class="detail-mobile-thread-head">
-                <div>
-                    <strong>{{ thread.unit_name }}</strong>
-                    <span>{{ thread.comment_count }} phản hồi · {{ thread.latest_comment_at.strftime('%d/%m/%Y %H:%M') if thread.latest_comment_at else 'Chưa có thời gian phản hồi' }}</span>
-                    <small>{{ thread.latest_comment_user_name }}{% if thread.latest_comment_preview %}: {{ thread.latest_comment_preview }}{% endif %}</small>
-                </div>
-                <div class="d-flex align-items-center gap-2">
-                    <div class="detail-mobile-thread-badge">{{ thread.comment_count }} phản hồi</div>
-                    <i class="fa-solid fa-chevron-down detail-mobile-thread-caret"></i>
-                </div>
-            </summary>
-            <div class="detail-mobile-thread-stack">
-                {% for c in thread.comments %}
-                {% set is_reply = can_manage_task_view and c.user_id == task.author_id %}
-                <article class="detail-mobile-thread-bubble {% if is_reply %}reply{% endif %}">
-                    <strong>{{ c.user_name }}</strong>
-                    <small>{{ c.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
-                    <p>{{ c.content }}</p>
-                </article>
-                {% endfor %}
-            </div>
-            {% if can_manage_task_view or user_assign %}
-            <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST" class="detail-mobile-thread-form">
-                <input type="hidden" name="assignee_id" value="{{ thread.primary_assignee_id }}">
-                <textarea name="content" rows="3" class="form-control" placeholder="Nhập phản hồi cho {{ thread.unit_name }}" required></textarea>
-                <button type="submit" class="btn btn-mobile btn-mobile-primary mt-3" aria-label="Gửi phản hồi" title="Gửi phản hồi"><i class="fa-solid fa-reply"></i><span class="visually-hidden">Gửi phản hồi</span></button>
+<div class="detail-mobile-pane-shell">
+    <div class="detail-mobile-pane is-active" data-task-pane="overview">
+        {% if user_assign %}
+        <section class="detail-mobile-card">
+            <h2>Trạng thái của bạn</h2>
+            <div class="detail-mobile-status {% if user_assign.status == 'Hoàn thành' %}done{% elif user_assign.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">{{ user_assign.status }}</div>
+            {% if user_assign.status in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+            <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST">
+                <input type="hidden" name="action" value="accept">
+                <button type="submit" class="btn btn-mobile btn-mobile-primary" aria-label="Tiếp nhận công việc" title="Tiếp nhận công việc"><i class="fa-solid fa-hand-point-right"></i><span class="visually-hidden">Tiếp nhận công việc</span></button>
             </form>
             {% endif %}
-        </details>
-        {% else %}
-        <div class="text-muted small">{{ 'Phản hồi sẽ được nhóm thành từng ô chat theo đơn vị khi bắt đầu trao đổi.' if can_manage_task_view else 'Ô chat của đơn vị sẽ hiển thị tại đây khi có trao đổi.' }}</div>
-        {% endfor %}
-    </div>
-</section>
+        </section>
+        {% endif %}
 
-{% if can_observe_task_view %}
-<section class="detail-mobile-card">
-    <h2>Người thực hiện</h2>
-    <div class="detail-mobile-stack">
-        {% for group in assignment_role_groups %}
-        <details class="detail-mobile-assignment-role">
-            <summary class="detail-mobile-assignment-summary">
-                <div class="detail-mobile-assignment-summary-copy">
-                    <strong>{{ group.role_name }}</strong>
-                    <span>{{ group.unit_count }} đơn vị · Giao {{ group.child_task_count }} task con · {{ group.completed_count }}/{{ group.total_count }} hoàn thành</span>
+        <section class="detail-mobile-card">
+            <h2>Nội dung công việc</h2>
+            <div class="detail-mobile-body">{{ task.content or 'Chưa có mô tả chi tiết.' }}</div>
+            {% if task.file_path %}
+            <div class="detail-mobile-file">
+                <div class="detail-mobile-badge"><i class="fa-solid fa-paperclip"></i></div>
+                <div class="detail-mobile-assignee-copy">
+                    <strong>{{ task.file_path }}</strong>
+                    <span>Tệp đính kèm từ người giao việc</span>
                 </div>
-                <div class="detail-mobile-assignment-summary-meta">
-                    <div class="detail-mobile-status {% if group.status == 'Hoàn thành' %}done{% elif group.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}" style="margin-bottom:0;">{{ group.status }}</div>
-                    <i class="fa-solid fa-chevron-down"></i>
-                </div>
-            </summary>
-            <div class="detail-mobile-assignment-body">
-                <div class="detail-mobile-assignment-unit-list">
-                {% for unit in group.units %}
-                <article class="detail-mobile-assignment-unit">
-                    <div>
-                        <strong>{{ unit.unit_name }}</strong>
-                        <span>Giao {{ unit.child_task_count }} task con · Tiến độ {{ unit.progress_text }} · Tiếp nhận {{ unit.accepted_count }}/{{ unit.total_count }}</span>
+                <a href="{{ url_for('dl_file', fn=task.file_path) }}" class="btn btn-sm btn-outline-primary rounded-pill" aria-label="Tải tệp" title="Tải tệp"><i class="fa-solid fa-download"></i><span class="visually-hidden">Tải tệp</span></a>
+            </div>
+            {% endif %}
+        </section>
+    </div>
+
+    {% if show_tracking_pane %}
+    <div class="detail-mobile-pane" data-task-pane="tracking">
+        <span class="detail-mobile-pane-anchor" id="tracking-section"></span>
+        {% if can_observe_task_view and child_task_tracking.total_units %}
+        <section class="detail-mobile-card">
+            <h2>Theo dõi báo cáo task con</h2>
+            <div class="detail-mobile-child-overview">
+                <div class="detail-mobile-child-facts">
+                    <div class="detail-mobile-child-fact">
+                        <span>Tổng task con</span>
+                        <strong>{{ child_task_tracking.total_child_tasks }}</strong>
                     </div>
-                    <div class="detail-mobile-status {% if unit.status == 'Hoàn thành' %}done{% elif unit.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}" style="margin-bottom:0;">{{ unit.status }}</div>
-                </article>
-                {% endfor %}
+                    <div class="detail-mobile-child-fact">
+                        <span>Đơn vị tham gia</span>
+                        <strong>{{ child_task_tracking.total_units }}</strong>
+                    </div>
+                    <div class="detail-mobile-child-fact">
+                        <span>Task quá hạn</span>
+                        <strong>{{ child_task_tracking.total_overdue_tasks }}</strong>
+                    </div>
                 </div>
             </div>
-        </details>
-        {% else %}
-        <div class="text-muted small">Chưa có người nhận việc.</div>
-        {% endfor %}
+            <div class="detail-mobile-child-banner">
+                Khối này gộp chung <strong>tiến độ báo cáo</strong> và <strong>chất lượng báo cáo</strong> theo từng đơn vị. Mỗi điều kiện chỉ hiển thị số lượng, kèm nút Excel để tải danh sách chi tiết đúng theo nhóm.
+            </div>
+            <div class="detail-mobile-combined-report-stack mt-3">
+                <section class="detail-mobile-combined-report-section">
+                    <div class="detail-mobile-combined-report-head">
+                        <div>
+                            <strong>Tiến độ báo cáo</strong>
+                            <span>Phân loại theo mức hoàn thành báo cáo task con</span>
+                        </div>
+                    </div>
+                    <div class="detail-mobile-combined-report-grid">
+                        {% for group in child_task_tracking.progress_groups %}
+                        <article class="detail-mobile-combined-report-card is-{{ group.code|replace('_', '-') }}">
+                            <div class="detail-mobile-combined-report-card-top">
+                                <div>
+                                    <strong>{{ group.label }}</strong>
+                                    <span>{{ group.description }}</span>
+                                </div>
+                                <span class="detail-mobile-combined-report-count">{{ group.count }}</span>
+                            </div>
+                            <div class="detail-mobile-combined-report-preview">
+                                {% for unit in group.units[:3] %}
+                                <span>{{ unit.unit_name }}</span>
+                                {% else %}
+                                <span class="empty">Chưa có đơn vị</span>
+                                {% endfor %}
+                            </div>
+                            <div class="detail-mobile-combined-report-actions">
+                                <a href="{{ url_for('tasks_bp.export_child_task_report_condition', tid=task.id, dimension='progress', condition=group.code) }}" class="btn btn-sm btn-outline-success rounded-pill{% if not group.count %} disabled{% endif %}" aria-label="Xuất Excel" title="Xuất Excel">
+                                    <i class="fa-solid fa-file-excel"></i>
+                                </a>
+                            </div>
+                        </article>
+                        {% endfor %}
+                    </div>
+                </section>
+                <section class="detail-mobile-combined-report-section">
+                    <div class="detail-mobile-combined-report-head">
+                        <div>
+                            <strong>Chất lượng báo cáo</strong>
+                            <span>Phân loại theo mức quá hạn trên toàn bộ task con của từng đơn vị</span>
+                        </div>
+                    </div>
+                    <div class="detail-mobile-combined-report-grid">
+                        {% for group in child_task_tracking.quality_groups %}
+                        <article class="detail-mobile-combined-report-card is-{{ group.code|replace('_', '-') }}">
+                            <div class="detail-mobile-combined-report-card-top">
+                                <div>
+                                    <strong>{{ group.label }}</strong>
+                                    <span>{{ group.description }}</span>
+                                </div>
+                                <span class="detail-mobile-combined-report-count">{{ group.count }}</span>
+                            </div>
+                            <div class="detail-mobile-combined-report-preview">
+                                {% for unit in group.units[:3] %}
+                                <span>{{ unit.unit_name }}</span>
+                                {% else %}
+                                <span class="empty">Chưa có đơn vị</span>
+                                {% endfor %}
+                            </div>
+                            <div class="detail-mobile-combined-report-actions">
+                                <a href="{{ url_for('tasks_bp.export_child_task_report_condition', tid=task.id, dimension='quality', condition=group.code) }}" class="btn btn-sm btn-outline-success rounded-pill{% if not group.count %} disabled{% endif %}" aria-label="Xuất Excel" title="Xuất Excel">
+                                    <i class="fa-solid fa-file-excel"></i>
+                                </a>
+                            </div>
+                        </article>
+                        {% endfor %}
+                    </div>
+                </section>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if can_observe_task_view and da06_management_view %}
+        <section class="detail-mobile-card">
+            <h2>Tổng hợp ĐA06 tháng</h2>
+            <div class="detail-mobile-da06-note mb-3">
+                Task này đang dùng biểu mẫu nội bộ ĐA06. Quản trị theo dõi theo từng nhóm đơn vị và mức độ cập nhật dữ liệu thay cho báo cáo file thông thường.
+            </div>
+            <div class="detail-mobile-da06-stack">
+                {% for group in da06_management_view %}
+                <div class="detail-mobile-da06-card">
+                    <h3>{{ group.label }}</h3>
+                    <div class="detail-mobile-da06-note mb-3">{{ group.reported_units }}/{{ group.total_units }} đơn vị đã cập nhật</div>
+                    {% for unit in group.units %}
+                    <div class="detail-mobile-da06-field mb-3">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <strong>{{ unit.unit_name }}</strong>
+                            <span class="detail-mobile-status {% if unit.status == 'Hoàn thành' %}done{% elif unit.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">{{ unit.status }}</span>
+                        </div>
+                        <div class="detail-mobile-da06-note">
+                            {% for line in unit.summary_lines %}
+                            <div>{{ line }}</div>
+                            {% endfor %}
+                            <div>Cập nhật: {{ unit.updated_at.strftime('%d/%m/%Y %H:%M') if unit.updated_at else 'Chưa có dữ liệu' }}</div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="detail-mobile-da06-note">Nhóm này hiện chưa có đơn vị phù hợp.</div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% elif can_observe_task_view and not child_task_tracking.total_units %}
+        <section class="detail-mobile-card">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                    <h2>Báo cáo đơn vị</h2>
+                </div>
+                <a href="{{ url_for('tasks_bp.export_task_unit_report', tid=task.id) }}" class="btn btn-sm btn-outline-success rounded-pill" aria-label="Xuất Excel" title="Xuất Excel">
+                    <i class="fa-solid fa-file-excel"></i>
+                </a>
+            </div>
+            <div class="detail-mobile-report-guidance">
+                Đi từ tổng quan đến chi tiết: xem số đơn vị theo từng trạng thái trước, sau đó mở nhóm và mở từng đơn vị khi cần kiểm tra sâu.
+            </div>
+            <div class="detail-mobile-unit-stats">
+                <article class="detail-mobile-unit-cluster">
+                    <div class="detail-mobile-unit-cluster-head">
+                        <strong>Tiến độ báo cáo</strong>
+                        <span>Tổng {{ unit_report_stats.total_units }} đơn vị</span>
+                    </div>
+                    <div class="detail-mobile-unit-cluster-grid">
+                        <div class="detail-mobile-unit-stat"><span>Đã báo cáo</span><strong>{{ unit_report_stats.reported_units }}</strong></div>
+                        <div class="detail-mobile-unit-stat"><span>Chưa báo cáo</span><strong>{{ unit_report_stats.unreported_units }}</strong></div>
+                    </div>
+                </article>
+                <article class="detail-mobile-unit-cluster">
+                    <div class="detail-mobile-unit-cluster-head">
+                        <strong>Chất lượng thời hạn</strong>
+                        <span>Theo hạn xử lý</span>
+                    </div>
+                    <div class="detail-mobile-unit-cluster-grid">
+                        <div class="detail-mobile-unit-stat"><span>Đúng hạn</span><strong>{{ unit_report_stats.on_time_units }}</strong></div>
+                        <div class="detail-mobile-unit-stat"><span>Quá hạn</span><strong>{{ unit_report_stats.overdue_units }}</strong></div>
+                    </div>
+                </article>
+            </div>
+            <div class="detail-mobile-stack">
+                {% for group in unit_report_groups if group.key in ['reported', 'unreported', 'on_time', 'overdue'] %}
+                <details class="detail-mobile-report-group">
+                    <summary class="detail-mobile-report-group-summary">
+                        <div>
+                            <span>{{ group.label }}</span>
+                            <strong>{{ group.count }}</strong>
+                            <span>Bấm để xem đơn vị</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-down detail-mobile-report-caret"></i>
+                    </summary>
+                    <div class="detail-mobile-report-body">
+                        {% if group.key == 'reported' %}
+                            {% for card in group.cards %}
+                            {% set primary_attachment = card.attachments[0] if card.attachments else None %}
+                            <details class="detail-mobile-report-item">
+                                <summary class="detail-mobile-report-item-summary">
+                                    <div class="detail-mobile-report-copy">
+                                        <strong>{{ card.unit_name }}</strong>
+                                        <div class="detail-mobile-report-fileline" title="{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp đính kèm' }}">
+                                            <i class="fa-solid fa-paperclip"></i>
+                                            <span>{{ primary_attachment.file_name if primary_attachment else 'Chưa có tệp đính kèm' }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="detail-mobile-report-actions">
+                                        {% if primary_attachment %}
+                                        <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=primary_attachment.user_id) }}" class="detail-mobile-report-download" title="Tải tệp" onclick="event.stopPropagation();">
+                                            <i class="fa-solid fa-download"></i>
+                                        </a>
+                                        {% endif %}
+                                        <span class="detail-mobile-report-eye" title="Xem chi tiết">
+                                            <i class="fa-regular fa-eye"></i>
+                                        </span>
+                                    </div>
+                                </summary>
+                                <div class="detail-mobile-report-item-body">
+                                    <div class="detail-mobile-report-meta">
+                                        <div><i class="fa-regular fa-user"></i>{{ card.latest_report_user_name or 'Chưa có người gửi' }}</div>
+                                        <div><i class="fa-regular fa-clock"></i>{{ card.latest_report_at.strftime('%d/%m/%Y %H:%M') if card.latest_report_at else 'Chưa có thời điểm báo cáo' }}</div>
+                                    </div>
+                                    {% if card.latest_report_excerpt_preview %}
+                                    <div class="detail-mobile-report-excerpt">{{ card.latest_report_excerpt_preview }}</div>
+                                    {% else %}
+                                    <div class="detail-mobile-report-excerpt text-muted">Đơn vị đã gửi báo cáo nhưng chưa nhập nội dung chi tiết.</div>
+                                    {% endif %}
+                                </div>
+                            </details>
+                            {% else %}
+                            <div class="text-muted small">Nhóm này hiện chưa có đơn vị phù hợp.</div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="detail-mobile-report-name-list">
+                                {% for card in group.cards %}
+                                <div class="detail-mobile-report-name-item">{{ card.unit_name }}</div>
+                                {% else %}
+                                <div class="text-muted small">Nhóm này hiện chưa có đơn vị phù hợp.</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </details>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
     </div>
-</section>
-{% endif %}
+    {% endif %}
+
+    {% if show_report_pane %}
+    <div class="detail-mobile-pane" data-task-pane="report">
+        <span class="detail-mobile-pane-anchor" id="report-section"></span>
+        {% if limited_assignment_view %}
+        <section class="detail-mobile-card">
+            <h2>Thông tin báo cáo</h2>
+            <div class="detail-mobile-info-list">
+                <div class="detail-mobile-info-item"><span>Người giao</span><strong>{{ task.author_name }}</strong></div>
+                <div class="detail-mobile-info-item"><span>Đơn vị nghiệp vụ</span><strong>{{ task.domain_display or 'Chưa phân đơn vị' }}</strong></div>
+                <div class="detail-mobile-info-item"><span>Hạn xử lý</span><strong>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa có' }}</strong></div>
+                <div class="detail-mobile-info-item"><span>Trạng thái báo cáo</span><strong>{{ report_context.status }}</strong></div>
+                <div class="detail-mobile-info-item">
+                    <span>Tệp minh chứng đã nộp</span>
+                    <strong>{{ report_file_name or 'Chưa tải lên' }}</strong>
+                    {% if report_file_name and user_assign %}
+                    <a href="{{ url_for('tasks_bp.download_task_report_file', tid=task.id, user_id=user_assign.user_id) }}" class="btn btn-sm btn-outline-primary rounded-pill mt-2" aria-label="Tải tệp đã nộp" title="Tải tệp đã nộp">
+                        <i class="fa-solid fa-download"></i>
+                        <span>Tải tệp</span>
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="detail-mobile-info-item"><span>Lần báo cáo gần nhất</span><strong>{{ report_context.latest_report_at.strftime('%d/%m/%Y %H:%M') if report_context.latest_report_at else 'Chưa gửi báo cáo' }}</strong></div>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if da06_task_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+        <section class="detail-mobile-card">
+            <h2>Báo cáo ĐA06 tháng</h2>
+            <form action="{{ url_for('tasks_bp.save_da06_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data" class="detail-mobile-da06-stack">
+                <div class="detail-mobile-da06-note">{{ da06_task_form.label }}{% if da06_task_form.updated_at %} · Cập nhật gần nhất {{ da06_task_form.updated_at }}{% endif %}</div>
+                {% if da06_task_form.kind == 'tct_xa' %}
+                    {% for field in da06_task_form.tct_fields %}
+                    <div class="detail-mobile-da06-field">
+                        <label for="{{ field.key }}">{{ field.label }}</label>
+                        {% if field.type == 'textarea' %}
+                        <textarea id="{{ field.key }}" name="{{ field.key }}" rows="4" class="form-control">{{ field.value }}</textarea>
+                        {% elif field.type == 'file' %}
+                        <input id="{{ field.key }}" type="file" name="{{ field.key }}" class="form-control">
+                        {% if field.value %}
+                        <a class="detail-mobile-da06-link" href="{{ url_for('tasks_bp.download_da06_task_attachment', tid=task.id, attachment_key=field.key) }}">
+                            <i class="fa-solid fa-paperclip"></i>{{ field.value }}
+                        </a>
+                        {% endif %}
+                        {% else %}
+                        <input id="{{ field.key }}" type="number" min="0" step="1" name="{{ field.key }}" value="{{ field.value }}" class="form-control">
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% elif da06_task_form.kind == 'tthcc' %}
+                <div class="detail-mobile-da06-card">
+                    <label for="tthcc_note">Ghi chú tổng hợp</label>
+                    <textarea id="tthcc_note" name="tthcc_note" rows="5" class="form-control">{{ da06_task_form.tthcc_note or '' }}</textarea>
+                </div>
+                <div class="detail-mobile-da06-card">
+                    <label for="phu_luc_2_attachment">Phụ lục 2 BCĐA06</label>
+                    <input id="phu_luc_2_attachment" type="file" name="phu_luc_2_attachment" class="form-control" accept=".xlsx,.xls,.xlsm">
+                    {% if da06_task_form.tthcc_attachment %}
+                    <a class="detail-mobile-da06-link" href="{{ url_for('tasks_bp.download_da06_task_attachment', tid=task.id, attachment_key='phu_luc_2_attachment') }}">
+                        <i class="fa-solid fa-paperclip"></i>{{ da06_task_form.tthcc_attachment }}
+                    </a>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="detail-mobile-da06-card">
+                    <label for="narrative_report">Báo cáo lời theo lĩnh vực</label>
+                    <textarea id="narrative_report" name="narrative_report" rows="6" class="form-control">{{ da06_task_form.narrative_value or '' }}</textarea>
+                </div>
+                    {% for row in da06_task_form.dvc_rows %}
+                    <div class="detail-mobile-da06-card">
+                        <h3>{{ row.title }}</h3>
+                        {% for field in row.fields %}
+                        <div class="mb-3">
+                            <label for="{{ row.item_key }}_{{ field.key }}">{{ field.label }}</label>
+                            {% if field.key in ['benefit', 'issues', 'solution', 'data_source'] %}
+                            <textarea id="{{ row.item_key }}_{{ field.key }}" name="{{ row.item_key }}_{{ field.key }}" rows="3" class="form-control">{{ field.value }}</textarea>
+                            {% else %}
+                            <input id="{{ row.item_key }}_{{ field.key }}" type="text" name="{{ row.item_key }}_{{ field.key }}" value="{{ field.value }}" class="form-control">
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="detail-mobile-da06-note">Đơn vị này hiện chưa có danh mục DVC riêng, chỉ cần cập nhật phần báo cáo lời.</div>
+                    {% endfor %}
+                {% endif %}
+                <button type="submit" class="btn btn-mobile btn-mobile-primary" aria-label="Lưu cập nhật" title="Lưu cập nhật"><i class="fa-solid fa-floppy-disk"></i><span class="visually-hidden">Lưu cập nhật</span></button>
+            </form>
+        </section>
+        {% elif linked_report_templates and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+        <section class="detail-mobile-card">
+            <h2>Báo cáo biểu mẫu</h2>
+            <div class="text-muted small">
+                Task này lấy số liệu trực tiếp từ module report. Hãy mở biểu mẫu liên kết ở phía trên để nhập hoặc theo dõi báo cáo, không cần gửi thêm báo cáo số liệu tại task.
+            </div>
+        </section>
+        {% elif user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+        <section class="detail-mobile-card">
+            <h2>Báo cáo kết quả</h2>
+            <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data">
+                <div class="mb-3"><textarea name="report_content" rows="4" class="form-control" placeholder="Nội dung báo cáo" required></textarea></div>
+                <div class="mb-3"><input type="file" name="report_file" class="form-control"></div>
+                <label class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" name="mark_completed" value="1">
+                    <span class="form-check-label">Đánh dấu hoàn thành</span>
+                </label>
+                <button type="submit" class="btn btn-mobile btn-mobile-primary" aria-label="Gửi báo cáo" title="Gửi báo cáo"><i class="fa-solid fa-paper-plane"></i><span class="visually-hidden">Gửi báo cáo</span></button>
+            </form>
+        </section>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="detail-mobile-pane" data-task-pane="discussion">
+        <span class="detail-mobile-pane-anchor" id="discussion-section"></span>
+        <section class="detail-mobile-card">
+            <h2>Trao đổi</h2>
+            <div class="detail-mobile-stack">
+                {% for thread in discussion_threads %}
+                <details class="detail-mobile-thread-card">
+                    <summary class="detail-mobile-thread-head">
+                        <div>
+                            <strong>{{ thread.unit_name }}</strong>
+                            <span>{{ thread.comment_count }} phản hồi · {{ thread.latest_comment_at.strftime('%d/%m/%Y %H:%M') if thread.latest_comment_at else 'Chưa có thời gian phản hồi' }}</span>
+                            <small>{{ thread.latest_comment_user_name }}{% if thread.latest_comment_preview %}: {{ thread.latest_comment_preview }}{% endif %}</small>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="detail-mobile-thread-badge">{{ thread.comment_count }} phản hồi</div>
+                            <i class="fa-solid fa-chevron-down detail-mobile-thread-caret"></i>
+                        </div>
+                    </summary>
+                    <div class="detail-mobile-thread-stack">
+                        {% for c in thread.comments %}
+                        {% set is_reply = can_manage_task_view and c.user_id == task.author_id %}
+                        <article class="detail-mobile-thread-bubble {% if is_reply %}reply{% endif %}">
+                            <strong>{{ c.user_name }}</strong>
+                            <small>{{ c.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                            <p>{{ c.content }}</p>
+                        </article>
+                        {% endfor %}
+                    </div>
+                    {% if can_manage_task_view or user_assign %}
+                    <form action="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" method="POST" class="detail-mobile-thread-form">
+                        <input type="hidden" name="assignee_id" value="{{ thread.primary_assignee_id }}">
+                        <textarea name="content" rows="3" class="form-control" placeholder="Nhập phản hồi cho {{ thread.unit_name }}" required></textarea>
+                        <button type="submit" class="btn btn-mobile btn-mobile-primary mt-3" aria-label="Gửi phản hồi" title="Gửi phản hồi"><i class="fa-solid fa-reply"></i><span class="visually-hidden">Gửi phản hồi</span></button>
+                    </form>
+                    {% endif %}
+                </details>
+                {% else %}
+                <div class="text-muted small">{{ 'Phản hồi sẽ được nhóm thành từng ô chat theo đơn vị khi bắt đầu trao đổi.' if can_manage_task_view else 'Ô chat của đơn vị sẽ hiển thị tại đây khi có trao đổi.' }}</div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+
+    {% if show_assignment_pane %}
+    <div class="detail-mobile-pane" data-task-pane="assignment">
+        <span class="detail-mobile-pane-anchor" id="assignment-section"></span>
+        <section class="detail-mobile-card">
+            <h2>Người thực hiện</h2>
+            <div class="detail-mobile-stack">
+                {% for group in assignment_role_groups %}
+                <details class="detail-mobile-assignment-role">
+                    <summary class="detail-mobile-assignment-summary">
+                        <div class="detail-mobile-assignment-summary-copy">
+                            <strong>{{ group.role_name }}</strong>
+                            <span>{{ group.unit_count }} đơn vị · Giao {{ group.child_task_count }} task con · {{ group.completed_count }}/{{ group.total_count }} hoàn thành</span>
+                        </div>
+                        <div class="detail-mobile-assignment-summary-meta">
+                            <div class="detail-mobile-status {% if group.status == 'Hoàn thành' %}done{% elif group.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}" style="margin-bottom:0;">{{ group.status }}</div>
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </div>
+                    </summary>
+                    <div class="detail-mobile-assignment-body">
+                        <div class="detail-mobile-assignment-unit-list">
+                        {% for unit in group.units %}
+                        <article class="detail-mobile-assignment-unit">
+                            <div>
+                                <strong>{{ unit.unit_name }}</strong>
+                                <span>Giao {{ unit.child_task_count }} task con · Tiến độ {{ unit.progress_text }} · Tiếp nhận {{ unit.accepted_count }}/{{ unit.total_count }}</span>
+                            </div>
+                            <div class="detail-mobile-status {% if unit.status == 'Hoàn thành' %}done{% elif unit.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}" style="margin-bottom:0;">{{ unit.status }}</div>
+                        </article>
+                        {% endfor %}
+                        </div>
+                    </div>
+                </details>
+                {% else %}
+                <div class="text-muted small">Chưa có người nhận việc.</div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+    {% endif %}
+</div>
 
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
+    function activateTaskPane(container, target, syncHash = false) {
+        const tabs = Array.from(container.querySelectorAll('[data-task-pane-target]'));
+        const panes = Array.from(container.querySelectorAll('[data-task-pane]'));
+        tabs.forEach((tab) => {
+            const isActive = tab.dataset.taskPaneTarget === target;
+            tab.classList.toggle('is-active', isActive);
+            tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+        panes.forEach((pane) => {
+            pane.classList.toggle('is-active', pane.dataset.taskPane === target);
+        });
+        if (syncHash) {
+            window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#pane-${target}`);
+        }
+    }
+
+    function initTaskPaneContainer(container) {
+        const tabs = Array.from(container.querySelectorAll('[data-task-pane-target]'));
+        if (!tabs.length) return;
+        const validTargets = new Set(tabs.map((tab) => tab.dataset.taskPaneTarget));
+        const hash = window.location.hash || '';
+        const aliasMap = {
+            '#tracking-section': 'tracking',
+            '#report-section': 'report',
+            '#discussion-section': 'discussion',
+            '#assignment-section': 'assignment',
+        };
+        let initialTarget = container.dataset.defaultPane || tabs[0].dataset.taskPaneTarget;
+        if (hash.startsWith('#pane-')) {
+            const requested = hash.replace('#pane-', '');
+            if (validTargets.has(requested)) initialTarget = requested;
+        } else if (aliasMap[hash] && validTargets.has(aliasMap[hash])) {
+            initialTarget = aliasMap[hash];
+        }
+        activateTaskPane(container, initialTarget, false);
+        tabs.forEach((tab) => {
+            tab.addEventListener('click', () => {
+                activateTaskPane(container, tab.dataset.taskPaneTarget, true);
+            });
+        });
+    }
+
     function syncMobileEditAssignType() {
         const selected = document.getElementById('mobileEditAssignType')?.value || 'unit';
         document.getElementById('mobileEditRolePanel')?.classList.toggle('d-none', selected !== 'role');
         document.getElementById('mobileEditUserPanel')?.classList.toggle('d-none', selected !== 'user');
     }
 
+    document.querySelectorAll('[data-task-pane-container]').forEach(initTaskPaneContainer);
     document.getElementById('mobileEditAssignType')?.addEventListener('change', syncMobileEditAssignType);
     syncMobileEditAssignType();
 </script>
