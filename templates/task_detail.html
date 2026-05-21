@@ -22,24 +22,33 @@
         margin: 0;
     }
     .pc06-detail-hero-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        max-width: 960px;
     }
     .pc06-detail-hero-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 7px 10px;
-        border-radius: 999px;
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+        padding: 12px 14px;
+        border-radius: 18px;
         background: rgba(255, 255, 255, 0.84);
         border: 1px solid rgba(226, 232, 240, 0.88);
         color: var(--text-muted, #64748b);
         font-size: 0.82rem;
     }
+    .pc06-detail-hero-pill span {
+        display: block;
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        text-transform: uppercase;
+    }
     .pc06-detail-hero-pill strong {
         color: var(--text-main, #0f172a);
-        font-size: 0.9rem;
+        font-size: 1rem;
+        line-height: 1.3;
     }
     .pc06-detail-hero-actions {
         display: flex;
@@ -74,7 +83,6 @@
     }
     .pc06-task-menu-shell {
         display: grid;
-        gap: 12px;
         padding: 16px 18px;
         border-radius: 22px;
         border: 1px solid rgba(226, 232, 240, 0.92);
@@ -259,6 +267,9 @@
         border-radius: 14px;
     }
     @media (max-width: 991px) {
+        .pc06-detail-hero-meta {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
         .pc06-task-menu {
             flex-wrap: nowrap;
             overflow-x: auto;
@@ -277,6 +288,11 @@
         }
         .pc06-bulk-entry-toolbar,
         .pc06-task-quick-grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+    @media (max-width: 575px) {
+        .pc06-detail-hero-meta {
             grid-template-columns: minmax(0, 1fr);
         }
     }
@@ -1658,47 +1674,27 @@
                 {% if parent_task %}
                 <a href="{{ url_for('tasks_bp.task_detail', tid=parent_task.id) }}" class="pc06-back-link mt-2">
                     <i class="fa-solid fa-diagram-project"></i>
-                    Thuộc task cha: {{ parent_task.title }}
+                    Thuộc công việc cha: {{ parent_task.title }}
                 </a>
                 {% endif %}
                 <h1 class="pc06-page-title">{{ task.title }}</h1>
                 <div class="pc06-detail-hero-meta">
                     <span class="pc06-detail-hero-pill">
-                        <i class="fa-regular fa-calendar"></i>
+                        <span>Hạn xử lý</span>
                         <strong>{{ task.deadline.strftime('%d/%m/%Y') if task.deadline else 'Chưa có hạn' }}</strong>
                     </span>
                     <span class="pc06-detail-hero-pill">
-                        <i class="fa-solid fa-chart-line"></i>
+                        <span>Tiến độ</span>
                         <strong>{{ progress_percent }}%</strong>
                     </span>
                     <span class="pc06-detail-hero-pill">
-                        <i class="fa-solid fa-list-check"></i>
+                        <span>Đơn vị</span>
                         <strong>{{ assignment_unit_progress.completed_units }}/{{ assignment_unit_progress.total_units }} đơn vị</strong>
                     </span>
-                </div>
-                <div class="pc06-task-tags">
-                    <span class="pc06-soft-tag neutral">
-                        <i class="fa-solid fa-layer-group"></i>
-                        {{ task.category_display or 'Chưa phân lĩnh vực' }}
+                    <span class="pc06-detail-hero-pill">
+                        <span>Lĩnh vực</span>
+                        <strong>{{ task.category_display or 'Chưa phân lĩnh vực' }}</strong>
                     </span>
-                    {% if false %}
-                    <span class="pc06-soft-tag">
-                        <i class="fa-solid fa-users"></i>
-                        {{ task.domain_display or 'Chưa phân đơn vị' }}
-                    </span>
-                    {% if task.task_type %}
-                    <span class="pc06-soft-tag neutral">
-                        <i class="fa-solid fa-tag"></i>
-                        {{ task.task_type_display }}
-                    </span>
-                    {% endif %}
-                    {% if task.priority %}
-                    <span class="pc06-soft-tag danger">
-                        <i class="fa-solid fa-flag"></i>
-                        {{ task.priority_display }}
-                    </span>
-                    {% endif %}
-                    {% endif %}
                 </div>
                 </div>
                 {% if can_edit_task or can_delete_task %}
@@ -1728,11 +1724,7 @@
 
     <section class="pc06-task-workspace" data-task-pane-container data-default-pane="overview">
         <div class="pc06-task-menu-shell">
-            <div class="pc06-task-menu-head">
-                <strong>Menu trong task</strong>
-                <span>Chuyển theo từng khu vực để tập trung xử lý, thay vì phải cuộn qua toàn bộ các thẻ trên một màn hình dài.</span>
-            </div>
-            <div class="pc06-task-menu" role="tablist" aria-label="Các khu vực chức năng của task">
+            <div class="pc06-task-menu" role="tablist" aria-label="Các khu vực chức năng của công việc">
                 <button type="button" class="btn pc06-task-menu-tab is-active" data-task-pane-target="overview" role="tab" aria-selected="true">
                     <i class="fa-solid fa-house"></i>
                     Tổng quan
@@ -1740,7 +1732,7 @@
                 {% if show_child_task_pane %}
                 <button type="button" class="btn pc06-task-menu-tab" data-task-pane-target="children" role="tab" aria-selected="false">
                     <i class="fa-solid fa-diagram-project"></i>
-                    Task con
+                    Nhiệm vụ
                 </button>
                 {% endif %}
                 {% if show_tracking_pane %}
@@ -1863,12 +1855,12 @@
                 <section class="pc06-panel pc06-detail-panel-compact">
                     <div class="pc06-panel-head">
                         <div>
-                            <h2>Task con</h2>
+                            <h2>Nhiệm vụ</h2>
                         </div>
                         {% if can_edit_task %}
                         <button type="button" class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#createChildTaskModal">
                             <i class="fa-solid fa-plus"></i>
-                            Tạo task con
+                            Tạo nhiệm vụ
                         </button>
                         {% endif %}
                     </div>
@@ -1887,19 +1879,19 @@
                                     </button>
                                     {% endif %}
                                     {% if child.can_edit %}
-                                    <a href="{{ url_for('tasks_bp.task_detail', tid=child.id) }}" class="pc06-report-download-icon" title="Sửa task con" aria-label="Sửa task con">
+                                    <a href="{{ url_for('tasks_bp.task_detail', tid=child.id) }}" class="pc06-report-download-icon" title="Sửa nhiệm vụ" aria-label="Sửa nhiệm vụ">
                                         <i class="fa-solid fa-pen"></i>
                                     </a>
                                     {% endif %}
                                     {% if child.can_delete %}
-                                    <form action="{{ url_for('tasks_bp.delete_task', tid=child.id) }}" method="POST" onsubmit="return confirm('Xóa task con này? Toàn bộ phân công, phản hồi và tệp đính kèm liên quan sẽ bị xóa.')" class="m-0">
-                                        <button type="submit" class="pc06-report-download-icon text-danger border-0 bg-transparent" title="Xóa task con" aria-label="Xóa task con">
+                                    <form action="{{ url_for('tasks_bp.delete_task', tid=child.id) }}" method="POST" onsubmit="return confirm('Xóa nhiệm vụ này? Toàn bộ phân công, phản hồi và tệp đính kèm liên quan sẽ bị xóa.')" class="m-0">
+                                        <button type="submit" class="pc06-report-download-icon text-danger border-0 bg-transparent" title="Xóa nhiệm vụ" aria-label="Xóa nhiệm vụ">
                                             <i class="fa-solid fa-trash"></i>
                                         </button>
                                     </form>
                                     {% endif %}
                                     {% if can_manage_task_view and not child.can_edit %}
-                                    <a href="{{ url_for('tasks_bp.task_detail', tid=child.id) }}" class="pc06-report-download-icon" title="Mở task con">
+                                    <a href="{{ url_for('tasks_bp.task_detail', tid=child.id) }}" class="pc06-report-download-icon" title="Mở nhiệm vụ">
                                         <i class="fa-solid fa-arrow-up-right-from-square"></i>
                                     </a>
                                     {% endif %}
@@ -1911,7 +1903,7 @@
                     {% else %}
                     <div class="pc06-empty-state compact">
                         <div class="pc06-empty-icon"><i class="fa-solid fa-diagram-project"></i></div>
-                        <h3>Chưa có task con</h3>
+                        <h3>Chưa có nhiệm vụ</h3>
                         <p>Tạo đầu mục mới.</p>
                     </div>
                     {% endif %}
@@ -1926,12 +1918,12 @@
                 <section class="pc06-panel pc06-detail-panel-compact">
                     <div class="pc06-panel-head">
                         <div>
-                            <h2>Theo dõi báo cáo task con</h2>
+                            <h2>Theo dõi báo cáo nhiệm vụ</h2>
                         </div>
                     </div>
                     <div class="pc06-child-report-facts">
                         <div class="pc06-child-report-fact">
-                            <span>Tổng task con</span>
+                            <span>Tổng nhiệm vụ</span>
                             <strong>{{ child_task_tracking.total_child_tasks }}</strong>
                         </div>
                         <div class="pc06-child-report-fact">
@@ -1939,7 +1931,7 @@
                             <strong>{{ child_task_tracking.total_units }}</strong>
                         </div>
                         <div class="pc06-child-report-fact">
-                            <span>Task quá hạn</span>
+                            <span>Công việc quá hạn</span>
                             <strong>{{ child_task_tracking.total_overdue_tasks }}</strong>
                         </div>
                     </div>
@@ -1950,7 +1942,7 @@
                         <section class="pc06-combined-report-section">
                             <div class="pc06-combined-report-section-head">
                                 <strong>Tiến độ báo cáo</strong>
-                                <span>Phân loại theo mức hoàn thành báo cáo task con</span>
+                                <span>Phân loại theo mức hoàn thành báo cáo nhiệm vụ</span>
                             </div>
                             <div class="pc06-combined-report-grid">
                                 {% for group in child_task_tracking.progress_groups %}
@@ -1982,7 +1974,7 @@
                         <section class="pc06-combined-report-section">
                             <div class="pc06-combined-report-section-head">
                                 <strong>Chất lượng báo cáo</strong>
-                                <span>Phân loại theo mức quá hạn trên toàn bộ task con của từng đơn vị</span>
+                                <span>Phân loại theo mức quá hạn trên toàn bộ nhiệm vụ của từng đơn vị</span>
                             </div>
                             <div class="pc06-combined-report-grid">
                                 {% for group in child_task_tracking.quality_groups %}
@@ -2023,7 +2015,7 @@
                         </div>
                     </div>
                     <div class="pc06-report-guidance">
-                        Task này đang dùng biểu mẫu nội bộ ĐA06. Quản trị theo dõi theo từng nhóm đơn vị, mức độ cập nhật biểu mẫu và dữ liệu DVC thay cho báo cáo file thông thường.
+                        Công việc này đang dùng biểu mẫu nội bộ ĐA06. Quản trị theo dõi theo từng nhóm đơn vị, mức độ cập nhật biểu mẫu và dữ liệu DVC thay cho báo cáo file thông thường.
                     </div>
                     <div class="pc06-da06-manage-groups">
                         {% for group in da06_management_view %}
@@ -2222,7 +2214,7 @@
                     <div class="pc06-panel-head">
                         <div>
                             <h2>Tổng hợp từ report</h2>
-                            <div class="pc06-detail-inline-note">Task này đang nhận số liệu và tiến độ trực tiếp từ các biểu mẫu đã liên kết bên module report.</div>
+                            <div class="pc06-detail-inline-note">Công việc này đang nhận số liệu và tiến độ trực tiếp từ các biểu mẫu đã liên kết bên module report.</div>
                         </div>
                     </div>
                     <div class="pc06-report-groups">
@@ -2312,7 +2304,7 @@
                             <div class="pc06-info-item">
                                 <span>Biểu mẫu đang theo dõi</span>
                                 <strong>{{ linked_report_templates|length }} biểu mẫu</strong>
-                                <div class="pc06-detail-inline-note mt-2">Số liệu và tiến độ của task này được lấy trực tiếp từ module report.</div>
+                                <div class="pc06-detail-inline-note mt-2">Số liệu và tiến độ của công việc này được lấy trực tiếp từ module report.</div>
                             </div>
                             {% else %}
                             <div class="pc06-info-item"><span>Trạng thái báo cáo</span><strong>{{ report_context.status }}</strong></div>
@@ -2347,7 +2339,7 @@
                 <section class="pc06-panel pc06-detail-panel-compact">
                     <div class="pc06-panel-head">
                         <div>
-                            <h2>Báo cáo theo nội dung task</h2>
+                            <h2>Báo cáo theo nội dung công việc</h2>
                         </div>
                     </div>
                     {% if structured_task_report_form.has_visible_content %}
@@ -2404,7 +2396,7 @@
                     </form>
                     {% else %}
                     <div class="pc06-info-banner">
-                        Task này dùng biểu mẫu riêng nhưng hiện chưa có mục nào được giao cho tài khoản của bạn. Hãy mở task con hoặc liên hệ quản trị để điều chỉnh phân công.
+                        Công việc này dùng biểu mẫu riêng nhưng hiện chưa có mục nào được giao cho tài khoản của bạn. Hãy mở nhiệm vụ hoặc liên hệ quản trị để điều chỉnh phân công.
                     </div>
                     {% endif %}
                 </section>
@@ -2494,7 +2486,7 @@
                         </div>
                     </div>
                     <div class="pc06-info-banner">
-                        Task này lấy số liệu trực tiếp từ module report. Hãy mở biểu mẫu liên kết ở phía trên để nhập hoặc theo dõi báo cáo, không cần gửi thêm báo cáo số liệu tại task.
+                        Công việc này lấy số liệu trực tiếp từ module report. Hãy mở biểu mẫu liên kết ở phía trên để nhập hoặc theo dõi báo cáo, không cần gửi thêm báo cáo số liệu tại công việc.
                     </div>
                 </section>
                 {% elif user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
@@ -2598,7 +2590,7 @@
                             <summary class="pc06-assignment-role-summary">
                                 <div class="pc06-assignment-role-summary-copy">
                                     <strong>{{ group.role_name }}</strong>
-                                    <span>{{ group.unit_count }} đơn vị · Giao {{ group.child_task_count }} task con · {{ group.completed_count }}/{{ group.total_count }} hoàn thành</span>
+                                    <span>{{ group.unit_count }} đơn vị · Giao {{ group.child_task_count }} nhiệm vụ · {{ group.completed_count }}/{{ group.total_count }} hoàn thành</span>
                                 </div>
                                 <div class="pc06-assignment-role-summary-meta">
                                     <span class="pc06-status-badge {% if group.status == 'Hoàn thành' %}done{% elif group.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
@@ -2613,7 +2605,7 @@
                                     <article class="pc06-assignment-unit">
                                         <div>
                                             <strong>{{ unit.unit_name }}</strong>
-                                            <span>Giao {{ unit.child_task_count }} task con · Tiến độ {{ unit.progress_text }} · Tiếp nhận {{ unit.accepted_count }}/{{ unit.total_count }}</span>
+                                            <span>Giao {{ unit.child_task_count }} nhiệm vụ · Tiến độ {{ unit.progress_text }} · Tiếp nhận {{ unit.accepted_count }}/{{ unit.total_count }}</span>
                                         </div>
                                         <span class="pc06-status-badge {% if unit.status == 'Hoàn thành' %}done{% elif unit.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}">
                                             {{ unit.status }}
@@ -2734,7 +2726,7 @@
                         </div>
                         <div class="col-md-6 {% if assignment_context.mode != 'role' %}d-none{% endif %}" id="editRoleAssignmentPanel">
                             <label class="form-label fw-bold">Vai trò nhận việc</label>
-                            <div class="form-text mb-2">Chọn đúng vai trò cần tham gia xử lý hoặc phản hồi cho task này.</div>
+                            <div class="form-text mb-2">Chọn đúng vai trò cần tham gia xử lý hoặc phản hồi cho công việc này.</div>
                             <div class="pc06-user-picker-panel pc06-role-checklist border rounded-4 p-2" style="display:block; max-height: 320px; overflow:auto;">
                                 {% for role in roles %}
                                 <label class="pc06-user-option">
@@ -2759,23 +2751,23 @@
                                 <label class="pc06-radio-card {% if manager_context.mode == 'none' %}active{% endif %}">
                                     <input type="radio" name="manager_scope_mode" value="none" {% if manager_context.mode == 'none' %}checked{% endif %}>
                                     <span class="pc06-radio-title">Không thêm</span>
-                                    <small>Chỉ người giao việc hoặc quản trị hệ thống được xử lý task.</small>
+                                    <small>Chỉ người giao việc hoặc quản trị hệ thống được xử lý công việc.</small>
                                 </label>
                                 <label class="pc06-radio-card {% if manager_context.mode == 'role' %}active{% endif %}">
                                     <input type="radio" name="manager_scope_mode" value="role" {% if manager_context.mode == 'role' %}checked{% endif %}>
                                     <span class="pc06-radio-title">Theo vai trò</span>
-                                    <small>Giao quyền xử lý cho nhóm vai trò phụ trách điều phối task.</small>
+                                    <small>Giao quyền xử lý cho nhóm vai trò phụ trách điều phối công việc.</small>
                                 </label>
                                 <label class="pc06-radio-card {% if manager_context.mode == 'user' %}active{% endif %}">
                                     <input type="radio" name="manager_scope_mode" value="user" {% if manager_context.mode == 'user' %}checked{% endif %}>
                                     <span class="pc06-radio-title">Theo cá nhân</span>
-                                    <small>Chỉ định rõ tài khoản được quyền xử lý task này.</small>
+                                    <small>Chỉ định rõ tài khoản được quyền xử lý công việc này.</small>
                                 </label>
                             </div>
                         </div>
                         <div class="col-md-6 {% if manager_context.mode != 'role' %}d-none{% endif %}" id="editManagerRolePanel">
                             <label class="form-label fw-bold">Vai trò xử lý</label>
-                            <div class="form-text mb-2">Các vai trò này có thể điều phối và chỉnh sửa task mà không mặc định trở thành người thực hiện.</div>
+                            <div class="form-text mb-2">Các vai trò này có thể điều phối và chỉnh sửa công việc mà không mặc định trở thành người thực hiện.</div>
                             <div class="pc06-user-picker-panel pc06-role-checklist border rounded-4 p-2" style="display:block; max-height: 320px; overflow:auto;">
                                 {% for role in roles %}
                                 <label class="pc06-user-option">
@@ -2839,8 +2831,8 @@
                             <div class="pc06-form-section mb-0" data-task-report-builder data-report-schema-seed='{{ task_report_schema_seed|tojson|forceescape }}'>
                                 <div class="d-flex justify-content-between align-items-start gap-3">
                                     <div>
-                                        <label class="form-label fw-bold mb-1">Biểu mẫu báo cáo của task</label>
-                                        <div class="form-text">Điều chỉnh phần báo cáo lời, số liệu và minh chứng ngay trên task đang sửa.</div>
+                                        <label class="form-label fw-bold mb-1">Biểu mẫu báo cáo của công việc</label>
+                                        <div class="form-text">Điều chỉnh phần báo cáo lời, số liệu và minh chứng ngay trên công việc đang sửa.</div>
                                     </div>
                                     <div class="form-check form-switch mt-1">
                                         <input class="form-check-input" type="checkbox" name="report_schema_enabled" value="1" data-report-toggle>
@@ -2937,7 +2929,7 @@
                                     <div class="d-flex justify-content-between align-items-center mt-4 mb-2 gap-3">
                                         <div>
                                             <label class="form-label fw-bold mb-0">Chỉ tiêu và nội dung riêng</label>
-                                            <div class="form-text">Dùng khi task cần nhập số liệu, ghi chú riêng hoặc chia nội dung theo từng vai trò.</div>
+                                            <div class="form-text">Dùng khi công việc cần nhập số liệu, ghi chú riêng hoặc chia nội dung theo từng vai trò.</div>
                                         </div>
                                         <button type="button" class="btn btn-sm btn-outline-primary" data-report-add-field>
                                             <i class="fa-solid fa-plus"></i>
@@ -3018,7 +3010,7 @@
                                 <option value="{{ template.id }}" {% if template.id in linked_report_template_ids %}selected{% endif %}>{{ template.name }} - {{ template.report_type_display }}{% if template.professional_unit_display %} - {{ template.professional_unit_display }}{% endif %}</option>
                                 {% endfor %}
                             </select>
-                            <div class="form-text">Các biểu mẫu được chọn sẽ tổng hợp tiến độ và số liệu từ module report về task này.</div>
+                            <div class="form-text">Các biểu mẫu được chọn sẽ tổng hợp tiến độ và số liệu từ module report về công việc này.</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-bold">Tệp đính kèm mới</label>
@@ -3048,7 +3040,7 @@
                 <input type="hidden" name="deadline_type" value="custom">
                 <div class="modal-header border-0 pc06-modal-head">
                     <div>
-                        <h5 class="modal-title fw-bold mb-0">Tạo task con</h5>
+                        <h5 class="modal-title fw-bold mb-0">Tạo nhiệm vụ</h5>
                     </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
@@ -3094,12 +3086,12 @@
                                     </div>
                                     <div class="pc06-info-item">
                                         <span>Cách tạo</span>
-                                        <strong>Mỗi đầu mục = 1 task con</strong>
+                                        <strong>Mỗi đầu mục = 1 nhiệm vụ</strong>
                                     </div>
                                 </div>
                                 <div class="pc06-form-section">
                                     <label class="form-label fw-bold">Nội dung chung</label>
-                                    <textarea name="description" rows="5" class="form-control" placeholder="Nội dung này sẽ áp dụng cho toàn bộ task con tạo trong lần này."></textarea>
+                                    <textarea name="description" rows="5" class="form-control" placeholder="Nội dung này sẽ áp dụng cho toàn bộ nhiệm vụ tạo trong lần này."></textarea>
                                 </div>
                                 <div class="pc06-form-section mb-0">
                                     <label class="form-label fw-bold">Tệp chung</label>
@@ -3205,7 +3197,7 @@
                     <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Đóng</button>
                     <button type="submit" class="btn btn-bdhvs primary">
                         <i class="fa-solid fa-paper-plane"></i>
-                        Tạo task con
+                        Tạo nhiệm vụ
                     </button>
                 </div>
             </form>

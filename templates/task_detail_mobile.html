@@ -11,7 +11,7 @@
     .detail-mobile-summary-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
     .detail-mobile-summary-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); font-size: 0.74rem; color: rgba(255, 255, 255, 0.82); }
     .detail-mobile-summary-pill strong { color: #fff; font-size: 0.8rem; }
-    .detail-mobile-menu-shell { display: grid; gap: 10px; margin-bottom: 12px; padding: 12px; border-radius: 18px; background: var(--bg-surface); border: 1px solid var(--border); box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04); }
+    .detail-mobile-menu-shell { margin-bottom: 12px; padding: 12px; border-radius: 18px; background: var(--bg-surface); border: 1px solid var(--border); box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04); }
     .detail-mobile-menu-copy strong { display: block; color: var(--text-main); font-size: 0.96rem; }
     .detail-mobile-menu-copy span { display: block; margin-top: 4px; color: var(--text-muted); font-size: 0.78rem; line-height: 1.5; }
     .detail-mobile-menu { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: -4px; }
@@ -227,11 +227,7 @@
 
 <div data-task-pane-container data-default-pane="overview">
     <section class="detail-mobile-menu-shell">
-        <div class="detail-mobile-menu-copy">
-            <strong>Menu trong task</strong>
-            <span>Chuyển theo từng khu vực để xem tập trung, không phải cuộn qua toàn bộ nội dung trong một màn hình dài.</span>
-        </div>
-        <div class="detail-mobile-menu" role="tablist" aria-label="Các khu vực chức năng của task">
+        <div class="detail-mobile-menu" role="tablist" aria-label="Các khu vực chức năng của công việc">
             <button type="button" class="btn detail-mobile-menu-tab is-active" data-task-pane-target="overview" role="tab" aria-selected="true">
                 <i class="fa-solid fa-house"></i>
                 Tổng quan
@@ -413,11 +409,11 @@
         <span class="detail-mobile-pane-anchor" id="tracking-section"></span>
         {% if can_observe_task_view and child_task_tracking.total_units %}
         <section class="detail-mobile-card">
-            <h2>Theo dõi báo cáo task con</h2>
+            <h2>Theo dõi báo cáo nhiệm vụ</h2>
             <div class="detail-mobile-child-overview">
                 <div class="detail-mobile-child-facts">
                     <div class="detail-mobile-child-fact">
-                        <span>Tổng task con</span>
+                        <span>Tổng nhiệm vụ</span>
                         <strong>{{ child_task_tracking.total_child_tasks }}</strong>
                     </div>
                     <div class="detail-mobile-child-fact">
@@ -425,7 +421,7 @@
                         <strong>{{ child_task_tracking.total_units }}</strong>
                     </div>
                     <div class="detail-mobile-child-fact">
-                        <span>Task quá hạn</span>
+                        <span>Công việc quá hạn</span>
                         <strong>{{ child_task_tracking.total_overdue_tasks }}</strong>
                     </div>
                 </div>
@@ -438,7 +434,7 @@
                     <div class="detail-mobile-combined-report-head">
                         <div>
                             <strong>Tiến độ báo cáo</strong>
-                            <span>Phân loại theo mức hoàn thành báo cáo task con</span>
+                            <span>Phân loại theo mức hoàn thành báo cáo nhiệm vụ</span>
                         </div>
                     </div>
                     <div class="detail-mobile-combined-report-grid">
@@ -471,7 +467,7 @@
                     <div class="detail-mobile-combined-report-head">
                         <div>
                             <strong>Chất lượng báo cáo</strong>
-                            <span>Phân loại theo mức quá hạn trên toàn bộ task con của từng đơn vị</span>
+                            <span>Phân loại theo mức quá hạn trên toàn bộ nhiệm vụ của từng đơn vị</span>
                         </div>
                     </div>
                     <div class="detail-mobile-combined-report-grid">
@@ -508,7 +504,7 @@
         <section class="detail-mobile-card">
             <h2>Tổng hợp ĐA06 tháng</h2>
             <div class="detail-mobile-da06-note mb-3">
-                Task này đang dùng biểu mẫu nội bộ ĐA06. Quản trị theo dõi theo từng nhóm đơn vị và mức độ cập nhật dữ liệu thay cho báo cáo file thông thường.
+                Công việc này đang dùng biểu mẫu nội bộ ĐA06. Quản trị theo dõi theo từng nhóm đơn vị và mức độ cập nhật dữ liệu thay cho báo cáo file thông thường.
             </div>
             <div class="detail-mobile-da06-stack">
                 {% for group in da06_management_view %}
@@ -731,7 +727,7 @@
         <section class="detail-mobile-card">
             <h2>Báo cáo biểu mẫu</h2>
             <div class="text-muted small">
-                Task này lấy số liệu trực tiếp từ module report. Hãy mở biểu mẫu liên kết ở phía trên để nhập hoặc theo dõi báo cáo, không cần gửi thêm báo cáo số liệu tại task.
+                Công việc này lấy số liệu trực tiếp từ module report. Hãy mở biểu mẫu liên kết ở phía trên để nhập hoặc theo dõi báo cáo, không cần gửi thêm báo cáo số liệu tại công việc.
             </div>
         </section>
         {% elif user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
@@ -805,7 +801,7 @@
                     <summary class="detail-mobile-assignment-summary">
                         <div class="detail-mobile-assignment-summary-copy">
                             <strong>{{ group.role_name }}</strong>
-                            <span>{{ group.unit_count }} đơn vị · Giao {{ group.child_task_count }} task con · {{ group.completed_count }}/{{ group.total_count }} hoàn thành</span>
+                            <span>{{ group.unit_count }} đơn vị · Giao {{ group.child_task_count }} nhiệm vụ · {{ group.completed_count }}/{{ group.total_count }} hoàn thành</span>
                         </div>
                         <div class="detail-mobile-assignment-summary-meta">
                             <div class="detail-mobile-status {% if group.status == 'Hoàn thành' %}done{% elif group.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}" style="margin-bottom:0;">{{ group.status }}</div>
@@ -818,7 +814,7 @@
                         <article class="detail-mobile-assignment-unit">
                             <div>
                                 <strong>{{ unit.unit_name }}</strong>
-                                <span>Giao {{ unit.child_task_count }} task con · Tiến độ {{ unit.progress_text }} · Tiếp nhận {{ unit.accepted_count }}/{{ unit.total_count }}</span>
+                                <span>Giao {{ unit.child_task_count }} nhiệm vụ · Tiến độ {{ unit.progress_text }} · Tiếp nhận {{ unit.accepted_count }}/{{ unit.total_count }}</span>
                             </div>
                             <div class="detail-mobile-status {% if unit.status == 'Hoàn thành' %}done{% elif unit.status == 'Đang thực hiện' %}doing{% else %}todo{% endif %}" style="margin-bottom:0;">{{ unit.status }}</div>
                         </article>

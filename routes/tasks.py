@@ -97,13 +97,13 @@ CHILD_TASK_PROGRESS_CONDITIONS = (
     {
         "code": "reported_complete",
         "label": "Đã báo cáo",
-        "description": "Hoàn thành báo cáo toàn bộ task con",
+        "description": "Hoàn thành báo cáo toàn bộ nhiệm vụ",
         "filename_suffix": "tien_do_da_bao_cao",
     },
     {
         "code": "reporting_in_progress",
         "label": "Đang báo cáo",
-        "description": "Chưa hoàn thành toàn bộ task con",
+        "description": "Chưa hoàn thành toàn bộ nhiệm vụ",
         "filename_suffix": "tien_do_dang_bao_cao",
     },
     {
@@ -117,19 +117,19 @@ CHILD_TASK_QUALITY_CONDITIONS = (
     {
         "code": "on_time",
         "label": "Đúng hạn",
-        "description": "100% task con đúng hạn",
+        "description": "100% nhiệm vụ đúng hạn",
         "filename_suffix": "chat_luong_dung_han",
     },
     {
         "code": "partial_overdue",
         "label": "Quá hạn một phần",
-        "description": "Một phần task con quá hạn",
+        "description": "Một phần nhiệm vụ quá hạn",
         "filename_suffix": "chat_luong_qua_han_mot_phan",
     },
     {
         "code": "fully_overdue",
         "label": "Quá hạn báo cáo",
-        "description": "100% task con quá hạn",
+        "description": "100% nhiệm vụ quá hạn",
         "filename_suffix": "chat_luong_qua_han_bao_cao",
     },
 )
@@ -4565,7 +4565,7 @@ def export_child_task_report_condition(tid, dimension, condition):
         or _can_manage_task(task, user=current_user)
         or _can_watch_task(task, user=current_user)
     ):
-        flash("Bạn không có quyền xuất danh sách theo dõi task con của công việc này.", "danger")
+        flash("Bạn không có quyền xuất danh sách theo dõi nhiệm vụ của công việc này.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
     child_tasks = (
@@ -4605,15 +4605,15 @@ def export_child_task_report_condition(tid, dimension, condition):
     sheet.append([])
     sheet.append([
         "Đơn vị",
-        "Task con được giao",
+        "Nhiệm vụ được giao",
         "Đã tiếp nhận",
         "Đã báo cáo",
         "Chưa báo cáo",
-        "Task quá hạn",
+        "Công việc quá hạn",
         "Tiến độ báo cáo",
         "Chất lượng báo cáo",
-        "Task chưa báo",
-        "Task quá hạn",
+        "Công việc chưa báo",
+        "Công việc quá hạn",
     ])
 
     for unit_row in matched_units:
@@ -4938,7 +4938,7 @@ def create_child_task(tid):
         return "Not Found", 404
 
     if not _can_edit_task(parent_task):
-        flash("Bạn không có quyền tạo task con cho công việc này.", "danger")
+        flash("Bạn không có quyền tạo nhiệm vụ cho công việc này.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
     title = (request.form.get("title") or "").strip()
@@ -4967,7 +4967,7 @@ def create_child_task(tid):
         bulk_titles = [title]
 
     if not bulk_titles:
-        flash("Cần nhập ít nhất một đầu mục để tạo task con.", "danger")
+        flash("Cần nhập ít nhất một đầu mục để tạo nhiệm vụ.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
     assignees, error_message = _resolve_assignees(request.form, domain)
@@ -5018,19 +5018,19 @@ def create_child_task(tid):
     for user in assignees:
         push_notif(
             user.id,
-            "Task con mới",
-            f"Bạn vừa được giao {len(created_tasks)} task con trong công việc: {parent_task.title}",
+            "Nhiệm vụ mới",
+            f"Bạn vừa được giao {len(created_tasks)} nhiệm vụ trong công việc: {parent_task.title}",
             f"/tasks/{parent_task.id}",
         )
 
     log_action(
         session["uid"],
         session.get("fullname", "Quản trị"),
-        "Tạo hàng loạt task con",
+        "Tạo hàng loạt nhiệm vụ",
         "Công việc",
         f"parent={parent_task.id} | so_luong={len(created_tasks)} | kieu={child_report_kind} | tep={int(child_attachment_required)}",
     )
-    flash(f"Đã tạo và giao {len(created_tasks)} task con.", "success")
+    flash(f"Đã tạo và giao {len(created_tasks)} nhiệm vụ.", "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
 

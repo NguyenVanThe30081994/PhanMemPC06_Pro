@@ -637,7 +637,7 @@
                             {% if t.parent_task_id %}
                             <span class="pc06-soft-tag neutral">
                                 <i class="fa-solid fa-diagram-project"></i>
-                                Task con
+                                Nhiệm vụ
                             </span>
                             {% endif %}
                         </div>
@@ -840,8 +840,8 @@
                                 <div class="pc06-form-section" data-task-report-builder data-report-schema-seed='{{ default_task_report_schema|tojson|forceescape }}'>
                                     <div class="d-flex justify-content-between align-items-start gap-3">
                                         <div>
-                                            <label class="form-label fw-bold mb-1">Biểu mẫu báo cáo theo task</label>
-                                            <div class="form-text">Bật để cấu hình riêng phần báo cáo số liệu, báo cáo lời và minh chứng cho task này.</div>
+                                            <label class="form-label fw-bold mb-1">Biểu mẫu báo cáo theo công việc</label>
+                                            <div class="form-text">Bật để cấu hình riêng phần báo cáo số liệu, báo cáo lời và minh chứng cho công việc này.</div>
                                         </div>
                                         <div class="form-check form-switch mt-1">
                                             <input class="form-check-input" type="checkbox" name="report_schema_enabled" value="1" data-report-toggle>
@@ -938,7 +938,7 @@
                                         <div class="d-flex justify-content-between align-items-center mt-4 mb-2 gap-3">
                                             <div>
                                                 <label class="form-label fw-bold mb-0">Chỉ tiêu và nội dung riêng</label>
-                                                <div class="form-text">Mỗi mục có thể là số liệu, văn bản ngắn hoặc đoạn mô tả riêng theo yêu cầu của task.</div>
+                                                <div class="form-text">Mỗi mục có thể là số liệu, văn bản ngắn hoặc đoạn mô tả riêng theo yêu cầu của công việc.</div>
                                             </div>
                                             <button type="button" class="btn btn-sm btn-outline-primary" data-report-add-field>
                                                 <i class="fa-solid fa-plus"></i>
@@ -1097,12 +1097,12 @@
 
                                 <div class="pc06-form-section">
                                     <label class="form-label fw-bold">Xử lý việc</label>
-                                    <div class="form-text mb-2">Dùng khi cần giao quyền điều phối, chỉnh sửa và theo dõi tiến độ cho lãnh đạo hoặc cán bộ phụ trách riêng task này.</div>
+                                    <div class="form-text mb-2">Dùng khi cần giao quyền điều phối, chỉnh sửa và theo dõi tiến độ cho lãnh đạo hoặc cán bộ phụ trách riêng công việc này.</div>
                                     <div class="pc06-segmented" id="managerModes">
                                         <label class="pc06-radio-card active">
                                             <input type="radio" name="manager_scope_mode" value="none" checked>
                                             <span class="pc06-radio-title">Không thêm</span>
-                                            <small>Chỉ người giao việc hoặc quản trị hệ thống được xử lý task.</small>
+                                            <small>Chỉ người giao việc hoặc quản trị hệ thống được xử lý công việc.</small>
                                         </label>
                                         <label class="pc06-radio-card">
                                             <input type="radio" name="manager_scope_mode" value="role">
@@ -1112,14 +1112,14 @@
                                         <label class="pc06-radio-card">
                                             <input type="radio" name="manager_scope_mode" value="user">
                                             <span class="pc06-radio-title">Theo cá nhân</span>
-                                            <small>Chỉ định rõ tài khoản được quyền xử lý task này.</small>
+                                            <small>Chỉ định rõ tài khoản được quyền xử lý công việc này.</small>
                                         </label>
                                     </div>
                                 </div>
 
                                 <div class="pc06-form-section d-none" id="managerRolePanel">
                                     <label class="form-label fw-bold">Vai trò xử lý</label>
-                                    <div class="form-text mb-2">Các vai trò này được quyền điều phối và cập nhật task, nhưng không mặc định trở thành người thực hiện.</div>
+                                    <div class="form-text mb-2">Các vai trò này được quyền điều phối và cập nhật công việc, nhưng không mặc định trở thành người thực hiện.</div>
                                     <div class="pc06-assignment-option-list">
                                         {% for role in roles %}
                                         <label class="pc06-user-option">
@@ -1136,7 +1136,7 @@
                                         <button type="button" class="pc06-user-picker-trigger" data-user-picker-trigger>
                                             <div>
                                                 <strong data-user-picker-label>Chọn tài khoản xử lý</strong>
-                                                <small>Tìm kiếm và tích chọn cán bộ có quyền điều phối task</small>
+                                                <small>Tìm kiếm và tích chọn cán bộ có quyền điều phối công việc</small>
                                             </div>
                                             <i class="fa-solid fa-chevron-down"></i>
                                         </button>
