@@ -30,9 +30,27 @@
         </div>
     </section>
 
-    <div class="system-module-workspace">
-        <aside class="system-module-sidebar">
-            <section class="pc06-panel system-filter-panel">
+    <div class="pc06-section-workspace" data-section-menu-container data-default-pane="filters">
+        <div class="pc06-section-menu-shell">
+            <div class="pc06-section-menu" role="tablist" aria-label="Các khu vực chức năng của nhật ký hoạt động">
+                <button type="button" class="btn pc06-section-menu-tab is-active" data-section-pane-target="filters" role="tab" aria-selected="true">
+                    <i class="fa-solid fa-filter"></i>
+                    Bộ lọc
+                </button>
+                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="users" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-user-group"></i>
+                    Người dùng
+                </button>
+                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="results" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    Nhật ký
+                </button>
+            </div>
+        </div>
+
+        <div class="pc06-section-pane-shell">
+            <div class="pc06-section-pane is-active" data-section-pane="filters">
+                <section class="pc06-panel system-filter-panel">
                 <div class="system-filter-head">
                     <h2>Bộ lọc</h2>
                 </div>
@@ -60,8 +78,10 @@
                     </div>
                 </form>
             </section>
+            </div>
 
-            <section class="pc06-panel system-filter-panel">
+            <div class="pc06-section-pane" data-section-pane="users">
+                <section class="pc06-panel system-filter-panel">
                 <div class="system-filter-head">
                     <h2>Người dùng</h2>
                 </div>
@@ -78,10 +98,10 @@
                     {% endfor %}
                 </div>
             </section>
-        </aside>
+            </div>
 
-        <div class="system-module-board">
-            <section class="pc06-panel">
+            <div class="pc06-section-pane" data-section-pane="results">
+                <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>{{ 'Kết quả tra cứu' if start or end or user_search else 'Hoạt động gần nhất' }}</h2>
@@ -123,6 +143,7 @@
                     </table>
                 </div>
             </section>
+            </div>
         </div>
     </div>
 </div>

@@ -32,9 +32,27 @@
         </div>
     </section>
 
-    <div class="system-module-workspace">
-        <aside class="system-module-sidebar">
-            <section class="pc06-panel system-filter-panel">
+    <div class="pc06-section-workspace" data-section-menu-container data-default-pane="filters">
+        <div class="pc06-section-menu-shell">
+            <div class="pc06-section-menu" role="tablist" aria-label="Các khu vực chức năng của tài khoản và vai trò">
+                <button type="button" class="btn pc06-section-menu-tab is-active" data-section-pane-target="filters" role="tab" aria-selected="true">
+                    <i class="fa-solid fa-user-tag"></i>
+                    Vai trò
+                </button>
+                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="users" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-users"></i>
+                    Danh sách tài khoản
+                </button>
+                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="permissions" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-user-gear"></i>
+                    Quản trị vai trò
+                </button>
+            </div>
+        </div>
+
+        <div class="pc06-section-pane-shell">
+            <div class="pc06-section-pane is-active" data-section-pane="filters">
+                <section class="pc06-panel system-filter-panel">
                 <div class="system-filter-head">
                     <h2>Vai trò</h2>
                 </div>
@@ -51,10 +69,10 @@
                     {% endfor %}
                 </div>
             </section>
-        </aside>
+            </div>
 
-        <div class="system-module-board">
-            <section class="pc06-panel">
+            <div class="pc06-section-pane" data-section-pane="users">
+                <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>{{ selected_role.name if selected_role else 'Danh sách tài khoản' }}</h2>
@@ -139,8 +157,10 @@
                     </table>
                 </div>
             </section>
+            </div>
 
-            <section class="pc06-panel">
+            <div class="pc06-section-pane" data-section-pane="permissions">
+                <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Quản trị vai trò</h2>
@@ -172,6 +192,7 @@
                     {% endfor %}
                 </div>
             </section>
+            </div>
         </div>
     </div>
 </div>

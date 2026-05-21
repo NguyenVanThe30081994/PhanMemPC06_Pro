@@ -17,9 +17,27 @@
         </div>
     </section>
 
-    <div class="pc06-detail-grid">
-        <div class="pc06-detail-main">
-            <section class="pc06-panel">
+    <div class="pc06-section-workspace" data-section-menu-container data-default-pane="package">
+        <div class="pc06-section-menu-shell">
+            <div class="pc06-section-menu" role="tablist" aria-label="Các khu vực chức năng của cập nhật bản vá">
+                <button type="button" class="btn pc06-section-menu-tab is-active" data-section-pane-target="package" role="tab" aria-selected="true">
+                    <i class="fa-solid fa-box-open"></i>
+                    Tải bản vá
+                </button>
+                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="git" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-code-branch"></i>
+                    Đồng bộ Git
+                </button>
+                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="version" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-circle-info"></i>
+                    Thông tin phiên bản
+                </button>
+            </div>
+        </div>
+
+        <div class="pc06-section-pane-shell">
+            <div class="pc06-section-pane is-active" data-section-pane="package">
+                <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Tải bản vá thủ công</h2>
@@ -37,8 +55,10 @@
                     </button>
                 </form>
             </section>
+            </div>
 
-            <section class="pc06-panel">
+            <div class="pc06-section-pane" data-section-pane="git">
+                <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Đồng bộ Git</h2>
@@ -75,10 +95,10 @@
                     </div>
                 </div>
             </section>
-        </div>
+            </div>
 
-        <aside class="pc06-detail-side">
-            <section class="pc06-panel">
+            <div class="pc06-section-pane" data-section-pane="version">
+                <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Thông tin phiên bản</h2>
@@ -93,7 +113,8 @@
                     <div class="pc06-info-item"><span>Ngày commit</span><strong>{{ git_info.commit_date|default('N/A') }}</strong></div>
                 </div>
             </section>
-        </aside>
+            </div>
+        </div>
     </div>
 </div>
 

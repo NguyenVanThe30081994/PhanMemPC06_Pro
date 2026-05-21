@@ -32,9 +32,27 @@
         </div>
     </section>
 
-    <div class="pc06-detail-grid">
-        <div class="pc06-detail-main">
-            <section class="pc06-panel">
+    <div class="pc06-section-workspace" data-section-menu-container data-default-pane="connection">
+        <div class="pc06-section-menu-shell">
+            <div class="pc06-section-menu" role="tablist" aria-label="Các khu vực chức năng của cấu hình AI">
+                <button type="button" class="btn pc06-section-menu-tab is-active" data-section-pane-target="connection" role="tab" aria-selected="true">
+                    <i class="fa-solid fa-plug-circle-check"></i>
+                    Thiết lập kết nối
+                </button>
+                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="status" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-signal"></i>
+                    Trạng thái hiện tại
+                </button>
+                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="guidance" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    Gợi ý triển khai
+                </button>
+            </div>
+        </div>
+
+        <div class="pc06-section-pane-shell">
+            <div class="pc06-section-pane is-active" data-section-pane="connection">
+                <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Thiết lập kết nối</h2>
@@ -98,10 +116,10 @@
                     </div>
                 </form>
             </section>
-        </div>
+            </div>
 
-        <aside class="pc06-detail-side">
-            <section class="pc06-panel">
+            <div class="pc06-section-pane" data-section-pane="status">
+                <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Trạng thái hiện tại</h2>
@@ -116,8 +134,10 @@
                     <div class="pc06-info-item"><span>Khóa môi trường</span><strong>{{ 'Đã có' if status.env_has_key else 'Chưa có' }}</strong></div>
                 </div>
             </section>
+            </div>
 
-            <section class="pc06-panel">
+            <div class="pc06-section-pane" data-section-pane="guidance">
+                <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Gợi ý triển khai</h2>
@@ -139,7 +159,8 @@
                     </article>
                 </div>
             </section>
-        </aside>
+            </div>
+        </div>
     </div>
 </div>
 

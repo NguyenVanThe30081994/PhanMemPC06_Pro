@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from flask import Blueprint, request, session, redirect, url_for, flash, current_app
+from flask import Blueprint, request, session, redirect, url_for, flash, current_app, send_file
 import os, pandas as pd, io, json, re, unicodedata
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
@@ -526,6 +526,49 @@ def _load_contacts_from_excel(file_storage, has_header=True):
         'invalid_rows': invalid_rows
     }
 
+
+def _build_contacts_template_workbook():
+    group_items = _module_category_options('contacts', 'contact_group', 'Nhóm danh bạ')
+    role_items = _module_category_options('contacts', 'role', 'Chức vụ')
+    unit_items = _module_category_options('contacts', 'unit_name', 'Đơn vị')
+
+    sample_rows = [{
+        'Họ tên': 'Nguyễn Văn A',
+        'Chức vụ': role_items[0]['name'] if role_items else 'Trưởng Công an cấp xã',
+        'Số điện thoại': '0912345678',
+        'Đơn vị': unit_items[0]['name'] if unit_items else 'Công an xã An Tường',
+        'Nhóm danh bạ': group_items[0]['name'] if group_items else 'Chỉ huy Công an cấp xã',
+    }]
+    guide_rows = [
+        {'Trường dữ liệu': 'Họ tên', 'Yêu cầu': 'Bắt buộc', 'Ghi chú': 'Tên liên hệ hoặc tên đơn vị/cá nhân.'},
+        {'Trường dữ liệu': 'Chức vụ', 'Yêu cầu': 'Khuyến nghị điền', 'Ghi chú': 'Nên chọn đúng chức danh để hệ thống phân loại chuẩn.'},
+        {'Trường dữ liệu': 'Số điện thoại', 'Yêu cầu': 'Bắt buộc', 'Ghi chú': 'Số di động 10 số, bắt đầu bằng 0.'},
+        {'Trường dữ liệu': 'Đơn vị', 'Yêu cầu': 'Khuyến nghị điền', 'Ghi chú': 'Nên điền đúng xã, Công an xã, phòng hoặc sở ngành để tránh hiển thị sai.'},
+        {'Trường dữ liệu': 'Nhóm danh bạ', 'Yêu cầu': 'Tùy chọn', 'Ghi chú': 'Có thể gán khi import hoặc điền sẵn nếu cần.'},
+    ]
+    option_rows = []
+    option_rows.extend({'Loại': 'Nhóm danh bạ', 'Giá trị gợi ý': item['name']} for item in group_items)
+    option_rows.extend({'Loại': 'Chức vụ', 'Giá trị gợi ý': item['name']} for item in role_items)
+    option_rows.extend({'Loại': 'Đơn vị', 'Giá trị gợi ý': item['name']} for item in unit_items)
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        pd.DataFrame(sample_rows).to_excel(writer, sheet_name='Mau_nhap_danh_ba', index=False)
+        pd.DataFrame(guide_rows).to_excel(writer, sheet_name='Huong_dan', index=False)
+        pd.DataFrame(option_rows).to_excel(writer, sheet_name='Danh_muc_goi_y', index=False)
+
+        for sheet_name, width_map in {
+            'Mau_nhap_danh_ba': [26, 28, 18, 30, 26],
+            'Huong_dan': [22, 20, 70],
+            'Danh_muc_goi_y': [18, 36],
+        }.items():
+            ws = writer.book[sheet_name]
+            for idx, width in enumerate(width_map, start=1):
+                ws.column_dimensions[chr(64 + idx)].width = width
+
+    output.seek(0)
+    return output
+
 @portal_bp.route('/news', methods=['GET', 'POST'])
 def news():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
@@ -833,10 +876,13 @@ def contacts():
         group_info = _resolve_category_display(contact.contact_group, contact_groups_items, fallback_label='Chưa phân nhóm')
         role_info = _resolve_category_display(contact.role, contact_roles_items, fallback_label='Chưa cập nhật')
         unit_info = _resolve_category_display(contact.unit_name, unit_items, fallback_label='-')
+        unit_display = unit_info['display_name']
+        if (unit_display or '').strip().lower() in {'hệ thống', 'he thong'}:
+            unit_display = 'Chưa cập nhật đơn vị'
         setattr(contact, 'contact_group_display', group_info['display_name'])
         setattr(contact, 'contact_group_filter', group_info['filter_value'])
         setattr(contact, 'role_display', role_info['display_name'])
-        setattr(contact, 'unit_name_display', unit_info['display_name'])
+        setattr(contact, 'unit_name_display', unit_display)
         can_touch = can_manage_contacts or not user_unit_matches or (contact.unit_name or '') in user_unit_matches
         setattr(contact, 'can_edit', can_touch)
         setattr(contact, 'can_delete', can_touch)
@@ -867,6 +913,21 @@ def contacts():
                           perms=perms,
                           is_admin=is_admin,
                           can_manage_contacts=can_manage_contacts)
+
+
+@portal_bp.route('/contacts/template')
+def contact_template():
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    workbook = _build_contacts_template_workbook()
+    filename = f"danh_ba_mau_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return send_file(
+        workbook,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
 
 @portal_bp.route('/contacts/edit/<int:cid>', methods=['POST'])
 def contact_edit(cid):
@@ -986,9 +1047,13 @@ def contact_add():
     group_items = _module_category_options('contacts', 'contact_group', 'Nhóm danh bạ')
     unit_items = _module_category_options('contacts', 'unit_name', 'Đơn vị')
     role = _canonicalize_category_value(request.form.get('role'), role_items, prefer_stable=True)
-    unit = _canonicalize_category_value(request.form.get('unit_name') or user_unit or '', unit_items, prefer_stable=True)
-    
-    if not is_contact_lead:
+    requested_unit = request.form.get('unit_name') or ''
+    if is_contact_lead:
+        unit = _canonicalize_category_value(requested_unit, unit_items, prefer_stable=True)
+        if not unit:
+            flash('Cần chọn đúng đơn vị cho liên hệ.', 'danger')
+            return redirect(url_for('portal_bp.contacts'))
+    else:
         unit = _canonicalize_category_value(user_unit, unit_items, prefer_stable=True) or user_unit
     group = request.form.get('contact_group')
     new_group_name = request.form.get('new_group_name')
@@ -1081,12 +1146,14 @@ def contact_import():
     f = request.files.get('import_excel')
     global_group = (request.form.get('global_group') or '').strip()
     global_role = (request.form.get('global_role') or '').strip()
+    global_unit = (request.form.get('global_unit') or '').strip()
     has_header = request.form.get('has_header', '1') == '1'
     group_items = _module_category_options('contacts', 'contact_group', 'Nhóm danh bạ')
     role_items = _module_category_options('contacts', 'role', 'Chức vụ')
     unit_items = _module_category_options('contacts', 'unit_name', 'Đơn vị')
     global_group = _canonicalize_category_value(global_group, group_items, prefer_stable=True)
     global_role = _canonicalize_category_value(global_role, role_items, prefer_stable=True)
+    global_unit = _canonicalize_category_value(global_unit, unit_items, prefer_stable=True)
 
     if not global_group:
         flash('Bạn cần chọn nhóm danh bạ trước khi nhập.', 'danger')
@@ -1096,8 +1163,8 @@ def contact_import():
         try:
             parsed = _load_contacts_from_excel(f, has_header=has_header)
             imported = 0
-            user_unit = _get_current_user_unit()
             missing_role_rows = []
+            missing_unit_rows = []
 
             for row in parsed['rows']:
                 resolved_role = _canonicalize_category_value(
@@ -1108,21 +1175,28 @@ def contact_import():
                 if not resolved_role:
                     missing_role_rows.append(row['excel_row'])
                     continue
+                resolved_unit = _canonicalize_category_value(
+                    row.get('unit_name') or global_unit or '',
+                    unit_items,
+                    prefer_stable=True,
+                )
+                if not resolved_unit:
+                    missing_unit_rows.append(row['excel_row'])
+                    continue
                 db.session.add(Contact(
                     contact_group=global_group,
-                    unit_name=_canonicalize_category_value(
-                        row.get('unit_name') or user_unit or '',
-                        unit_items,
-                        prefer_stable=True,
-                    ),
+                    unit_name=resolved_unit,
                     name=row['name'],
                     phone=row['phone'],
                     role=resolved_role
                 ))
                 imported += 1
 
-            if imported == 0 and missing_role_rows:
-                raise ValueError('Không có dòng nào được nhập vì thiếu chức vụ. Hãy thêm cột "Chức vụ" trong file hoặc chọn "Chức vụ mặc định".')
+            if imported == 0 and (missing_role_rows or missing_unit_rows):
+                raise ValueError(
+                    'Không có dòng nào được nhập vì thiếu chức vụ hoặc đơn vị. '
+                    'Hãy bổ sung cột tương ứng trong file hoặc chọn giá trị mặc định trước khi nhập.'
+                )
             db.session.commit()
             log_action(session['uid'], session['fullname'], "Import danh bạ hàng loạt", "Danh bạ", f"File: {f.filename}, {imported} liên hệ")
 
@@ -1133,6 +1207,8 @@ def contact_import():
                 warning_parts.append(f"bỏ qua các dòng thiếu dữ liệu: {', '.join(map(str, parsed['invalid_rows'][:10]))}")
             if missing_role_rows:
                 warning_parts.append(f"bỏ qua các dòng thiếu chức vụ: {', '.join(map(str, missing_role_rows[:10]))}")
+            if missing_unit_rows:
+                warning_parts.append(f"bỏ qua các dòng thiếu đơn vị: {', '.join(map(str, missing_unit_rows[:10]))}")
 
             flash_message = f'Đã nhập {imported} liên lạc thành công!'
             if warning_parts:

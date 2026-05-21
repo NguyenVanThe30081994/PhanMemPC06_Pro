@@ -34,9 +34,31 @@
         </div>
     </section>
 
-    <div class="pc06-detail-grid">
-        <div class="pc06-detail-main">
-            <section class="pc06-panel">
+    <div class="pc06-section-workspace" data-section-menu-container data-default-pane="leaders">
+        <div class="pc06-section-menu-shell">
+            <div class="pc06-section-menu" role="tablist" aria-label="Các khu vực chức năng của xếp hạng">
+                <button type="button" class="btn pc06-section-menu-tab is-active" data-section-pane-target="leaders" role="tab" aria-selected="true">
+                    <i class="fa-solid fa-trophy"></i>
+                    Nhóm dẫn đầu
+                </button>
+                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="details" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-table-list"></i>
+                    Chi tiết xếp hạng
+                </button>
+                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="rules" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-scale-balanced"></i>
+                    Quy tắc chấm điểm
+                </button>
+                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="groups" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-layer-group"></i>
+                    Cơ cấu nhóm
+                </button>
+            </div>
+        </div>
+
+        <div class="pc06-section-pane-shell">
+            <div class="pc06-section-pane is-active" data-section-pane="leaders">
+                <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Nhóm dẫn đầu</h2>
@@ -63,8 +85,10 @@
                 </div>
                 {% endif %}
             </section>
+            </div>
 
-            <section class="pc06-panel">
+            <div class="pc06-section-pane" data-section-pane="details">
+                <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Chi tiết xếp hạng</h2>
@@ -106,10 +130,10 @@
                 </div>
                 {% endif %}
             </section>
-        </div>
+            </div>
 
-        <aside class="pc06-detail-side">
-            <section class="pc06-panel">
+            <div class="pc06-section-pane" data-section-pane="rules">
+                <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Quy tắc chấm điểm</h2>
@@ -122,7 +146,10 @@
                     <div class="pc06-info-item"><span>Vi phạm ANAT</span><strong>Trừ trực tiếp 4 điểm</strong></div>
                 </div>
             </section>
-            <section class="pc06-panel">
+            </div>
+
+            <div class="pc06-section-pane" data-section-pane="groups">
+                <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Cơ cấu nhóm</h2>
@@ -139,7 +166,8 @@
                     <div class="ranking-group-row"><span>Nhóm 7 (14 đơn vị)</span><strong>2 điểm</strong></div>
                 </div>
             </section>
-        </aside>
+            </div>
+        </div>
     </div>
 </div>
 

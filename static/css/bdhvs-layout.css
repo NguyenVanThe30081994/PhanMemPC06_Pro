@@ -1294,6 +1294,90 @@ a.pc06-chip {
     align-self: start;
 }
 
+.pc06-section-workspace {
+    display: grid;
+    gap: 18px;
+}
+
+.pc06-section-menu-shell {
+    display: grid;
+    padding: 16px 18px;
+    border-radius: 22px;
+    border: 1px solid rgba(226, 232, 240, 0.92);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.92));
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+}
+
+.pc06-section-menu {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.pc06-section-menu-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 10px 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(191, 219, 254, 0.84);
+    background: rgba(239, 246, 255, 0.72);
+    color: #1e3a8a;
+    font-weight: 700;
+    transition: 0.2s ease;
+}
+
+.pc06-section-menu-tab:hover {
+    background: rgba(219, 234, 254, 0.92);
+    color: #1d4ed8;
+}
+
+.pc06-section-menu-tab.is-active {
+    border-color: #2563eb;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    box-shadow: 0 12px 22px rgba(37, 99, 235, 0.22);
+}
+
+.pc06-section-pane-shell {
+    display: grid;
+}
+
+.pc06-section-pane {
+    display: none;
+    gap: 18px;
+}
+
+.pc06-section-pane.is-active {
+    display: grid;
+}
+
+.pc06-section-pane-anchor {
+    position: relative;
+    top: -90px;
+}
+
+[data-theme="dark"] .pc06-section-menu-shell {
+    border-color: rgba(148, 163, 184, 0.16);
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.78));
+}
+
+[data-theme="dark"] .pc06-section-menu-tab {
+    border-color: rgba(96, 165, 250, 0.2);
+    background: rgba(30, 41, 59, 0.92);
+    color: #bfdbfe;
+}
+
+[data-theme="dark"] .pc06-section-menu-tab:hover {
+    background: rgba(37, 99, 235, 0.2);
+    color: #dbeafe;
+}
+
+[data-theme="dark"] .pc06-section-menu-tab.is-active {
+    color: #eff6ff;
+}
+
 .pc06-back-link {
     display: inline-flex;
     align-items: center;

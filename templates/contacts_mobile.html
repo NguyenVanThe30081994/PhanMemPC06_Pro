@@ -8,7 +8,7 @@
     .mobile-contact-hero h1 { margin: 10px 0 8px; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; }
     .mobile-contact-hero p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.9rem; }
     .mobile-contact-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
-    .mobile-contact-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+    .mobile-contact-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
     .mobile-contact-search, .mobile-contact-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); }
     .mobile-contact-search { padding: 16px; margin-bottom: 16px; }
     .mobile-search-input { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px; background: var(--bg-body); border: 1px solid var(--border); margin-bottom: 12px; }
@@ -37,6 +37,7 @@
     <p>Tra cứu liên hệ nội bộ, lọc theo nhóm và cập nhật danh bạ trên thiết bị di động.</p>
     {% if can_module('contact', 'process') %}
     <div class="mobile-contact-actions">
+        <a class="btn btn-mobile" href="{{ url_for('portal_bp.contact_template') }}" style="background:#eff6ff;color:#1d4ed8;" aria-label="Tải biểu mẫu" title="Tải biểu mẫu"><i class="fa-solid fa-download"></i><span class="visually-hidden">Tải biểu mẫu</span></a>
         <button class="btn btn-mobile" type="button" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#importContactModal" aria-label="Nhập Excel" title="Nhập Excel"><i class="fa-solid fa-file-excel"></i><span class="visually-hidden">Nhập Excel</span></button>
         <button class="btn btn-mobile btn-mobile-primary" type="button" data-bs-toggle="modal" data-bs-target="#addContactModal" aria-label="Thêm liên hệ" title="Thêm liên hệ"><i class="fa-solid fa-plus"></i><span class="visually-hidden">Thêm liên hệ</span></button>
     </div>
@@ -107,6 +108,15 @@
                         </div>
                     </div>
                     <div class="mb-3"><label class="form-label small fw-bold">Số điện thoại</label><input type="tel" name="phone" class="form-control" required></div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Đơn vị</label>
+                        <div data-category-picker data-module="contacts" data-field="unit_name" data-value-mode="stable" data-placeholder="Chọn đơn vị" data-storage-key="mobile.contacts.unit">
+                            <select name="unit_name" class="form-select" required data-category-target>
+                                <option value="" disabled selected>Chọn đơn vị</option>
+                                {% for unit in unit_items %}<option value="{{ unit.value }}">{{ unit.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary" aria-label="Lưu liên hệ" title="Lưu liên hệ"><i class="fa-solid fa-floppy-disk"></i><span class="visually-hidden">Lưu liên hệ</span></button></div>
             </form>
@@ -124,7 +134,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body pt-0">
-                    <div class="small text-muted mb-3">File Excel chuẩn nên có 4 cột: Họ tên, Chức vụ, Số điện thoại, Đơn vị. Hệ thống sẽ ưu tiên đọc Chức vụ và Đơn vị từ file.</div>
+                    <div class="small text-muted mb-3">File Excel chuẩn nên có 4 cột: Họ tên, Chức vụ, Số điện thoại, Đơn vị. Hệ thống sẽ ưu tiên đọc Chức vụ và Đơn vị từ file; nếu thiếu mới dùng giá trị mặc định bạn chọn.</div>
                     <div class="mb-3"><label class="form-label small fw-bold">File Excel</label><input type="file" name="import_excel" class="form-control" accept=".xlsx,.xls" required></div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Nhóm danh bạ</label>
@@ -136,6 +146,12 @@
                         <label class="form-label small fw-bold">Chức vụ mặc định</label>
                         <div data-category-picker data-module="contacts" data-field="role" data-value-mode="stable" data-placeholder="Chọn chức vụ" data-storage-key="mobile.contacts.import_role_simple">
                             <select name="global_role" class="form-select" data-category-target><option value="" selected>Để trống nếu file đã có cột Chức vụ</option>{% for r in roles %}<option value="{{ r.value }}">{{ r.name }}</option>{% endfor %}</select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Đơn vị mặc định</label>
+                        <div data-category-picker data-module="contacts" data-field="unit_name" data-value-mode="stable" data-placeholder="Chọn đơn vị mặc định" data-storage-key="mobile.contacts.import_unit_simple">
+                            <select name="global_unit" class="form-select" data-category-target><option value="" selected>Để trống nếu file đã có cột Đơn vị</option>{% for unit in unit_items %}<option value="{{ unit.value }}">{{ unit.name }}</option>{% endfor %}</select>
                         </div>
                     </div>
                 </div>

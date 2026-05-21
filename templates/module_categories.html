@@ -27,9 +27,27 @@
         </div>
     </section>
 
-    <div class="system-module-workspace">
-        <aside class="system-module-sidebar">
-            <section class="pc06-panel system-filter-panel">
+    <div class="pc06-section-workspace" data-section-menu-container data-default-pane="groups">
+        <div class="pc06-section-menu-shell">
+            <div class="pc06-section-menu" role="tablist" aria-label="Các khu vực chức năng của thiết lập danh mục">
+                <button type="button" class="btn pc06-section-menu-tab is-active" data-section-pane-target="groups" role="tab" aria-selected="true">
+                    <i class="fa-solid fa-folder-tree"></i>
+                    Nhóm danh mục
+                </button>
+                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="categories" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-table-cells-large"></i>
+                    Danh mục
+                </button>
+                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="bindings" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-link"></i>
+                    Liên kết field
+                </button>
+            </div>
+        </div>
+
+        <div class="pc06-section-pane-shell">
+            <div class="pc06-section-pane is-active" data-section-pane="groups">
+                <section class="pc06-panel system-filter-panel">
                 <div class="system-filter-head">
                     <h2>Nhóm danh mục</h2>
                 </div>
@@ -46,10 +64,10 @@
                     {% endfor %}
                 </div>
             </section>
-        </aside>
+            </div>
 
-        <div class="system-module-board">
-            <section class="pc06-panel">
+            <div class="pc06-section-pane" data-section-pane="categories">
+                <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
                         <h2 id="categorySelectedTitle">Tất cả danh mục</h2>
@@ -107,8 +125,10 @@
                     {% endfor %}
                 </div>
             </section>
+            </div>
 
-            <section class="pc06-panel">
+            <div class="pc06-section-pane" data-section-pane="bindings">
+                <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Liên kết field theo chức năng</h2>
@@ -167,6 +187,7 @@
                     {% endfor %}
                 </div>
             </section>
+            </div>
         </div>
     </div>
 </div>

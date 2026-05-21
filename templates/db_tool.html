@@ -16,9 +16,23 @@
         </div>
     </section>
 
-    <div class="pc06-detail-grid">
-        <div class="pc06-detail-main">
-            <section class="pc06-panel">
+    <div class="pc06-section-workspace" data-section-menu-container data-default-pane="backup">
+        <div class="pc06-section-menu-shell">
+            <div class="pc06-section-menu" role="tablist" aria-label="Các khu vực chức năng của công cụ database">
+                <button type="button" class="btn pc06-section-menu-tab is-active" data-section-pane-target="backup" role="tab" aria-selected="true">
+                    <i class="fa-solid fa-database"></i>
+                    Sao lưu dữ liệu
+                </button>
+                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="reset" role="tab" aria-selected="false">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    Khởi tạo lại hệ thống
+                </button>
+            </div>
+        </div>
+
+        <div class="pc06-section-pane-shell">
+            <div class="pc06-section-pane is-active" data-section-pane="backup">
+                <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Sao lưu cơ sở dữ liệu</h2>
@@ -33,10 +47,10 @@
                     </button>
                 </form>
             </section>
-        </div>
+            </div>
 
-        <aside class="pc06-detail-side">
-            <section class="pc06-panel">
+            <div class="pc06-section-pane" data-section-pane="reset">
+                <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
                         <h2>Khởi tạo lại hệ thống</h2>
@@ -54,7 +68,8 @@
                     </button>
                 </form>
             </section>
-        </aside>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

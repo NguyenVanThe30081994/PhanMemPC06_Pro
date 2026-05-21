@@ -140,6 +140,10 @@
                     <h1 class="pc06-page-title">Danh bạ</h1>
                     {% if can_manage_with_system('contact') %}
                     <div class="pc06-action-cluster">
+                        <a href="{{ url_for('portal_bp.contact_template') }}" class="btn btn-bdhvs light">
+                            <i class="fa-solid fa-download"></i>
+                            Tải biểu mẫu
+                        </a>
                         <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importContactModal">
                             <i class="fa-solid fa-file-excel"></i>
                             Nhập Excel
@@ -322,7 +326,7 @@
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Đơn vị</label>
                             <div data-category-picker data-module="contacts" data-field="unit_name" data-value-mode="stable" data-placeholder="Chọn đơn vị" data-storage-key="modal.contacts.unit">
-                                <select name="unit_name" class="form-select" data-category-target>
+                                <select name="unit_name" class="form-select" required data-category-target>
                                     <option value="" disabled selected>Chọn đơn vị</option>
                                     {% for unit in unit_items %}<option value="{{ unit.value }}">{{ unit.name }}</option>{% endfor %}
                                 </select>
@@ -362,7 +366,7 @@
                 <div class="modal-body p-4">
                     <div class="alert alert-info small mb-4">
                         File Excel chuẩn nên có đủ 4 cột: <b>Họ tên</b>, <b>Chức vụ</b>, <b>Số điện thoại</b>, <b>Đơn vị</b>.
-                        Hệ thống sẽ ưu tiên đọc đúng <b>Chức vụ</b> và <b>Đơn vị</b> từ file; chỉ khi ô trống mới dùng giá trị mặc định hoặc đơn vị của tài khoản đang nhập.
+                        Hệ thống sẽ ưu tiên đọc đúng <b>Chức vụ</b> và <b>Đơn vị</b> từ file; chỉ khi ô trống mới dùng giá trị mặc định bạn chọn trong form nhập.
                     </div>
 
                     <div class="row g-3">
@@ -385,6 +389,15 @@
                                 <select name="global_role" class="form-select" id="globalRoleSelect" data-category-target>
                                     <option value="" selected>Để trống nếu file đã có cột Chức vụ</option>
                                     {% for r in roles %}<option value="{{ r.value }}">{{ r.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Đơn vị mặc định</label>
+                            <div data-category-picker data-module="contacts" data-field="unit_name" data-value-mode="stable" data-placeholder="Chọn đơn vị mặc định" data-storage-key="modal.contacts.import_unit_simple">
+                                <select name="global_unit" class="form-select" id="globalUnitSelect" data-category-target>
+                                    <option value="" selected>Để trống nếu file đã có cột Đơn vị</option>
+                                    {% for unit in unit_items %}<option value="{{ unit.value }}">{{ unit.name }}</option>{% endfor %}
                                 </select>
                             </div>
                         </div>
@@ -585,7 +598,7 @@
                 <td class="fw-medium">${item.name || '<em class="text-muted">-</em>'}</td>
                 <td>${item.role || '<em class="text-muted">Sẽ dùng chức vụ mặc định</em>'}</td>
                 <td>${item.phone || '<em class="text-muted">-</em>'}</td>
-                <td>${item.unit_name || '<em class="text-muted">Sẽ dùng đơn vị người nhập</em>'}</td>
+                <td>${item.unit_name || '<em class="text-muted">Cần điền từ file hoặc chọn đơn vị mặc định</em>'}</td>
             `;
             tbody.appendChild(tr);
         });

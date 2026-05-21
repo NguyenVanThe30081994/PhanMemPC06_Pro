@@ -1148,6 +1148,33 @@
             window.location.href = '/tasks/' + id;
         }
 
+        function initSectionMenuContainers() {
+            document.querySelectorAll('[data-section-menu-container]').forEach((container) => {
+                const tabs = Array.from(container.querySelectorAll('[data-section-pane-target]'));
+                const panes = Array.from(container.querySelectorAll('[data-section-pane]'));
+                if (!tabs.length || !panes.length) {
+                    return;
+                }
+
+                const activatePane = (target) => {
+                    tabs.forEach((tab) => {
+                        const isActive = tab.dataset.sectionPaneTarget === target;
+                        tab.classList.toggle('is-active', isActive);
+                        tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                    });
+                    panes.forEach((pane) => {
+                        pane.classList.toggle('is-active', pane.dataset.sectionPane === target);
+                    });
+                };
+
+                tabs.forEach((tab) => {
+                    tab.addEventListener('click', () => activatePane(tab.dataset.sectionPaneTarget));
+                });
+
+                activatePane(container.dataset.defaultPane || tabs[0].dataset.sectionPaneTarget);
+            });
+        }
+
         // Clock & Weather
         function updateClock() {
             const el = document.getElementById('dashboard-clock');
@@ -1184,6 +1211,7 @@
         }
         updateWeather();
         setInterval(updateWeather, 600000);
+        initSectionMenuContainers();
 
         // Modern Confirm Helper
         window.ModernConfirm = function (title, text, icon, confirmText, callback) {
