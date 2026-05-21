@@ -33,7 +33,7 @@
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
                 <div>
                     <h2 class="h5 fw-bold mb-1">Danh sách trường nhập liệu</h2>
-                    <div class="text-muted small">Chỉ chỉnh tên nhóm, tên trường, ẩn hoặc hiện cột và cho phép nhập liệu.</div>
+                    <div class="text-muted small">Mỗi dòng tương ứng với một cột dữ liệu trong file mẫu. Nếu cần, chỉ chỉnh Nhóm cha, Tên trường, trạng thái hiển thị và cho phép nhập.</div>
                 </div>
                 <button class="btn btn-bdhvs primary" type="submit">
                     <i class="fa-solid fa-floppy-disk"></i>
@@ -41,14 +41,17 @@
                 </button>
             </div>
 
+            <div class="alert alert-light border rounded-4 px-3 py-2 small text-muted mb-3">
+                <strong class="text-dark">Cách hiểu nhanh:</strong> <code>Nhóm cha</code> là đường dẫn header phía trên trường dữ liệu, ngăn cách bằng dấu <code>&gt;</code>. <code>Tên trường</code> là tên cột cuối cùng người dùng nhìn thấy khi nhập liệu.
+            </div>
+
             <div class="table-responsive">
                 <table class="table table-sm align-middle">
                     <thead>
                         <tr>
                             <th>Sheet</th>
-                            {% for level_index in range(header_level_count) %}
-                            <th>{% if loop.last %}Tên trường nhập{% else %}Nhóm {{ loop.index }}{% endif %}</th>
-                            {% endfor %}
+                            <th>Nhóm cha</th>
+                            <th>Tên trường</th>
                             <th>Cột</th>
                             <th>Hiện</th>
                             <th>Nhập</th>
@@ -59,10 +62,23 @@
                         {% set field = row.field %}
                         <tr>
                             <td>{{ field.sheet_name }}</td>
-                            {% for level_index in range(header_level_count) %}
-                            {% set value = row.levels[level_index] if level_index < row.levels|length else '' %}
-                            <td><input type="text" name="field_{{ field.id }}_level_{{ loop.index }}" class="form-control form-control-sm" value="{{ value }}"></td>
-                            {% endfor %}
+                            <td>
+                                <input
+                                    type="text"
+                                    name="field_{{ field.id }}_group_path"
+                                    class="form-control form-control-sm"
+                                    value="{{ row.group_path }}"
+                                    placeholder="Ví dụ: Phụ lục > Tổng hợp > Bắc"
+                                >
+                            </td>
+                            <td>
+                                <input
+                                    type="text"
+                                    name="field_{{ field.id }}_display_name"
+                                    class="form-control form-control-sm"
+                                    value="{{ row.field_label }}"
+                                >
+                            </td>
                             <td>{{ field.column_letter }}</td>
                             <td class="text-center">
                                 <input type="hidden" name="field_{{ field.id }}_visible" value="0">

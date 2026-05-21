@@ -3562,7 +3562,6 @@ def template_detail(template_id):
     current_version = _template_version(template)
     fields = []
     field_rows = []
-    header_level_count = 1
     if current_version:
         fields = ReportTemplateField.query.filter_by(version_id=current_version.id).order_by(ReportTemplateField.sheet_name.asc(), ReportTemplateField.display_order.asc()).all()
         for field in fields:
@@ -3574,10 +3573,10 @@ def template_detail(template_id):
                     raw_levels[-1] = field.display_name
                 else:
                     raw_levels = [field.display_name]
-            header_level_count = max(header_level_count, len(raw_levels))
             field_rows.append({
                 "field": field,
-                "levels": raw_levels,
+                "group_path": " > ".join(raw_levels[:-1]),
+                "field_label": raw_levels[-1] if raw_levels else (field.display_name or field.field_name or field.field_code),
             })
     return render_template(
         "reporting_template_detail.html",
@@ -3585,7 +3584,6 @@ def template_detail(template_id):
         current_version=current_version,
         fields=fields,
         field_rows=field_rows,
-        header_level_count=header_level_count,
     )
 
 
@@ -3740,11 +3738,17 @@ def save_template_config(template_id):
 
     fields = ReportTemplateField.query.filter_by(version_id=version.id).order_by(ReportTemplateField.sheet_name.asc(), ReportTemplateField.display_order.asc()).all()
     for field in fields:
-        levels = []
-        for idx in range(1, 21):
-            value = (request.form.get(f"field_{field.id}_level_{idx}") or "").strip()
-            if value:
-                levels.append(value)
+        field_label = (request.form.get(f"field_{field.id}_display_name") or "").strip()
+        group_path_raw = (request.form.get(f"field_{field.id}_group_path") or "").strip()
+        if field_label or group_path_raw:
+            group_levels = [part.strip() for part in re.split(r"\s*>\s*", group_path_raw) if part.strip()]
+            levels = [*group_levels, field_label] if field_label else [*group_levels]
+        else:
+            levels = []
+            for idx in range(1, 21):
+                value = (request.form.get(f"field_{field.id}_level_{idx}") or "").strip()
+                if value:
+                    levels.append(value)
         if levels:
             field.display_name = levels[-1]
             field.path_code = " > ".join(levels)
