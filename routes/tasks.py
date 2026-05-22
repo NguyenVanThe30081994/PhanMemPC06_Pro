@@ -3833,16 +3833,13 @@ def tasks():
             flash("Cần chọn lĩnh vực công việc.", "danger")
             return redirect(url_for("tasks_bp.tasks"))
 
-        workflow_mode = _requested_task_workflow_mode(request.form)
-        report_schema = None
+        workflow_mode = TASK_WORKFLOW_DEFAULT_MODE
         linked_report_template_ids = []
-        if workflow_mode == "summary_report":
-            try:
-                report_schema = _parse_task_report_schema_from_request(request.form)
-            except ValueError as exc:
-                flash(str(exc), "danger")
-                return redirect(url_for("tasks_bp.tasks"))
-            linked_report_template_ids = _requested_linked_report_template_ids(request.form)
+        try:
+            report_schema = _parse_task_report_schema_from_request(request.form)
+        except ValueError as exc:
+            flash(str(exc), "danger")
+            return redirect(url_for("tasks_bp.tasks"))
 
         assignees, error_message = _resolve_assignees(request.form, domain)
         if error_message:
@@ -4351,18 +4348,8 @@ def task_detail(tid):
     task_workflow_label = _task_workflow_label(task_workflow_mode)
     setattr(task, "workflow_mode", task_workflow_mode)
     setattr(task, "workflow_mode_display", task_workflow_label)
-    task_allows_direct_report = bool(task.parent_task_id) or task_workflow_mode == "summary_report"
     show_child_task_pane = bool(child_tasks) or (can_manage_task_view and not parent_task)
-    report_pane_available_for_assignee = bool(
-        task_allows_direct_report and (
-            limited_assignment_view
-            or linked_report_templates
-            or (not task_has_child_tasks and not linked_report_templates and structured_task_report_form and can_submit_report)
-            or (not task_has_child_tasks and not linked_report_templates and da06_task_form and can_submit_report)
-            or can_submit_report
-        )
-    )
-    show_report_pane = report_pane_available_for_assignee or (can_manage_task_view and not parent_task)
+    show_report_pane = bool(can_manage_task_view or limited_assignment_view or can_submit_report)
     show_tracking_pane = can_observe_task_view
     show_assignment_pane = can_observe_task_view
     show_workflow_cards = can_observe_task_view and not parent_task and show_child_task_pane and show_report_pane
@@ -4438,7 +4425,6 @@ def task_detail(tid):
         show_workflow_cards=show_workflow_cards,
         task_workflow_mode=task_workflow_mode,
         task_workflow_label=task_workflow_label,
-        task_allows_direct_report=task_allows_direct_report,
         report_context=report_context,
         parent_task=parent_task,
         child_tasks=child_tasks,
@@ -4860,20 +4846,16 @@ def edit_task(tid):
         flash("Tiêu đề công việc không được để trống.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
-    workflow_mode = _requested_task_workflow_mode(request.form, fallback=_task_workflow_mode(task))
-    if workflow_mode == "summary_report":
-        if "report_schema_enabled" in request.form or "report_schema_json" in request.form:
-            try:
-                report_schema = _parse_task_report_schema_from_request(request.form)
-            except ValueError as exc:
-                flash(str(exc), "danger")
-                return redirect(url_for("tasks_bp.task_detail", tid=tid))
-        else:
-            report_schema = _load_task_report_schema(task)
-        linked_report_template_ids = _requested_linked_report_template_ids(request.form)
+    workflow_mode = _task_workflow_mode(task)
+    if "report_schema_enabled" in request.form or "report_schema_json" in request.form:
+        try:
+            report_schema = _parse_task_report_schema_from_request(request.form)
+        except ValueError as exc:
+            flash(str(exc), "danger")
+            return redirect(url_for("tasks_bp.task_detail", tid=tid))
     else:
-        report_schema = None
-        linked_report_template_ids = []
+        report_schema = _load_task_report_schema(task)
+    linked_report_template_ids = _load_linked_report_template_ids(task)
 
     requested_assign_type = request.form.get("assign_type", _infer_assignment_context(task).get("mode") or "unit")
     requested_role_ids = _requested_role_ids(request.form)
@@ -5014,6 +4996,33 @@ def edit_task(tid):
         success_message = f"Đã cập nhật công việc và đồng bộ {refreshed_assignee_count} người được giao."
     flash(success_message, "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+@tasks_bp.route("/tasks/<int:tid>/report-links", methods=["POST"])
+def save_task_report_links(tid):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    if not _can_edit_task(task):
+        flash("Bạn không có quyền cập nhật liên kết báo cáo của công việc này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    linked_report_template_ids = _requested_linked_report_template_ids(request.form)
+    task.linked_report_templates_json = (
+        json.dumps(linked_report_template_ids, ensure_ascii=False) if linked_report_template_ids else None
+    )
+    setattr(task, "_linked_report_template_ids_cache", linked_report_template_ids)
+    _sync_task_runtime_models(task, linked_report_template_ids=linked_report_template_ids)
+    db.session.commit()
+
+    flash("Đã cập nhật liên kết báo cáo cho khu Nhiệm vụ.", "success")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid, _anchor="child-task-section"))
 
 
 @tasks_bp.route("/tasks/<int:tid>/children/create", methods=["POST"])
