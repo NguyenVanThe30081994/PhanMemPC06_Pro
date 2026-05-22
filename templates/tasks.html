@@ -144,6 +144,158 @@
         font-size: 0.88rem;
     }
 
+    .pc06-task-entry-panel {
+        margin-top: 22px;
+        padding: 20px;
+        display: grid;
+        gap: 18px;
+    }
+
+    .pc06-task-entry-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .pc06-task-entry-head h2 {
+        margin: 0 0 6px;
+        font-size: 1.08rem;
+        font-weight: 800;
+        color: var(--text-main, #0f172a);
+    }
+
+    .pc06-task-entry-head p {
+        margin: 0;
+        color: var(--text-muted, #64748b);
+        font-size: 0.86rem;
+        max-width: 760px;
+    }
+
+    .pc06-task-entry-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .pc06-task-entry-card {
+        padding: 22px;
+        border-radius: 24px;
+        border: 1px solid rgba(191, 219, 254, 0.88);
+        background: linear-gradient(135deg, rgba(248, 250, 252, 0.98) 0%, rgba(239, 246, 255, 0.95) 100%);
+        box-shadow: 0 16px 36px rgba(15, 23, 42, 0.06);
+        display: grid;
+        gap: 14px;
+    }
+
+    .pc06-task-entry-card.is-summary {
+        background: linear-gradient(135deg, rgba(239, 246, 255, 0.98) 0%, rgba(219, 234, 254, 0.92) 100%);
+    }
+
+    .pc06-task-entry-chip {
+        display: inline-flex;
+        width: fit-content;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(30, 64, 175, 0.1);
+        color: #1d4ed8;
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .pc06-task-entry-card h3 {
+        margin: 0;
+        font-size: 1.18rem;
+        font-weight: 800;
+        color: var(--text-main, #0f172a);
+    }
+
+    .pc06-task-entry-card p {
+        margin: 0;
+        color: var(--text-muted, #64748b);
+        font-size: 0.88rem;
+        line-height: 1.55;
+    }
+
+    .pc06-task-entry-points {
+        display: grid;
+        gap: 8px;
+    }
+
+    .pc06-task-entry-point {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        color: var(--text-main, #0f172a);
+        font-size: 0.84rem;
+        line-height: 1.5;
+    }
+
+    .pc06-task-entry-point i {
+        margin-top: 3px;
+        color: #2563eb;
+    }
+
+    .pc06-task-entry-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .pc06-task-entry-hint {
+        color: var(--text-muted, #64748b);
+        font-size: 0.8rem;
+    }
+
+    .pc06-task-flow-section {
+        margin-top: 18px;
+        padding: 20px;
+        display: grid;
+        gap: 16px;
+    }
+
+    .pc06-task-flow-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .pc06-task-flow-head h2 {
+        margin: 0 0 6px;
+        font-size: 1.06rem;
+        font-weight: 800;
+        color: var(--text-main, #0f172a);
+    }
+
+    .pc06-task-flow-head p {
+        margin: 0;
+        color: var(--text-muted, #64748b);
+        font-size: 0.84rem;
+        max-width: 780px;
+    }
+
+    .pc06-task-flow-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(239, 246, 255, 0.92);
+        border: 1px solid rgba(191, 219, 254, 0.88);
+        color: #1d4ed8;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
     .pc06-task-filter-head {
         display: flex;
         justify-content: space-between;
@@ -500,6 +652,10 @@
             grid-template-columns: 1fr;
         }
 
+        .pc06-task-entry-grid {
+            grid-template-columns: 1fr;
+        }
+
         .pc06-task-compact-grid {
             grid-template-columns: 1fr;
         }
@@ -525,6 +681,8 @@
 
 {% block content %}
 <div class="pc06-page-shell">
+    {% set child_flow_tasks = tasks|selectattr('workflow_mode', 'equalto', 'child_tasks')|list %}
+    {% set summary_flow_tasks = tasks|rejectattr('workflow_mode', 'equalto', 'child_tasks')|list %}
     <section class="pc06-hero-card">
         <div class="pc06-task-hero-compact">
             <div class="pc06-task-hero-head">
@@ -532,10 +690,10 @@
                 <h1 class="pc06-page-title">Công việc</h1>
                 <div class="pc06-action-cluster">
                     {% if is_lead or is_admin %}
-                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                    <a class="btn btn-bdhvs primary" href="#taskFlowStart">
                         <i class="fa-solid fa-plus"></i>
-                        Giao công việc mới
-                    </button>
+                        Chọn luồng giao việc
+                    </a>
                     {% endif %}
                     <a class="btn btn-bdhvs light" href="#taskGrid">
                         <i class="fa-solid fa-table-cells-large"></i>
@@ -552,6 +710,92 @@
             </div>
         </div>
     </section>
+
+    {% if is_lead or is_admin %}
+    <section class="pc06-panel pc06-task-entry-panel" id="taskFlowStart">
+        <div class="pc06-task-entry-head">
+            <div>
+                <h2>Chọn luồng giao việc</h2>
+                <p>Vào đúng thẻ để cấu hình riêng cho từng cách làm: Nhiệm vụ để tách đầu mục con và liên kết báo cáo, hoặc Tổng hợp để giao việc trực tiếp và nhận file báo cáo ngay tại công việc.</p>
+            </div>
+        </div>
+        <div class="pc06-task-entry-grid">
+            <article class="pc06-task-entry-card">
+                <span class="pc06-task-entry-chip">Luồng 1</span>
+                <div>
+                    <h3>Nhiệm vụ</h3>
+                    <p>Tạo một công việc cha rồi vào trong để chia thành các nhiệm vụ con theo từng đầu mục, từng đơn vị hoặc từng vai trò.</p>
+                </div>
+                <div class="pc06-task-entry-points">
+                    <div class="pc06-task-entry-point"><i class="fa-solid fa-check"></i><span>Tạo và giao nhiều nhiệm vụ con trong cùng một công việc.</span></div>
+                    <div class="pc06-task-entry-point"><i class="fa-solid fa-check"></i><span>Liên kết reporty để theo dõi số liệu, tiến độ ở khu Nhiệm vụ.</span></div>
+                    <div class="pc06-task-entry-point"><i class="fa-solid fa-check"></i><span>Phù hợp khi cần tách việc theo đầu mục chi tiết.</span></div>
+                </div>
+                <div class="pc06-task-entry-actions">
+                    <a href="#taskFlowChildSection" class="btn btn-bdhvs primary">
+                        <i class="fa-solid fa-diagram-project"></i>
+                        Vào luồng Nhiệm vụ
+                    </a>
+                    <span class="pc06-task-entry-hint">Trong luồng này có nút tạo công việc riêng cho mô hình nhiệm vụ con.</span>
+                </div>
+            </article>
+
+            <article class="pc06-task-entry-card is-summary">
+                <span class="pc06-task-entry-chip">Luồng 2</span>
+                <div>
+                    <h3>Tổng hợp (báo file)</h3>
+                    <p>Giao việc trực tiếp cho đơn vị hoặc cán bộ và nhận báo cáo nội dung, số liệu, file minh chứng ngay trên chính công việc đó.</p>
+                </div>
+                <div class="pc06-task-entry-points">
+                    <div class="pc06-task-entry-point"><i class="fa-solid fa-check"></i><span>Dùng biểu mẫu báo cáo tổng hợp hoặc cách báo cáo file như trước.</span></div>
+                    <div class="pc06-task-entry-point"><i class="fa-solid fa-check"></i><span>Không liên kết reporty; toàn bộ báo cáo nộp ngay trong khu Tổng hợp.</span></div>
+                    <div class="pc06-task-entry-point"><i class="fa-solid fa-check"></i><span>Phù hợp với việc cần giao trực tiếp và nhận minh chứng tập trung.</span></div>
+                </div>
+                <div class="pc06-task-entry-actions">
+                    <a href="#taskFlowSummarySection" class="btn btn-bdhvs primary">
+                        <i class="fa-solid fa-file-lines"></i>
+                        Vào luồng Tổng hợp
+                    </a>
+                    <span class="pc06-task-entry-hint">Trong luồng này có nút tạo công việc riêng cho mô hình báo cáo file.</span>
+                </div>
+            </article>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if is_lead or is_admin %}
+    <section class="pc06-panel pc06-task-flow-section" id="taskFlowChildSection">
+        <div class="pc06-task-flow-head">
+            <div>
+                <h2>Luồng Nhiệm vụ</h2>
+                <p>Tạo công việc theo hướng tách đầu mục, sau đó vào chi tiết công việc để tạo các nhiệm vụ con, giao cho đơn vị hoặc cá nhân và liên kết báo cáo khi cần.</p>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="pc06-task-flow-count">{{ child_flow_tasks|length }} công việc</span>
+                <button type="button" class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addTaskModal" data-task-flow-launch="child_tasks">
+                    <i class="fa-solid fa-plus"></i>
+                    Tạo công việc
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <section class="pc06-panel pc06-task-flow-section" id="taskFlowSummarySection">
+        <div class="pc06-task-flow-head">
+            <div>
+                <h2>Luồng Tổng hợp</h2>
+                <p>Tạo công việc theo hướng giao trực tiếp, để các đơn vị hoặc cán bộ báo cáo nội dung và đính kèm file minh chứng ngay trong khu Tổng hợp.</p>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="pc06-task-flow-count">{{ summary_flow_tasks|length }} công việc</span>
+                <button type="button" class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addTaskModal" data-task-flow-launch="summary_report">
+                    <i class="fa-solid fa-plus"></i>
+                    Tạo công việc
+                </button>
+            </div>
+        </div>
+    </section>
+    {% endif %}
 
     <div class="pc06-task-workspace">
         <aside class="pc06-task-sidebar">
@@ -710,9 +954,11 @@
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl pc06-task-modal-dialog">
         <div class="modal-content border-0 pc06-modal-shell pc06-task-modal-shell">
             <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="workflow_mode" value="summary_report" data-task-flow-input>
                 <div class="modal-header border-0 pc06-modal-head">
                     <div>
-                        <h5 class="modal-title fw-bold mb-0">Thiết lập công việc cần giao</h5>
+                        <h5 class="modal-title fw-bold mb-1" data-task-flow-title>Thiết lập công việc theo luồng Tổng hợp</h5>
+                        <p class="mb-0 text-white-50" data-task-flow-subtitle>Giao việc trực tiếp và nhận báo cáo nội dung, số liệu, file minh chứng ngay tại công việc.</p>
                     </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
@@ -837,7 +1083,21 @@
                                     <textarea name="description" rows="6" class="form-control" placeholder="Mô tả ngắn gọn yêu cầu và kết quả cần đạt"></textarea>
                                 </div>
 
-                                <div class="pc06-form-section" data-task-report-builder data-report-schema-seed='{{ default_task_report_schema|tojson|forceescape }}'>
+                                <div class="pc06-mode-help d-none" data-flow-panel="child_tasks">
+                                    Luồng này tạo ra <strong>công việc cha</strong>. Sau khi lưu, bạn sẽ vào thẻ <strong>Nhiệm vụ</strong> để tạo các nhiệm vụ con và theo dõi báo cáo theo từng đầu mục.
+                                </div>
+
+                                <div class="pc06-form-section d-none" data-flow-panel="child_tasks">
+                                    <label class="form-label fw-bold">Biểu mẫu liên kết từ report</label>
+                                    <select name="linked_report_template_ids" class="form-select" size="6" multiple>
+                                        {% for template in report_templates %}
+                                        <option value="{{ template.id }}">{{ template.name }} - {{ template.report_type_display }}{% if template.professional_unit_display %} - {{ template.professional_unit_display }}{% endif %}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">Các biểu mẫu được chọn sẽ phục vụ khu Nhiệm vụ sau khi công việc được tạo.</div>
+                                </div>
+
+                                <div class="pc06-form-section" data-task-report-builder data-report-schema-seed='{{ default_task_report_schema|tojson|forceescape }}' data-flow-panel="summary_report">
                                     <div class="d-flex justify-content-between align-items-start gap-3">
                                         <div>
                                             <label class="form-label fw-bold mb-1">Biểu mẫu báo cáo tổng hợp</label>
@@ -1220,7 +1480,7 @@
 
                 <div class="modal-footer border-0 px-4 px-lg-5 pb-4">
                     <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Đóng</button>
-                    <button type="submit" class="btn btn-bdhvs primary">
+                    <button type="submit" class="btn btn-bdhvs primary" data-task-flow-submit>
                         <i class="fa-solid fa-paper-plane"></i>
                         Xác nhận giao việc
                     </button>
@@ -1549,6 +1809,40 @@
         document.getElementById('monthOfPeriodField')?.classList.toggle('d-none', !showMonth);
     }
 
+    const TASK_FLOW_CONFIG = {
+        child_tasks: {
+            title: 'Thiết lập công việc theo luồng Nhiệm vụ',
+            subtitle: 'Tạo công việc cha, sau đó vào thẻ Nhiệm vụ để thêm đầu mục con và liên kết báo cáo.',
+            submit: 'Tạo công việc Nhiệm vụ'
+        },
+        summary_report: {
+            title: 'Thiết lập công việc theo luồng Tổng hợp',
+            subtitle: 'Giao việc trực tiếp và nhận báo cáo nội dung, số liệu, file minh chứng ngay tại công việc.',
+            submit: 'Tạo công việc Tổng hợp'
+        }
+    };
+
+    let pendingTaskFlowMode = 'summary_report';
+
+    function applyTaskFlowMode(mode) {
+        const normalizedMode = TASK_FLOW_CONFIG[mode] ? mode : 'summary_report';
+        const config = TASK_FLOW_CONFIG[normalizedMode];
+        document.querySelector('[data-task-flow-input]')?.setAttribute('value', normalizedMode);
+        const flowInput = document.querySelector('[data-task-flow-input]');
+        if (flowInput) flowInput.value = normalizedMode;
+        const title = document.querySelector('[data-task-flow-title]');
+        if (title) title.textContent = config.title;
+        const subtitle = document.querySelector('[data-task-flow-subtitle]');
+        if (subtitle) subtitle.textContent = config.subtitle;
+        const submit = document.querySelector('[data-task-flow-submit]');
+        if (submit) {
+            submit.innerHTML = `<i class="fa-solid fa-paper-plane"></i> ${config.submit}`;
+        }
+        document.querySelectorAll('#addTaskModal [data-flow-panel]').forEach((panel) => {
+            panel.classList.toggle('d-none', panel.dataset.flowPanel !== normalizedMode);
+        });
+    }
+
     function syncAssignmentMode() {
         const selected = document.querySelector('input[name="assign_type"]:checked')?.value || 'unit';
 
@@ -1692,8 +1986,19 @@
     document.querySelectorAll('input[name="viewer_role_ids"]').forEach((checkbox) => {
         checkbox.addEventListener('change', () => selectViewerMode('role'));
     });
+    document.querySelectorAll('[data-task-flow-launch]').forEach((trigger) => {
+        trigger.addEventListener('click', () => {
+            pendingTaskFlowMode = trigger.dataset.taskFlowLaunch || 'summary_report';
+        });
+    });
+
+    document.getElementById('addTaskModal')?.addEventListener('show.bs.modal', (event) => {
+        const mode = event.relatedTarget?.dataset?.taskFlowLaunch || pendingTaskFlowMode || 'summary_report';
+        applyTaskFlowMode(mode);
+    });
 
     toggleDeadlineFields();
+    applyTaskFlowMode(pendingTaskFlowMode);
     syncAssignmentMode();
     syncManagerMode();
     syncViewerMode();

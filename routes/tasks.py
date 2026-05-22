@@ -3833,13 +3833,17 @@ def tasks():
             flash("Cần chọn lĩnh vực công việc.", "danger")
             return redirect(url_for("tasks_bp.tasks"))
 
-        workflow_mode = TASK_WORKFLOW_DEFAULT_MODE
+        workflow_mode = _requested_task_workflow_mode(request.form)
         linked_report_template_ids = []
-        try:
-            report_schema = _parse_task_report_schema_from_request(request.form)
-        except ValueError as exc:
-            flash(str(exc), "danger")
-            return redirect(url_for("tasks_bp.tasks"))
+        if workflow_mode == "child_tasks":
+            report_schema = None
+            linked_report_template_ids = _requested_linked_report_template_ids(request.form)
+        else:
+            try:
+                report_schema = _parse_task_report_schema_from_request(request.form)
+            except ValueError as exc:
+                flash(str(exc), "danger")
+                return redirect(url_for("tasks_bp.tasks"))
 
         assignees, error_message = _resolve_assignees(request.form, domain)
         if error_message:
@@ -4013,6 +4017,17 @@ def tasks():
 
     for task in all_tasks:
         is_executor_view = _task_user_is_executor(task, session["uid"])
+        inferred_has_children = bool(getattr(task, "_visible_child_tasks_for_user", None))
+        if not inferred_has_children:
+            inferred_has_children = bool(
+                next(
+                    (candidate for candidate in all_candidate_tasks if getattr(candidate, "parent_task_id", None) == task.id),
+                    None,
+                )
+            )
+        workflow_mode = _task_workflow_mode(task, has_child_tasks=inferred_has_children)
+        setattr(task, "workflow_mode", workflow_mode)
+        setattr(task, "workflow_mode_display", _task_workflow_label(workflow_mode))
         if not can_view_all_tasks and getattr(task, "_visible_child_tasks_for_user", None) is not None and not is_executor_view:
             task_metrics = {
                 "display_status": getattr(task, "display_status", "Chưa tiếp nhận"),
