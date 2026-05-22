@@ -837,7 +837,26 @@
                                     <textarea name="description" rows="6" class="form-control" placeholder="Mô tả ngắn gọn yêu cầu và kết quả cần đạt"></textarea>
                                 </div>
 
-                                <div class="pc06-form-section" data-task-report-builder data-report-schema-seed='{{ default_task_report_schema|tojson|forceescape }}'>
+                                <div class="pc06-form-section">
+                                    <label class="form-label fw-bold">Luồng thực hiện</label>
+                                    <div class="pc06-segmented" id="taskWorkflowModes">
+                                        <label class="pc06-radio-card">
+                                            <input type="radio" name="workflow_mode" value="child_tasks">
+                                            <span class="pc06-radio-title">Nhiệm vụ</span>
+                                            <small>Sau khi tạo công việc, vào chi tiết để tạo và giao các nhiệm vụ con.</small>
+                                        </label>
+                                        <label class="pc06-radio-card active">
+                                            <input type="radio" name="workflow_mode" value="summary_report" checked>
+                                            <span class="pc06-radio-title">Tổng hợp (báo file)</span>
+                                            <small>Dùng biểu mẫu báo cáo hoặc file minh chứng như luồng cũ.</small>
+                                        </label>
+                                    </div>
+                                    <div class="form-text mt-2" data-create-child-workflow-note hidden>
+                                        Nếu chọn luồng Nhiệm vụ, sau khi tạo công việc bạn sẽ giao việc bằng các nhiệm vụ con trong màn chi tiết.
+                                    </div>
+                                </div>
+
+                                <div class="pc06-form-section" data-task-report-builder data-report-schema-seed='{{ default_task_report_schema|tojson|forceescape }}' data-create-report-workflow-panel>
                                     <div class="d-flex justify-content-between align-items-start gap-3">
                                         <div>
                                             <label class="form-label fw-bold mb-1">Biểu mẫu báo cáo theo công việc</label>
@@ -1012,7 +1031,7 @@
                                     </template>
                                 </div>
 
-                                <div class="pc06-form-section">
+                                <div class="pc06-form-section" data-create-report-workflow-panel>
                                     <label class="form-label fw-bold">Biểu mẫu liên kết từ report</label>
                                     <select name="linked_report_template_ids" class="form-select" size="6" multiple>
                                         {% for template in report_templates %}
@@ -1578,6 +1597,24 @@
         syncAssignmentMode();
     }
 
+    function syncTaskWorkflowMode() {
+        const selected = document.querySelector('input[name="workflow_mode"]:checked')?.value || 'summary_report';
+
+        document.querySelectorAll('#taskWorkflowModes .pc06-radio-card').forEach((card) => {
+            const radio = card.querySelector('input[name="workflow_mode"]');
+            card.classList.toggle('active', !!radio?.checked);
+        });
+
+        document.querySelectorAll('[data-create-report-workflow-panel]').forEach((panel) => {
+            panel.hidden = selected !== 'summary_report';
+        });
+
+        const note = document.querySelector('[data-create-child-workflow-note]');
+        if (note) {
+            note.hidden = selected !== 'child_tasks';
+        }
+    }
+
     function syncManagerMode() {
         const selected = document.querySelector('input[name="manager_scope_mode"]:checked')?.value || 'none';
 
@@ -1687,6 +1724,9 @@
     document.querySelectorAll('input[name="assign_type"]').forEach((radio) => {
         radio.addEventListener('change', syncAssignmentMode);
     });
+    document.querySelectorAll('input[name="workflow_mode"]').forEach((radio) => {
+        radio.addEventListener('change', syncTaskWorkflowMode);
+    });
     document.querySelectorAll('input[name="assignee_role_ids"]').forEach((checkbox) => {
         checkbox.addEventListener('change', () => selectAssignmentMode('role'));
     });
@@ -1704,6 +1744,7 @@
     });
 
     toggleDeadlineFields();
+    syncTaskWorkflowMode();
     syncAssignmentMode();
     syncManagerMode();
     syncViewerMode();

@@ -330,6 +330,7 @@ def apply_migrations(app):
         ("task", "assignment_scope_json", "TEXT"),
         ("task", "viewer_scope_json", "TEXT"),
         ("task", "manager_scope_json", "TEXT"),
+        ("task", "workflow_mode", "VARCHAR(30) DEFAULT 'summary_report'"),
         ("task", "report_schema_json", "TEXT"),
         ("task", "linked_report_templates_json", "TEXT"),
         ("task", "created_at", "DATETIME"),

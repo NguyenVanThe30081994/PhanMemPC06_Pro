@@ -81,6 +81,70 @@
         display: grid;
         gap: 18px;
     }
+    .pc06-task-flow-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+    .pc06-task-flow-card {
+        width: 100%;
+        display: grid;
+        gap: 8px;
+        padding: 18px 20px;
+        border-radius: 22px;
+        border: 1px solid rgba(191, 219, 254, 0.72);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+        color: var(--text-main, #0f172a);
+        text-align: left;
+        transition: 0.2s ease;
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.05);
+    }
+    .pc06-task-flow-card:hover {
+        border-color: rgba(96, 165, 250, 0.9);
+        transform: translateY(-1px);
+    }
+    .pc06-task-flow-card.is-preferred {
+        border-color: rgba(37, 99, 235, 0.3);
+        background: linear-gradient(135deg, rgba(239, 246, 255, 0.98), rgba(219, 234, 254, 0.9));
+    }
+    .pc06-task-flow-card.is-active {
+        border-color: #2563eb;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #fff;
+        box-shadow: 0 18px 30px rgba(37, 99, 235, 0.22);
+    }
+    .pc06-task-flow-card small,
+    .pc06-task-flow-card span {
+        color: var(--text-muted, #64748b);
+    }
+    .pc06-task-flow-card.is-active small,
+    .pc06-task-flow-card.is-active span {
+        color: rgba(255, 255, 255, 0.82);
+    }
+    .pc06-task-flow-card strong {
+        font-size: 1.1rem;
+        line-height: 1.3;
+    }
+    .pc06-task-flow-card small {
+        font-size: 0.84rem;
+        line-height: 1.55;
+    }
+    .pc06-task-flow-chip {
+        justify-self: start;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.08);
+        color: #1d4ed8 !important;
+        font-size: 0.76rem;
+        font-weight: 700;
+    }
+    .pc06-task-flow-card.is-active .pc06-task-flow-chip {
+        background: rgba(255, 255, 255, 0.16);
+        color: #fff !important;
+    }
     .pc06-task-menu-shell {
         display: grid;
         padding: 16px 18px;
@@ -278,6 +342,9 @@
         }
         .pc06-task-menu-tab {
             flex: 0 0 auto;
+        }
+        .pc06-task-flow-grid {
+            grid-template-columns: minmax(0, 1fr);
         }
         .pc06-task-pane-grid.two-up {
             grid-template-columns: minmax(0, 1fr);
@@ -1657,11 +1724,6 @@
 {% set display_status = task.display_status or (user_assign.status if user_assign else (task.initial_status or 'Chưa tiếp nhận')) %}
 {% set status_key = display_status|lower %}
 {% set report_file_name = report_context.result_file if report_context is defined else '' %}
-{% set show_child_task_pane = can_manage_task_view or child_tasks %}
-{% set can_submit_report = user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
-{% set show_tracking_pane = can_observe_task_view %}
-{% set show_report_pane = limited_assignment_view or linked_report_templates or (not task_has_child_tasks and not linked_report_templates and structured_task_report_form and can_submit_report) or (not task_has_child_tasks and not linked_report_templates and da06_task_form and can_submit_report) or can_submit_report %}
-{% set show_assignment_pane = can_observe_task_view %}
 <div class="pc06-page-shell">
     <section class="pc06-hero-card detail-hero">
         <div class="pc06-detail-hero-minimal">
@@ -1723,6 +1785,38 @@
     </section>
 
     <section class="pc06-task-workspace" data-task-pane-container data-default-pane="overview">
+        {% if show_workflow_cards %}
+        <div class="pc06-task-flow-grid">
+            <button
+                type="button"
+                class="pc06-task-flow-card{% if task_workflow_mode == 'child_tasks' %} is-preferred{% endif %}"
+                data-task-pane-target="children"
+            >
+                <span class="pc06-task-flow-chip">Luồng 1</span>
+                <strong>Nhiệm vụ</strong>
+                <small>Chia công việc thành các nhiệm vụ con để đơn vị hoặc cán bộ cập nhật theo từng đầu mục riêng.</small>
+                <span>{{ child_task_stats.total if child_tasks else 'Chưa có nhiệm vụ nào' }}</span>
+            </button>
+            <button
+                type="button"
+                class="pc06-task-flow-card{% if task_workflow_mode == 'summary_report' %} is-preferred{% endif %}"
+                data-task-pane-target="report"
+            >
+                <span class="pc06-task-flow-chip">Luồng 2</span>
+                <strong>Tổng hợp (báo file)</strong>
+                <small>Giữ cách làm báo cáo file như trước, tổng hợp kết quả và minh chứng trực tiếp tại công việc.</small>
+                <span>
+                    {% if linked_report_templates %}
+                    {{ linked_report_templates|length }} biểu mẫu report liên kết
+                    {% elif task_allows_direct_report %}
+                    Đang dùng {{ task_workflow_label|lower }}
+                    {% else %}
+                    Chỉ mở khi chuyển sang luồng tổng hợp
+                    {% endif %}
+                </span>
+            </button>
+        </div>
+        {% endif %}
         <div class="pc06-task-menu-shell">
             <div class="pc06-task-menu" role="tablist" aria-label="Các khu vực chức năng của công việc">
                 <button type="button" class="btn pc06-task-menu-tab is-active" data-task-pane-target="overview" role="tab" aria-selected="true">
@@ -1744,7 +1838,7 @@
                 {% if show_report_pane %}
                 <button type="button" class="btn pc06-task-menu-tab" data-task-pane-target="report" role="tab" aria-selected="false">
                     <i class="fa-solid fa-file-lines"></i>
-                    Báo cáo
+                    Tổng hợp
                 </button>
                 {% endif %}
                 <button type="button" class="btn pc06-task-menu-tab" data-task-pane-target="discussion" role="tab" aria-selected="false">
@@ -1829,6 +1923,7 @@
                             <div class="pc06-info-item"><span>Lĩnh vực</span><strong>{{ task.category_display or 'Chưa phân lĩnh vực' }}</strong></div>
                             <div class="pc06-info-item"><span>Đơn vị nghiệp vụ</span><strong>{{ task.domain_display or 'Chưa phân đơn vị' }}</strong></div>
                             <div class="pc06-info-item"><span>Loại công việc</span><strong>{{ task.task_type_display or 'Công việc thường xuyên' }}</strong></div>
+                            <div class="pc06-info-item"><span>Luồng thực hiện</span><strong>{{ task_workflow_label }}</strong></div>
                             <div class="pc06-info-item"><span>Mức ưu tiên</span><strong>{{ task.priority_display or 'Trung bình' }}</strong></div>
                         </div>
                         <div class="pc06-info-list">
@@ -1857,13 +1952,27 @@
                         <div>
                             <h2>Nhiệm vụ</h2>
                         </div>
-                        {% if can_edit_task %}
+                        {% if can_edit_task and task_workflow_mode == 'child_tasks' %}
                         <button type="button" class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#createChildTaskModal">
                             <i class="fa-solid fa-plus"></i>
                             Tạo nhiệm vụ
                         </button>
+                        {% elif can_edit_task and not child_tasks %}
+                        <button type="button" class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#editTaskModal">
+                            <i class="fa-solid fa-shuffle"></i>
+                            Chuyển sang luồng nhiệm vụ
+                        </button>
                         {% endif %}
                     </div>
+                    {% if task_workflow_mode != 'child_tasks' and not child_tasks %}
+                    <div class="pc06-info-banner mb-3">
+                        Công việc này hiện đang đi theo luồng <strong>Tổng hợp</strong>. Nếu muốn giao theo từng đầu mục, hãy chuyển luồng trong phần sửa công việc rồi tạo các nhiệm vụ con tại đây.
+                    </div>
+                    {% elif task_workflow_mode == 'child_tasks' and not child_tasks %}
+                    <div class="pc06-detail-inline-note mb-3">
+                        Luồng hiện tại là <strong>Nhiệm vụ</strong>. Hãy tạo các đầu mục chi tiết để giao việc theo từng đơn vị hoặc vai trò.
+                    </div>
+                    {% endif %}
                     {% if child_tasks %}
                     <div class="pc06-report-groups">
                         {% for child in child_tasks %}
@@ -1904,7 +2013,7 @@
                     <div class="pc06-empty-state compact">
                         <div class="pc06-empty-icon"><i class="fa-solid fa-diagram-project"></i></div>
                         <h3>Chưa có nhiệm vụ</h3>
-                        <p>Tạo đầu mục mới.</p>
+                        <p>{% if task_workflow_mode == 'child_tasks' %}Tạo đầu mục mới.{% else %}Công việc này đang dùng luồng tổng hợp, nên chưa cần tách thành nhiệm vụ con.{% endif %}</p>
                     </div>
                     {% endif %}
                 </section>
@@ -2276,14 +2385,20 @@
                 <section class="pc06-panel pc06-detail-panel-compact">
                     <div class="pc06-panel-head">
                         <div>
-                            <h2>{{ 'Thông tin báo cáo' if limited_assignment_view else 'Thông tin công việc' }}</h2>
+                            <h2>{{ 'Thông tin tổng hợp' if limited_assignment_view else 'Tổng hợp (báo file)' }}</h2>
                         </div>
                     </div>
+                    {% if can_manage_task_view and not parent_task and task_workflow_mode != 'summary_report' %}
+                    <div class="pc06-info-banner mb-3">
+                        Công việc này đang ưu tiên luồng <strong>Nhiệm vụ</strong>. Khu vực này chỉ giữ vai trò tham chiếu; nếu cần quay lại cách báo cáo file như trước, hãy chuyển luồng trong phần sửa công việc.
+                    </div>
+                    {% endif %}
                     <div class="pc06-task-pane-grid two-up">
                         <div class="pc06-info-list">
                             <div class="pc06-info-item"><span>Lĩnh vực</span><strong>{{ task.category_display or 'Chưa phân lĩnh vực' }}</strong></div>
                             <div class="pc06-info-item"><span>Đơn vị nghiệp vụ</span><strong>{{ task.domain_display or 'Chưa phân đơn vị' }}</strong></div>
                             <div class="pc06-info-item"><span>Loại công việc</span><strong>{{ task.task_type_display or 'Công việc thường xuyên' }}</strong></div>
+                            <div class="pc06-info-item"><span>Luồng thực hiện</span><strong>{{ task_workflow_label }}</strong></div>
                             <div class="pc06-info-item"><span>Mức ưu tiên</span><strong>{{ task.priority_display or 'Trung bình' }}</strong></div>
                         </div>
                         <div class="pc06-info-list">
@@ -2335,7 +2450,7 @@
                     </div>
                 </section>
 
-                {% if not task_has_child_tasks and not linked_report_templates and structured_task_report_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+                {% if task_allows_direct_report and not task_has_child_tasks and not linked_report_templates and structured_task_report_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
                 <section class="pc06-panel pc06-detail-panel-compact">
                     <div class="pc06-panel-head">
                         <div>
@@ -2400,7 +2515,7 @@
                     </div>
                     {% endif %}
                 </section>
-                {% elif not task_has_child_tasks and not linked_report_templates and da06_task_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+                {% elif task_allows_direct_report and not task_has_child_tasks and not linked_report_templates and da06_task_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
                 <section class="pc06-panel pc06-detail-panel-compact">
                     <div class="pc06-panel-head">
                         <div>
@@ -2478,7 +2593,7 @@
                         </div>
                     </form>
                 </section>
-                {% elif linked_report_templates and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+                {% elif task_allows_direct_report and linked_report_templates and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
                 <section class="pc06-panel pc06-detail-panel-compact">
                     <div class="pc06-panel-head">
                         <div>
@@ -2489,7 +2604,7 @@
                         Công việc này lấy số liệu trực tiếp từ module report. Hãy mở biểu mẫu liên kết ở phía trên để nhập hoặc theo dõi báo cáo, không cần gửi thêm báo cáo số liệu tại công việc.
                     </div>
                 </section>
-                {% elif user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+                {% elif task_allows_direct_report and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
                 <section class="pc06-panel pc06-detail-panel-compact">
                     <div class="pc06-panel-head">
                         <div>
@@ -2516,6 +2631,27 @@
                             </button>
                         </div>
                     </form>
+                </section>
+                {% elif not task_allows_direct_report and can_manage_task_view and not parent_task %}
+                <section class="pc06-panel pc06-detail-panel-compact">
+                    <div class="pc06-panel-head">
+                        <div>
+                            <h2>Luồng tổng hợp chưa được bật</h2>
+                        </div>
+                    </div>
+                    <div class="pc06-empty-state compact">
+                        <div class="pc06-empty-icon"><i class="fa-solid fa-file-lines"></i></div>
+                        <h3>Task này chưa dùng báo cáo file</h3>
+                        <p>Muốn tổng hợp theo file như trước kia, hãy mở sửa công việc và chọn luồng <strong>Tổng hợp</strong>.</p>
+                        {% if can_edit_task %}
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#editTaskModal">
+                                <i class="fa-solid fa-shuffle"></i>
+                                Chuyển sang luồng tổng hợp
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
                 </section>
                 {% endif %}
             </div>
@@ -2698,6 +2834,24 @@
                             <textarea name="content" rows="6" class="form-control">{{ task.content or '' }}</textarea>
                         </div>
                         <div class="col-12">
+                            <label class="form-label fw-bold">Luồng thực hiện</label>
+                            <div class="pc06-segmented" id="editTaskWorkflowModes">
+                                <label class="pc06-radio-card {% if task_workflow_mode == 'child_tasks' %}active{% endif %}">
+                                    <input type="radio" name="workflow_mode" value="child_tasks" {% if task_workflow_mode == 'child_tasks' %}checked{% endif %}>
+                                    <span class="pc06-radio-title">Nhiệm vụ</span>
+                                    <small>Tách công việc thành các nhiệm vụ con để từng đầu mục tự theo dõi riêng.</small>
+                                </label>
+                                <label class="pc06-radio-card {% if task_workflow_mode == 'summary_report' %}active{% endif %}">
+                                    <input type="radio" name="workflow_mode" value="summary_report" {% if task_workflow_mode != 'child_tasks' %}checked{% endif %}>
+                                    <span class="pc06-radio-title">Tổng hợp (báo file)</span>
+                                    <small>Giữ cách làm báo cáo file như trước, tổng hợp ngay tại công việc.</small>
+                                </label>
+                            </div>
+                            <div class="form-text mt-2" data-edit-child-workflow-note {% if task_workflow_mode == 'summary_report' %}hidden{% endif %}>
+                                Khi chọn luồng Nhiệm vụ, phần cấu hình báo cáo file bên dưới chỉ còn là dữ liệu dự phòng và sẽ không được dùng làm luồng chính.
+                            </div>
+                        </div>
+                        <div class="col-12">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="refresh_assignments" value="1" id="refreshAssignmentsDesktop">
                                 <label class="form-check-label fw-bold" for="refreshAssignmentsDesktop">Cập nhật lại luồng giao việc</label>
@@ -2827,7 +2981,7 @@
                             </select>
                             <div class="form-text">Giữ `Ctrl` hoặc `Cmd` để chọn nhiều tài khoản xem việc.</div>
                         </div>
-                        <div class="col-12">
+                        <div class="col-12" data-edit-report-workflow-panel {% if task_workflow_mode == 'child_tasks' %}hidden{% endif %}>
                             <div class="pc06-form-section mb-0" data-task-report-builder data-report-schema-seed='{{ task_report_schema_seed|tojson|forceescape }}'>
                                 <div class="d-flex justify-content-between align-items-start gap-3">
                                     <div>
@@ -3003,7 +3157,7 @@
                                 </template>
                             </div>
                         </div>
-                        <div class="col-12">
+                        <div class="col-12" data-edit-report-workflow-panel {% if task_workflow_mode == 'child_tasks' %}hidden{% endif %}>
                             <label class="form-label fw-bold">Biểu mẫu liên kết từ report</label>
                             <select name="linked_report_template_ids" class="form-select" size="6" multiple>
                                 {% for template in report_templates %}
@@ -3890,6 +4044,21 @@
         });
     }
 
+    function syncEditWorkflowMode() {
+        const selected = document.querySelector('#editTaskModal input[name="workflow_mode"]:checked')?.value || 'summary_report';
+        document.querySelectorAll('#editTaskWorkflowModes .pc06-radio-card').forEach((card) => {
+            const radio = card.querySelector('input[name="workflow_mode"]');
+            card.classList.toggle('active', !!radio?.checked);
+        });
+        document.querySelectorAll('[data-edit-report-workflow-panel]').forEach((panel) => {
+            panel.hidden = selected !== 'summary_report';
+        });
+        const note = document.querySelector('[data-edit-child-workflow-note]');
+        if (note) {
+            note.hidden = selected !== 'child_tasks';
+        }
+    }
+
     document.querySelectorAll('#editTaskModal input[name="assign_type"]').forEach((radio) => {
         radio.addEventListener('change', syncEditAssignmentMode);
         radio.addEventListener('change', markEditAssignmentsDirty);
@@ -3941,6 +4110,9 @@
     document.querySelectorAll('#createChildTaskModal input[name="child_report_kind"]').forEach((radio) => {
         radio.addEventListener('change', syncChildReportKind);
     });
+    document.querySelectorAll('#editTaskModal input[name="workflow_mode"]').forEach((radio) => {
+        radio.addEventListener('change', syncEditWorkflowMode);
+    });
     document.querySelectorAll('#createChildTaskModal input[name="assignee_role_ids"]').forEach((checkbox) => {
         checkbox.addEventListener('change', () => selectChildAssignmentMode('role'));
     });
@@ -3961,6 +4133,7 @@
     syncEditAssignmentMode();
     syncEditManagerMode();
     syncEditViewerMode();
+    syncEditWorkflowMode();
     syncChildAssignmentMode();
     syncChildReportKind();
 </script>
