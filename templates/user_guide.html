@@ -1,0 +1,477 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+    .guide-hero {
+        position: relative;
+        overflow: hidden;
+        padding: 32px;
+        border-radius: 30px;
+        background:
+            radial-gradient(circle at top right, rgba(255, 255, 255, 0.18), transparent 24%),
+            linear-gradient(135deg, #0f172a 0%, #1346a7 48%, #2563eb 100%);
+        color: #fff;
+        box-shadow: 0 28px 60px rgba(15, 23, 42, 0.18);
+        margin-bottom: 24px;
+    }
+
+    .guide-hero::after {
+        content: "";
+        position: absolute;
+        inset: auto -60px -80px auto;
+        width: 220px;
+        height: 220px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .guide-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .guide-hero h1 {
+        margin: 18px 0 12px;
+        font-size: 2rem;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+    }
+
+    .guide-hero p {
+        margin: 0;
+        max-width: 760px;
+        color: rgba(255, 255, 255, 0.86);
+        font-size: 1rem;
+        line-height: 1.7;
+    }
+
+    .guide-quick-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .guide-quick-links a {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 16px;
+        border-radius: 16px;
+        text-decoration: none;
+        font-weight: 700;
+    }
+
+    .guide-quick-links .primary-link {
+        color: #0f172a;
+        background: #fff;
+    }
+
+    .guide-quick-links .secondary-link {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .guide-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+        margin-bottom: 24px;
+    }
+
+    .guide-card,
+    .guide-section,
+    .guide-tip-box {
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 26px;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+    }
+
+    .guide-card {
+        padding: 22px;
+        display: grid;
+        gap: 12px;
+    }
+
+    .guide-card-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(37, 99, 235, 0.1);
+        color: #1d4ed8;
+        font-size: 1.1rem;
+    }
+
+    .guide-card h2,
+    .guide-section h2,
+    .guide-tip-box h2 {
+        margin: 0;
+        font-size: 1.04rem;
+        font-weight: 800;
+        color: var(--text-main, #0f172a);
+    }
+
+    .guide-card p,
+    .guide-section p,
+    .guide-tip-box p {
+        margin: 0;
+        color: var(--text-muted, #64748b);
+        line-height: 1.7;
+    }
+
+    .guide-section {
+        padding: 24px;
+        margin-bottom: 18px;
+    }
+
+    .guide-section-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+        flex-wrap: wrap;
+    }
+
+    .guide-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.08);
+        color: #1d4ed8;
+        font-size: 0.8rem;
+        font-weight: 800;
+    }
+
+    .guide-steps {
+        display: grid;
+        gap: 14px;
+    }
+
+    .guide-step {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr);
+        gap: 14px;
+        align-items: start;
+        padding: 18px;
+        border-radius: 20px;
+        background: rgba(248, 250, 252, 0.9);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    .guide-step-number {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #fff;
+        font-weight: 900;
+        box-shadow: 0 14px 24px rgba(37, 99, 235, 0.18);
+    }
+
+    .guide-step h3 {
+        margin: 0 0 8px;
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--text-main, #0f172a);
+    }
+
+    .guide-step ul {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--text-muted, #64748b);
+        line-height: 1.75;
+    }
+
+    .guide-section-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .guide-tip-box {
+        padding: 24px;
+        margin-top: 24px;
+    }
+
+    .guide-tip-list {
+        display: grid;
+        gap: 12px;
+        margin-top: 16px;
+    }
+
+    .guide-tip-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        color: var(--text-muted, #64748b);
+        line-height: 1.7;
+    }
+
+    .guide-tip-item i {
+        color: #1d4ed8;
+        padding-top: 4px;
+    }
+
+    [data-theme="dark"] .guide-card,
+    [data-theme="dark"] .guide-section,
+    [data-theme="dark"] .guide-tip-box {
+        background: rgba(30, 41, 59, 0.92);
+        border-color: rgba(148, 163, 184, 0.14);
+    }
+
+    [data-theme="dark"] .guide-step {
+        background: rgba(15, 23, 42, 0.54);
+        border-color: rgba(148, 163, 184, 0.12);
+    }
+
+    @media (max-width: 1200px) {
+        .guide-grid,
+        .guide-section-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 992px) {
+        .guide-grid,
+        .guide-section-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .guide-hero {
+            padding: 24px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="guide-hero">
+    <div class="guide-kicker"><i class="fa-solid fa-circle-info"></i>Hướng dẫn sử dụng</div>
+    <h1>Quy trình thao tác nhanh trên hệ thống PC06</h1>
+    <p>Trang này tổng hợp các bước sử dụng phần mềm theo đúng các phân hệ đang có trong hệ thống. Một số mục chỉ hiển thị khi tài khoản của bạn đã được phân quyền.</p>
+    <div class="guide-quick-links">
+        <a href="/admin" class="primary-link"><i class="fa-solid fa-house"></i>Về tổng quan</a>
+        {% if can_module('task', 'view') %}
+        <a href="/tasks" class="secondary-link"><i class="fa-solid fa-list-check"></i>Mở công việc</a>
+        {% endif %}
+        {% if can_module('news', 'view') %}
+        <a href="/news" class="secondary-link"><i class="fa-solid fa-newspaper"></i>Mở bảng tin</a>
+        {% endif %}
+        {% if can_module('lib', 'view') %}
+        <a href="/library" class="secondary-link"><i class="fa-solid fa-book-open"></i>Mở thư viện</a>
+        {% endif %}
+    </div>
+</section>
+
+<section class="guide-grid">
+    <article class="guide-card">
+        <span class="guide-card-icon"><i class="fa-solid fa-right-to-bracket"></i></span>
+        <h2>1. Bắt đầu phiên làm việc</h2>
+        <p>Đăng nhập bằng tài khoản được cấp, kiểm tra vai trò hiển thị ở góc màn hình và đổi mật khẩu ngay nếu đây là lần đầu sử dụng.</p>
+    </article>
+    <article class="guide-card">
+        <span class="guide-card-icon"><i class="fa-solid fa-compass"></i></span>
+        <h2>2. Chọn đúng phân hệ</h2>
+        <p>Dùng thanh điều hướng phía trên hoặc menu bên trái để đi tới công việc, bảng tin, thư viện, báo cáo và các tiện ích hỗ trợ khác.</p>
+    </article>
+    <article class="guide-card">
+        <span class="guide-card-icon"><i class="fa-solid fa-bell"></i></span>
+        <h2>3. Theo dõi thông báo</h2>
+        <p>Biểu tượng chuông giúp bạn xem nhanh bản tin mới, tài liệu mới và các cập nhật liên quan đến nhiệm vụ đang được giao.</p>
+    </article>
+</section>
+
+<section class="guide-section">
+    <div class="guide-section-head">
+        <div>
+            <h2>Lộ trình sử dụng hằng ngày</h2>
+            <p>Thứ tự thao tác đề xuất để giảm sót việc và bảo đảm cập nhật đủ thông tin trong ngày làm việc.</p>
+        </div>
+        <span class="guide-badge"><i class="fa-solid fa-clock"></i>5 bước cơ bản</span>
+    </div>
+    <div class="guide-steps">
+        <article class="guide-step">
+            <span class="guide-step-number">01</span>
+            <div>
+                <h3>Kiểm tra tổng quan và thông báo</h3>
+                <ul>
+                    <li>Mở trang tổng quan để xem số liệu chính và trạng thái công việc.</li>
+                    <li>Nhấn biểu tượng chuông để đọc các thông báo mới phát sinh.</li>
+                </ul>
+            </div>
+        </article>
+        <article class="guide-step">
+            <span class="guide-step-number">02</span>
+            <div>
+                <h3>Xử lý công việc được giao</h3>
+                <ul>
+                    <li>Vào mục Công việc để xem danh sách nhiệm vụ, hạn xử lý và đơn vị phụ trách.</li>
+                    <li>Cập nhật tiến độ, bổ sung tệp đính kèm hoặc phản hồi theo yêu cầu của lãnh đạo.</li>
+                </ul>
+            </div>
+        </article>
+        <article class="guide-step">
+            <span class="guide-step-number">03</span>
+            <div>
+                <h3>Cập nhật bảng tin và tài liệu</h3>
+                <ul>
+                    <li>Đọc các bản tin điều hành trong ngày để nắm thông báo mới.</li>
+                    <li>Tra cứu hoặc tải tài liệu nghiệp vụ từ Thư viện khi cần biểu mẫu, quy định hoặc văn bản liên quan.</li>
+                </ul>
+            </div>
+        </article>
+        <article class="guide-step">
+            <span class="guide-step-number">04</span>
+            <div>
+                <h3>Theo dõi chỉ số và báo cáo</h3>
+                <ul>
+                    <li>Kiểm tra Xếp hạng để theo dõi kết quả thi đua hoặc chỉ tiêu đơn vị.</li>
+                    <li>Vào Trung tâm báo cáo khi cần nhập liệu, xem chu kỳ báo cáo hoặc đối soát số liệu.</li>
+                </ul>
+            </div>
+        </article>
+        <article class="guide-step">
+            <span class="guide-step-number">05</span>
+            <div>
+                <h3>Kết thúc phiên làm việc an toàn</h3>
+                <ul>
+                    <li>Rà soát lại các biểu mẫu đã lưu, các tệp đã tải lên và trạng thái xử lý cuối ngày.</li>
+                    <li>Đăng xuất khỏi hệ thống khi không tiếp tục sử dụng để bảo đảm an toàn tài khoản.</li>
+                </ul>
+            </div>
+        </article>
+    </div>
+</section>
+
+<section class="guide-section">
+    <div class="guide-section-head">
+        <div>
+            <h2>Hướng dẫn theo từng phân hệ</h2>
+            <p>Các mục dưới đây mô tả thao tác chính theo đúng quyền và tính năng hiện có trong phần mềm.</p>
+        </div>
+        <span class="guide-badge"><i class="fa-solid fa-layer-group"></i>Phân hệ nghiệp vụ</span>
+    </div>
+    <div class="guide-section-grid">
+        {% if can_module('task', 'view') %}
+        <article class="guide-step">
+            <span class="guide-step-number"><i class="fa-solid fa-list-check"></i></span>
+            <div>
+                <h3>Công việc</h3>
+                <ul>
+                    <li>Mở danh sách nhiệm vụ để xem công việc được giao theo thời gian và trạng thái.</li>
+                    <li>Dùng bộ lọc hoặc tìm kiếm để thu hẹp nhanh theo đơn vị, người giao hoặc hạn xử lý.</li>
+                    <li>Khi cập nhật công việc, cần ghi rõ kết quả xử lý và đính kèm tài liệu nếu có.</li>
+                </ul>
+            </div>
+        </article>
+        {% endif %}
+
+        {% if can_module('news', 'view') %}
+        <article class="guide-step">
+            <span class="guide-step-number"><i class="fa-solid fa-newspaper"></i></span>
+            <div>
+                <h3>Bảng tin</h3>
+                <ul>
+                    <li>Xem tin theo lĩnh vực để nắm chỉ đạo điều hành, thông báo hoặc nội dung tuyên truyền.</li>
+                    <li>Người có quyền xử lý có thể đăng bản tin mới, chọn đúng danh mục và tệp đính kèm.</li>
+                    <li>Nên nhập tiêu đề ngắn gọn, nội dung rõ ràng để các đơn vị khác dễ tra cứu.</li>
+                </ul>
+            </div>
+        </article>
+        {% endif %}
+
+        {% if can_module('lib', 'view') %}
+        <article class="guide-step">
+            <span class="guide-step-number"><i class="fa-solid fa-book-open"></i></span>
+            <div>
+                <h3>Thư viện tài liệu</h3>
+                <ul>
+                    <li>Tìm tài liệu theo tên hoặc nhóm lĩnh vực để lấy biểu mẫu, hướng dẫn và văn bản cần dùng.</li>
+                    <li>Người có quyền tải lên cần đặt tên tài liệu nhất quán, nhập mô tả ngắn và gắn đúng danh mục.</li>
+                    <li>Phần thư viện cũng hỗ trợ tham chiếu nhanh tới nguồn văn bản quy phạm pháp luật bên ngoài.</li>
+                </ul>
+            </div>
+        </article>
+        {% endif %}
+
+        {% if can_module('contact', 'view') %}
+        <article class="guide-step">
+            <span class="guide-step-number"><i class="fa-solid fa-address-book"></i></span>
+            <div>
+                <h3>Danh bạ đơn vị</h3>
+                <ul>
+                    <li>Tra cứu đầu mối liên hệ theo đơn vị, chức vụ hoặc số điện thoại.</li>
+                    <li>Khi nhập mới hoặc import Excel, cần chuẩn hóa họ tên, đơn vị và số điện thoại để tránh trùng lặp.</li>
+                    <li>Nếu dữ liệu thay đổi, nên cập nhật ngay để bảo đảm liên lạc chính xác.</li>
+                </ul>
+            </div>
+        </article>
+        {% endif %}
+
+        <article class="guide-step">
+            <span class="guide-step-number"><i class="fa-solid fa-ranking-star"></i></span>
+            <div>
+                <h3>Xếp hạng</h3>
+                <ul>
+                    <li>Theo dõi kết quả chấm điểm, chỉ số thi đua hoặc trạng thái hoàn thành theo đơn vị.</li>
+                    <li>So sánh vị trí giữa các đơn vị để xác định nội dung cần cải thiện trong kỳ tiếp theo.</li>
+                </ul>
+            </div>
+        </article>
+
+        {% if can_access_report_center() %}
+        <article class="guide-step">
+            <span class="guide-step-number"><i class="fa-solid fa-chart-line"></i></span>
+            <div>
+                <h3>Báo cáo</h3>
+                <ul>
+                    <li>Vào Trung tâm báo cáo để xem chu kỳ, nhập số liệu, kiểm tra lịch sử và xuất biểu mẫu.</li>
+                    <li>Trước khi chốt báo cáo, cần kiểm tra đơn vị, ngày báo cáo và dữ liệu cộng dồn nếu hệ thống yêu cầu.</li>
+                </ul>
+            </div>
+        </article>
+        {% endif %}
+
+        <article class="guide-step">
+            <span class="guide-step-number"><i class="fa-solid fa-screwdriver-wrench"></i></span>
+            <div>
+                <h3>Tiện ích hỗ trợ</h3>
+                <ul>
+                    <li>`QR & Link` dùng để quản lý liên kết nhanh, mã QR và các tài nguyên chia sẻ nội bộ.</li>
+                    <li>`Trợ lý AI` hỗ trợ soạn thảo, tóm tắt hoặc gợi ý nội dung theo cấu hình quản trị hiện hành.</li>
+                </ul>
+            </div>
+        </article>
+    </div>
+</section>
+
+<section class="guide-tip-box">
+    <h2>Lưu ý khi sử dụng</h2>
+    <p>Các khuyến nghị dưới đây giúp hạn chế sai sót thao tác và bảo vệ dữ liệu trong quá trình sử dụng phần mềm.</p>
+    <div class="guide-tip-list">
+        <div class="guide-tip-item"><i class="fa-solid fa-shield-halved"></i><span>Không chia sẻ tài khoản và nên đổi mật khẩu định kỳ tại mục `Đổi mật khẩu`.</span></div>
+        <div class="guide-tip-item"><i class="fa-solid fa-file-circle-check"></i><span>Trước khi tải tệp lên bảng tin hoặc thư viện, kiểm tra lại tên file và nội dung để tránh nhầm phiên bản.</span></div>
+        <div class="guide-tip-item"><i class="fa-solid fa-filter-circle-xmark"></i><span>Nếu không thấy một chức năng, nhiều khả năng tài khoản của bạn chưa được cấp quyền tương ứng.</span></div>
+        <div class="guide-tip-item"><i class="fa-solid fa-right-from-bracket"></i><span>Sau khi hoàn tất công việc trên máy dùng chung, cần đăng xuất khỏi hệ thống.</span></div>
+    </div>
+</section>
+{% endblock %}

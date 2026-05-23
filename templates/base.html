@@ -780,6 +780,8 @@
                     class="nav-link-top {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">Danh
                     bạ</a>{% endif %}
 
+                <a href="/guide" class="nav-link-top {% if request.endpoint == 'portal_bp.user_guide' %}active{% endif %}">Hướng dẫn</a>
+
                 <a href="{{ url_for('shortlink_bp.manage_links') }}" class="nav-link-top {% if request.path.startswith('/links') %}active{% endif %}">QR & Link</a>
 
                 <a href="/ai" class="nav-link-top {% if request.path.startswith('/ai') %}active{% endif %}">Trợ lý AI</a>
@@ -999,6 +1001,11 @@
                         <span>Danh bạ đơn vị</span>
                     </a>
                     {% endif %}
+                    <a href="/guide"
+                        class="mobile-nav-link {% if request.endpoint == 'portal_bp.user_guide' %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-circle-info"></i></span>
+                        <span>Hướng dẫn sử dụng</span>
+                    </a>
                     <a href="{{ url_for('shortlink_bp.manage_links') }}"
                         class="mobile-nav-link {% if request.endpoint == 'shortlink_bp.manage_links' %}active{% endif %}">
                         <span class="mobile-nav-icon"><i class="fa-solid fa-qrcode"></i></span>

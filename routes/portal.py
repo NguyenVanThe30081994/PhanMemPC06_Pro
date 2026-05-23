@@ -658,6 +658,12 @@ def news_edit(nid):
     flash('Đã cập nhật bản tin.', 'success')
     return redirect(url_for('portal_bp.news'))
 
+@portal_bp.route('/guide')
+def user_guide():
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    return render_template('user_guide.html', title='Hướng dẫn sử dụng phần mềm')
+
 @portal_bp.route('/notifications')
 def notifications():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))
