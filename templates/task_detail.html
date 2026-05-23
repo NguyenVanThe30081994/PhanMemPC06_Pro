@@ -81,6 +81,70 @@
         display: grid;
         gap: 18px;
     }
+    .pc06-task-flow-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+    .pc06-task-flow-card {
+        width: 100%;
+        display: grid;
+        gap: 8px;
+        padding: 18px 20px;
+        border-radius: 22px;
+        border: 1px solid rgba(191, 219, 254, 0.72);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+        color: var(--text-main, #0f172a);
+        text-align: left;
+        transition: 0.2s ease;
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.05);
+    }
+    .pc06-task-flow-card:hover {
+        border-color: rgba(96, 165, 250, 0.9);
+        transform: translateY(-1px);
+    }
+    .pc06-task-flow-card.is-preferred {
+        border-color: rgba(37, 99, 235, 0.3);
+        background: linear-gradient(135deg, rgba(239, 246, 255, 0.98), rgba(219, 234, 254, 0.9));
+    }
+    .pc06-task-flow-card.is-active {
+        border-color: #2563eb;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #fff;
+        box-shadow: 0 18px 30px rgba(37, 99, 235, 0.22);
+    }
+    .pc06-task-flow-card small,
+    .pc06-task-flow-card span {
+        color: var(--text-muted, #64748b);
+    }
+    .pc06-task-flow-card.is-active small,
+    .pc06-task-flow-card.is-active span {
+        color: rgba(255, 255, 255, 0.82);
+    }
+    .pc06-task-flow-card strong {
+        font-size: 1.1rem;
+        line-height: 1.3;
+    }
+    .pc06-task-flow-card small {
+        font-size: 0.84rem;
+        line-height: 1.55;
+    }
+    .pc06-task-flow-chip {
+        justify-self: start;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.08);
+        color: #1d4ed8 !important;
+        font-size: 0.76rem;
+        font-weight: 700;
+    }
+    .pc06-task-flow-card.is-active .pc06-task-flow-chip {
+        background: rgba(255, 255, 255, 0.16);
+        color: #fff !important;
+    }
     .pc06-task-menu-shell {
         display: grid;
         padding: 16px 18px;
@@ -278,6 +342,9 @@
         }
         .pc06-task-menu-tab {
             flex: 0 0 auto;
+        }
+        .pc06-task-flow-grid {
+            grid-template-columns: minmax(0, 1fr);
         }
         .pc06-task-pane-grid.two-up {
             grid-template-columns: minmax(0, 1fr);
@@ -1657,11 +1724,6 @@
 {% set display_status = task.display_status or (user_assign.status if user_assign else (task.initial_status or 'Chưa tiếp nhận')) %}
 {% set status_key = display_status|lower %}
 {% set report_file_name = report_context.result_file if report_context is defined else '' %}
-{% set show_child_task_pane = can_manage_task_view or child_tasks %}
-{% set can_submit_report = user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
-{% set show_tracking_pane = can_observe_task_view %}
-{% set show_report_pane = limited_assignment_view or linked_report_templates or (not task_has_child_tasks and not linked_report_templates and structured_task_report_form and can_submit_report) or (not task_has_child_tasks and not linked_report_templates and da06_task_form and can_submit_report) or can_submit_report %}
-{% set show_assignment_pane = can_observe_task_view %}
 <div class="pc06-page-shell">
     <section class="pc06-hero-card detail-hero">
         <div class="pc06-detail-hero-minimal">
@@ -1723,6 +1785,32 @@
     </section>
 
     <section class="pc06-task-workspace" data-task-pane-container data-default-pane="overview">
+        {% if show_workflow_cards %}
+        <div class="pc06-task-flow-grid">
+            <button
+                type="button"
+                class="pc06-task-flow-card"
+                data-task-pane-target="children"
+            >
+                <span class="pc06-task-flow-chip">Luồng 1</span>
+                <strong>Nhiệm vụ</strong>
+                <small>Tạo các nhiệm vụ con, giao theo từng đầu mục và liên kết với chức năng báo cáo khi cần.</small>
+                <span>{{ child_task_stats.total if child_tasks else 'Chưa có nhiệm vụ nào' }}</span>
+            </button>
+            <button
+                type="button"
+                class="pc06-task-flow-card"
+                data-task-pane-target="report"
+            >
+                <span class="pc06-task-flow-chip">Luồng 2</span>
+                <strong>Tổng hợp (báo file)</strong>
+                <small>Giao việc trực tiếp cho đơn vị hoặc cán bộ, nhận báo cáo nội dung và file minh chứng như trước.</small>
+                <span>
+                    {{ unit_report_stats.reported_units if unit_report_stats is defined else 0 }}/{{ unit_report_stats.total_units if unit_report_stats is defined else 0 }} đơn vị đã báo cáo
+                </span>
+            </button>
+        </div>
+        {% endif %}
         <div class="pc06-task-menu-shell">
             <div class="pc06-task-menu" role="tablist" aria-label="Các khu vực chức năng của công việc">
                 <button type="button" class="btn pc06-task-menu-tab is-active" data-task-pane-target="overview" role="tab" aria-selected="true">
@@ -1744,7 +1832,7 @@
                 {% if show_report_pane %}
                 <button type="button" class="btn pc06-task-menu-tab" data-task-pane-target="report" role="tab" aria-selected="false">
                     <i class="fa-solid fa-file-lines"></i>
-                    Báo cáo
+                    Tổng hợp
                 </button>
                 {% endif %}
                 <button type="button" class="btn pc06-task-menu-tab" data-task-pane-target="discussion" role="tab" aria-selected="false">
@@ -1862,8 +1950,54 @@
                             <i class="fa-solid fa-plus"></i>
                             Tạo nhiệm vụ
                         </button>
+                        {% if not parent_task %}
+                        <button type="button" class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#taskReportLinksModal">
+                            <i class="fa-solid fa-link"></i>
+                            Liên kết báo cáo
+                        </button>
+                        {% endif %}
                         {% endif %}
                     </div>
+                    <div class="pc06-detail-inline-note mb-3">
+                        Khu này dùng để tách công việc thành các nhiệm vụ con theo từng đầu mục riêng và liên kết với báo cáo khi cần.
+                    </div>
+                    {% if linked_report_templates %}
+                    <div class="pc06-report-groups mb-3">
+                        {% for item in linked_report_templates %}
+                        <article class="pc06-report-item">
+                            <div class="pc06-report-item-summary simple">
+                                <div class="pc06-report-item-copy simple">
+                                    <strong>{{ item.template_name }}</strong>
+                                    <div class="pc06-report-item-note mt-1">{{ item.report_type_name }} · {{ item.professional_unit_display }}</div>
+                                </div>
+                                <div class="pc06-report-item-actions simple">
+                                    {% if item.workspace_url %}
+                                    <a href="{{ item.workspace_url }}" class="btn btn-bdhvs light">Mở báo cáo</a>
+                                    {% endif %}
+                                    {% if item.manage_url %}
+                                    <a href="{{ item.manage_url }}" class="pc06-report-download-icon" title="Quản lý đợt báo cáo">
+                                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="pc06-report-item-body">
+                                <div class="pc06-report-item-meta">
+                                    <span><i class="fa-regular fa-chart-bar"></i>{{ item.submitted_units }}/{{ item.total_units }} đơn vị đã nộp</span>
+                                    <span><i class="fa-regular fa-clock"></i>{{ item.due_at.strftime('%d/%m/%Y %H:%M') if item.due_at else 'Chưa đặt hạn' }}</span>
+                                    <span><i class="fa-regular fa-circle-check"></i>{{ item.status_label }}</span>
+                                </div>
+                            </div>
+                        </article>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="pc06-empty-state compact mb-3">
+                        <div class="pc06-empty-icon"><i class="fa-solid fa-link-slash"></i></div>
+                        <h3>Chưa liên kết báo cáo</h3>
+                        <p>Quản trị có thể liên kết biểu mẫu report vào khu Nhiệm vụ để lấy tiến độ và số liệu theo đầu mục.</p>
+                    </div>
+                    {% endif %}
                     {% if child_tasks %}
                     <div class="pc06-report-groups">
                         {% for child in child_tasks %}
@@ -2213,8 +2347,8 @@
                 <section class="pc06-panel pc06-detail-panel-compact">
                     <div class="pc06-panel-head">
                         <div>
-                            <h2>Tổng hợp từ report</h2>
-                            <div class="pc06-detail-inline-note">Công việc này đang nhận số liệu và tiến độ trực tiếp từ các biểu mẫu đã liên kết bên module report.</div>
+                            <h2>Theo dõi báo cáo liên kết</h2>
+                            <div class="pc06-detail-inline-note">Khu Nhiệm vụ đang nhận số liệu và tiến độ trực tiếp từ các biểu mẫu đã liên kết bên module report.</div>
                         </div>
                     </div>
                     <div class="pc06-report-groups">
@@ -2276,8 +2410,11 @@
                 <section class="pc06-panel pc06-detail-panel-compact">
                     <div class="pc06-panel-head">
                         <div>
-                            <h2>{{ 'Thông tin báo cáo' if limited_assignment_view else 'Thông tin công việc' }}</h2>
+                            <h2>{{ 'Thông tin tổng hợp' if limited_assignment_view else 'Tổng hợp (báo file)' }}</h2>
                         </div>
+                    </div>
+                    <div class="pc06-detail-inline-note mb-3">
+                        Khu này dùng để giao việc trực tiếp cho đơn vị hoặc cán bộ, nhận báo cáo nội dung và tệp minh chứng ngay tại công việc, không liên kết với module report.
                     </div>
                     <div class="pc06-task-pane-grid two-up">
                         <div class="pc06-info-list">
@@ -2299,14 +2436,6 @@
                                 <div class="pc06-detail-inline-note mt-2">{{ viewer_scope_summary.value_label }}</div>
                             </div>
                             {% if limited_assignment_view %}
-                            {% if linked_report_templates %}
-                            <div class="pc06-info-item"><span>Hình thức báo cáo</span><strong>Theo biểu mẫu report liên kết</strong></div>
-                            <div class="pc06-info-item">
-                                <span>Biểu mẫu đang theo dõi</span>
-                                <strong>{{ linked_report_templates|length }} biểu mẫu</strong>
-                                <div class="pc06-detail-inline-note mt-2">Số liệu và tiến độ của công việc này được lấy trực tiếp từ module report.</div>
-                            </div>
-                            {% else %}
                             <div class="pc06-info-item"><span>Trạng thái báo cáo</span><strong>{{ report_context.status }}</strong></div>
                             <div class="pc06-info-item">
                                 <span>{{ report_context.attachment_label }} đã nộp</span>
@@ -2330,12 +2459,11 @@
                             {% endif %}
                             <div class="pc06-info-item"><span>Lần báo cáo gần nhất</span><strong>{{ report_context.latest_report_at.strftime('%d/%m/%Y %H:%M') if report_context.latest_report_at else 'Chưa gửi báo cáo' }}</strong></div>
                             {% endif %}
-                            {% endif %}
                         </div>
                     </div>
                 </section>
 
-                {% if not task_has_child_tasks and not linked_report_templates and structured_task_report_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+                {% if structured_task_report_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
                 <section class="pc06-panel pc06-detail-panel-compact">
                     <div class="pc06-panel-head">
                         <div>
@@ -2400,7 +2528,7 @@
                     </div>
                     {% endif %}
                 </section>
-                {% elif not task_has_child_tasks and not linked_report_templates and da06_task_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
+                {% elif da06_task_form and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
                 <section class="pc06-panel pc06-detail-panel-compact">
                     <div class="pc06-panel-head">
                         <div>
@@ -2477,17 +2605,6 @@
                             </button>
                         </div>
                     </form>
-                </section>
-                {% elif linked_report_templates and user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
-                <section class="pc06-panel pc06-detail-panel-compact">
-                    <div class="pc06-panel-head">
-                        <div>
-                            <h2>Báo cáo biểu mẫu</h2>
-                        </div>
-                    </div>
-                    <div class="pc06-info-banner">
-                        Công việc này lấy số liệu trực tiếp từ module report. Hãy mở biểu mẫu liên kết ở phía trên để nhập hoặc theo dõi báo cáo, không cần gửi thêm báo cáo số liệu tại công việc.
-                    </div>
                 </section>
                 {% elif user_assign and user_assign.status not in ['Chưa tiếp nhận', 'Chưa bắt đầu'] %}
                 <section class="pc06-panel pc06-detail-panel-compact">
@@ -2831,8 +2948,8 @@
                             <div class="pc06-form-section mb-0" data-task-report-builder data-report-schema-seed='{{ task_report_schema_seed|tojson|forceescape }}'>
                                 <div class="d-flex justify-content-between align-items-start gap-3">
                                     <div>
-                                        <label class="form-label fw-bold mb-1">Biểu mẫu báo cáo của công việc</label>
-                                        <div class="form-text">Điều chỉnh phần báo cáo lời, số liệu và minh chứng ngay trên công việc đang sửa.</div>
+                                        <label class="form-label fw-bold mb-1">Biểu mẫu báo cáo tổng hợp</label>
+                                        <div class="form-text">Điều chỉnh phần báo cáo lời, số liệu và minh chứng cho khu Tổng hợp của công việc.</div>
                                     </div>
                                     <div class="form-check form-switch mt-1">
                                         <input class="form-check-input" type="checkbox" name="report_schema_enabled" value="1" data-report-toggle>
@@ -3004,15 +3121,6 @@
                             </div>
                         </div>
                         <div class="col-12">
-                            <label class="form-label fw-bold">Biểu mẫu liên kết từ report</label>
-                            <select name="linked_report_template_ids" class="form-select" size="6" multiple>
-                                {% for template in report_templates %}
-                                <option value="{{ template.id }}" {% if template.id in linked_report_template_ids %}selected{% endif %}>{{ template.name }} - {{ template.report_type_display }}{% if template.professional_unit_display %} - {{ template.professional_unit_display }}{% endif %}</option>
-                                {% endfor %}
-                            </select>
-                            <div class="form-text">Các biểu mẫu được chọn sẽ tổng hợp tiến độ và số liệu từ module report về công việc này.</div>
-                        </div>
-                        <div class="col-12">
                             <label class="form-label fw-bold">Tệp đính kèm mới</label>
                             <input type="file" name="task_file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar">
                             {% if task.file_path %}
@@ -3032,6 +3140,46 @@
         </div>
     </div>
 </div>
+
+{% if can_edit_task and not parent_task %}
+<div class="modal fade" id="taskReportLinksModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 pc06-modal-shell">
+            <form action="{{ url_for('tasks_bp.save_task_report_links', tid=task.id) }}" method="POST">
+                <div class="modal-header border-0 pc06-modal-head">
+                    <div>
+                        <div class="pc06-page-kicker mb-2">
+                            <i class="fa-solid fa-link"></i>
+                            Nhiệm vụ
+                        </div>
+                        <h5 class="modal-title fw-bold mb-1">Liên kết báo cáo</h5>
+                        <p class="mb-0 text-white-50">Chọn các biểu mẫu report dùng để theo dõi và tổng hợp cho khu Nhiệm vụ.</p>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="pc06-form-section mb-0">
+                        <label class="form-label fw-bold">Biểu mẫu liên kết từ report</label>
+                        <select name="linked_report_template_ids" class="form-select" size="8" multiple>
+                            {% for template in report_templates %}
+                            <option value="{{ template.id }}" {% if template.id in linked_report_template_ids %}selected{% endif %}>{{ template.name }} - {{ template.report_type_display }}{% if template.professional_unit_display %} - {{ template.professional_unit_display }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Các biểu mẫu được chọn sẽ phục vụ khu Nhiệm vụ, không dùng cho luồng Tổng hợp (báo file).</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 px-4 pb-4">
+                    <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-bdhvs primary">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        Lưu liên kết
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div class="modal fade" id="createChildTaskModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl pc06-task-modal-dialog">

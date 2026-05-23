@@ -158,6 +158,7 @@ class Task(db.Model):
     assignment_scope_json = db.Column(db.Text)
     viewer_scope_json = db.Column(db.Text)
     manager_scope_json = db.Column(db.Text)
+    workflow_mode = db.Column(db.String(30), default='summary_report')
     report_schema_json = db.Column(db.Text)
     linked_report_templates_json = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.now)

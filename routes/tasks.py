@@ -70,6 +70,12 @@ TASK_REPORT_ALLOWED_FIELD_TYPES = {"number", "text", "textarea"}
 TASK_REPORT_ALLOWED_TARGET_TYPES = {"all", "role", "user"}
 TASK_SCOPE_ALLOWED_MODES = {"none", "role", "user"}
 TASK_OUTLINE_ALLOWED_EXTENSIONS = {".docx", ".txt"}
+TASK_WORKFLOW_ALLOWED_MODES = {"child_tasks", "summary_report"}
+TASK_WORKFLOW_DEFAULT_MODE = "summary_report"
+TASK_WORKFLOW_LABELS = {
+    "child_tasks": "Nhiệm vụ",
+    "summary_report": "Tổng hợp",
+}
 DEFAULT_TASK_REPORT_SCHEMA = {
     "enabled": False,
     "narrative": {
@@ -148,6 +154,51 @@ DA06_SO_NGANH_RULES = [
     {"unit_markers": ("toa an",), "label": "Lĩnh vực Tòa án", "dvc_titles": ["Thu, nộp tạm ứng án phí, lệ phí tòa án"]},
     {"unit_markers": ("y te",), "label": "Lĩnh vực Y tế", "dvc_titles": []},
 ]
+
+
+def _normalize_task_workflow_mode(value):
+    mode = str(value or "").strip().lower()
+    if mode in TASK_WORKFLOW_ALLOWED_MODES:
+        return mode
+    return ""
+
+
+def _requested_task_workflow_mode(form, fallback=TASK_WORKFLOW_DEFAULT_MODE):
+    requested = _normalize_task_workflow_mode(form.get("workflow_mode"))
+    if requested:
+        return requested
+    normalized_fallback = _normalize_task_workflow_mode(fallback)
+    return normalized_fallback or TASK_WORKFLOW_DEFAULT_MODE
+
+
+def _task_workflow_mode(task, has_child_tasks=None):
+    if not task:
+        return TASK_WORKFLOW_DEFAULT_MODE
+    cached = getattr(task, "_task_workflow_mode_cache", None)
+    if cached:
+        return cached
+
+    explicit = _normalize_task_workflow_mode(getattr(task, "workflow_mode", None))
+    if explicit:
+        setattr(task, "_task_workflow_mode_cache", explicit)
+        return explicit
+
+    if getattr(task, "parent_task_id", None):
+        setattr(task, "_task_workflow_mode_cache", TASK_WORKFLOW_DEFAULT_MODE)
+        return TASK_WORKFLOW_DEFAULT_MODE
+
+    if has_child_tasks is None:
+        has_child_tasks = bool(
+            Task.query.with_entities(Task.id).filter(Task.parent_task_id == task.id).first()
+        )
+    inferred = "child_tasks" if has_child_tasks else TASK_WORKFLOW_DEFAULT_MODE
+    setattr(task, "_task_workflow_mode_cache", inferred)
+    return inferred
+
+
+def _task_workflow_label(mode):
+    normalized = _normalize_task_workflow_mode(mode)
+    return TASK_WORKFLOW_LABELS.get(normalized, TASK_WORKFLOW_LABELS[TASK_WORKFLOW_DEFAULT_MODE])
 
 
 def _task_domain_options():
@@ -3782,12 +3833,17 @@ def tasks():
             flash("Cần chọn lĩnh vực công việc.", "danger")
             return redirect(url_for("tasks_bp.tasks"))
 
-        try:
-            report_schema = _parse_task_report_schema_from_request(request.form)
-        except ValueError as exc:
-            flash(str(exc), "danger")
-            return redirect(url_for("tasks_bp.tasks"))
-        linked_report_template_ids = _requested_linked_report_template_ids(request.form)
+        workflow_mode = _requested_task_workflow_mode(request.form)
+        linked_report_template_ids = []
+        if workflow_mode == "child_tasks":
+            report_schema = None
+            linked_report_template_ids = _requested_linked_report_template_ids(request.form)
+        else:
+            try:
+                report_schema = _parse_task_report_schema_from_request(request.form)
+            except ValueError as exc:
+                flash(str(exc), "danger")
+                return redirect(url_for("tasks_bp.tasks"))
 
         assignees, error_message = _resolve_assignees(request.form, domain)
         if error_message:
@@ -3820,6 +3876,7 @@ def tasks():
             priority=priority,
             task_type=task_type,
             initial_status="Chưa tiếp nhận",
+            workflow_mode=workflow_mode,
             report_schema_json=json.dumps(report_schema, ensure_ascii=False) if report_schema else None,
             linked_report_templates_json=json.dumps(linked_report_template_ids, ensure_ascii=False) if linked_report_template_ids else None,
         )
@@ -3960,6 +4017,17 @@ def tasks():
 
     for task in all_tasks:
         is_executor_view = _task_user_is_executor(task, session["uid"])
+        inferred_has_children = bool(getattr(task, "_visible_child_tasks_for_user", None))
+        if not inferred_has_children:
+            inferred_has_children = bool(
+                next(
+                    (candidate for candidate in all_candidate_tasks if getattr(candidate, "parent_task_id", None) == task.id),
+                    None,
+                )
+            )
+        workflow_mode = _task_workflow_mode(task, has_child_tasks=inferred_has_children)
+        setattr(task, "workflow_mode", workflow_mode)
+        setattr(task, "workflow_mode_display", _task_workflow_label(workflow_mode))
         if not can_view_all_tasks and getattr(task, "_visible_child_tasks_for_user", None) is not None and not is_executor_view:
             task_metrics = {
                 "display_status": getattr(task, "display_status", "Chưa tiếp nhận"),
@@ -4291,6 +4359,15 @@ def task_detail(tid):
     da06_task_form = _build_da06_task_form(task, user_assign, current_user)
     if _is_da06_month_task(task) and can_observe_task_view:
         da06_management_view = _build_da06_management_view(assigns)
+    task_workflow_mode = _task_workflow_mode(task, has_child_tasks=task_has_child_tasks)
+    task_workflow_label = _task_workflow_label(task_workflow_mode)
+    setattr(task, "workflow_mode", task_workflow_mode)
+    setattr(task, "workflow_mode_display", task_workflow_label)
+    show_child_task_pane = bool(child_tasks) or (can_manage_task_view and not parent_task)
+    show_report_pane = bool(can_manage_task_view or limited_assignment_view or can_submit_report)
+    show_tracking_pane = can_observe_task_view
+    show_assignment_pane = can_observe_task_view
+    show_workflow_cards = can_observe_task_view and not parent_task and show_child_task_pane and show_report_pane
 
     if request.method == "POST":
         if not (can_manage_task_view or user_assign):
@@ -4356,6 +4433,13 @@ def task_detail(tid):
         can_manage_task_view=can_manage_task_view,
         can_observe_task_view=can_observe_task_view,
         limited_assignment_view=limited_assignment_view,
+        show_child_task_pane=show_child_task_pane,
+        show_tracking_pane=show_tracking_pane,
+        show_report_pane=show_report_pane,
+        show_assignment_pane=show_assignment_pane,
+        show_workflow_cards=show_workflow_cards,
+        task_workflow_mode=task_workflow_mode,
+        task_workflow_label=task_workflow_label,
         report_context=report_context,
         parent_task=parent_task,
         child_tasks=child_tasks,
@@ -4777,6 +4861,7 @@ def edit_task(tid):
         flash("Tiêu đề công việc không được để trống.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
+    workflow_mode = _task_workflow_mode(task)
     if "report_schema_enabled" in request.form or "report_schema_json" in request.form:
         try:
             report_schema = _parse_task_report_schema_from_request(request.form)
@@ -4785,6 +4870,7 @@ def edit_task(tid):
             return redirect(url_for("tasks_bp.task_detail", tid=tid))
     else:
         report_schema = _load_task_report_schema(task)
+    linked_report_template_ids = _load_linked_report_template_ids(task)
 
     requested_assign_type = request.form.get("assign_type", _infer_assignment_context(task).get("mode") or "unit")
     requested_role_ids = _requested_role_ids(request.form)
@@ -4795,7 +4881,6 @@ def edit_task(tid):
     requested_viewer_mode = request.form.get("viewer_scope_mode", _infer_viewer_context(task).get("mode") or "none")
     requested_viewer_role_ids = _requested_viewer_role_ids(request.form)
     requested_viewer_user_ids = _requested_viewer_user_ids(request.form)
-    linked_report_template_ids = _requested_linked_report_template_ids(request.form)
     assignees = [user for _assignment, user in _task_assignment_rows(task, ensure_bridge=True)]
     refreshed_assignee_count = None
     new_assignees_to_notify = []
@@ -4853,11 +4938,13 @@ def edit_task(tid):
     task.priority = priority
     task.task_type = task_type
     task.deadline = _parse_deadline(request.form)
+    task.workflow_mode = workflow_mode
     task.report_schema_json = json.dumps(report_schema, ensure_ascii=False) if report_schema else None
     task.linked_report_templates_json = (
         json.dumps(linked_report_template_ids, ensure_ascii=False) if linked_report_template_ids else None
     )
     setattr(task, "_task_report_schema_cache", report_schema)
+    setattr(task, "_task_workflow_mode_cache", workflow_mode)
     _store_manager_scope(
         task,
         requested_manager_mode,
@@ -4924,6 +5011,33 @@ def edit_task(tid):
         success_message = f"Đã cập nhật công việc và đồng bộ {refreshed_assignee_count} người được giao."
     flash(success_message, "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+@tasks_bp.route("/tasks/<int:tid>/report-links", methods=["POST"])
+def save_task_report_links(tid):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    if not _can_edit_task(task):
+        flash("Bạn không có quyền cập nhật liên kết báo cáo của công việc này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    linked_report_template_ids = _requested_linked_report_template_ids(request.form)
+    task.linked_report_templates_json = (
+        json.dumps(linked_report_template_ids, ensure_ascii=False) if linked_report_template_ids else None
+    )
+    setattr(task, "_linked_report_template_ids_cache", linked_report_template_ids)
+    _sync_task_runtime_models(task, linked_report_template_ids=linked_report_template_ids)
+    db.session.commit()
+
+    flash("Đã cập nhật liên kết báo cáo cho khu Nhiệm vụ.", "success")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid, _anchor="child-task-section"))
 
 
 @tasks_bp.route("/tasks/<int:tid>/children/create", methods=["POST"])
@@ -4999,6 +5113,7 @@ def create_child_task(tid):
             task_type=parent_task.task_type,
             initial_status="Chưa tiếp nhận",
             parent_task_id=parent_task.id,
+            workflow_mode="summary_report",
             report_schema_json=json.dumps(child_report_schema, ensure_ascii=False) if child_report_schema else None,
         )
         _store_assignment_scope(
@@ -5013,6 +5128,8 @@ def create_child_task(tid):
         _sync_task_assignments(child_task, assignees)
         _sync_task_runtime_models(child_task, assignees=assignees)
         created_tasks.append(child_task)
+    parent_task.workflow_mode = "child_tasks"
+    setattr(parent_task, "_task_workflow_mode_cache", "child_tasks")
     db.session.commit()
 
     for user in assignees:
