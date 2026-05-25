@@ -1,0 +1,347 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}Hướng dẫn sử dụng PC06{% endblock %}
+
+{% block head %}
+<style>
+    .mobile-guide-hero {
+        background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%);
+        color: #fff;
+        padding: 22px 20px;
+        border-radius: 24px;
+        margin-bottom: 16px;
+        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+    }
+
+    .mobile-guide-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        font-size: 0.78rem;
+        font-weight: 800;
+    }
+
+    .mobile-guide-hero h1 {
+        margin: 12px 0 8px;
+        font-size: 1.5rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .mobile-guide-hero p {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.84);
+        font-size: 0.92rem;
+        line-height: 1.65;
+    }
+
+    .mobile-guide-card,
+    .mobile-guide-section {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+    }
+
+    .mobile-guide-card {
+        padding: 16px;
+        margin-bottom: 14px;
+    }
+
+    .mobile-guide-card h2,
+    .mobile-guide-section h2 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--text-main);
+    }
+
+    .mobile-guide-card p,
+    .mobile-guide-section p {
+        margin: 8px 0 0;
+        color: var(--text-muted);
+        line-height: 1.65;
+        font-size: 0.92rem;
+    }
+
+    .mobile-guide-stat {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #dbeafe;
+        color: #1d4ed8;
+        margin-bottom: 12px;
+        font-size: 1rem;
+    }
+
+    .mobile-guide-section {
+        padding: 18px 16px;
+        margin-bottom: 14px;
+    }
+
+    .mobile-guide-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 11px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.1);
+        color: #1d4ed8;
+        font-size: 0.75rem;
+        font-weight: 800;
+        margin-bottom: 12px;
+    }
+
+    .mobile-guide-step {
+        display: grid;
+        grid-template-columns: 38px minmax(0, 1fr);
+        gap: 12px;
+        padding: 14px 0;
+        border-top: 1px solid var(--border);
+    }
+
+    .mobile-guide-step:first-of-type {
+        border-top: 0;
+        padding-top: 0;
+    }
+
+    .mobile-guide-step:last-of-type {
+        padding-bottom: 0;
+    }
+
+    .mobile-guide-step-number {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #fff;
+        font-weight: 900;
+        font-size: 0.84rem;
+    }
+
+    .mobile-guide-step h3 {
+        margin: 0 0 6px;
+        font-size: 0.96rem;
+        font-weight: 800;
+        color: var(--text-main);
+    }
+
+    .mobile-guide-step ul {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--text-muted);
+        line-height: 1.7;
+        font-size: 0.9rem;
+    }
+
+    .mobile-guide-links {
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        padding-bottom: 2px;
+        scrollbar-width: none;
+        margin-top: 14px;
+    }
+
+    .mobile-guide-links::-webkit-scrollbar {
+        display: none;
+    }
+
+    .mobile-guide-links a {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+        padding: 11px 14px;
+        border-radius: 999px;
+        text-decoration: none;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.14);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .mobile-guide-note {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .mobile-guide-note div {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        line-height: 1.65;
+    }
+
+    .mobile-guide-note i {
+        color: #1d4ed8;
+        padding-top: 3px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="mobile-guide-hero">
+    <div class="mobile-guide-kicker"><i class="fa-solid fa-circle-info"></i>Hướng dẫn sử dụng</div>
+    <h1>Sử dụng phần mềm PC06</h1>
+    <p>Tổng hợp nhanh các bước thao tác trên điện thoại. Một số mục có thể ẩn nếu tài khoản chưa được cấp quyền.</p>
+    <div class="mobile-guide-links">
+        <a href="/admin"><i class="fa-solid fa-house"></i>Tổng quan</a>
+        {% if can_module('task', 'view') %}
+        <a href="/tasks"><i class="fa-solid fa-list-check"></i>Công việc</a>
+        {% endif %}
+        {% if can_module('news', 'view') %}
+        <a href="/news"><i class="fa-solid fa-newspaper"></i>Bảng tin</a>
+        {% endif %}
+    </div>
+</section>
+
+<article class="mobile-guide-card">
+    <div class="mobile-guide-stat"><i class="fa-solid fa-bolt"></i></div>
+    <h2>Bắt đầu nhanh</h2>
+    <p>Đăng nhập, kiểm tra thông báo, mở đúng phân hệ cần xử lý và đăng xuất sau khi hoàn tất công việc trên thiết bị dùng chung.</p>
+</article>
+
+<section class="mobile-guide-section">
+    <div class="mobile-guide-badge"><i class="fa-solid fa-clock"></i>Quy trình đề xuất</div>
+    <h2>5 bước thao tác trong ngày</h2>
+    <p>Theo thứ tự này để giảm bỏ sót thông tin và nhiệm vụ.</p>
+    <div class="mobile-guide-step">
+        <span class="mobile-guide-step-number">01</span>
+        <div>
+            <h3>Xem tổng quan</h3>
+            <ul>
+                <li>Mở trang chủ để kiểm tra trạng thái chung.</li>
+                <li>Nhấn chuông để đọc thông báo mới.</li>
+            </ul>
+        </div>
+    </div>
+    <div class="mobile-guide-step">
+        <span class="mobile-guide-step-number">02</span>
+        <div>
+            <h3>Xử lý công việc</h3>
+            <ul>
+                <li>Vào mục Công việc để xem nhiệm vụ và hạn xử lý.</li>
+                <li>Cập nhật tiến độ đầy đủ sau khi xử lý.</li>
+            </ul>
+        </div>
+    </div>
+    <div class="mobile-guide-step">
+        <span class="mobile-guide-step-number">03</span>
+        <div>
+            <h3>Đọc bảng tin và tra cứu tài liệu</h3>
+            <ul>
+                <li>Mở Bảng tin để xem chỉ đạo, thông báo mới.</li>
+                <li>Mở Thư viện để tải biểu mẫu, văn bản cần dùng.</li>
+            </ul>
+        </div>
+    </div>
+    <div class="mobile-guide-step">
+        <span class="mobile-guide-step-number">04</span>
+        <div>
+            <h3>Theo dõi chỉ số</h3>
+            <ul>
+                <li>Kiểm tra Xếp hạng để theo dõi kết quả đơn vị.</li>
+                <li>Nếu được cấp quyền, vào Báo cáo để nhập và kiểm tra số liệu.</li>
+            </ul>
+        </div>
+    </div>
+    <div class="mobile-guide-step">
+        <span class="mobile-guide-step-number">05</span>
+        <div>
+            <h3>Kết thúc phiên</h3>
+            <ul>
+                <li>Kiểm tra lại dữ liệu đã lưu hoặc tệp đã tải lên.</li>
+                <li>Đăng xuất khỏi hệ thống khi không dùng nữa.</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section class="mobile-guide-section">
+    <div class="mobile-guide-badge"><i class="fa-solid fa-layer-group"></i>Phân hệ chính</div>
+    <h2>Thao tác theo chức năng</h2>
+    <p>Dùng đúng phân hệ để thao tác nhanh và tránh nhập sai dữ liệu.</p>
+    {% if can_module('task', 'view') %}
+    <div class="mobile-guide-step">
+        <span class="mobile-guide-step-number"><i class="fa-solid fa-list-check"></i></span>
+        <div>
+            <h3>Công việc</h3>
+            <ul>
+                <li>Xem danh sách nhiệm vụ theo trạng thái và thời hạn.</li>
+                <li>Bổ sung kết quả xử lý và tệp đính kèm khi cần.</li>
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+    {% if can_module('news', 'view') %}
+    <div class="mobile-guide-step">
+        <span class="mobile-guide-step-number"><i class="fa-solid fa-newspaper"></i></span>
+        <div>
+            <h3>Bảng tin</h3>
+            <ul>
+                <li>Đọc tin điều hành, thông báo nội bộ theo lĩnh vực.</li>
+                <li>Nếu có quyền, đăng tin mới và chọn đúng danh mục.</li>
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+    {% if can_module('lib', 'view') %}
+    <div class="mobile-guide-step">
+        <span class="mobile-guide-step-number"><i class="fa-solid fa-book-open"></i></span>
+        <div>
+            <h3>Thư viện</h3>
+            <ul>
+                <li>Tìm tài liệu theo tên hoặc lĩnh vực.</li>
+                <li>Tải tài liệu hoặc văn bản cần sử dụng ngay trên điện thoại.</li>
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+    {% if can_module('contact', 'view') %}
+    <div class="mobile-guide-step">
+        <span class="mobile-guide-step-number"><i class="fa-solid fa-address-book"></i></span>
+        <div>
+            <h3>Danh bạ</h3>
+            <ul>
+                <li>Tra cứu đầu mối liên hệ theo đơn vị hoặc số điện thoại.</li>
+                <li>Cập nhật lại thông tin khi có thay đổi.</li>
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+    <div class="mobile-guide-step">
+        <span class="mobile-guide-step-number"><i class="fa-solid fa-screwdriver-wrench"></i></span>
+        <div>
+            <h3>Tiện ích</h3>
+            <ul>
+                <li>`QR & Link` giúp mở nhanh liên kết và mã QR nội bộ.</li>
+                <li>`Trợ lý AI` hỗ trợ tóm tắt, soạn thảo và gợi ý nội dung.</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section class="mobile-guide-section">
+    <div class="mobile-guide-badge"><i class="fa-solid fa-shield-halved"></i>Lưu ý</div>
+    <h2>Bảo đảm an toàn tài khoản</h2>
+    <p>Áp dụng các lưu ý này để tránh lộ thông tin hoặc thao tác nhầm.</p>
+    <div class="mobile-guide-note">
+        <div><i class="fa-solid fa-key"></i><span>Đổi mật khẩu định kỳ và không chia sẻ tài khoản cho người khác.</span></div>
+        <div><i class="fa-solid fa-file-circle-check"></i><span>Kiểm tra kỹ tên tài liệu và nội dung trước khi tải file lên hệ thống.</span></div>
+        <div><i class="fa-solid fa-lock"></i><span>Nếu không thấy một tính năng, tài khoản của bạn có thể chưa được cấp quyền tương ứng.</span></div>
+    </div>
+</section>
+{% endblock %}
