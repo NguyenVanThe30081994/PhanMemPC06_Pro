@@ -1,0 +1,1255 @@
+{% extends "base.html" %}
+
+{% block title %}{{ task.title }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <a href="{{ url_for('tasks_bp.tasks') }}" class="btn btn-light btn-sm">Quay lại</a>
+                <span class="badge bg-primary-subtle text-primary">{{ task.task_mode_label }}</span>
+            </div>
+            <h1 class="mb-1">{{ task.title }}</h1>
+            <div class="text-muted">{{ task.task_mode_description }}</div>
+            <div class="small text-muted mt-2">
+                Người giao: <strong>{{ task.author_name }}</strong>
+                {% if task.deadline %} · Hạn: <strong>{{ task.deadline.strftime('%d/%m/%Y') }}</strong>{% endif %}
+            </div>
+        </div>
+        {% if can_delete_task %}
+        <form action="{{ url_for('tasks_bp.delete_task', tid=task.id) }}" method="POST" onsubmit="return confirm('Xóa công việc này?')">
+            <button class="btn btn-outline-danger" type="submit">Xóa công việc</button>
+        </form>
+        {% endif %}
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="small text-muted">Tổng lượt giao</div>
+                    <div class="fs-4 fw-bold">{{ summary.total_assignments }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="small text-muted">Đang xử lý</div>
+                    <div class="fs-4 fw-bold">{{ summary.in_progress_assignments }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="small text-muted">Đã nộp</div>
+                    <div class="fs-4 fw-bold">{{ summary.submitted_assignments }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="small text-muted">Tiến độ</div>
+                    <div class="fs-4 fw-bold">{{ summary.progress_percent }}%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if task.content or task.file_path %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            {% if task.content %}
+            <h2 class="h5 mb-3">Mô tả</h2>
+            <div style="white-space: pre-wrap;">{{ task.content }}</div>
+            {% endif %}
+            {% if task.file_path %}
+            <div class="{% if task.content %}mt-3 pt-3 border-top{% endif %}">
+                <div class="small text-muted mb-2">Tài liệu giao việc</div>
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('dl_file', fn=task.file_path) }}">Tải tài liệu đính kèm</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row g-4 align-items-start">
+        <div class="col-xl-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h2 class="h5 mb-3">Menu chức năng</h2>
+                    <div class="nav flex-column nav-pills gap-2" id="taskWorkspaceTabs" role="tablist" aria-orientation="vertical">
+                        {% if task.task_mode == 'OUTLINE' %}
+                            {% if can_manage_task_view %}
+                            <button class="nav-link text-start active" id="tab-outline-create" data-bs-toggle="pill" data-bs-target="#pane-outline-create" type="button" role="tab">Gán nội dung báo cáo</button>
+                            {% endif %}
+                            {% for group in outline_groups %}
+                            <button class="nav-link text-start {% if not can_manage_task_view and loop.first %}active{% endif %}" id="tab-outline-group-{{ loop.index }}" data-bs-toggle="pill" data-bs-target="#pane-outline-group-{{ loop.index }}" type="button" role="tab">
+                                <div class="fw-semibold">{{ group.label }}</div>
+                                <div class="small opacity-75">{{ group.mode_label }}</div>
+                            </button>
+                            {% endfor %}
+                        {% elif task.task_mode == 'FILE' %}
+                            <button class="nav-link text-start active" id="tab-file-list" data-bs-toggle="pill" data-bs-target="#pane-file-list" type="button" role="tab">Danh sách người nhận</button>
+                            {% if can_submit and my_file_assignment %}
+                            <button class="nav-link text-start" id="tab-file-submit" data-bs-toggle="pill" data-bs-target="#pane-file-submit" type="button" role="tab">Nộp báo cáo</button>
+                            {% endif %}
+                        {% else %}
+                            <button class="nav-link text-start active" id="tab-form-list" data-bs-toggle="pill" data-bs-target="#pane-form-list" type="button" role="tab">Dữ liệu biểu mẫu</button>
+                            {% if can_submit and my_form_assignment %}
+                            <button class="nav-link text-start" id="tab-form-submit" data-bs-toggle="pill" data-bs-target="#pane-form-submit" type="button" role="tab">Nhập biểu mẫu</button>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-9">
+            <div class="tab-content">
+                {% if task.task_mode == 'OUTLINE' %}
+                    {% if can_manage_task_view %}
+                    <div class="tab-pane fade show active" id="pane-outline-create" role="tabpanel" aria-labelledby="tab-outline-create">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body">
+                                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+                                    <div>
+                                        <h2 class="h4 mb-1">Gán nội dung báo cáo</h2>
+                                        <div class="text-muted">Tách riêng 2 hướng để dễ dùng: cấu hình thủ công hoặc tải file đề cương rồi chỉnh lại trước khi tạo.</div>
+                                    </div>
+                                </div>
+                                <div class="d-flex flex-wrap gap-2 mb-4">
+                                    <button class="btn btn-primary" type="button" data-outline-mode-btn="manual">Cấu hình thủ công</button>
+                                    <button class="btn btn-outline-primary" type="button" data-outline-mode-btn="import">Tải file đề cương và cấu hình</button>
+                                </div>
+
+                                <div id="outlineModeManualSection">
+                                    <form action="{{ url_for('tasks_bp.create_child_task', tid=task.id) }}" method="POST" enctype="multipart/form-data">
+                                        <div class="row g-3">
+                                            <div class="col-lg-4">
+                                                <label class="form-label fw-bold">Kiểu phân công</label>
+                                                <select class="form-select" name="assign_type" id="outlineAssignType">
+                                                    <option value="unit">Theo đơn vị</option>
+                                                    <option value="role">Theo vai trò</option>
+                                                    <option value="user">Theo cá nhân</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-lg-8" data-outline-assign="unit">
+                                                <label class="form-label fw-bold">Đơn vị nhận việc</label>
+                                                <div class="position-relative">
+                                                    <button class="form-select text-start" type="button" id="outlineUnitPickerToggle" aria-expanded="false">Chọn đơn vị nhận việc</button>
+                                                    <div class="border rounded-3 bg-white shadow-sm mt-2 d-none position-absolute start-0 end-0 z-3" id="outlineUnitPickerMenu">
+                                                        <div class="d-flex justify-content-between align-items-center gap-2 px-3 py-2 border-bottom bg-light">
+                                                            <div class="small fw-semibold text-muted">Có thể chọn nhiều đơn vị</div>
+                                                            <div class="d-flex gap-2">
+                                                                <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="outlineUnitSelectAllBtn">Tất cả</button>
+                                                                <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="outlineUnitClearAllBtn">Bỏ chọn</button>
+                                                            </div>
+                                                        </div>
+                                                        <div style="max-height: 280px; overflow:auto;">
+                                                            {% for item in pro_units %}
+                                                            <label class="d-flex align-items-center gap-3 px-3 py-3 border-top">
+                                                                <input type="checkbox" name="child_domains" value="{{ item.value }}" class="mt-1" data-outline-unit-checkbox data-unit-label="{{ item.name }}" {% if task.domain == item.value %}checked{% endif %}>
+                                                                <span class="fw-medium">{{ item.name }}</span>
+                                                            </label>
+                                                            {% endfor %}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-lg-8 d-none" data-outline-assign="role">
+                                                <label class="form-label fw-bold">Vai trò nhận việc</label>
+                                                <div class="position-relative">
+                                                    <button class="form-select text-start" type="button" id="outlineRolePickerToggle" aria-expanded="false">Chọn vai trò nhận việc</button>
+                                                    <div class="border rounded-3 bg-white shadow-sm mt-2 d-none position-absolute start-0 end-0 z-3" id="outlineRolePickerMenu">
+                                                        <div class="d-flex justify-content-between align-items-center gap-2 px-3 py-2 border-bottom bg-light">
+                                                            <div class="small fw-semibold text-muted">Có thể chọn nhiều vai trò</div>
+                                                            <div class="d-flex gap-2">
+                                                                <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="outlineRoleSelectAllBtn">Tất cả</button>
+                                                                <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="outlineRoleClearAllBtn">Bỏ chọn</button>
+                                                            </div>
+                                                        </div>
+                                                        <div style="max-height: 280px; overflow:auto;">
+                                                            {% for role in roles %}
+                                                            <label class="d-flex align-items-center gap-3 px-3 py-3 border-top">
+                                                                <input type="checkbox" name="assignee_role_ids" value="{{ role.id }}" class="mt-1" data-outline-role-checkbox data-role-label="{{ role.name }}">
+                                                                <span class="fw-medium">{{ role.name }}</span>
+                                                            </label>
+                                                            {% endfor %}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-12 d-none" data-outline-assign="user">
+                                                <label class="form-label fw-bold">Cán bộ nhận việc</label>
+                                                <div class="position-relative">
+                                                    <button class="form-select text-start" type="button" id="outlineUserPickerToggle" aria-expanded="false">
+                                                        Chọn cán bộ nhận việc
+                                                    </button>
+                                                    <div class="border rounded-3 bg-white shadow-sm mt-2 d-none position-absolute start-0 end-0 z-3" id="outlineUserPickerMenu">
+                                                        <div class="d-flex justify-content-between align-items-center gap-2 px-3 py-2 border-bottom bg-light">
+                                                            <div class="small fw-semibold text-muted">Tích chọn cán bộ cần giao việc</div>
+                                                            <div class="d-flex gap-2">
+                                                                <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="outlineUserSelectAllBtn">Tất cả</button>
+                                                                <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="outlineUserClearAllBtn">Bỏ chọn</button>
+                                                            </div>
+                                                        </div>
+                                                        <div style="max-height: 320px; overflow:auto;">
+                                                            {% for user in users %}
+                                                            <label class="d-flex align-items-start gap-3 px-3 py-3 border-top">
+                                                                <input type="checkbox" name="target_users" value="{{ user.id }}" class="mt-1" data-outline-user-checkbox data-user-label="{{ user.fullname }}">
+                                                                <div class="flex-grow-1">
+                                                                    <div class="fw-medium">{{ user.fullname }}</div>
+                                                                    <div class="small text-muted">{% if user.unit_area_display %}{{ user.unit_area_display }}{% else %}Chưa có đơn vị{% endif %}</div>
+                                                                </div>
+                                                            </label>
+                                                            {% endfor %}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label fw-bold">Danh sách nội dung báo cáo</label>
+                                                <div class="border rounded-3 overflow-hidden">
+                                                    <div class="bg-light px-3 py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                                        <div>
+                                                            <div class="fw-semibold">Mỗi dòng là một nội dung báo cáo</div>
+                                                            <div class="small text-muted">Nhập trực tiếp nội dung và chọn luôn hình thức báo cáo trên chính dòng đó.</div>
+                                                        </div>
+                                                        <button class="btn btn-outline-primary btn-sm" type="button" id="addOutlineRowBtn">Thêm dòng</button>
+                                                    </div>
+                                                    <div class="d-none d-lg-block px-3 py-2 border-bottom small fw-semibold text-muted">
+                                                        <div class="row g-2">
+                                                            <div class="col-lg-6">Nội dung báo cáo</div>
+                                                            <div class="col-lg-3">Hình thức báo cáo</div>
+                                                            <div class="col-lg-2">Bắt buộc file</div>
+                                                            <div class="col-lg-1">Xóa</div>
+                                                        </div>
+                                                    </div>
+                                                    <div id="outlineDirectRows" class="bg-white"></div>
+                                                    <div id="outlineDirectEmpty" class="px-3 py-4 text-muted d-none">Chưa có nội dung nào. Bấm "Thêm dòng" để bắt đầu.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-primary mt-4" type="submit">Tạo đầu mục thủ công</button>
+                                    </form>
+                                </div>
+
+                                <div id="outlineModeImportSection" class="d-none">
+                                    <div class="border rounded-3 p-3 bg-light-subtle mb-4">
+                                        <div class="fw-semibold mb-1">Bước 1: Nạp file đề cương</div>
+                                        <div class="small text-muted mb-3">Hệ thống chỉ lấy danh sách nội dung từ file, sau đó bạn sửa lại, chọn hình thức báo cáo và gán người nhận trước khi tạo thật.</div>
+                                        <form action="{{ url_for('tasks_bp.preview_outline_import', tid=task.id) }}" method="POST" enctype="multipart/form-data">
+                                            <div class="row g-3 align-items-end">
+                                                <div class="col-lg-5">
+                                                    <label class="form-label fw-bold">File đề cương</label>
+                                                    <input class="form-control" type="file" name="outline_file" accept=".docx,.txt" required>
+                                                </div>
+                                                <div class="col-lg-4">
+                                                    <label class="form-label fw-bold">Kiểu mặc định khi nạp file</label>
+                                                    <select class="form-select" name="child_report_kind">
+                                                        <option value="narrative">Báo cáo lời</option>
+                                                        <option value="number">Báo cáo số</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-lg-2">
+                                                    <div class="form-check mb-2">
+                                                        <input class="form-check-input" type="checkbox" name="child_attachment_required" value="1" id="importAttachmentRequired">
+                                                        <label class="form-check-label" for="importAttachmentRequired">Bắt buộc file</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-1">
+                                                    <button class="btn btn-outline-primary w-100" type="submit">Nạp</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+
+                                    {% if outline_import_preview_rows %}
+                                    <form action="{{ url_for('tasks_bp.create_child_task', tid=task.id) }}" method="POST" id="outlineImportConfigForm">
+                                        <div class="border rounded-3 p-3 mb-4">
+                                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                                                <div>
+                                                    <div class="fw-semibold">Bước 2: Cấu hình sau khi nạp đề cương</div>
+                                                    <div class="small text-muted">Bạn có thể sửa nội dung, đổi hình thức báo cáo, rồi gán một dòng hoặc nhiều dòng cho một vai trò, nhiều vai trò, một người hoặc nhiều người.</div>
+                                                </div>
+                                                <button class="btn btn-outline-primary btn-sm" type="button" id="addImportOutlineRowBtn">Thêm dòng</button>
+                                            </div>
+
+                                            <div class="row g-3 mb-3">
+                                                <div class="col-lg-4">
+                                                    <label class="form-label fw-bold">Gán cho dòng tích theo</label>
+                                                    <select class="form-select" id="importAssignType">
+                                                        <option value="unit">Đơn vị</option>
+                                                        <option value="role">Vai trò</option>
+                                                        <option value="user">Cá nhân</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-lg-8" data-import-assign="unit">
+                                                    <label class="form-label fw-bold">Đơn vị nhận việc</label>
+                                                    <div class="position-relative">
+                                                        <button class="form-select text-start" type="button" id="importUnitPickerToggle" aria-expanded="false">Chọn đơn vị</button>
+                                                        <div class="border rounded-3 bg-white shadow-sm mt-2 d-none position-absolute start-0 end-0 z-3" id="importUnitPickerMenu">
+                                                            <div class="d-flex justify-content-between align-items-center gap-2 px-3 py-2 border-bottom bg-light">
+                                                                <div class="small fw-semibold text-muted">Có thể chọn nhiều đơn vị</div>
+                                                                <div class="d-flex gap-2">
+                                                                    <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="importUnitSelectAllBtn">Tất cả</button>
+                                                                    <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="importUnitClearAllBtn">Bỏ chọn</button>
+                                                                </div>
+                                                            </div>
+                                                            <div style="max-height: 280px; overflow:auto;">
+                                                                {% for item in pro_units %}
+                                                                <label class="d-flex align-items-center gap-3 px-3 py-3 border-top">
+                                                                    <input type="checkbox" class="mt-1" data-import-unit-checkbox value="{{ item.value }}" data-unit-label="{{ item.name }}" {% if task.domain == item.value %}checked{% endif %}>
+                                                                    <span class="fw-medium">{{ item.name }}</span>
+                                                                </label>
+                                                                {% endfor %}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-8 d-none" data-import-assign="role">
+                                                    <label class="form-label fw-bold">Vai trò nhận việc</label>
+                                                    <div class="position-relative">
+                                                        <button class="form-select text-start" type="button" id="importRolePickerToggle" aria-expanded="false">Chọn vai trò</button>
+                                                        <div class="border rounded-3 bg-white shadow-sm mt-2 d-none position-absolute start-0 end-0 z-3" id="importRolePickerMenu">
+                                                            <div class="d-flex justify-content-between align-items-center gap-2 px-3 py-2 border-bottom bg-light">
+                                                                <div class="small fw-semibold text-muted">Có thể chọn một hoặc nhiều vai trò</div>
+                                                                <div class="d-flex gap-2">
+                                                                    <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="importRoleSelectAllBtn">Tất cả</button>
+                                                                    <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="importRoleClearAllBtn">Bỏ chọn</button>
+                                                                </div>
+                                                            </div>
+                                                            <div style="max-height: 280px; overflow:auto;">
+                                                                {% for role in roles %}
+                                                                <label class="d-flex align-items-center gap-3 px-3 py-3 border-top">
+                                                                    <input type="checkbox" class="mt-1" data-import-role-checkbox value="{{ role.id }}" data-role-label="{{ role.name }}">
+                                                                    <span class="fw-medium">{{ role.name }}</span>
+                                                                </label>
+                                                                {% endfor %}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-lg-8 d-none" data-import-assign="user">
+                                                    <label class="form-label fw-bold">Cán bộ nhận việc</label>
+                                                    <div class="position-relative">
+                                                        <button class="form-select text-start" type="button" id="importUserPickerToggle" aria-expanded="false">Chọn cán bộ nhận việc</button>
+                                                        <div class="border rounded-3 bg-white shadow-sm mt-2 d-none position-absolute start-0 end-0 z-3" id="importUserPickerMenu">
+                                                            <div class="d-flex justify-content-between align-items-center gap-2 px-3 py-2 border-bottom bg-light">
+                                                                <div class="small fw-semibold text-muted">Có thể chọn một hoặc nhiều cán bộ</div>
+                                                                <div class="d-flex gap-2">
+                                                                    <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="importUserSelectAllBtn">Tất cả</button>
+                                                                    <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="importUserClearAllBtn">Bỏ chọn</button>
+                                                                </div>
+                                                            </div>
+                                                            <div style="max-height: 320px; overflow:auto;">
+                                                                {% for user in users %}
+                                                                <label class="d-flex align-items-start gap-3 px-3 py-3 border-top">
+                                                                    <input type="checkbox" class="mt-1" data-import-user-checkbox value="{{ user.id }}" data-user-label="{{ user.fullname }}">
+                                                                    <div class="flex-grow-1">
+                                                                        <div class="fw-medium">{{ user.fullname }}</div>
+                                                                        <div class="small text-muted">{% if user.unit_area_display %}{{ user.unit_area_display }}{% else %}Chưa có đơn vị{% endif %}</div>
+                                                                    </div>
+                                                                </label>
+                                                                {% endfor %}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-12 d-flex flex-wrap gap-2">
+                                                    <button class="btn btn-outline-secondary btn-sm" type="button" id="importSelectAllRowsBtn">Chọn tất cả dòng</button>
+                                                    <button class="btn btn-outline-secondary btn-sm" type="button" id="importClearAllRowsBtn">Bỏ chọn dòng</button>
+                                                    <button class="btn btn-outline-primary btn-sm" type="button" id="applyImportAssignmentBtn">Gán cho dòng tích</button>
+                                                </div>
+                                            </div>
+
+                                            <div class="border rounded-3 overflow-hidden">
+                                                <div class="d-none d-lg-block px-3 py-2 border-bottom small fw-semibold text-muted bg-light">
+                                                    <div class="row g-2">
+                                                        <div class="col-lg-1">Chọn</div>
+                                                        <div class="col-lg-4">Nội dung báo cáo</div>
+                                                        <div class="col-lg-2">Hình thức</div>
+                                                        <div class="col-lg-2">Bắt buộc file</div>
+                                                        <div class="col-lg-2">Người nhận</div>
+                                                        <div class="col-lg-1">Xóa</div>
+                                                    </div>
+                                                </div>
+                                                <div id="outlineImportRows" class="bg-white"></div>
+                                                <div id="outlineImportEmpty" class="px-3 py-4 text-muted d-none">Chưa có dòng nào trong cấu hình import.</div>
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-primary" type="submit">Tạo đầu mục từ đề cương</button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% for group in outline_groups %}
+                    <div class="tab-pane fade {% if not can_manage_task_view and loop.first %}show active{% endif %}" id="pane-outline-group-{{ loop.index }}" role="tabpanel" aria-labelledby="tab-outline-group-{{ loop.index }}">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body">
+                                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+                                    <div>
+                                        <h2 class="h4 mb-1">{{ group.label }}</h2>
+                                        <div class="text-muted">{{ group.mode_label }}</div>
+                                        {% if group.members_label and group.mode != 'unit' %}
+                                        <div class="small text-muted mt-2">{{ group.members_label }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="badge bg-light text-dark mb-2">{{ group.fully_submitted_items }}/{{ group.total_items }} đầu mục hoàn tất</div>
+                                        <div class="small text-muted">{{ group.total_assignments }} lượt giao</div>
+                                    </div>
+                                </div>
+
+                                <div class="d-grid gap-3">
+                                    {% for row in group.rows %}
+                                    <div class="border rounded-3 p-3">
+                                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-2">
+                                            <div>
+                                                <div class="fw-semibold">{{ row.item.item_code }}. {{ row.item.title }}</div>
+                                                {% if row.secondary_text %}
+                                                <div class="small text-muted mt-1">{{ row.secondary_text }}</div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="d-flex flex-wrap gap-2 justify-content-end">
+                                                <span class="badge bg-light text-dark">{{ row.submitted_count }}/{{ row.total_count }} đã nộp</span>
+                                                <span class="badge bg-primary-subtle text-primary">{{ 'Báo cáo số' if row.item.report_kind == 'number' else 'Báo cáo lời' }}</span>
+                                                {% if row.item.attachment_required %}
+                                                <span class="badge bg-warning-subtle text-warning">Bắt buộc file</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+
+                                        {% if row.my_assignment %}
+                                        <div class="border-top pt-3 mt-3">
+                                            <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+                                                <span class="badge bg-info-subtle text-info">Trạng thái của bạn: {{ status_labels.get((row.my_assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
+                                                {% if row.my_assignment.status == 'assigned' %}
+                                                <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST">
+                                                    <input type="hidden" name="task_item_id" value="{{ row.item.id }}">
+                                                    <button class="btn btn-sm btn-outline-primary" type="submit">Tiếp nhận</button>
+                                                </form>
+                                                {% endif %}
+                                            </div>
+                                            <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data">
+                                                <input type="hidden" name="task_item_id" value="{{ row.item.id }}">
+                                                <div class="row g-3">
+                                                    {% if row.item.report_kind == 'number' %}
+                                                    <div class="col-lg-3">
+                                                        <label class="form-label fw-bold">Số liệu báo cáo</label>
+                                                        <input class="form-control" type="number" step="any" name="report_number" value="{{ row.my_submission.numeric_value if row.my_submission and row.my_submission.numeric_value is not none else '' }}">
+                                                    </div>
+                                                    {% endif %}
+                                                    <div class="col-lg-{{ '5' if row.item.report_kind == 'number' else '6' }}">
+                                                        <label class="form-label fw-bold">Nội dung báo cáo</label>
+                                                        <textarea class="form-control" name="report_content" rows="4">{{ row.my_submission.narrative_content if row.my_submission else '' }}</textarea>
+                                                    </div>
+                                                    <div class="col-lg-{{ '4' if row.item.report_kind == 'number' else '6' }}">
+                                                        <label class="form-label fw-bold">Tệp minh chứng</label>
+                                                        <input class="form-control" type="file" name="report_file">
+                                                        {% if row.my_submission and row.my_submission.files %}
+                                                        <div class="small mt-2">
+                                                            {% for file in row.my_submission.files %}
+                                                            <a class="d-block" href="{{ url_for('tasks_bp.download_task_submission_file_v2', tid=task.id, file_id=file.id) }}">{{ file.original_name or file.stored_name }}</a>
+                                                            {% endfor %}
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                <button class="btn btn-primary mt-3" type="submit">Gửi báo cáo</button>
+                                            </form>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% elif task.task_mode == 'FILE' %}
+                    <div class="tab-pane fade show active" id="pane-file-list" role="tabpanel" aria-labelledby="tab-file-list">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body">
+                                <h2 class="h4 mb-4">Danh sách người nhận</h2>
+                                <div class="d-grid gap-3">
+                                    {% for row in file_rows %}
+                                    <div class="border rounded p-3">
+                                        <div class="d-flex justify-content-between align-items-start gap-3">
+                                            <div>
+                                                <div class="fw-semibold">{{ row.assignment.user.fullname if row.assignment.user else 'Không xác định' }}</div>
+                                                <div class="small text-muted">{{ row.assignment.user.unit_area_display if row.assignment.user and row.assignment.user.unit_area_display else '' }}</div>
+                                            </div>
+                                            <span class="badge bg-light text-dark">{{ status_labels.get((row.assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
+                                        </div>
+                                        {% if row.submission %}
+                                        <div class="small text-muted mt-2">
+                                            Nộp lúc {{ row.submission.submitted_at.strftime('%d/%m/%Y %H:%M') if row.submission.submitted_at else row.submission.created_at.strftime('%d/%m/%Y %H:%M') }}
+                                        </div>
+                                        {% if row.submission.narrative_content %}
+                                        <div class="mt-2" style="white-space: pre-wrap;">{{ row.submission.narrative_content }}</div>
+                                        {% endif %}
+                                        {% if row.submission.files %}
+                                        <div class="mt-2">
+                                            {% for file in row.submission.files %}
+                                            <a class="d-block small" href="{{ url_for('tasks_bp.download_task_submission_file_v2', tid=task.id, file_id=file.id) }}">{{ file.original_name or file.stored_name }}</a>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                        {% endif %}
+                                    </div>
+                                    {% else %}
+                                    <div class="text-muted">Chưa có người nhận việc.</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if can_submit and my_file_assignment %}
+                    <div class="tab-pane fade" id="pane-file-submit" role="tabpanel" aria-labelledby="tab-file-submit">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body">
+                                <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+                                    <h2 class="h4 mb-0">Nộp báo cáo</h2>
+                                    <span class="badge bg-info-subtle text-info">{{ status_labels.get((my_file_assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
+                                </div>
+                                {% if my_file_assignment.status == 'assigned' %}
+                                <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST" class="mb-3">
+                                    <button class="btn btn-outline-primary" type="submit">Tiếp nhận công việc</button>
+                                </form>
+                                {% endif %}
+                                <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Nội dung tóm tắt</label>
+                                        <textarea class="form-control" name="report_content" rows="6">{{ my_file_submission.narrative_content if my_file_submission else '' }}</textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Tệp báo cáo</label>
+                                        <input class="form-control" type="file" name="report_file">
+                                    </div>
+                                    {% if my_file_submission and my_file_submission.files %}
+                                    <div class="mb-3">
+                                        <div class="small fw-semibold mb-2">Tệp đã nộp gần nhất</div>
+                                        {% for file in my_file_submission.files %}
+                                        <a class="d-block small" href="{{ url_for('tasks_bp.download_task_submission_file_v2', tid=task.id, file_id=file.id) }}">{{ file.original_name or file.stored_name }}</a>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                    <button class="btn btn-primary" type="submit">Gửi báo cáo</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <div class="tab-pane fade show active" id="pane-form-list" role="tabpanel" aria-labelledby="tab-form-list">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-4">
+                                    <h2 class="h4 mb-0">Dữ liệu biểu mẫu</h2>
+                                    {% if can_manage_task_view %}
+                                    <a class="btn btn-outline-success btn-sm" href="{{ url_for('tasks_bp.export_form_task_v2', tid=task.id) }}">Xuất Excel</a>
+                                    {% endif %}
+                                </div>
+                                <div class="d-grid gap-3">
+                                    {% for row in form_rows %}
+                                    <div class="border rounded p-3">
+                                        <div class="d-flex justify-content-between align-items-start gap-3">
+                                            <div>
+                                                <div class="fw-semibold">{{ row.assignment.user.fullname if row.assignment.user else 'Không xác định' }}</div>
+                                                <div class="small text-muted">{{ row.assignment.user.unit_area_display if row.assignment.user and row.assignment.user.unit_area_display else '' }}</div>
+                                            </div>
+                                            <span class="badge bg-light text-dark">{{ status_labels.get((row.assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
+                                        </div>
+                                        {% if row.submission %}
+                                        <div class="small text-muted mt-2">Nộp lúc {{ row.submission.submitted_at.strftime('%d/%m/%Y %H:%M') if row.submission.submitted_at else '' }}</div>
+                                        <div class="mt-3">
+                                            {% for field in form_field_views %}
+                                            {% set value = row.payload.get(field.field_key, '') %}
+                                            <div class="mb-2">
+                                                <div class="small fw-semibold">{{ field.field_label }}</div>
+                                                <div class="small text-muted" style="white-space: pre-wrap;">
+                                                    {% if value is iterable and value is not string %}
+                                                        {% if value and value[0] is iterable and value[0] is not string %}
+                                                            {% for item in value %}
+                                                                {{ item|join(' | ') }}{% if not loop.last %}<br>{% endif %}
+                                                            {% endfor %}
+                                                        {% else %}
+                                                            {{ value|join(', ') }}
+                                                        {% endif %}
+                                                    {% else %}
+                                                        {{ value or 'Chưa nhập' }}
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% else %}
+                                    <div class="text-muted">Chưa có dữ liệu biểu mẫu.</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if can_submit and my_form_assignment %}
+                    <div class="tab-pane fade" id="pane-form-submit" role="tabpanel" aria-labelledby="tab-form-submit">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body">
+                                <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+                                    <h2 class="h4 mb-0">Nhập biểu mẫu</h2>
+                                    <span class="badge bg-info-subtle text-info">{{ status_labels.get((my_form_assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
+                                </div>
+                                {% if my_form_assignment.status == 'assigned' %}
+                                <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST" class="mb-3">
+                                    <button class="btn btn-outline-primary" type="submit">Tiếp nhận công việc</button>
+                                </form>
+                                {% endif %}
+                                <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST">
+                                    {% for field in form_field_views %}
+                                    {% set payload_value = my_form_payload.get(field.field_key, '') %}
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">{{ field.field_label }}{% if field.is_required %} *{% endif %}</label>
+                                        {% if field.field_type == 'textarea' %}
+                                        <textarea class="form-control" name="form_field_{{ field.field_key }}" rows="4">{{ payload_value if payload_value is string else '' }}</textarea>
+                                        {% elif field.field_type == 'number' %}
+                                        <input class="form-control" type="number" step="any" name="form_field_{{ field.field_key }}" value="{{ payload_value if payload_value is not iterable or payload_value is string else '' }}">
+                                        {% elif field.field_type == 'radio' %}
+                                        <div class="d-grid gap-2">
+                                            {% for choice in field.choices %}
+                                            <label class="d-flex gap-2 align-items-center">
+                                                <input type="radio" name="form_field_{{ field.field_key }}" value="{{ choice }}" {% if payload_value == choice %}checked{% endif %}>
+                                                <span>{{ choice }}</span>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                        {% elif field.field_type == 'checkbox' %}
+                                        <div class="d-grid gap-2">
+                                            {% for choice in field.choices %}
+                                            <label class="d-flex gap-2 align-items-center">
+                                                <input type="checkbox" name="form_field_{{ field.field_key }}" value="{{ choice }}" {% if payload_value is iterable and payload_value is not string and choice in payload_value %}checked{% endif %}>
+                                                <span>{{ choice }}</span>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                        {% elif field.field_type == 'table' %}
+                                        <textarea class="form-control" name="form_field_{{ field.field_key }}" rows="5" placeholder="Mỗi dòng là một hàng, các cột cách nhau bằng dấu |">{% if payload_value is iterable and payload_value is not string %}{% for row in payload_value %}{{ row|join(' | ') }}{% if not loop.last %}
+{% endif %}{% endfor %}{% endif %}</textarea>
+                                        <div class="form-text">Cột: {{ field.columns|join(', ') if field.columns else 'Tự do' }}.</div>
+                                        {% else %}
+                                        <input class="form-control" type="text" name="form_field_{{ field.field_key }}" value="{{ payload_value if payload_value is not iterable or payload_value is string else '' }}">
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                    <button class="btn btn-primary" type="submit">Gửi biểu mẫu</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(() => {
+    const outlineModeButtons = Array.from(document.querySelectorAll('[data-outline-mode-btn]'));
+    const outlineManualSection = document.getElementById('outlineModeManualSection');
+    const outlineImportSection = document.getElementById('outlineModeImportSection');
+    const importPreviewRows = {{ outline_import_preview_rows|tojson }};
+
+    const assignType = document.getElementById('outlineAssignType');
+    const outlineRows = document.getElementById('outlineDirectRows');
+    const outlineEmpty = document.getElementById('outlineDirectEmpty');
+    const addOutlineRowBtn = document.getElementById('addOutlineRowBtn');
+    const outlineUnitPickerToggle = document.getElementById('outlineUnitPickerToggle');
+    const outlineUnitPickerMenu = document.getElementById('outlineUnitPickerMenu');
+    const outlineUnitSelectAllBtn = document.getElementById('outlineUnitSelectAllBtn');
+    const outlineUnitClearAllBtn = document.getElementById('outlineUnitClearAllBtn');
+    const outlineUnitCheckboxes = Array.from(document.querySelectorAll('[data-outline-unit-checkbox]'));
+    const outlineRolePickerToggle = document.getElementById('outlineRolePickerToggle');
+    const outlineRolePickerMenu = document.getElementById('outlineRolePickerMenu');
+    const outlineRoleSelectAllBtn = document.getElementById('outlineRoleSelectAllBtn');
+    const outlineRoleClearAllBtn = document.getElementById('outlineRoleClearAllBtn');
+    const outlineRoleCheckboxes = Array.from(document.querySelectorAll('[data-outline-role-checkbox]'));
+    const userPickerToggle = document.getElementById('outlineUserPickerToggle');
+    const userPickerMenu = document.getElementById('outlineUserPickerMenu');
+    const userSelectAllBtn = document.getElementById('outlineUserSelectAllBtn');
+    const userClearAllBtn = document.getElementById('outlineUserClearAllBtn');
+    const userCheckboxes = Array.from(document.querySelectorAll('[data-outline-user-checkbox]'));
+    const importAssignType = document.getElementById('importAssignType');
+    const importUnitPickerToggle = document.getElementById('importUnitPickerToggle');
+    const importUnitPickerMenu = document.getElementById('importUnitPickerMenu');
+    const importUnitSelectAllBtn = document.getElementById('importUnitSelectAllBtn');
+    const importUnitClearAllBtn = document.getElementById('importUnitClearAllBtn');
+    const importUnitCheckboxes = Array.from(document.querySelectorAll('[data-import-unit-checkbox]'));
+    const importRolePickerToggle = document.getElementById('importRolePickerToggle');
+    const importRolePickerMenu = document.getElementById('importRolePickerMenu');
+    const importRoleSelectAllBtn = document.getElementById('importRoleSelectAllBtn');
+    const importRoleClearAllBtn = document.getElementById('importRoleClearAllBtn');
+    const importRoleCheckboxes = Array.from(document.querySelectorAll('[data-import-role-checkbox]'));
+    const importUserPickerToggle = document.getElementById('importUserPickerToggle');
+    const importUserPickerMenu = document.getElementById('importUserPickerMenu');
+    const importUserSelectAllBtn = document.getElementById('importUserSelectAllBtn');
+    const importUserClearAllBtn = document.getElementById('importUserClearAllBtn');
+    const importUserCheckboxes = Array.from(document.querySelectorAll('[data-import-user-checkbox]'));
+    const importRows = document.getElementById('outlineImportRows');
+    const importEmpty = document.getElementById('outlineImportEmpty');
+    const addImportOutlineRowBtn = document.getElementById('addImportOutlineRowBtn');
+    const importSelectAllRowsBtn = document.getElementById('importSelectAllRowsBtn');
+    const importClearAllRowsBtn = document.getElementById('importClearAllRowsBtn');
+    const applyImportAssignmentBtn = document.getElementById('applyImportAssignmentBtn');
+
+    function syncOutlineAssignType() {
+        const mode = assignType?.value || 'unit';
+        document.querySelectorAll('[data-outline-assign]').forEach((node) => {
+            node.classList.toggle('d-none', node.dataset.outlineAssign !== mode);
+        });
+    }
+
+    function syncOutlineMode(mode) {
+        outlineModeButtons.forEach((button) => {
+            const isActive = button.dataset.outlineModeBtn === mode;
+            button.classList.toggle('btn-primary', isActive);
+            button.classList.toggle('btn-outline-primary', !isActive);
+        });
+        outlineManualSection?.classList.toggle('d-none', mode !== 'manual');
+        outlineImportSection?.classList.toggle('d-none', mode !== 'import');
+    }
+
+    function syncOutlineRowIndexes() {
+        if (!outlineRows) return;
+        const rows = Array.from(outlineRows.querySelectorAll('[data-outline-config-row]'));
+        rows.forEach((row, index) => {
+            const attachment = row.querySelector('[data-item-attachment]');
+            if (attachment) attachment.value = String(index);
+        });
+        outlineEmpty?.classList.toggle('d-none', rows.length > 0);
+    }
+
+    function makeOutlineConfigRow(title = '', reportKind = 'narrative', attachmentRequired = false) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'px-3 py-3 border-top';
+        wrapper.dataset.outlineConfigRow = '1';
+        wrapper.innerHTML = `
+            <div class="row g-2 align-items-center">
+                <div class="col-lg-6">
+                    <input class="form-control" type="text" name="item_title" placeholder="Nhập nội dung báo cáo" value="${title.replace(/"/g, '&quot;')}">
+                </div>
+                <div class="col-lg-3">
+                    <select class="form-select" name="item_report_kind">
+                        <option value="narrative" ${reportKind === 'narrative' ? 'selected' : ''}>Báo cáo lời</option>
+                        <option value="number" ${reportKind === 'number' ? 'selected' : ''}>Báo cáo số</option>
+                    </select>
+                </div>
+                <div class="col-lg-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="item_attachment_required" data-item-attachment ${attachmentRequired ? 'checked' : ''}>
+                        <label class="form-check-label small">Bắt buộc file</label>
+                    </div>
+                </div>
+                <div class="col-lg-1 text-lg-end">
+                    <button class="btn btn-outline-danger btn-sm" type="button" data-remove-outline-row>Xóa</button>
+                </div>
+            </div>
+        `;
+        wrapper.querySelector('[data-remove-outline-row]')?.addEventListener('click', () => {
+            wrapper.remove();
+            syncOutlineRowIndexes();
+        });
+        return wrapper;
+    }
+
+    function addOutlineRow(title = '', reportKind = 'narrative', attachmentRequired = false) {
+        if (!outlineRows) return;
+        outlineRows.appendChild(makeOutlineConfigRow(title, reportKind, attachmentRequired));
+        syncOutlineRowIndexes();
+    }
+
+    function syncOutlineUnitPickerLabel() {
+        if (!outlineUnitPickerToggle) return;
+        const checked = outlineUnitCheckboxes.filter((checkbox) => checkbox.checked);
+        if (checked.length === 0) {
+            outlineUnitPickerToggle.textContent = 'Chọn đơn vị nhận việc';
+            return;
+        }
+        if (checked.length === 1) {
+            outlineUnitPickerToggle.textContent = checked[0].dataset.unitLabel || 'Đã chọn 1 đơn vị';
+            return;
+        }
+        outlineUnitPickerToggle.textContent = `Đã chọn ${checked.length} đơn vị`;
+    }
+
+    function setOutlineUnitPickerOpen(open) {
+        if (!outlineUnitPickerToggle || !outlineUnitPickerMenu) return;
+        outlineUnitPickerMenu.classList.toggle('d-none', !open);
+        outlineUnitPickerToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function syncOutlineRolePickerLabel() {
+        if (!outlineRolePickerToggle) return;
+        const checked = outlineRoleCheckboxes.filter((checkbox) => checkbox.checked);
+        if (checked.length === 0) {
+            outlineRolePickerToggle.textContent = 'Chọn vai trò nhận việc';
+            return;
+        }
+        if (checked.length === 1) {
+            outlineRolePickerToggle.textContent = checked[0].dataset.roleLabel || 'Đã chọn 1 vai trò';
+            return;
+        }
+        outlineRolePickerToggle.textContent = `Đã chọn ${checked.length} vai trò`;
+    }
+
+    function setOutlineRolePickerOpen(open) {
+        if (!outlineRolePickerToggle || !outlineRolePickerMenu) return;
+        outlineRolePickerMenu.classList.toggle('d-none', !open);
+        outlineRolePickerToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function syncUserPickerLabel() {
+        if (!userPickerToggle) return;
+        const checked = userCheckboxes.filter((checkbox) => checkbox.checked);
+        if (checked.length === 0) {
+            userPickerToggle.textContent = 'Chọn cán bộ nhận việc';
+            return;
+        }
+        if (checked.length === 1) {
+            userPickerToggle.textContent = checked[0].dataset.userLabel || 'Đã chọn 1 cán bộ';
+            return;
+        }
+        userPickerToggle.textContent = `Đã chọn ${checked.length} cán bộ`;
+    }
+
+    function setUserPickerOpen(open) {
+        if (!userPickerToggle || !userPickerMenu) return;
+        userPickerMenu.classList.toggle('d-none', !open);
+        userPickerToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function syncImportAssignType() {
+        const mode = importAssignType?.value || 'unit';
+        document.querySelectorAll('[data-import-assign]').forEach((node) => {
+            node.classList.toggle('d-none', node.dataset.importAssign !== mode);
+        });
+    }
+
+    function syncImportUnitPickerLabel() {
+        if (!importUnitPickerToggle) return;
+        const checked = importUnitCheckboxes.filter((checkbox) => checkbox.checked);
+        if (checked.length === 0) {
+            importUnitPickerToggle.textContent = 'Chọn đơn vị';
+            return;
+        }
+        if (checked.length === 1) {
+            importUnitPickerToggle.textContent = checked[0].dataset.unitLabel || 'Đã chọn 1 đơn vị';
+            return;
+        }
+        importUnitPickerToggle.textContent = `Đã chọn ${checked.length} đơn vị`;
+    }
+
+    function setImportUnitPickerOpen(open) {
+        if (!importUnitPickerToggle || !importUnitPickerMenu) return;
+        importUnitPickerMenu.classList.toggle('d-none', !open);
+        importUnitPickerToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function setImportRolePickerOpen(open) {
+        if (!importRolePickerToggle || !importRolePickerMenu) return;
+        importRolePickerMenu.classList.toggle('d-none', !open);
+        importRolePickerToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function setImportUserPickerOpen(open) {
+        if (!importUserPickerToggle || !importUserPickerMenu) return;
+        importUserPickerMenu.classList.toggle('d-none', !open);
+        importUserPickerToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function syncImportRolePickerLabel() {
+        if (!importRolePickerToggle) return;
+        const checked = importRoleCheckboxes.filter((checkbox) => checkbox.checked);
+        if (checked.length === 0) {
+            importRolePickerToggle.textContent = 'Chọn vai trò';
+            return;
+        }
+        if (checked.length === 1) {
+            importRolePickerToggle.textContent = checked[0].dataset.roleLabel || 'Đã chọn 1 vai trò';
+            return;
+        }
+        importRolePickerToggle.textContent = `Đã chọn ${checked.length} vai trò`;
+    }
+
+    function syncImportUserPickerLabel() {
+        if (!importUserPickerToggle) return;
+        const checked = importUserCheckboxes.filter((checkbox) => checkbox.checked);
+        if (checked.length === 0) {
+            importUserPickerToggle.textContent = 'Chọn cán bộ nhận việc';
+            return;
+        }
+        if (checked.length === 1) {
+            importUserPickerToggle.textContent = checked[0].dataset.userLabel || 'Đã chọn 1 cán bộ';
+            return;
+        }
+        importUserPickerToggle.textContent = `Đã chọn ${checked.length} cán bộ`;
+    }
+
+    function importRoleNameMap() {
+        return new Map(importRoleCheckboxes.map((checkbox) => [checkbox.value, checkbox.dataset.roleLabel || checkbox.value]));
+    }
+
+    function importUserNameMap() {
+        return new Map(importUserCheckboxes.map((checkbox) => [checkbox.value, checkbox.dataset.userLabel || checkbox.value]));
+    }
+
+    function outlineUnitNameMap() {
+        return new Map(outlineUnitCheckboxes.map((checkbox) => [checkbox.value, checkbox.dataset.unitLabel || checkbox.value]));
+    }
+
+    function importUnitNameMap() {
+        return new Map(importUnitCheckboxes.map((checkbox) => [checkbox.value, checkbox.dataset.unitLabel || checkbox.value]));
+    }
+
+    function formatImportAssignmentSummary(assignType, domains, roleIds, userIds) {
+        if (assignType === 'unit' && domains.length) {
+            const unitNames = domains.map((value) => importUnitNameMap().get(String(value)) || String(value));
+            return `Đơn vị: ${unitNames.join(', ')}`;
+        }
+        if (assignType === 'role' && roleIds.length) {
+            const roleNames = roleIds.map((roleId) => importRoleNameMap().get(String(roleId)) || String(roleId));
+            return `Vai trò: ${roleNames.join(', ')}`;
+        }
+        if (assignType === 'user' && userIds.length) {
+            const userNames = userIds.map((userId) => importUserNameMap().get(String(userId)) || String(userId));
+            return `Cá nhân: ${userNames.join(', ')}`;
+        }
+        return 'Chưa gán người nhận';
+    }
+
+    function syncImportRowIndexes() {
+        if (!importRows) return;
+        const rows = Array.from(importRows.querySelectorAll('[data-import-config-row]'));
+        rows.forEach((row, index) => {
+            const attachment = row.querySelector('[data-item-attachment]');
+            if (attachment) attachment.value = String(index);
+        });
+        importEmpty?.classList.toggle('d-none', rows.length > 0);
+    }
+
+    function updateImportRowAssignment(row, payload) {
+        row.querySelector('input[name="item_assign_type"]').value = payload.assignType || '';
+        row.querySelector('input[name="item_domain"]').value = payload.domain || '';
+        row.querySelector('input[name="item_domains"]').value = (payload.unitDomains || []).join(',');
+        row.querySelector('input[name="item_role_ids"]').value = (payload.roleIds || []).join(',');
+        row.querySelector('input[name="item_user_ids"]').value = (payload.userIds || []).join(',');
+        row.querySelector('[data-import-assignment-summary]').textContent = formatImportAssignmentSummary(
+            payload.assignType || '',
+            payload.unitDomains || [],
+            payload.roleIds || [],
+            payload.userIds || [],
+        );
+    }
+
+    function makeImportRow(rowData = {}) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'px-3 py-3 border-top';
+        wrapper.dataset.importConfigRow = '1';
+        wrapper.innerHTML = `
+            <div class="row g-2 align-items-center">
+                <div class="col-lg-1">
+                    <div class="form-check m-0">
+                        <input class="form-check-input" type="checkbox" data-import-row-check>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <input class="form-control" type="text" name="item_title" placeholder="Nhập nội dung báo cáo" value="${String(rowData.title || '').replace(/"/g, '&quot;')}">
+                </div>
+                <div class="col-lg-2">
+                    <select class="form-select" name="item_report_kind">
+                        <option value="narrative" ${rowData.report_kind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
+                        <option value="number" ${rowData.report_kind === 'number' ? 'selected' : ''}>Báo cáo số</option>
+                    </select>
+                </div>
+                <div class="col-lg-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="item_attachment_required" data-item-attachment ${rowData.attachment_required ? 'checked' : ''}>
+                        <label class="form-check-label small">Bắt buộc file</label>
+                    </div>
+                </div>
+                <div class="col-lg-2">
+                    <div class="small fw-medium" data-import-assignment-summary></div>
+                    <input type="hidden" name="item_assign_type">
+                    <input type="hidden" name="item_domain">
+                    <input type="hidden" name="item_domains">
+                    <input type="hidden" name="item_role_ids">
+                    <input type="hidden" name="item_user_ids">
+                </div>
+                <div class="col-lg-1 text-lg-end">
+                    <button class="btn btn-outline-danger btn-sm" type="button" data-remove-import-row>Xóa</button>
+                </div>
+            </div>
+        `;
+        updateImportRowAssignment(wrapper, {
+            assignType: rowData.assign_type || '',
+            domain: rowData.domain || '',
+            unitDomains: rowData.unit_domains || [],
+            roleIds: rowData.role_ids || [],
+            userIds: rowData.user_ids || [],
+        });
+        wrapper.querySelector('[data-remove-import-row]')?.addEventListener('click', () => {
+            wrapper.remove();
+            syncImportRowIndexes();
+        });
+        return wrapper;
+    }
+
+    function addImportRow(rowData = {}) {
+        if (!importRows) return;
+        importRows.appendChild(makeImportRow(rowData));
+        syncImportRowIndexes();
+    }
+
+    function getCurrentImportAssignmentPayload() {
+        const assignTypeValue = importAssignType?.value || 'unit';
+        if (assignTypeValue === 'unit') {
+            return {
+                assignType: 'unit',
+                domain: '',
+                unitDomains: importUnitCheckboxes.filter((checkbox) => checkbox.checked).map((checkbox) => checkbox.value),
+                roleIds: [],
+                userIds: [],
+            };
+        }
+        if (assignTypeValue === 'role') {
+            return {
+                assignType: 'role',
+                domain: '',
+                unitDomains: [],
+                roleIds: importRoleCheckboxes.filter((checkbox) => checkbox.checked).map((checkbox) => checkbox.value),
+                userIds: [],
+            };
+        }
+        return {
+            assignType: 'user',
+            domain: '',
+            unitDomains: [],
+            roleIds: [],
+            userIds: importUserCheckboxes.filter((checkbox) => checkbox.checked).map((checkbox) => checkbox.value),
+        };
+    }
+
+    function validateImportAssignmentPayload(payload) {
+        if (payload.assignType === 'unit') {
+            return payload.unitDomains.length > 0;
+        }
+        if (payload.assignType === 'role') {
+            return payload.roleIds.length > 0;
+        }
+        return payload.userIds.length > 0;
+    }
+
+    outlineModeButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            syncOutlineMode(button.dataset.outlineModeBtn || 'manual');
+        });
+    });
+    assignType?.addEventListener('change', syncOutlineAssignType);
+    addOutlineRowBtn?.addEventListener('click', () => addOutlineRow());
+    outlineUnitPickerToggle?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        setOutlineUnitPickerOpen(outlineUnitPickerMenu?.classList.contains('d-none'));
+    });
+    outlineUnitPickerMenu?.addEventListener('click', (event) => {
+        event.stopPropagation();
+    });
+    outlineUnitSelectAllBtn?.addEventListener('click', () => {
+        outlineUnitCheckboxes.forEach((checkbox) => {
+            checkbox.checked = true;
+        });
+        syncOutlineUnitPickerLabel();
+    });
+    outlineUnitClearAllBtn?.addEventListener('click', () => {
+        outlineUnitCheckboxes.forEach((checkbox) => {
+            checkbox.checked = false;
+        });
+        syncOutlineUnitPickerLabel();
+    });
+    outlineUnitCheckboxes.forEach((checkbox) => {
+        checkbox.addEventListener('change', syncOutlineUnitPickerLabel);
+    });
+    outlineRolePickerToggle?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        setOutlineRolePickerOpen(outlineRolePickerMenu?.classList.contains('d-none'));
+    });
+    outlineRolePickerMenu?.addEventListener('click', (event) => {
+        event.stopPropagation();
+    });
+    outlineRoleSelectAllBtn?.addEventListener('click', () => {
+        outlineRoleCheckboxes.forEach((checkbox) => {
+            checkbox.checked = true;
+        });
+        syncOutlineRolePickerLabel();
+    });
+    outlineRoleClearAllBtn?.addEventListener('click', () => {
+        outlineRoleCheckboxes.forEach((checkbox) => {
+            checkbox.checked = false;
+        });
+        syncOutlineRolePickerLabel();
+    });
+    outlineRoleCheckboxes.forEach((checkbox) => {
+        checkbox.addEventListener('change', syncOutlineRolePickerLabel);
+    });
+    userPickerToggle?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        setUserPickerOpen(userPickerMenu?.classList.contains('d-none'));
+    });
+    userPickerMenu?.addEventListener('click', (event) => {
+        event.stopPropagation();
+    });
+    userSelectAllBtn?.addEventListener('click', () => {
+        userCheckboxes.forEach((checkbox) => {
+            checkbox.checked = true;
+        });
+        syncUserPickerLabel();
+    });
+    userClearAllBtn?.addEventListener('click', () => {
+        userCheckboxes.forEach((checkbox) => {
+            checkbox.checked = false;
+        });
+        syncUserPickerLabel();
+    });
+    userCheckboxes.forEach((checkbox) => {
+        checkbox.addEventListener('change', syncUserPickerLabel);
+    });
+    importAssignType?.addEventListener('change', syncImportAssignType);
+    importUnitPickerToggle?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        setImportUnitPickerOpen(importUnitPickerMenu?.classList.contains('d-none'));
+    });
+    importUnitPickerMenu?.addEventListener('click', (event) => {
+        event.stopPropagation();
+    });
+    importUnitSelectAllBtn?.addEventListener('click', () => {
+        importUnitCheckboxes.forEach((checkbox) => {
+            checkbox.checked = true;
+        });
+        syncImportUnitPickerLabel();
+    });
+    importUnitClearAllBtn?.addEventListener('click', () => {
+        importUnitCheckboxes.forEach((checkbox) => {
+            checkbox.checked = false;
+        });
+        syncImportUnitPickerLabel();
+    });
+    importUnitCheckboxes.forEach((checkbox) => {
+        checkbox.addEventListener('change', syncImportUnitPickerLabel);
+    });
+    importRolePickerToggle?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        setImportRolePickerOpen(importRolePickerMenu?.classList.contains('d-none'));
+    });
+    importRolePickerMenu?.addEventListener('click', (event) => {
+        event.stopPropagation();
+    });
+    importUserPickerToggle?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        setImportUserPickerOpen(importUserPickerMenu?.classList.contains('d-none'));
+    });
+    importUserPickerMenu?.addEventListener('click', (event) => {
+        event.stopPropagation();
+    });
+    importRoleSelectAllBtn?.addEventListener('click', () => {
+        importRoleCheckboxes.forEach((checkbox) => {
+            checkbox.checked = true;
+        });
+        syncImportRolePickerLabel();
+    });
+    importRoleClearAllBtn?.addEventListener('click', () => {
+        importRoleCheckboxes.forEach((checkbox) => {
+            checkbox.checked = false;
+        });
+        syncImportRolePickerLabel();
+    });
+    importUserSelectAllBtn?.addEventListener('click', () => {
+        importUserCheckboxes.forEach((checkbox) => {
+            checkbox.checked = true;
+        });
+        syncImportUserPickerLabel();
+    });
+    importUserClearAllBtn?.addEventListener('click', () => {
+        importUserCheckboxes.forEach((checkbox) => {
+            checkbox.checked = false;
+        });
+        syncImportUserPickerLabel();
+    });
+    importRoleCheckboxes.forEach((checkbox) => {
+        checkbox.addEventListener('change', syncImportRolePickerLabel);
+    });
+    importUserCheckboxes.forEach((checkbox) => {
+        checkbox.addEventListener('change', syncImportUserPickerLabel);
+    });
+    addImportOutlineRowBtn?.addEventListener('click', () => addImportRow({ report_kind: 'narrative', attachment_required: false }));
+    importSelectAllRowsBtn?.addEventListener('click', () => {
+        importRows?.querySelectorAll('[data-import-row-check]').forEach((checkbox) => {
+            checkbox.checked = true;
+        });
+    });
+    importClearAllRowsBtn?.addEventListener('click', () => {
+        importRows?.querySelectorAll('[data-import-row-check]').forEach((checkbox) => {
+            checkbox.checked = false;
+        });
+    });
+    applyImportAssignmentBtn?.addEventListener('click', () => {
+        const selectedRows = Array.from(importRows?.querySelectorAll('[data-import-config-row]') || []).filter((row) => row.querySelector('[data-import-row-check]')?.checked);
+        if (!selectedRows.length) {
+            window.alert('Cần chọn ít nhất một dòng để gán.');
+            return;
+        }
+        const payload = getCurrentImportAssignmentPayload();
+        if (!validateImportAssignmentPayload(payload)) {
+            window.alert('Cần chọn người nhận hoặc vai trò phù hợp trước khi gán.');
+            return;
+        }
+        selectedRows.forEach((row) => updateImportRowAssignment(row, payload));
+    });
+    document.addEventListener('click', () => {
+        setOutlineUnitPickerOpen(false);
+        setOutlineRolePickerOpen(false);
+        setUserPickerOpen(false);
+        setImportUnitPickerOpen(false);
+        setImportRolePickerOpen(false);
+        setImportUserPickerOpen(false);
+    });
+    syncOutlineAssignType();
+    if (outlineRows && !outlineRows.querySelector('[data-outline-config-row]')) {
+        addOutlineRow();
+    } else {
+        syncOutlineRowIndexes();
+    }
+    syncOutlineUnitPickerLabel();
+    syncOutlineRolePickerLabel();
+    syncUserPickerLabel();
+    syncImportAssignType();
+    syncImportUnitPickerLabel();
+    syncImportRolePickerLabel();
+    syncImportUserPickerLabel();
+    if (Array.isArray(importPreviewRows)) {
+        importPreviewRows.forEach((row) => addImportRow(row));
+    }
+    syncImportRowIndexes();
+    syncOutlineMode(importPreviewRows.length ? 'import' : 'manual');
+})();
+</script>
+{% endblock %}

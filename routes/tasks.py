@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, current_app, flash, g, has_request_context, jsonify, redirect, request, session, url_for, send_file
 from sqlalchemy.orm import joinedload
+from werkzeug.datastructures import MultiDict
 from werkzeug.utils import secure_filename
 try:
     from openpyxl import Workbook
@@ -41,7 +42,9 @@ from models import (
     TaskItem,
     TaskParticipant,
     TaskReportLink,
+    TaskFormField,
     TaskSubmission,
+    TaskSubmissionFile,
     User,
     db,
 )
@@ -76,6 +79,27 @@ TASK_WORKFLOW_LABELS = {
     "child_tasks": "Nhiệm vụ",
     "summary_report": "Tổng hợp",
 }
+TASK_MODE_ALLOWED = {"OUTLINE", "FILE", "FORM"}
+TASK_MODE_DEFAULT = "FILE"
+TASK_MODE_LABELS = {
+    "OUTLINE": "Theo đề cương",
+    "FILE": "Nộp file",
+    "FORM": "Biểu mẫu",
+}
+TASK_MODE_DESCRIPTIONS = {
+    "OUTLINE": "Tạo đợt giao việc theo đề cương, chia thành các đầu mục và giao từng mục cho đơn vị hoặc cá nhân.",
+    "FILE": "Giao việc trực tiếp và yêu cầu nộp nội dung, file minh chứng hoặc văn bản tổng hợp.",
+    "FORM": "Thu thập dữ liệu theo biểu mẫu động, phù hợp để tổng hợp số liệu và xuất báo cáo.",
+}
+TASK_ASSIGNMENT_STATUS_LABELS = {
+    "assigned": "Chưa tiếp nhận",
+    "in_progress": "Đang thực hiện",
+    "submitted": "Đã nộp",
+    "returned": "Bị trả lại",
+    "completed": "Hoàn thành",
+    "overdue": "Quá hạn",
+}
+TASK_FORM_ALLOWED_FIELD_TYPES = {"text", "number", "textarea", "radio", "checkbox", "table"}
 DEFAULT_TASK_REPORT_SCHEMA = {
     "enabled": False,
     "narrative": {
@@ -199,6 +223,83 @@ def _task_workflow_mode(task, has_child_tasks=None):
 def _task_workflow_label(mode):
     normalized = _normalize_task_workflow_mode(mode)
     return TASK_WORKFLOW_LABELS.get(normalized, TASK_WORKFLOW_LABELS[TASK_WORKFLOW_DEFAULT_MODE])
+
+
+def _normalize_task_mode(value):
+    normalized = str(value or "").strip().upper()
+    if normalized in TASK_MODE_ALLOWED:
+        return normalized
+    return ""
+
+
+def _workflow_mode_from_task_mode(task_mode):
+    normalized = _normalize_task_mode(task_mode)
+    if normalized == "OUTLINE":
+        return "child_tasks"
+    return "summary_report"
+
+
+def _task_mode_from_workflow_mode(workflow_mode):
+    normalized = _normalize_task_workflow_mode(workflow_mode)
+    if normalized == "child_tasks":
+        return "OUTLINE"
+    return TASK_MODE_DEFAULT
+
+
+def _requested_task_mode(form, fallback=TASK_MODE_DEFAULT):
+    requested = _normalize_task_mode(form.get("task_mode"))
+    if requested:
+        return requested
+    requested = _normalize_task_mode(form.get("workflow_mode"))
+    if requested:
+        return requested
+    workflow_fallback = _normalize_task_workflow_mode(form.get("workflow_mode") or fallback)
+    if workflow_fallback:
+        return _task_mode_from_workflow_mode(workflow_fallback)
+    normalized_fallback = _normalize_task_mode(fallback)
+    return normalized_fallback or TASK_MODE_DEFAULT
+
+
+def _task_mode(task, has_child_tasks=None):
+    if not task:
+        return TASK_MODE_DEFAULT
+    cached = getattr(task, "_task_mode_cache", None)
+    if cached:
+        return cached
+
+    explicit = _normalize_task_mode(getattr(task, "task_mode", None))
+    if explicit:
+        setattr(task, "_task_mode_cache", explicit)
+        return explicit
+
+    inferred = _task_mode_from_workflow_mode(_task_workflow_mode(task, has_child_tasks=has_child_tasks))
+    setattr(task, "_task_mode_cache", inferred)
+    return inferred
+
+
+def _task_mode_label(task_mode):
+    normalized = _normalize_task_mode(task_mode)
+    return TASK_MODE_LABELS.get(normalized, TASK_MODE_LABELS[TASK_MODE_DEFAULT])
+
+
+def _task_mode_description(task_mode):
+    normalized = _normalize_task_mode(task_mode)
+    return TASK_MODE_DESCRIPTIONS.get(normalized, TASK_MODE_DESCRIPTIONS[TASK_MODE_DEFAULT])
+
+
+def _task_assignment_status_label(status):
+    return TASK_ASSIGNMENT_STATUS_LABELS.get(str(status or "").strip().lower(), "Chưa tiếp nhận")
+
+
+def _task_assignment_status_class(status):
+    normalized = str(status or "").strip().lower()
+    if normalized in {"completed", "submitted"}:
+        return "done"
+    if normalized in {"in_progress", "returned"}:
+        return "doing"
+    if normalized == "overdue":
+        return "danger"
+    return "todo"
 
 
 def _task_domain_options():
@@ -885,6 +986,24 @@ def _requested_user_ids(form):
     return sorted({int(uid) for uid in form.getlist("target_users") if str(uid).isdigit()})
 
 
+def _requested_unit_domains(form, field_name="child_domains", fallback_field="child_domain"):
+    domains = []
+    raw_values = form.getlist(field_name)
+    if not raw_values:
+        fallback_value = form.get(fallback_field)
+        if fallback_value:
+            raw_values = [fallback_value]
+    seen = set()
+    domain_options = _task_domain_options()
+    for raw_value in raw_values:
+        normalized = canonicalize_category_value(raw_value or "", domain_options, prefer_stable=True)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        domains.append(normalized)
+    return domains
+
+
 def _requested_viewer_role_ids(form):
     return sorted({int(role_id) for role_id in form.getlist("viewer_role_ids") if str(role_id).isdigit()})
 
@@ -925,9 +1044,72 @@ def _clean_outline_title(raw_value):
     cleaned = str(raw_value or "").strip()
     if not cleaned:
         return ""
-    cleaned = re.sub(r"^\s*(?:[-*+•]|[0-9]{1,3}[.)]|[A-Za-z][.)]|[IVXLCDMivxlcdm]+[.)])\s*", "", cleaned)
+    cleaned = re.sub(r"^\s*(?:[-*+•]\s*|\+\s*|(?:[0-9]{1,3}\.){1,4}\s*|[0-9]{1,3}[.)]\s*|[A-Za-z][.)]\s*|[IVXLCDMivxlcdm]+[.)]\s*)", "", cleaned)
     cleaned = re.sub(r"\s+", " ", cleaned).strip(" .:-")
     return cleaned
+
+
+def _is_outline_structural_heading(raw_text, cleaned_text):
+    raw_text = str(raw_text or "").strip()
+    cleaned_text = str(cleaned_text or "").strip()
+    if not cleaned_text:
+        return True
+
+    normalized = remove_accents(cleaned_text.replace("Đ", "D").replace("đ", "d")).lower()
+    compact = re.sub(r"\s+", " ", normalized).strip()
+    has_bullet_prefix = bool(re.match(r"^\s*(?:[-*+•]|\+)\s*", raw_text))
+    has_multi_numbering = bool(re.match(r"^\s*(?:(?:[0-9]{1,3}\.){1,4}|[IVXLCDMivxlcdm]+\.)", raw_text))
+
+    if compact.startswith("de cuong bao cao") or compact.startswith("trong trien khai"):
+        return True
+
+    if re.match(r"^\s*[IVXLCDMivxlcdm]+\.\s+", raw_text):
+        return True
+
+    if re.match(r"^\s*[0-9]{1,3}\.\s+[A-ZĂÂĐÊÔƠƯÀÁẢÃẠẮẰẲẴẶẤẦẨẪẬÈÉẺẼẸẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌỐỒỔỖỘỚỜỞỠỢÙÚỦŨỤỨỪỬỮỰỲÝỶỸỴ\s]+$", raw_text):
+        return True
+
+    structural_markers = (
+        "nhan xet, danh gia",
+        "ve hoan thien the che",
+        "ve cai cach tthc",
+        "ve phat trien kinh te xa hoi",
+        "ve phat trien cong dan so",
+        "ve ket noi, chia se, tao lap du lieu",
+        "ve nguon nhan luc",
+        "ve trien khai cac mo hinh diem cua de an 06",
+        "ve du lieu",
+        "ve ha tang cong nghe thong tin",
+        "ve an ninh an toan",
+        "ve kinh phi",
+        "ve nguon nhan luc",
+        "trien khai cac giai phap thanh toan khong dung tien mat",
+        "trien khai cac cong cu so va tien ich so cho nguoi dan",
+        "pho cap ky nang so",
+        "co che khuyen khich cong dan tham gia tren moi truong so",
+        "trung tam phuc vu hanh chinh cong",
+        "thue tinh",
+    )
+    if compact in structural_markers:
+        return True
+
+    if compact.startswith("cac so, ban, nganh") and compact.endswith("bao cao ket qua"):
+        return True
+    if compact.startswith("cac so, ban, nganh") and compact.endswith("bao cao ve"):
+        return True
+    if compact.startswith("cac so, ban, nganh, uy ban nhan dan xa, phuong") and not has_bullet_prefix:
+        return True
+    if "mo hinh diem cua de an 06" in compact:
+        return True
+    if compact.startswith("voi chinh phu") or compact.startswith("voi bo, nganh trung uong") or compact.startswith("voi uy ban nhan dan tinh") or compact.startswith("voi so, ban, nganh"):
+        return True
+
+    if has_multi_numbering and len(cleaned_text) < 40 and ":" not in cleaned_text and not any(
+        keyword in compact for keyword in ("bao cao", "ton tai", "nhiem vu trong tam", "kien nghi", "de xuat")
+    ):
+        return True
+
+    return False
 
 
 def _parse_outline_docx_titles(file_storage):
@@ -942,7 +1124,6 @@ def _parse_outline_docx_titles(file_storage):
         raise ValueError("Không đọc được file đề cương Word. Hãy thử lại với file .docx rõ nội dung đầu mục.")
 
     candidates = []
-    fallback_lines = []
     for paragraph in document.paragraphs:
         raw_text = str(getattr(paragraph, "text", "") or "").strip()
         if not raw_text:
@@ -950,17 +1131,25 @@ def _parse_outline_docx_titles(file_storage):
         cleaned = _clean_outline_title(raw_text)
         if len(cleaned) < 3:
             continue
-        fallback_lines.append(cleaned)
         style_name = str(getattr(getattr(paragraph, "style", None), "name", "") or "").strip().lower()
         is_outline_like = bool(
-            re.match(r"^\s*(?:[-*+•]|[0-9]{1,3}[.)]|[A-Za-z][.)]|[IVXLCDMivxlcdm]+[.)])\s*", raw_text)
+            re.match(r"^\s*(?:[-*+•]|\+|(?:[0-9]{1,3}\.){1,4}|[0-9]{1,3}[.)]|[A-Za-z][.)]|[IVXLCDMivxlcdm]+[.)])\s*", raw_text)
             or any(token in style_name for token in ("heading", "list", "bullet", "number"))
         )
-        if is_outline_like:
+        if is_outline_like and not _is_outline_structural_heading(raw_text, cleaned):
             candidates.append(cleaned)
 
-    chosen_lines = candidates or fallback_lines
-    return _parse_bulk_child_task_titles("\n".join(chosen_lines))
+    if not candidates:
+        for paragraph in document.paragraphs:
+            raw_text = str(getattr(paragraph, "text", "") or "").strip()
+            if not raw_text:
+                continue
+            cleaned = _clean_outline_title(raw_text)
+            if len(cleaned) < 3 or _is_outline_structural_heading(raw_text, cleaned):
+                continue
+            candidates.append(cleaned)
+
+    return _parse_bulk_child_task_titles("\n".join(candidates))
 
 
 def _parse_outline_text_titles(file_storage):
@@ -1763,6 +1952,20 @@ def _resolve_assignees(form, domain):
     assign_type = form.get("assign_type", "unit")
     target_ids = _requested_user_ids(form)
     assignee_role_ids = _requested_role_ids(form)
+    unit_domains = _requested_unit_domains(form)
+    return _resolve_assignees_by_mode(
+        assign_type,
+        domain=domain,
+        unit_domains=unit_domains,
+        target_ids=target_ids,
+        assignee_role_ids=assignee_role_ids,
+    )
+
+
+def _resolve_assignees_by_mode(assign_type, domain="", unit_domains=None, target_ids=None, assignee_role_ids=None):
+    target_ids = sorted({int(uid) for uid in (target_ids or []) if str(uid).isdigit()})
+    assignee_role_ids = sorted({int(role_id) for role_id in (assignee_role_ids or []) if str(role_id).isdigit()})
+    unit_domains = [str(value or "").strip() for value in (unit_domains or []) if str(value or "").strip()]
 
     if assign_type == "role":
         if not assignee_role_ids:
@@ -1787,13 +1990,26 @@ def _resolve_assignees(form, domain):
             return [], "Danh sách cán bộ nhận việc không hợp lệ hoặc đã bị khóa."
         return _dedupe_users(users), None
 
-    if not domain:
-        return [], "Cần chọn đơn vị nghiệp vụ trước khi giao theo đơn vị."
+    if not unit_domains:
+        if domain:
+            unit_domains = [domain]
+        else:
+            return [], "Cần chọn ít nhất một đơn vị nghiệp vụ trước khi giao theo đơn vị."
 
-    users = _users_for_unit(domain)
+    users = []
+    missing_domains = []
+    for unit_domain in unit_domains:
+        unit_users = _users_for_unit(unit_domain)
+        if unit_users:
+            users.extend(unit_users)
+        else:
+            missing_domains.append(unit_domain)
+    users = _dedupe_users(users)
     if not users:
-        return [], f"Không tìm thấy cán bộ hoạt động nào thuộc đơn vị {domain}."
-    return _dedupe_users(users), None
+        if missing_domains:
+            return [], f"Không tìm thấy cán bộ hoạt động nào thuộc các đơn vị đã chọn: {', '.join(missing_domains)}."
+        return [], "Không tìm thấy cán bộ hoạt động nào thuộc các đơn vị đã chọn."
+    return users, None
 
 
 def _resolve_viewers(form):
@@ -3557,6 +3773,1136 @@ def _task_file_path(file_name):
     return os.path.join(_task_file_root(), file_name)
 
 
+def _store_uploaded_task_file(file_storage, task_id, assignment_id, prefix="report"):
+    if not file_storage or not getattr(file_storage, "filename", ""):
+        return None
+    original_name = secure_filename(file_storage.filename)
+    if not original_name:
+        return None
+    _base_name, ext = os.path.splitext(original_name)
+    ext = ext.lower()
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    stored_name = secure_filename(f"{prefix}_{task_id}_{assignment_id}_{timestamp}{ext}")
+    stored_path = _task_file_path(stored_name)
+    file_storage.save(stored_path)
+    return {
+        "original_name": original_name,
+        "stored_name": stored_name,
+        "stored_path": stored_path,
+        "file_ext": ext,
+        "mime_type": getattr(file_storage, "mimetype", "") or "",
+        "file_size": os.path.getsize(stored_path) if os.path.exists(stored_path) else 0,
+    }
+
+
+def _create_assignment_records(task, assignees, assign_type="user", task_item=None, title_snapshot="", is_required=True, role_id=None):
+    created = []
+    for user in assignees or []:
+        assignment = TaskAssignment(
+            task_id=task.id,
+            task_item_id=getattr(task_item, "id", None),
+            user_id=user.id,
+            assignee_type=assign_type,
+            role_id=role_id if role_id else (getattr(user, "role_id", None) if assign_type == "role" else None),
+            title_snapshot=title_snapshot or getattr(task_item, "title", None) or task.title,
+            status="assigned",
+            is_required=bool(is_required),
+            assigned_at=datetime.now(),
+        )
+        db.session.add(assignment)
+        created.append(assignment)
+    return created
+
+
+def _task_assignments_query(task, task_item_id=None):
+    query = TaskAssignment.query.options(joinedload(TaskAssignment.user)).filter_by(task_id=task.id)
+    if task_item_id is None:
+        return query.filter(TaskAssignment.task_item_id.is_(None))
+    return query.filter_by(task_item_id=task_item_id)
+
+
+def _task_items_for_task(task):
+    return (
+        TaskItem.query.filter_by(task_id=task.id)
+        .order_by(TaskItem.sort_order.asc(), TaskItem.id.asc())
+        .all()
+    )
+
+
+def _latest_assignment_submission(assignment):
+    if not assignment:
+        return None
+    if getattr(assignment, "last_submission", None):
+        return assignment.last_submission
+    return (
+        TaskSubmission.query.options(joinedload(TaskSubmission.files))
+        .filter_by(assignment_id=assignment.id)
+        .order_by(TaskSubmission.created_at.desc(), TaskSubmission.id.desc())
+        .first()
+    )
+
+
+def _task_is_submitted(assignment):
+    return str(getattr(assignment, "status", "") or "").strip().lower() in {"submitted", "completed"}
+
+
+def _build_rebuilt_task_summary(task, current_uid):
+    assignments = TaskAssignment.query.filter_by(task_id=task.id).all()
+    total_assignments = len(assignments)
+    submitted_assignments = sum(1 for assignment in assignments if _task_is_submitted(assignment))
+    in_progress_assignments = sum(
+        1 for assignment in assignments
+        if str(getattr(assignment, "status", "") or "").strip().lower() == "in_progress"
+    )
+    current_assignment = next((assignment for assignment in assignments if assignment.user_id == current_uid), None)
+    progress_percent = int(round((submitted_assignments / total_assignments) * 100)) if total_assignments else 0
+    return {
+        "total_assignments": total_assignments,
+        "submitted_assignments": submitted_assignments,
+        "in_progress_assignments": in_progress_assignments,
+        "current_assignment": current_assignment,
+        "progress_percent": progress_percent,
+    }
+
+
+def _parse_outline_item_rows(task, current_uid):
+    rows = []
+    for item in _task_items_for_task(task):
+        assignments = _task_assignments_query(task, task_item_id=item.id).all()
+        my_assignment = next((assignment for assignment in assignments if assignment.user_id == current_uid), None)
+        latest_submissions = {
+            assignment.id: _latest_assignment_submission(assignment)
+            for assignment in assignments
+        }
+        secondary_text = ""
+        for candidate in [getattr(item, "guide_text", None), getattr(item, "content", None)]:
+            candidate_text = str(candidate or "").strip()
+            if not candidate_text:
+                continue
+            if re.sub(r"\s+", " ", candidate_text).strip().lower() == re.sub(r"\s+", " ", str(item.title or "")).strip().lower():
+                continue
+            secondary_text = candidate_text
+            break
+        rows.append(
+            {
+                "item": item,
+                "assignments": assignments,
+                "my_assignment": my_assignment,
+                "my_submission": latest_submissions.get(getattr(my_assignment, "id", None)),
+                "submitted_count": sum(1 for assignment in assignments if _task_is_submitted(assignment)),
+                "total_count": len(assignments),
+                "latest_submissions": latest_submissions,
+                "secondary_text": secondary_text,
+            }
+        )
+    return rows
+
+
+def _parse_outline_item_configs_from_request(form):
+    titles = form.getlist("item_title")
+    report_kinds = form.getlist("item_report_kind")
+    enabled_indexes = {value for value in form.getlist("item_enabled")}
+    attachment_indexes = {value for value in form.getlist("item_attachment_required")}
+    assign_types = form.getlist("item_assign_type")
+    domains = form.getlist("item_domain")
+    domains_values = form.getlist("item_domains")
+    role_ids_values = form.getlist("item_role_ids")
+    user_ids_values = form.getlist("item_user_ids")
+    configs = []
+    seen = set()
+
+    for index, raw_title in enumerate(titles):
+        if enabled_indexes and str(index) not in enabled_indexes:
+            continue
+        cleaned_title = _clean_outline_title(raw_title)
+        if not cleaned_title:
+            continue
+        dedupe_key = cleaned_title.lower()
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        report_kind = str(report_kinds[index] if index < len(report_kinds) else "narrative").strip().lower()
+        if report_kind not in CHILD_TASK_ALLOWED_REPORT_KINDS:
+            report_kind = "narrative"
+        assign_type = str(assign_types[index] if index < len(assign_types) else "").strip().lower()
+        if assign_type not in {"unit", "role", "user"}:
+            assign_type = ""
+        domain = str(domains[index] if index < len(domains) else "").strip()
+        raw_unit_domains = str(domains_values[index] if index < len(domains_values) else "").strip()
+        raw_role_ids = str(role_ids_values[index] if index < len(role_ids_values) else "").strip()
+        raw_user_ids = str(user_ids_values[index] if index < len(user_ids_values) else "").strip()
+        unit_domains = _requested_unit_domains(
+            MultiDict([("child_domains", value.strip()) for value in raw_unit_domains.split(",") if value.strip()] + ([("child_domain", domain)] if domain else []))
+        )
+        configs.append(
+            {
+                "title": cleaned_title[:255],
+                "report_kind": report_kind,
+                "attachment_required": str(index) in attachment_indexes,
+                "assign_type": assign_type,
+                "domain": domain[:255],
+                "unit_domains": unit_domains,
+                "role_ids": sorted({int(value) for value in raw_role_ids.split(",") if value.strip().isdigit()}),
+                "user_ids": sorted({int(value) for value in raw_user_ids.split(",") if value.strip().isdigit()}),
+            }
+        )
+    return configs
+
+
+def _outline_import_preview_session_key(task_id):
+    current_uid = int(session.get("uid") or 0)
+    return f"task:outline_import_preview:{int(task_id)}:{current_uid}"
+
+
+def _get_outline_import_preview(task_id):
+    raw_value = session.get(_outline_import_preview_session_key(task_id))
+    if not isinstance(raw_value, list):
+        return []
+    rows = []
+    for item in raw_value:
+        if not isinstance(item, dict):
+            continue
+        title = _clean_outline_title(item.get("title"))
+        if not title:
+            continue
+        report_kind = str(item.get("report_kind") or "narrative").strip().lower()
+        if report_kind not in CHILD_TASK_ALLOWED_REPORT_KINDS:
+            report_kind = "narrative"
+        assign_type = str(item.get("assign_type") or "").strip().lower()
+        if assign_type not in {"unit", "role", "user"}:
+            assign_type = ""
+        rows.append(
+            {
+                "title": title[:255],
+                "report_kind": report_kind,
+                "attachment_required": bool(item.get("attachment_required")),
+                "assign_type": assign_type,
+                "domain": str(item.get("domain") or "").strip()[:255],
+                "unit_domains": _requested_unit_domains(
+                    MultiDict([("child_domains", value) for value in (item.get("unit_domains") or [])] + ([("child_domain", item.get("domain"))] if item.get("domain") else []))
+                ),
+                "role_ids": sorted({int(role_id) for role_id in (item.get("role_ids") or []) if str(role_id).isdigit()}),
+                "user_ids": sorted({int(user_id) for user_id in (item.get("user_ids") or []) if str(user_id).isdigit()}),
+            }
+        )
+    return rows
+
+
+def _set_outline_import_preview(task_id, rows):
+    session[_outline_import_preview_session_key(task_id)] = rows
+    session.modified = True
+
+
+def _clear_outline_import_preview(task_id):
+    session.pop(_outline_import_preview_session_key(task_id), None)
+    session.modified = True
+
+
+def _resolve_outline_item_assignment(item_config, form, parent_task):
+    assign_type = str(item_config.get("assign_type") or "").strip().lower()
+    unit_domains = _requested_unit_domains(
+        MultiDict([("child_domains", value) for value in (item_config.get("unit_domains") or [])] + ([("child_domain", item_config.get("domain"))] if item_config.get("domain") else []))
+    )
+    role_ids = sorted({int(role_id) for role_id in (item_config.get("role_ids") or []) if str(role_id).isdigit()})
+    user_ids = sorted({int(user_id) for user_id in (item_config.get("user_ids") or []) if str(user_id).isdigit()})
+    domain = str(item_config.get("domain") or "").strip()
+
+    if assign_type in {"unit", "role", "user"}:
+        assignees, error_message = _resolve_assignees_by_mode(
+            assign_type,
+            domain=domain or parent_task.domain or "",
+            unit_domains=unit_domains,
+            target_ids=user_ids,
+            assignee_role_ids=role_ids,
+        )
+        return assignees, error_message, assign_type, role_ids
+
+    fallback_domain = (form.get("child_domain") or parent_task.domain or "").strip()
+    assignees, error_message = _resolve_assignees(form, fallback_domain)
+    selected_role_ids = _requested_role_ids(form)
+    return assignees, error_message, form.get("assign_type", "unit"), selected_role_ids
+
+
+def _outline_group_identity(assignments, fallback_index=0):
+    if not assignments:
+        return {
+            "key": f"ungrouped:{fallback_index}",
+            "label": "Chưa phân công",
+            "mode": "user",
+            "mode_label": "Chưa có người nhận",
+            "members_label": "",
+        }
+
+    assignee_type = str(getattr(assignments[0], "assignee_type", "") or "user").strip().lower()
+    if assignee_type == "unit":
+        unit_names = sorted({
+            _task_assignee_unit_name(getattr(assignment, "user", None)) or "Chưa có đơn vị"
+            for assignment in assignments
+        })
+        label = unit_names[0] if len(unit_names) == 1 else f"{unit_names[0]} +{len(unit_names) - 1} đơn vị"
+        return {
+            "key": "unit:" + "|".join(unit_names),
+            "label": label,
+            "mode": "unit",
+            "mode_label": "Giao theo đơn vị",
+            "members_label": ", ".join(unit_names),
+        }
+
+    if assignee_type == "role":
+        role_names = sorted({
+            (
+                getattr(getattr(assignment, "role", None), "name", None)
+                or getattr(getattr(getattr(assignment, "user", None), "role", None), "name", None)
+                or "Chưa phân vai trò"
+            )
+            for assignment in assignments
+        })
+        label = role_names[0] if len(role_names) == 1 else f"{role_names[0]} +{len(role_names) - 1} vai trò"
+        return {
+            "key": "role:" + "|".join(role_names),
+            "label": label,
+            "mode": "role",
+            "mode_label": "Giao theo vai trò",
+            "members_label": ", ".join(role_names),
+        }
+
+    user_names = sorted({
+        (
+            getattr(getattr(assignment, "user", None), "fullname", None)
+            or getattr(getattr(assignment, "user", None), "username", None)
+            or "Không xác định"
+        )
+        for assignment in assignments
+    })
+    label = user_names[0] if len(user_names) == 1 else f"{user_names[0]} +{len(user_names) - 1} cá nhân"
+    return {
+        "key": "user:" + "|".join(str(getattr(assignment, "user_id", 0) or 0) for assignment in assignments),
+        "label": label,
+        "mode": "user",
+        "mode_label": "Giao theo cá nhân",
+        "members_label": ", ".join(user_names),
+    }
+
+
+def _build_outline_group_rows(task, current_uid):
+    group_map = {}
+    rows = _parse_outline_item_rows(task, current_uid)
+    for index, row in enumerate(rows, start=1):
+        identity = _outline_group_identity(row["assignments"], fallback_index=index)
+        group = group_map.setdefault(
+            identity["key"],
+            {
+                "key": identity["key"],
+                "label": identity["label"],
+                "mode": identity["mode"],
+                "mode_label": identity["mode_label"],
+                "members_label": identity["members_label"],
+                "rows": [],
+                "total_items": 0,
+                "fully_submitted_items": 0,
+                "my_items": 0,
+                "total_assignments": 0,
+            },
+        )
+        group["rows"].append(row)
+        group["total_items"] += 1
+        group["total_assignments"] += row["total_count"]
+        if row["total_count"] and row["submitted_count"] >= row["total_count"]:
+            group["fully_submitted_items"] += 1
+        if row["my_assignment"]:
+            group["my_items"] += 1
+
+    groups = sorted(group_map.values(), key=lambda item: (item["mode"], item["label"].lower()))
+    for group in groups:
+        group["rows"].sort(key=lambda item: (getattr(item["item"], "sort_order", 0), getattr(item["item"], "id", 0)))
+    return groups
+
+
+def _build_file_task_rows(task, current_uid):
+    assignments = _task_assignments_query(task).all()
+    rows = []
+    for assignment in assignments:
+        submission = _latest_assignment_submission(assignment)
+        rows.append(
+            {
+                "assignment": assignment,
+                "submission": submission,
+                "is_current_user": assignment.user_id == current_uid,
+            }
+        )
+    return rows
+
+
+def _normalize_task_form_field_type(value):
+    normalized = str(value or "").strip().lower()
+    if normalized in TASK_FORM_ALLOWED_FIELD_TYPES:
+        return normalized
+    return "text"
+
+
+def _task_form_value_is_empty(value):
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    if isinstance(value, list):
+        return len(value) == 0
+    return False
+
+
+def _task_form_fields(task):
+    return (
+        TaskFormField.query.filter_by(task_id=task.id)
+        .order_by(TaskFormField.sort_order.asc(), TaskFormField.id.asc())
+        .all()
+    )
+
+
+def _parse_task_form_fields_from_request(form):
+    labels = form.getlist("form_field_label")
+    field_types = form.getlist("form_field_type")
+    required_indexes = {value for value in form.getlist("form_field_required")}
+    options_values = form.getlist("form_field_options")
+    fields = []
+    for index, raw_label in enumerate(labels):
+        label = (raw_label or "").strip()
+        if not label:
+            continue
+        field_type = _normalize_task_form_field_type(field_types[index] if index < len(field_types) else "text")
+        raw_options = (options_values[index] if index < len(options_values) else "").strip()
+        options_payload = {}
+        if field_type in {"radio", "checkbox"} and raw_options:
+            options_payload["choices"] = [item.strip() for item in raw_options.splitlines() if item.strip()]
+        elif field_type == "table" and raw_options:
+            options_payload["columns"] = [item.strip() for item in raw_options.split(",") if item.strip()]
+        fields.append(
+            {
+                "field_key": secure_filename(remove_accents(label).replace(" ", "_")) or f"field_{index+1}",
+                "field_label": label,
+                "field_type": field_type,
+                "field_options_json": json.dumps(options_payload, ensure_ascii=False) if options_payload else None,
+                "sort_order": len(fields),
+                "is_required": str(index) in required_indexes,
+            }
+        )
+    return fields
+
+
+def _form_field_options(field):
+    raw_value = getattr(field, "field_options_json", None) or ""
+    if not raw_value:
+        return {}
+    try:
+        payload = json.loads(raw_value)
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _task_form_submission_payload(submission):
+    raw_value = getattr(submission, "payload_json", None) or ""
+    if not raw_value:
+        return {}
+    try:
+        payload = json.loads(raw_value)
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _build_form_task_rows(task, current_uid):
+    assignments = _task_assignments_query(task).all()
+    fields = _task_form_fields(task)
+    rows = []
+    for assignment in assignments:
+        submission = _latest_assignment_submission(assignment)
+        rows.append(
+            {
+                "assignment": assignment,
+                "submission": submission,
+                "payload": _task_form_submission_payload(submission) if submission else {},
+                "is_current_user": assignment.user_id == current_uid,
+            }
+        )
+    return fields, rows
+
+
+def _task_form_field_views(task):
+    views = []
+    for field in _task_form_fields(task):
+        options = _form_field_options(field)
+        views.append(
+            {
+                "id": field.id,
+                "field_key": field.field_key,
+                "field_label": field.field_label,
+                "field_type": _normalize_task_form_field_type(field.field_type),
+                "is_required": bool(field.is_required),
+                "choices": options.get("choices", []) if isinstance(options.get("choices", []), list) else [],
+                "columns": options.get("columns", []) if isinstance(options.get("columns", []), list) else [],
+            }
+        )
+    return views
+
+
+def _tasks_page_v2():
+    perms = _current_perms()
+    can_view_all_tasks = _can_view_all_tasks(perms)
+    is_lead = _can_process_task_module(perms)
+    is_admin = bool(session.get("is_admin"))
+    current_user = db.session.get(User, session["uid"])
+
+    task_fields = _task_field_options()
+    pro_units = _task_domain_options()
+    task_types = _task_type_options()
+    priority_items = _task_priority_options()
+    active_users = []
+    roles = []
+
+    if is_lead or is_admin:
+        active_users = User.query.filter_by(is_active=True).order_by(User.unit_area.asc(), User.fullname.asc()).all()
+        active_users = apply_reference_display(
+            sync_record_categories(
+                active_users,
+                module_category_options("contacts", "unit_name", "Đơn vị"),
+                attr_name="unit_area",
+                prefer_stable=True,
+            ),
+            "unit_area",
+            module_category_options("contacts", "unit_name", "Đơn vị"),
+            display_attr="unit_area_display",
+            fallback_label="Chưa có đơn vị",
+        )
+        roles = AppRole.query.order_by(AppRole.name.asc()).all()
+
+    if request.method == "POST" and is_lead:
+        title = (request.form.get("title") or "").strip()
+        task_mode = _requested_task_mode(request.form)
+        category = canonicalize_category_value(request.form.get("category") or "", task_fields, prefer_stable=True)
+        domain = canonicalize_category_value(
+            request.form.get("unit_name") or request.form.get("domain") or "",
+            pro_units,
+            prefer_stable=True,
+        )
+        content = (request.form.get("description") or request.form.get("content") or "").strip()
+        priority = canonicalize_category_value(request.form.get("priority") or "Trung bình", priority_items, prefer_stable=True)
+        task_type = canonicalize_category_value(request.form.get("task_type") or "Công việc thường xuyên", task_types, prefer_stable=True)
+
+        if not title:
+            flash("Tiêu đề công việc không được để trống.", "danger")
+            return redirect(url_for("tasks_bp.tasks"))
+
+        managers, manager_error_message = _resolve_managers(request.form)
+        if manager_error_message:
+            flash(manager_error_message, "danger")
+            return redirect(url_for("tasks_bp.tasks"))
+        viewers, viewer_error_message = _resolve_viewers(request.form)
+        if viewer_error_message:
+            flash(viewer_error_message, "danger")
+            return redirect(url_for("tasks_bp.tasks"))
+
+        assignees = []
+        if task_mode in {"FILE", "FORM"}:
+            assignees, error_message = _resolve_assignees(request.form, domain)
+            if error_message:
+                flash(error_message, "danger")
+                return redirect(url_for("tasks_bp.tasks"))
+
+        attachment = request.files.get("task_file") or request.files.get("file")
+        attachment_name = ""
+        if attachment and attachment.filename:
+            attachment_meta = _store_uploaded_task_file(attachment, "task", "template", prefix="task")
+            attachment_name = attachment_meta["stored_name"] if attachment_meta else ""
+
+        new_task = Task(
+            category=category,
+            domain=domain,
+            title=title,
+            content=content,
+            deadline=_parse_deadline(request.form),
+            file_path=attachment_name,
+            author_id=session["uid"],
+            author_name=session.get("fullname", "Quản trị"),
+            priority=priority,
+            task_type=task_type,
+            initial_status="Chưa tiếp nhận",
+            task_mode=task_mode,
+            workflow_mode=_workflow_mode_from_task_mode(task_mode),
+        )
+        _store_assignment_scope(
+            new_task,
+            request.form.get("assign_type", "unit"),
+            domain=domain,
+            role_ids=_requested_role_ids(request.form),
+            user_ids=_requested_user_ids(request.form),
+        )
+        _store_viewer_scope(
+            new_task,
+            request.form.get("viewer_scope_mode", "none"),
+            role_ids=_requested_viewer_role_ids(request.form),
+            user_ids=_requested_viewer_user_ids(request.form),
+        )
+        _store_manager_scope(
+            new_task,
+            request.form.get("manager_scope_mode", "none"),
+            role_ids=_requested_manager_role_ids(request.form),
+            user_ids=_requested_manager_user_ids(request.form),
+        )
+        db.session.add(new_task)
+        db.session.flush()
+
+        if task_mode in {"FILE", "FORM"}:
+            _create_assignment_records(
+                new_task,
+                assignees,
+                assign_type=request.form.get("assign_type", "unit"),
+                title_snapshot=new_task.title,
+            )
+
+        if task_mode == "FORM":
+            field_defs = _parse_task_form_fields_from_request(request.form)
+            if not field_defs:
+                flash("Cần cấu hình ít nhất một trường dữ liệu cho biểu mẫu.", "danger")
+                db.session.rollback()
+                return redirect(url_for("tasks_bp.tasks"))
+            for field_def in field_defs:
+                db.session.add(TaskFormField(task_id=new_task.id, **field_def))
+
+        db.session.commit()
+
+        for user in assignees:
+            push_notif(user.id, "Công việc mới", f"Bạn vừa được giao: {new_task.title}", f"/tasks/{new_task.id}")
+
+        flash("Đã tạo công việc mới.", "success")
+        return redirect(url_for("tasks_bp.task_detail", tid=new_task.id))
+
+    candidate_tasks = (
+        Task.query.options(joinedload(Task.assignments).joinedload(TaskAssignment.user))
+        .filter(Task.parent_task_id.is_(None))
+        .order_by(Task.created_at.desc(), Task.id.desc())
+        .all()
+    )
+
+    visible_tasks = []
+    for task in candidate_tasks:
+        is_executor = TaskAssignment.query.filter_by(task_id=task.id, user_id=session["uid"]).first() is not None
+        is_manager = _can_manage_task(task, user=current_user)
+        is_viewer = _can_watch_task(task, user=current_user)
+        if not (can_view_all_tasks or is_admin or task.author_id == session["uid"] or is_executor or is_manager or is_viewer):
+            continue
+
+        sync_record_categories([task], task_fields, attr_name="category", prefer_stable=True)
+        sync_record_categories([task], pro_units, attr_name="domain", prefer_stable=True)
+        sync_record_categories([task], task_types, attr_name="task_type", prefer_stable=True)
+        sync_record_categories([task], priority_items, attr_name="priority", prefer_stable=True)
+        _decorate_task_categories(task, task_fields, pro_units, task_types, priority_items)
+
+        summary = _build_rebuilt_task_summary(task, session["uid"])
+        mode = _task_mode(task)
+        setattr(task, "task_mode", mode)
+        setattr(task, "task_mode_label", _task_mode_label(mode))
+        setattr(task, "task_mode_description", _task_mode_description(mode))
+        setattr(task, "progress_percent", summary["progress_percent"])
+        setattr(task, "assignee_count", summary["total_assignments"])
+        setattr(task, "submitted_assignments", summary["submitted_assignments"])
+        setattr(task, "in_progress_assignments", summary["in_progress_assignments"])
+        setattr(task, "current_user_assignment", summary["current_assignment"])
+        setattr(task, "current_user_status_label", _task_assignment_status_label(getattr(summary["current_assignment"], "status", "")))
+        setattr(task, "is_overdue", bool(task.deadline and task.deadline < datetime.now().date() and summary["submitted_assignments"] < summary["total_assignments"]))
+        setattr(task, "can_edit", _can_edit_task(task))
+        setattr(task, "can_delete", _can_delete_task(task, is_lead=is_lead))
+        visible_tasks.append(task)
+
+    outline_tasks = [task for task in visible_tasks if getattr(task, "task_mode", TASK_MODE_DEFAULT) == "OUTLINE"]
+    file_tasks = [task for task in visible_tasks if getattr(task, "task_mode", TASK_MODE_DEFAULT) == "FILE"]
+    form_tasks = [task for task in visible_tasks if getattr(task, "task_mode", TASK_MODE_DEFAULT) == "FORM"]
+
+    return render_template(
+        "tasks_rebuild.html",
+        tasks=visible_tasks,
+        outline_tasks=outline_tasks,
+        file_tasks=file_tasks,
+        form_tasks=form_tasks,
+        users=active_users,
+        roles=roles,
+        pro_units=stable_form_category_options(pro_units),
+        task_fields=task_fields,
+        task_types=stable_form_category_options(task_types),
+        priority_items=stable_form_category_options(priority_items),
+        is_lead=is_lead,
+        is_admin=is_admin,
+        stats={
+            "total": len(visible_tasks),
+            "outline": len(outline_tasks),
+            "file": len(file_tasks),
+            "form": len(form_tasks),
+        },
+    )
+
+
+def _task_detail_v2(tid):
+    task = Task.query.options(joinedload(Task.assignments).joinedload(TaskAssignment.user)).filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    perms = _current_perms()
+    can_view_all_tasks = _can_view_all_tasks(perms)
+    is_lead = _can_process_task_module(perms)
+    is_admin = bool(session.get("is_admin"))
+    current_user = db.session.get(User, session["uid"])
+    is_executor = TaskAssignment.query.filter_by(task_id=task.id, user_id=session["uid"]).first() is not None
+    can_manage_task_view = bool(is_admin or is_lead or _can_edit_task(task) or _can_manage_task(task, user=current_user))
+    can_watch_task_view = bool(_can_watch_task(task, user=current_user))
+
+    if not (can_view_all_tasks or can_manage_task_view or can_watch_task_view or is_executor or task.author_id == session["uid"]):
+        flash("Bạn không có quyền xem công việc này.", "danger")
+        return redirect(url_for("tasks_bp.tasks"))
+
+    pro_units = _task_domain_options()
+    task_fields = _task_field_options()
+    task_types = _task_type_options()
+    priority_items = _task_priority_options()
+    sync_record_categories([task], task_fields, attr_name="category", prefer_stable=True)
+    sync_record_categories([task], pro_units, attr_name="domain", prefer_stable=True)
+    sync_record_categories([task], task_types, attr_name="task_type", prefer_stable=True)
+    sync_record_categories([task], priority_items, attr_name="priority", prefer_stable=True)
+    _decorate_task_categories(task, task_fields, pro_units, task_types, priority_items)
+
+    mode = _task_mode(task)
+    setattr(task, "task_mode", mode)
+    setattr(task, "task_mode_label", _task_mode_label(mode))
+    setattr(task, "task_mode_description", _task_mode_description(mode))
+
+    summary = _build_rebuilt_task_summary(task, session["uid"])
+    outline_rows = _parse_outline_item_rows(task, session["uid"]) if mode == "OUTLINE" else []
+    outline_groups = _build_outline_group_rows(task, session["uid"]) if mode == "OUTLINE" else []
+    file_rows = _build_file_task_rows(task, session["uid"]) if mode == "FILE" else []
+    form_fields, form_rows = _build_form_task_rows(task, session["uid"]) if mode == "FORM" else ([], [])
+    form_field_views = _task_form_field_views(task) if mode == "FORM" else []
+    my_file_assignment = next((row["assignment"] for row in file_rows if row["is_current_user"]), None)
+    my_file_submission = next((row["submission"] for row in file_rows if row["is_current_user"]), None)
+    my_form_assignment = next((row["assignment"] for row in form_rows if row["is_current_user"]), None)
+    my_form_submission = next((row["submission"] for row in form_rows if row["is_current_user"]), None)
+    my_form_payload = next((row["payload"] for row in form_rows if row["is_current_user"]), {})
+    active_users = []
+    roles = []
+    if can_manage_task_view:
+        active_users = User.query.filter_by(is_active=True).order_by(User.unit_area.asc(), User.fullname.asc()).all()
+        active_users = apply_reference_display(
+            sync_record_categories(
+                active_users,
+                module_category_options("contacts", "unit_name", "Đơn vị"),
+                attr_name="unit_area",
+                prefer_stable=True,
+            ),
+            "unit_area",
+            module_category_options("contacts", "unit_name", "Đơn vị"),
+            display_attr="unit_area_display",
+            fallback_label="Chưa có đơn vị",
+        )
+        roles = AppRole.query.order_by(AppRole.name.asc()).all()
+    outline_import_preview_rows = _get_outline_import_preview(task.id) if mode == "OUTLINE" and can_manage_task_view else []
+
+    return render_template(
+        "task_detail_rebuild.html",
+        task=task,
+        pro_units=stable_form_category_options(pro_units),
+        task_fields=stable_form_category_options(task_fields),
+        task_types=stable_form_category_options(task_types),
+        priority_items=stable_form_category_options(priority_items),
+        can_edit_task=_can_edit_task(task),
+        can_delete_task=_can_delete_task(task, is_lead=is_lead),
+        can_manage_task_view=can_manage_task_view,
+        can_watch_task_view=can_watch_task_view,
+        can_submit=is_executor,
+        is_lead=is_lead,
+        is_admin=is_admin,
+        users=active_users,
+        roles=roles,
+        outline_rows=outline_rows,
+        outline_groups=outline_groups,
+        outline_import_preview_rows=outline_import_preview_rows,
+        file_rows=file_rows,
+        form_fields=form_fields,
+        form_field_views=form_field_views,
+        form_rows=form_rows,
+        my_file_assignment=my_file_assignment,
+        my_file_submission=my_file_submission,
+        my_form_assignment=my_form_assignment,
+        my_form_submission=my_form_submission,
+        my_form_payload=my_form_payload,
+        summary=summary,
+        status_labels=TASK_ASSIGNMENT_STATUS_LABELS,
+    )
+
+
+def _create_outline_items_v2(tid):
+    parent_task = Task.query.filter_by(id=tid).first()
+    if not parent_task:
+        return "Not Found", 404
+
+    if _task_mode(parent_task) != "OUTLINE":
+        flash("Công việc này không dùng chế độ đề cương.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    if not _can_edit_task(parent_task):
+        flash("Bạn không có quyền thêm đầu mục cho công việc này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    item_configs = _parse_outline_item_configs_from_request(request.form)
+    bulk_titles = _parse_bulk_child_task_titles(request.form.get("bulk_titles") or request.form.get("bulk_items"))
+    outline_file = request.files.get("outline_file")
+    if outline_file and outline_file.filename and not item_configs:
+        try:
+            bulk_titles.extend(_parse_outline_upload_titles(outline_file))
+        except ValueError as outline_error:
+            flash(str(outline_error), "danger")
+            return redirect(url_for("tasks_bp.task_detail", tid=tid))
+        bulk_titles = _parse_bulk_child_task_titles("\n".join(bulk_titles))
+
+    if not item_configs:
+        child_report_kind = str(request.form.get("child_report_kind") or "narrative").strip().lower()
+        if child_report_kind not in CHILD_TASK_ALLOWED_REPORT_KINDS:
+            child_report_kind = "narrative"
+        attachment_required = _report_checkbox_value(request.form.get("child_attachment_required"))
+        item_configs = [
+            {
+                "title": item_title,
+                "report_kind": child_report_kind,
+                "attachment_required": bool(attachment_required),
+            }
+            for item_title in bulk_titles
+        ]
+
+    if not item_configs:
+        flash("Cần tạo ít nhất một nội dung báo cáo trước khi gán.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    current_count = TaskItem.query.filter_by(task_id=parent_task.id).count()
+    resolved_assignments = []
+
+    for item_config in item_configs:
+        assignees, error_message, assign_type, role_ids = _resolve_outline_item_assignment(item_config, request.form, parent_task)
+        if error_message:
+            flash(f'Nội dung "{item_config["title"]}": {error_message}', "danger")
+            return redirect(url_for("tasks_bp.task_detail", tid=tid))
+        resolved_assignments.append(
+            {
+                "assignees": assignees,
+                "assign_type": assign_type,
+                "role_ids": role_ids,
+            }
+        )
+
+    for index, item_config in enumerate(item_configs, start=1):
+        assignment_meta = resolved_assignments[index - 1]
+        task_item = TaskItem(
+            task_id=parent_task.id,
+            item_code=str(current_count + index),
+            title=item_config["title"],
+            content=None,
+            guide_text=None,
+            is_required=True,
+            output_type="OUTLINE",
+            report_kind=item_config["report_kind"],
+            attachment_required=bool(item_config["attachment_required"]),
+            deadline=parent_task.deadline,
+            sort_order=current_count + index,
+        )
+        db.session.add(task_item)
+        db.session.flush()
+        _create_assignment_records(
+            parent_task,
+            assignment_meta["assignees"],
+            assign_type=assignment_meta["assign_type"],
+            task_item=task_item,
+            title_snapshot=item_config["title"],
+            role_id=assignment_meta["role_ids"][0] if len(assignment_meta["role_ids"]) == 1 else None,
+        )
+
+    db.session.commit()
+    _clear_outline_import_preview(parent_task.id)
+    flash(f"Đã thêm {len(item_configs)} đầu mục.", "success")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+def _preview_outline_import_v2(tid):
+    parent_task = Task.query.filter_by(id=tid).first()
+    if not parent_task:
+        return "Not Found", 404
+
+    if _task_mode(parent_task) != "OUTLINE":
+        flash("Công việc này không dùng chế độ đề cương.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    if not _can_edit_task(parent_task):
+        flash("Bạn không có quyền nạp đề cương cho công việc này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    outline_file = request.files.get("outline_file")
+    if not outline_file or not outline_file.filename:
+        flash("Cần chọn file đề cương trước khi nạp.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    try:
+        titles = _parse_outline_upload_titles(outline_file)
+    except ValueError as outline_error:
+        flash(str(outline_error), "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    titles = _parse_bulk_child_task_titles("\n".join(titles))
+    if not titles:
+        flash("Không tìm thấy đầu mục hợp lệ trong file đề cương.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    default_report_kind = str(request.form.get("child_report_kind") or "narrative").strip().lower()
+    if default_report_kind not in CHILD_TASK_ALLOWED_REPORT_KINDS:
+        default_report_kind = "narrative"
+    attachment_required = _report_checkbox_value(request.form.get("child_attachment_required"))
+
+    preview_rows = [
+        {
+            "title": title,
+            "report_kind": default_report_kind,
+            "attachment_required": bool(attachment_required),
+            "assign_type": "",
+            "domain": "",
+            "unit_domains": [],
+            "role_ids": [],
+            "user_ids": [],
+        }
+        for title in titles
+    ]
+    _set_outline_import_preview(parent_task.id, preview_rows)
+    flash(f"Đã nạp {len(preview_rows)} nội dung từ file đề cương. Bạn có thể sửa và gán lại trước khi tạo.", "success")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+def _update_task_status_v2(tid):
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    task_item_id = request.form.get("task_item_id", "").strip()
+    query = TaskAssignment.query.filter_by(task_id=tid, user_id=session["uid"])
+    if task_item_id.isdigit():
+        query = query.filter_by(task_item_id=int(task_item_id))
+    else:
+        query = query.filter(TaskAssignment.task_item_id.is_(None))
+    assignment = query.first()
+    if not assignment:
+        flash("Bạn không được giao nội dung này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    assignment.status = "in_progress"
+    assignment.updated_at = datetime.now()
+    db.session.commit()
+    flash("Đã tiếp nhận công việc.", "success")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+def _submit_task_report_v2(tid):
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    mode = _task_mode(task)
+    item = None
+    query = TaskAssignment.query.filter_by(task_id=tid, user_id=session["uid"])
+    task_item_id = request.form.get("task_item_id", "").strip()
+    if mode == "OUTLINE":
+        if not task_item_id.isdigit():
+            flash("Thiếu đầu mục cần báo cáo.", "danger")
+            return redirect(url_for("tasks_bp.task_detail", tid=tid))
+        item = TaskItem.query.filter_by(id=int(task_item_id), task_id=tid).first()
+        if not item:
+            flash("Không tìm thấy đầu mục cần báo cáo.", "danger")
+            return redirect(url_for("tasks_bp.task_detail", tid=tid))
+        query = query.filter_by(task_item_id=item.id)
+    else:
+        query = query.filter(TaskAssignment.task_item_id.is_(None))
+
+    assignment = query.first()
+    if not assignment:
+        flash("Bạn không được giao nội dung này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    narrative = (request.form.get("report_content") or request.form.get("report_narrative") or "").strip()
+    report_file = request.files.get("report_file")
+    numeric_value = None
+    payload = {}
+
+    if mode == "OUTLINE" and item and item.report_kind == "number":
+        raw_value = (request.form.get("report_number") or "").strip()
+        if not raw_value:
+            flash("Cần nhập số liệu cho đầu mục này.", "danger")
+            return redirect(url_for("tasks_bp.task_detail", tid=tid))
+        try:
+            numeric_value = float(raw_value.replace(",", ""))
+        except ValueError:
+            flash("Số liệu không hợp lệ.", "danger")
+            return redirect(url_for("tasks_bp.task_detail", tid=tid))
+        payload["reported_value"] = numeric_value
+
+    if mode == "FORM":
+        missing_labels = []
+        for field in _task_form_fields(task):
+            field_key = f"form_field_{field.field_key}"
+            field_type = _normalize_task_form_field_type(field.field_type)
+            if field_type == "checkbox":
+                value = request.form.getlist(field_key)
+            else:
+                value = (request.form.get(field_key) or "").strip()
+            if field_type == "number" and not _task_form_value_is_empty(value):
+                try:
+                    if isinstance(value, str):
+                        value = float(value.replace(",", ""))
+                except ValueError:
+                    flash(f"Trường {field.field_label} phải là số hợp lệ.", "danger")
+                    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+            if field_type == "table" and isinstance(value, str):
+                table_rows = []
+                for line in value.splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    table_rows.append([cell.strip() for cell in line.split("|")])
+                value = table_rows
+            if getattr(field, "is_required", False) and _task_form_value_is_empty(value):
+                missing_labels.append(field.field_label)
+            payload[field.field_key] = value
+        if missing_labels:
+            flash("Cần điền các trường bắt buộc: " + ", ".join(missing_labels) + ".", "danger")
+            return redirect(url_for("tasks_bp.task_detail", tid=tid))
+        narrative = ""
+
+    if mode != "FORM" and not narrative and not report_file and numeric_value is None:
+        flash("Cần nhập nội dung hoặc đính kèm tệp báo cáo.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    submission = TaskSubmission(
+        task_id=task.id,
+        task_item_id=getattr(item, "id", None),
+        assignment_id=assignment.id,
+        submitted_by=session["uid"],
+        submission_type=mode,
+        status="submitted",
+        narrative_content=narrative or None,
+        numeric_value=numeric_value,
+        payload_json=json.dumps(payload, ensure_ascii=False) if payload else None,
+        submitted_at=datetime.now(),
+    )
+    db.session.add(submission)
+    db.session.flush()
+
+    if report_file and report_file.filename:
+        file_meta = _store_uploaded_task_file(report_file, task.id, assignment.id, prefix="submission")
+        if file_meta:
+            db.session.add(
+                TaskSubmissionFile(
+                    submission_id=submission.id,
+                    original_name=file_meta["original_name"],
+                    stored_name=file_meta["stored_name"],
+                    stored_path=file_meta["stored_path"],
+                    file_ext=file_meta["file_ext"],
+                    mime_type=file_meta["mime_type"],
+                    file_size=file_meta["file_size"],
+                )
+            )
+            submission.attachment_name = file_meta["original_name"]
+            submission.attachment_path = file_meta["stored_path"]
+            assignment.result_file = file_meta["stored_name"]
+
+    assignment.status = "submitted"
+    assignment.submitted_at = datetime.now()
+    assignment.last_submission_id = submission.id
+    assignment.report_payload_json = json.dumps(
+        {
+            "narrative": narrative,
+            "numeric_value": numeric_value,
+            "payload": payload,
+            "submitted_at": submission.submitted_at.strftime("%d/%m/%Y %H:%M"),
+        },
+        ensure_ascii=False,
+    )
+    assignment.updated_at = datetime.now()
+
+    db.session.add(
+        TaskComment(
+            task_id=task.id,
+            user_id=session["uid"],
+            user_name=session.get("fullname", "Người dùng"),
+            content=f"[BÁO CÁO] {narrative or ('Đã nộp biểu mẫu' if mode == 'FORM' else 'Đã nộp báo cáo')}",
+        )
+    )
+    db.session.commit()
+    flash("Đã gửi báo cáo.", "success")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+def _export_form_task_v2(tid):
+    if Workbook is None:
+        flash("Máy chủ chưa cài thư viện xuất Excel.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    current_user = db.session.get(User, session["uid"])
+    perms = _current_perms()
+    can_manage_task_view = bool(
+        bool(session.get("is_admin"))
+        or _can_process_task_module(perms)
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+        or _can_watch_task(task, user=current_user)
+    )
+    if not can_manage_task_view:
+        flash("Bạn không có quyền xuất dữ liệu biểu mẫu.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    fields, rows = _build_form_task_rows(task, session["uid"])
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Du lieu"
+    headers = ["Đơn vị", "Người nhận", "Trạng thái", "Thời điểm nộp"]
+    headers.extend([field.field_label for field in fields])
+    sheet.append(headers)
+
+    for row in rows:
+        user = getattr(row["assignment"], "user", None)
+        user_name = getattr(user, "fullname", None) or getattr(user, "username", None) or ""
+        unit_name = _task_assignee_unit_name(user) if user else ""
+        submission = row["submission"]
+        payload = row["payload"] or {}
+        data_row = [
+            unit_name,
+            user_name,
+            _task_assignment_status_label(row["assignment"].status),
+            submission.submitted_at.strftime("%d/%m/%Y %H:%M") if submission and submission.submitted_at else "",
+        ]
+        for field in fields:
+            value = payload.get(field.field_key, "")
+            if isinstance(value, list):
+                if value and isinstance(value[0], list):
+                    value = " || ".join(" | ".join(str(cell) for cell in item) for item in value)
+                else:
+                    value = ", ".join(str(item) for item in value)
+            data_row.append(value)
+        sheet.append(data_row)
+
+    output = io.BytesIO()
+    workbook.save(output)
+    output.seek(0)
+    safe_name = secure_filename(task.title or f"task_{task.id}") or f"task_{task.id}"
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=f"du_lieu_bieu_mau_{safe_name}_{task.id}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
 def _task_assignee_unit_name(user):
     return _task_unit_identity(user).get("unit_name", "Chưa có đơn vị")
 
@@ -3595,6 +4941,7 @@ def _purge_task(task):
     task_id, task_item_id = _task_scope_identity(task)
     participant_query = TaskParticipant.query.filter(TaskParticipant.task_id == task_id)
     submission_query = TaskSubmission.query.filter(TaskSubmission.task_id == task_id)
+    form_field_query = TaskFormField.query.filter(TaskFormField.task_id == task_id)
     link_query = TaskReportLink.query.filter(TaskReportLink.task_id == task_id)
     if task_item_id:
         participant_query = participant_query.filter(TaskParticipant.task_item_id == task_item_id)
@@ -3604,8 +4951,12 @@ def _purge_task(task):
         participant_query = participant_query.filter(TaskParticipant.task_item_id.is_(None))
         submission_query = submission_query.filter(TaskSubmission.task_item_id.is_(None))
         link_query = link_query.filter(TaskReportLink.task_item_id.is_(None))
+    submission_ids = [submission_id for submission_id, in submission_query.with_entities(TaskSubmission.id).all()]
+    if submission_ids:
+        TaskSubmissionFile.query.filter(TaskSubmissionFile.submission_id.in_(submission_ids)).delete(synchronize_session=False)
     submission_query.delete(synchronize_session=False)
     participant_query.delete(synchronize_session=False)
+    form_field_query.delete(synchronize_session=False)
     link_query.delete(synchronize_session=False)
     if getattr(task, "parent_task_id", None):
         TaskItem.query.filter_by(source_task_id=task.id).delete(synchronize_session=False)
@@ -3764,343 +5115,7 @@ def tasks():
         return redirect(url_for("auth_bp.login"))
 
     _ensure_task_schema()
-
-    pro_units = _task_domain_options()
-    task_fields = _task_field_options()
-    task_types = _task_type_options()
-    priority_items = _task_priority_options()
-    status_items = module_category_options("tasks", "initial_status", "Trạng thái công việc")
-    current_domain = canonicalize_category_value(
-        request.args.get("domain", "ALL"),
-        pro_units,
-        prefer_stable=True,
-    ) if request.args.get("domain") not in {None, "", "ALL"} else "ALL"
-    current_field = canonicalize_category_value(
-        request.args.get("field", "ALL"),
-        task_fields,
-        prefer_stable=True,
-    ) if request.args.get("field") not in {None, "", "ALL"} else "ALL"
-    now_dt = datetime.now()
-
-    perms = _current_perms()
-    is_lead = _can_process_task_module(perms)
-    can_view_all_tasks = _can_view_all_tasks(perms)
-    is_admin = bool(session.get("is_admin"))
-    current_user = db.session.get(User, session["uid"])
-
-    active_users = []
-    roles = []
-    if is_lead or is_admin:
-        active_users = User.query.filter_by(is_active=True).order_by(User.unit_area.asc(), User.fullname.asc()).all()
-        active_users = apply_reference_display(
-            sync_record_categories(active_users, module_category_options("contacts", "unit_name", "Đơn vị"), attr_name="unit_area", prefer_stable=True),
-            "unit_area",
-            module_category_options("contacts", "unit_name", "Đơn vị"),
-            display_attr="unit_area_display",
-            fallback_label="Chưa có đơn vị",
-        )
-        roles = AppRole.query.order_by(AppRole.name.asc()).all()
-
-    if request.method == "POST" and is_lead:
-        title = (request.form.get("title") or "").strip()
-        category = canonicalize_category_value(
-            request.form.get("category") or "",
-            task_fields,
-            prefer_stable=True,
-        )
-        domain = canonicalize_category_value(
-            request.form.get("unit_name") or request.form.get("domain") or "",
-            pro_units,
-            prefer_stable=True,
-        )
-        content = (request.form.get("description") or request.form.get("content") or "").strip()
-        priority = canonicalize_category_value(
-            request.form.get("priority") or "Trung bình",
-            priority_items,
-            prefer_stable=True,
-        )
-        task_type = canonicalize_category_value(
-            request.form.get("task_type") or "Công việc thường xuyên",
-            task_types,
-            prefer_stable=True,
-        )
-
-        if not title:
-            flash("Tiêu đề công việc không được để trống.", "danger")
-            return redirect(url_for("tasks_bp.tasks"))
-
-        if task_fields and not category:
-            flash("Cần chọn lĩnh vực công việc.", "danger")
-            return redirect(url_for("tasks_bp.tasks"))
-
-        workflow_mode = _requested_task_workflow_mode(request.form)
-        linked_report_template_ids = []
-        if workflow_mode == "child_tasks":
-            report_schema = None
-            linked_report_template_ids = _requested_linked_report_template_ids(request.form)
-        else:
-            try:
-                report_schema = _parse_task_report_schema_from_request(request.form)
-            except ValueError as exc:
-                flash(str(exc), "danger")
-                return redirect(url_for("tasks_bp.tasks"))
-
-        assignees, error_message = _resolve_assignees(request.form, domain)
-        if error_message:
-            flash(error_message, "danger")
-            return redirect(url_for("tasks_bp.tasks"))
-        managers, manager_error_message = _resolve_managers(request.form)
-        if manager_error_message:
-            flash(manager_error_message, "danger")
-            return redirect(url_for("tasks_bp.tasks"))
-        viewers, viewer_error_message = _resolve_viewers(request.form)
-        if viewer_error_message:
-            flash(viewer_error_message, "danger")
-            return redirect(url_for("tasks_bp.tasks"))
-
-        attachment = request.files.get("task_file") or request.files.get("file")
-        attachment_name = ""
-        if attachment and attachment.filename:
-            attachment_name = secure_filename(attachment.filename)
-            attachment.save(_task_file_path(attachment_name))
-
-        new_task = Task(
-            category=category,
-            domain=domain,
-            title=title,
-            content=content,
-            deadline=_parse_deadline(request.form),
-            file_path=attachment_name,
-            author_id=session["uid"],
-            author_name=session.get("fullname", "Quản trị"),
-            priority=priority,
-            task_type=task_type,
-            initial_status="Chưa tiếp nhận",
-            workflow_mode=workflow_mode,
-            report_schema_json=json.dumps(report_schema, ensure_ascii=False) if report_schema else None,
-            linked_report_templates_json=json.dumps(linked_report_template_ids, ensure_ascii=False) if linked_report_template_ids else None,
-        )
-        _store_assignment_scope(
-            new_task,
-            request.form.get("assign_type", "unit"),
-            domain=domain,
-            role_ids=_requested_role_ids(request.form),
-            user_ids=_requested_user_ids(request.form),
-        )
-        _store_viewer_scope(
-            new_task,
-            request.form.get("viewer_scope_mode", "none"),
-            role_ids=_requested_viewer_role_ids(request.form),
-            user_ids=_requested_viewer_user_ids(request.form),
-        )
-        _store_manager_scope(
-            new_task,
-            request.form.get("manager_scope_mode", "none"),
-            role_ids=_requested_manager_role_ids(request.form),
-            user_ids=_requested_manager_user_ids(request.form),
-        )
-        db.session.add(new_task)
-        db.session.flush()
-
-        _sync_task_assignments(new_task, assignees)
-        _sync_task_runtime_models(
-            new_task,
-            assignees=assignees,
-            managers=managers,
-            viewers=viewers,
-            linked_report_template_ids=linked_report_template_ids,
-        )
-
-        db.session.commit()
-
-        domain_display = resolve_category_display(domain, pro_units, fallback_label=domain).get("display_name") or domain
-        category_display = resolve_category_display(category, task_fields, fallback_label=category).get("display_name") or category
-
-        notify_message = (
-            f"Đơn vị {domain_display} được giao: {new_task.title}"
-            if request.form.get("assign_type", "unit") == "unit"
-            else f"Bạn vừa được giao: {new_task.title}"
-        )
-        for user in assignees:
-            push_notif(user.id, "Công việc mới", notify_message, f"/tasks/{new_task.id}")
-        assignee_ids = {user.id for user in assignees}
-        manager_ids = set()
-        for user in managers:
-            if user.id in assignee_ids:
-                continue
-            manager_ids.add(user.id)
-            push_notif(user.id, "Xử lý công việc", f"Bạn được giao quyền xử lý công việc: {new_task.title}", f"/tasks/{new_task.id}")
-        for user in viewers:
-            if user.id in assignee_ids or user.id in manager_ids:
-                continue
-            push_notif(user.id, "Theo dõi công việc", f"Bạn được thêm vào danh sách xem việc: {new_task.title}", f"/tasks/{new_task.id}")
-
-        log_action(
-            session["uid"],
-            session.get("fullname", "Quản trị"),
-            "Giao công việc mới",
-            "Công việc",
-            f"{new_task.title} | {len(assignees)} người nhận",
-        )
-        push_global_notif(
-            "Công việc mới",
-            f"Có công việc mới: {new_task.title}",
-            f"/tasks/{new_task.id}",
-            exclude_uid=session.get("uid"),
-        )
-
-        flash(f"Đã giao công việc cho {len(assignees)} cán bộ.", "success")
-        return redirect(url_for("tasks_bp.tasks"))
-
-    query = Task.query.options(joinedload(Task.assignments).joinedload(TaskAssignment.user))
-    if current_field != "ALL":
-        query = query.filter_by(category=current_field)
-    if current_domain != "ALL":
-        query = query.filter_by(domain=current_domain)
-
-    all_candidate_tasks = query.order_by(Task.created_at.desc()).all()
-
-    if can_view_all_tasks:
-        all_tasks = [task for task in all_candidate_tasks if not task.parent_task_id]
-    else:
-        parent_task_ids = [task.id for task in all_candidate_tasks if not task.parent_task_id and getattr(task, "id", None)]
-        visible_child_tasks_by_parent = _visible_child_tasks_by_parent_for_user(parent_task_ids, session["uid"])
-        child_parent_ids = set(visible_child_tasks_by_parent.keys())
-        all_tasks = []
-        for task in all_candidate_tasks:
-            if task.parent_task_id:
-                continue
-            is_direct_assignment = _task_user_is_executor(task, session["uid"])
-            is_manager = _can_manage_task(task, user=current_user)
-            is_viewer = _can_watch_task(task, user=current_user)
-            if not is_direct_assignment and task.id not in child_parent_ids and not is_viewer and not is_manager:
-                continue
-            if not is_direct_assignment and task.id in visible_child_tasks_by_parent:
-                child_tasks_for_user = visible_child_tasks_by_parent.get(task.id) or []
-                total_children = len(child_tasks_for_user)
-                completed_children = 0
-                started_children = 0
-                for child_task in child_tasks_for_user:
-                    child_metrics = _decorate_task(child_task, session["uid"], False)
-                    child_status = child_metrics["display_status"]
-                    if child_status == COMPLETED_STATUS:
-                        completed_children += 1
-                        started_children += 1
-                    elif child_status != "Chưa tiếp nhận":
-                        started_children += 1
-                if total_children and completed_children == total_children:
-                    task.display_status = COMPLETED_STATUS
-                    task.progress_percent = 100
-                elif started_children:
-                    task.display_status = f"Đang thực hiện ({started_children}/{total_children})"
-                    task.progress_percent = round((completed_children / total_children) * 100) if total_children else 0
-                else:
-                    task.display_status = f"Chưa tiếp nhận (0/{total_children})"
-                    task.progress_percent = 0
-                task.current_user_status = task.display_status
-                task._visible_child_tasks_for_user = child_tasks_for_user
-            if is_manager:
-                task._manager_observe_task = True
-            if is_viewer:
-                task._viewer_observe_task = True
-            all_tasks.append(task)
-
-    total_count = len(all_tasks)
-    overdue_count = 0
-    completed_count = 0
-    all_tasks = sync_record_categories(all_tasks, task_fields, attr_name="category", prefer_stable=True)
-    all_tasks = sync_record_categories(all_tasks, pro_units, attr_name="domain", prefer_stable=True)
-    all_tasks = sync_record_categories(all_tasks, task_types, attr_name="task_type", prefer_stable=True)
-    all_tasks = sync_record_categories(all_tasks, priority_items, attr_name="priority", prefer_stable=True)
-    task_filters_source = []
-    uncategorized_count = 0
-
-    for task in all_tasks:
-        is_executor_view = _task_user_is_executor(task, session["uid"])
-        inferred_has_children = bool(getattr(task, "_visible_child_tasks_for_user", None))
-        if not inferred_has_children:
-            inferred_has_children = bool(
-                next(
-                    (candidate for candidate in all_candidate_tasks if getattr(candidate, "parent_task_id", None) == task.id),
-                    None,
-                )
-            )
-        workflow_mode = _task_workflow_mode(task, has_child_tasks=inferred_has_children)
-        setattr(task, "workflow_mode", workflow_mode)
-        setattr(task, "workflow_mode_display", _task_workflow_label(workflow_mode))
-        if not can_view_all_tasks and getattr(task, "_visible_child_tasks_for_user", None) is not None and not is_executor_view:
-            task_metrics = {
-                "display_status": getattr(task, "display_status", "Chưa tiếp nhận"),
-                "progress_percent": getattr(task, "progress_percent", 0),
-                "is_overdue": bool(task.deadline and task.deadline < datetime.now().date() and getattr(task, "display_status", "") != COMPLETED_STATUS),
-                "total_assignments": len(_task_assignment_rows(task, ensure_bridge=False)),
-                "accepted_assignments": 0,
-                "completed_assignments": 0,
-                "current_user_status": getattr(task, "current_user_status", None),
-                "user_assignment": None,
-            }
-            setattr(task, "is_overdue", task_metrics["is_overdue"])
-            setattr(task, "assignee_count", task_metrics["total_assignments"])
-            setattr(task, "accepted_assignments", task_metrics["accepted_assignments"])
-            setattr(task, "completed_assignments", task_metrics["completed_assignments"])
-        elif not can_view_all_tasks and (getattr(task, "_viewer_observe_task", False) or getattr(task, "_manager_observe_task", False)) and not is_executor_view:
-            task_metrics = _decorate_task(task, session["uid"], True)
-        else:
-            task_metrics = _decorate_task(task, session["uid"], can_view_all_tasks)
-        setattr(task, "can_edit", _can_edit_task(task))
-        setattr(task, "can_delete", _can_delete_task(task, is_lead=is_lead))
-        category_meta = _decorate_task_categories(task, task_fields, pro_units, task_types, priority_items)
-        if task_metrics["is_overdue"]:
-            overdue_count += 1
-        if task_metrics["display_status"] == COMPLETED_STATUS:
-            completed_count += 1
-        if category_meta["category"]["option"]:
-            task_filters_source.append({"category_filter": task.category_filter})
-        elif not task.category:
-            uncategorized_count += 1
-            task_filters_source.append({"category_filter": "__uncategorized__"})
-        else:
-            task_filters_source.append({"category_filter": task.category_filter})
-
-    field_counts = {
-        item["filter_value"]: item["count"]
-        for item in category_filter_counts(
-            task_filters_source,
-            task_fields,
-            empty_label="Chưa phân lĩnh vực",
-        )
-    }
-    uncategorized_count = field_counts.get("__uncategorized__", 0)
-
-    return render_template(
-        "tasks.html",
-        tasks=all_tasks,
-        users=active_users,
-        roles=roles,
-        pro_units=stable_form_category_options(pro_units),
-        pro_unit_labels=pro_units,
-        task_fields=task_fields,
-        field_counts=field_counts,
-        uncategorized_count=uncategorized_count,
-        task_types=stable_form_category_options(task_types),
-        task_type_labels=task_types,
-        priority_items=stable_form_category_options(priority_items),
-        priority_labels=priority_items,
-        status_items=status_items,
-        current_domain=current_domain,
-        current_field=current_field,
-        now_dt=now_dt,
-        is_lead=is_lead,
-        is_admin=is_admin,
-        default_task_report_schema=_task_report_schema_seed() if (is_lead or is_admin) else {},
-        report_templates=_task_report_templates() if (is_lead or is_admin) else [],
-        stats={
-            "total": total_count,
-            "completed": completed_count,
-            "pending": total_count - completed_count,
-            "overdue": overdue_count,
-        },
-    )
+    return _tasks_page_v2()
 
 
 @tasks_bp.route("/tasks/<int:tid>", methods=["GET", "POST"])
@@ -4109,935 +5124,7 @@ def task_detail(tid):
         return redirect(url_for("auth_bp.login"))
 
     _ensure_task_schema()
-
-    task = Task.query.options(joinedload(Task.assignments).joinedload(TaskAssignment.user)).filter_by(id=tid).first()
-    if not task:
-        return "Not Found", 404
-
-    perms = _current_perms()
-    is_lead = _can_process_task_module(perms)
-    can_view_all_tasks = _can_view_all_tasks(perms)
-    is_admin = bool(session.get("is_admin"))
-    current_user = db.session.get(User, session["uid"])
-    can_manager_task_view = _can_manage_task(task, user=current_user)
-    can_watch_task_view = _can_watch_task(task, user=current_user)
-    visible_child_tasks_for_user = (
-        _visible_child_tasks_for_user(task.id, session["uid"])
-        if not (session.get("is_admin") or can_view_all_tasks or task.author_id == session.get("uid"))
-        else []
-    )
-    if not _can_view_task(task, is_lead=can_view_all_tasks) and not visible_child_tasks_for_user:
-        flash("Bạn không có quyền xem công việc này.", "danger")
-        return redirect(url_for("tasks_bp.tasks"))
-
-    can_edit_task = _can_edit_task(task)
-    can_delete_task = _can_delete_task(task, is_lead=is_lead)
-    can_manage_task_view = bool(is_lead or can_edit_task or can_manager_task_view)
-    can_observe_task_view = bool(can_manage_task_view or can_watch_task_view or can_view_all_tasks)
-    if _lazy_repair_task_runtime(
-        task,
-        include_children=can_observe_task_view,
-        child_tasks=visible_child_tasks_for_user if visible_child_tasks_for_user and not can_observe_task_view else None,
-    ):
-        task = Task.query.options(joinedload(Task.assignments).joinedload(TaskAssignment.user)).filter_by(id=tid).first()
-        can_edit_task = _can_edit_task(task)
-        can_delete_task = _can_delete_task(task, is_lead=is_lead)
-        can_manager_task_view = _can_manage_task(task, user=current_user)
-        can_watch_task_view = _can_watch_task(task, user=current_user)
-        can_manage_task_view = bool(is_lead or can_edit_task or can_manager_task_view)
-        can_observe_task_view = bool(can_manage_task_view or can_watch_task_view or can_view_all_tasks)
-        visible_child_tasks_for_user = (
-            _visible_child_tasks_for_user(task.id, session["uid"])
-            if not (session.get("is_admin") or can_view_all_tasks or task.author_id == session.get("uid"))
-            else []
-        )
-
-    pro_units = _task_domain_options()
-    task_fields = _task_field_options()
-    task_types = _task_type_options()
-    priority_items = _task_priority_options()
-    sync_record_categories([task], task_fields, attr_name="category", prefer_stable=True)
-    sync_record_categories([task], pro_units, attr_name="domain", prefer_stable=True)
-    sync_record_categories([task], task_types, attr_name="task_type", prefer_stable=True)
-    sync_record_categories([task], priority_items, attr_name="priority", prefer_stable=True)
-    _decorate_task_categories(task, task_fields, pro_units, task_types, priority_items)
-    parent_task = None
-    if task.parent_task_id:
-        parent_task = Task.query.filter_by(id=task.parent_task_id).first()
-        if parent_task:
-            sync_record_categories([parent_task], task_fields, attr_name="category", prefer_stable=True)
-            sync_record_categories([parent_task], pro_units, attr_name="domain", prefer_stable=True)
-            sync_record_categories([parent_task], task_types, attr_name="task_type", prefer_stable=True)
-            sync_record_categories([parent_task], priority_items, attr_name="priority", prefer_stable=True)
-            _decorate_task_categories(parent_task, task_fields, pro_units, task_types, priority_items)
-
-    assigns = _task_assignment_rows(task, ensure_bridge=False)
-    assign_users = [user for _, user in assigns]
-    unit_options = module_category_options("contacts", "unit_name", "Đơn vị")
-    sync_record_categories(assign_users, unit_options, attr_name="unit_area", prefer_stable=True)
-    apply_reference_display(
-        assign_users,
-        "unit_area",
-        _task_assignment_unit_options(),
-        display_attr="unit_area_display",
-        fallback_label="Chưa có đơn vị",
-    )
-
-    task_metrics = _decorate_task(task, session["uid"], can_view_all_tasks)
-    user_assign = task_metrics["user_assignment"]
-    active_users = []
-    roles = []
-    if can_manage_task_view or is_admin or is_lead:
-        active_users = User.query.filter_by(is_active=True).order_by(User.unit_area.asc(), User.fullname.asc()).all()
-        active_users = apply_reference_display(
-            sync_record_categories(active_users, module_category_options("contacts", "unit_name", "Đơn vị"), attr_name="unit_area", prefer_stable=True),
-            "unit_area",
-            module_category_options("contacts", "unit_name", "Đơn vị"),
-            display_attr="unit_area_display",
-            fallback_label="Chưa có đơn vị",
-        )
-        roles = AppRole.query.order_by(AppRole.name.asc()).all()
-    if not can_manage_task_view and not can_watch_task_view and not can_view_all_tasks and not user_assign and not visible_child_tasks_for_user:
-        flash("Bạn không có quyền xem công việc này.", "danger")
-        return redirect(url_for("tasks_bp.tasks"))
-
-    comments = TaskComment.query.filter_by(task_id=tid).order_by(TaskComment.created_at.desc()).all()
-    visible_comments = _filter_comments_for_viewer(task, comments, current_user, can_manage_all=can_observe_task_view)
-    assignment_context = _infer_assignment_context(task)
-    manager_context = _infer_manager_context(task)
-    viewer_context = _infer_viewer_context(task)
-    manager_role_ids = manager_context.get("role_ids") or []
-    viewer_role_ids = viewer_context.get("role_ids") or []
-    manager_user_ids = manager_context.get("user_ids") or []
-    viewer_user_ids = viewer_context.get("user_ids") or []
-    scope_role_ids = sorted({int(role_id) for role_id in (manager_role_ids + viewer_role_ids) if str(role_id).isdigit()})
-    scope_user_ids = sorted({int(user_id) for user_id in (manager_user_ids + viewer_user_ids) if str(user_id).isdigit()})
-    scope_role_lookup = {
-        role.id: role.name
-        for role in (AppRole.query.filter(AppRole.id.in_(scope_role_ids)).all() if scope_role_ids else [])
-    }
-    scope_user_lookup = {}
-    if scope_user_ids:
-        scope_users = User.query.filter(User.id.in_(scope_user_ids)).all()
-        sync_record_categories(scope_users, unit_options, attr_name="unit_area", prefer_stable=True)
-        apply_reference_display(
-            scope_users,
-            "unit_area",
-            _task_assignment_unit_options(),
-            display_attr="unit_area_display",
-            fallback_label="Chưa có đơn vị",
-        )
-        scope_user_lookup = {
-            user.id: f"{user.fullname}{f' - {user.unit_area_display}' if getattr(user, 'unit_area_display', None) else ''}"
-            for user in scope_users
-        }
-    manager_scope_summary = _build_scope_summary(
-        manager_context,
-        role_lookup=scope_role_lookup,
-        user_lookup=scope_user_lookup,
-        none_label="Chỉ người giao việc hoặc quản trị xử lý",
-    )
-    viewer_scope_summary = _build_scope_summary(
-        viewer_context,
-        role_lookup=scope_role_lookup,
-        user_lookup=scope_user_lookup,
-        none_label="Chỉ người giao việc và người thực hiện xem",
-    )
-    discussion_comments = visible_comments
-    unit_report_rows, unit_report_stats = ([], {
-        "total_units": 0,
-        "reported_units": 0,
-        "unreported_units": 0,
-        "overdue_units": 0,
-        "on_time_units": 0,
-    })
-    unit_report_cards = []
-    unit_report_groups = []
-    discussion_threads = []
-    assignment_role_groups = []
-    child_task_tracking = {
-        "total_units": 0,
-        "total_child_tasks": 0,
-        "total_missing_tasks": 0,
-        "total_overdue_tasks": 0,
-        "unit_rows": [],
-        "progress_groups": [],
-        "quality_groups": [],
-        "child_task_count_by_unit": {},
-    }
-    da06_management_view = []
-    task_report_schema = _load_task_report_schema(task)
-    linked_report_templates = _build_linked_report_template_views(
-        task,
-        can_manage_report_admin=_can_manage_report_links(),
-        can_open_report_workspace=_can_open_report_workspace(),
-    )
-    child_tasks = []
-    task_has_child_tasks = False
-    child_task_stats = {"total": 0, "completed": 0, "in_progress": 0}
-    child_task_reporting_matrix = {"task_rows": [], "unit_rows": []}
-    assignment_report_snapshots = _assignment_report_snapshot_map(assigns, comments=comments)
-    assignment_unit_cards = _build_assignment_unit_cards(assigns, report_snapshots=assignment_report_snapshots)
-    assignment_unit_progress = {
-        "completed_units": sum(1 for card in assignment_unit_cards if card.get("status") == COMPLETED_STATUS),
-        "total_units": len(assignment_unit_cards),
-    }
-    if can_observe_task_view:
-        child_tasks = Task.query.options(joinedload(Task.assignments).joinedload(TaskAssignment.user)).filter_by(parent_task_id=task.id).order_by(Task.created_at.asc()).all()
-    elif visible_child_tasks_for_user:
-        child_tasks = visible_child_tasks_for_user
-
-    if child_tasks:
-        task_has_child_tasks = True
-        sync_record_categories(child_tasks, task_fields, attr_name="category", prefer_stable=True)
-        sync_record_categories(child_tasks, pro_units, attr_name="domain", prefer_stable=True)
-        sync_record_categories(child_tasks, task_types, attr_name="task_type", prefer_stable=True)
-        sync_record_categories(child_tasks, priority_items, attr_name="priority", prefer_stable=True)
-        for child_task in child_tasks:
-            child_metrics = _decorate_task(child_task, session["uid"], can_observe_task_view)
-            _decorate_task_categories(child_task, task_fields, pro_units, task_types, priority_items)
-            setattr(child_task, "can_edit", _can_edit_task(child_task))
-            setattr(child_task, "can_delete", _can_delete_task(child_task, is_lead=is_lead))
-            setattr(child_task, "current_user_status", child_metrics["current_user_status"])
-            child_viewer_assign = _task_assignment_for_user(child_task, session["uid"], create_from_executor=True)
-            child_schema = _load_task_report_schema(child_task)
-            child_meta = _task_report_meta(child_schema)
-            child_unit_summary = _build_child_task_unit_summary(child_task)
-            setattr(child_task, "report_kind", _task_simple_child_report_kind(child_task) or "narrative")
-            setattr(child_task, "report_kind_label", "Báo cáo số" if getattr(child_task, "report_kind", "") == "number" else "Báo cáo lời")
-            setattr(child_task, "attachment_required", bool(child_meta.get("attachment_required")))
-            setattr(child_task, "reported_assignments", sum(1 for assignment, _user in _task_assignment_rows(child_task, ensure_bridge=False) if _assignment_has_report_submission(assignment)))
-            setattr(child_task, "reported_units", child_unit_summary.get("reported_units", 0))
-            setattr(child_task, "total_units", child_unit_summary.get("total_units", 0))
-            setattr(child_task, "number_total", child_unit_summary.get("numeric_total"))
-            setattr(child_task, "viewer_assignment", child_viewer_assign)
-            setattr(child_task, "report_form", _build_structured_task_report_form(child_task, child_viewer_assign, current_user) if child_viewer_assign and child_schema else None)
-            setattr(child_task, "action_label", "Cập nhật" if child_viewer_assign and _assignment_has_report_submission(child_viewer_assign) else "Thực hiện")
-            child_task_stats["total"] += 1
-            if child_metrics["display_status"] == COMPLETED_STATUS:
-                child_task_stats["completed"] += 1
-            elif child_metrics["display_status"] != "Chưa tiếp nhận":
-                child_task_stats["in_progress"] += 1
-        child_task_reporting_matrix = _build_child_task_reporting_matrix(child_tasks)
-        child_task_tracking = _build_child_task_report_dashboard(child_tasks)
-    if can_observe_task_view:
-        discussion_comments = [
-            comment for comment in visible_comments
-            if not (getattr(comment, "content", "") or "").startswith(REPORT_PREFIX)
-        ]
-        assignment_role_groups = _build_assignment_role_groups(
-            assigns,
-            child_task_counts_by_unit=child_task_tracking.get("child_task_count_by_unit", {}),
-        )
-        unit_report_rows, unit_report_stats = _build_unit_report_summary(
-            assigns,
-            comments,
-            task.deadline,
-            report_snapshots=assignment_report_snapshots,
-        )
-        unit_report_cards = _build_unit_report_cards(
-            task,
-            assigns,
-            comments,
-            report_snapshots=assignment_report_snapshots,
-        )
-        unit_report_groups = _build_unit_report_groups(unit_report_cards)
-        discussion_threads = [thread for thread in _build_discussion_threads(assigns, discussion_comments) if thread.get("comments")]
-    elif user_assign:
-        discussion_comments = [
-            comment for comment in visible_comments
-            if not (getattr(comment, "content", "") or "").startswith(REPORT_PREFIX)
-        ]
-        discussion_threads = [
-            thread
-            for thread in _build_discussion_threads(assigns, discussion_comments)
-            if user_assign.user_id in (thread.get("assignee_user_ids") or [])
-        ]
-    report_context = _build_assignment_report_context(user_assign, visible_comments, task=task)
-    limited_assignment_view = bool(user_assign and not can_manage_task_view)
-    structured_task_report_form = _build_structured_task_report_form(task, user_assign, current_user)
-    da06_task_form = _build_da06_task_form(task, user_assign, current_user)
-    if _is_da06_month_task(task) and can_observe_task_view:
-        da06_management_view = _build_da06_management_view(assigns)
-    task_workflow_mode = _task_workflow_mode(task, has_child_tasks=task_has_child_tasks)
-    task_workflow_label = _task_workflow_label(task_workflow_mode)
-    setattr(task, "workflow_mode", task_workflow_mode)
-    setattr(task, "workflow_mode_display", task_workflow_label)
-    show_child_task_pane = bool(child_tasks) or (can_manage_task_view and not parent_task)
-    show_report_pane = bool(can_manage_task_view or limited_assignment_view or can_submit_report)
-    show_tracking_pane = can_observe_task_view
-    show_assignment_pane = can_observe_task_view
-    show_workflow_cards = can_observe_task_view and not parent_task and show_child_task_pane and show_report_pane
-
-    if request.method == "POST":
-        if not (can_manage_task_view or user_assign):
-            flash("Bạn không có quyền phản hồi công việc này.", "danger")
-            return redirect(url_for("tasks_bp.tasks"))
-
-        content = (request.form.get("content") or "").strip()
-        requested_assignee_id = request.form.get("assignee_id", "").strip()
-        assignee_id = int(requested_assignee_id) if requested_assignee_id.isdigit() else 0
-        valid_assignee_ids = {assignment.user_id for assignment, _user in assigns if assignment.user_id}
-
-        if can_manage_task_view:
-            assignee_id = assignee_id if assignee_id in valid_assignee_ids else 0
-        elif user_assign:
-            assignee_id = user_assign.user_id
-
-        if content:
-            db.session.add(
-                TaskComment(
-                    task_id=tid,
-                    user_id=session["uid"],
-                    user_name=session.get("fullname", "Người dùng"),
-                    content=content,
-                    assignee_id=assignee_id,
-                )
-            )
-            db.session.commit()
-            flash("Đã gửi phản hồi.", "success")
-            return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    return render_template(
-        "task_detail.html",
-        task=task,
-        comments=visible_comments,
-        discussion_comments=discussion_comments,
-        discussion_threads=discussion_threads,
-        assigns=assigns,
-        pro_units=stable_form_category_options(pro_units),
-        task_fields=stable_form_category_options(task_fields),
-        task_types=stable_form_category_options(task_types),
-        priority_items=stable_form_category_options(priority_items),
-        users=active_users,
-        roles=roles,
-        report_templates=_task_report_templates(),
-        assignment_context=assignment_context,
-        manager_context=manager_context,
-        manager_scope_summary=manager_scope_summary,
-        viewer_context=viewer_context,
-        viewer_scope_summary=viewer_scope_summary,
-        now_dt=datetime.now(),
-        is_lead=is_lead,
-        can_edit_task=can_edit_task,
-        can_delete_task=can_delete_task,
-        user_assign=user_assign,
-        progress_percent=task_metrics["progress_percent"],
-        unit_report_rows=unit_report_rows,
-        unit_report_stats=unit_report_stats,
-        unit_report_cards=unit_report_cards,
-        unit_report_groups=unit_report_groups,
-        assignment_role_groups=assignment_role_groups,
-        assignment_unit_progress=assignment_unit_progress,
-        child_task_tracking=child_task_tracking,
-        can_manage_task_view=can_manage_task_view,
-        can_observe_task_view=can_observe_task_view,
-        limited_assignment_view=limited_assignment_view,
-        show_child_task_pane=show_child_task_pane,
-        show_tracking_pane=show_tracking_pane,
-        show_report_pane=show_report_pane,
-        show_assignment_pane=show_assignment_pane,
-        show_workflow_cards=show_workflow_cards,
-        task_workflow_mode=task_workflow_mode,
-        task_workflow_label=task_workflow_label,
-        report_context=report_context,
-        parent_task=parent_task,
-        child_tasks=child_tasks,
-        child_task_stats=child_task_stats,
-        child_task_reporting_matrix=child_task_reporting_matrix,
-        task_has_child_tasks=task_has_child_tasks,
-        task_report_schema=task_report_schema,
-        task_report_schema_seed=_task_report_schema_seed(task),
-        linked_report_templates=linked_report_templates,
-        linked_report_template_ids=_load_linked_report_template_ids(task),
-        structured_task_report_form=structured_task_report_form,
-        da06_task_form=da06_task_form,
-        da06_management_view=da06_management_view,
-    )
-
-
-@tasks_bp.route("/tasks/<int:tid>/da06-save", methods=["POST"])
-def save_da06_task_report(tid):
-    if not session.get("uid"):
-        return redirect(url_for("auth_bp.login"))
-
-    _ensure_task_schema()
-    task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
-    if not task:
-        return "Not Found", 404
-    _lazy_repair_task_runtime(task)
-    if not _is_da06_month_task(task):
-        flash("Công việc này không dùng biểu mẫu ĐA06 tháng.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    assign = _task_assignment_for_user(task, session["uid"], create_from_executor=True)
-    if not assign:
-        flash("Bạn không có quyền cập nhật biểu mẫu của công việc này.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    current_user = db.session.get(User, session["uid"])
-    profile = _da06_user_profile(current_user)
-    payload = _parse_assignment_payload(assign)
-    attachments = payload.get("attachments", {}) if isinstance(payload.get("attachments"), dict) else {}
-
-    if profile["kind"] == "tct_xa":
-        payload["tuyen_truyen_total"] = (request.form.get("tuyen_truyen_total") or "").strip()
-        payload["tuyen_truyen_forms"] = (request.form.get("tuyen_truyen_forms") or "").strip()
-        payload["current_tasks"] = (request.form.get("current_tasks") or "").strip()
-        payload["van_ban_y_kien_count"] = (request.form.get("van_ban_y_kien_count") or "").strip()
-        payload["van_ban_chi_dao"] = (request.form.get("van_ban_chi_dao") or "").strip()
-        for key, label in (
-            ("tuyen_truyen_attachment", "tuyen_truyen"),
-            ("van_ban_y_kien_attachment", "van_ban_y_kien"),
-            ("van_ban_chi_dao_attachment", "van_ban_chi_dao"),
-        ):
-            saved_name = _save_task_attachment(request.files.get(key), tid, session["uid"], label)
-            if saved_name:
-                attachments[key] = saved_name
-    elif profile["kind"] == "tthcc":
-        payload["tthcc_note"] = (request.form.get("tthcc_note") or "").strip()
-        saved_name = _save_task_attachment(request.files.get("phu_luc_2_attachment"), tid, session["uid"], "phu_luc_2")
-        if saved_name:
-            attachments["phu_luc_2_attachment"] = saved_name
-    else:
-        payload["narrative_report"] = (request.form.get("narrative_report") or "").strip()
-        dvc_items = {}
-        for rule_title in (profile.get("rule") or {}).get("dvc_titles", []):
-            item_key = secure_filename(remove_accents(rule_title).replace(" ", "_")) or f"dvc_{len(dvc_items)+1}"
-            dvc_items[rule_title] = {
-                "total": (request.form.get(f"{item_key}_total") or "").strip(),
-                "online": (request.form.get(f"{item_key}_online") or "").strip(),
-                "rate": (request.form.get(f"{item_key}_rate") or "").strip(),
-                "data_source": (request.form.get(f"{item_key}_data_source") or "").strip(),
-                "benefit": (request.form.get(f"{item_key}_benefit") or "").strip(),
-                "issues": (request.form.get(f"{item_key}_issues") or "").strip(),
-                "solution": (request.form.get(f"{item_key}_solution") or "").strip(),
-            }
-        payload["dvc_items"] = dvc_items
-
-    payload["attachments"] = attachments
-    payload["updated_at"] = datetime.now().strftime("%d/%m/%Y %H:%M")
-    assign.report_payload_json = json.dumps(payload, ensure_ascii=False)
-    if _normalize_status(assign.status) in PENDING_STATUSES:
-        assign.status = IN_PROGRESS_STATUS
-    _upsert_task_submission_from_assignment(task, assign, payload)
-    db.session.commit()
-    flash("Đã lưu biểu mẫu ĐA06 tháng.", "success")
-    return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-
-@tasks_bp.route("/tasks/<int:tid>/da06-attachment/<string:attachment_key>")
-def download_da06_task_attachment(tid, attachment_key):
-    if not session.get("uid"):
-        return redirect(url_for("auth_bp.login"))
-
-    _ensure_task_schema()
-
-    task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
-    if not task:
-        return "Not Found", 404
-    _lazy_repair_task_runtime(task)
-
-    perms = _current_perms()
-    is_lead = _can_process_task_module(perms)
-    can_view_all_tasks = _can_view_all_tasks(perms)
-    can_manage_task_view = bool(is_lead or _can_edit_task(task))
-    can_watch_task_view = _can_watch_task(task)
-    if not _can_view_task(task, is_lead=can_view_all_tasks):
-        flash("Báº¡n khÃ´ng cÃ³ quyá»n táº£i minh chá»©ng cá»§a cÃ´ng viá»‡c nÃ y.", "danger")
-        return redirect(url_for("tasks_bp.tasks"))
-
-    assign = _task_assignment_for_user(task, session["uid"], create_from_executor=True)
-    if not can_manage_task_view and not can_watch_task_view and not can_view_all_tasks and not assign:
-        flash("Báº¡n khÃ´ng cÃ³ quyá»n táº£i minh chá»©ng nÃ y.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    if (can_manage_task_view or can_watch_task_view or can_view_all_tasks) and not assign:
-        assign = _task_latest_reporting_assignment(task)
-
-    payload = _parse_assignment_payload(assign)
-    attachments = payload.get("attachments", {}) if isinstance(payload.get("attachments"), dict) else {}
-    file_name = (attachments.get(attachment_key) or "").strip()
-    if not file_name:
-        flash("KhÃ´ng tÃ¬m tháº¥y tá»‡p minh chá»©ng cáº§n táº£i.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    file_path = _task_file_path(file_name)
-    if not os.path.exists(file_path):
-        flash("Tá»‡p minh chá»©ng khÃ´ng cÃ²n tá»“n táº¡i trÃªn há»‡ thá»‘ng.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    return send_file(file_path, as_attachment=True, download_name=file_name)
-
-
-@tasks_bp.route("/tasks/<int:tid>/assignees/<int:user_id>/report-download")
-def download_task_report_file(tid, user_id):
-    if not session.get("uid"):
-        return redirect(url_for("auth_bp.login"))
-
-    _ensure_task_schema()
-
-    task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
-    if not task:
-        return "Not Found", 404
-    _lazy_repair_task_runtime(task)
-
-    perms = _current_perms()
-    is_lead = _can_process_task_module(perms)
-    can_view_all_tasks = _can_view_all_tasks(perms)
-    can_manage_task_view = bool(is_lead or _can_edit_task(task))
-    can_watch_task_view = _can_watch_task(task)
-    if not _can_view_task(task, is_lead=can_view_all_tasks):
-        flash("Bạn không có quyền tải tệp của công việc này.", "danger")
-        return redirect(url_for("tasks_bp.tasks"))
-
-    if not can_manage_task_view and not can_watch_task_view and not can_view_all_tasks and session.get("uid") != user_id:
-        flash("Bạn chỉ có thể tải tệp báo cáo của mình.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    assign = _task_assignment_for_user(task, user_id)
-    file_name = _assignment_report_snapshot(assign).get("attachment_name") if assign else ""
-    if not assign or not file_name:
-        flash("Không tìm thấy tệp báo cáo cần tải.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    file_path = _task_file_path(file_name)
-    if not os.path.exists(file_path):
-        flash("Tệp báo cáo không còn tồn tại trên hệ thống.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    target_user = db.session.get(User, user_id)
-    if target_user:
-        unit_options = module_category_options("contacts", "unit_name", "Đơn vị")
-        sync_record_categories([target_user], unit_options, attr_name="unit_area", prefer_stable=True)
-        apply_reference_display(
-            [target_user],
-            "unit_area",
-            unit_options,
-            display_attr="unit_area_display",
-            fallback_label="Chưa có đơn vị",
-        )
-
-    unit_name = _task_assignee_unit_name(target_user)
-    download_name = _task_report_download_name(task, unit_name, file_name)
-    return send_file(file_path, as_attachment=True, download_name=download_name)
-
-
-@tasks_bp.route("/tasks/<int:tid>/child-report-export/<string:dimension>/<string:condition>")
-def export_child_task_report_condition(tid, dimension, condition):
-    if not session.get("uid"):
-        return redirect(url_for("auth_bp.login"))
-
-    _ensure_task_schema()
-
-    if Workbook is None:
-        flash("Máy chủ chưa cài thư viện xuất Excel.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
-    if not task:
-        return "Not Found", 404
-
-    perms = _current_perms()
-    is_lead = _can_process_task_module(perms)
-    can_view_all_tasks = _can_view_all_tasks(perms)
-    current_user = db.session.get(User, session["uid"])
-    if not (
-        can_view_all_tasks
-        or is_lead
-        or _can_edit_task(task)
-        or _can_manage_task(task, user=current_user)
-        or _can_watch_task(task, user=current_user)
-    ):
-        flash("Bạn không có quyền xuất danh sách theo dõi nhiệm vụ của công việc này.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    child_tasks = (
-        Task.query.options(joinedload(Task.assignments).joinedload(TaskAssignment.user))
-        .filter_by(parent_task_id=task.id)
-        .order_by(Task.created_at.asc(), Task.id.asc())
-        .all()
-    )
-    tracking = _build_child_task_report_dashboard(child_tasks)
-    meta = _child_task_condition_meta(dimension, condition)
-    if dimension == "progress":
-        groups = tracking.get("progress_groups", [])
-    elif dimension == "quality":
-        groups = tracking.get("quality_groups", [])
-    else:
-        groups = []
-        meta = None
-
-    if not meta:
-        flash("Điều kiện xuất danh sách không hợp lệ.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    matched_group = next((group for group in groups if group["code"] == condition), None)
-    matched_units = (matched_group or {}).get("units", [])
-    if not matched_units:
-        flash("Hiện chưa có đơn vị phù hợp với điều kiện đã chọn.", "warning")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    workbook = Workbook()
-    sheet = workbook.active
-    sheet.title = "Danh sach"
-    sheet.append(["Công việc", task.title])
-    sheet.append(["Nhóm điều kiện", "Tiến độ báo cáo" if dimension == "progress" else "Chất lượng báo cáo"])
-    sheet.append(["Điều kiện", meta["label"]])
-    sheet.append(["Diễn giải", meta["description"]])
-    sheet.append(["Ngày xuất", datetime.now().strftime("%d/%m/%Y %H:%M")])
-    sheet.append([])
-    sheet.append([
-        "Đơn vị",
-        "Nhiệm vụ được giao",
-        "Đã tiếp nhận",
-        "Đã báo cáo",
-        "Chưa báo cáo",
-        "Công việc quá hạn",
-        "Tiến độ báo cáo",
-        "Chất lượng báo cáo",
-        "Công việc chưa báo",
-        "Công việc quá hạn",
-    ])
-
-    for unit_row in matched_units:
-        sheet.append([
-            unit_row["unit_name"],
-            unit_row["child_task_count"],
-            unit_row["accepted_count"],
-            unit_row["reported_count"],
-            unit_row["missing_count"],
-            unit_row["overdue_count"],
-            unit_row["progress_label"],
-            unit_row["quality_label"],
-            ", ".join(item["task_title"] for item in unit_row["missing_items"]),
-            ", ".join(item["task_title"] for item in unit_row["overdue_items"]),
-        ])
-
-    output = io.BytesIO()
-    workbook.save(output)
-    output.seek(0)
-    task_slug = _task_download_slug(getattr(task, "title", ""), f"task_{task.id}")
-    filename = f"{meta['filename_suffix']}_{task_slug}_{task.id}.xlsx"
-    return send_file(
-        output,
-        as_attachment=True,
-        download_name=filename,
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
-
-
-@tasks_bp.route("/tasks/<int:tid>/unit-report-export")
-def export_task_unit_report(tid):
-    if not session.get("uid"):
-        return redirect(url_for("auth_bp.login"))
-
-    _ensure_task_schema()
-
-    if Workbook is None:
-        flash("Máy chủ chưa cài thư viện xuất Excel.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
-    if not task:
-        return "Not Found", 404
-    _lazy_repair_task_runtime(task)
-
-    perms = _current_perms()
-    is_lead = _can_process_task_module(perms)
-    if not (is_lead or _can_edit_task(task)):
-        flash("Bạn không có quyền xuất thống kê báo cáo của công việc này.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    assigns = _task_assignment_rows(task, ensure_bridge=False)
-    assign_users = [user for _, user in assigns]
-    unit_options = module_category_options("contacts", "unit_name", "Đơn vị")
-    sync_record_categories(assign_users, unit_options, attr_name="unit_area", prefer_stable=True)
-    apply_reference_display(
-        assign_users,
-        "unit_area",
-        _task_assignment_unit_options(),
-        display_attr="unit_area_display",
-        fallback_label="Chưa có đơn vị",
-    )
-    comments = TaskComment.query.filter_by(task_id=tid).order_by(TaskComment.created_at.desc()).all()
-    unit_report_rows, unit_report_stats = _build_unit_report_summary(assigns, comments, task.deadline)
-
-    workbook = Workbook()
-    summary_sheet = workbook.active
-    summary_sheet.title = "Tong hop"
-    summary_sheet.append(["Công việc", task.title])
-    summary_sheet.append(["Người giao", task.author_name or ""])
-    summary_sheet.append(["Hạn xử lý", task.deadline.strftime("%d/%m/%Y") if task.deadline else "Chưa có"])
-    summary_sheet.append(["Ngày xuất", datetime.now().strftime("%d/%m/%Y %H:%M")])
-    summary_sheet.append([])
-    summary_sheet.append(["Chỉ số", "Số lượng"])
-    summary_sheet.append(["Tổng số đơn vị", unit_report_stats["total_units"]])
-    summary_sheet.append(["Đơn vị đã báo cáo", unit_report_stats["reported_units"]])
-    summary_sheet.append(["Đơn vị chưa báo cáo", unit_report_stats["unreported_units"]])
-    summary_sheet.append(["Đơn vị báo cáo đúng hạn", unit_report_stats["on_time_units"]])
-    summary_sheet.append(["Đơn vị báo cáo quá hạn", unit_report_stats["overdue_units"]])
-
-    detail_sheet = workbook.create_sheet("Chi tiet don vi")
-    detail_sheet.append([
-        "Đơn vị",
-        "Số cán bộ nhận việc",
-        "Cán bộ nhận việc",
-        "Số cán bộ đã báo cáo",
-        "Cán bộ đã báo cáo",
-        "Báo cáo đầu tiên",
-        "Hạn xử lý",
-        "Trạng thái",
-    ])
-    for row in unit_report_rows:
-        detail_sheet.append([
-            row["unit_name"],
-            row["assignee_count"],
-            ", ".join(row["assignee_names"]),
-            row["reporter_count"],
-            ", ".join(row["reporter_names"]),
-            row["first_report_at"].strftime("%d/%m/%Y %H:%M") if row["first_report_at"] else "",
-            task.deadline.strftime("%d/%m/%Y") if task.deadline else "",
-            row["status"],
-        ])
-
-    output = io.BytesIO()
-    workbook.save(output)
-    output.seek(0)
-    safe_name = secure_filename(task.title or f"task_{task.id}") or f"task_{task.id}"
-    filename = f"thong_ke_bao_cao_{safe_name}_{task.id}.xlsx"
-    return send_file(
-        output,
-        as_attachment=True,
-        download_name=filename,
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
-
-
-@tasks_bp.route("/tasks/<int:tid>/edit", methods=["POST"])
-def edit_task(tid):
-    if not session.get("uid"):
-        return redirect(url_for("auth_bp.login"))
-
-    _ensure_task_schema()
-
-    task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
-    if not task:
-        return "Not Found", 404
-
-    if not _can_edit_task(task):
-        flash("Bạn không có quyền sửa công việc này.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    title = (request.form.get("title") or "").strip()
-    task_fields = _task_field_options()
-    pro_units = _task_domain_options()
-    task_types = _task_type_options()
-    priority_items = _task_priority_options()
-
-    category = canonicalize_category_value(
-        request.form.get("category") or task.category or "",
-        task_fields,
-        prefer_stable=True,
-    )
-    domain = canonicalize_category_value(
-        request.form.get("domain") or "",
-        pro_units,
-        prefer_stable=True,
-    )
-    content = (request.form.get("content") or "").strip()
-    priority = canonicalize_category_value(
-        request.form.get("priority") or "Trung bình",
-        priority_items,
-        prefer_stable=True,
-    )
-    task_type = canonicalize_category_value(
-        request.form.get("task_type") or "Công việc thường xuyên",
-        task_types,
-        prefer_stable=True,
-    )
-
-    if not title:
-        flash("Tiêu đề công việc không được để trống.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    workflow_mode = _task_workflow_mode(task)
-    if "report_schema_enabled" in request.form or "report_schema_json" in request.form:
-        try:
-            report_schema = _parse_task_report_schema_from_request(request.form)
-        except ValueError as exc:
-            flash(str(exc), "danger")
-            return redirect(url_for("tasks_bp.task_detail", tid=tid))
-    else:
-        report_schema = _load_task_report_schema(task)
-    linked_report_template_ids = _load_linked_report_template_ids(task)
-
-    requested_assign_type = request.form.get("assign_type", _infer_assignment_context(task).get("mode") or "unit")
-    requested_role_ids = _requested_role_ids(request.form)
-    requested_user_ids = _requested_user_ids(request.form)
-    requested_manager_mode = request.form.get("manager_scope_mode", _infer_manager_context(task).get("mode") or "none")
-    requested_manager_role_ids = _requested_manager_role_ids(request.form)
-    requested_manager_user_ids = _requested_manager_user_ids(request.form)
-    requested_viewer_mode = request.form.get("viewer_scope_mode", _infer_viewer_context(task).get("mode") or "none")
-    requested_viewer_role_ids = _requested_viewer_role_ids(request.form)
-    requested_viewer_user_ids = _requested_viewer_user_ids(request.form)
-    assignees = [user for _assignment, user in _task_assignment_rows(task, ensure_bridge=True)]
-    refreshed_assignee_count = None
-    new_assignees_to_notify = []
-    old_manager_scope = _load_manager_scope(task)
-    old_managers = []
-    if old_manager_scope.get("mode") == "role":
-        for role_id in old_manager_scope.get("role_ids") or []:
-            old_managers.extend(_resolve_role_assignees(role_id))
-        old_managers = _dedupe_users(old_managers)
-    elif old_manager_scope.get("mode") == "user" and old_manager_scope.get("user_ids"):
-        old_managers = (
-            User.query.filter(User.id.in_(old_manager_scope.get("user_ids") or []), User.is_active.is_(True))
-            .order_by(User.fullname.asc())
-            .all()
-        )
-    managers, manager_error_message = _resolve_managers(request.form)
-    if manager_error_message:
-        flash(manager_error_message, "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-    old_viewer_scope = _load_viewer_scope(task)
-    old_viewers = []
-    if old_viewer_scope.get("mode") == "role":
-        for role_id in old_viewer_scope.get("role_ids") or []:
-            old_viewers.extend(_resolve_role_assignees(role_id))
-        old_viewers = _dedupe_users(old_viewers)
-    elif old_viewer_scope.get("mode") == "user" and old_viewer_scope.get("user_ids"):
-        old_viewers = (
-            User.query.filter(User.id.in_(old_viewer_scope.get("user_ids") or []), User.is_active.is_(True))
-            .order_by(User.fullname.asc())
-            .all()
-        )
-    viewers, viewer_error_message = _resolve_viewers(request.form)
-    if viewer_error_message:
-        flash(viewer_error_message, "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-    if _should_refresh_assignments(task, request.form, domain):
-        assignees, error_message = _resolve_assignees(request.form, domain)
-        if error_message:
-            flash(error_message, "danger")
-            return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-        refreshed_assignee_count, new_assignees_to_notify = _sync_task_assignments(task, assignees)
-        _store_assignment_scope(
-            task,
-            requested_assign_type,
-            domain=domain,
-            role_ids=requested_role_ids,
-            user_ids=requested_user_ids,
-        )
-
-    task.title = title
-    task.category = category
-    task.domain = domain
-    task.content = content
-    task.priority = priority
-    task.task_type = task_type
-    task.deadline = _parse_deadline(request.form)
-    task.workflow_mode = workflow_mode
-    task.report_schema_json = json.dumps(report_schema, ensure_ascii=False) if report_schema else None
-    task.linked_report_templates_json = (
-        json.dumps(linked_report_template_ids, ensure_ascii=False) if linked_report_template_ids else None
-    )
-    setattr(task, "_task_report_schema_cache", report_schema)
-    setattr(task, "_task_workflow_mode_cache", workflow_mode)
-    _store_manager_scope(
-        task,
-        requested_manager_mode,
-        role_ids=requested_manager_role_ids,
-        user_ids=requested_manager_user_ids,
-    )
-    _store_viewer_scope(
-        task,
-        requested_viewer_mode,
-        role_ids=requested_viewer_role_ids,
-        user_ids=requested_viewer_user_ids,
-    )
-    if refreshed_assignee_count is None:
-        current_scope = _load_assignment_scope(task)
-        _store_assignment_scope(
-            task,
-            requested_assign_type,
-            domain=domain,
-            role_ids=requested_role_ids if requested_assign_type == "role" else current_scope.get("role_ids"),
-            user_ids=requested_user_ids if requested_assign_type == "user" else current_scope.get("user_ids"),
-        )
-
-    attachment = request.files.get("task_file")
-    if attachment and attachment.filename:
-        attachment_name = secure_filename(attachment.filename)
-        attachment.save(_task_file_path(attachment_name))
-        task.file_path = attachment_name
-
-    _sync_task_runtime_models(
-        task,
-        assignees=assignees,
-        managers=managers,
-        viewers=viewers,
-        linked_report_template_ids=linked_report_template_ids,
-    )
-    db.session.commit()
-
-    for user in new_assignees_to_notify:
-        push_notif(user.id, "Cập nhật công việc", f"Bạn vừa được bổ sung vào công việc: {task.title}", f"/tasks/{task.id}")
-    old_manager_ids = {user.id for user in (old_managers or [])}
-    old_viewer_ids = {user.id for user in (old_viewers or [])}
-    assignee_ids = {assignment.user_id for assignment, _user in _task_assignment_rows(task, ensure_bridge=False) if assignment.user_id}
-    manager_ids = {user.id for user in managers}
-    for user in managers:
-        if user.id in old_manager_ids or user.id in assignee_ids:
-            continue
-        push_notif(user.id, "Xử lý công việc", f"Bạn được giao quyền xử lý công việc: {task.title}", f"/tasks/{task.id}")
-    for user in viewers:
-        if user.id in old_viewer_ids or user.id in assignee_ids or user.id in manager_ids:
-            continue
-        push_notif(user.id, "Theo dõi công việc", f"Bạn được thêm vào danh sách xem việc: {task.title}", f"/tasks/{task.id}")
-
-    log_action(
-        session["uid"],
-        session.get("fullname", "Quản trị"),
-        "Cập nhật công việc",
-        "Công việc",
-        f"Task #{task.id} | {task.title}" + (
-            f" | cap_nhat_phan_cong={refreshed_assignee_count}" if refreshed_assignee_count is not None else ""
-        ),
-    )
-    success_message = "Đã cập nhật công việc."
-    if refreshed_assignee_count is not None:
-        success_message = f"Đã cập nhật công việc và đồng bộ {refreshed_assignee_count} người được giao."
-    flash(success_message, "success")
-    return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-
-@tasks_bp.route("/tasks/<int:tid>/report-links", methods=["POST"])
-def save_task_report_links(tid):
-    if not session.get("uid"):
-        return redirect(url_for("auth_bp.login"))
-
-    _ensure_task_schema()
-
-    task = Task.query.filter_by(id=tid).first()
-    if not task:
-        return "Not Found", 404
-
-    if not _can_edit_task(task):
-        flash("Bạn không có quyền cập nhật liên kết báo cáo của công việc này.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    linked_report_template_ids = _requested_linked_report_template_ids(request.form)
-    task.linked_report_templates_json = (
-        json.dumps(linked_report_template_ids, ensure_ascii=False) if linked_report_template_ids else None
-    )
-    setattr(task, "_linked_report_template_ids_cache", linked_report_template_ids)
-    _sync_task_runtime_models(task, linked_report_template_ids=linked_report_template_ids)
-    db.session.commit()
-
-    flash("Đã cập nhật liên kết báo cáo cho khu Nhiệm vụ.", "success")
-    return redirect(url_for("tasks_bp.task_detail", tid=tid, _anchor="child-task-section"))
+    return _task_detail_v2(tid)
 
 
 @tasks_bp.route("/tasks/<int:tid>/children/create", methods=["POST"])
@@ -5046,139 +5133,16 @@ def create_child_task(tid):
         return redirect(url_for("auth_bp.login"))
 
     _ensure_task_schema()
-
-    parent_task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
-    if not parent_task:
-        return "Not Found", 404
-
-    if not _can_edit_task(parent_task):
-        flash("Bạn không có quyền tạo nhiệm vụ cho công việc này.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    title = (request.form.get("title") or "").strip()
-    bulk_titles = _parse_bulk_child_task_titles(request.form.get("bulk_titles") or request.form.get("bulk_items"))
-    common_note = (request.form.get("description") or request.form.get("content") or "").strip()
-    outline_file = request.files.get("outline_file")
-    if outline_file and outline_file.filename:
-        try:
-            bulk_titles.extend(_parse_outline_upload_titles(outline_file))
-        except ValueError as outline_error:
-            flash(str(outline_error), "danger")
-            return redirect(url_for("tasks_bp.task_detail", tid=tid))
-        bulk_titles = _parse_bulk_child_task_titles("\n".join(bulk_titles))
-
-    domain = (request.form.get("child_domain") or parent_task.domain or "").strip()
-    assign_type = request.form.get("assign_type", "role")
-    if assign_type not in {"unit", "role", "user"}:
-        assign_type = "role"
-    child_report_kind = str(request.form.get("child_report_kind") or "narrative").strip().lower()
-    if child_report_kind not in CHILD_TASK_ALLOWED_REPORT_KINDS:
-        child_report_kind = "narrative"
-    child_attachment_required = _report_checkbox_value(request.form.get("child_attachment_required"))
-    child_report_schema = _build_simple_child_task_schema(child_report_kind, child_attachment_required)
-
-    if title and not bulk_titles:
-        bulk_titles = [title]
-
-    if not bulk_titles:
-        flash("Cần nhập ít nhất một đầu mục để tạo nhiệm vụ.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    assignees, error_message = _resolve_assignees(request.form, domain)
-    if error_message:
-        flash(error_message, "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    attachment = request.files.get("task_file") or request.files.get("file")
-    attachment_name = ""
-    if attachment and attachment.filename:
-        attachment_name = secure_filename(attachment.filename)
-        attachment.save(_task_file_path(attachment_name))
-
-    created_tasks = []
-    requested_role_ids = _requested_role_ids(request.form)
-    requested_user_ids = _requested_user_ids(request.form)
-    for item_title in bulk_titles:
-        item_content = common_note or item_title
-        child_task = Task(
-            category=parent_task.category,
-            domain=domain,
-            title=item_title,
-            content=item_content,
-            deadline=parent_task.deadline,
-            file_path=attachment_name,
-            author_id=session["uid"],
-            author_name=session.get("fullname", "Quản trị"),
-            priority=parent_task.priority,
-            task_type=parent_task.task_type,
-            initial_status="Chưa tiếp nhận",
-            parent_task_id=parent_task.id,
-            workflow_mode="summary_report",
-            report_schema_json=json.dumps(child_report_schema, ensure_ascii=False) if child_report_schema else None,
-        )
-        _store_assignment_scope(
-            child_task,
-            assign_type,
-            domain=domain,
-            role_ids=requested_role_ids,
-            user_ids=requested_user_ids,
-        )
-        db.session.add(child_task)
-        db.session.flush()
-        _sync_task_assignments(child_task, assignees)
-        _sync_task_runtime_models(child_task, assignees=assignees)
-        created_tasks.append(child_task)
-    parent_task.workflow_mode = "child_tasks"
-    setattr(parent_task, "_task_workflow_mode_cache", "child_tasks")
-    db.session.commit()
-
-    for user in assignees:
-        push_notif(
-            user.id,
-            "Nhiệm vụ mới",
-            f"Bạn vừa được giao {len(created_tasks)} nhiệm vụ trong công việc: {parent_task.title}",
-            f"/tasks/{parent_task.id}",
-        )
-
-    log_action(
-        session["uid"],
-        session.get("fullname", "Quản trị"),
-        "Tạo hàng loạt nhiệm vụ",
-        "Công việc",
-        f"parent={parent_task.id} | so_luong={len(created_tasks)} | kieu={child_report_kind} | tep={int(child_attachment_required)}",
-    )
-    flash(f"Đã tạo và giao {len(created_tasks)} nhiệm vụ.", "success")
-    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+    return _create_outline_items_v2(tid)
 
 
-@tasks_bp.route("/tasks/<int:tid>/children/outline-preview", methods=["POST"])
-def preview_child_task_outline(tid):
+@tasks_bp.route("/tasks/<int:tid>/outline/import-preview", methods=["POST"])
+def preview_outline_import(tid):
     if not session.get("uid"):
-        return jsonify({"ok": False, "message": "Bạn cần đăng nhập lại."}), 401
+        return redirect(url_for("auth_bp.login"))
 
     _ensure_task_schema()
-
-    parent_task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
-    if not parent_task:
-        return jsonify({"ok": False, "message": "Không tìm thấy công việc cha."}), 404
-
-    if not _can_edit_task(parent_task):
-        return jsonify({"ok": False, "message": "Bạn không có quyền đọc đề cương cho công việc này."}), 403
-
-    outline_file = request.files.get("outline_file")
-    if not outline_file or not getattr(outline_file, "filename", ""):
-        return jsonify({"ok": False, "message": "Hãy chọn file đề cương trước."}), 400
-
-    try:
-        titles = _parse_outline_upload_titles(outline_file)
-    except ValueError as outline_error:
-        return jsonify({"ok": False, "message": str(outline_error)}), 400
-
-    return jsonify({
-        "ok": True,
-        "count": len(titles),
-        "titles": titles,
-    })
+    return _preview_outline_import_v2(tid)
 
 
 @tasks_bp.route("/tasks/<int:tid>/delete", methods=["POST"])
@@ -5222,24 +5186,7 @@ def update_task_status(tid):
         return redirect(url_for("auth_bp.login"))
 
     _ensure_task_schema()
-
-    action = request.form.get("action")
-    task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
-    if not task:
-        return "Not Found", 404
-    _lazy_repair_task_runtime(task)
-    assign = _task_assignment_for_user(task, session["uid"], create_from_executor=True)
-
-    if not assign:
-        flash("Bạn không được giao công việc này.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-    if action == "accept":
-        assign.status = IN_PROGRESS_STATUS
-        db.session.commit()
-        flash("Đã tiếp nhận công việc.", "success")
-
-    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+    return _update_task_status_v2(tid)
 
 
 @tasks_bp.route("/tasks/<int:tid>/submit_report", methods=["POST"])
@@ -5248,136 +5195,58 @@ def submit_task_report(tid):
         return redirect(url_for("auth_bp.login"))
 
     _ensure_task_schema()
+    return _submit_task_report_v2(tid)
 
-    task = Task.query.options(joinedload(Task.assignments)).filter_by(id=tid).first()
+
+@tasks_bp.route("/tasks/<int:tid>/submission-files/<int:file_id>")
+def download_task_submission_file_v2(tid, file_id):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+
+    file_row = (
+        TaskSubmissionFile.query.options(
+            joinedload(TaskSubmissionFile.submission).joinedload(TaskSubmission.assignment)
+        )
+        .filter_by(id=file_id)
+        .first()
+    )
+    if not file_row or not file_row.submission or file_row.submission.task_id != tid:
+        return "Not Found", 404
+
+    assignment = getattr(file_row.submission, "assignment", None)
+    task = Task.query.filter_by(id=tid).first()
     if not task:
         return "Not Found", 404
-    _lazy_repair_task_runtime(task)
 
-    mark_completed = request.form.get("mark_completed")
-
-    assign = _task_assignment_for_user(task, session["uid"], create_from_executor=True)
-    if not assign:
-        flash("Bạn không được giao công việc này.", "danger")
+    perms = _current_perms()
+    can_view_all_tasks = _can_view_all_tasks(perms)
+    current_user = db.session.get(User, session["uid"])
+    can_manage_task_view = bool(
+        bool(session.get("is_admin"))
+        or _can_process_task_module(perms)
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+        or _can_watch_task(task, user=current_user)
+    )
+    if not can_manage_task_view and getattr(assignment, "user_id", None) != session["uid"]:
+        flash("Bạn không có quyền tải tệp này.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
-    report_schema = _load_task_report_schema(task)
-    if report_schema:
-        current_user = db.session.get(User, session["uid"])
-        report_file = request.files.get("report_file")
-        attachment_name = (getattr(assign, "result_file", "") or "").strip()
-        if report_file and report_file.filename:
-            attachment_name = secure_filename(report_file.filename)
-            report_file.save(_task_file_path(attachment_name))
-
-        values = {}
-        missing_labels = []
-        invalid_number_labels = []
-        for field in report_schema.get("fields", []):
-            if not _task_report_item_visible_for_user(field, current_user):
-                continue
-            form_key = f"report_field_{field.get('key')}"
-            raw_value = (request.form.get(form_key) or "").strip()
-            if field.get("type") == "number" and raw_value:
-                try:
-                    raw_value = _format_report_number(_parse_report_number(raw_value))
-                except ValueError:
-                    invalid_number_labels.append(field.get("label") or "Chỉ tiêu số liệu")
-            values[field.get("key")] = raw_value
-            if field.get("required") and not raw_value:
-                missing_labels.append(field.get("label"))
-
-        narrative_cfg = report_schema.get("narrative") or {}
-        attachment_cfg = report_schema.get("attachment") or {}
-        narrative_visible = bool(narrative_cfg.get("enabled")) and _task_report_item_visible_for_user(narrative_cfg, current_user)
-        attachment_visible = bool(attachment_cfg.get("enabled")) and _task_report_item_visible_for_user(attachment_cfg, current_user)
-        narrative_value = (request.form.get("report_narrative") or "").strip() if narrative_visible else ""
-        if narrative_visible and narrative_cfg.get("required") and not narrative_value:
-            missing_labels.append(narrative_cfg.get("label") or "Báo cáo lời tổng hợp")
-
-        if attachment_visible and attachment_cfg.get("required") and not attachment_name:
-            missing_labels.append(attachment_cfg.get("label") or "Tệp minh chứng")
-
-        if missing_labels:
-            flash("Cần hoàn thiện các mục bắt buộc: " + ", ".join(missing_labels) + ".", "danger")
-            return redirect(url_for("tasks_bp.task_detail", tid=tid))
-        if invalid_number_labels:
-            flash("Các mục sau chỉ cho phép nhập số: " + ", ".join(invalid_number_labels) + ".", "danger")
-            return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
-        payload = {
-            "mode": "structured_task_report",
-            "schema_version": report_schema.get("version", 1),
-            "narrative": narrative_value,
-            "values": values,
-            "attachment_name": attachment_name,
-            "updated_at": datetime.now().strftime("%d/%m/%Y %H:%M"),
-        }
-        assign.report_payload_json = json.dumps(payload, ensure_ascii=False)
-        if attachment_name:
-            assign.result_file = attachment_name
-
-        report_message = f"{REPORT_PREFIX} {_build_structured_task_report_comment(report_schema, payload)}"
-        if attachment_name:
-            report_message += f" (Đính kèm: {attachment_name})"
-        db.session.add(
-            TaskComment(
-                task_id=tid,
-                user_id=session["uid"],
-                user_name=session.get("fullname", "Người dùng"),
-                content=report_message,
-            )
-        )
-
-        if task.parent_task_id and _task_is_simple_child_report(task):
-            assign.status = COMPLETED_STATUS
-        elif mark_completed == "1":
-            assign.status = COMPLETED_STATUS
-        elif _normalize_status(assign.status) == "Chưa tiếp nhận":
-            assign.status = IN_PROGRESS_STATUS
-
-        _upsert_task_submission_from_assignment(task, assign, payload)
-        db.session.commit()
-        flash("Đã gửi báo cáo công việc.", "success")
+    file_path = file_row.stored_path or _task_file_path(file_row.stored_name or "")
+    if not file_path or not os.path.exists(file_path):
+        flash("Tệp không còn tồn tại trên hệ thống.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
-    report_content = (request.form.get("report_content") or "").strip()
-    report_file = request.files.get("report_file")
-    attachment_name = ""
-    if report_file and report_file.filename:
-        attachment_name = secure_filename(report_file.filename)
-        report_file.save(_task_file_path(attachment_name))
+    download_name = file_row.original_name or file_row.stored_name or f"task_{tid}_file"
+    return send_file(file_path, as_attachment=True, download_name=download_name)
 
-    if report_content:
-        report_message = f"[BÁO CÁO] {report_content}"
-        if attachment_name:
-            report_message += f" (Đính kèm: {attachment_name})"
-        db.session.add(
-            TaskComment(
-                task_id=tid,
-                user_id=session["uid"],
-                user_name=session.get("fullname", "Người dùng"),
-                content=report_message,
-            )
-        )
 
-    if task.parent_task_id:
-        assign.status = COMPLETED_STATUS
-    elif mark_completed == "1":
-        assign.status = COMPLETED_STATUS
-    elif _normalize_status(assign.status) == "Chưa tiếp nhận":
-        assign.status = IN_PROGRESS_STATUS
+@tasks_bp.route("/tasks/<int:tid>/export-form.xlsx")
+def export_form_task_v2(tid):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
 
-    if attachment_name:
-        assign.result_file = attachment_name
-
-    legacy_payload = {
-        "mode": "legacy_task_report",
-        "narrative": report_content,
-        "attachment_name": attachment_name,
-        "updated_at": datetime.now().strftime("%d/%m/%Y %H:%M"),
-    }
-    _upsert_task_submission_from_assignment(task, assign, legacy_payload)
-    db.session.commit()
-    flash("Đã gửi báo cáo công việc.", "success")
-    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+    _ensure_task_schema()
+    return _export_form_task_v2(tid)
