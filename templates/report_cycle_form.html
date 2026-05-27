@@ -113,16 +113,6 @@
         {% endfor %}
     </form>
 
-    <div class="report-form-toolbar-desktop">
-        <a class="btn btn-bdhvs light" href="{{ history_url }}">LỊCH SỬ</a>
-        {% if download_url %}
-        <a class="btn btn-bdhvs light" href="{{ download_url }}">TẢI FILE</a>
-        {% endif %}
-        {% if editable %}
-        <button type="button" class="btn btn-bdhvs light" onclick="submitReport('{{ url_for('reporting_bp.save_cycle', cycle_id=cycle.id) }}')">LƯU NHÁP</button>
-        <button type="button" class="btn btn-bdhvs primary" onclick="submitReport('{{ url_for('reporting_bp.submit_cycle', cycle_id=cycle.id) }}')">GỬI BÁO CÁO</button>
-        {% endif %}
-    </div>
 </div>
 
 <style>
@@ -208,16 +198,6 @@
         color: var(--text-muted);
         line-height: 1.4;
     }
-    .report-form-toolbar-desktop {
-        position: sticky;
-        bottom: 18px;
-        z-index: 10;
-        display: flex;
-        justify-content: flex-end;
-        gap: 12px;
-        flex-wrap: wrap;
-        padding-top: 10px;
-    }
     [data-theme="dark"] .report-input-row {
         background: rgba(15,23,42,0.45);
         border-color: rgba(148,163,184,0.14);
@@ -225,11 +205,6 @@
     [data-theme="dark"] .report-form-summary-grid div {
         background: rgba(15,23,42,0.45);
         border-color: rgba(148,163,184,0.14);
-    }
-    @media (max-width: 768px) {
-        .report-form-toolbar-desktop {
-            bottom: 10px;
-        }
     }
 </style>
 
