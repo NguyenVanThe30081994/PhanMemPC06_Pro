@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import calendar
+import glob
 import json
 import os
 import re
@@ -383,6 +384,186 @@ def _legacy_version_row(version_id):
     ).mappings().first()
 
 
+def _legacy_sql_ident(name):
+    text_name = str(name or "").strip()
+    if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", text_name):
+        raise ValueError(f"Invalid SQLite identifier: {name!r}")
+    return f'"{text_name}"'
+
+
+def _legacy_primary_key_column(table_name):
+    if not _legacy_table_exists(table_name):
+        return None
+    table_ident = _legacy_sql_ident(table_name)
+    rows = db.session.execute(text(f"PRAGMA table_info({table_ident})")).mappings().all()
+    pk_columns = sorted(
+        ((int(row["pk"]), row["name"]) for row in rows if int(row["pk"] or 0) > 0),
+        key=lambda item: item[0],
+    )
+    if len(pk_columns) != 1:
+        return None
+    return pk_columns[0][1]
+
+
+def _legacy_child_foreign_keys(parent_table_name):
+    child_refs = []
+    table_names = db.session.execute(
+        text("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name ASC")
+    ).scalars().all()
+    for child_name in table_names:
+        child_ident = _legacy_sql_ident(child_name)
+        for fk in db.session.execute(text(f"PRAGMA foreign_key_list({child_ident})")).mappings().all():
+            if fk["table"] == parent_table_name:
+                child_refs.append(
+                    {
+                        "child_table": child_name,
+                        "child_column": fk["from"],
+                        "parent_column": fk["to"] or "id",
+                    }
+                )
+    return sorted(
+        child_refs,
+        key=lambda item: (
+            0 if item["child_table"] == "report_submission" else 1,
+            0 if item["child_table"] == "report_attachment" else 1,
+            item["child_table"],
+            item["child_column"],
+        ),
+    )
+
+
+def _legacy_cleanup_row_assets(table_name, row_id, pk_column):
+    table_ident = _legacy_sql_ident(table_name)
+    pk_ident = _legacy_sql_ident(pk_column)
+
+    if table_name == "report_submission":
+        row = db.session.execute(
+            text(
+                f"""
+                SELECT file_path, original_file_path, processed_file_path, error_file_path
+                FROM {table_ident}
+                WHERE {pk_ident} = :row_id
+                """
+            ),
+            {"row_id": row_id},
+        ).mappings().first()
+        if row:
+            for stored_path in {
+                row["file_path"],
+                row["original_file_path"],
+                row["processed_file_path"],
+                row["error_file_path"],
+            }:
+                if stored_path and os.path.exists(stored_path):
+                    try:
+                        os.remove(stored_path)
+                    except Exception:
+                        pass
+            backup_root = os.path.join(current_app.config["BACKUP_FOLDER"], "report_submissions")
+            pattern = os.path.join(backup_root, "**", f"submission_{row_id}.json")
+            for backup_path in glob.glob(pattern, recursive=True):
+                if backup_path and os.path.exists(backup_path):
+                    try:
+                        os.remove(backup_path)
+                    except Exception:
+                        pass
+        return
+
+    if table_name == "report_attachment":
+        row = db.session.execute(
+            text(
+                f"""
+                SELECT file_path
+                FROM {table_ident}
+                WHERE {pk_ident} = :row_id
+                """
+            ),
+            {"row_id": row_id},
+        ).mappings().first()
+        if row and row["file_path"] and os.path.exists(row["file_path"]):
+            try:
+                os.remove(row["file_path"])
+            except Exception:
+                pass
+        return
+
+    if table_name == "report_export_job":
+        row = db.session.execute(
+            text(
+                f"""
+                SELECT output_path
+                FROM {table_ident}
+                WHERE {pk_ident} = :row_id
+                """
+            ),
+            {"row_id": row_id},
+        ).mappings().first()
+        if row and row["output_path"] and os.path.exists(row["output_path"]):
+            try:
+                os.remove(row["output_path"])
+            except Exception:
+                pass
+
+
+def _delete_legacy_row_tree(table_name, row_id, pk_column=None, visited=None):
+    if row_id is None or not _legacy_table_exists(table_name):
+        return
+    pk_column = pk_column or _legacy_primary_key_column(table_name)
+    if not pk_column:
+        return
+
+    visited = visited or set()
+    visit_key = (table_name, str(row_id), pk_column)
+    if visit_key in visited:
+        return
+    visited.add(visit_key)
+
+    for child_ref in _legacy_child_foreign_keys(table_name):
+        if child_ref["parent_column"] != pk_column:
+            continue
+        child_table = child_ref["child_table"]
+        child_pk = _legacy_primary_key_column(child_table)
+        child_table_ident = _legacy_sql_ident(child_table)
+        child_column_ident = _legacy_sql_ident(child_ref["child_column"])
+        if child_pk:
+            child_pk_ident = _legacy_sql_ident(child_pk)
+            child_ids = db.session.execute(
+                text(
+                    f"""
+                    SELECT {child_pk_ident}
+                    FROM {child_table_ident}
+                    WHERE {child_column_ident} = :row_id
+                    """
+                ),
+                {"row_id": row_id},
+            ).scalars().all()
+            for child_id in child_ids:
+                _delete_legacy_row_tree(child_table, child_id, pk_column=child_pk, visited=visited)
+        else:
+            db.session.execute(
+                text(
+                    f"""
+                    DELETE FROM {child_table_ident}
+                    WHERE {child_column_ident} = :row_id
+                    """
+                ),
+                {"row_id": row_id},
+            )
+
+    _legacy_cleanup_row_assets(table_name, row_id, pk_column)
+    table_ident = _legacy_sql_ident(table_name)
+    pk_ident = _legacy_sql_ident(pk_column)
+    db.session.execute(
+        text(
+            f"""
+            DELETE FROM {table_ident}
+            WHERE {pk_ident} = :row_id
+            """
+        ),
+        {"row_id": row_id},
+    )
+
+
 def _report_type_id_from_legacy(report_type_code=None, frequency_code=None):
     candidates = [
         str(report_type_code or "").strip().lower(),
@@ -606,12 +787,12 @@ def _upsert_legacy_form_version(version):
 
 def _delete_legacy_form_version(version_id):
     if _legacy_report_bridge_ready():
-        db.session.execute(text("DELETE FROM form_version WHERE id = :id"), {"id": version_id})
+        _delete_legacy_row_tree("form_version", version_id)
 
 
 def _delete_legacy_form_template(template_id):
     if _legacy_report_bridge_ready():
-        db.session.execute(text("DELETE FROM form_template WHERE id = :id"), {"id": template_id})
+        _delete_legacy_row_tree("form_template", template_id)
 
 
 def _import_legacy_templates_into_report_schema():
@@ -3983,6 +4164,7 @@ def delete_template(template_id):
         cycles = ReportCycle.query.filter(ReportCycle.template_version_id.in_(version_ids)).all()
         for cycle in cycles:
             _purge_cycle(cycle)
+        db.session.flush()
 
     for version in versions:
         if version.source_path and os.path.exists(version.source_path):
@@ -3993,6 +4175,8 @@ def delete_template(template_id):
         ReportTemplateField.query.filter_by(version_id=version.id).delete(synchronize_session=False)
         ReportTemplateSheet.query.filter_by(version_id=version.id).delete(synchronize_session=False)
         _delete_legacy_form_version(version.id)
+        db.session.delete(version)
+    db.session.flush()
     if template.directive_path and os.path.exists(template.directive_path):
         try:
             os.remove(template.directive_path)
