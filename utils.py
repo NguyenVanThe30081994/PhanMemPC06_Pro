@@ -73,6 +73,7 @@ def normalize_unit_name(name):
     prefixes = [
         "cong an phuong", "cong an xa", "cong an huyen", "cong an thanh pho", "cong an tinh", 
         "ubnd xa", "ubnd phuong", "cong an", "ubnd",
+        "cax", "cap", "catt", "cah", "cat",
         "phuong", "xa", "huyen", "thanh pho", "thi tran", "tinh", "don vi", "ban"
     ]
     
@@ -81,7 +82,7 @@ def normalize_unit_name(name):
         n = re.sub(r'\b' + re.escape(p) + r'\b', ' ', n)
         
     # Second pass: remove common prefixes as substrings (handles smushed names)
-    for p in ["congan", "ubnd", "phuong", "xapp", "cap", "ca"]:
+    for p in ["congan", "ubnd", "catt", "cah", "cat", "cax", "cap", "phuong", "xapp", "ca"]:
         if n.startswith(p):
             n = n[len(p):].strip()
 

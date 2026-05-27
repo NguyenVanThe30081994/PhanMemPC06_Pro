@@ -47,8 +47,8 @@ from routes.reporting import (
     _ensure_reporting_period,
     _purge_cycle,
 )
-from report_engine import parse_workbook
-from utils import has_module_permission, normalize_permission_payload
+from report_engine import build_preview_workbook, parse_workbook
+from utils import has_module_permission, is_unit_match, normalize_permission_payload
 
 
 class ProposalRuntimeTests(unittest.TestCase):
@@ -1424,6 +1424,28 @@ class ProposalRuntimeTests(unittest.TestCase):
         finally:
             if os.path.exists(handle.name):
                 os.remove(handle.name)
+
+    def test_build_preview_workbook_evaluates_row_only_sum_formula_using_current_column(self):
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "BaoCao"
+        sheet["C2"] = 2
+        sheet["C3"] = 5
+        sheet["C4"] = "=SUM(2:3)"
+
+        handle = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx", dir="/private/tmp")
+        handle.close()
+        workbook.save(handle.name)
+
+        try:
+            _, formula_values = build_preview_workbook(handle.name, {})
+            self.assertEqual(formula_values.get("BaoCao", {}).get("C4"), 7)
+        finally:
+            if os.path.exists(handle.name):
+                os.remove(handle.name)
+
+    def test_is_unit_match_accepts_cax_abbreviation_for_xa_units(self):
+        self.assertTrue(is_unit_match("Xã Yên Minh", "CAX Yên Minh"))
 
     def test_finalize_due_daily_cycles_closes_expired_cycle_on_access(self):
         fixture = self._build_report_cycle_fixture(report_type_code="daily")

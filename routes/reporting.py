@@ -2601,6 +2601,31 @@ def _row_matches_unit(ws, sheet_fields, existing_values, sheet_name, row_index, 
     return False
 
 
+def _sheet_has_unit_identity_fields(sheet_fields):
+    for field in sheet_fields:
+        label_code = normalize_code(_field_display_name(field))
+        if any(marker in label_code for marker in {"don_vi", "ten_don_vi", "ma_don_vi"}):
+            return True
+    return False
+
+
+def _sheet_input_row_indexes(sheet_meta):
+    row_indexes = []
+    seen = set()
+    for input_cell in sheet_meta.get("input_cells", []) or []:
+        row_index = int(input_cell.get("row_index") or 0)
+        if row_index <= 0 or row_index in seen:
+            continue
+        seen.add(row_index)
+        row_indexes.append(row_index)
+    if row_indexes:
+        return row_indexes
+
+    start_row = int(sheet_meta.get("unit_start_row") or sheet_meta.get("data_start_row") or 1)
+    end_row = int(sheet_meta.get("unit_end_row") or sheet_meta.get("data_end_row") or start_row)
+    return list(range(start_row, end_row + 1))
+
+
 def _cell_display_value(value):
     if value is None:
         return ""
@@ -4903,13 +4928,13 @@ def cycle_workspace(cycle_id):
         if not editable_fields:
             editable_fields = [field for field in sheet_fields if field.is_editable]
         _, header_end_row = _sheet_header_range(sheet_meta)
-        unit_start_row = int(sheet_meta.get("unit_start_row") or sheet_meta.get("data_start_row") or header_end_row + 1)
-        unit_end_row = int(sheet_meta.get("unit_end_row") or sheet_meta.get("data_end_row") or unit_start_row)
+        candidate_row_indexes = _sheet_input_row_indexes(sheet_meta)
+        should_filter_by_unit = (not report_admin_mode) and bool(unit) and _sheet_has_unit_identity_fields(sheet_fields)
         row_entries = []
-        for row_index in range(unit_start_row, unit_end_row + 1):
+        for row_index in candidate_row_indexes:
             if ws.row_dimensions[row_index].hidden:
                 continue
-            if not report_admin_mode and unit and not _row_matches_unit(
+            if should_filter_by_unit and not _row_matches_unit(
                 ws,
                 sheet_fields,
                 existing_values,
@@ -4935,11 +4960,18 @@ def cycle_workspace(cycle_id):
                     "title": _row_context_label(ws, sheet_fields, existing_values, sheet_meta["sheet_name"], row_index),
                     "inputs": inputs,
                 })
+        warning = ""
+        if should_filter_by_unit and not row_entries:
+            warning = (
+                f"Chưa tìm thấy dòng nào trên sheet '{sheet_meta['sheet_name']}' khớp với đơn vị "
+                f"'{unit.name}'. Hãy kiểm tra cột đơn vị trong file Excel hoặc tên đơn vị của tài khoản."
+            )
         sheet_views.append({
             "sheet_name": sheet_meta["sheet_name"],
             "field_count": len(sheet_meta.get("fields", [])),
             "input_count": len(editable_fields),
             "rows": row_entries,
+            "warning": warning,
             "config": {
                 "header_start_row": sheet_meta.get("header_start_row"),
                 "header_end_row": sheet_meta.get("header_end_row"),

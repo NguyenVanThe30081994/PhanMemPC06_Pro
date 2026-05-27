@@ -99,7 +99,13 @@
                     </div>
                 </article>
                 {% else %}
-                <div class="text-muted text-center py-4">Không có trường dữ liệu để nhập.</div>
+                <div class="text-center py-4">
+                    {% if sheet.warning %}
+                    <div class="alert alert-warning mb-0">{{ sheet.warning }}</div>
+                    {% else %}
+                    <div class="text-muted">Không có trường dữ liệu để nhập.</div>
+                    {% endif %}
+                </div>
                 {% endfor %}
             </div>
         </section>
