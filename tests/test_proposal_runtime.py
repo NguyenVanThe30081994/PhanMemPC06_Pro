@@ -8,6 +8,7 @@ from html import escape
 from urllib.parse import quote
 
 from openpyxl import Workbook
+from flask import session
 from sqlalchemy import text
 from app import app
 from models import (
@@ -35,6 +36,18 @@ from routes.tasks import (
     _sync_task_runtime_models,
     _task_runtime_bridge_needs_sync,
 )
+from routes.reporting import (
+    _delete_legacy_form_template,
+    _finalize_due_daily_cycles,
+    _finalize_due_daily_cycles_job,
+    _get_cycle_instance,
+    _report_type,
+    _resolve_working_submission_state,
+    _save_submission,
+    _ensure_reporting_period,
+    _purge_cycle,
+)
+from report_engine import parse_workbook
 from utils import has_module_permission, normalize_permission_payload
 
 
@@ -203,13 +216,15 @@ class ProposalRuntimeTests(unittest.TestCase):
 
     def _cleanup_report_cycle_fixture(self, fixture):
         with app.app_context():
-            ReportInstance.query.filter_by(cycle_id=fixture["cycle_id"]).delete(synchronize_session=False)
+            cycle = db.session.get(ReportCycle, fixture["cycle_id"])
+            if cycle:
+                _purge_cycle(cycle)
             ReportingPeriod.query.filter_by(template_id=fixture["template_id"]).delete(synchronize_session=False)
-            ReportCycle.query.filter_by(id=fixture["cycle_id"]).delete(synchronize_session=False)
             ReportTemplateField.query.filter_by(version_id=fixture["version_id"]).delete(synchronize_session=False)
             ReportTemplateVersion.query.filter_by(id=fixture["version_id"]).delete(synchronize_session=False)
             ReportTemplate.query.filter_by(id=fixture["template_id"]).delete(synchronize_session=False)
             ReportUnit.query.filter_by(id=fixture["unit_id"]).delete(synchronize_session=False)
+            _delete_legacy_form_template(fixture["template_id"])
             db.session.commit()
         workbook_path = fixture.get("workbook_path")
         if workbook_path and os.path.exists(workbook_path):
@@ -1300,6 +1315,404 @@ class ProposalRuntimeTests(unittest.TestCase):
                 self.assertFalse(os.path.exists(path), f"File chưa được dọn: {path}")
         finally:
             self._cleanup_legacy_template_delete_fixture(fixture)
+
+    def test_ensure_reporting_period_reuses_existing_code_instead_of_inserting_duplicate(self):
+        fixture = self._build_report_cycle_fixture(report_type_code="daily")
+        try:
+            with app.app_context():
+                cycle = db.session.get(ReportCycle, fixture["cycle_id"])
+                self.assertIsNotNone(cycle)
+                code = f"report_{cycle.id}_{cycle.open_at.date().strftime('%Y%m%d')}"
+                db.session.execute(
+                    text(
+                        """
+                        INSERT OR REPLACE INTO form_template (id, code, name, is_active)
+                        VALUES (:id, :code, :name, :is_active)
+                        """
+                    ),
+                    {
+                        "id": fixture["template_id"],
+                        "code": f"legacy_template_{fixture['template_id']}",
+                        "name": "Legacy template for reporting period test",
+                        "is_active": 1,
+                    },
+                )
+                orphan_period = ReportingPeriod(
+                    template_id=fixture["template_id"],
+                    code=code,
+                    name="Orphan daily period",
+                    period_type="daily",
+                    is_adhoc=False,
+                    start_date=cycle.open_at.date(),
+                    end_date=cycle.open_at.date(),
+                    deadline=cycle.due_at,
+                    is_locked=False,
+                )
+                db.session.add(orphan_period)
+                db.session.commit()
+
+                cycle.legacy_period_id = None
+                db.session.commit()
+
+                resolved_period = _ensure_reporting_period(cycle)
+                db.session.commit()
+
+                self.assertEqual(resolved_period.id, orphan_period.id)
+                self.assertEqual(cycle.legacy_period_id, orphan_period.id)
+                self.assertEqual(ReportingPeriod.query.filter_by(code=code).count(), 1)
+        finally:
+            self._cleanup_report_cycle_fixture(fixture)
+
+    def test_purge_cycle_removes_reporting_period_when_no_other_cycle_uses_it(self):
+        fixture = self._build_report_cycle_fixture(report_type_code="daily")
+        try:
+            with app.app_context():
+                cycle = db.session.get(ReportCycle, fixture["cycle_id"])
+                self.assertIsNotNone(cycle)
+            with app.test_request_context():
+                session["uid"] = 1
+                with app.app_context():
+                    db.session.execute(
+                        text(
+                            """
+                            INSERT OR REPLACE INTO form_template (id, code, name, is_active)
+                            VALUES (:id, :code, :name, :is_active)
+                            """
+                        ),
+                        {
+                            "id": fixture["template_id"],
+                            "code": f"legacy_template_{fixture['template_id']}",
+                            "name": "Legacy template for purge period test",
+                            "is_active": 1,
+                        },
+                    )
+                    db.session.commit()
+                    cycle = db.session.get(ReportCycle, fixture["cycle_id"])
+                    period = _ensure_reporting_period(cycle)
+                    db.session.commit()
+                    period_id = period.id
+
+                    _purge_cycle(cycle)
+                    db.session.commit()
+
+                    self.assertIsNone(db.session.get(ReportCycle, fixture["cycle_id"]))
+                    self.assertIsNone(db.session.get(ReportingPeriod, period_id))
+        finally:
+            self._cleanup_report_cycle_fixture(fixture)
+
+    def test_parse_workbook_ignores_hidden_sheets(self):
+        workbook = Workbook()
+        visible_sheet = workbook.active
+        visible_sheet.title = "BaoCao"
+        visible_sheet["A1"] = "Ngày"
+        visible_sheet["B1"] = "Đơn vị"
+        visible_sheet["A2"] = "2026-05-27"
+        visible_sheet["B2"] = "PC06"
+
+        hidden_sheet = workbook.create_sheet("FormNhap")
+        hidden_sheet.sheet_state = "hidden"
+        hidden_sheet["A1"] = "Should be ignored"
+        hidden_sheet["A2"] = "Hidden"
+
+        handle = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx", dir="/private/tmp")
+        handle.close()
+        workbook.save(handle.name)
+
+        try:
+            metadata = parse_workbook(handle.name, header_rows=1, data_start_row=2)
+            self.assertEqual([sheet["sheet_name"] for sheet in metadata.get("sheets", [])], ["BaoCao"])
+        finally:
+            if os.path.exists(handle.name):
+                os.remove(handle.name)
+
+    def test_finalize_due_daily_cycles_closes_expired_cycle_on_access(self):
+        fixture = self._build_report_cycle_fixture(report_type_code="daily")
+        try:
+            with app.app_context():
+                cycle = db.session.get(ReportCycle, fixture["cycle_id"])
+                db.session.execute(
+                    text(
+                        """
+                        INSERT OR REPLACE INTO form_template (id, code, name, is_active)
+                        VALUES (:id, :code, :name, :is_active)
+                        """
+                    ),
+                    {
+                        "id": fixture["template_id"],
+                        "code": f"legacy_template_{fixture['template_id']}",
+                        "name": "Legacy template for auto finalize test",
+                        "is_active": 1,
+                    },
+                )
+                cycle.open_at = datetime.now() - timedelta(days=1)
+                cycle.due_at = datetime.now() - timedelta(minutes=5)
+                cycle.status = "open"
+                cycle.is_locked = False
+                db.session.commit()
+
+                finalized_cycle_ids = _finalize_due_daily_cycles()
+                cycle = db.session.get(ReportCycle, fixture["cycle_id"])
+
+                self.assertIn(fixture["cycle_id"], finalized_cycle_ids)
+                self.assertEqual(cycle.status, "closed")
+                self.assertTrue(cycle.is_locked)
+                self.assertIsNotNone(cycle.close_at)
+        finally:
+            self._cleanup_report_cycle_fixture(fixture)
+
+    def test_finalize_due_daily_cycles_job_supports_dry_run_and_apply_summary(self):
+        fixture = self._build_report_cycle_fixture(report_type_code="daily")
+        try:
+            with app.app_context():
+                cycle = db.session.get(ReportCycle, fixture["cycle_id"])
+                db.session.execute(
+                    text(
+                        """
+                        INSERT OR REPLACE INTO form_template (id, code, name, is_active)
+                        VALUES (:id, :code, :name, :is_active)
+                        """
+                    ),
+                    {
+                        "id": fixture["template_id"],
+                        "code": f"legacy_template_{fixture['template_id']}",
+                        "name": "Legacy template for finalize summary test",
+                        "is_active": 1,
+                    },
+                )
+                cycle.open_at = datetime.now() - timedelta(days=1)
+                cycle.due_at = datetime.now() - timedelta(minutes=10)
+                cycle.status = "open"
+                cycle.is_locked = False
+                db.session.commit()
+
+                dry_run_summary = _finalize_due_daily_cycles_job(cycle_id=cycle.id, apply=False)
+                cycle = db.session.get(ReportCycle, fixture["cycle_id"])
+
+                self.assertTrue(dry_run_summary["dry_run"])
+                self.assertEqual(dry_run_summary["finalized_cycle_ids"], [fixture["cycle_id"]])
+                self.assertEqual(cycle.status, "open")
+                self.assertFalse(cycle.is_locked)
+
+                apply_summary = _finalize_due_daily_cycles_job(cycle_id=cycle.id, apply=True)
+                cycle = db.session.get(ReportCycle, fixture["cycle_id"])
+
+                self.assertFalse(apply_summary["dry_run"])
+                self.assertEqual(apply_summary["finalized_cycle_ids"], [fixture["cycle_id"]])
+                self.assertEqual(cycle.status, "closed")
+                self.assertTrue(cycle.is_locked)
+                self.assertIsNotNone(cycle.close_at)
+        finally:
+            self._cleanup_report_cycle_fixture(fixture)
+
+    def test_daily_submission_saves_full_snapshot_and_latest_day_preserves_unsent_cells(self):
+        fixture = self._build_report_cycle_fixture(report_type_code="daily")
+        try:
+            day_one = date.today() - timedelta(days=1)
+            day_two = date.today()
+            with app.test_request_context():
+                session["uid"] = 1
+                session["unit_area"] = "Đơn vị test"
+                with app.app_context():
+                    db.session.execute(
+                        text(
+                            """
+                            INSERT OR REPLACE INTO form_template (id, code, name, is_active)
+                            VALUES (:id, :code, :name, :is_active)
+                            """
+                        ),
+                        {
+                            "id": fixture["template_id"],
+                            "code": f"legacy_template_{fixture['template_id']}",
+                            "name": "Legacy template for cumulative snapshot test",
+                            "is_active": 1,
+                        },
+                    )
+                    db.session.commit()
+
+                    cycle = db.session.get(ReportCycle, fixture["cycle_id"])
+                    cycle.open_at = datetime.combine(day_one, datetime.min.time())
+                    cycle.due_at = datetime.combine(day_two, datetime.max.time())
+                    db.session.commit()
+
+                    unit = db.session.get(ReportUnit, fixture["unit_id"])
+                    user = User.query.filter_by(is_active=True).order_by(User.id.asc()).first()
+                    instance = _get_cycle_instance(cycle, unit, user)
+                    template_version = db.session.get(ReportTemplateVersion, fixture["version_id"])
+                    report_type = _report_type(cycle)
+
+                    submission_one, errors_one = _save_submission(
+                        instance,
+                        {"sheets": {"Sheet1": {"A2": unit.name, "B2": "2"}}},
+                        final_submit=True,
+                        report_date=day_one,
+                    )
+                    self.assertEqual(errors_one, [])
+                    self.assertEqual(
+                        json.loads(submission_one.metadata_json or "{}").get("storage_mode"),
+                        "full_snapshot",
+                    )
+                    self.assertEqual(
+                        json.loads(submission_one.metadata_json or "{}").get("entry_values", {}).get("Sheet1", {}).get("B2"),
+                        "2",
+                    )
+                    self.assertEqual(
+                        _resolve_working_submission_state(
+                            instance,
+                            template_version,
+                            report_type=report_type,
+                            report_date=day_one,
+                        )["existing_values"].get("Sheet1", {}).get("B2"),
+                        "2",
+                    )
+
+                    submission_two, errors_two = _save_submission(
+                        instance,
+                        {"sheets": {"Sheet1": {"B2": "3"}}},
+                        final_submit=True,
+                        report_date=day_two,
+                    )
+                    self.assertEqual(errors_two, [])
+                    day_two_values = _resolve_working_submission_state(
+                        instance,
+                        template_version,
+                        report_type=report_type,
+                        report_date=day_two,
+                    )["existing_values"].get("Sheet1", {})
+                    self.assertEqual(day_two_values.get("B2"), "3")
+                    self.assertEqual(day_two_values.get("A2"), unit.name)
+                    self.assertEqual(
+                        _resolve_working_submission_state(
+                            instance,
+                            template_version,
+                            report_type=report_type,
+                            report_date=day_two,
+                        )["latest_submission"].id,
+                        submission_two.id,
+                    )
+        finally:
+            self._cleanup_report_cycle_fixture(fixture)
+
+    def test_daily_submission_defaults_missing_report_date_to_cycle_day(self):
+        fixture = self._build_report_cycle_fixture(report_type_code="daily")
+        try:
+            report_day = date.today()
+            with app.test_request_context():
+                session["uid"] = 1
+                session["unit_area"] = "Đơn vị test"
+                with app.app_context():
+                    db.session.execute(
+                        text(
+                            """
+                            INSERT OR REPLACE INTO form_template (id, code, name, is_active)
+                            VALUES (:id, :code, :name, :is_active)
+                            """
+                        ),
+                        {
+                            "id": fixture["template_id"],
+                            "code": f"legacy_template_{fixture['template_id']}",
+                            "name": "Legacy template for implicit daily date test",
+                            "is_active": 1,
+                        },
+                    )
+                    db.session.commit()
+
+                    cycle = db.session.get(ReportCycle, fixture["cycle_id"])
+                    cycle.open_at = datetime.combine(report_day, datetime.min.time())
+                    cycle.due_at = datetime.combine(report_day, datetime.max.time())
+                    db.session.commit()
+
+                    unit = db.session.get(ReportUnit, fixture["unit_id"])
+                    user = User.query.filter_by(is_active=True).order_by(User.id.asc()).first()
+                    instance = _get_cycle_instance(cycle, unit, user)
+
+                    submission, errors = _save_submission(
+                        instance,
+                        {"sheets": {"Sheet1": {"B2": "9"}}},
+                        final_submit=True,
+                        report_date=None,
+                    )
+
+                    self.assertEqual(errors, [])
+                    self.assertIsNotNone(submission)
+                    metadata = json.loads(submission.metadata_json or "{}")
+                    self.assertEqual(metadata.get("report_date"), report_day.strftime("%Y-%m-%d"))
+                    self.assertEqual(metadata.get("storage_mode"), "full_snapshot")
+        finally:
+            self._cleanup_report_cycle_fixture(fixture)
+
+    def test_daily_submission_rejects_backdated_save_when_newer_day_exists(self):
+        fixture = self._build_report_cycle_fixture(report_type_code="daily")
+        try:
+            day_one = date.today() - timedelta(days=1)
+            day_two = date.today()
+            with app.test_request_context():
+                session["uid"] = 1
+                session["unit_area"] = "Đơn vị test"
+                with app.app_context():
+                    db.session.execute(
+                        text(
+                            """
+                            INSERT OR REPLACE INTO form_template (id, code, name, is_active)
+                            VALUES (:id, :code, :name, :is_active)
+                            """
+                        ),
+                        {
+                            "id": fixture["template_id"],
+                            "code": f"legacy_template_{fixture['template_id']}",
+                            "name": "Legacy template for backdated daily guard test",
+                            "is_active": 1,
+                        },
+                    )
+                    db.session.commit()
+
+                    cycle = db.session.get(ReportCycle, fixture["cycle_id"])
+                    cycle.open_at = datetime.combine(day_one, datetime.min.time())
+                    cycle.due_at = datetime.combine(day_two, datetime.max.time())
+                    db.session.commit()
+
+                    unit = db.session.get(ReportUnit, fixture["unit_id"])
+                    user = User.query.filter_by(is_active=True).order_by(User.id.asc()).first()
+                    instance = _get_cycle_instance(cycle, unit, user)
+                    template_version = db.session.get(ReportTemplateVersion, fixture["version_id"])
+                    report_type = _report_type(cycle)
+
+                    submission_one, errors_one = _save_submission(
+                        instance,
+                        {"sheets": {"Sheet1": {"B2": "2"}}},
+                        final_submit=True,
+                        report_date=day_one,
+                    )
+                    submission_two, errors_two = _save_submission(
+                        instance,
+                        {"sheets": {"Sheet1": {"B2": "3"}}},
+                        final_submit=True,
+                        report_date=day_two,
+                    )
+
+                    self.assertEqual(errors_one, [])
+                    self.assertEqual(errors_two, [])
+                    self.assertIsNotNone(submission_one)
+                    self.assertIsNotNone(submission_two)
+
+                    rejected_submission, rejected_errors = _save_submission(
+                        instance,
+                        {"sheets": {"Sheet1": {"B2": "5"}}},
+                        final_submit=True,
+                        report_date=day_one,
+                    )
+                    self.assertIsNone(rejected_submission)
+                    self.assertEqual(len(rejected_errors), 1)
+                    self.assertIn(day_one.strftime("%d/%m/%Y"), rejected_errors[0])
+
+                    day_two_values = _resolve_working_submission_state(
+                        instance,
+                        template_version,
+                        report_type=report_type,
+                        report_date=day_two,
+                    )["existing_values"].get("Sheet1", {})
+                    self.assertEqual(day_two_values.get("B2"), "3")
+        finally:
+            self._cleanup_report_cycle_fixture(fixture)
 
 
 if __name__ == "__main__":

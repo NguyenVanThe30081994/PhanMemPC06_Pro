@@ -394,7 +394,12 @@ def parse_workbook(
     metadata = {"sheets": [], "parser_version": "1.0"}
     sheet_options = sheet_options or {}
 
-    for order, ws in enumerate(wb.worksheets):
+    visible_order = 0
+    for ws in wb.worksheets:
+        if getattr(ws, "sheet_state", "visible") != "visible":
+            continue
+        order = visible_order
+        visible_order += 1
         sheet_option = sheet_options.get(ws.title, {})
         min_col, min_row, max_col, max_row = _active_bounds(ws)
         resolved_min_col, resolved_max_col = _resolve_column_range(
