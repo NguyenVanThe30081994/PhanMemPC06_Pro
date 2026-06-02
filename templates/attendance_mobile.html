@@ -216,6 +216,45 @@
     </div>
 </section>
 {% else %}
+{% if editing_submission %}
+<section class="mobile-card">
+    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+            <h2 class="h6 fw-bold mb-1">Chỉnh sửa lượt điểm danh</h2>
+            <p class="text-muted small mb-0">Đổi đơn vị, ghi chú hoặc thay ảnh minh chứng.</p>
+        </div>
+        <a href="{{ url_for('attendance_bp.attendance_home', slot_key=selected_slot_key, edit_config_id=editing_config.id if editing_config else None) }}" class="btn btn-sm btn-outline-secondary rounded-pill fw-semibold">Huỷ</a>
+    </div>
+    <form method="post" action="{{ url_for('attendance_bp.update_attendance_submission', submission_id=editing_submission.id) }}" enctype="multipart/form-data">
+        <input type="hidden" name="return_slot_key" value="{{ selected_slot_key }}">
+        {% if editing_config %}
+        <input type="hidden" name="return_edit_config_id" value="{{ editing_config.id }}">
+        {% endif %}
+        <label class="form-label fw-semibold small">Mốc điểm danh</label>
+        <input type="text" class="form-control mb-3" value="{{ editing_submission.slot_label or editing_submission.slot_key }}" readonly>
+
+        <label class="form-label fw-semibold small">Đơn vị</label>
+        <select class="form-select mb-3" name="unit_key" required>
+            <option value="">Chọn đơn vị</option>
+            {% for option in attendance_unit_options %}
+            <option value="{{ option.unit_key }}" {% if option.unit_key == editing_submission.unit_key %}selected{% endif %}>{{ option.unit_name }}</option>
+            {% endfor %}
+        </select>
+
+        <label class="form-label fw-semibold small">Ảnh hiện tại</label>
+        <div class="attendance-mobile-edit-proof mb-2">
+            <a href="{{ url_for('attendance_bp.attendance_proof', submission_id=editing_submission.id) }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill fw-semibold">Xem ảnh</a>
+        </div>
+        <input type="file" class="form-control mb-3" name="proof_image" accept="image/*">
+
+        <label class="form-label fw-semibold small">Ghi chú</label>
+        <textarea class="form-control mb-3" name="note" rows="3" maxlength="255">{{ editing_submission.note or '' }}</textarea>
+
+        <button type="submit" class="btn btn-mobile btn-mobile-primary">Lưu lượt điểm danh</button>
+    </form>
+</section>
+{% endif %}
+
 <section class="mobile-card">
     <h2 class="h6 fw-bold mb-3">Lịch sử của tôi</h2>
     {% if own_recent_submissions %}
@@ -226,7 +265,17 @@
                 <div class="fw-bold small">{{ submission.slot_label or submission.slot_key }}</div>
                 <div class="text-muted small">{{ submission.unit_area or 'Chưa có đơn vị' }} • {{ submission.submitted_at.strftime('%H:%M %d/%m/%Y') if submission.submitted_at else '' }}</div>
             </div>
-            <a href="{{ url_for('attendance_bp.attendance_proof', submission_id=submission.id) }}" target="_blank" class="small">Xem ảnh</a>
+            <div class="attendance-mobile-action-stack">
+                <a href="{{ url_for('attendance_bp.attendance_proof', submission_id=submission.id) }}" target="_blank" class="small">Xem ảnh</a>
+                <a href="{{ url_for('attendance_bp.attendance_home', edit_submission_id=submission.id, slot_key=selected_slot_key, edit_config_id=editing_config.id if editing_config else None) }}" class="small">Sửa</a>
+                <form method="post" action="{{ url_for('attendance_bp.delete_attendance_submission', submission_id=submission.id) }}" onsubmit="return confirm('Xoá lượt điểm danh này?');">
+                    <input type="hidden" name="return_slot_key" value="{{ selected_slot_key }}">
+                    {% if editing_config %}
+                    <input type="hidden" name="return_edit_config_id" value="{{ editing_config.id }}">
+                    {% endif %}
+                    <button type="submit" class="btn btn-link btn-sm p-0 small text-danger">Xoá</button>
+                </form>
+            </div>
         </div>
         {% endfor %}
     </div>
@@ -238,63 +287,102 @@
 
 {% if can_manage_attendance %}
 <section class="mobile-card">
+    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+            <h2 class="h6 fw-bold mb-1">Danh sách cấu hình điểm danh</h2>
+            <p class="text-muted small mb-0">Chọn cấu hình để sửa hoặc xoá nhanh.</p>
+        </div>
+        <a href="{{ url_for('attendance_bp.attendance_home', slot_key=selected_slot_key) }}" class="btn btn-sm btn-outline-primary rounded-pill fw-semibold">Tạo mới</a>
+    </div>
+    {% if config_records %}
+    <div class="attendance-mobile-config-list">
+        {% for config_item in config_records %}
+        <article class="attendance-mobile-config-item {% if editing_config and editing_config.id == config_item.id %}is-selected{% endif %}">
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                <strong class="small">{{ config_item.name }}</strong>
+                <span class="badge text-bg-{{ 'success' if config_item.is_active else 'secondary' }}">{{ 'Đang bật' if config_item.is_active else 'Tạm dừng' }}</span>
+                <span class="badge text-bg-light text-dark">{{ config_item.mode_label }}</span>
+            </div>
+            <div class="text-muted small mb-2">{{ config_item.summary }}</div>
+            <div class="text-muted small mb-3">Cập nhật {{ config_item.updated_at.strftime('%H:%M %d/%m/%Y') if config_item.updated_at else 'N/A' }}</div>
+            <div class="attendance-mobile-config-actions">
+                <a href="{{ url_for('attendance_bp.attendance_home', edit_config_id=config_item.id, slot_key=selected_slot_key) }}" class="btn btn-sm btn-outline-primary rounded-pill fw-semibold">Sửa</a>
+                <form method="post" action="{{ url_for('attendance_bp.delete_attendance_config', config_id=config_item.id) }}" onsubmit="return confirm('Xoá cấu hình điểm danh này?');">
+                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill fw-semibold">Xoá</button>
+                </form>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-muted small py-3">Chưa có cấu hình điểm danh nào.</div>
+    {% endif %}
+</section>
+
+<section class="mobile-card">
     <h2 class="h6 fw-bold mb-3">Cấu hình điểm danh</h2>
     <form method="post" action="{{ url_for('attendance_bp.save_attendance_config') }}">
+        {% if editing_config %}
+        <input type="hidden" name="config_id" value="{{ editing_config.id }}">
+        {% endif %}
         <label class="form-label fw-semibold small">Tên cấu hình</label>
-        <input type="text" class="form-control mb-3" name="name" value="{{ normalized_config.name if normalized_config else 'Điểm danh tự động' }}" required>
+        <input type="text" class="form-control mb-3" name="name" value="{{ form_config_payload.name if form_config_payload else 'Điểm danh tự động' }}" required>
 
         <label class="form-label fw-semibold small">Chế độ</label>
         <select class="form-select mb-3" name="mode">
-            <option value="interval" {% if not normalized_config or normalized_config.mode == 'interval' %}selected{% endif %}>Tự động theo chu kỳ</option>
-            <option value="schedule" {% if normalized_config and normalized_config.mode == 'schedule' %}selected{% endif %}>Theo khung giờ cố định</option>
+            <option value="interval" {% if not form_config_payload or form_config_payload.mode == 'interval' %}selected{% endif %}>Tự động theo chu kỳ</option>
+            <option value="schedule" {% if form_config_payload and form_config_payload.mode == 'schedule' %}selected{% endif %}>Theo khung giờ cố định</option>
         </select>
 
         <div class="row g-2 mb-2">
             <div class="col-6">
                 <label class="form-label fw-semibold small">Bắt đầu</label>
-                <input type="time" class="form-control" name="day_start_time" value="{{ normalized_config.day_start_time if normalized_config else '08:00' }}">
+                <input type="time" class="form-control" name="day_start_time" value="{{ form_config_payload.day_start_time if form_config_payload else '08:00' }}">
             </div>
             <div class="col-6">
                 <label class="form-label fw-semibold small">Kết thúc</label>
-                <input type="time" class="form-control" name="day_end_time" value="{{ normalized_config.day_end_time if normalized_config else '17:00' }}">
+                <input type="time" class="form-control" name="day_end_time" value="{{ form_config_payload.day_end_time if form_config_payload else '17:00' }}">
             </div>
             <div class="col-6">
                 <label class="form-label fw-semibold small">Chu kỳ (phút)</label>
-                <input type="number" class="form-control" name="interval_minutes" min="1" value="{{ normalized_config.interval_minutes if normalized_config else 120 }}">
+                <input type="number" class="form-control" name="interval_minutes" min="1" value="{{ form_config_payload.interval_minutes if form_config_payload else 120 }}">
             </div>
             <div class="col-6">
                 <label class="form-label fw-semibold small">Mở trước</label>
-                <input type="number" class="form-control" name="early_checkin_minutes" min="0" value="{{ normalized_config.early_checkin_minutes if normalized_config else 15 }}">
+                <input type="number" class="form-control" name="early_checkin_minutes" min="0" value="{{ form_config_payload.early_checkin_minutes if form_config_payload else 15 }}">
             </div>
             <div class="col-6">
                 <label class="form-label fw-semibold small">Cho phép trễ</label>
-                <input type="number" class="form-control" name="late_allow_minutes" min="0" value="{{ normalized_config.late_allow_minutes if normalized_config else 60 }}">
+                <input type="number" class="form-control" name="late_allow_minutes" min="0" value="{{ form_config_payload.late_allow_minutes if form_config_payload else 60 }}">
             </div>
             <div class="col-6 d-flex align-items-end">
                 <label class="attendance-mobile-toggle">
-                    <input type="checkbox" name="is_active" value="1" {% if not latest_config or active_config %}checked{% endif %}>
+                    <input type="checkbox" name="is_active" value="1" {% if (form_config and form_config.is_active) or (not form_config and not latest_config) %}checked{% endif %}>
                     <span>Kích hoạt</span>
                 </label>
             </div>
         </div>
 
         <label class="form-label fw-semibold small">Khung giờ cố định</label>
-        <textarea class="form-control mb-3" name="schedule_times" rows="4" placeholder="08:00&#10;11:30&#10;15:00">{{ schedule_times_text }}</textarea>
+        <textarea class="form-control mb-3" name="schedule_times" rows="4" placeholder="08:00&#10;11:30&#10;15:00">{{ form_schedule_times_text }}</textarea>
 
         <label class="form-label fw-semibold small d-block">Ngày áp dụng</label>
         <div class="attendance-mobile-weekdays mb-3">
             {% for weekday in weekday_labels %}
             <label class="attendance-mobile-weekday">
-                <input type="checkbox" name="weekdays" value="{{ weekday.value }}" {% if weekday.value in active_weekdays %}checked{% endif %}>
+                <input type="checkbox" name="weekdays" value="{{ weekday.value }}" {% if weekday.value in form_active_weekdays %}checked{% endif %}>
                 <span>{{ weekday.label }}</span>
             </label>
             {% endfor %}
         </div>
 
         <label class="form-label fw-semibold small">Ghi chú</label>
-        <textarea class="form-control mb-3" name="note" rows="3">{{ normalized_config.note if normalized_config else '' }}</textarea>
+        <textarea class="form-control mb-3" name="note" rows="3">{{ form_config_payload.note if form_config_payload else '' }}</textarea>
 
-        <button type="submit" class="btn btn-mobile btn-mobile-primary">Lưu cấu hình</button>
+        <button type="submit" class="btn btn-mobile btn-mobile-primary">{{ 'Lưu cập nhật' if editing_config else 'Tạo cấu hình' }}</button>
+        {% if editing_config %}
+        <a href="{{ url_for('attendance_bp.attendance_home', slot_key=selected_slot_key) }}" class="btn btn-mobile btn-mobile-secondary mt-2">Huỷ chỉnh sửa</a>
+        {% endif %}
     </form>
 </section>
 
@@ -308,7 +396,17 @@
                 <div class="fw-bold small">{{ submission.user.fullname if submission.user else submission.user_id }}</div>
                 <div class="text-muted small">{{ submission.slot_label or submission.slot_key }} • {{ submission.unit_area or 'N/A' }}</div>
             </div>
-            <a href="{{ url_for('attendance_bp.attendance_proof', submission_id=submission.id) }}" target="_blank" class="small">Ảnh</a>
+            <div class="attendance-mobile-action-stack">
+                <a href="{{ url_for('attendance_bp.attendance_proof', submission_id=submission.id) }}" target="_blank" class="small">Ảnh</a>
+                <a href="{{ url_for('attendance_bp.attendance_home', edit_submission_id=submission.id, slot_key=selected_slot_key, edit_config_id=editing_config.id if editing_config else None) }}" class="small">Sửa</a>
+                <form method="post" action="{{ url_for('attendance_bp.delete_attendance_submission', submission_id=submission.id) }}" onsubmit="return confirm('Xoá lượt điểm danh này?');">
+                    <input type="hidden" name="return_slot_key" value="{{ selected_slot_key }}">
+                    {% if editing_config %}
+                    <input type="hidden" name="return_edit_config_id" value="{{ editing_config.id }}">
+                    {% endif %}
+                    <button type="submit" class="btn btn-link btn-sm p-0 small text-danger">Xoá</button>
+                </form>
+            </div>
         </div>
         {% endfor %}
     </div>
@@ -430,6 +528,33 @@
         border-radius: 16px;
         border: 1px solid var(--border);
     }
+    .attendance-mobile-edit-proof {
+        display: flex;
+        justify-content: flex-start;
+    }
+    .attendance-mobile-action-stack {
+        display: grid;
+        gap: 4px;
+        justify-items: end;
+    }
+    .attendance-mobile-action-stack form { margin: 0; }
+    .attendance-mobile-config-list { display: grid; gap: 12px; }
+    .attendance-mobile-config-item {
+        padding: 14px;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.72);
+    }
+    .attendance-mobile-config-item.is-selected {
+        border-color: rgba(37, 99, 235, 0.5);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+    }
+    .attendance-mobile-config-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .attendance-mobile-config-actions form { margin: 0; }
     .attendance-mobile-weekdays {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));

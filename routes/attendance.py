@@ -87,6 +87,24 @@ def _get_current_config():
     return active_config, latest_config
 
 
+def _build_attendance_config_list():
+    records = []
+    configs = AttendanceConfig.query.order_by(AttendanceConfig.updated_at.desc(), AttendanceConfig.id.desc()).all()
+    for config in configs:
+        normalized = normalize_attendance_config(config)
+        records.append({
+            'id': config.id,
+            'name': normalized.get('name') or config.name or 'Điểm danh tự động',
+            'mode': normalized.get('mode') or 'interval',
+            'mode_label': 'Theo khung giờ cố định' if normalized.get('mode') == 'schedule' else 'Tự động theo chu kỳ',
+            'is_active': bool(config.is_active),
+            'summary': _format_config_summary(normalized),
+            'updated_at': config.updated_at or config.created_at,
+            'note': (normalized.get('note') or '').strip(),
+        })
+    return records
+
+
 def _unit_category_options():
     return module_category_options('contacts', 'unit_name', 'Đơn vị')
 
@@ -124,6 +142,19 @@ def _attendance_return_endpoint():
     if path.startswith('/diem-danh'):
         return 'attendance_bp.public_attendance'
     return 'attendance_bp.attendance_home'
+
+
+def _attendance_home_redirect(edit_submission_id=None):
+    params = {}
+    slot_key = (request.form.get('return_slot_key') or request.args.get('slot_key') or '').strip()
+    edit_config_id = request.form.get('return_edit_config_id', type=int) or request.args.get('edit_config_id', type=int) or 0
+    if slot_key:
+        params['slot_key'] = slot_key
+    if edit_config_id:
+        params['edit_config_id'] = edit_config_id
+    if edit_submission_id:
+        params['edit_submission_id'] = edit_submission_id
+    return redirect(url_for('attendance_bp.attendance_home', **params))
 
 
 def _resolve_unit_display(value, unit_options, fallback_label='Chưa có đơn vị'):
@@ -386,6 +417,35 @@ def _save_proof_file(file_storage):
     return os.path.join(relative_dir, file_basename), safe_name
 
 
+def _remove_proof_file(relative_path):
+    if not relative_path:
+        return
+
+    upload_root = os.path.abspath(current_app.config['UPLOAD_FOLDER'])
+    proof_path = os.path.abspath(os.path.join(upload_root, relative_path))
+    if not proof_path.startswith(upload_root + os.sep):
+        return
+    if os.path.exists(proof_path):
+        os.remove(proof_path)
+
+
+def _can_modify_submission(submission, can_manage):
+    if not submission or not session.get('uid'):
+        return False
+    if can_manage:
+        return True
+    return submission.user_id == session.get('uid')
+
+
+def _load_editable_submission(submission_id, can_manage):
+    submission = db.session.get(AttendanceSubmission, submission_id) if submission_id else None
+    if not submission:
+        return None
+    if not _can_modify_submission(submission, can_manage):
+        return None
+    return submission
+
+
 @attendance_bp.route('/attendance')
 def attendance_home():
     perms, role_name = _attendance_role_context()
@@ -401,6 +461,13 @@ def attendance_home():
     now = datetime.now()
     unit_options = _unit_category_options()
     unit_option_map = _build_unit_option_maps(unit_options)
+    config_records = _build_attendance_config_list() if can_manage else []
+    edit_config_id = request.args.get('edit_config_id', type=int) or 0
+    editing_config = db.session.get(AttendanceConfig, edit_config_id) if can_manage and edit_config_id else None
+    edit_submission_id = request.args.get('edit_submission_id', type=int) or 0
+    editing_submission = _load_editable_submission(edit_submission_id, can_manage) if session.get('uid') and edit_submission_id else None
+    form_config = editing_config
+    form_config_payload = normalize_attendance_config(form_config) if form_config else None
 
     slot_rows = _build_slot_rows(active_config, now)
     selected_slot_key = (request.args.get('slot_key') or '').strip()
@@ -452,9 +519,14 @@ def attendance_home():
         active_config=active_config,
         latest_config=latest_config,
         normalized_config=normalized_config,
+        editing_config=editing_config,
+        editing_submission=editing_submission,
+        form_config=form_config,
+        form_config_payload=form_config_payload,
+        config_records=config_records,
         config_summary=_format_config_summary(normalized_config),
-        schedule_times_text='\n'.join((normalized_config or {}).get('schedule_times', [])),
-        active_weekdays=((normalized_config or {}).get('active_weekdays') or list(range(7))),
+        form_schedule_times_text='\n'.join((form_config_payload or {}).get('schedule_times', [])),
+        form_active_weekdays=((form_config_payload or {}).get('active_weekdays') or list(range(7))),
         weekday_labels=[
             {'value': 0, 'label': 'Thứ 2'},
             {'value': 1, 'label': 'Thứ 3'},
@@ -471,6 +543,7 @@ def attendance_home():
         admin_summary=admin_summary,
         unit_attendance=unit_attendance,
         monitor_slot_context=monitor_slot_context,
+        selected_slot_key=selected_slot_key,
         attendance_unit_options=_dedupe_unit_options(unit_option_map),
         default_attendance_unit_key=(
             (
@@ -555,7 +628,13 @@ def save_attendance_config():
         flash('Bạn cần khai báo ít nhất một mốc giờ cố định.', 'danger')
         return redirect(url_for('attendance_bp.attendance_home'))
 
-    config = AttendanceConfig.query.order_by(AttendanceConfig.id.desc()).first()
+    config_id = request.form.get('config_id', type=int) or 0
+    is_new_config = not config_id
+    config = db.session.get(AttendanceConfig, config_id) if config_id else None
+    if config_id and not config:
+        flash('Không tìm thấy cấu hình điểm danh cần cập nhật.', 'danger')
+        return redirect(url_for('attendance_bp.attendance_home'))
+
     if not config:
         config = AttendanceConfig(created_by=session['uid'])
         db.session.add(config)
@@ -574,14 +653,170 @@ def save_attendance_config():
     config.updated_by = session['uid']
 
     try:
+        db.session.flush()
+        if config.is_active:
+            AttendanceConfig.query.filter(AttendanceConfig.id != config.id).update(
+                {'is_active': False},
+                synchronize_session=False,
+            )
         db.session.commit()
-        log_action(session['uid'], session['fullname'], 'Cập nhật cấu hình điểm danh', 'Điểm danh', config.name)
-        flash('Đã lưu cấu hình điểm danh.', 'success')
+        log_action(
+            session['uid'],
+            session['fullname'],
+            'Tạo cấu hình điểm danh' if is_new_config else 'Cập nhật cấu hình điểm danh',
+            'Điểm danh',
+            config.name,
+        )
+        flash(
+            'Đã tạo cấu hình điểm danh mới.' if is_new_config else 'Đã cập nhật cấu hình điểm danh.',
+            'success',
+        )
     except Exception as exc:
         db.session.rollback()
         flash(f'Lỗi khi lưu cấu hình: {exc}', 'danger')
 
     return redirect(url_for('attendance_bp.attendance_home'))
+
+
+@attendance_bp.route('/attendance/config/<int:config_id>/delete', methods=['POST'])
+def delete_attendance_config(config_id):
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    perms, role_name = _attendance_role_context()
+    if not _can_manage_attendance(perms, role_name):
+        flash('Bạn không có quyền xoá cấu hình điểm danh.', 'danger')
+        return redirect(url_for('attendance_bp.attendance_home'))
+
+    config = db.session.get(AttendanceConfig, config_id)
+    if not config:
+        flash('Không tìm thấy cấu hình điểm danh cần xoá.', 'warning')
+        return redirect(url_for('attendance_bp.attendance_home'))
+
+    related_submissions = AttendanceSubmission.query.filter_by(config_id=config.id).all()
+    config_name = config.name or f'Cấu hình #{config.id}'
+
+    try:
+        for submission in related_submissions:
+            _remove_proof_file(submission.proof_path)
+            db.session.delete(submission)
+        db.session.delete(config)
+        db.session.commit()
+        log_action(
+            session['uid'],
+            session['fullname'],
+            'Xoá cấu hình điểm danh',
+            'Điểm danh',
+            f'{config_name} ({len(related_submissions)} lượt điểm danh liên quan)',
+        )
+        flash('Đã xoá cấu hình điểm danh.', 'success')
+    except Exception as exc:
+        db.session.rollback()
+        flash(f'Không thể xoá cấu hình điểm danh: {exc}', 'danger')
+
+    return redirect(url_for('attendance_bp.attendance_home'))
+
+
+@attendance_bp.route('/attendance/submission/<int:submission_id>/update', methods=['POST'])
+def update_attendance_submission(submission_id):
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    perms, role_name = _attendance_role_context()
+    can_manage = _can_manage_attendance(perms, role_name)
+    submission = _load_editable_submission(submission_id, can_manage)
+    if not submission:
+        flash('Bạn không có quyền chỉnh sửa lượt điểm danh này.', 'danger')
+        return _attendance_home_redirect()
+
+    unit_option_map = _build_unit_option_maps(_unit_category_options())
+    selected_unit_key = (request.form.get('unit_key') or '').strip()
+    selected_unit = unit_option_map.get(selected_unit_key)
+    note = (request.form.get('note') or '').strip()
+    replace_proof = bool(request.files.get('proof_image') and request.files.get('proof_image').filename)
+
+    if not selected_unit:
+        flash('Bạn cần chọn đơn vị hợp lệ để cập nhật.', 'danger')
+        return _attendance_home_redirect(edit_submission_id=submission.id)
+
+    duplicate_submission = AttendanceSubmission.query.filter(
+        AttendanceSubmission.id != submission.id,
+        AttendanceSubmission.config_id == submission.config_id,
+        AttendanceSubmission.slot_key == submission.slot_key,
+        AttendanceSubmission.unit_key == selected_unit['unit_key'],
+    ).first()
+    if duplicate_submission:
+        flash('Đơn vị này đã có lượt điểm danh ở mốc đã chọn.', 'warning')
+        return _attendance_home_redirect(edit_submission_id=submission.id)
+
+    old_proof_path = submission.proof_path
+    old_proof_filename = submission.proof_filename
+    new_proof_path = ''
+
+    try:
+        if replace_proof:
+            new_proof_path, new_proof_filename = _save_proof_file(request.files.get('proof_image'))
+            submission.proof_path = new_proof_path
+            submission.proof_filename = new_proof_filename
+        submission.unit_key = selected_unit['unit_key']
+        submission.unit_area = selected_unit['unit_name']
+        submission.note = note
+        submission.updated_at = datetime.now()
+        db.session.commit()
+        if replace_proof and old_proof_path and old_proof_path != submission.proof_path:
+            _remove_proof_file(old_proof_path)
+        log_action(
+            session['uid'],
+            session['fullname'],
+            'Cập nhật lượt điểm danh',
+            'Điểm danh',
+            f"{submission.slot_label or submission.slot_key} - {selected_unit['unit_name']}",
+        )
+        flash('Đã cập nhật lượt điểm danh.', 'success')
+    except Exception as exc:
+        db.session.rollback()
+        if new_proof_path:
+            _remove_proof_file(new_proof_path)
+        submission.proof_path = old_proof_path
+        submission.proof_filename = old_proof_filename
+        flash(f'Không thể cập nhật lượt điểm danh: {exc}', 'danger')
+
+    return _attendance_home_redirect()
+
+
+@attendance_bp.route('/attendance/submission/<int:submission_id>/delete', methods=['POST'])
+def delete_attendance_submission(submission_id):
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    perms, role_name = _attendance_role_context()
+    can_manage = _can_manage_attendance(perms, role_name)
+    submission = _load_editable_submission(submission_id, can_manage)
+    if not submission:
+        flash('Bạn không có quyền xoá lượt điểm danh này.', 'danger')
+        return _attendance_home_redirect()
+
+    proof_path = submission.proof_path
+    submission_label = submission.slot_label or submission.slot_key or f'#{submission.id}'
+    submission_unit = submission.unit_area or submission.unit_key or 'Chưa có đơn vị'
+
+    try:
+        db.session.delete(submission)
+        db.session.commit()
+        _remove_proof_file(proof_path)
+        log_action(
+            session['uid'],
+            session['fullname'],
+            'Xoá lượt điểm danh',
+            'Điểm danh',
+            f'{submission_label} - {submission_unit}',
+        )
+        flash('Đã xoá lượt điểm danh.', 'success')
+    except Exception as exc:
+        db.session.rollback()
+        flash(f'Không thể xoá lượt điểm danh: {exc}', 'danger')
+
+    return _attendance_home_redirect()
 
 
 @attendance_bp.route('/attendance/submit', methods=['POST'])
