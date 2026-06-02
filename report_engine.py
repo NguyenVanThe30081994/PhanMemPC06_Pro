@@ -14,6 +14,7 @@ from openpyxl.utils.cell import range_boundaries
 
 CELL_REF_RE = re.compile(r'(?<![A-Z0-9_"])\$?[A-Z]{1,3}\$?\d+')
 RANGE_REF_RE = re.compile(r'\$?[A-Z]{1,3}\$?\d+:\$?[A-Z]{1,3}\$?\d+')
+ROW_RANGE_REF_RE = re.compile(r'(?<![A-Z0-9_"])\$?\d+:\$?\d+(?![A-Z0-9_"])')
 
 
 def normalize_code(value):
@@ -249,6 +250,17 @@ def _evaluate_sheet_formulas(ws):
     cache = {}
     visiting = set()
 
+    def _column_bound_row_range(range_ref, current_coord):
+        if not current_coord or ":" not in str(range_ref or ""):
+            return None
+        current_column = "".join(ch for ch in str(current_coord or "").upper() if ch.isalpha())
+        if not current_column:
+            return None
+        start_row_text, end_row_text = [part.replace("$", "").strip() for part in str(range_ref).split(":", 1)]
+        if not start_row_text.isdigit() or not end_row_text.isdigit():
+            return None
+        return f"{current_column}{int(start_row_text)}:{current_column}{int(end_row_text)}"
+
     def cell_value(coord):
         coord = coord.replace("$", "").upper()
         if coord in cache:
@@ -259,7 +271,7 @@ def _evaluate_sheet_formulas(ws):
         cell = ws[coord]
         value = cell.value
         if cell.data_type == "f" and isinstance(value, str):
-            result = eval_formula(value)
+            result = eval_formula(value, current_coord=coord)
         else:
             result = value
             coerced = _coerce_numeric(result)
@@ -299,7 +311,7 @@ def _evaluate_sheet_formulas(ws):
         except Exception:
             return fallback
 
-    def eval_formula(raw_formula):
+    def eval_formula(raw_formula, current_coord=None):
         formula = str(raw_formula or "").strip()
         if formula.startswith("="):
             formula = formula[1:]
@@ -315,6 +327,17 @@ def _evaluate_sheet_formulas(ws):
             range_placeholders[key] = f'RANGE("{match.group(0).replace("$", "").upper()}")'
             return key
         transformed = RANGE_REF_RE.sub(replace_range, transformed)
+        transformed = ROW_RANGE_REF_RE.sub(
+            lambda match: replace_range(match)
+            if _column_bound_row_range(match.group(0), current_coord)
+            else match.group(0),
+            transformed,
+        )
+        for key, replacement in list(range_placeholders.items()):
+            raw_ref = replacement[len('RANGE("'):-2]
+            normalized_row_range = _column_bound_row_range(raw_ref, current_coord)
+            if normalized_row_range:
+                range_placeholders[key] = f'RANGE("{normalized_row_range}")'
         transformed = CELL_REF_RE.sub(lambda m: f'CELL("{m.group(0).replace("$", "").upper()}")', transformed)
         for key, replacement in range_placeholders.items():
             transformed = transformed.replace(key, replacement)
@@ -394,7 +417,12 @@ def parse_workbook(
     metadata = {"sheets": [], "parser_version": "1.0"}
     sheet_options = sheet_options or {}
 
-    for order, ws in enumerate(wb.worksheets):
+    visible_order = 0
+    for ws in wb.worksheets:
+        if getattr(ws, "sheet_state", "visible") != "visible":
+            continue
+        order = visible_order
+        visible_order += 1
         sheet_option = sheet_options.get(ws.title, {})
         min_col, min_row, max_col, max_row = _active_bounds(ws)
         resolved_min_col, resolved_max_col = _resolve_column_range(

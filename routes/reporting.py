@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import calendar
+import glob
 import json
 import os
 import re
@@ -383,6 +384,186 @@ def _legacy_version_row(version_id):
     ).mappings().first()
 
 
+def _legacy_sql_ident(name):
+    text_name = str(name or "").strip()
+    if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", text_name):
+        raise ValueError(f"Invalid SQLite identifier: {name!r}")
+    return f'"{text_name}"'
+
+
+def _legacy_primary_key_column(table_name):
+    if not _legacy_table_exists(table_name):
+        return None
+    table_ident = _legacy_sql_ident(table_name)
+    rows = db.session.execute(text(f"PRAGMA table_info({table_ident})")).mappings().all()
+    pk_columns = sorted(
+        ((int(row["pk"]), row["name"]) for row in rows if int(row["pk"] or 0) > 0),
+        key=lambda item: item[0],
+    )
+    if len(pk_columns) != 1:
+        return None
+    return pk_columns[0][1]
+
+
+def _legacy_child_foreign_keys(parent_table_name):
+    child_refs = []
+    table_names = db.session.execute(
+        text("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name ASC")
+    ).scalars().all()
+    for child_name in table_names:
+        child_ident = _legacy_sql_ident(child_name)
+        for fk in db.session.execute(text(f"PRAGMA foreign_key_list({child_ident})")).mappings().all():
+            if fk["table"] == parent_table_name:
+                child_refs.append(
+                    {
+                        "child_table": child_name,
+                        "child_column": fk["from"],
+                        "parent_column": fk["to"] or "id",
+                    }
+                )
+    return sorted(
+        child_refs,
+        key=lambda item: (
+            0 if item["child_table"] == "report_submission" else 1,
+            0 if item["child_table"] == "report_attachment" else 1,
+            item["child_table"],
+            item["child_column"],
+        ),
+    )
+
+
+def _legacy_cleanup_row_assets(table_name, row_id, pk_column):
+    table_ident = _legacy_sql_ident(table_name)
+    pk_ident = _legacy_sql_ident(pk_column)
+
+    if table_name == "report_submission":
+        row = db.session.execute(
+            text(
+                f"""
+                SELECT file_path, original_file_path, processed_file_path, error_file_path
+                FROM {table_ident}
+                WHERE {pk_ident} = :row_id
+                """
+            ),
+            {"row_id": row_id},
+        ).mappings().first()
+        if row:
+            for stored_path in {
+                row["file_path"],
+                row["original_file_path"],
+                row["processed_file_path"],
+                row["error_file_path"],
+            }:
+                if stored_path and os.path.exists(stored_path):
+                    try:
+                        os.remove(stored_path)
+                    except Exception:
+                        pass
+            backup_root = os.path.join(current_app.config["BACKUP_FOLDER"], "report_submissions")
+            pattern = os.path.join(backup_root, "**", f"submission_{row_id}.json")
+            for backup_path in glob.glob(pattern, recursive=True):
+                if backup_path and os.path.exists(backup_path):
+                    try:
+                        os.remove(backup_path)
+                    except Exception:
+                        pass
+        return
+
+    if table_name == "report_attachment":
+        row = db.session.execute(
+            text(
+                f"""
+                SELECT file_path
+                FROM {table_ident}
+                WHERE {pk_ident} = :row_id
+                """
+            ),
+            {"row_id": row_id},
+        ).mappings().first()
+        if row and row["file_path"] and os.path.exists(row["file_path"]):
+            try:
+                os.remove(row["file_path"])
+            except Exception:
+                pass
+        return
+
+    if table_name == "report_export_job":
+        row = db.session.execute(
+            text(
+                f"""
+                SELECT output_path
+                FROM {table_ident}
+                WHERE {pk_ident} = :row_id
+                """
+            ),
+            {"row_id": row_id},
+        ).mappings().first()
+        if row and row["output_path"] and os.path.exists(row["output_path"]):
+            try:
+                os.remove(row["output_path"])
+            except Exception:
+                pass
+
+
+def _delete_legacy_row_tree(table_name, row_id, pk_column=None, visited=None):
+    if row_id is None or not _legacy_table_exists(table_name):
+        return
+    pk_column = pk_column or _legacy_primary_key_column(table_name)
+    if not pk_column:
+        return
+
+    visited = visited or set()
+    visit_key = (table_name, str(row_id), pk_column)
+    if visit_key in visited:
+        return
+    visited.add(visit_key)
+
+    for child_ref in _legacy_child_foreign_keys(table_name):
+        if child_ref["parent_column"] != pk_column:
+            continue
+        child_table = child_ref["child_table"]
+        child_pk = _legacy_primary_key_column(child_table)
+        child_table_ident = _legacy_sql_ident(child_table)
+        child_column_ident = _legacy_sql_ident(child_ref["child_column"])
+        if child_pk:
+            child_pk_ident = _legacy_sql_ident(child_pk)
+            child_ids = db.session.execute(
+                text(
+                    f"""
+                    SELECT {child_pk_ident}
+                    FROM {child_table_ident}
+                    WHERE {child_column_ident} = :row_id
+                    """
+                ),
+                {"row_id": row_id},
+            ).scalars().all()
+            for child_id in child_ids:
+                _delete_legacy_row_tree(child_table, child_id, pk_column=child_pk, visited=visited)
+        else:
+            db.session.execute(
+                text(
+                    f"""
+                    DELETE FROM {child_table_ident}
+                    WHERE {child_column_ident} = :row_id
+                    """
+                ),
+                {"row_id": row_id},
+            )
+
+    _legacy_cleanup_row_assets(table_name, row_id, pk_column)
+    table_ident = _legacy_sql_ident(table_name)
+    pk_ident = _legacy_sql_ident(pk_column)
+    db.session.execute(
+        text(
+            f"""
+            DELETE FROM {table_ident}
+            WHERE {pk_ident} = :row_id
+            """
+        ),
+        {"row_id": row_id},
+    )
+
+
 def _report_type_id_from_legacy(report_type_code=None, frequency_code=None):
     candidates = [
         str(report_type_code or "").strip().lower(),
@@ -606,12 +787,12 @@ def _upsert_legacy_form_version(version):
 
 def _delete_legacy_form_version(version_id):
     if _legacy_report_bridge_ready():
-        db.session.execute(text("DELETE FROM form_version WHERE id = :id"), {"id": version_id})
+        _delete_legacy_row_tree("form_version", version_id)
 
 
 def _delete_legacy_form_template(template_id):
     if _legacy_report_bridge_ready():
-        db.session.execute(text("DELETE FROM form_template WHERE id = :id"), {"id": template_id})
+        _delete_legacy_row_tree("form_template", template_id)
 
 
 def _import_legacy_templates_into_report_schema():
@@ -1242,12 +1423,18 @@ def _template_range_defaults(version):
     return defaults
 
 
-def _workbook_sheet_names(source_path):
+def _workbook_sheet_names(source_path, visible_only=True):
     if not source_path or not os.path.exists(source_path):
         return []
     workbook = load_workbook(source_path, read_only=True, data_only=True)
     try:
-        return list(workbook.sheetnames)
+        if not visible_only:
+            return list(workbook.sheetnames)
+        return [
+            ws.title
+            for ws in workbook.worksheets
+            if getattr(ws, "sheet_state", "visible") == "visible"
+        ]
     finally:
         workbook.close()
 
@@ -1258,10 +1445,13 @@ def _template_sheet_range_defaults(version):
     metadata_sheets = metadata.get("sheets") or []
     configured = []
     configured_names = set()
+    visible_sheet_names = set(_workbook_sheet_names(version.source_path if version else ""))
 
     for sheet in metadata_sheets:
         sheet_name = (sheet.get("sheet_name") or "").strip()
         if not sheet_name or sheet_name in configured_names:
+            continue
+        if visible_sheet_names and sheet_name not in visible_sheet_names:
             continue
         configured_names.add(sheet_name)
         configured.append(
@@ -1278,7 +1468,7 @@ def _template_sheet_range_defaults(version):
             }
         )
 
-    for sheet_name in _workbook_sheet_names(version.source_path if version else ""):
+    for sheet_name in visible_sheet_names:
         if sheet_name in configured_names:
             continue
         configured.append({"sheet_name": sheet_name, **defaults})
@@ -1531,6 +1721,7 @@ def _preview_workbook(file_path):
 
 
 def _purge_cycle(cycle):
+    period_id = cycle.legacy_period_id if cycle else None
     instances = ReportInstance.query.filter_by(cycle_id=cycle.id).all()
     for instance in instances:
         submissions = ReportSubmission.query.filter_by(instance_id=instance.id).all()
@@ -1538,6 +1729,13 @@ def _purge_cycle(cycle):
             _purge_submission(submission)
         db.session.delete(instance)
     ReportExportJob.query.filter_by(cycle_id=cycle.id).delete(synchronize_session=False)
+    if period_id and not ReportCycle.query.filter(
+        ReportCycle.legacy_period_id == period_id,
+        ReportCycle.id != cycle.id,
+    ).first():
+        period = db.session.get(ReportingPeriod, period_id)
+        if period:
+            db.session.delete(period)
     db.session.delete(cycle)
 
 
@@ -1684,6 +1882,15 @@ def _daily_snapshot_submissions_through_date(instance_id, report_date):
             continue
         latest_by_day[business_date] = submission
     return [latest_by_day[day] for day in sorted(latest_by_day.keys())]
+
+
+def _has_later_daily_submission(instance_id, report_date):
+    if not instance_id or not report_date:
+        return False
+    return any(
+        _submission_business_date(submission) and _submission_business_date(submission) > report_date
+        for submission in _ordered_submissions(instance_id)
+    )
 
 
 def _submission_storage_mode(submission):
@@ -1869,6 +2076,21 @@ def _resolve_entry_submission_state(instance, template_version, report_type=None
 def _effective_daily_cutoff_date(cycle, instance_id=None):
     if cycle and cycle.close_at:
         return cycle.close_at.date()
+    if cycle and cycle.due_at:
+        return cycle.due_at.date()
+    if instance_id:
+        latest = _latest_submission(instance_id)
+        latest_date = _submission_business_date(latest) if latest else None
+        if latest_date:
+            return latest_date
+    return date.today()
+
+
+def _resolve_daily_submission_date(cycle, report_date=None, instance_id=None):
+    if report_date:
+        return report_date
+    if cycle and cycle.open_at:
+        return cycle.open_at.date()
     if cycle and cycle.due_at:
         return cycle.due_at.date()
     if instance_id:
@@ -2379,6 +2601,31 @@ def _row_matches_unit(ws, sheet_fields, existing_values, sheet_name, row_index, 
     return False
 
 
+def _sheet_has_unit_identity_fields(sheet_fields):
+    for field in sheet_fields:
+        label_code = normalize_code(_field_display_name(field))
+        if any(marker in label_code for marker in {"don_vi", "ten_don_vi", "ma_don_vi"}):
+            return True
+    return False
+
+
+def _sheet_input_row_indexes(sheet_meta):
+    row_indexes = []
+    seen = set()
+    for input_cell in sheet_meta.get("input_cells", []) or []:
+        row_index = int(input_cell.get("row_index") or 0)
+        if row_index <= 0 or row_index in seen:
+            continue
+        seen.add(row_index)
+        row_indexes.append(row_index)
+    if row_indexes:
+        return row_indexes
+
+    start_row = int(sheet_meta.get("unit_start_row") or sheet_meta.get("data_start_row") or 1)
+    end_row = int(sheet_meta.get("unit_end_row") or sheet_meta.get("data_end_row") or start_row)
+    return list(range(start_row, end_row + 1))
+
+
 def _cell_display_value(value):
     if value is None:
         return ""
@@ -2763,15 +3010,38 @@ def _period_dates_for_cycle(cycle, report_type=None):
     return start_date, end_date
 
 
+def _reporting_period_code(cycle, start_date):
+    if not cycle or not start_date:
+        return ""
+    return f"report_{cycle.id}_{start_date.strftime('%Y%m%d')}"
+
+
 def _ensure_reporting_period(cycle, report_type=None):
     report_type = report_type or _report_type(cycle)
     period = db.session.get(ReportingPeriod, cycle.legacy_period_id) if cycle.legacy_period_id else None
     start_date, end_date = _period_dates_for_cycle(cycle, report_type=report_type)
     period_type = report_type.code if report_type else "periodic"
+    template_version = db.session.get(ReportTemplateVersion, cycle.template_version_id) if cycle else None
+    template_id = template_version.template_id if template_version else None
+    code = _reporting_period_code(cycle, start_date)
+
+    if template_version and _legacy_report_bridge_ready():
+        if not _legacy_form_row(template_id):
+            _upsert_legacy_form_template(
+                db.session.get(ReportTemplate, template_id),
+                version=template_version,
+            )
+        if not _legacy_version_row(template_version.id):
+            _upsert_legacy_form_version(template_version)
+
+    if not period and code:
+        period = ReportingPeriod.query.filter_by(code=code).first()
+        if period:
+            cycle.legacy_period_id = period.id
+
     if not period:
-        code = f"report_{cycle.id}_{start_date.strftime('%Y%m%d')}"
         period = ReportingPeriod(
-            template_id=db.session.get(ReportTemplateVersion, cycle.template_version_id).template_id,
+            template_id=template_id,
             code=code,
             name=cycle.name[:100],
             period_type=period_type,
@@ -2780,13 +3050,23 @@ def _ensure_reporting_period(cycle, report_type=None):
             end_date=end_date,
             deadline=cycle.due_at,
             is_locked=cycle.is_locked,
-            created_by=session.get("uid"),
+            created_by=_current_actor_id(),
         )
         db.session.add(period)
         db.session.flush()
         cycle.legacy_period_id = period.id
         return period
-    period.template_id = db.session.get(ReportTemplateVersion, cycle.template_version_id).template_id
+    if code and period.code != code:
+        conflicting_period = ReportingPeriod.query.filter(
+            ReportingPeriod.code == code,
+            ReportingPeriod.id != period.id,
+        ).first()
+        if conflicting_period:
+            cycle.legacy_period_id = conflicting_period.id
+            period = conflicting_period
+        else:
+            period.code = code
+    period.template_id = template_id
     period.name = cycle.name[:100]
     period.period_type = period_type
     period.is_adhoc = period_type == "ad_hoc"
@@ -2795,6 +3075,69 @@ def _ensure_reporting_period(cycle, report_type=None):
     period.deadline = cycle.due_at
     period.is_locked = cycle.is_locked
     return period
+
+
+def _finalize_due_daily_cycles_job(now=None, cycle_id=None, apply=True):
+    now = now or datetime.now()
+    summary = {
+        "ran_at": now.isoformat(),
+        "dry_run": not apply,
+        "cycles_scanned": 0,
+        "daily_cycles_due": 0,
+        "finalized_cycle_ids": [],
+        "instances_with_data": 0,
+        "instances_without_data": 0,
+        "exports_generated": 0,
+        "exports_reused": 0,
+        "errors": [],
+    }
+    query = ReportCycle.query.filter(
+        ReportCycle.status != "closed",
+        ReportCycle.is_locked.is_(False),
+        ReportCycle.due_at.isnot(None),
+        ReportCycle.due_at < now,
+    ).order_by(ReportCycle.due_at.asc(), ReportCycle.id.asc())
+    if cycle_id:
+        query = query.filter(ReportCycle.id == cycle_id)
+
+    for cycle in query.all():
+        summary["cycles_scanned"] += 1
+        report_type = _report_type(cycle)
+        if not report_type or report_type.code != "daily":
+            continue
+        summary["daily_cycles_due"] += 1
+        if not apply:
+            summary["finalized_cycle_ids"].append(cycle.id)
+            continue
+        cycle.status = "closed"
+        cycle.is_locked = True
+        cycle.close_at = cycle.close_at or cycle.due_at or now
+        period = _ensure_reporting_period(cycle, report_type=report_type)
+        if period:
+            period.is_locked = True
+            period.deadline = cycle.due_at
+        for instance in ReportInstance.query.filter_by(cycle_id=cycle.id).all():
+            instance.locked_at = cycle.close_at
+        materialized = _materialize_cycle_effective_exports(
+            cycle,
+            overwrite=True,
+            apply=True,
+            include_open=True,
+        )
+        summary["instances_with_data"] += materialized.get("instances_with_data", 0)
+        summary["instances_without_data"] += materialized.get("instances_without_data", 0)
+        summary["exports_generated"] += materialized.get("exports_generated", 0)
+        summary["exports_reused"] += materialized.get("exports_reused", 0)
+        summary["errors"].extend(materialized.get("errors", []))
+        summary["finalized_cycle_ids"].append(cycle.id)
+
+    if apply and summary["finalized_cycle_ids"]:
+        db.session.commit()
+    return summary
+
+
+def _finalize_due_daily_cycles(now=None, cycle_id=None):
+    return _finalize_due_daily_cycles_job(now=now, cycle_id=cycle_id, apply=True)["finalized_cycle_ids"]
 
 
 def _build_cycle_name(template, report_type):
@@ -3153,6 +3496,7 @@ def _ensure_active_cycle_for_template(template, version, report_type):
 
 
 def _ensure_active_cycles_for_ready_templates():
+    _finalize_due_daily_cycles()
     templates = (
         ReportTemplate.query.filter_by(status="active")
         .order_by(ReportTemplate.updated_at.desc(), ReportTemplate.id.desc())
@@ -3224,9 +3568,13 @@ def _save_submission(instance, payload, final_submit=False, report_date=None):
         .count()
     )
     metadata_payload = {"note": payload.get("note", "") if isinstance(payload, dict) else ""}
-    if report_type and report_type.code == "daily" and report_date:
+    if report_type and report_type.code == "daily":
+        report_date = _resolve_daily_submission_date(cycle, report_date=report_date, instance_id=instance.id)
+        if _has_later_daily_submission(instance.id, report_date):
+            return None, [f"Không thể cập nhật ngày {report_date.strftime('%d/%m/%Y')} vì đã có báo cáo ngày mới hơn."]
         metadata_payload["report_date"] = report_date.strftime("%Y-%m-%d")
         metadata_payload["storage_mode"] = "full_snapshot"
+        metadata_payload["entry_values"] = payload_sheets
         base_submissions = _daily_snapshot_submissions_through_date(instance.id, report_date)
         base_values = _effective_daily_cell_values(base_submissions, template_version.id)
         stored_sheet_values = _merge_sheet_values(base_values, payload_sheets)
@@ -3350,6 +3698,17 @@ def _save_submission(instance, payload, final_submit=False, report_date=None):
         current_app.logger.exception("Unable to persist report submission artifacts", exc_info=True)
         db.session.rollback()
     return submission, errors
+
+
+def _submission_error_message(errors, fallback):
+    if not errors:
+        return fallback
+    first = errors[0]
+    if isinstance(first, (tuple, list)) and len(first) >= 3:
+        return str(first[2])
+    if isinstance(first, (tuple, list)) and first:
+        return str(first[0])
+    return str(first)
 
 
 def _export_submission(submission, values=None, commit=True):
@@ -3983,6 +4342,7 @@ def delete_template(template_id):
         cycles = ReportCycle.query.filter(ReportCycle.template_version_id.in_(version_ids)).all()
         for cycle in cycles:
             _purge_cycle(cycle)
+        db.session.flush()
 
     for version in versions:
         if version.source_path and os.path.exists(version.source_path):
@@ -3993,6 +4353,8 @@ def delete_template(template_id):
         ReportTemplateField.query.filter_by(version_id=version.id).delete(synchronize_session=False)
         ReportTemplateSheet.query.filter_by(version_id=version.id).delete(synchronize_session=False)
         _delete_legacy_form_version(version.id)
+        db.session.delete(version)
+    db.session.flush()
     if template.directive_path and os.path.exists(template.directive_path):
         try:
             os.remove(template.directive_path)
@@ -4566,13 +4928,13 @@ def cycle_workspace(cycle_id):
         if not editable_fields:
             editable_fields = [field for field in sheet_fields if field.is_editable]
         _, header_end_row = _sheet_header_range(sheet_meta)
-        unit_start_row = int(sheet_meta.get("unit_start_row") or sheet_meta.get("data_start_row") or header_end_row + 1)
-        unit_end_row = int(sheet_meta.get("unit_end_row") or sheet_meta.get("data_end_row") or unit_start_row)
+        candidate_row_indexes = _sheet_input_row_indexes(sheet_meta)
+        should_filter_by_unit = (not report_admin_mode) and bool(unit) and _sheet_has_unit_identity_fields(sheet_fields)
         row_entries = []
-        for row_index in range(unit_start_row, unit_end_row + 1):
+        for row_index in candidate_row_indexes:
             if ws.row_dimensions[row_index].hidden:
                 continue
-            if not report_admin_mode and unit and not _row_matches_unit(
+            if should_filter_by_unit and not _row_matches_unit(
                 ws,
                 sheet_fields,
                 existing_values,
@@ -4598,11 +4960,18 @@ def cycle_workspace(cycle_id):
                     "title": _row_context_label(ws, sheet_fields, existing_values, sheet_meta["sheet_name"], row_index),
                     "inputs": inputs,
                 })
+        warning = ""
+        if should_filter_by_unit and not row_entries:
+            warning = (
+                f"Chưa tìm thấy dòng nào trên sheet '{sheet_meta['sheet_name']}' khớp với đơn vị "
+                f"'{unit.name}'. Hãy kiểm tra cột đơn vị trong file Excel hoặc tên đơn vị của tài khoản."
+            )
         sheet_views.append({
             "sheet_name": sheet_meta["sheet_name"],
             "field_count": len(sheet_meta.get("fields", [])),
             "input_count": len(editable_fields),
             "rows": row_entries,
+            "warning": warning,
             "config": {
                 "header_start_row": sheet_meta.get("header_start_row"),
                 "header_end_row": sheet_meta.get("header_end_row"),
@@ -4825,6 +5194,7 @@ def _route_with_back(endpoint, cycle, back_url="", unit=None, report_date=None):
 
 
 def _resolve_cycle_context(cycle_id, prefer_all_units=False):
+    _finalize_due_daily_cycles(cycle_id=cycle_id)
     cycle = db.session.get(ReportCycle, cycle_id)
     if not cycle:
         return None
@@ -4908,6 +5278,9 @@ def save_cycle(cycle_id):
     instance = _get_cycle_instance(cycle, unit, user)
     payload = _payload_from_request()
     submission, errors = _save_submission(instance, payload, final_submit=False, report_date=report_date)
+    if submission is None:
+        flash(_submission_error_message(errors, "Không thể lưu báo cáo."), "warning")
+        return redirect(url_for("reporting_bp.cycle_workspace", **workspace_values))
     _audit("save_draft", "report_submission", submission.id, f"cycle={cycle.id}")
     flash("Đã lưu nháp báo cáo.", "success")
     return redirect(url_for("reporting_bp.cycle_workspace", **workspace_values))
@@ -4935,6 +5308,9 @@ def submit_cycle(cycle_id):
     instance = _get_cycle_instance(cycle, unit, user)
     payload = _payload_from_request()
     submission, errors = _save_submission(instance, payload, final_submit=True, report_date=report_date)
+    if submission is None:
+        flash(_submission_error_message(errors, "Không thể gửi báo cáo."), "warning")
+        return redirect(url_for("reporting_bp.cycle_workspace", **workspace_values))
     if errors:
         flash("Còn dữ liệu bắt buộc chưa hoàn tất, hệ thống đã giữ ở trạng thái nháp.", "warning")
         return redirect(url_for("reporting_bp.cycle_workspace", **workspace_values))

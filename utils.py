@@ -73,6 +73,7 @@ def normalize_unit_name(name):
     prefixes = [
         "cong an phuong", "cong an xa", "cong an huyen", "cong an thanh pho", "cong an tinh", 
         "ubnd xa", "ubnd phuong", "cong an", "ubnd",
+        "cax", "cap", "catt", "cah", "cat",
         "phuong", "xa", "huyen", "thanh pho", "thi tran", "tinh", "don vi", "ban"
     ]
     
@@ -81,7 +82,7 @@ def normalize_unit_name(name):
         n = re.sub(r'\b' + re.escape(p) + r'\b', ' ', n)
         
     # Second pass: remove common prefixes as substrings (handles smushed names)
-    for p in ["congan", "ubnd", "phuong", "xapp", "cap", "ca"]:
+    for p in ["congan", "ubnd", "catt", "cah", "cat", "cax", "cap", "phuong", "xapp", "ca"]:
         if n.startswith(p):
             n = n[len(p):].strip()
 
@@ -330,11 +331,30 @@ def apply_migrations(app):
         ("task", "assignment_scope_json", "TEXT"),
         ("task", "viewer_scope_json", "TEXT"),
         ("task", "manager_scope_json", "TEXT"),
+        ("task", "task_mode", "VARCHAR(20) DEFAULT 'FILE'"),
         ("task", "workflow_mode", "VARCHAR(30) DEFAULT 'summary_report'"),
         ("task", "report_schema_json", "TEXT"),
         ("task", "linked_report_templates_json", "TEXT"),
         ("task", "created_at", "DATETIME"),
+        ("task_item", "parent_item_id", "INTEGER"),
+        ("task_item", "item_code", "VARCHAR(50)"),
+        ("task_item", "guide_text", "TEXT"),
+        ("task_item", "is_required", "BOOLEAN DEFAULT 1"),
+        ("task_item", "output_type", "VARCHAR(30) DEFAULT 'OUTLINE'"),
+        ("task_assignment", "task_item_id", "INTEGER"),
+        ("task_assignment", "assignee_type", "VARCHAR(20) DEFAULT 'user'"),
+        ("task_assignment", "unit_id", "INTEGER"),
+        ("task_assignment", "role_id", "INTEGER"),
+        ("task_assignment", "title_snapshot", "VARCHAR(500)"),
+        ("task_assignment", "is_required", "BOOLEAN DEFAULT 1"),
+        ("task_assignment", "assigned_at", "DATETIME"),
+        ("task_assignment", "submitted_at", "DATETIME"),
+        ("task_assignment", "returned_at", "DATETIME"),
+        ("task_assignment", "completed_at", "DATETIME"),
+        ("task_assignment", "last_submission_id", "INTEGER"),
         ("task_assignment", "report_payload_json", "TEXT"),
+        ("task_submission", "returned_at", "DATETIME"),
+        ("task_submission", "approved_at", "DATETIME"),
         ("short_link", "category", "VARCHAR(100)"),
         ("short_link", "domain", "VARCHAR(100)"),
         ("task_comment", "assignee_id", "INTEGER DEFAULT 0"),
@@ -624,6 +644,33 @@ def apply_migrations(app):
             is_primary BOOLEAN DEFAULT 1,
             created_at DATETIME,
             updated_at DATETIME
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS task_submission_file (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            submission_id INTEGER NOT NULL,
+            original_name VARCHAR(255),
+            stored_name VARCHAR(255),
+            stored_path VARCHAR(500),
+            file_ext VARCHAR(20),
+            mime_type VARCHAR(100),
+            file_size INTEGER,
+            is_signed BOOLEAN DEFAULT 0,
+            uploaded_at DATETIME
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS task_form_field (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id INTEGER NOT NULL,
+            task_item_id INTEGER,
+            field_key VARCHAR(100) NOT NULL,
+            field_label VARCHAR(255) NOT NULL,
+            field_type VARCHAR(50) DEFAULT 'text',
+            field_options_json TEXT,
+            sort_order INTEGER DEFAULT 0,
+            is_required BOOLEAN DEFAULT 0
         )
         """
     ]

@@ -159,6 +159,7 @@ class Task(db.Model):
     assignment_scope_json = db.Column(db.Text)
     viewer_scope_json = db.Column(db.Text)
     manager_scope_json = db.Column(db.Text)
+    task_mode = db.Column(db.String(20), default='FILE')
     workflow_mode = db.Column(db.String(30), default='summary_report')
     report_schema_json = db.Column(db.Text)
     linked_report_templates_json = db.Column(db.Text)
@@ -167,6 +168,7 @@ class Task(db.Model):
     task_items = db.relationship('TaskItem', backref='task', cascade='all, delete-orphan', foreign_keys='TaskItem.task_id')
     participants = db.relationship('TaskParticipant', backref='task', cascade='all, delete-orphan', foreign_keys='TaskParticipant.task_id')
     submissions = db.relationship('TaskSubmission', backref='task', cascade='all, delete-orphan', foreign_keys='TaskSubmission.task_id')
+    form_fields = db.relationship('TaskFormField', backref='task', cascade='all, delete-orphan', foreign_keys='TaskFormField.task_id')
     report_links = db.relationship('TaskReportLink', backref='task', cascade='all, delete-orphan', foreign_keys='TaskReportLink.task_id')
     child_tasks = db.relationship('Task', backref=db.backref('parent_task', remote_side=[id]))
 
@@ -176,9 +178,14 @@ class TaskItem(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False, index=True)
+    parent_item_id = db.Column(db.Integer, db.ForeignKey('task_item.id'), index=True)
     source_task_id = db.Column(db.Integer, db.ForeignKey('task.id'), index=True)
+    item_code = db.Column(db.String(50))
     title = db.Column(db.String(255))
     content = db.Column(db.Text)
+    guide_text = db.Column(db.Text)
+    is_required = db.Column(db.Boolean, default=True)
+    output_type = db.Column(db.String(30), default='OUTLINE')
     report_kind = db.Column(db.String(30), default='narrative')
     attachment_required = db.Column(db.Boolean, default=False)
     status = db.Column(db.String(50), default='Chưa tiếp nhận')
@@ -188,17 +195,32 @@ class TaskItem(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
     source_task = db.relationship('Task', foreign_keys=[source_task_id], backref='task_item_rows')
+    parent_item = db.relationship('TaskItem', remote_side=[id], backref='child_items')
 
 
 class TaskAssignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.Integer, db.ForeignKey('task.id'))
+    task_item_id = db.Column(db.Integer, db.ForeignKey('task_item.id'), index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    assignee_type = db.Column(db.String(20), default='user')
+    unit_id = db.Column(db.Integer)
+    role_id = db.Column(db.Integer, db.ForeignKey('app_role.id'), index=True)
+    title_snapshot = db.Column(db.String(500))
     status = db.Column(db.String(50), default='Chưa tiếp nhận')
+    is_required = db.Column(db.Boolean, default=True)
     result_file = db.Column(db.String(255))
     report_payload_json = db.Column(db.Text)
+    assigned_at = db.Column(db.DateTime, default=datetime.now)
+    submitted_at = db.Column(db.DateTime)
+    returned_at = db.Column(db.DateTime)
+    completed_at = db.Column(db.DateTime)
+    last_submission_id = db.Column(db.Integer, db.ForeignKey('task_submission.id'), index=True)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     user = db.relationship('User', backref='task_assignments')
+    role = db.relationship('AppRole', backref='task_assignments')
+    task_item = db.relationship('TaskItem', foreign_keys=[task_item_id], backref='assignments')
+    last_submission = db.relationship('TaskSubmission', foreign_keys=[last_submission_id], post_update=True)
 
 
 class TaskParticipant(db.Model):
@@ -238,13 +260,52 @@ class TaskSubmission(db.Model):
     attachment_name = db.Column(db.String(255))
     attachment_path = db.Column(db.String(500))
     submitted_at = db.Column(db.DateTime)
+    returned_at = db.Column(db.DateTime)
+    approved_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
     participant = db.relationship('TaskParticipant', backref='submissions')
-    assignment = db.relationship('TaskAssignment', backref='submission_records')
+    assignment = db.relationship('TaskAssignment', foreign_keys=[assignment_id], backref='submission_records')
     submitter = db.relationship('User', backref='task_submissions')
-    task_item = db.relationship('Task', foreign_keys=[task_item_id])
+    task_item = db.relationship(
+        'TaskItem',
+        foreign_keys=[task_item_id],
+        primaryjoin='TaskSubmission.task_item_id == TaskItem.id',
+    )
+
+
+class TaskSubmissionFile(db.Model):
+    __tablename__ = 'task_submission_file'
+
+    id = db.Column(db.Integer, primary_key=True)
+    submission_id = db.Column(db.Integer, db.ForeignKey('task_submission.id'), nullable=False, index=True)
+    original_name = db.Column(db.String(255))
+    stored_name = db.Column(db.String(255))
+    stored_path = db.Column(db.String(500))
+    file_ext = db.Column(db.String(20))
+    mime_type = db.Column(db.String(100))
+    file_size = db.Column(db.Integer)
+    is_signed = db.Column(db.Boolean, default=False)
+    uploaded_at = db.Column(db.DateTime, default=datetime.now)
+
+    submission = db.relationship('TaskSubmission', backref='files')
+
+
+class TaskFormField(db.Model):
+    __tablename__ = 'task_form_field'
+
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False, index=True)
+    task_item_id = db.Column(db.Integer, db.ForeignKey('task_item.id'), index=True)
+    field_key = db.Column(db.String(100), nullable=False)
+    field_label = db.Column(db.String(255), nullable=False)
+    field_type = db.Column(db.String(50), default='text')
+    field_options_json = db.Column(db.Text)
+    sort_order = db.Column(db.Integer, default=0)
+    is_required = db.Column(db.Boolean, default=False)
+
+    task_item = db.relationship('TaskItem', backref='form_fields')
 
 
 class TaskReportLink(db.Model):
