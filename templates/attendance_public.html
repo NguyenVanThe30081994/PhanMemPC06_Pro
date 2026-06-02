@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Điểm danh công khai</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --success: #059669;
+            --danger: #dc2626;
+            --surface: #ffffff;
+            --surface-soft: #f8fafc;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: rgba(148, 163, 184, 0.18);
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: 'Be Vietnam Pro', sans-serif;
+            color: var(--text-main);
+            background:
+                radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 26%),
+                radial-gradient(circle at top right, rgba(16, 185, 129, 0.10), transparent 24%),
+                linear-gradient(180deg, #eff6ff 0%, #f8fafc 32%, #eef2ff 100%);
+        }
+        .public-shell {
+            min-height: 100vh;
+            padding: 32px 18px 48px;
+        }
+        .public-container {
+            max-width: 1180px;
+            margin: 0 auto;
+            display: grid;
+            gap: 18px;
+        }
+        .public-hero,
+        .public-panel,
+        .public-metric {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.06);
+        }
+        .public-hero {
+            padding: 28px;
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+            gap: 18px;
+            align-items: start;
+        }
+        .public-kicker {
+            display: inline-flex;
+            width: fit-content;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(37, 99, 235, 0.1);
+            color: var(--primary);
+            font-size: 0.74rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+        .public-title {
+            margin: 0 0 10px;
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            line-height: 1.08;
+            font-weight: 800;
+        }
+        .public-lead,
+        .public-side-copy {
+            margin: 0;
+            color: var(--text-muted);
+            line-height: 1.65;
+        }
+        .public-status-card {
+            padding: 22px;
+            border-radius: 24px;
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.10), rgba(16, 185, 129, 0.06));
+            border: 1px solid rgba(37, 99, 235, 0.14);
+            display: grid;
+            gap: 8px;
+        }
+        .public-status-card strong { font-size: 1.2rem; }
+        .public-metric-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+        }
+        .public-metric {
+            padding: 18px 20px;
+            display: grid;
+            gap: 8px;
+        }
+        .public-metric span {
+            color: var(--text-muted);
+            font-size: 0.76rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .public-metric strong {
+            font-size: 2rem;
+            line-height: 1;
+        }
+        .metric-open strong { color: var(--primary); }
+        .metric-upcoming strong { color: #7c3aed; }
+        .metric-expired strong { color: var(--danger); }
+        .metric-units strong { color: var(--success); }
+        .public-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr);
+            gap: 18px;
+            align-items: start;
+        }
+        .public-main,
+        .public-side {
+            display: grid;
+            gap: 18px;
+        }
+        .public-panel { padding: 24px; display: grid; gap: 18px; }
+        .public-panel-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .public-panel-head h2,
+        .public-panel-head h3 {
+            margin: 0 0 6px;
+            font-size: 1.08rem;
+            font-weight: 800;
+        }
+        .public-panel-head p {
+            margin: 0;
+            color: var(--text-muted);
+        }
+        .public-stamp {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.05);
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-weight: 800;
+        }
+        .public-slot-list { display: grid; gap: 14px; }
+        .public-slot-card {
+            padding: 16px;
+            border-radius: 22px;
+            border: 1px solid var(--border);
+            background: var(--surface-soft);
+            display: grid;
+            gap: 14px;
+        }
+        .public-slot-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .public-slot-time {
+            font-size: 1.45rem;
+            font-weight: 800;
+            line-height: 1.05;
+        }
+        .public-form-note,
+        .public-empty {
+            padding: 16px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.8);
+            color: var(--text-muted);
+            border: 1px dashed var(--border);
+        }
+        .public-help-list {
+            margin: 0;
+            padding-left: 18px;
+            color: var(--text-main);
+            display: grid;
+            gap: 12px;
+        }
+        .public-link-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .public-link-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: rgba(37, 99, 235, 0.08);
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 700;
+        }
+        @media (max-width: 991.98px) {
+            .public-hero,
+            .public-grid,
+            .public-metric-grid { grid-template-columns: 1fr; }
+            .public-shell { padding: 18px 14px 32px; }
+        }
+    </style>
+</head>
+<body>
+    <main class="public-shell">
+        <div class="public-container">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} rounded-4 border-0 shadow-sm mb-0" role="alert">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <section class="public-hero">
+                <div>
+                    <span class="public-kicker">Public Attendance</span>
+                    <h1 class="public-title">Điểm danh trực tiếp theo đơn vị</h1>
+                    <p class="public-lead">Mở link này là có thể điểm danh ngay. Không cần đăng nhập tài khoản đơn vị, chỉ cần chọn đúng đơn vị trong danh mục quản trị và tải ảnh minh chứng lên ở mốc đang mở.</p>
+                </div>
+                <div class="public-status-card">
+                    <div class="small text-uppercase fw-bold text-muted">Trạng thái cấu hình</div>
+                    <strong>{{ 'Đang kích hoạt' if active_config else 'Chưa kích hoạt' }}</strong>
+                    <p class="public-side-copy">{{ config_summary or 'Hệ thống chưa có cấu hình điểm danh đang hoạt động.' }}</p>
+                    <div class="public-link-row">
+                        <a class="public-link-chip" href="/diem-danh"><i class="fa-solid fa-link"></i> /diem-danh</a>
+                        {% if session.get('uid') %}
+                        <a class="public-link-chip" href="/attendance"><i class="fa-solid fa-chart-column"></i> Quản trị</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <section class="public-metric-grid">
+                <article class="public-metric metric-open">
+                    <span>Mốc đang mở</span>
+                    <strong>{{ stats.available }}</strong>
+                </article>
+                <article class="public-metric metric-upcoming">
+                    <span>Mốc sắp tới</span>
+                    <strong>{{ stats.upcoming }}</strong>
+                </article>
+                <article class="public-metric metric-expired">
+                    <span>Mốc quá hạn</span>
+                    <strong>{{ stats.missed }}</strong>
+                </article>
+                <article class="public-metric metric-units">
+                    <span>Đơn vị cấu hình</span>
+                    <strong>{{ attendance_unit_options|length }}</strong>
+                </article>
+            </section>
+
+            <section class="public-grid">
+                <div class="public-main">
+                    <article class="public-panel">
+                        <div class="public-panel-head">
+                            <div>
+                                <h2>Điểm danh theo mốc</h2>
+                                <p>Chọn đơn vị trong danh mục và nộp ảnh minh chứng ở các mốc đang mở.</p>
+                            </div>
+                            <span class="public-stamp">{{ now.strftime('%d/%m/%Y %H:%M') }}</span>
+                        </div>
+
+                        {% if active_config and slot_rows %}
+                        <div class="public-slot-list">
+                            {% for row in slot_rows %}
+                            <article class="public-slot-card">
+                                <div class="public-slot-head">
+                                    <div>
+                                        <div class="public-slot-time">{{ row.slot_time }}</div>
+                                        <div class="small text-muted">Mở {{ row.window_start_at.strftime('%H:%M') }} - hết hạn {{ row.window_end_at.strftime('%H:%M') }}</div>
+                                    </div>
+                                    <span class="badge text-bg-{{ row.status_class }}">{{ row.status_label }}</span>
+                                </div>
+
+                                {% if row.status == 'available' and can_submit_attendance %}
+                                {% if attendance_unit_options %}
+                                <form method="post" action="{{ url_for('attendance_bp.submit_attendance') if false else '/diem-danh/submit' }}" enctype="multipart/form-data">
+                                    <input type="hidden" name="slot_key" value="{{ row.slot_key }}">
+                                    <input type="hidden" name="slot_date" value="{{ row.slot_date.isoformat() }}">
+                                    <div class="row g-3 align-items-end">
+                                        <div class="col-lg-4">
+                                            <label class="form-label fw-semibold">Đơn vị</label>
+                                            <select class="form-select" name="unit_key" required>
+                                                <option value="">Chọn đơn vị</option>
+                                                {% for option in attendance_unit_options %}
+                                                <option value="{{ option.unit_key }}">{{ option.unit_name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-lg-4">
+                                            <label class="form-label fw-semibold">Ảnh minh chứng</label>
+                                            <input type="file" class="form-control" name="proof_image" accept="image/*" required>
+                                        </div>
+                                        <div class="col-lg-3">
+                                            <label class="form-label fw-semibold">Ghi chú</label>
+                                            <input type="text" class="form-control" name="note" maxlength="255" placeholder="Ví dụ: Có mặt tại đơn vị">
+                                        </div>
+                                        <div class="col-lg-1">
+                                            <button type="submit" class="btn btn-primary rounded-pill w-100 fw-bold">Nộp</button>
+                                        </div>
+                                    </div>
+                                </form>
+                                {% else %}
+                                <div class="public-form-note">Chưa có danh mục đơn vị để chọn. Quản trị cần cấu hình đơn vị trước khi dùng link công khai này.</div>
+                                {% endif %}
+                                {% else %}
+                                <div class="public-form-note">
+                                    {% if row.status == 'upcoming' %}
+                                    Mốc này chưa mở. Chờ đến đúng cửa sổ thời gian để nộp.
+                                    {% elif row.status == 'missed' %}
+                                    Mốc này đã quá hạn và không thể nộp thêm minh chứng.
+                                    {% else %}
+                                    Mốc này hiện không khả dụng để nộp.
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </article>
+                            {% endfor %}
+                        </div>
+                        {% elif active_config %}
+                        <div class="public-empty">Hôm nay không có mốc điểm danh theo cấu hình hiện tại.</div>
+                        {% else %}
+                        <div class="public-empty">Hệ thống chưa kích hoạt cấu hình điểm danh.</div>
+                        {% endif %}
+                    </article>
+                </div>
+
+                <aside class="public-side">
+                    <article class="public-panel">
+                        <div class="public-panel-head">
+                            <div>
+                                <h3>Hướng dẫn nhanh</h3>
+                                <p>Thao tác đúng trình tự để tránh chọn sai đơn vị.</p>
+                            </div>
+                        </div>
+                        <ol class="public-help-list">
+                            <li>Mở link công khai này trực tiếp trên điện thoại hoặc máy tính.</li>
+                            <li>Chọn đúng đơn vị từ danh mục do quản trị đã cấu hình.</li>
+                            <li>Chọn ảnh minh chứng rõ ràng, đúng thời điểm của mốc đang mở.</li>
+                            <li>Nếu đã có người nộp cho đơn vị ở cùng mốc, hệ thống sẽ từ chối nộp trùng.</li>
+                        </ol>
+                    </article>
+
+                    <article class="public-panel">
+                        <div class="public-panel-head">
+                            <div>
+                                <h3>Lưu ý vận hành</h3>
+                                <p>Link công khai chỉ phục vụ điểm danh đơn vị.</p>
+                            </div>
+                        </div>
+                        <div class="public-empty">
+                            Các trang quản trị, thống kê đơn vị đã/chưa điểm danh và cấu hình lịch điểm danh vẫn nằm trong khu vực nội bộ tại <strong>/attendance</strong>.
+                        </div>
+                    </article>
+                </aside>
+            </section>
+        </div>
+    </main>
+</body>
+</html>

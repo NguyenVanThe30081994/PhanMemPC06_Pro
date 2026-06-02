@@ -82,6 +82,31 @@ class AttendanceRouteTests(unittest.TestCase):
                 AttendanceConfig.query.filter_by(id=config_id).delete()
                 db.session.commit()
 
+    def test_public_attendance_url_renders_without_login(self):
+        with app.app_context():
+            config = AttendanceConfig(
+                name='Direct public attendance test',
+                mode='schedule',
+                schedule_times_json='["08:00","11:00"]',
+                active_weekdays_json='[0,1,2,3,4,5,6]',
+                early_checkin_minutes=15,
+                late_allow_minutes=45,
+                is_active=True,
+            )
+            db.session.add(config)
+            db.session.commit()
+            config_id = config.id
+
+        try:
+            response = self.client.get('/diem-danh')
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('/diem-danh'.encode('utf-8'), response.data)
+            self.assertIn('Điểm danh trực tiếp theo đơn vị'.encode('utf-8'), response.data)
+        finally:
+            with app.app_context():
+                AttendanceConfig.query.filter_by(id=config_id).delete()
+                db.session.commit()
+
 
 if __name__ == '__main__':
     unittest.main()

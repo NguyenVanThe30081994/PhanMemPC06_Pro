@@ -119,6 +119,13 @@ def _dedupe_unit_options(unit_option_map):
     return sorted(unique_options.values(), key=lambda item: (item.get('unit_name') or '').lower())
 
 
+def _attendance_return_endpoint():
+    path = (request.path or '').strip().lower()
+    if path.startswith('/diem-danh'):
+        return 'attendance_bp.public_attendance'
+    return 'attendance_bp.attendance_home'
+
+
 def _resolve_unit_display(value, unit_options, fallback_label='Chưa có đơn vị'):
     raw_value = (value or '').strip()
     if not raw_value:
@@ -479,6 +486,39 @@ def attendance_home():
     )
 
 
+@attendance_bp.route('/diem-danh')
+def public_attendance():
+    active_config, latest_config = _get_current_config()
+    config_for_display = active_config or latest_config
+    normalized_config = normalize_attendance_config(config_for_display) if config_for_display else None
+    now = datetime.now()
+    unit_options = _unit_category_options()
+    unit_option_map = _build_unit_option_maps(unit_options)
+    slot_rows = _build_slot_rows(active_config, now)
+
+    stats = {
+        'completed': 0,
+        'available': sum(1 for row in slot_rows if row['status'] == 'available'),
+        'upcoming': sum(1 for row in slot_rows if row['status'] == 'upcoming'),
+        'missed': sum(1 for row in slot_rows if row['status'] == 'missed'),
+    }
+
+    return render_template(
+        'attendance_public.html',
+        title='Điểm danh công khai',
+        active_config=active_config,
+        latest_config=latest_config,
+        normalized_config=normalized_config,
+        config_summary=_format_config_summary(normalized_config),
+        slot_rows=slot_rows,
+        stats=stats,
+        attendance_unit_options=_dedupe_unit_options(unit_option_map),
+        default_attendance_unit_key='',
+        can_submit_attendance=True,
+        now=now,
+    )
+
+
 @attendance_bp.route('/attendance/config', methods=['POST'])
 def save_attendance_config():
     if not session.get('uid'):
@@ -545,16 +585,17 @@ def save_attendance_config():
 
 
 @attendance_bp.route('/attendance/submit', methods=['POST'])
+@attendance_bp.route('/diem-danh/submit', methods=['POST'])
 def submit_attendance():
     perms, role_name = _attendance_role_context()
     if not _can_submit_attendance(perms, role_name):
         flash('Bạn không có quyền điểm danh.', 'danger')
-        return redirect(url_for('attendance_bp.attendance_home'))
+        return redirect(url_for(_attendance_return_endpoint()))
 
     active_config, _latest_config = _get_current_config()
     if not active_config:
         flash('Hệ thống chưa kích hoạt cấu hình điểm danh.', 'warning')
-        return redirect(url_for('attendance_bp.attendance_home'))
+        return redirect(url_for(_attendance_return_endpoint()))
 
     slot_date_raw = (request.form.get('slot_date') or '').strip()
     slot_key = (request.form.get('slot_key') or '').strip()
@@ -567,17 +608,17 @@ def submit_attendance():
         slot_date = date.fromisoformat(slot_date_raw)
     except ValueError:
         flash('Mốc điểm danh không hợp lệ.', 'danger')
-        return redirect(url_for('attendance_bp.attendance_home'))
+        return redirect(url_for(_attendance_return_endpoint()))
 
     if not selected_unit:
         flash('Bạn cần chọn đơn vị từ danh mục đã cấu hình.', 'danger')
-        return redirect(url_for('attendance_bp.attendance_home'))
+        return redirect(url_for(_attendance_return_endpoint()))
 
     slots = build_slots_for_date(slot_date, active_config)
     slot = next((item for item in slots if item['slot_key'] == slot_key), None)
     if not slot:
         flash('Không tìm thấy mốc điểm danh cần nộp.', 'danger')
-        return redirect(url_for('attendance_bp.attendance_home'))
+        return redirect(url_for(_attendance_return_endpoint()))
 
     existing_submission = AttendanceSubmission.query.filter_by(
         config_id=active_config.id,
@@ -587,10 +628,10 @@ def submit_attendance():
     slot_status = resolve_slot_status(slot, submission=existing_submission, now=datetime.now())
     if existing_submission:
         flash('Đơn vị này đã được điểm danh ở mốc đã chọn.', 'info')
-        return redirect(url_for('attendance_bp.attendance_home'))
+        return redirect(url_for(_attendance_return_endpoint()))
     if slot_status != 'available':
         flash('Mốc điểm danh này chưa mở hoặc đã quá hạn.', 'warning')
-        return redirect(url_for('attendance_bp.attendance_home'))
+        return redirect(url_for(_attendance_return_endpoint()))
 
     try:
         submitter_user = db.session.get(User, session['uid']) if session.get('uid') else _get_public_submitter_user()
@@ -625,7 +666,7 @@ def submit_attendance():
         db.session.rollback()
         flash(f'Không thể lưu điểm danh: {exc}', 'danger')
 
-    return redirect(url_for('attendance_bp.attendance_home'))
+    return redirect(url_for(_attendance_return_endpoint()))
 
 
 @attendance_bp.route('/attendance/proofs/<int:submission_id>')

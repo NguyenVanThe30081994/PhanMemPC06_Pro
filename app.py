@@ -250,6 +250,14 @@ def check_auth():
     # 0. Device Detection
     g.is_mobile = is_mobile_device()
 
+    public_endpoints = {
+        'attendance_bp.public_attendance',
+        'attendance_bp.submit_attendance',
+        'favicon',
+    }
+    if request.endpoint in public_endpoints:
+        return
+
     # 1. Inactivity Check
     if session.get('uid'):
         import time
