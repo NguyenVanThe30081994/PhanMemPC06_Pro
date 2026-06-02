@@ -3,7 +3,7 @@ import json
 import mimetypes
 import os
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 from flask import Blueprint, abort, current_app, flash, redirect, request, send_file, session, url_for
 from werkzeug.utils import secure_filename
@@ -18,8 +18,10 @@ from attendance_utils import (
     parse_hhmm,
     resolve_slot_status,
 )
+from category_helpers import module_category_options, resolve_category_display
 from models import AppRole, AttendanceConfig, AttendanceSubmission, User, db
 from utils import (
+    extract_unit_key,
     has_module_permission,
     log_action,
     normalize_permission_payload,
@@ -61,7 +63,7 @@ def _can_view_attendance(perms, role_name):
 
 def _can_submit_attendance(perms, role_name):
     if not session.get('uid'):
-        return False
+        return True
     return bool(
         session.get('is_admin')
         or has_module_permission(perms, 'attendance', 'exec', is_admin=session.get('is_admin'), role_name=role_name)
@@ -85,6 +87,70 @@ def _get_current_config():
     return active_config, latest_config
 
 
+def _unit_category_options():
+    return module_category_options('contacts', 'unit_name', 'Đơn vị')
+
+
+def _build_unit_option_maps(unit_options):
+    key_map = {}
+    for option in unit_options or []:
+        stable_key = (option.get('stable_value') or option.get('value') or option.get('code') or '').strip()
+        alias_keys = {
+            stable_key,
+            (option.get('value') or '').strip(),
+            (option.get('code') or '').strip(),
+            (option.get('name') or '').strip(),
+        }
+        for alias_key in alias_keys:
+            if alias_key:
+                key_map[alias_key] = {
+                    'unit_key': stable_key,
+                    'unit_name': (option.get('name') or option.get('value') or '').strip() or stable_key,
+                }
+    return key_map
+
+
+def _dedupe_unit_options(unit_option_map):
+    unique_options = {}
+    for item in (unit_option_map or {}).values():
+        unit_key = (item.get('unit_key') or '').strip()
+        if unit_key and unit_key not in unique_options:
+            unique_options[unit_key] = item
+    return sorted(unique_options.values(), key=lambda item: (item.get('unit_name') or '').lower())
+
+
+def _resolve_unit_display(value, unit_options, fallback_label='Chưa có đơn vị'):
+    raw_value = (value or '').strip()
+    if not raw_value:
+        return fallback_label
+    return resolve_category_display(raw_value, unit_options, fallback_label=raw_value)['display_name']
+
+
+def _is_system_unit(unit_name):
+    normalized = (unit_name or '').strip().lower()
+    return normalized in {'hệ thống', 'he thong', 'system'}
+
+
+def _get_public_submitter_user():
+    public_user = User.query.filter_by(username='public_attendance').first()
+    if public_user:
+        return public_user
+
+    public_user = User(
+        username='public_attendance',
+        fullname='Điểm danh công khai',
+        role_id=None,
+        unit_area='Hệ thống',
+        unit_key=extract_unit_key('Hệ thống'),
+        is_active=False,
+        must_change_password=False,
+    )
+    public_user.set_password(uuid.uuid4().hex)
+    db.session.add(public_user)
+    db.session.commit()
+    return public_user
+
+
 def _format_config_summary(config_payload):
     if not config_payload:
         return ''
@@ -98,7 +164,7 @@ def _format_config_summary(config_payload):
     )
 
 
-def _build_slot_rows(config, user_id, current_time):
+def _build_slot_rows(config, current_time):
     if not config:
         return []
     today = current_time.date()
@@ -106,26 +172,187 @@ def _build_slot_rows(config, user_id, current_time):
     if not today_slots:
         return []
 
-    slot_keys = [slot['slot_key'] for slot in today_slots]
-    submissions = AttendanceSubmission.query.filter(
-        AttendanceSubmission.user_id == user_id,
-        AttendanceSubmission.config_id == config.id,
-        AttendanceSubmission.slot_key.in_(slot_keys),
-    ).all()
-    submission_map = {submission.slot_key: submission for submission in submissions}
-
     rows = []
     for slot in today_slots:
-        submission = submission_map.get(slot['slot_key'])
-        status = resolve_slot_status(slot, submission=submission, now=current_time)
+        status = resolve_slot_status(slot, now=current_time)
         meta = STATUS_META.get(status, STATUS_META['upcoming'])
         row = dict(slot)
-        row['submission'] = submission
+        row['submission'] = None
         row['status'] = status
         row['status_label'] = meta['label']
         row['status_class'] = meta['class_name']
         rows.append(row)
     return rows
+
+
+def _build_monitor_slot_context(slot_rows, current_time, selected_slot_key=''):
+    if not slot_rows:
+        return {
+            'selected_slot': None,
+            'slot_options': [],
+        }
+
+    slot_options = []
+    selected_slot = None
+    available_slot = None
+    latest_past_slot = None
+
+    for slot in slot_rows:
+        slot_status = resolve_slot_status(slot, now=current_time)
+        meta = STATUS_META.get(slot_status, STATUS_META['upcoming'])
+        slot_option = {
+            'slot_key': slot['slot_key'],
+            'slot_label': slot['slot_label'],
+            'slot_time': slot['slot_time'],
+            'status': slot_status,
+            'status_label': meta['label'],
+            'status_class': meta['class_name'],
+            'due_at': slot['due_at'],
+            'window_start_at': slot['window_start_at'],
+            'window_end_at': slot['window_end_at'],
+        }
+        slot_options.append(slot_option)
+
+        if slot['slot_key'] == selected_slot_key:
+            selected_slot = slot_option
+        if slot_status == 'available' and available_slot is None:
+            available_slot = slot_option
+        if slot['due_at'] <= current_time:
+            if latest_past_slot is None or slot['due_at'] > latest_past_slot['due_at']:
+                latest_past_slot = slot_option
+
+    if selected_slot is None:
+        selected_slot = available_slot or latest_past_slot or slot_options[0]
+
+    return {
+        'selected_slot': selected_slot,
+        'slot_options': slot_options,
+    }
+
+
+def _build_unit_attendance_stats(config, selected_slot, unit_options):
+    empty_stats = {
+        'selected_slot': selected_slot,
+        'total_units': 0,
+        'checked_units_count': 0,
+        'pending_units_count': 0,
+        'submission_count': 0,
+        'coverage_percent': 0,
+        'checked_units': [],
+        'pending_units': [],
+    }
+    if not config or not selected_slot:
+        return empty_stats
+
+    unit_option_map = _build_unit_option_maps(unit_options)
+    unit_map = {}
+
+    for option in unit_options or []:
+        unit_key = (option.get('stable_value') or option.get('value') or option.get('code') or '').strip()
+        unit_name = (option.get('name') or option.get('value') or '').strip()
+        if not unit_key or not unit_name or _is_system_unit(unit_name):
+            continue
+        unit_map[unit_key] = {
+            'unit_key': unit_key,
+            'unit_name': unit_name,
+            'member_count': 0,
+            'submission_count': 0,
+            'submitted': False,
+            'latest_submission_at': None,
+            'latest_submitter': '',
+            'latest_note': '',
+        }
+
+    for user in User.query.filter_by(is_active=True).order_by(User.fullname.asc(), User.username.asc()).all():
+        unit_info = unit_option_map.get((getattr(user, 'unit_area', None) or '').strip()) or unit_option_map.get((getattr(user, 'unit_key', None) or '').strip())
+        if not unit_info:
+            unit_display = _resolve_unit_display(getattr(user, 'unit_area', None), unit_options, fallback_label='')
+            if not unit_display or _is_system_unit(unit_display):
+                continue
+            unit_identifier = (getattr(user, 'unit_key', None) or unit_display).strip()
+            if not unit_identifier:
+                continue
+            unit_info = {'unit_key': unit_identifier, 'unit_name': unit_display}
+        record = unit_map.setdefault(
+            unit_info['unit_key'],
+            {
+                'unit_key': unit_info['unit_key'],
+                'unit_name': unit_info['unit_name'],
+                'member_count': 0,
+                'submission_count': 0,
+                'submitted': False,
+                'latest_submission_at': None,
+                'latest_submitter': '',
+                'latest_note': '',
+            },
+        )
+        record['member_count'] += 1
+
+    submissions = AttendanceSubmission.query.filter_by(
+        config_id=config.id,
+        slot_key=selected_slot['slot_key'],
+    ).order_by(AttendanceSubmission.submitted_at.desc(), AttendanceSubmission.id.desc()).all()
+
+    for submission in submissions:
+        raw_unit = (submission.unit_key or '').strip()
+        unit_info = unit_option_map.get(raw_unit)
+        if unit_info:
+            unit_identifier = unit_info['unit_key']
+            unit_display = unit_info['unit_name']
+        else:
+            raw_display = submission.unit_area or getattr(getattr(submission, 'user', None), 'unit_area', None) or ''
+            unit_display = _resolve_unit_display(raw_display, unit_options, fallback_label='Chưa có đơn vị')
+            unit_identifier = (
+                raw_unit
+                or getattr(getattr(submission, 'user', None), 'unit_key', None)
+                or unit_display
+            ).strip()
+        if _is_system_unit(unit_display):
+            continue
+        if not unit_identifier:
+            continue
+        record = unit_map.setdefault(
+            unit_identifier,
+            {
+                'unit_key': unit_identifier,
+                'unit_name': unit_display,
+                'member_count': 0,
+                'submission_count': 0,
+                'submitted': False,
+                'latest_submission_at': None,
+                'latest_submitter': '',
+                'latest_note': '',
+            },
+        )
+        record['submitted'] = True
+        record['submission_count'] += 1
+        submitted_at = submission.submitted_at or submission.created_at
+        if submitted_at and (record['latest_submission_at'] is None or submitted_at > record['latest_submission_at']):
+            record['latest_submission_at'] = submitted_at
+            submitter = getattr(getattr(submission, 'user', None), 'fullname', None) or str(submission.user_id)
+            if getattr(getattr(submission, 'user', None), 'username', '') == 'public_attendance':
+                submitter = 'Điểm danh công khai'
+            record['latest_submitter'] = submitter
+            record['latest_note'] = (submission.note or '').strip()
+
+    rows = sorted(unit_map.values(), key=lambda item: (item['unit_name'] or '').lower())
+    checked_units = [row for row in rows if row['submitted']]
+    pending_units = [row for row in rows if not row['submitted']]
+    total_units = len(rows)
+    checked_units_count = len(checked_units)
+    pending_units_count = len(pending_units)
+    coverage_percent = int(round((checked_units_count / total_units) * 100)) if total_units else 0
+
+    return {
+        'selected_slot': selected_slot,
+        'total_units': total_units,
+        'checked_units_count': checked_units_count,
+        'pending_units_count': pending_units_count,
+        'submission_count': len(submissions),
+        'coverage_percent': coverage_percent,
+        'checked_units': checked_units,
+        'pending_units': pending_units,
+    }
 
 
 def _save_proof_file(file_storage):
@@ -154,11 +381,10 @@ def _save_proof_file(file_storage):
 
 @attendance_bp.route('/attendance')
 def attendance_home():
-    if not session.get('uid'):
-        return redirect(url_for('auth_bp.login'))
-
     perms, role_name = _attendance_role_context()
-    if not _can_view_attendance(perms, role_name):
+    can_manage = _can_manage_attendance(perms, role_name)
+    is_public_view = not session.get('uid')
+    if session.get('uid') and not _can_view_attendance(perms, role_name):
         flash('Bạn không có quyền truy cập tính năng điểm danh.', 'danger')
         return redirect(url_for('admin_bp.index'))
 
@@ -166,8 +392,16 @@ def attendance_home():
     config_for_display = active_config or latest_config
     normalized_config = normalize_attendance_config(config_for_display) if config_for_display else None
     now = datetime.now()
+    unit_options = _unit_category_options()
+    unit_option_map = _build_unit_option_maps(unit_options)
 
-    slot_rows = _build_slot_rows(active_config, session['uid'], now)
+    slot_rows = _build_slot_rows(active_config, now)
+    selected_slot_key = (request.args.get('slot_key') or '').strip()
+    monitor_slot_context = _build_monitor_slot_context(
+        build_slots_for_date(now.date(), active_config) if active_config else [],
+        now,
+        selected_slot_key=selected_slot_key,
+    )
     stats = {
         'completed': sum(1 for row in slot_rows if row['status'] == 'completed'),
         'available': sum(1 for row in slot_rows if row['status'] == 'available'),
@@ -175,15 +409,18 @@ def attendance_home():
         'missed': sum(1 for row in slot_rows if row['status'] == 'missed'),
     }
 
-    own_recent_submissions = AttendanceSubmission.query.filter_by(user_id=session['uid']).order_by(
-        AttendanceSubmission.submitted_at.desc(),
-        AttendanceSubmission.id.desc(),
-    ).limit(12).all()
+    own_recent_submissions = []
+    if session.get('uid'):
+        own_recent_submissions = AttendanceSubmission.query.filter_by(user_id=session['uid']).order_by(
+            AttendanceSubmission.submitted_at.desc(),
+            AttendanceSubmission.id.desc(),
+        ).limit(12).all()
+        stats['completed'] = sum(1 for submission in own_recent_submissions if submission.slot_date == now.date())
 
-    can_manage = _can_manage_attendance(perms, role_name)
     can_submit = _can_submit_attendance(perms, role_name)
     admin_recent_submissions = []
     admin_summary = None
+    unit_attendance = _build_unit_attendance_stats(active_config, monitor_slot_context['selected_slot'], unit_options) if can_manage else None
     if can_manage:
         admin_recent_submissions = AttendanceSubmission.query.order_by(
             AttendanceSubmission.submitted_at.desc(),
@@ -197,6 +434,9 @@ def attendance_home():
             'active_user_count': active_user_count,
             'today_submission_count': today_query.count(),
             'config_status': 'Đang kích hoạt' if active_config else 'Chưa kích hoạt',
+            'checked_units_count': unit_attendance['checked_units_count'] if unit_attendance else 0,
+            'pending_units_count': unit_attendance['pending_units_count'] if unit_attendance else 0,
+            'coverage_percent': unit_attendance['coverage_percent'] if unit_attendance else 0,
         }
 
     return render_template(
@@ -222,6 +462,17 @@ def attendance_home():
         own_recent_submissions=own_recent_submissions,
         admin_recent_submissions=admin_recent_submissions,
         admin_summary=admin_summary,
+        unit_attendance=unit_attendance,
+        monitor_slot_context=monitor_slot_context,
+        attendance_unit_options=_dedupe_unit_options(unit_option_map),
+        default_attendance_unit_key=(
+            (
+                unit_option_map.get((session.get('unit_area_ref') or '').strip())
+                or unit_option_map.get((session.get('unit_key') or '').strip())
+                or unit_option_map.get((session.get('unit_area') or '').strip())
+            ) or {}
+        ).get('unit_key', ''),
+        is_public_attendance=is_public_view,
         can_manage_attendance=can_manage,
         can_submit_attendance=can_submit,
         now=now,
@@ -295,9 +546,6 @@ def save_attendance_config():
 
 @attendance_bp.route('/attendance/submit', methods=['POST'])
 def submit_attendance():
-    if not session.get('uid'):
-        return redirect(url_for('auth_bp.login'))
-
     perms, role_name = _attendance_role_context()
     if not _can_submit_attendance(perms, role_name):
         flash('Bạn không có quyền điểm danh.', 'danger')
@@ -310,12 +558,19 @@ def submit_attendance():
 
     slot_date_raw = (request.form.get('slot_date') or '').strip()
     slot_key = (request.form.get('slot_key') or '').strip()
+    selected_unit_key = (request.form.get('unit_key') or '').strip()
     note = (request.form.get('note') or '').strip()
+    unit_option_map = _build_unit_option_maps(_unit_category_options())
+    selected_unit = unit_option_map.get(selected_unit_key)
 
     try:
         slot_date = date.fromisoformat(slot_date_raw)
     except ValueError:
         flash('Mốc điểm danh không hợp lệ.', 'danger')
+        return redirect(url_for('attendance_bp.attendance_home'))
+
+    if not selected_unit:
+        flash('Bạn cần chọn đơn vị từ danh mục đã cấu hình.', 'danger')
         return redirect(url_for('attendance_bp.attendance_home'))
 
     slots = build_slots_for_date(slot_date, active_config)
@@ -326,24 +581,25 @@ def submit_attendance():
 
     existing_submission = AttendanceSubmission.query.filter_by(
         config_id=active_config.id,
-        user_id=session['uid'],
         slot_key=slot_key,
+        unit_key=selected_unit['unit_key'],
     ).first()
     slot_status = resolve_slot_status(slot, submission=existing_submission, now=datetime.now())
     if existing_submission:
-        flash('Bạn đã điểm danh cho mốc này rồi.', 'info')
+        flash('Đơn vị này đã được điểm danh ở mốc đã chọn.', 'info')
         return redirect(url_for('attendance_bp.attendance_home'))
     if slot_status != 'available':
         flash('Mốc điểm danh này chưa mở hoặc đã quá hạn.', 'warning')
         return redirect(url_for('attendance_bp.attendance_home'))
 
     try:
+        submitter_user = db.session.get(User, session['uid']) if session.get('uid') else _get_public_submitter_user()
         proof_path, proof_filename = _save_proof_file(request.files.get('proof_image'))
         submission = AttendanceSubmission(
             config_id=active_config.id,
-            user_id=session['uid'],
-            unit_area=session.get('unit_area') or session.get('unit') or '',
-            unit_key=session.get('unit_key') or '',
+            user_id=submitter_user.id,
+            unit_area=selected_unit['unit_name'],
+            unit_key=selected_unit['unit_key'],
             slot_key=slot['slot_key'],
             slot_label=slot['slot_label'],
             slot_date=slot['slot_date'],
@@ -357,7 +613,13 @@ def submit_attendance():
         )
         db.session.add(submission)
         db.session.commit()
-        log_action(session['uid'], session['fullname'], 'Điểm danh thành công', 'Điểm danh', f"{slot['slot_label']} - {session.get('unit', '')}")
+        log_action(
+            session.get('uid', 0),
+            session.get('fullname', 'Điểm danh công khai'),
+            'Điểm danh thành công',
+            'Điểm danh',
+            f"{slot['slot_label']} - {selected_unit['unit_name']}",
+        )
         flash('Điểm danh thành công.', 'success')
     except Exception as exc:
         db.session.rollback()

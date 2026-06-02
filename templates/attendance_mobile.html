@@ -4,34 +4,143 @@
 
 {% block content %}
 <section class="mobile-card attendance-mobile-hero">
-    <div class="pill pill-primary mb-2">Điểm danh</div>
-    <h1 class="h4 fw-bold mb-2">Điểm danh có ảnh minh chứng</h1>
+    <div class="attendance-mobile-kicker">Điểm danh đơn vị</div>
+    <h1 class="h4 fw-bold mb-2">Theo dõi mốc giám sát trong ngày</h1>
     <p class="text-muted mb-0">{{ config_summary or 'Hệ thống chưa có cấu hình điểm danh đang hoạt động.' }}</p>
 </section>
 
 <section class="attendance-mobile-metrics">
     <article class="mobile-card attendance-mobile-metric">
-        <span>Đã nộp</span>
-        <strong>{{ stats.completed }}</strong>
+        <span>{{ 'Mốc đang mở' if is_public_attendance else 'Đã điểm danh' }}</span>
+        <strong>{{ stats.available if is_public_attendance else (admin_summary.checked_units_count if admin_summary else stats.completed) }}</strong>
     </article>
     <article class="mobile-card attendance-mobile-metric">
-        <span>Đang mở</span>
-        <strong>{{ stats.available }}</strong>
+        <span>{{ 'Mốc sắp tới' if is_public_attendance else 'Chưa điểm danh' }}</span>
+        <strong>{{ stats.upcoming if is_public_attendance else (admin_summary.pending_units_count if admin_summary else stats.missed) }}</strong>
     </article>
     <article class="mobile-card attendance-mobile-metric">
-        <span>Sắp đến</span>
-        <strong>{{ stats.upcoming }}</strong>
+        <span>{{ 'Mốc quá hạn' if is_public_attendance else 'Bao phủ' }}</span>
+        <strong>
+            {% if is_public_attendance %}
+            {{ stats.missed }}
+            {% else %}
+            {{ admin_summary.coverage_percent if admin_summary else 0 }}%
+            {% endif %}
+        </strong>
     </article>
     <article class="mobile-card attendance-mobile-metric">
-        <span>Quá hạn</span>
-        <strong>{{ stats.missed }}</strong>
+        <span>{{ 'Đơn vị cấu hình' if is_public_attendance else 'Lượt nộp hôm nay' }}</span>
+        <strong>{{ attendance_unit_options|length if is_public_attendance else (admin_summary.today_submission_count if admin_summary else own_recent_submissions|length) }}</strong>
     </article>
 </section>
+
+{% if can_manage_attendance %}
+<section class="mobile-card">
+    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+            <h2 class="h6 fw-bold mb-1">Thống kê đơn vị</h2>
+            <p class="text-muted small mb-0">Phân loại theo mốc giám sát trong ngày.</p>
+        </div>
+        <span class="pill pill-primary">{{ now.strftime('%d/%m') }}</span>
+    </div>
+
+    {% if monitor_slot_context.slot_options %}
+    <form method="get" action="{{ url_for('attendance_bp.attendance_home') }}" class="mb-3">
+        <label class="form-label fw-semibold small">Mốc giám sát</label>
+        <select class="form-select" name="slot_key" onchange="this.form.submit()">
+            {% for option in monitor_slot_context.slot_options %}
+            <option value="{{ option.slot_key }}" {% if unit_attendance and unit_attendance.selected_slot and option.slot_key == unit_attendance.selected_slot.slot_key %}selected{% endif %}>
+                {{ option.slot_time }} - {{ option.status_label }}
+            </option>
+            {% endfor %}
+        </select>
+    </form>
+
+    {% if unit_attendance and unit_attendance.selected_slot %}
+    <div class="attendance-mobile-slot-summary">
+        <span class="badge text-bg-{{ unit_attendance.selected_slot.status_class }}">{{ unit_attendance.selected_slot.status_label }}</span>
+        <strong>{{ unit_attendance.selected_slot.slot_label }}</strong>
+        <small>Mở {{ unit_attendance.selected_slot.window_start_at.strftime('%H:%M') }} - hết hạn {{ unit_attendance.selected_slot.window_end_at.strftime('%H:%M') }}</small>
+    </div>
+    {% endif %}
+
+    <div class="attendance-mobile-unit-stats">
+        <div>
+            <span>Tổng đơn vị</span>
+            <strong>{{ unit_attendance.total_units if unit_attendance else 0 }}</strong>
+        </div>
+        <div>
+            <span>Đã điểm danh</span>
+            <strong>{{ unit_attendance.checked_units_count if unit_attendance else 0 }}</strong>
+        </div>
+        <div>
+            <span>Chưa điểm danh</span>
+            <strong>{{ unit_attendance.pending_units_count if unit_attendance else 0 }}</strong>
+        </div>
+        <div>
+            <span>Lượt nộp</span>
+            <strong>{{ unit_attendance.submission_count if unit_attendance else 0 }}</strong>
+        </div>
+    </div>
+
+    <div class="attendance-mobile-split">
+        <article class="attendance-mobile-split-card">
+            <div class="attendance-mobile-split-head success">
+                <span>Đã điểm danh</span>
+                <strong>{{ unit_attendance.checked_units_count if unit_attendance else 0 }}</strong>
+            </div>
+            {% if unit_attendance and unit_attendance.checked_units %}
+            <div class="attendance-mobile-unit-list">
+                {% for row in unit_attendance.checked_units %}
+                <div class="attendance-mobile-unit-item">
+                    <div>
+                        <div class="fw-bold small">{{ row.unit_name }}</div>
+                        <div class="text-muted small">{{ row.member_count }} người • {{ row.submission_count }} minh chứng</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="small fw-semibold">{{ row.latest_submitter or 'N/A' }}</div>
+                        <div class="text-muted small">{{ row.latest_submission_at.strftime('%H:%M %d/%m') if row.latest_submission_at else '-' }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center text-muted small py-3">Chưa có đơn vị nào nộp ở mốc này.</div>
+            {% endif %}
+        </article>
+
+        <article class="attendance-mobile-split-card">
+            <div class="attendance-mobile-split-head danger">
+                <span>Chưa điểm danh</span>
+                <strong>{{ unit_attendance.pending_units_count if unit_attendance else 0 }}</strong>
+            </div>
+            {% if unit_attendance and unit_attendance.pending_units %}
+            <div class="attendance-mobile-unit-list">
+                {% for row in unit_attendance.pending_units %}
+                <div class="attendance-mobile-unit-item">
+                    <div>
+                        <div class="fw-bold small">{{ row.unit_name }}</div>
+                        <div class="text-muted small">{{ row.member_count }} người</div>
+                    </div>
+                    <span class="badge text-bg-danger">Chưa nộp</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center text-muted small py-3">Không còn đơn vị nào thiếu minh chứng.</div>
+            {% endif %}
+        </article>
+    </div>
+    {% else %}
+    <div class="text-center text-muted small py-3">Hôm nay chưa có mốc điểm danh để thống kê theo đơn vị.</div>
+    {% endif %}
+</section>
+{% endif %}
 
 <section class="mobile-card">
     <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
         <div>
-            <h2 class="h6 fw-bold mb-1">Các mốc hôm nay</h2>
+            <h2 class="h6 fw-bold mb-1">{{ 'Chọn đơn vị và điểm danh' if is_public_attendance else 'Các mốc của tôi hôm nay' }}</h2>
             <p class="text-muted small mb-0">{{ now.strftime('%d/%m/%Y %H:%M') }}</p>
         </div>
         <span class="pill {% if active_config %}pill-primary{% else %}bg-danger text-white{% endif %}">{{ 'Đang bật' if active_config else 'Chưa bật' }}</span>
@@ -53,19 +162,31 @@
             <div class="attendance-mobile-proof">
                 <img src="{{ url_for('attendance_bp.attendance_proof', submission_id=row.submission.id) }}" alt="Ảnh minh chứng">
                 <div class="small text-muted">
+                    <div class="fw-semibold text-dark">{{ row.submission.unit_area or 'Chưa chọn đơn vị' }}</div>
                     {{ row.submission.submitted_at.strftime('%H:%M %d/%m/%Y') if row.submission.submitted_at else '' }}
                     {% if row.submission.note %}<div class="mt-1">{{ row.submission.note }}</div>{% endif %}
                 </div>
             </div>
             {% elif row.status == 'available' and can_submit_attendance %}
+            {% if attendance_unit_options %}
             <form method="post" action="{{ url_for('attendance_bp.submit_attendance') }}" enctype="multipart/form-data" class="attendance-mobile-form">
                 <input type="hidden" name="slot_key" value="{{ row.slot_key }}">
                 <input type="hidden" name="slot_date" value="{{ row.slot_date.isoformat() }}">
+                <label class="form-label fw-semibold small">Đơn vị</label>
+                <select class="form-select mb-2" name="unit_key" required>
+                    <option value="">Chọn đơn vị</option>
+                    {% for option in attendance_unit_options %}
+                    <option value="{{ option.unit_key }}" {% if option.unit_key == default_attendance_unit_key %}selected{% endif %}>{{ option.unit_name }}</option>
+                    {% endfor %}
+                </select>
                 <label class="form-label fw-semibold small">Ảnh minh chứng</label>
                 <input type="file" class="form-control mb-2" name="proof_image" accept="image/*" capture="environment" required>
                 <input type="text" class="form-control mb-2" name="note" maxlength="255" placeholder="Ghi chú ngắn">
                 <button type="submit" class="btn btn-mobile btn-mobile-primary">Nộp điểm danh</button>
             </form>
+            {% else %}
+            <div class="small text-muted">Chưa có danh mục đơn vị để chọn. Quản trị cần cấu hình đơn vị trước khi điểm danh.</div>
+            {% endif %}
             {% else %}
             <div class="small text-muted">
                 {% if row.status == 'upcoming' %}
@@ -87,6 +208,14 @@
     {% endif %}
 </section>
 
+{% if is_public_attendance %}
+<section class="mobile-card">
+    <h2 class="h6 fw-bold mb-3">Hướng dẫn điểm danh công khai</h2>
+    <div class="text-muted small">
+        Chọn đơn vị từ danh mục quản trị đã cấu hình, chọn đúng mốc đang mở và nộp ảnh minh chứng. Không cần đăng nhập tài khoản đơn vị.
+    </div>
+</section>
+{% else %}
 <section class="mobile-card">
     <h2 class="h6 fw-bold mb-3">Lịch sử của tôi</h2>
     {% if own_recent_submissions %}
@@ -95,7 +224,7 @@
         <div class="attendance-mobile-history-item">
             <div>
                 <div class="fw-bold small">{{ submission.slot_label or submission.slot_key }}</div>
-                <div class="text-muted small">{{ submission.submitted_at.strftime('%H:%M %d/%m/%Y') if submission.submitted_at else '' }}</div>
+                <div class="text-muted small">{{ submission.unit_area or 'Chưa có đơn vị' }} • {{ submission.submitted_at.strftime('%H:%M %d/%m/%Y') if submission.submitted_at else '' }}</div>
             </div>
             <a href="{{ url_for('attendance_bp.attendance_proof', submission_id=submission.id) }}" target="_blank" class="small">Xem ảnh</a>
         </div>
@@ -105,6 +234,7 @@
     <div class="text-center text-muted small py-3">Chưa có lượt điểm danh nào.</div>
     {% endif %}
 </section>
+{% endif %}
 
 {% if can_manage_attendance %}
 <section class="mobile-card">
@@ -169,7 +299,7 @@
 </section>
 
 <section class="mobile-card">
-    <h2 class="h6 fw-bold mb-3">Nộp gần đây toàn đơn vị</h2>
+    <h2 class="h6 fw-bold mb-3">Nộp gần đây toàn hệ thống</h2>
     {% if admin_recent_submissions %}
     <div class="attendance-mobile-history">
         {% for submission in admin_recent_submissions %}
@@ -189,20 +319,138 @@
 {% endif %}
 
 <style>
-    .attendance-mobile-hero { background: linear-gradient(135deg, rgba(37, 99, 235, 0.14), rgba(37, 99, 235, 0.04)); }
-    .attendance-mobile-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .attendance-mobile-hero {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.14), rgba(16, 185, 129, 0.06));
+    }
+    .attendance-mobile-kicker {
+        display: inline-flex;
+        width: fit-content;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.12);
+        color: var(--primary);
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 10px;
+    }
+    .attendance-mobile-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+    }
     .attendance-mobile-metric { margin-bottom: 0; }
-    .attendance-mobile-metric span { display: block; color: var(--text-muted); font-size: 12px; font-weight: 700; margin-bottom: 8px; }
-    .attendance-mobile-metric strong { font-size: 1.8rem; line-height: 1; }
-    .attendance-mobile-slots, .attendance-mobile-history { display: grid; gap: 12px; }
-    .attendance-mobile-slot, .attendance-mobile-history-item { padding: 14px; border-radius: 16px; background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.72); border: 1px solid var(--border); }
+    .attendance-mobile-metric span {
+        display: block;
+        color: var(--text-muted);
+        font-size: 12px;
+        font-weight: 800;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+    }
+    .attendance-mobile-metric strong { font-size: 1.85rem; line-height: 1; }
+    .attendance-mobile-slot-summary,
+    .attendance-mobile-unit-stats div,
+    .attendance-mobile-split-card,
+    .attendance-mobile-slot,
+    .attendance-mobile-history-item {
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.72);
+    }
+    .attendance-mobile-slot-summary {
+        padding: 14px;
+        display: grid;
+        gap: 6px;
+        margin-bottom: 14px;
+    }
+    .attendance-mobile-unit-stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+    .attendance-mobile-unit-stats div {
+        padding: 12px;
+        display: grid;
+        gap: 4px;
+    }
+    .attendance-mobile-unit-stats span {
+        color: var(--text-muted);
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+    .attendance-mobile-unit-stats strong { font-size: 1.3rem; }
+    .attendance-mobile-split {
+        display: grid;
+        gap: 12px;
+    }
+    .attendance-mobile-split-card {
+        padding: 14px;
+    }
+    .attendance-mobile-split-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 10px;
+    }
+    .attendance-mobile-split-head span {
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+    .attendance-mobile-split-head strong { font-size: 1.1rem; }
+    .attendance-mobile-split-head.success span,
+    .attendance-mobile-split-head.success strong { color: #059669; }
+    .attendance-mobile-split-head.danger span,
+    .attendance-mobile-split-head.danger strong { color: #dc2626; }
+    .attendance-mobile-unit-list,
+    .attendance-mobile-slots,
+    .attendance-mobile-history { display: grid; gap: 12px; }
+    .attendance-mobile-unit-item,
+    .attendance-mobile-history-item {
+        padding: 12px;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+    }
+    .attendance-mobile-slot {
+        padding: 14px;
+    }
     .attendance-mobile-time { font-size: 1.35rem; font-weight: 800; }
     .attendance-mobile-form { margin-top: 10px; }
     .attendance-mobile-proof { display: grid; gap: 10px; }
-    .attendance-mobile-proof img { width: 100%; border-radius: 16px; border: 1px solid var(--border); }
-    .attendance-mobile-history-item { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
-    .attendance-mobile-weekdays { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-    .attendance-mobile-weekday, .attendance-mobile-toggle { padding: 10px 12px; border-radius: 14px; border: 1px solid var(--border); display: flex; align-items: center; gap: 8px; background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.72); font-size: 13px; font-weight: 600; }
-    .attendance-mobile-toggle { width: 100%; justify-content: center; min-height: 42px; }
+    .attendance-mobile-proof img {
+        width: 100%;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+    }
+    .attendance-mobile-weekdays {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+    .attendance-mobile-weekday,
+    .attendance-mobile-toggle {
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.72);
+        font-size: 13px;
+        font-weight: 600;
+    }
+    .attendance-mobile-toggle {
+        width: 100%;
+        justify-content: center;
+        min-height: 42px;
+    }
 </style>
 {% endblock %}
