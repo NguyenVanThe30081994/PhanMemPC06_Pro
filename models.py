@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import UniqueConstraint
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
@@ -301,6 +302,55 @@ class DocumentLib(db.Model):
     category = db.Column(db.String(100))
     filename = db.Column(db.String(255))
     uploaded_at = db.Column(db.DateTime, default=datetime.now)
+
+
+class AttendanceConfig(db.Model):
+    __tablename__ = 'attendance_config'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), default='Điểm danh tự động')
+    mode = db.Column(db.String(20), default='interval')
+    interval_minutes = db.Column(db.Integer, default=120)
+    day_start_time = db.Column(db.String(5), default='08:00')
+    day_end_time = db.Column(db.String(5), default='17:00')
+    schedule_times_json = db.Column(db.Text)
+    active_weekdays_json = db.Column(db.Text)
+    early_checkin_minutes = db.Column(db.Integer, default=15)
+    late_allow_minutes = db.Column(db.Integer, default=60)
+    is_active = db.Column(db.Boolean, default=True)
+    note = db.Column(db.Text)
+    created_by = db.Column(db.Integer)
+    updated_by = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class AttendanceSubmission(db.Model):
+    __tablename__ = 'attendance_submission'
+    __table_args__ = (
+        UniqueConstraint('config_id', 'user_id', 'slot_key', name='uq_attendance_submission_slot'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    config_id = db.Column(db.Integer, db.ForeignKey('attendance_config.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    unit_area = db.Column(db.String(255))
+    unit_key = db.Column(db.String(100), index=True)
+    slot_key = db.Column(db.String(50), nullable=False, index=True)
+    slot_label = db.Column(db.String(100))
+    slot_date = db.Column(db.Date, nullable=False, index=True)
+    due_at = db.Column(db.DateTime, nullable=False, index=True)
+    window_start_at = db.Column(db.DateTime)
+    window_end_at = db.Column(db.DateTime)
+    proof_filename = db.Column(db.String(255))
+    proof_path = db.Column(db.String(500))
+    note = db.Column(db.Text)
+    submitted_at = db.Column(db.DateTime, default=datetime.now)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    config = db.relationship('AttendanceConfig', backref='submissions')
+    user = db.relationship('User', backref='attendance_submissions')
 
 
 class Notification(db.Model):

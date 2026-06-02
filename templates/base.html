@@ -757,6 +757,9 @@
                 {% if can_module('task', 'view') %}<a href="/tasks"
                     class="nav-link-top {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">Công việc</a>{%
                 endif %}
+                {% if can_module('attendance', 'view') %}<a href="/attendance"
+                    class="nav-link-top {% if request.endpoint and request.endpoint.startswith('attendance_bp.') %}active{% endif %}">Điểm danh</a>{%
+                endif %}
                 <a href="/ranking"
                     class="nav-link-top {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">Xếp hạng</a>
                 <div class="dropdown h-100 d-flex align-items-center">
@@ -946,6 +949,14 @@
                         class="mobile-nav-link {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">
                         <span class="mobile-nav-icon"><i class="fa-solid fa-list-check"></i></span>
                         <span>Công việc</span>
+                    </a>
+                    {% endif %}
+
+                    {% if can_module('attendance', 'view') %}
+                    <a href="/attendance"
+                        class="mobile-nav-link {% if request.endpoint and request.endpoint.startswith('attendance_bp.') %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-camera"></i></span>
+                        <span>Điểm danh</span>
                     </a>
                     {% endif %}
 

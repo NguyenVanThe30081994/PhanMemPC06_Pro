@@ -231,6 +231,7 @@ from routes.shortlink import shortlink_bp
 from routes.reporting import reporting_bp
 from routes.ai_assistant import ai_bp
 from routes.health import health_bp
+from routes.attendance import attendance_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
@@ -242,6 +243,7 @@ app.register_blueprint(shortlink_bp)
 app.register_blueprint(reporting_bp)
 app.register_blueprint(health_bp)
 app.register_blueprint(ai_bp)
+app.register_blueprint(attendance_bp)
 
 @app.before_request
 def check_auth():

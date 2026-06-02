@@ -644,7 +644,7 @@ def init_db(app):
         admin_role = AppRole.query.filter_by(name='Quản trị hệ thống').first()
         if not admin_role:
             try:
-                full_perms = {k:1 for k in ["p_dash", "p_task", "p_task_assign", "p_task_do", "p_lib", "p_news", "p_contact", "p_form", "p_sys", "p_input", "p_stat", "p_user"]}
+                full_perms = {k:1 for k in ["p_dash", "p_task", "p_task_assign", "p_task_do", "p_attendance", "p_lib", "p_news", "p_contact", "p_form", "p_sys", "p_input", "p_stat", "p_user"]}
                 admin_role = AppRole(name='admin_system', perms=json.dumps(full_perms, ensure_ascii=False))
                 db.session.add(admin_role)
                 db.session.commit()
@@ -817,6 +817,7 @@ def eval_f(formula_str, data_dict):
 PERMISSION_MODULES = [
     ("dash", "Tổng quan"),
     ("task", "Công việc"),
+    ("attendance", "Điểm danh"),
     ("lib", "Thư viện"),
     ("news", "Bảng tin"),
     ("contact", "Danh bạ"),
@@ -830,6 +831,7 @@ PERMISSION_MODULES = [
 DEFAULT_ROLE_MODULE_CODES = (
     "dash",
     "task",
+    "attendance",
     "lib",
     "news",
     "contact",
@@ -950,6 +952,21 @@ def normalize_permission_payload(perms_json, is_admin=False, role_name=""):
             normalized[exec_key] = 1
         if has_view or has_process or has_exec:
             normalized[legacy_key] = 1
+
+    # Backward compatibility: existing task executors can access attendance
+    if not any(normalized.get(f"p_attendance_{tier}") for tier in ("view", "process", "exec")):
+        task_view = bool(normalized.get("p_task_view"))
+        task_process = bool(normalized.get("p_task_process"))
+        task_exec = bool(normalized.get("p_task_exec"))
+        if task_view or task_process or task_exec:
+            if task_view or task_process or task_exec:
+                normalized["p_attendance_view"] = 1
+            if task_process:
+                normalized["p_attendance_process"] = 1
+                normalized["p_attendance_lead"] = 1
+            if task_exec:
+                normalized["p_attendance_exec"] = 1
+            normalized["p_attendance"] = 1
 
     return normalized
 
