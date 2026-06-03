@@ -1930,9 +1930,6 @@ def _merge_sheet_values(base_values, override_values):
 def _effective_daily_cell_values(submissions, template_version_id):
     if not submissions:
         return {}
-    latest_submission = submissions[-1]
-    if _submission_storage_mode(latest_submission) == "full_snapshot":
-        return _submission_cell_values(latest_submission.id)
     return _cumulative_submission_cell_values(submissions, template_version_id)
 
 
@@ -1960,6 +1957,11 @@ def _cumulative_submission_cell_values(submissions, template_version_id):
     numeric_totals = {}
 
     for submission in submissions:
+        storage_mode = _submission_storage_mode(submission)
+        is_delta_submission = storage_mode == "daily_delta"
+        if not is_delta_submission:
+            values = {}
+            numeric_totals = {}
         rows = (
             ReportSubmissionCell.query.filter_by(submission_id=submission.id)
             .order_by(ReportSubmissionCell.id.asc())
@@ -1984,7 +1986,11 @@ def _cumulative_submission_cell_values(submissions, template_version_id):
                 if parsed is None:
                     sheet_values[cell_address] = row.raw_value or ""
                     continue
-                total = numeric_totals.get((row.sheet_name, cell_address), 0.0) + parsed
+                total = (
+                    numeric_totals.get((row.sheet_name, cell_address), 0.0) + parsed
+                    if is_delta_submission
+                    else parsed
+                )
                 numeric_totals[(row.sheet_name, cell_address)] = total
                 sheet_values[cell_address] = int(total) if float(total).is_integer() else total
             else:
@@ -3573,11 +3579,9 @@ def _save_submission(instance, payload, final_submit=False, report_date=None):
         if _has_later_daily_submission(instance.id, report_date):
             return None, [f"Không thể cập nhật ngày {report_date.strftime('%d/%m/%Y')} vì đã có báo cáo ngày mới hơn."]
         metadata_payload["report_date"] = report_date.strftime("%Y-%m-%d")
-        metadata_payload["storage_mode"] = "full_snapshot"
+        metadata_payload["storage_mode"] = "daily_delta"
         metadata_payload["entry_values"] = payload_sheets
-        base_submissions = _daily_snapshot_submissions_through_date(instance.id, report_date)
-        base_values = _effective_daily_cell_values(base_submissions, template_version.id)
-        stored_sheet_values = _merge_sheet_values(base_values, payload_sheets)
+        stored_sheet_values = payload_sheets
 
     submission = ReportSubmission(
         template_id=template_version.template_id,
@@ -4896,7 +4900,12 @@ def cycle_workspace(cycle_id):
     report_date = context["report_date"]
     latest_submission = context["view_submission"]
     submission_history = context["view_history"]
-    existing_values = context.get("working_values", {}) if report_type and report_type.code == "daily" else context.get("entry_values", {})
+    if report_type and report_type.code == "daily":
+        input_values = context.get("entry_values", {}) or {}
+        context_values = context.get("working_values", {}) or input_values
+    else:
+        input_values = context.get("entry_values", {}) or {}
+        context_values = input_values
     export_context = _cycle_view_export_context(context)
     report_admin_mode = _can_manage_report_templates()
     available_units = _cycle_units(cycle) if report_admin_mode else []
@@ -4937,7 +4946,7 @@ def cycle_workspace(cycle_id):
             if should_filter_by_unit and not _row_matches_unit(
                 ws,
                 sheet_fields,
-                existing_values,
+                context_values,
                 sheet_meta["sheet_name"],
                 row_index,
                 unit,
@@ -4946,7 +4955,7 @@ def cycle_workspace(cycle_id):
             inputs = []
             for field in editable_fields:
                 coord = f"{field.column_letter}{row_index}"
-                value = existing_values.get(sheet_meta["sheet_name"], {}).get(coord, ws[coord].value)
+                value = input_values.get(sheet_meta["sheet_name"], {}).get(coord, "")
                 inputs.append({
                     "cell_address": coord,
                     "value": _cell_display_value(value),
@@ -4957,7 +4966,7 @@ def cycle_workspace(cycle_id):
             if inputs:
                 row_entries.append({
                     "excel_row": row_index,
-                    "title": _row_context_label(ws, sheet_fields, existing_values, sheet_meta["sheet_name"], row_index),
+                    "title": _row_context_label(ws, sheet_fields, context_values, sheet_meta["sheet_name"], row_index),
                     "inputs": inputs,
                 })
         warning = ""
