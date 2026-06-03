@@ -4,7 +4,7 @@
 import argparse
 import os
 
-from sqlalchemy import MetaData, create_engine, inspect, select, text
+from sqlalchemy import MetaData, create_engine, inspect, schema, select, text
 
 from storage import _normalize_database_uri
 
@@ -29,6 +29,18 @@ def _prepare_table_for_target(source_table, target_meta, dialect_name):
             column.server_default = None
 
     return target_table
+
+
+def _create_table_on_target(target_table, target_conn, dialect_name):
+    if dialect_name in {"mysql", "mariadb"}:
+        target_conn.execute(
+            schema.CreateTable(
+                target_table,
+                include_foreign_key_constraints=[],
+            )
+        )
+        return
+    target_table.create(bind=target_conn)
 
 
 def migrate(source_sqlite_path, target_url, apply=False, chunk_size=500):
@@ -63,7 +75,8 @@ def migrate(source_sqlite_path, target_url, apply=False, chunk_size=500):
             summary["tables_seen"] += 1
             table_name = source_table.name
             if table_name not in target_inspector.get_table_names():
-                _prepare_table_for_target(source_table, target_meta, target_dialect).create(bind=target_conn)
+                target_table = _prepare_table_for_target(source_table, target_meta, target_dialect)
+                _create_table_on_target(target_table, target_conn, target_dialect)
                 summary["tables_created"] += 1
                 target_inspector = inspect(target_engine)
 
