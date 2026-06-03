@@ -49,6 +49,16 @@ def _set_target_session_guards(target_conn, dialect_name, enabled):
         target_conn.execute(text(f"SET FOREIGN_KEY_CHECKS = {1 if enabled else 0}"))
 
 
+def _target_engine(target_url):
+    connect_args = {}
+    if target_url.startswith(("mysql+pymysql://", "mariadb+pymysql://")):
+        connect_args = {
+            "charset": "utf8mb4",
+            "init_command": "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
+        }
+    return create_engine(target_url, connect_args=connect_args)
+
+
 def migrate(source_sqlite_path, target_url, apply=False, chunk_size=500):
     source_path = os.path.abspath(source_sqlite_path)
     if not os.path.exists(source_path):
@@ -61,7 +71,7 @@ def migrate(source_sqlite_path, target_url, apply=False, chunk_size=500):
         raise ValueError("Target database must be MySQL/MariaDB, not SQLite")
 
     source_engine = create_engine(f"sqlite:///{source_path}")
-    target_engine = create_engine(target_url)
+    target_engine = _target_engine(target_url)
     source_meta = MetaData()
     source_meta.reflect(bind=source_engine)
     target_inspector = inspect(target_engine)
