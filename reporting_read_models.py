@@ -12,12 +12,6 @@ def submission_timeliness(cycle, submission, report_type=None, report_type_gette
     report_code = getattr(report_type, "code", "") if report_type else ""
     if report_code == "daily":
         business_date = business_date_getter(submission) if business_date_getter else None
-        if cycle:
-            report_day = (cycle.open_at or cycle.created_at or submitted_at).date()
-        else:
-            report_day = business_date or submitted_at.date()
-        if business_date == report_day:
-            return "Đúng ngày"
         if business_date:
             return f"Báo cáo ngày {business_date.strftime('%d/%m/%Y')}"
         return f"Báo cáo ngày {submitted_at.strftime('%d/%m/%Y')}"

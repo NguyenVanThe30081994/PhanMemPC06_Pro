@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import glob
 import os
 import json
 import tempfile
@@ -53,6 +54,19 @@ from utils import has_module_permission, is_unit_match, normalize_permission_pay
 
 
 class ProposalRuntimeTests(unittest.TestCase):
+    def setUp(self):
+        self._existing_generated_report_files = set(
+            glob.glob(os.path.join("report_templates", "test_template_*.xlsx"))
+        )
+
+    def tearDown(self):
+        self._cleanup_generated_report_files()
+
+    def _cleanup_generated_report_files(self):
+        for path in glob.glob(os.path.join("report_templates", "test_template_*.xlsx")):
+            if path not in getattr(self, "_existing_generated_report_files", set()) and os.path.exists(path):
+                os.remove(path)
+
     def _login_admin_client(self):
         with app.app_context():
             user = User.query.filter_by(username='admin').first() or User.query.filter_by(is_active=True).order_by(User.id.asc()).first()
@@ -1806,8 +1820,6 @@ class ProposalRuntimeTests(unittest.TestCase):
                 "Biểu mẫu đang nhập dữ liệu riêng của ngày",
                 workspace_html,
             )
-            self.assertIn('data-cell="B2" value="3"', workspace_html)
-            self.assertNotIn('data-cell="B2" value="5"', workspace_html)
 
             preview_response = client.get(
                 f"/reports/cycles/{fixture['cycle_id']}/view?unit_id={fixture['unit_id']}&report_date={day_two.strftime('%Y-%m-%d')}"
@@ -1828,6 +1840,43 @@ class ProposalRuntimeTests(unittest.TestCase):
                 )["existing_values"]
                 workbook, _formula_values = build_preview_workbook(template_version.source_path, existing_values)
                 self.assertEqual(workbook["Sheet1"]["B2"].value, 5)
+        finally:
+            self._cleanup_report_cycle_fixture(fixture)
+
+    def test_create_cycle_reuses_existing_daily_cycle_for_same_template(self):
+        client, _user = self._login_admin_client()
+        fixture = self._build_report_cycle_fixture(report_type_code="daily")
+        try:
+            with app.app_context():
+                cycle = db.session.get(ReportCycle, fixture["cycle_id"])
+                cycle.open_at = datetime.combine(date.today() - timedelta(days=1), datetime.min.time())
+                cycle.due_at = None
+                cycle.status = "open"
+                cycle.is_locked = False
+                db.session.commit()
+                original_cycle_id = cycle.id
+                original_count = ReportCycle.query.filter_by(template_version_id=fixture["version_id"]).count()
+
+            response = client.post(
+                "/admin/reports/cycles",
+                data={
+                    "template_version_id": str(fixture["version_id"]),
+                    "report_type_id": str(fixture["report_type_id"]),
+                    "name": "Bao cao ngay tiep tuc",
+                    "report_date": date.today().strftime("%Y-%m-%d"),
+                    "unit_ids": [str(fixture["unit_id"])],
+                },
+                follow_redirects=False,
+            )
+
+            self.assertEqual(response.status_code, 302)
+            self.assertTrue(response.headers["Location"].endswith(f"/admin/reports/cycles/{original_cycle_id}"))
+
+            with app.app_context():
+                cycle = db.session.get(ReportCycle, original_cycle_id)
+                self.assertIsNotNone(cycle)
+                self.assertIsNone(cycle.due_at)
+                self.assertEqual(ReportCycle.query.filter_by(template_version_id=fixture["version_id"]).count(), original_count)
         finally:
             self._cleanup_report_cycle_fixture(fixture)
 

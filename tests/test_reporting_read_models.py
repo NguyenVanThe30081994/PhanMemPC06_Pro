@@ -20,7 +20,7 @@ class ReportingReadModelsTests(unittest.TestCase):
 
         self.assertEqual(
             submission_timeliness(cycle, submission, report_type=SimpleNamespace(code="daily"), business_date_getter=lambda _submission: date(2026, 6, 3)),
-            "Đúng ngày",
+            "Báo cáo ngày 03/06/2026",
         )
         self.assertEqual(
             submission_timeliness(cycle, submission, report_type=SimpleNamespace(code="monthly"), business_date_getter=lambda _submission: None),

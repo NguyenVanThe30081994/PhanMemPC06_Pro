@@ -32,6 +32,15 @@ def _running_under_passenger():
     )
 
 
+def _normalize_database_uri(raw_uri):
+    uri = (raw_uri or "").strip()
+    if uri.startswith("mysql://"):
+        return "mysql+pymysql://" + uri[len("mysql://"):]
+    if uri.startswith("mariadb://"):
+        return "mariadb+pymysql://" + uri[len("mariadb://"):]
+    return uri
+
+
 def _resolve_data_root(base_dir):
     explicit_root = (os.environ.get("PC06_DATA_DIR") or os.environ.get("APP_DATA_DIR") or "").strip()
     if explicit_root:
@@ -52,7 +61,18 @@ def _resolve_mutable_path(base_dir, data_root, env_name, default_dirname):
 
 
 def _resolve_database_uri(base_dir, data_root):
-    raw_uri = (os.environ.get("DATABASE_URL") or "").strip()
+    raw_uri = _normalize_database_uri(os.environ.get("DATABASE_URL") or "")
+    strict_passenger_db = _running_under_passenger() and os.environ.get("PC06_ALLOW_SQLITE_IN_PASSENGER") != "1"
+    if strict_passenger_db and not raw_uri:
+        raise RuntimeError(
+            "DATABASE_URL must be set when running under Passenger. "
+            "Production deployments must use an external database instead of SQLite fallback."
+        )
+    if strict_passenger_db and raw_uri.startswith("sqlite:///"):
+        raise RuntimeError(
+            "SQLite is not allowed when running under Passenger. "
+            "Set DATABASE_URL to the cPanel MySQL/MariaDB connection string."
+        )
     if not raw_uri:
         return "sqlite:///" + os.path.abspath(os.path.join(data_root, "pc06_system.db"))
 
