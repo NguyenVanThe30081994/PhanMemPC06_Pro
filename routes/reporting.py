@@ -39,6 +39,41 @@ from category_helpers import (
     stable_form_category_options,
 )
 from report_engine import build_preview_workbook, normalize_code, parse_workbook, render_sheet_html, safe_filename, write_workbook_copy
+from reporting_page_builders import (
+    build_admin_reporting_dashboard_context,
+    build_cycle_dashboard_maps,
+    build_cycle_history_context,
+    build_cycle_preview_sheets,
+    build_cycle_workspace_sheet_views,
+    build_user_reporting_dashboard_context,
+)
+from reporting_policies import (
+    can_access_report_workspace as reporting_can_access_report_workspace,
+    can_manage_report_templates as reporting_can_manage_report_templates,
+    can_view_report_progress as reporting_can_view_report_progress,
+    filter_report_manager_users,
+)
+from reporting_read_models import (
+    cycle_view_export_context as reporting_cycle_view_export_context,
+    history_rows_for_submissions as reporting_history_rows_for_submissions,
+    resolve_effective_instance_state as reporting_resolve_effective_instance_state,
+    resolve_entry_submission_state as reporting_resolve_entry_submission_state,
+    resolve_working_submission_state as reporting_resolve_working_submission_state,
+    submission_timeliness as reporting_submission_timeliness,
+)
+from reporting_services import (
+    default_cycle_back_url as reporting_default_cycle_back_url,
+    resolve_cycle_context as reporting_resolve_cycle_context,
+    route_with_back as reporting_route_with_back,
+    safe_back_url as reporting_safe_back_url,
+    workspace_route_values as reporting_workspace_route_values,
+)
+from reporting_submission_service import (
+    export_submission as reporting_export_submission,
+    payload_from_request as reporting_payload_from_request,
+    save_submission as reporting_save_submission,
+    submission_error_message as reporting_submission_error_message,
+)
 from utils import (
     apply_migrations,
     extract_unit_key,
@@ -228,33 +263,26 @@ def _has_report_permission(*perm_names):
 
 
 def _can_manage_report_templates():
-    return has_module_permission(_current_report_perms(), "form", "process", is_admin=_is_admin())
+    return reporting_can_manage_report_templates(
+        _current_report_perms(),
+        has_module_permission,
+        is_admin=_is_admin(),
+    )
 
 
 def _can_access_report_workspace():
-    perms = _current_report_perms()
-    return bool(
-        has_module_permission(perms, "form", "view", is_admin=_is_admin())
-        or has_module_permission(perms, "input", "view", is_admin=_is_admin())
-        or has_module_permission(perms, "input", "process", is_admin=_is_admin())
-        or has_module_permission(perms, "input", "exec", is_admin=_is_admin())
-        or has_module_permission(perms, "stat", "view", is_admin=_is_admin())
-        or has_module_permission(perms, "stat", "process", is_admin=_is_admin())
-        or has_module_permission(perms, "stat", "exec", is_admin=_is_admin())
+    return reporting_can_access_report_workspace(
+        _current_report_perms(),
+        has_module_permission,
+        is_admin=_is_admin(),
     )
 
 
 def _can_view_report_progress():
-    perms = _current_report_perms()
-    return bool(
-        has_module_permission(perms, "form", "view", is_admin=_is_admin())
-        or has_module_permission(perms, "form", "process", is_admin=_is_admin())
-        or has_module_permission(perms, "input", "view", is_admin=_is_admin())
-        or has_module_permission(perms, "input", "process", is_admin=_is_admin())
-        or has_module_permission(perms, "input", "exec", is_admin=_is_admin())
-        or has_module_permission(perms, "stat", "view", is_admin=_is_admin())
-        or has_module_permission(perms, "stat", "process", is_admin=_is_admin())
-        or has_module_permission(perms, "stat", "exec", is_admin=_is_admin())
+    return reporting_can_view_report_progress(
+        _current_report_perms(),
+        has_module_permission,
+        is_admin=_is_admin(),
     )
 
 
@@ -273,21 +301,13 @@ def _report_manager_users():
         .order_by(User.fullname.asc())
         .all()
     )
-    recipients = []
-    for user in users:
-        if session.get("uid") and user.id == session.get("uid"):
-            continue
-        if session.get("is_admin") and user.id == session.get("uid"):
-            continue
-        role = getattr(user, "role", None)
-        perms = normalize_permission_payload(_role_perms_payload(role), role_name=getattr(role, "name", ""))
-        if (
-            has_module_permission(perms, "form", "process")
-            or has_module_permission(perms, "input", "process")
-            or has_module_permission(perms, "stat", "process")
-        ):
-            recipients.append(user)
-    return recipients
+    return filter_report_manager_users(
+        users,
+        session.get("uid"),
+        lambda role: normalize_permission_payload(_role_perms_payload(role), role_name=getattr(role, "name", "")),
+        has_module_permission,
+        is_admin=False,
+    )
 
 
 def _notify_cycle_assignees(cycle, cycle_name):
@@ -2014,63 +2034,31 @@ def _has_effective_report_values(values):
 
 
 def _resolve_working_submission_state(instance, template_version, report_type=None, report_date=None):
-    if not instance or not template_version:
-        return {
-            "latest_submission": None,
-            "history": [],
-            "existing_values": {},
-            "daily_submissions": [],
-        }
-
-    if report_type and report_type.code == "daily" and report_date:
-        daily_submissions = _daily_snapshot_submissions_through_date(instance.id, report_date)
-        latest_submission = daily_submissions[-1] if daily_submissions else None
-        history = _submission_history_through_date(instance.id, report_date)
-        existing_values = _effective_daily_cell_values(daily_submissions, template_version.id)
-        return {
-            "latest_submission": latest_submission,
-            "history": history,
-            "existing_values": existing_values,
-            "daily_submissions": daily_submissions,
-        }
-
-    latest_submission = _latest_submission(instance.id)
-    history = _submission_history(instance.id)
-    existing_values = _submission_cell_values(latest_submission.id) if latest_submission else {}
-    return {
-        "latest_submission": latest_submission,
-        "history": history,
-        "existing_values": existing_values,
-        "daily_submissions": [],
-    }
+    return reporting_resolve_working_submission_state(
+        instance,
+        template_version,
+        report_type=report_type,
+        report_date=report_date,
+        daily_snapshot_submissions_through_date_fn=_daily_snapshot_submissions_through_date,
+        submission_history_through_date_fn=_submission_history_through_date,
+        effective_daily_cell_values_fn=_effective_daily_cell_values,
+        latest_submission_fn=_latest_submission,
+        submission_history_fn=_submission_history,
+        submission_cell_values_fn=_submission_cell_values,
+    )
 
 
 def _resolve_entry_submission_state(instance, template_version, report_type=None, report_date=None):
-    if not instance or not template_version:
-        return {
-            "latest_submission": None,
-            "history": [],
-            "existing_values": {},
-        }
-
-    if report_type and report_type.code == "daily" and report_date:
-        latest_submission = _latest_submission_for_date(instance.id, report_date)
-        history = _submission_history(instance.id, report_date=report_date)
-        existing_values = _submission_cell_values(latest_submission.id) if latest_submission else {}
-        return {
-            "latest_submission": latest_submission,
-            "history": history,
-            "existing_values": existing_values,
-        }
-
-    latest_submission = _latest_submission(instance.id)
-    history = _submission_history(instance.id)
-    existing_values = _submission_cell_values(latest_submission.id) if latest_submission else {}
-    return {
-        "latest_submission": latest_submission,
-        "history": history,
-        "existing_values": existing_values,
-    }
+    return reporting_resolve_entry_submission_state(
+        instance,
+        template_version,
+        report_type=report_type,
+        report_date=report_date,
+        latest_submission_for_date_fn=_latest_submission_for_date,
+        submission_history_fn=_submission_history,
+        latest_submission_fn=_latest_submission,
+        submission_cell_values_fn=_submission_cell_values,
+    )
 
 
 def _effective_daily_cutoff_date(cycle, instance_id=None):
@@ -2102,111 +2090,35 @@ def _resolve_daily_submission_date(cycle, report_date=None, instance_id=None):
 
 
 def _resolve_effective_instance_state(instance, cycle, template_version, report_type=None):
-    if not instance or not cycle or not template_version:
-        return {
-            "latest_submission": None,
-            "history": [],
-            "existing_values": {},
-            "daily_submissions": [],
-            "report_date": None,
-            "mode": "empty",
-        }
-
-    if report_type and report_type.code == "daily":
-        cutoff_date = _effective_daily_cutoff_date(cycle, instance.id)
-        state = _resolve_working_submission_state(
-            instance,
-            template_version,
-            report_type=report_type,
-            report_date=cutoff_date,
-        )
-        state["report_date"] = cutoff_date
-        state["mode"] = "daily_cumulative"
-        return state
-
-    state = _resolve_working_submission_state(
+    return reporting_resolve_effective_instance_state(
         instance,
+        cycle,
         template_version,
         report_type=report_type,
-        report_date=None,
+        effective_daily_cutoff_date_fn=_effective_daily_cutoff_date,
+        resolve_working_submission_state_fn=_resolve_working_submission_state,
     )
-    state["report_date"] = None
-    state["mode"] = "latest_snapshot"
-    return state
 
 
 def _cycle_view_export_context(context):
-    cycle = context["cycle"]
     template_version = context["template_version"]
     exportable = bool(
         template_version
         and getattr(template_version, "source_path", None)
         and os.path.exists(template_version.source_path)
     )
-    report_type = context["report_type"]
-    report_admin_mode = _can_manage_report_templates()
-    report_date = context["report_date"]
-    admin_all_units = report_admin_mode and not request.args.get("unit_id")
-
-    if admin_all_units:
-        instances = ReportInstance.query.filter_by(cycle_id=cycle.id).order_by(ReportInstance.report_unit_id.asc()).all()
-        latest_submissions = []
-        if report_type and report_type.code == "daily" and report_date:
-            existing_values = {}
-            for instance in instances:
-                submissions = _daily_snapshot_submissions_through_date(instance.id, report_date)
-                if not submissions:
-                    continue
-                latest_submissions.append(submissions[-1])
-                unit_values = _effective_daily_cell_values(submissions, template_version.id)
-                for sheet_name, cells in unit_values.items():
-                    existing_values.setdefault(sheet_name, {}).update(cells)
-            mode = "daily_cumulative"
-        else:
-            latest_submissions = [
-                submission
-                for instance in instances
-                for submission in [_latest_submission(instance.id)]
-                if submission
-            ]
-            existing_values = _merged_submission_cell_values(latest_submissions)
-            mode = "latest_snapshot"
-        effective_at = max(
-            (
-                submission.submitted_at or submission.created_at
-                for submission in latest_submissions
-                if submission and (submission.submitted_at or submission.created_at)
-            ),
-            default=None,
-        )
-        return {
-            "template_version": template_version,
-            "report_type": report_type,
-            "report_date": report_date,
-            "existing_values": existing_values,
-            "latest_submission": latest_submissions[-1] if latest_submissions else None,
-            "has_data": exportable,
-            "mode": mode,
-            "scope_label": "toan_bo_don_vi",
-            "effective_at": effective_at,
-            "admin_all_units": True,
-        }
-
-    unit = context["unit"]
-    latest_submission = context["view_submission"]
-    existing_values = context.get("working_values", {}) or {}
-    return {
-        "template_version": template_version,
-        "report_type": report_type,
-        "report_date": report_date,
-        "existing_values": existing_values,
-        "latest_submission": latest_submission,
-        "has_data": exportable,
-        "mode": "daily_cumulative" if report_type and report_type.code == "daily" and report_date else "latest_snapshot",
-        "scope_label": normalize_code(unit.name) if unit else "khong_xac_dinh",
-        "effective_at": (latest_submission.submitted_at or latest_submission.created_at) if latest_submission else None,
-        "admin_all_units": False,
-    }
+    return reporting_cycle_view_export_context(
+        context,
+        _can_manage_report_templates(),
+        request.args.get("unit_id"),
+        exportable,
+        lambda cycle_id: ReportInstance.query.filter_by(cycle_id=cycle_id).order_by(ReportInstance.report_unit_id.asc()).all(),
+        _daily_snapshot_submissions_through_date,
+        _effective_daily_cell_values,
+        _latest_submission,
+        _merged_submission_cell_values,
+        normalize_code,
+    )
 
 
 def _export_effective_values(cycle, instance, template_version, effective_values, suffix="effective"):
@@ -2935,27 +2847,13 @@ def _report_type(cycle):
 
 
 def _submission_timeliness(cycle, submission, report_type=None):
-    if not submission:
-        return "Chưa nộp"
-    report_type = report_type or _report_type(cycle)
-    submitted_at = submission.submitted_at or submission.created_at
-    if not submitted_at:
-        return "Đã lưu"
-    report_code = report_type.code if report_type else ""
-    if report_code == "daily":
-        business_date = _submission_business_date(submission)
-        if cycle:
-            report_day = (cycle.open_at or cycle.created_at or submitted_at).date()
-        else:
-            report_day = business_date or submitted_at.date()
-        if business_date == report_day:
-            return "Đúng ngày"
-        if business_date:
-            return f"Báo cáo ngày {business_date.strftime('%d/%m/%Y')}"
-        return f"Báo cáo ngày {submitted_at.strftime('%d/%m/%Y')}"
-    if cycle and cycle.due_at:
-        return "Đúng hạn" if submitted_at <= cycle.due_at else "Quá hạn"
-    return "Đã báo cáo"
+    return reporting_submission_timeliness(
+        cycle,
+        submission,
+        report_type=report_type,
+        report_type_getter=_report_type,
+        business_date_getter=_submission_business_date,
+    )
 
 
 def _report_schedule_text(cycle, report_type=None, report_date=None):
@@ -3369,52 +3267,26 @@ def _write_submission_backup(submission, stored_values):
 
 
 def _history_rows_for_submissions(submissions, template_version, report_type, include_unit=False, include_actor=False, cycle=None):
-    if not submissions or not template_version:
-        return []
-
-    workbook = load_workbook(template_version.source_path, data_only=False)
-    fields = (
-        ReportTemplateField.query.filter_by(version_id=template_version.id)
-        .order_by(ReportTemplateField.display_order.asc())
-        .all()
+    return reporting_history_rows_for_submissions(
+        submissions,
+        template_version,
+        report_type,
+        include_unit=include_unit,
+        include_actor=include_actor,
+        cycle=cycle,
+        load_workbook_fn=lambda source_path: load_workbook(source_path, data_only=False),
+        load_fields_fn=lambda version_id: (
+            ReportTemplateField.query.filter_by(version_id=version_id)
+            .order_by(ReportTemplateField.display_order.asc())
+            .all()
+        ),
+        load_users_fn=lambda user_ids: User.query.filter(User.id.in_(user_ids)).all(),
+        load_instances_fn=lambda instance_ids: ReportInstance.query.filter(ReportInstance.id.in_(instance_ids)).all(),
+        load_units_fn=lambda unit_ids: ReportUnit.query.filter(ReportUnit.id.in_(unit_ids)).all(),
+        build_submission_summary_fn=_build_submission_summary,
+        submission_status_label_fn=_submission_status_label,
+        submission_timeliness_fn=_submission_timeliness,
     )
-    field_lookup = {(field.sheet_name, field.field_code): field for field in fields}
-    sheet_fields = {}
-    for field in fields:
-        sheet_fields.setdefault(field.sheet_name, []).append(field)
-
-    rows = []
-    user_ids = {submission.submitted_by for submission in submissions if submission.submitted_by}
-    user_map = {user.id: user for user in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
-    instance_ids = {submission.instance_id for submission in submissions if submission.instance_id}
-    instance_map = {instance.id: instance for instance in ReportInstance.query.filter(ReportInstance.id.in_(instance_ids)).all()} if instance_ids else {}
-    unit_ids = {instance.report_unit_id for instance in instance_map.values() if instance.report_unit_id}
-    unit_map = {unit.id: unit for unit in ReportUnit.query.filter(ReportUnit.id.in_(unit_ids)).all()} if unit_ids else {}
-
-    for submission in submissions:
-        summary = _build_submission_summary(
-            submission,
-            template_version,
-            workbook=workbook,
-            field_lookup=field_lookup,
-            sheet_fields=sheet_fields,
-        )
-        row = {
-            "submission": submission,
-            "submitted_at": submission.submitted_at or submission.created_at,
-            "content_text": summary["text"],
-            "content_count": summary["count"],
-            "status_label": _submission_status_label(submission),
-            "timeliness": _submission_timeliness(cycle, submission, report_type=report_type),
-        }
-        if include_actor:
-            row["actor"] = user_map.get(submission.submitted_by)
-        if include_unit:
-            instance = instance_map.get(submission.instance_id)
-            row["unit"] = unit_map.get(instance.report_unit_id) if instance and instance.report_unit_id else None
-            row["instance"] = instance
-        rows.append(row)
-    return rows
 
 
 def _ensure_active_cycle_for_template(template, version, report_type):
@@ -3551,186 +3423,64 @@ def _group_cycles_by_professional_unit(cycles):
 
 
 def _save_submission(instance, payload, final_submit=False, report_date=None):
-    cycle = db.session.get(ReportCycle, instance.cycle_id)
-    template_version = db.session.get(ReportTemplateVersion, cycle.template_version_id)
-    report_type = _report_type(cycle)
-    period = _ensure_reporting_period(cycle, report_type=report_type)
-    report_unit = db.session.get(ReportUnit, instance.report_unit_id) if instance.report_unit_id else None
-    sheet_meta = json.loads(template_version.metadata_json or "{}").get("sheets", [])
-    sheets = {sheet["sheet_name"]: sheet for sheet in sheet_meta}
-
-    payload_sheets = _normalize_sheet_values(payload.get("sheets", {}) if isinstance(payload, dict) else {})
-    errors = []
-    stored_sheet_values = payload_sheets
-
-    existing_version = (
-        ReportSubmission.query.filter_by(instance_id=instance.id)
-        .count()
+    return reporting_save_submission(
+        instance,
+        payload,
+        final_submit=final_submit,
+        report_date=report_date,
+        get_cycle_fn=lambda cycle_id: db.session.get(ReportCycle, cycle_id),
+        get_template_version_fn=lambda template_version_id: db.session.get(ReportTemplateVersion, template_version_id),
+        report_type_fn=_report_type,
+        ensure_reporting_period_fn=_ensure_reporting_period,
+        get_report_unit_fn=lambda report_unit_id: db.session.get(ReportUnit, report_unit_id),
+        normalize_sheet_values_fn=_normalize_sheet_values,
+        resolve_daily_submission_date_fn=_resolve_daily_submission_date,
+        has_later_daily_submission_fn=_has_later_daily_submission,
+        daily_snapshot_submissions_through_date_fn=_daily_snapshot_submissions_through_date,
+        effective_daily_cell_values_fn=_effective_daily_cell_values,
+        merge_sheet_values_fn=_merge_sheet_values,
+        make_submission_fn=ReportSubmission,
+        add_fn=db.session.add,
+        flush_fn=db.session.flush,
+        count_submissions_fn=lambda instance_id: ReportSubmission.query.filter_by(instance_id=instance_id).count(),
+        load_sheet_fields_fn=lambda version_id, sheet_name: ReportTemplateField.query.filter_by(version_id=version_id, sheet_name=sheet_name).all(),
+        column_index_from_string_fn=column_index_from_string,
+        make_submission_cell_fn=ReportSubmissionCell,
+        make_submission_value_fn=ReportSubmissionValue,
+        field_display_name_fn=_field_display_name,
+        make_validation_log_fn=ReportValidationLog,
+        commit_fn=db.session.commit,
+        export_submission_fn=_export_submission,
+        write_submission_backup_fn=_write_submission_backup,
+        rollback_fn=db.session.rollback,
+        logger=current_app.logger,
+        current_session_uid=session.get("uid"),
     )
-    metadata_payload = {"note": payload.get("note", "") if isinstance(payload, dict) else ""}
-    if report_type and report_type.code == "daily":
-        report_date = _resolve_daily_submission_date(cycle, report_date=report_date, instance_id=instance.id)
-        if _has_later_daily_submission(instance.id, report_date):
-            return None, [f"Không thể cập nhật ngày {report_date.strftime('%d/%m/%Y')} vì đã có báo cáo ngày mới hơn."]
-        metadata_payload["report_date"] = report_date.strftime("%Y-%m-%d")
-        metadata_payload["storage_mode"] = "full_snapshot"
-        metadata_payload["entry_values"] = payload_sheets
-        base_submissions = _daily_snapshot_submissions_through_date(instance.id, report_date)
-        base_values = _effective_daily_cell_values(base_submissions, template_version.id)
-        stored_sheet_values = _merge_sheet_values(base_values, payload_sheets)
-
-    submission = ReportSubmission(
-        template_id=template_version.template_id,
-        template_version_id=template_version.id,
-        period_id=period.id if period else cycle.id,
-        report_period=cycle.name,
-        reporting_unit=report_unit.name if report_unit else (session.get("unit_area") or ""),
-        submitted_by=session.get("uid") or instance.assigned_user_id or instance.user_id or 0,
-        instance_id=instance.id,
-        version_no=existing_version + 1,
-        status="submitted" if final_submit else "draft",
-        original_filename=template_version.source_filename,
-        original_file_path=template_version.source_path,
-        processed_file_path="",
-        error_file_path="",
-        total_rows=0,
-        valid_rows=0,
-        invalid_rows=0,
-        warning_count=0,
-        metadata_json=json.dumps(metadata_payload, ensure_ascii=False),
-        note=payload.get("note", "") if isinstance(payload, dict) else "",
-        submitted_at=datetime.now() if final_submit else None,
-    )
-    db.session.add(submission)
-    db.session.flush()
-
-    submission_value_rows = []
-    for sheet_name, cells in stored_sheet_values.items():
-        if sheet_name not in sheets:
-            continue
-        sheet_fields = ReportTemplateField.query.filter_by(
-            version_id=template_version.id,
-            sheet_name=sheet_name,
-        ).all()
-        field_by_col = {f.column_index: f for f in sheet_fields}
-        for cell_address, raw_value in cells.items():
-            col_letters = "".join(ch for ch in cell_address if ch.isalpha())
-            row_digits = "".join(ch for ch in cell_address if ch.isdigit())
-            if not col_letters or not row_digits:
-                continue
-            column_index = column_index_from_string(col_letters)
-            field = field_by_col.get(column_index)
-            field_code = field.field_code if field else ""
-            text_value = "" if raw_value is None else str(raw_value).strip()
-            number_value = None
-            if field and field.data_type in {"number", "float", "decimal"}:
-                try:
-                    number_value = float(text_value.replace(",", ""))
-                except Exception:
-                    number_value = None
-            db.session.add(
-                ReportSubmissionCell(
-                    submission_id=submission.id,
-                    sheet_name=sheet_name,
-                    cell_address=cell_address,
-                    raw_value=text_value,
-                    is_formula=False,
-                    formula_text="",
-                )
-            )
-            if field_code:
-                value_row = ReportSubmissionValue(
-                    submission_id=submission.id,
-                    sheet_name=sheet_name,
-                    field_code=field_code,
-                    cell_address=cell_address,
-                    value_text=text_value,
-                    value_number=number_value,
-                    value_json=json.dumps({"cell": cell_address, "value": text_value}, ensure_ascii=False),
-                )
-                submission_value_rows.append(value_row)
-                db.session.add(value_row)
-        for field in sheet_fields:
-            if field.is_required:
-                has_value = any(
-                    v.sheet_name == sheet_name
-                    and v.field_code == field.field_code
-                    and (v.value_text or v.value_number is not None)
-                    for v in submission_value_rows
-                )
-                if not has_value:
-                    field_label = _field_display_name(field)
-                    errors.append((sheet_name, field_label, "Trường bắt buộc chưa có dữ liệu"))
-                    db.session.add(
-                        ReportValidationLog(
-                            submission_id=submission.id,
-                            sheet_name=sheet_name,
-                            field_code=field.field_code,
-                            cell_address="",
-                            severity="error",
-                            message=f"Trường '{field_label}' chưa có dữ liệu",
-                        )
-                    )
-
-    if errors and final_submit:
-        submission.status = "draft"
-        instance.status = "draft"
-        db.session.commit()
-        return submission, errors
-
-    if final_submit:
-        instance.status = "submitted"
-        instance.submitted_at = datetime.now()
-        instance.locked_at = datetime.now()
-    else:
-        instance.status = "draft"
-        instance.updated_at = datetime.now()
-
-    db.session.commit()
-    try:
-        export_path = _export_submission(submission, values=stored_sheet_values, commit=False)
-        submission.processed_file_path = export_path
-        if final_submit:
-            submission.file_path = export_path
-        _write_submission_backup(submission, stored_sheet_values)
-        db.session.commit()
-    except Exception:
-        current_app.logger.exception("Unable to persist report submission artifacts", exc_info=True)
-        db.session.rollback()
-    return submission, errors
 
 
 def _submission_error_message(errors, fallback):
-    if not errors:
-        return fallback
-    first = errors[0]
-    if isinstance(first, (tuple, list)) and len(first) >= 3:
-        return str(first[2])
-    if isinstance(first, (tuple, list)) and first:
-        return str(first[0])
-    return str(first)
+    return reporting_submission_error_message(errors, fallback)
 
 
 def _export_submission(submission, values=None, commit=True):
-    instance = db.session.get(ReportInstance, submission.instance_id)
-    cycle = db.session.get(ReportCycle, instance.cycle_id)
-    version = db.session.get(ReportTemplateVersion, cycle.template_version_id)
-    output_name = safe_filename(f"{version.template_id}_cycle_{cycle.id}_submission_{submission.id}.xlsx")
-    output_path = os.path.join(current_app.config["REPORT_EXPORT_FOLDER"], output_name)
-    values = _normalize_sheet_values(values or _submission_cell_values(submission.id))
-    write_workbook_copy(version.source_path, output_path, values)
-    job = ReportExportJob(
-        cycle_id=cycle.id,
-        submission_id=submission.id,
-        status="done",
-        output_path=output_path,
-        finished_at=datetime.now(),
+    return reporting_export_submission(
+        submission,
+        values=values,
+        commit=commit,
+        get_instance_fn=lambda instance_id: db.session.get(ReportInstance, instance_id),
+        get_cycle_fn=lambda cycle_id: db.session.get(ReportCycle, cycle_id),
+        get_version_fn=lambda template_version_id: db.session.get(ReportTemplateVersion, template_version_id),
+        safe_filename_fn=safe_filename,
+        report_export_folder=current_app.config["REPORT_EXPORT_FOLDER"],
+        normalize_sheet_values_fn=_normalize_sheet_values,
+        submission_cell_values_fn=_submission_cell_values,
+        write_workbook_copy_fn=write_workbook_copy,
+        make_report_export_job_fn=ReportExportJob,
+        add_fn=db.session.add,
+        commit_fn=db.session.commit,
+        os_path_join_fn=os.path.join,
+        os_path_basename_fn=os.path.basename,
     )
-    db.session.add(job)
-    submission.processed_file_path = output_path
-    if commit:
-        db.session.commit()
-    return output_path
 
 
 @reporting_bp.route("/admin/reports")
@@ -3765,45 +3515,38 @@ def admin_dashboard():
         template.id: (db.session.get(ReportType, template.report_type_id) if template.report_type_id else None)
         for template in templates
     }
-    cycle_status_map = {}
-    cycle_progress_map = {}
-    cycle_deadline_map = {}
-    for cycle in cycles:
-        report_type = _report_type(cycle)
-        progress = _dashboard_cycle_progress(cycle, report_type=report_type, report_date=date.today())
-        cycle_progress_map[cycle.id] = progress
-        cycle_status_map[cycle.id] = _dashboard_cycle_status(
-            cycle,
-            instance=None,
-            report_type=report_type,
-            report_date=date.today(),
-            progress=progress,
-        )
-        cycle_deadline_map[cycle.id] = _cycle_deadline_badge_text(cycle, report_type=report_type)
+    dashboard_maps = build_cycle_dashboard_maps(
+        cycles,
+        date.today(),
+        _report_type,
+        _dashboard_cycle_progress,
+        _dashboard_cycle_status,
+        _cycle_deadline_badge_text,
+    )
     hero_stats = _dashboard_hero_stats(
         cycles,
-        cycle_status_map=cycle_status_map,
-        cycle_progress_map=cycle_progress_map,
+        cycle_status_map=dashboard_maps["cycle_status_map"],
+        cycle_progress_map=dashboard_maps["cycle_progress_map"],
     )
 
     return render_template(
         "reporting_dashboard.html",
-        templates=templates,
-        template_groups=_group_admin_templates(templates),
-        versions=versions,
-        cycles=cycles,
-        units=units,
-        report_types=report_types,
-        professional_units=stable_form_category_options(_professional_unit_options()),
-        recent_submissions=recent_submissions,
-        current_versions=current_versions,
-        template_report_types=template_report_types,
-        cycle_status_map=cycle_status_map,
-        cycle_progress_map=cycle_progress_map,
-        cycle_deadline_map=cycle_deadline_map,
-        hero_stats=hero_stats,
-        can_view_cycle_progress=True,
-        is_admin=True,
+        **build_admin_reporting_dashboard_context(
+            templates,
+            versions,
+            cycles,
+            units,
+            report_types,
+            stable_form_category_options(_professional_unit_options()),
+            recent_submissions,
+            current_versions,
+            template_report_types,
+            dashboard_maps["cycle_status_map"],
+            dashboard_maps["cycle_progress_map"],
+            dashboard_maps["cycle_deadline_map"],
+            hero_stats,
+            _group_admin_templates(templates),
+        ),
     )
 
 
@@ -4820,53 +4563,35 @@ def user_dashboard():
         for instance in instances
         if instance and instance.id
     }
-    cycle_report_types = {
-        cycle.id: _report_type(cycle)
-        for cycle in accessible_cycles
-    }
-    cycle_progress_map = {}
-    cycle_status_map = {}
-    cycle_deadline_map = {}
-    for cycle in accessible_cycles:
-        report_type = cycle_report_types.get(cycle.id)
-        progress = _dashboard_cycle_progress(cycle, report_type=report_type, report_date=dashboard_report_date)
-        cycle_progress_map[cycle.id] = progress
-        cycle_status_map[cycle.id] = _dashboard_cycle_status(
-            cycle,
-            instance=instance_map.get(cycle.id),
-            report_type=report_type,
-            report_date=dashboard_report_date,
-            progress=progress,
-        )
-        cycle_deadline_map[cycle.id] = _cycle_deadline_badge_text(cycle, report_type=report_type)
+    dashboard_maps = build_cycle_dashboard_maps(
+        accessible_cycles,
+        dashboard_report_date,
+        _report_type,
+        _dashboard_cycle_progress,
+        _dashboard_cycle_status,
+        _cycle_deadline_badge_text,
+        instance_map=instance_map,
+    )
     hero_stats = _dashboard_hero_stats(
         accessible_cycles,
-        cycle_status_map=cycle_status_map,
-        cycle_progress_map=cycle_progress_map,
+        cycle_status_map=dashboard_maps["cycle_status_map"],
+        cycle_progress_map=dashboard_maps["cycle_progress_map"],
     )
 
     return render_template(
         "reporting_dashboard.html",
-        templates=[],
-        cycle_groups=_group_cycles_by_professional_unit(accessible_cycles),
-        versions=[],
-        cycles=accessible_cycles,
-        units=[unit] if unit else [],
-        report_types=[],
-        recent_submissions=[],
-        current_versions={},
-        is_admin=is_admin,
-        current_unit=unit,
-        current_user=user,
-        instances=instances,
-        instance_map=instance_map,
-        latest_submission_map=latest_submission_map,
-        cycle_report_types=cycle_report_types,
-        cycle_progress_map=cycle_progress_map,
-        cycle_status_map=cycle_status_map,
-        cycle_deadline_map=cycle_deadline_map,
-        hero_stats=hero_stats,
-        can_view_cycle_progress=can_view_cycle_progress,
+        **build_user_reporting_dashboard_context(
+            user,
+            unit,
+            instances,
+            latest_submission_map,
+            dashboard_maps,
+            hero_stats,
+            accessible_cycles,
+            can_view_cycle_progress,
+            is_admin,
+            _group_cycles_by_professional_unit(accessible_cycles),
+        ),
     )
 
 
@@ -4920,69 +4645,23 @@ def cycle_workspace(cycle_id):
         unit=unit,
         report_date=report_date,
     )
-    sheet_views = []
-    for sheet_meta in metadata.get("sheets", []):
-        ws = workbook[sheet_meta["sheet_name"]]
-        sheet_fields = ReportTemplateField.query.filter_by(version_id=template_version.id, sheet_name=sheet_meta["sheet_name"]).order_by(ReportTemplateField.display_order.asc()).all()
-        editable_fields = [field for field in sheet_fields if field.is_visible and field.is_editable]
-        if not editable_fields:
-            editable_fields = [field for field in sheet_fields if field.is_editable]
-        _, header_end_row = _sheet_header_range(sheet_meta)
-        candidate_row_indexes = _sheet_input_row_indexes(sheet_meta)
-        should_filter_by_unit = (not report_admin_mode) and bool(unit) and _sheet_has_unit_identity_fields(sheet_fields)
-        row_entries = []
-        for row_index in candidate_row_indexes:
-            if ws.row_dimensions[row_index].hidden:
-                continue
-            if should_filter_by_unit and not _row_matches_unit(
-                ws,
-                sheet_fields,
-                existing_values,
-                sheet_meta["sheet_name"],
-                row_index,
-                unit,
-            ):
-                continue
-            inputs = []
-            for field in editable_fields:
-                coord = f"{field.column_letter}{row_index}"
-                value = existing_values.get(sheet_meta["sheet_name"], {}).get(coord, ws[coord].value)
-                inputs.append({
-                    "cell_address": coord,
-                    "value": _cell_display_value(value),
-                    "field_code": field.field_code,
-                    "field_label": _field_display_name(field),
-                    "field_path": " / ".join(_field_levels(field)[:-1]) if len(_field_levels(field)) > 1 else "",
-                })
-            if inputs:
-                row_entries.append({
-                    "excel_row": row_index,
-                    "title": _row_context_label(ws, sheet_fields, existing_values, sheet_meta["sheet_name"], row_index),
-                    "inputs": inputs,
-                })
-        warning = ""
-        if should_filter_by_unit and not row_entries:
-            warning = (
-                f"Chưa tìm thấy dòng nào trên sheet '{sheet_meta['sheet_name']}' khớp với đơn vị "
-                f"'{unit.name}'. Hãy kiểm tra cột đơn vị trong file Excel hoặc tên đơn vị của tài khoản."
-            )
-        sheet_views.append({
-            "sheet_name": sheet_meta["sheet_name"],
-            "field_count": len(sheet_meta.get("fields", [])),
-            "input_count": len(editable_fields),
-            "rows": row_entries,
-            "warning": warning,
-            "config": {
-                "header_start_row": sheet_meta.get("header_start_row"),
-                "header_end_row": sheet_meta.get("header_end_row"),
-                "unit_start_row": sheet_meta.get("unit_start_row") or sheet_meta.get("data_start_row"),
-                "unit_end_row": sheet_meta.get("unit_end_row") or sheet_meta.get("data_end_row"),
-                "total_start_row": sheet_meta.get("total_start_row"),
-                "total_end_row": sheet_meta.get("total_end_row"),
-                "start_column": sheet_meta.get("start_column"),
-                "end_column": sheet_meta.get("end_column"),
-            },
-        })
+    sheet_views = build_cycle_workspace_sheet_views(
+        metadata,
+        workbook,
+        template_version.id,
+        report_admin_mode,
+        unit,
+        existing_values,
+        lambda version_id, sheet_name: ReportTemplateField.query.filter_by(version_id=version_id, sheet_name=sheet_name).order_by(ReportTemplateField.display_order.asc()).all(),
+        _sheet_header_range,
+        _sheet_input_row_indexes,
+        _sheet_has_unit_identity_fields,
+        _row_matches_unit,
+        _cell_display_value,
+        _field_display_name,
+        _field_levels,
+        _row_context_label,
+    )
     form_user = _report_user()
     form_sections = _dea06_form_sections(template, unit, form_user, sheet_views)
 
@@ -5063,34 +4742,16 @@ def cycle_preview(cycle_id):
         flash("Trên mobile, giao diện xem báo cáo đã được ẩn. Vui lòng theo dõi tiến độ hoặc tải file khi có sẵn.", "info")
         return redirect(back_url)
     workbook, formula_values = build_preview_workbook(template_version.source_path, existing_values)
-    preview_sheets = []
-    for sheet_meta in metadata.get("sheets", []):
-        ws = workbook[sheet_meta["sheet_name"]]
-        start_row, header_end_row = _sheet_header_range(sheet_meta)
-        unit_end_row = int(sheet_meta.get("unit_end_row") or sheet_meta.get("data_end_row") or header_end_row + 1)
-        total_end_row = int(sheet_meta.get("total_end_row") or 0)
-        start_col = column_index_from_string(sheet_meta.get("start_column") or "A")
-        end_col = column_index_from_string(sheet_meta.get("end_column") or sheet_meta.get("start_column") or "A")
-        sheet_values = {
-            **existing_values.get(sheet_meta["sheet_name"], {}),
-            **formula_values.get(sheet_meta["sheet_name"], {}),
-        }
-        sticky_col = _preferred_sticky_column(sheet_meta, ws, sheet_values)
-        preview_sheets.append({
-            "sheet_name": sheet_meta["sheet_name"],
-            "html": render_sheet_html(
-                ws,
-                editable_values=sheet_values,
-                field_lookup={},
-                editable=False,
-                start_row=start_row,
-                end_row=max(unit_end_row, total_end_row or 0),
-                min_col=start_col,
-                max_col=end_col,
-                header_end_row=header_end_row,
-                sticky_first_col=sticky_col,
-            ),
-        })
+    preview_sheets = build_cycle_preview_sheets(
+        metadata,
+        workbook,
+        existing_values,
+        formula_values,
+        _sheet_header_range,
+        column_index_from_string,
+        _preferred_sticky_column,
+        render_sheet_html,
+    )
     return render_template(
         "report_cycle_preview.html",
         cycle=cycle,
@@ -5136,124 +4797,76 @@ def cycle_history(cycle_id):
     )
     return render_template(
         "report_cycle_history.html",
-        cycle=context["cycle"],
-        template=context["template"],
-        report_type=context["report_type"],
-        report_date=context["report_date"],
-        report_date_str=context["report_date"].strftime("%d/%m/%Y") if context["report_date"] else "",
-        current_unit=context["unit"],
-        latest_submission=context["view_submission"],
-        history_rows=history_rows,
-        is_admin=_can_manage_report_templates(),
-        back_url=back_url,
+        **build_cycle_history_context(
+            context,
+            history_rows,
+            _can_manage_report_templates(),
+            back_url,
+        ),
     )
 
 
 def _payload_from_request():
-    payload = request.form.get("payload_json")
-    if payload:
-        try:
-            return json.loads(payload)
-        except Exception:
-            return {}
-    if request.is_json:
-        return request.get_json(silent=True) or {}
-    return {}
+    return reporting_payload_from_request(request)
 
 
 def _workspace_route_values(cycle, unit=None, report_date=None):
-    values = {"cycle_id": cycle.id}
-    if unit and _can_manage_report_templates():
-        values["unit_id"] = unit.id
-    if report_date:
-        values["report_date"] = report_date.strftime("%Y-%m-%d")
-    return values
+    return reporting_workspace_route_values(
+        cycle,
+        unit=unit,
+        report_date=report_date,
+        can_manage_templates=_can_manage_report_templates(),
+    )
 
 
 def _safe_back_url(raw_value):
-    value = str(raw_value or "").strip()
-    if not value or not value.startswith("/") or value.startswith("//"):
-        return ""
-    return value
+    return reporting_safe_back_url(raw_value)
 
 
 def _default_cycle_back_url(cycle, report_date=None, is_admin=False):
-    if is_admin:
-        values = {}
-        if report_date:
-            values["report_date"] = report_date.strftime("%Y-%m-%d")
-        return url_for("reporting_bp.admin_cycle_detail", cycle_id=cycle.id, **values)
-    return url_for("reporting_bp.user_dashboard")
+    return reporting_default_cycle_back_url(
+        cycle,
+        url_for,
+        report_date=report_date,
+        is_admin=is_admin,
+    )
 
 
 def _route_with_back(endpoint, cycle, back_url="", unit=None, report_date=None):
-    values = _workspace_route_values(cycle, unit=unit, report_date=report_date)
-    if back_url:
-        values["back"] = back_url
-    return url_for(endpoint, **values)
+    return reporting_route_with_back(
+        endpoint,
+        cycle,
+        url_for,
+        back_url=back_url,
+        unit=unit,
+        report_date=report_date,
+        can_manage_templates=_can_manage_report_templates(),
+    )
 
 
 def _resolve_cycle_context(cycle_id, prefer_all_units=False):
-    _finalize_due_daily_cycles(cycle_id=cycle_id)
-    cycle = db.session.get(ReportCycle, cycle_id)
-    if not cycle:
-        return None
-    admin_all_units = prefer_all_units and _can_manage_report_templates() and not request.values.get("unit_id")
-    unit = None if admin_all_units else _resolve_cycle_unit(cycle)
-    if not _cycle_accessible(cycle, unit.id if unit else None, _can_manage_report_templates()):
-        return None
-    user = db.session.get(User, session.get("uid"))
-    instance = None if admin_all_units else _get_cycle_instance(cycle, unit, user)
-    template_version = db.session.get(ReportTemplateVersion, cycle.template_version_id)
-    template = db.session.get(ReportTemplate, template_version.template_id)
-    report_type = _report_type(cycle)
-    view_locked = _is_cycle_view_locked(cycle)
-    report_date = None
-    if report_type and report_type.code == "daily":
-        requested_report_date = _parse_date(request.args.get("report_date", ""))
-        if view_locked:
-            # Daily reports must stay pinned to the last effective day once the cycle is locked/expired.
-            report_date = _effective_daily_cutoff_date(cycle, instance.id if instance else None)
-        elif requested_report_date:
-            report_date = requested_report_date
-        else:
-            report_date = date.today()
-    entry_state = _resolve_entry_submission_state(
-        instance,
-        template_version,
-        report_type=report_type,
-        report_date=report_date,
+    return reporting_resolve_cycle_context(
+        cycle_id,
+        prefer_all_units,
+        _can_manage_report_templates(),
+        request.values.get("unit_id"),
+        request.args.get("report_date", ""),
+        _finalize_due_daily_cycles,
+        lambda requested_cycle_id: db.session.get(ReportCycle, requested_cycle_id),
+        _resolve_cycle_unit,
+        _cycle_accessible,
+        lambda: db.session.get(User, session.get("uid")),
+        _get_cycle_instance,
+        lambda template_version_id: db.session.get(ReportTemplateVersion, template_version_id),
+        lambda template_id: db.session.get(ReportTemplate, template_id),
+        _report_type,
+        _is_cycle_view_locked,
+        _parse_date,
+        _effective_daily_cutoff_date,
+        _resolve_entry_submission_state,
+        _resolve_working_submission_state,
+        _resolve_effective_instance_state,
     )
-    working_state = _resolve_working_submission_state(
-        instance,
-        template_version,
-        report_type=report_type,
-        report_date=report_date,
-    )
-    effective_state = _resolve_effective_instance_state(
-        instance,
-        cycle,
-        template_version,
-        report_type=report_type,
-    )
-    return {
-        "cycle": cycle,
-        "unit": unit,
-        "user": user,
-        "instance": instance,
-        "template_version": template_version,
-        "template": template,
-        "report_type": report_type,
-        "report_date": effective_state["report_date"] if view_locked and effective_state.get("report_date") else report_date,
-        "latest_submission": effective_state["latest_submission"] if view_locked else entry_state["latest_submission"],
-        "submission_history": effective_state["history"] if view_locked else entry_state["history"],
-        "entry_values": effective_state["existing_values"] if view_locked else entry_state["existing_values"],
-        "view_submission": effective_state["latest_submission"] if view_locked else working_state["latest_submission"],
-        "view_history": effective_state["history"] if view_locked else working_state["history"],
-        "working_values": effective_state["existing_values"] if view_locked else working_state["existing_values"],
-        "daily_submissions": effective_state["daily_submissions"] if view_locked else working_state["daily_submissions"],
-        "view_locked": view_locked,
-    }
 
 
 @reporting_bp.route("/reports/cycles/<int:cycle_id>/save", methods=["POST"])

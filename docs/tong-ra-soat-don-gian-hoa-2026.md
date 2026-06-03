@@ -95,6 +95,9 @@ Tất cả menu và nút bấm nên bám đúng 3 tầng này.
 - Tách tiếp lớp `scope/policy` của `Task` sang module riêng để gom logic phân quyền, kế thừa quyền cha-con và serialize phạm vi xử lý/xem khỏi `routes/tasks.py`, đồng thời thêm test đơn vị riêng cho lớp này.
 - Tách thêm lớp `read model` của `Task` sang module riêng để gom logic dựng nhóm đề cương, danh sách nộp file/biểu mẫu và metadata field khỏi `routes/tasks.py`, đồng thời thêm test đơn vị riêng cho lớp này.
 - Tách luôn lớp `page builder` của `Task` để gom điều phối danh sách/chi tiết `Task` ra khỏi route, giúp `routes/tasks.py` quay về vai trò nhận request, kiểm quyền, gọi builder và render.
+- Bắt đầu áp dụng cùng mô hình cho `reporting`: tách `policy` và `page builder` của dashboard/workspace ra khỏi `routes/reporting.py` để chuẩn bị bóc tiếp `read model` và `services`.
+- Tách tiếp lớp `service` của `reporting` cho phần `cycle context`, `route values` và `back-url`, giúp route workspace/report preview bớt giữ logic điều hướng và resolve trạng thái lõi.
+- Tách thêm lớp `read model` và `submission service` của `reporting` để gom logic `history/export state` và `save/submit/export submission` ra khỏi route, đưa `routes/reporting.py` gần hơn với vai trò điều phối thuần.
 
 ## 6. Ưu tiên tiếp theo
 
