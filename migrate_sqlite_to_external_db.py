@@ -43,6 +43,11 @@ def _create_table_on_target(target_table, target_conn, dialect_name):
     target_table.create(bind=target_conn)
 
 
+def _set_target_session_guards(target_conn, dialect_name, enabled):
+    if dialect_name in {"mysql", "mariadb"}:
+        target_conn.execute(text(f"SET FOREIGN_KEY_CHECKS = {1 if enabled else 0}"))
+
+
 def migrate(source_sqlite_path, target_url, apply=False, chunk_size=500):
     source_path = os.path.abspath(source_sqlite_path)
     if not os.path.exists(source_path):
@@ -71,41 +76,45 @@ def migrate(source_sqlite_path, target_url, apply=False, chunk_size=500):
 
     with source_engine.connect() as source_conn, target_engine.begin() as target_conn:
         target_dialect = target_engine.dialect.name
-        for source_table in source_meta.sorted_tables:
-            summary["tables_seen"] += 1
-            table_name = source_table.name
-            if table_name not in target_inspector.get_table_names():
-                target_table = _prepare_table_for_target(source_table, target_meta, target_dialect)
-                _create_table_on_target(target_table, target_conn, target_dialect)
-                summary["tables_created"] += 1
-                target_inspector = inspect(target_engine)
+        _set_target_session_guards(target_conn, target_dialect, enabled=False)
+        try:
+            for source_table in source_meta.sorted_tables:
+                summary["tables_seen"] += 1
+                table_name = source_table.name
+                if table_name not in target_inspector.get_table_names():
+                    target_table = _prepare_table_for_target(source_table, target_meta, target_dialect)
+                    _create_table_on_target(target_table, target_conn, target_dialect)
+                    summary["tables_created"] += 1
+                    target_inspector = inspect(target_engine)
 
-            target_table = target_meta.tables.get(table_name)
-            if target_table is None:
-                target_meta.clear()
-                target_meta.reflect(bind=target_engine, only=[table_name])
-                target_table = target_meta.tables[table_name]
+                target_table = target_meta.tables.get(table_name)
+                if target_table is None:
+                    target_meta.clear()
+                    target_meta.reflect(bind=target_engine, only=[table_name])
+                    target_table = target_meta.tables[table_name]
 
-            source_total = source_conn.execute(text(f'SELECT COUNT(*) FROM "{table_name}"')).scalar() or 0
-            existing_total = target_conn.execute(text(f"SELECT COUNT(*) FROM `{table_name}`")).scalar() or 0
-            summary["rows_existing"] += existing_total
-            if existing_total:
-                summary["tables_skipped_non_empty"] += 1
-                print(f"SKIP table={table_name} existing_rows={existing_total} source_rows={source_total}")
-                continue
-
-            print(f"TABLE table={table_name} source_rows={source_total}")
-            if not apply:
-                continue
-
-            copied = 0
-            for batch in _row_batches(source_conn, source_table, chunk_size):
-                if not batch:
+                source_total = source_conn.execute(text(f'SELECT COUNT(*) FROM "{table_name}"')).scalar() or 0
+                existing_total = target_conn.execute(text(f"SELECT COUNT(*) FROM `{table_name}`")).scalar() or 0
+                summary["rows_existing"] += existing_total
+                if existing_total:
+                    summary["tables_skipped_non_empty"] += 1
+                    print(f"SKIP table={table_name} existing_rows={existing_total} source_rows={source_total}")
                     continue
-                target_conn.execute(target_table.insert(), batch)
-                copied += len(batch)
-            summary["rows_copied"] += copied
-            print(f"  COPIED rows={copied}")
+
+                print(f"TABLE table={table_name} source_rows={source_total}")
+                if not apply:
+                    continue
+
+                copied = 0
+                for batch in _row_batches(source_conn, source_table, chunk_size):
+                    if not batch:
+                        continue
+                    target_conn.execute(target_table.insert(), batch)
+                    copied += len(batch)
+                summary["rows_copied"] += copied
+                print(f"  COPIED rows={copied}")
+        finally:
+            _set_target_session_guards(target_conn, target_dialect, enabled=True)
     return summary
 
 
