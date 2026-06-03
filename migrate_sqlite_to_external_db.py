@@ -18,6 +18,19 @@ def _row_batches(connection, table, chunk_size):
         yield [dict(row._mapping) for row in rows]
 
 
+def _prepare_table_for_target(source_table, target_meta, dialect_name):
+    target_table = source_table.to_metadata(target_meta)
+
+    if dialect_name in {"mysql", "mariadb"}:
+        target_table.dialect_options["mysql"]["charset"] = "utf8mb4"
+        for column in target_table.columns:
+            # SQLite defaults are only useful for runtime DDL; when migrating data
+            # into MySQL they can break table creation due to collation/sql_mode differences.
+            column.server_default = None
+
+    return target_table
+
+
 def migrate(source_sqlite_path, target_url, apply=False, chunk_size=500):
     source_path = os.path.abspath(source_sqlite_path)
     if not os.path.exists(source_path):
@@ -45,11 +58,12 @@ def migrate(source_sqlite_path, target_url, apply=False, chunk_size=500):
     }
 
     with source_engine.connect() as source_conn, target_engine.begin() as target_conn:
+        target_dialect = target_engine.dialect.name
         for source_table in source_meta.sorted_tables:
             summary["tables_seen"] += 1
             table_name = source_table.name
             if table_name not in target_inspector.get_table_names():
-                source_table.to_metadata(target_meta).create(bind=target_conn)
+                _prepare_table_for_target(source_table, target_meta, target_dialect).create(bind=target_conn)
                 summary["tables_created"] += 1
                 target_inspector = inspect(target_engine)
 
