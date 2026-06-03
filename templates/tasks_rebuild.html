@@ -2,161 +2,542 @@
 
 {% block title %}Công việc{% endblock %}
 
+{% macro task_card(task) -%}
+<article class="task-workspace-card task-tone-{{ task.workspace_tone }}">
+    <div class="task-card-top">
+        <div class="task-card-tags">
+            <span class="task-pill task-pill-{{ task.workspace_tone }}">{{ task.workspace_status_text }}</span>
+            <span class="task-pill task-pill-mode">{{ task.task_mode_label }}</span>
+        </div>
+        <a href="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" class="task-card-link">{{ task.workspace_action_label }}</a>
+    </div>
+    <div class="task-card-main">
+        <h3>{{ task.title }}</h3>
+        <p>{{ task.workspace_preview_text }}</p>
+    </div>
+    <div class="task-card-meta">
+        <span>{{ task.domain_display or 'Chưa phân đội' }}</span>
+        <span>{{ task.workspace_deadline_text }}</span>
+        <span>{{ task.workspace_meta_text }}</span>
+    </div>
+    <div class="task-progress-line">
+        <div class="task-progress-bar">
+            <span style="width: {{ task.progress_percent }}%;"></span>
+        </div>
+        <strong>{{ task.progress_percent }}%</strong>
+    </div>
+</article>
+{%- endmacro %}
+
 {% block content %}
-<div class="container py-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+<div class="task-workspace-shell">
+    <section class="task-workspace-hero">
         <div>
-            <h1 class="mb-1">Công việc</h1>
-            <p class="text-muted mb-0">Phân hệ giao việc được xây lại theo 3 chế độ: đề cương, nộp file và biểu mẫu.</p>
+            <div class="task-workspace-eyebrow">Trung tâm giao việc</div>
+            <h1>Công việc</h1>
+            <p>Danh sách được tổ chức theo việc cần làm thực tế: việc của bạn, việc bạn đang theo dõi và các việc chỉ cần tra cứu.</p>
         </div>
         {% if is_lead or is_admin %}
-        <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+        <button class="btn btn-bdhvs primary task-create-btn" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
             <i class="fa-solid fa-plus"></i>
             Tạo công việc
         </button>
         {% endif %}
-    </div>
+    </section>
 
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="text-muted small mb-1">Tổng công việc</div>
-                    <div class="fs-3 fw-bold">{{ stats.total }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="text-muted small mb-1">Theo đề cương</div>
-                    <div class="fs-3 fw-bold">{{ stats.outline }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="text-muted small mb-1">Nộp file</div>
-                    <div class="fs-3 fw-bold">{{ stats.file }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="text-muted small mb-1">Biểu mẫu</div>
-                    <div class="fs-3 fw-bold">{{ stats.form }}</div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <section class="task-metric-grid">
+        <article class="task-metric-card danger">
+            <span>Cần xử lý ngay</span>
+            <strong>{{ stats.attention }}</strong>
+        </article>
+        <article class="task-metric-card primary">
+            <span>Việc tôi nhận</span>
+            <strong>{{ stats.my }}</strong>
+        </article>
+        <article class="task-metric-card warning">
+            <span>Tôi giao hoặc theo dõi</span>
+            <strong>{{ stats.managed }}</strong>
+        </article>
+        <article class="task-metric-card success">
+            <span>Đã hoàn tất</span>
+            <strong>{{ stats.completed }}</strong>
+        </article>
+    </section>
 
-    <div class="row g-4">
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div>
-                            <h2 class="h4 mb-1">Theo đề cương</h2>
-                            <div class="text-muted small">Tạo đợt giao việc, thêm đầu mục và giao từng mục cho đơn vị.</div>
-                        </div>
-                        <span class="badge bg-primary-subtle text-primary">{{ outline_tasks|length }} việc</span>
-                    </div>
-                    {% if outline_tasks %}
-                    <div class="list-group list-group-flush">
-                        {% for task in outline_tasks %}
-                        <a href="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" class="list-group-item list-group-item-action border rounded mb-2">
-                            <div class="d-flex justify-content-between align-items-start gap-3">
-                                <div>
-                                    <div class="fw-semibold">{{ task.title }}</div>
-                                    <div class="small text-muted">{{ task.domain_display or 'Chưa phân đội' }}</div>
-                                    <div class="small text-muted">{{ task.content or 'Chưa có mô tả' }}</div>
-                                </div>
-                                <div class="text-end">
-                                    <div class="small text-muted">{{ task.progress_percent }}%</div>
-                                    <div class="small">{{ task.submitted_assignments }}/{{ task.assignee_count }} lượt nộp</div>
-                                </div>
-                            </div>
-                        </a>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <div class="text-muted">Chưa có công việc theo đề cương.</div>
-                    {% endif %}
-                </div>
+    {% if attention_tasks %}
+    <section class="task-panel">
+        <div class="task-panel-head">
+            <div>
+                <h2>Cần xử lý ngay</h2>
+                <p>Ưu tiên các việc quá hạn, sắp đến hạn hoặc việc được giao trực tiếp cho bạn mà chưa hoàn thành.</p>
             </div>
         </div>
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div>
-                            <h2 class="h4 mb-1">Nộp file</h2>
-                            <div class="text-muted small">Giao trực tiếp cho đơn vị hoặc cán bộ và nhận file báo cáo.</div>
-                        </div>
-                        <span class="badge bg-success-subtle text-success">{{ file_tasks|length }} việc</span>
-                    </div>
-                    {% if file_tasks %}
-                    <div class="list-group list-group-flush">
-                        {% for task in file_tasks %}
-                        <a href="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" class="list-group-item list-group-item-action border rounded mb-2">
-                            <div class="d-flex justify-content-between align-items-start gap-3">
-                                <div>
-                                    <div class="fw-semibold">{{ task.title }}</div>
-                                    <div class="small text-muted">{{ task.domain_display or 'Chưa phân đội' }}</div>
-                                    <div class="small text-muted">{{ task.content or 'Chưa có mô tả' }}</div>
-                                </div>
-                                <div class="text-end">
-                                    <div class="small text-muted">{{ task.progress_percent }}%</div>
-                                    <div class="small">{{ task.submitted_assignments }}/{{ task.assignee_count }} lượt nộp</div>
-                                </div>
-                            </div>
-                        </a>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <div class="text-muted">Chưa có công việc nộp file.</div>
-                    {% endif %}
-                </div>
-            </div>
+        <div class="task-highlight-grid">
+            {% for task in attention_tasks[:4] %}
+            {{ task_card(task) }}
+            {% endfor %}
         </div>
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div>
-                            <h2 class="h4 mb-1">Biểu mẫu</h2>
-                            <div class="text-muted small">Thu thập dữ liệu động để tổng hợp số liệu và xuất Excel.</div>
-                        </div>
-                        <span class="badge bg-warning-subtle text-warning">{{ form_tasks|length }} việc</span>
+    </section>
+    {% endif %}
+
+    <section class="task-board-grid">
+        <div class="task-board-main">
+            <section class="task-panel">
+                <div class="task-panel-head">
+                    <div>
+                        <h2>Việc của tôi</h2>
+                        <p>Các việc bạn được giao trực tiếp để tiếp nhận, xử lý và nộp kết quả.</p>
                     </div>
-                    {% if form_tasks %}
-                    <div class="list-group list-group-flush">
-                        {% for task in form_tasks %}
-                        <a href="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" class="list-group-item list-group-item-action border rounded mb-2">
-                            <div class="d-flex justify-content-between align-items-start gap-3">
-                                <div>
-                                    <div class="fw-semibold">{{ task.title }}</div>
-                                    <div class="small text-muted">{{ task.domain_display or 'Chưa phân đội' }}</div>
-                                    <div class="small text-muted">{{ task.content or 'Chưa có mô tả' }}</div>
-                                </div>
-                                <div class="text-end">
-                                    <div class="small text-muted">{{ task.progress_percent }}%</div>
-                                    <div class="small">{{ task.submitted_assignments }}/{{ task.assignee_count }} lượt nộp</div>
-                                </div>
-                            </div>
-                        </a>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <div class="text-muted">Chưa có công việc biểu mẫu.</div>
-                    {% endif %}
+                    <span class="task-count-chip">{{ my_tasks|length }} việc</span>
                 </div>
-            </div>
+                {% if my_tasks %}
+                <div class="task-card-stack">
+                    {% for task in my_tasks %}
+                    {{ task_card(task) }}
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="task-empty-state">Hiện chưa có việc nào được giao trực tiếp cho bạn.</div>
+                {% endif %}
+            </section>
+
+            <section class="task-panel">
+                <div class="task-panel-head">
+                    <div>
+                        <h2>Tôi giao hoặc đang theo dõi</h2>
+                        <p>Những đợt công việc bạn tạo hoặc có quyền điều phối để kiểm tra tiến độ chung.</p>
+                    </div>
+                    <span class="task-count-chip">{{ managed_tasks|length }} việc</span>
+                </div>
+                {% if managed_tasks %}
+                <div class="task-card-stack">
+                    {% for task in managed_tasks %}
+                    {{ task_card(task) }}
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="task-empty-state">Chưa có công việc nào thuộc nhóm bạn điều phối hoặc theo dõi.</div>
+                {% endif %}
+            </section>
         </div>
-    </div>
+
+        <aside class="task-board-side">
+            <section class="task-panel">
+                <div class="task-panel-head">
+                    <div>
+                        <h2>Chỉ xem và tra cứu</h2>
+                        <p>Các công việc bạn được cấp quyền xem để nắm tình hình, không phải trực tiếp xử lý.</p>
+                    </div>
+                    <span class="task-count-chip">{{ watch_tasks|length }} việc</span>
+                </div>
+                {% if watch_tasks %}
+                <div class="task-card-stack">
+                    {% for task in watch_tasks[:6] %}
+                    {{ task_card(task) }}
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="task-empty-state">Không có công việc chỉ xem riêng.</div>
+                {% endif %}
+            </section>
+
+            <section class="task-panel">
+                <div class="task-panel-head">
+                    <div>
+                        <h2>Tổng quan hình thức</h2>
+                        <p>Phần này chỉ để nhìn nhanh toàn cục, không còn là cách tổ chức chính của danh sách.</p>
+                    </div>
+                </div>
+                <div class="task-mode-stack">
+                    <div class="task-mode-item">
+                        <span>Theo đề cương</span>
+                        <strong>{{ stats.outline }}</strong>
+                    </div>
+                    <div class="task-mode-item">
+                        <span>Nộp file</span>
+                        <strong>{{ stats.file }}</strong>
+                    </div>
+                    <div class="task-mode-item">
+                        <span>Biểu mẫu</span>
+                        <strong>{{ stats.form }}</strong>
+                    </div>
+                    <div class="task-mode-item">
+                        <span>Tổng công việc</span>
+                        <strong>{{ stats.total }}</strong>
+                    </div>
+                </div>
+            </section>
+        </aside>
+    </section>
 </div>
+
+<style>
+    .task-workspace-shell {
+        display: grid;
+        gap: 24px;
+    }
+
+    .task-workspace-hero,
+    .task-panel,
+    .task-metric-card,
+    .task-workspace-card {
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
+    }
+
+    .task-workspace-hero {
+        padding: 28px;
+        border-radius: 28px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 20px;
+    }
+
+    .task-workspace-eyebrow {
+        display: inline-flex;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.1);
+        color: #1d4ed8;
+        font-size: 0.8rem;
+        font-weight: 800;
+        margin-bottom: 12px;
+    }
+
+    .task-workspace-hero h1 {
+        margin: 0 0 10px;
+        font-size: clamp(2rem, 3vw, 2.6rem);
+        font-weight: 900;
+    }
+
+    .task-workspace-hero p,
+    .task-panel-head p,
+    .task-card-main p {
+        margin: 0;
+        color: var(--text-muted);
+        line-height: 1.6;
+    }
+
+    .task-create-btn {
+        white-space: nowrap;
+    }
+
+    .task-metric-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .task-metric-card {
+        border-radius: 22px;
+        padding: 18px 20px;
+        display: grid;
+        gap: 8px;
+    }
+
+    .task-metric-card span {
+        color: var(--text-muted);
+        font-weight: 700;
+    }
+
+    .task-metric-card strong {
+        font-size: 2rem;
+        line-height: 1;
+    }
+
+    .task-metric-card.primary {
+        background: linear-gradient(145deg, rgba(219, 234, 254, 0.95), rgba(255, 255, 255, 0.96));
+    }
+
+    .task-metric-card.warning {
+        background: linear-gradient(145deg, rgba(254, 243, 199, 0.95), rgba(255, 255, 255, 0.96));
+    }
+
+    .task-metric-card.success {
+        background: linear-gradient(145deg, rgba(220, 252, 231, 0.95), rgba(255, 255, 255, 0.96));
+    }
+
+    .task-metric-card.danger {
+        background: linear-gradient(145deg, rgba(254, 226, 226, 0.95), rgba(255, 255, 255, 0.96));
+    }
+
+    .task-panel {
+        padding: 22px;
+        border-radius: 26px;
+    }
+
+    .task-panel-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+    }
+
+    .task-panel-head h2 {
+        margin: 0 0 6px;
+        font-size: 1.2rem;
+        font-weight: 800;
+    }
+
+    .task-count-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 88px;
+        height: 38px;
+        padding: 0 14px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.09);
+        color: #1d4ed8;
+        font-weight: 800;
+    }
+
+    .task-highlight-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .task-board-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.9fr);
+        gap: 24px;
+    }
+
+    .task-board-main,
+    .task-board-side,
+    .task-card-stack,
+    .task-mode-stack {
+        display: grid;
+        gap: 16px;
+    }
+
+    .task-workspace-card {
+        padding: 18px;
+        border-radius: 22px;
+    }
+
+    .task-tone-danger {
+        border-color: rgba(239, 68, 68, 0.18);
+        background: linear-gradient(145deg, rgba(254, 242, 242, 0.96), rgba(255, 255, 255, 0.96));
+    }
+
+    .task-tone-warning {
+        border-color: rgba(245, 158, 11, 0.18);
+        background: linear-gradient(145deg, rgba(255, 251, 235, 0.96), rgba(255, 255, 255, 0.96));
+    }
+
+    .task-tone-success {
+        border-color: rgba(16, 185, 129, 0.18);
+        background: linear-gradient(145deg, rgba(240, 253, 244, 0.96), rgba(255, 255, 255, 0.96));
+    }
+
+    .task-tone-muted,
+    .task-tone-info {
+        background: linear-gradient(145deg, rgba(248, 250, 252, 0.96), rgba(255, 255, 255, 0.96));
+    }
+
+    .task-card-top,
+    .task-progress-line {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .task-card-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .task-pill {
+        display: inline-flex;
+        align-items: center;
+        height: 30px;
+        padding: 0 12px;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 800;
+    }
+
+    .task-pill-danger {
+        background: rgba(239, 68, 68, 0.12);
+        color: #b91c1c;
+    }
+
+    .task-pill-warning {
+        background: rgba(245, 158, 11, 0.14);
+        color: #b45309;
+    }
+
+    .task-pill-success {
+        background: rgba(16, 185, 129, 0.14);
+        color: #047857;
+    }
+
+    .task-pill-muted,
+    .task-pill-info {
+        background: rgba(148, 163, 184, 0.14);
+        color: #475569;
+    }
+
+    .task-pill-mode {
+        background: rgba(37, 99, 235, 0.1);
+        color: #1d4ed8;
+    }
+
+    .task-card-link {
+        color: var(--primary);
+        text-decoration: none;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .task-card-main {
+        margin: 14px 0;
+    }
+
+    .task-card-main h3 {
+        margin: 0 0 8px;
+        font-size: 1.05rem;
+        font-weight: 800;
+    }
+
+    .task-card-main p {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .task-card-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        color: var(--text-muted);
+        font-size: 0.88rem;
+        font-weight: 700;
+        margin-bottom: 12px;
+    }
+
+    .task-progress-line strong {
+        min-width: 42px;
+        text-align: right;
+        font-size: 0.92rem;
+    }
+
+    .task-progress-bar {
+        height: 8px;
+        flex: 1;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.18);
+        overflow: hidden;
+    }
+
+    .task-progress-bar span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #2563eb, #38bdf8);
+    }
+
+    .task-empty-state {
+        padding: 28px 18px;
+        border-radius: 20px;
+        border: 1px dashed rgba(148, 163, 184, 0.3);
+        background: rgba(248, 250, 252, 0.8);
+        color: var(--text-muted);
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .task-mode-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+        border-radius: 18px;
+        background: rgba(248, 250, 252, 0.9);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .task-mode-item span {
+        color: var(--text-muted);
+        font-weight: 700;
+    }
+
+    .task-mode-item strong {
+        font-size: 1.2rem;
+    }
+
+    [data-theme="dark"] .task-workspace-hero,
+    [data-theme="dark"] .task-panel,
+    [data-theme="dark"] .task-metric-card,
+    [data-theme="dark"] .task-workspace-card {
+        background: rgba(15, 23, 42, 0.84);
+        border-color: rgba(148, 163, 184, 0.18);
+        box-shadow: 0 18px 45px rgba(2, 6, 23, 0.34);
+    }
+
+    [data-theme="dark"] .task-tone-danger {
+        background: linear-gradient(145deg, rgba(69, 10, 10, 0.55), rgba(15, 23, 42, 0.84));
+    }
+
+    [data-theme="dark"] .task-tone-warning {
+        background: linear-gradient(145deg, rgba(69, 26, 3, 0.55), rgba(15, 23, 42, 0.84));
+    }
+
+    [data-theme="dark"] .task-tone-success {
+        background: linear-gradient(145deg, rgba(6, 78, 59, 0.45), rgba(15, 23, 42, 0.84));
+    }
+
+    [data-theme="dark"] .task-empty-state,
+    [data-theme="dark"] .task-mode-item {
+        background: rgba(30, 41, 59, 0.82);
+    }
+
+    @media (max-width: 1199.98px) {
+        .task-metric-grid,
+        .task-highlight-grid,
+        .task-board-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .task-workspace-hero,
+        .task-panel {
+            padding: 18px;
+            border-radius: 22px;
+        }
+
+        .task-workspace-card,
+        .task-metric-card {
+            padding: 16px;
+            border-radius: 18px;
+        }
+
+        .task-workspace-hero,
+        .task-panel-head,
+        .task-card-top,
+        .task-progress-line {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .task-progress-line {
+            width: 100%;
+        }
+
+        .task-progress-bar {
+            width: 100%;
+        }
+    }
+</style>
 
 {% if is_lead or is_admin %}
 <div class="modal fade" id="createTaskModal" tabindex="-1" aria-hidden="true">

@@ -376,6 +376,30 @@ def _build_grouped_rows(raw_counts, ordered_items=None, fallback_label='Chưa ph
         rows = [row for row in rows if row['count'] > 0]
     return rows
 
+
+def _workspace_card(
+    title,
+    description,
+    primary_label,
+    primary_link,
+    accent_class='primary',
+    stat_value='',
+    stat_label='',
+    secondary_label='',
+    secondary_link='',
+):
+    return {
+        'title': title,
+        'description': description,
+        'primary_label': primary_label,
+        'primary_link': primary_link,
+        'accent_class': accent_class,
+        'stat_value': stat_value,
+        'stat_label': stat_label,
+        'secondary_label': secondary_label,
+        'secondary_link': secondary_link,
+    }
+
 @admin_bp.route('/admin')
 def index():
     try:
@@ -466,6 +490,28 @@ def index():
             if row['name'].startswith('Đội ') and row['name'] not in [f'Đội {i}' for i in range(1, 6)]:
                 fixed_report_dashboard.append(row)
 
+        is_admin = bool(session.get('is_admin'))
+        role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
+        role_name = role_obj.name if role_obj else 'Thành viên'
+        perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
+        perms = normalize_permission_payload(perms, is_admin=is_admin, role_name=role_name)
+
+        def can_module(module_code, tier='view'):
+            return has_module_permission(perms, module_code, tier=tier, is_admin=is_admin, role_name=role_name)
+
+        def can_access_report_center():
+            return bool(
+                can_module('form', 'view')
+                or can_module('input', 'view')
+                or can_module('input', 'process')
+                or can_module('input', 'exec')
+                or can_module('stat', 'view')
+                or can_module('stat', 'process')
+                or can_module('stat', 'exec')
+            )
+
+        report_center_link = '/admin/reports' if can_module('form', 'process') else '/reports'
+
         dashboard_cards = [
             {
                 'title': 'Báo cáo',
@@ -513,11 +559,148 @@ def index():
             },
         ]
 
+        card_totals = {card['title']: card['total'] for card in dashboard_cards}
+        workspace_groups = [
+            {
+                'title': 'Làm việc hằng ngày',
+                'description': 'Các khu vực thao tác chính để nhận việc, nộp báo cáo và theo dõi xử lý.',
+                'cards': [],
+            },
+            {
+                'title': 'Tra cứu và hỗ trợ',
+                'description': 'Nhóm chức năng phục vụ tìm kiếm thông tin, tài liệu và hỗ trợ người dùng.',
+                'cards': [],
+            },
+            {
+                'title': 'Quản trị hệ thống',
+                'description': 'Thiết lập tài khoản, danh mục và cấu hình hệ thống theo quyền được cấp.',
+                'cards': [],
+            },
+        ]
+
+        if can_module('task', 'view'):
+            workspace_groups[0]['cards'].append(_workspace_card(
+                title='Công việc',
+                description='Xem việc được giao, mở chi tiết để tiếp nhận, nộp kết quả hoặc theo dõi tiến độ.',
+                primary_label='Mở công việc',
+                primary_link='/tasks',
+                secondary_label='Xem tổng quan giao việc',
+                secondary_link='/tasks',
+                accent_class='primary',
+                stat_value=card_totals.get('Công việc được giao', 0),
+                stat_label='đợt công việc đang có',
+            ))
+
+        if can_access_report_center():
+            workspace_groups[0]['cards'].append(_workspace_card(
+                title='Báo cáo',
+                description='Vào đúng trung tâm báo cáo để nhập số liệu, kiểm tra tiến độ hoặc quản lý biểu mẫu.',
+                primary_label='Mở báo cáo',
+                primary_link=report_center_link,
+                secondary_label='Xem tiến độ báo cáo',
+                secondary_link=report_center_link,
+                accent_class='success',
+                stat_value=card_totals.get('Báo cáo', 0),
+                stat_label='biểu mẫu hoặc đợt báo cáo',
+            ))
+
+        if can_module('attendance', 'view'):
+            workspace_groups[0]['cards'].append(_workspace_card(
+                title='Điểm danh',
+                description='Ghi nhận quân số, cập nhật ca trực hoặc theo dõi tình trạng điểm danh theo ngày.',
+                primary_label='Mở điểm danh',
+                primary_link='/attendance',
+                accent_class='warning',
+                stat_value='Trong ngày',
+                stat_label='cập nhật theo thời điểm',
+            ))
+
+        workspace_groups[0]['cards'].append(_workspace_card(
+            title='Xếp hạng',
+            description='Theo dõi kết quả thi đua và so sánh mức độ hoàn thành giữa các đơn vị.',
+            primary_label='Xem xếp hạng',
+            primary_link='/ranking',
+            accent_class='indigo',
+            stat_value='Toàn hệ thống',
+            stat_label='bảng theo dõi thi đua',
+        ))
+
+        if can_module('lib', 'view') or can_module('news', 'view'):
+            workspace_groups[1]['cards'].append(_workspace_card(
+                title='Tài liệu và bảng tin',
+                description='Tra cứu văn bản, thông báo và tài liệu dùng chung tại một nơi dễ tìm hơn.',
+                primary_label='Mở thư viện',
+                primary_link='/library' if can_module('lib', 'view') else '/news',
+                secondary_label='Mở bảng tin' if can_module('news', 'view') else '',
+                secondary_link='/news' if can_module('news', 'view') else '',
+                accent_class='warning',
+                stat_value=card_totals.get('Thông tin tài liệu', 0),
+                stat_label='tài liệu đang lưu',
+            ))
+
+        if can_module('contact', 'view'):
+            workspace_groups[1]['cards'].append(_workspace_card(
+                title='Danh bạ',
+                description='Tra cứu nhanh đầu mối liên hệ theo đơn vị, nhóm hoặc chức danh.',
+                primary_label='Mở danh bạ',
+                primary_link='/contacts',
+                accent_class='indigo',
+                stat_value=card_totals.get('Danh bạ', 0),
+                stat_label='liên hệ sẵn có',
+            ))
+
+        workspace_groups[1]['cards'].append(_workspace_card(
+            title='Hướng dẫn và AI',
+            description='Khi chưa rõ cách thao tác, mở tài liệu hướng dẫn hoặc dùng trợ lý AI để hỏi nhanh.',
+            primary_label='Mở hướng dẫn',
+            primary_link='/guide',
+            secondary_label='Mở trợ lý AI',
+            secondary_link='/ai',
+            accent_class='primary',
+        ))
+
+        workspace_groups[1]['cards'].append(_workspace_card(
+            title='QR và liên kết',
+            description='Quản lý liên kết nhanh, mã QR và các đường dẫn dùng chung của đơn vị.',
+            primary_label='Mở QR và link',
+            primary_link='/links',
+            accent_class='success',
+        ))
+
+        if can_module('user', 'view'):
+            workspace_groups[2]['cards'].append(_workspace_card(
+                title='Tài khoản và vai trò',
+                description='Quản lý người dùng, phân quyền theo vai trò và rà soát quyền truy cập.',
+                primary_label='Mở quản lý tài khoản',
+                primary_link='/roles',
+                accent_class='primary',
+            ))
+
+        if can_module('sys', 'view'):
+            workspace_groups[2]['cards'].append(_workspace_card(
+                title='Thiết lập hệ thống',
+                description='Cấu hình danh mục, AI, nhật ký hoạt động, cập nhật và công cụ quản trị hệ thống.',
+                primary_label='Mở thiết lập danh mục',
+                primary_link='/admin/module-categories',
+                secondary_label='Mở nhật ký hoạt động',
+                secondary_link='/logs',
+                accent_class='warning',
+            ))
+
+        workspace_groups = [group for group in workspace_groups if group['cards']]
+        dashboard_snapshots = []
+        for card in dashboard_cards:
+            snapshot = dict(card)
+            snapshot['rows'] = card['rows'][:5]
+            dashboard_snapshots.append(snapshot)
+
         now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
         
         return render_template('admin_dashboard.html', 
             now_str=now_str, 
-            dashboard_cards=dashboard_cards)
+            dashboard_cards=dashboard_cards,
+            dashboard_snapshots=dashboard_snapshots,
+            workspace_groups=workspace_groups)
     except Exception as e:
         import traceback
         traceback.print_exc()

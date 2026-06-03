@@ -3,64 +3,58 @@
 {% block title %}{{ task.title }}{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
-        <div>
-            <div class="d-flex align-items-center gap-2 mb-2">
-                <a href="{{ url_for('tasks_bp.tasks') }}" class="btn btn-light btn-sm">Quay lại</a>
-                <span class="badge bg-primary-subtle text-primary">{{ task.task_mode_label }}</span>
+{% set default_tab = detail_context.default_tab %}
+<div class="task-detail-shell">
+    <section class="task-detail-hero task-detail-tone-{{ detail_context.status_tone }}">
+        <div class="task-detail-hero-main">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                <a href="{{ url_for('tasks_bp.tasks') }}" class="btn btn-light btn-sm">Quay lại danh sách</a>
+                <span class="task-detail-pill task-detail-pill-info">{{ task.task_mode_label }}</span>
+                <span class="task-detail-pill task-detail-pill-{{ detail_context.status_tone }}">{{ detail_context.status_text }}</span>
             </div>
-            <h1 class="mb-1">{{ task.title }}</h1>
-            <div class="text-muted">{{ task.task_mode_description }}</div>
-            <div class="small text-muted mt-2">
-                Người giao: <strong>{{ task.author_name }}</strong>
-                {% if task.deadline %} · Hạn: <strong>{{ task.deadline.strftime('%d/%m/%Y') }}</strong>{% endif %}
+            <h1>{{ task.title }}</h1>
+            <p>{{ task.task_mode_description }}</p>
+            <div class="task-detail-meta">
+                <span>Người giao: <strong>{{ task.author_name }}</strong></span>
+                {% if task.deadline %}<span>Hạn: <strong>{{ task.deadline.strftime('%d/%m/%Y') }}</strong></span>{% endif %}
+                <span>Tiến độ: <strong>{{ detail_context.progress_percent }}%</strong></span>
             </div>
         </div>
-        {% if can_delete_task %}
-        <form action="{{ url_for('tasks_bp.delete_task', tid=task.id) }}" method="POST" onsubmit="return confirm('Xóa công việc này?')">
-            <button class="btn btn-outline-danger" type="submit">Xóa công việc</button>
-        </form>
-        {% endif %}
-    </div>
+        <div class="task-detail-hero-side">
+            <div class="task-detail-next-card">
+                <span class="task-detail-next-label">Bước tiếp theo</span>
+                <h2>{{ detail_context.next_step_title }}</h2>
+                <p>{{ detail_context.next_step_body }}</p>
+                {% if can_delete_task %}
+                <form action="{{ url_for('tasks_bp.delete_task', tid=task.id) }}" method="POST" onsubmit="return confirm('Xóa công việc này?')" class="mt-3">
+                    <button class="btn btn-outline-danger btn-sm" type="submit">Xóa công việc</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </section>
 
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="small text-muted">Tổng lượt giao</div>
-                    <div class="fs-4 fw-bold">{{ summary.total_assignments }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="small text-muted">Đang xử lý</div>
-                    <div class="fs-4 fw-bold">{{ summary.in_progress_assignments }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="small text-muted">Đã nộp</div>
-                    <div class="fs-4 fw-bold">{{ summary.submitted_assignments }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="small text-muted">Tiến độ</div>
-                    <div class="fs-4 fw-bold">{{ summary.progress_percent }}%</div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <section class="task-detail-metric-grid">
+        <article class="task-detail-metric-card">
+            <span>Tổng lượt giao</span>
+            <strong>{{ summary.total_assignments }}</strong>
+        </article>
+        <article class="task-detail-metric-card">
+            <span>Đang xử lý</span>
+            <strong>{{ summary.in_progress_assignments }}</strong>
+        </article>
+        <article class="task-detail-metric-card">
+            <span>Đã nộp</span>
+            <strong>{{ summary.submitted_assignments }}</strong>
+        </article>
+        <article class="task-detail-metric-card">
+            <span>Tiến độ</span>
+            <strong>{{ detail_context.progress_percent }}%</strong>
+        </article>
+    </section>
 
     {% if task.content or task.file_path %}
-    <div class="card border-0 shadow-sm mb-4">
+    <div class="card border-0 shadow-sm">
         <div class="card-body">
             {% if task.content %}
             <h2 class="h5 mb-3">Mô tả</h2>
@@ -78,29 +72,45 @@
 
     <div class="row g-4 align-items-start">
         <div class="col-xl-3">
+            {% if (task.task_mode == 'FILE' and can_submit and my_file_assignment and (my_file_assignment.status or '') == 'assigned') or (task.task_mode == 'FORM' and can_submit and my_form_assignment and (my_form_assignment.status or '') == 'assigned') %}
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="small text-muted mb-2">Hành động nhanh</div>
+                    {% if task.task_mode == 'FILE' %}
+                    <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST">
+                        <button class="btn btn-outline-primary w-100" type="submit">Tiếp nhận công việc</button>
+                    </form>
+                    {% else %}
+                    <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST">
+                        <button class="btn btn-outline-primary w-100" type="submit">Tiếp nhận biểu mẫu</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h2 class="h5 mb-3">Menu chức năng</h2>
+                    <h2 class="h5 mb-3">Khu vực làm việc</h2>
                     <div class="nav flex-column nav-pills gap-2" id="taskWorkspaceTabs" role="tablist" aria-orientation="vertical">
                         {% if task.task_mode == 'OUTLINE' %}
                             {% if can_manage_task_view %}
-                            <button class="nav-link text-start active" id="tab-outline-create" data-bs-toggle="pill" data-bs-target="#pane-outline-create" type="button" role="tab">Gán nội dung báo cáo</button>
+                            <button class="nav-link text-start active" id="tab-outline-create" data-bs-toggle="pill" data-bs-target="#pane-outline-create" type="button" role="tab">Thiết lập đầu mục</button>
                             {% endif %}
                             {% for group in outline_groups %}
                             <button class="nav-link text-start {% if not can_manage_task_view and loop.first %}active{% endif %}" id="tab-outline-group-{{ loop.index }}" data-bs-toggle="pill" data-bs-target="#pane-outline-group-{{ loop.index }}" type="button" role="tab">
                                 <div class="fw-semibold">{{ group.label }}</div>
-                                <div class="small opacity-75">{{ group.mode_label }}</div>
+                                <div class="small opacity-75">{{ group.fully_submitted_items }}/{{ group.total_items }} đầu mục hoàn tất</div>
                             </button>
                             {% endfor %}
                         {% elif task.task_mode == 'FILE' %}
-                            <button class="nav-link text-start active" id="tab-file-list" data-bs-toggle="pill" data-bs-target="#pane-file-list" type="button" role="tab">Danh sách người nhận</button>
+                            <button class="nav-link text-start {% if default_tab == 'file-list' %}active{% endif %}" id="tab-file-list" data-bs-toggle="pill" data-bs-target="#pane-file-list" type="button" role="tab">Tiến độ chung</button>
                             {% if can_submit and my_file_assignment %}
-                            <button class="nav-link text-start" id="tab-file-submit" data-bs-toggle="pill" data-bs-target="#pane-file-submit" type="button" role="tab">Nộp báo cáo</button>
+                            <button class="nav-link text-start {% if default_tab == 'file-submit' %}active{% endif %}" id="tab-file-submit" data-bs-toggle="pill" data-bs-target="#pane-file-submit" type="button" role="tab">Phần việc của tôi</button>
                             {% endif %}
                         {% else %}
-                            <button class="nav-link text-start active" id="tab-form-list" data-bs-toggle="pill" data-bs-target="#pane-form-list" type="button" role="tab">Dữ liệu biểu mẫu</button>
+                            <button class="nav-link text-start {% if default_tab == 'form-list' %}active{% endif %}" id="tab-form-list" data-bs-toggle="pill" data-bs-target="#pane-form-list" type="button" role="tab">Tiến độ chung</button>
                             {% if can_submit and my_form_assignment %}
-                            <button class="nav-link text-start" id="tab-form-submit" data-bs-toggle="pill" data-bs-target="#pane-form-submit" type="button" role="tab">Nhập biểu mẫu</button>
+                            <button class="nav-link text-start {% if default_tab == 'form-submit' %}active{% endif %}" id="tab-form-submit" data-bs-toggle="pill" data-bs-target="#pane-form-submit" type="button" role="tab">Phần việc của tôi</button>
                             {% endif %}
                         {% endif %}
                     </div>
@@ -476,13 +486,13 @@
                     </div>
                     {% endfor %}
                 {% elif task.task_mode == 'FILE' %}
-                    <div class="tab-pane fade show active" id="pane-file-list" role="tabpanel" aria-labelledby="tab-file-list">
+                    <div class="tab-pane fade {% if default_tab == 'file-list' %}show active{% endif %}" id="pane-file-list" role="tabpanel" aria-labelledby="tab-file-list">
                         <div class="card border-0 shadow-sm">
                             <div class="card-body">
-                                <h2 class="h4 mb-4">Danh sách người nhận</h2>
+                                <h2 class="h4 mb-4">Tiến độ chung</h2>
                                 <div class="d-grid gap-3">
                                     {% for row in file_rows %}
-                                    <div class="border rounded p-3">
+                                    <div class="border rounded p-3 {% if row.is_current_user %}border-primary bg-primary-subtle bg-opacity-10{% endif %}">
                                         <div class="d-flex justify-content-between align-items-start gap-3">
                                             <div>
                                                 <div class="fw-semibold">{{ row.assignment.user.fullname if row.assignment.user else 'Không xác định' }}</div>
@@ -515,12 +525,12 @@
                     </div>
 
                     {% if can_submit and my_file_assignment %}
-                    <div class="tab-pane fade" id="pane-file-submit" role="tabpanel" aria-labelledby="tab-file-submit">
+                    <div class="tab-pane fade {% if default_tab == 'file-submit' %}show active{% endif %}" id="pane-file-submit" role="tabpanel" aria-labelledby="tab-file-submit">
                         <div class="card border-0 shadow-sm">
                             <div class="card-body">
                                 <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-                                    <h2 class="h4 mb-0">Nộp báo cáo</h2>
-                                    <span class="badge bg-info-subtle text-info">{{ status_labels.get((my_file_assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
+                                    <h2 class="h4 mb-0">Phần việc của tôi</h2>
+                                    <span class="badge bg-info-subtle text-info">{{ detail_context.submit_status_text or status_labels.get((my_file_assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
                                 </div>
                                 {% if my_file_assignment.status == 'assigned' %}
                                 <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST" class="mb-3">
@@ -551,18 +561,18 @@
                     </div>
                     {% endif %}
                 {% else %}
-                    <div class="tab-pane fade show active" id="pane-form-list" role="tabpanel" aria-labelledby="tab-form-list">
+                    <div class="tab-pane fade {% if default_tab == 'form-list' %}show active{% endif %}" id="pane-form-list" role="tabpanel" aria-labelledby="tab-form-list">
                         <div class="card border-0 shadow-sm">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center mb-4">
-                                    <h2 class="h4 mb-0">Dữ liệu biểu mẫu</h2>
+                                    <h2 class="h4 mb-0">Tiến độ chung</h2>
                                     {% if can_manage_task_view %}
                                     <a class="btn btn-outline-success btn-sm" href="{{ url_for('tasks_bp.export_form_task_v2', tid=task.id) }}">Xuất Excel</a>
                                     {% endif %}
                                 </div>
                                 <div class="d-grid gap-3">
                                     {% for row in form_rows %}
-                                    <div class="border rounded p-3">
+                                    <div class="border rounded p-3 {% if row.is_current_user %}border-primary bg-primary-subtle bg-opacity-10{% endif %}">
                                         <div class="d-flex justify-content-between align-items-start gap-3">
                                             <div>
                                                 <div class="fw-semibold">{{ row.assignment.user.fullname if row.assignment.user else 'Không xác định' }}</div>
@@ -604,12 +614,12 @@
                     </div>
 
                     {% if can_submit and my_form_assignment %}
-                    <div class="tab-pane fade" id="pane-form-submit" role="tabpanel" aria-labelledby="tab-form-submit">
+                    <div class="tab-pane fade {% if default_tab == 'form-submit' %}show active{% endif %}" id="pane-form-submit" role="tabpanel" aria-labelledby="tab-form-submit">
                         <div class="card border-0 shadow-sm">
                             <div class="card-body">
                                 <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-                                    <h2 class="h4 mb-0">Nhập biểu mẫu</h2>
-                                    <span class="badge bg-info-subtle text-info">{{ status_labels.get((my_form_assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
+                                    <h2 class="h4 mb-0">Phần việc của tôi</h2>
+                                    <span class="badge bg-info-subtle text-info">{{ detail_context.submit_status_text or status_labels.get((my_form_assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
                                 </div>
                                 {% if my_form_assignment.status == 'assigned' %}
                                 <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST" class="mb-3">
@@ -663,6 +673,198 @@
         </div>
     </div>
 </div>
+
+<style>
+    .task-detail-shell {
+        display: grid;
+        gap: 24px;
+        padding: 24px 0;
+    }
+
+    .task-detail-hero,
+    .task-detail-metric-card,
+    .task-detail-next-card {
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
+    }
+
+    .task-detail-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
+        gap: 20px;
+        padding: 28px;
+        border-radius: 28px;
+    }
+
+    .task-detail-hero h1 {
+        margin: 0 0 10px;
+        font-size: clamp(2rem, 3vw, 2.6rem);
+        font-weight: 900;
+    }
+
+    .task-detail-hero p,
+    .task-detail-next-card p {
+        margin: 0;
+        color: var(--text-muted);
+        line-height: 1.6;
+    }
+
+    .task-detail-hero-side {
+        display: flex;
+        align-items: stretch;
+    }
+
+    .task-detail-next-card {
+        width: 100%;
+        border-radius: 24px;
+        padding: 22px;
+    }
+
+    .task-detail-next-label {
+        display: inline-flex;
+        margin-bottom: 10px;
+        color: var(--text-muted);
+        font-size: 0.82rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .task-detail-next-card h2 {
+        margin: 0 0 8px;
+        font-size: 1.2rem;
+        font-weight: 800;
+    }
+
+    .task-detail-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+        margin-top: 14px;
+        color: var(--text-muted);
+        font-weight: 700;
+    }
+
+    .task-detail-pill {
+        display: inline-flex;
+        align-items: center;
+        height: 32px;
+        padding: 0 12px;
+        border-radius: 999px;
+        font-size: 0.84rem;
+        font-weight: 800;
+    }
+
+    .task-detail-pill-info {
+        background: rgba(37, 99, 235, 0.1);
+        color: #1d4ed8;
+    }
+
+    .task-detail-pill-success {
+        background: rgba(16, 185, 129, 0.14);
+        color: #047857;
+    }
+
+    .task-detail-pill-warning {
+        background: rgba(245, 158, 11, 0.14);
+        color: #b45309;
+    }
+
+    .task-detail-pill-danger {
+        background: rgba(239, 68, 68, 0.12);
+        color: #b91c1c;
+    }
+
+    .task-detail-pill-muted {
+        background: rgba(148, 163, 184, 0.14);
+        color: #475569;
+    }
+
+    .task-detail-tone-success {
+        background: linear-gradient(145deg, rgba(240, 253, 244, 0.96), rgba(255, 255, 255, 0.96));
+    }
+
+    .task-detail-tone-warning {
+        background: linear-gradient(145deg, rgba(255, 251, 235, 0.96), rgba(255, 255, 255, 0.96));
+    }
+
+    .task-detail-tone-danger {
+        background: linear-gradient(145deg, rgba(254, 242, 242, 0.96), rgba(255, 255, 255, 0.96));
+    }
+
+    .task-detail-tone-muted,
+    .task-detail-tone-info {
+        background: linear-gradient(145deg, rgba(248, 250, 252, 0.96), rgba(255, 255, 255, 0.96));
+    }
+
+    .task-detail-metric-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .task-detail-metric-card {
+        padding: 18px 20px;
+        border-radius: 22px;
+        display: grid;
+        gap: 8px;
+    }
+
+    .task-detail-metric-card span {
+        color: var(--text-muted);
+        font-weight: 700;
+    }
+
+    .task-detail-metric-card strong {
+        font-size: 2rem;
+        line-height: 1;
+    }
+
+    [data-theme="dark"] .task-detail-hero,
+    [data-theme="dark"] .task-detail-metric-card,
+    [data-theme="dark"] .task-detail-next-card {
+        background: rgba(15, 23, 42, 0.84);
+        border-color: rgba(148, 163, 184, 0.18);
+        box-shadow: 0 18px 45px rgba(2, 6, 23, 0.34);
+    }
+
+    [data-theme="dark"] .task-detail-tone-success {
+        background: linear-gradient(145deg, rgba(6, 78, 59, 0.45), rgba(15, 23, 42, 0.84));
+    }
+
+    [data-theme="dark"] .task-detail-tone-warning {
+        background: linear-gradient(145deg, rgba(69, 26, 3, 0.55), rgba(15, 23, 42, 0.84));
+    }
+
+    [data-theme="dark"] .task-detail-tone-danger {
+        background: linear-gradient(145deg, rgba(69, 10, 10, 0.55), rgba(15, 23, 42, 0.84));
+    }
+
+    @media (max-width: 1199.98px) {
+        .task-detail-hero,
+        .task-detail-metric-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .task-detail-shell {
+            padding: 16px 0;
+        }
+
+        .task-detail-hero {
+            padding: 20px;
+            border-radius: 24px;
+        }
+
+        .task-detail-next-card,
+        .task-detail-metric-card {
+            padding: 16px;
+            border-radius: 18px;
+        }
+    }
+</style>
 
 <script>
 (() => {

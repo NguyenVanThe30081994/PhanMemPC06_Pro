@@ -61,6 +61,45 @@ from utils import (
     remove_accents,
     render_auto_template as render_template,
 )
+from task_workspace import (
+    build_task_detail_context,
+    build_task_workspace_attrs,
+    summarize_task_assignments,
+    task_assignment_display_status,
+    task_deadline_display,
+    task_workspace_tone,
+)
+from task_policies import (
+    build_scope_summary,
+    can_delete_task,
+    can_manage_task,
+    can_view_task,
+    can_watch_task,
+    load_assignment_scope,
+    load_manager_scope,
+    load_viewer_scope,
+    scope_preview_names,
+    store_assignment_scope,
+    store_manager_scope,
+    store_viewer_scope,
+)
+from task_read_models import (
+    build_file_task_rows,
+    build_form_task_rows,
+    build_outline_group_rows,
+    form_field_options,
+    normalize_task_form_field_type,
+    outline_group_identity,
+    task_form_field_views,
+    task_form_submission_payload,
+    task_form_value_is_empty,
+)
+from task_page_builders import (
+    build_task_detail_page_context,
+    build_task_list_page_context,
+    prepare_task_workspace_record,
+    task_visible_for_user,
+)
 
 tasks_bp = Blueprint("tasks_bp", __name__)
 
@@ -71,7 +110,6 @@ REPORT_PREFIX = "[BÁO CÁO]"
 REPORT_ATTACHMENT_RE = re.compile(r"\s*\(Đính kèm:\s*([^)]+)\)\s*$")
 TASK_REPORT_ALLOWED_FIELD_TYPES = {"number", "text", "textarea"}
 TASK_REPORT_ALLOWED_TARGET_TYPES = {"all", "role", "user"}
-TASK_SCOPE_ALLOWED_MODES = {"none", "role", "user"}
 TASK_OUTLINE_ALLOWED_EXTENSIONS = {".docx", ".txt"}
 TASK_WORKFLOW_ALLOWED_MODES = {"child_tasks", "summary_report"}
 TASK_WORKFLOW_DEFAULT_MODE = "summary_report"
@@ -289,6 +327,10 @@ def _task_mode_description(task_mode):
 
 def _task_assignment_status_label(status):
     return TASK_ASSIGNMENT_STATUS_LABELS.get(str(status or "").strip().lower(), "Chưa tiếp nhận")
+
+
+def _task_assignment_display_status(status):
+    return task_assignment_display_status(status, TASK_ASSIGNMENT_STATUS_LABELS, _normalize_status)
 
 
 def _task_assignment_status_class(status):
@@ -743,129 +785,28 @@ def _resolve_role_assignees(role_id):
     return _dedupe_users(users)
 
 
-def _assignment_scope_payload(assign_type, domain="", role_ids=None, user_ids=None):
-    normalized_mode = assign_type if assign_type in {"unit", "role", "user"} else "unit"
-    payload = {
-        "mode": normalized_mode,
-        "domain": (domain or "").strip(),
-        "role_ids": sorted({int(role_id) for role_id in (role_ids or []) if str(role_id).isdigit()}),
-        "user_ids": sorted({int(user_id) for user_id in (user_ids or []) if str(user_id).isdigit()}),
-    }
-    if normalized_mode == "unit":
-        payload["role_ids"] = []
-        payload["user_ids"] = []
-    elif normalized_mode == "role":
-        payload["user_ids"] = []
-    elif normalized_mode == "user":
-        payload["role_ids"] = []
-    return payload
-
-
-def _participant_scope_payload(mode="none", role_ids=None, user_ids=None):
-    normalized_mode = mode if mode in TASK_SCOPE_ALLOWED_MODES else "none"
-    payload = {
-        "mode": normalized_mode,
-        "role_ids": sorted({int(role_id) for role_id in (role_ids or []) if str(role_id).isdigit()}),
-        "user_ids": sorted({int(user_id) for user_id in (user_ids or []) if str(user_id).isdigit()}),
-    }
-    if normalized_mode == "role":
-        payload["user_ids"] = []
-    elif normalized_mode == "user":
-        payload["role_ids"] = []
-    else:
-        payload["role_ids"] = []
-        payload["user_ids"] = []
-    return payload
-
-
-def _viewer_scope_payload(mode="none", role_ids=None, user_ids=None):
-    return _participant_scope_payload(mode, role_ids=role_ids, user_ids=user_ids)
-
-
-def _manager_scope_payload(mode="none", role_ids=None, user_ids=None):
-    return _participant_scope_payload(mode, role_ids=role_ids, user_ids=user_ids)
-
-
 def _load_assignment_scope(task):
-    if not task:
-        return {}
-
-    payload = {}
-    raw_payload = getattr(task, "assignment_scope_json", None)
-    if raw_payload:
-        try:
-            payload = json.loads(raw_payload) or {}
-        except Exception:
-            payload = {}
-
-    assign_type = payload.get("mode") or getattr(task, "assign_type", None)
-    if not raw_payload and not assign_type:
-        return {}
-
-    domain = payload.get("domain") or getattr(task, "domain", "") or ""
-    role_ids = payload.get("role_ids") or []
-    user_ids = payload.get("user_ids") or []
-
-    return _assignment_scope_payload(assign_type, domain=domain, role_ids=role_ids, user_ids=user_ids)
+    return load_assignment_scope(task)
 
 
 def _load_viewer_scope(task):
-    if not task:
-        return _viewer_scope_payload("none")
-
-    raw_payload = getattr(task, "viewer_scope_json", None)
-    if not raw_payload:
-        return _viewer_scope_payload("none")
-
-    try:
-        payload = json.loads(raw_payload) or {}
-    except Exception:
-        payload = {}
-
-    return _viewer_scope_payload(
-        payload.get("mode") or "none",
-        role_ids=payload.get("role_ids") or [],
-        user_ids=payload.get("user_ids") or [],
-    )
+    return load_viewer_scope(task)
 
 
 def _load_manager_scope(task):
-    if not task:
-        return _manager_scope_payload("none")
-
-    raw_payload = getattr(task, "manager_scope_json", None)
-    if not raw_payload:
-        return _manager_scope_payload("none")
-
-    try:
-        payload = json.loads(raw_payload) or {}
-    except Exception:
-        payload = {}
-
-    return _manager_scope_payload(
-        payload.get("mode") or "none",
-        role_ids=payload.get("role_ids") or [],
-        user_ids=payload.get("user_ids") or [],
-    )
+    return load_manager_scope(task)
 
 
 def _store_assignment_scope(task, assign_type, domain="", role_ids=None, user_ids=None):
-    payload = _assignment_scope_payload(assign_type, domain=domain, role_ids=role_ids, user_ids=user_ids)
-    task.assign_type = payload["mode"]
-    task.assignment_scope_json = json.dumps(payload, ensure_ascii=False)
-    return payload
+    return store_assignment_scope(task, assign_type, domain=domain, role_ids=role_ids, user_ids=user_ids)
 
 
 def _store_viewer_scope(task, mode="none", role_ids=None, user_ids=None):
-    payload = _viewer_scope_payload(mode, role_ids=role_ids, user_ids=user_ids)
-    task.viewer_scope_json = json.dumps(payload, ensure_ascii=False)
-    return payload
+    return store_viewer_scope(task, mode=mode, role_ids=role_ids, user_ids=user_ids)
 
 
 def _store_manager_scope(task, mode="none", role_ids=None, user_ids=None):
-    payload = _manager_scope_payload(mode, role_ids=role_ids, user_ids=user_ids)
-    task.manager_scope_json = json.dumps(payload, ensure_ascii=False)
-    return payload
+    return store_manager_scope(task, mode=mode, role_ids=role_ids, user_ids=user_ids)
 
 
 def _infer_assignment_context(task):
@@ -932,45 +873,11 @@ def _infer_manager_context(task):
 
 
 def _scope_preview_names(names, empty_label="Chưa cấu hình riêng"):
-    cleaned_names = [str(name).strip() for name in (names or []) if str(name).strip()]
-    if not cleaned_names:
-        return empty_label
-    if len(cleaned_names) <= 2:
-        return ", ".join(cleaned_names)
-    return f"{', '.join(cleaned_names[:2])} +{len(cleaned_names) - 2}"
+    return scope_preview_names(names, empty_label=empty_label)
 
 
 def _build_scope_summary(context, role_lookup=None, user_lookup=None, none_label="Chưa cấu hình riêng"):
-    role_lookup = role_lookup or {}
-    user_lookup = user_lookup or {}
-    mode = (context or {}).get("mode") or "none"
-    role_ids = (context or {}).get("role_ids") or []
-    user_ids = (context or {}).get("user_ids") or []
-
-    if mode == "role":
-        role_names = [role_lookup.get(role_id) for role_id in role_ids if role_lookup.get(role_id)]
-        return {
-            "mode": "role",
-            "mode_label": "Theo vai trò",
-            "value_label": _scope_preview_names(role_names, empty_label="Chưa chọn vai trò"),
-            "count": len(role_names),
-        }
-
-    if mode == "user":
-        user_names = [user_lookup.get(user_id) for user_id in user_ids if user_lookup.get(user_id)]
-        return {
-            "mode": "user",
-            "mode_label": "Theo cá nhân",
-            "value_label": _scope_preview_names(user_names, empty_label="Chưa chọn tài khoản"),
-            "count": len(user_names),
-        }
-
-    return {
-        "mode": "none",
-        "mode_label": "Mặc định",
-        "value_label": none_label,
-        "count": 0,
-    }
+    return build_scope_summary(context, role_lookup=role_lookup, user_lookup=user_lookup, none_label=none_label)
 
 
 def _requested_role_ids(form):
@@ -2094,31 +2001,26 @@ def _sync_task_assignments(task, assignees):
     return len(new_assignee_ids), new_assignees_to_notify
 
 
-def _can_manage_task(task, user=None):
-    if not task or not session.get("uid"):
-        return False
-    if bool(session.get("is_admin")) or task.author_id == session.get("uid") or _can_process_task_module():
-        return True
-
-    if user is None:
-        uid = session.get("uid")
-        user = db.session.get(User, uid) if uid else None
-    if not user:
-        return False
-
-    manager_scope = _load_manager_scope(task)
-    mode = manager_scope.get("mode") or "none"
-    if mode == "role" and getattr(user, "role_id", None) in (manager_scope.get("role_ids") or []):
-        return True
-    if mode == "user" and getattr(user, "id", None) in (manager_scope.get("user_ids") or []):
-        return True
-
+def _load_task_parent(task):
     parent_task = getattr(task, "parent_task", None)
     if not parent_task and getattr(task, "parent_task_id", None):
         parent_task = Task.query.filter_by(id=task.parent_task_id).first()
-    if parent_task:
-        return _can_manage_task(parent_task, user=user)
-    return False
+    return parent_task
+
+
+def _can_manage_task(task, user=None):
+    if user is None:
+        uid = session.get("uid")
+        user = db.session.get(User, uid) if uid else None
+    return can_manage_task(
+        task,
+        session_uid=session.get("uid"),
+        is_admin=bool(session.get("is_admin")),
+        can_process_module=_can_process_task_module(),
+        load_manager_scope_fn=_load_manager_scope,
+        user=user,
+        load_parent_task_fn=_load_task_parent,
+    )
 
 
 def _can_edit_task(task):
@@ -2126,52 +2028,38 @@ def _can_edit_task(task):
 
 
 def _can_delete_task(task, is_lead=False):
-    if not task or not session.get("uid"):
-        return False
-    if bool(session.get("is_admin")) or task.author_id == session.get("uid"):
-        return True
-    if is_lead:
-        return True
-    return _can_manage_task(task)
+    return can_delete_task(
+        task,
+        session_uid=session.get("uid"),
+        is_admin=bool(session.get("is_admin")),
+        is_lead=is_lead,
+        can_manage=_can_manage_task(task),
+    )
 
 
 def _can_watch_task(task, user=None):
-    if not task:
-        return False
-
     if user is None:
         uid = session.get("uid")
         user = db.session.get(User, uid) if uid else None
-    if not user:
-        return False
-
-    viewer_scope = _load_viewer_scope(task)
-    mode = viewer_scope.get("mode") or "none"
-    if mode == "role" and getattr(user, "role_id", None) in (viewer_scope.get("role_ids") or []):
-        return True
-    if mode == "user" and getattr(user, "id", None) in (viewer_scope.get("user_ids") or []):
-        return True
-
-    parent_task = getattr(task, "parent_task", None)
-    if not parent_task and getattr(task, "parent_task_id", None):
-        parent_task = Task.query.filter_by(id=task.parent_task_id).first()
-    if parent_task:
-        return _can_watch_task(parent_task, user=user)
-    return False
+    return can_watch_task(
+        task,
+        load_viewer_scope_fn=_load_viewer_scope,
+        user=user,
+        load_parent_task_fn=_load_task_parent,
+    )
 
 
 def _can_view_task(task, is_lead=False):
-    if not task or not session.get("uid"):
-        return False
-    if session.get("is_admin") or is_lead or task.author_id == session.get("uid"):
-        return True
-    if _task_user_is_executor(task, session.get("uid")):
-        return True
-    if _can_manage_task(task):
-        return True
-    if _can_watch_task(task):
-        return True
-    return bool(_visible_child_tasks_for_user(task.id, session.get("uid")))
+    return can_view_task(
+        task,
+        session_uid=session.get("uid"),
+        is_admin=bool(session.get("is_admin")),
+        is_lead=is_lead,
+        is_executor=_task_user_is_executor(task, session.get("uid")),
+        can_manage=_can_manage_task(task),
+        can_watch=_can_watch_task(task),
+        has_visible_child_tasks=bool(_visible_child_tasks_for_user(task.id, session.get("uid"))) if task else False,
+    )
 
 
 def _filter_comments_for_viewer(task, comments, viewer, can_manage_all=False):
@@ -3848,21 +3736,30 @@ def _task_is_submitted(assignment):
 
 def _build_rebuilt_task_summary(task, current_uid):
     assignments = TaskAssignment.query.filter_by(task_id=task.id).all()
-    total_assignments = len(assignments)
-    submitted_assignments = sum(1 for assignment in assignments if _task_is_submitted(assignment))
-    in_progress_assignments = sum(
-        1 for assignment in assignments
-        if str(getattr(assignment, "status", "") or "").strip().lower() == "in_progress"
+    return summarize_task_assignments(assignments, current_uid, _task_is_submitted)
+
+
+def _task_deadline_display(deadline):
+    return task_deadline_display(deadline)
+
+
+def _task_workspace_tone(status_text, is_overdue=False):
+    return task_workspace_tone(status_text, is_overdue=is_overdue)
+
+
+def _task_detail_context(task, summary, mode, can_manage_task_view, can_submit, my_file_assignment=None, my_form_assignment=None, outline_groups=None):
+    return build_task_detail_context(
+        task,
+        summary,
+        mode,
+        can_manage_task_view,
+        can_submit,
+        TASK_ASSIGNMENT_STATUS_LABELS,
+        _normalize_status,
+        my_file_assignment=my_file_assignment,
+        my_form_assignment=my_form_assignment,
+        outline_groups=outline_groups,
     )
-    current_assignment = next((assignment for assignment in assignments if assignment.user_id == current_uid), None)
-    progress_percent = int(round((submitted_assignments / total_assignments) * 100)) if total_assignments else 0
-    return {
-        "total_assignments": total_assignments,
-        "submitted_assignments": submitted_assignments,
-        "in_progress_assignments": in_progress_assignments,
-        "current_assignment": current_assignment,
-        "progress_percent": progress_percent,
-    }
 
 
 def _parse_outline_item_rows(task, current_uid):
@@ -4024,130 +3921,25 @@ def _resolve_outline_item_assignment(item_config, form, parent_task):
 
 
 def _outline_group_identity(assignments, fallback_index=0):
-    if not assignments:
-        return {
-            "key": f"ungrouped:{fallback_index}",
-            "label": "Chưa phân công",
-            "mode": "user",
-            "mode_label": "Chưa có người nhận",
-            "members_label": "",
-        }
-
-    assignee_type = str(getattr(assignments[0], "assignee_type", "") or "user").strip().lower()
-    if assignee_type == "unit":
-        unit_names = sorted({
-            _task_assignee_unit_name(getattr(assignment, "user", None)) or "Chưa có đơn vị"
-            for assignment in assignments
-        })
-        label = unit_names[0] if len(unit_names) == 1 else f"{unit_names[0]} +{len(unit_names) - 1} đơn vị"
-        return {
-            "key": "unit:" + "|".join(unit_names),
-            "label": label,
-            "mode": "unit",
-            "mode_label": "Giao theo đơn vị",
-            "members_label": ", ".join(unit_names),
-        }
-
-    if assignee_type == "role":
-        role_names = sorted({
-            (
-                getattr(getattr(assignment, "role", None), "name", None)
-                or getattr(getattr(getattr(assignment, "user", None), "role", None), "name", None)
-                or "Chưa phân vai trò"
-            )
-            for assignment in assignments
-        })
-        label = role_names[0] if len(role_names) == 1 else f"{role_names[0]} +{len(role_names) - 1} vai trò"
-        return {
-            "key": "role:" + "|".join(role_names),
-            "label": label,
-            "mode": "role",
-            "mode_label": "Giao theo vai trò",
-            "members_label": ", ".join(role_names),
-        }
-
-    user_names = sorted({
-        (
-            getattr(getattr(assignment, "user", None), "fullname", None)
-            or getattr(getattr(assignment, "user", None), "username", None)
-            or "Không xác định"
-        )
-        for assignment in assignments
-    })
-    label = user_names[0] if len(user_names) == 1 else f"{user_names[0]} +{len(user_names) - 1} cá nhân"
-    return {
-        "key": "user:" + "|".join(str(getattr(assignment, "user_id", 0) or 0) for assignment in assignments),
-        "label": label,
-        "mode": "user",
-        "mode_label": "Giao theo cá nhân",
-        "members_label": ", ".join(user_names),
-    }
+    return outline_group_identity(assignments, _task_assignee_unit_name, fallback_index=fallback_index)
 
 
 def _build_outline_group_rows(task, current_uid):
-    group_map = {}
     rows = _parse_outline_item_rows(task, current_uid)
-    for index, row in enumerate(rows, start=1):
-        identity = _outline_group_identity(row["assignments"], fallback_index=index)
-        group = group_map.setdefault(
-            identity["key"],
-            {
-                "key": identity["key"],
-                "label": identity["label"],
-                "mode": identity["mode"],
-                "mode_label": identity["mode_label"],
-                "members_label": identity["members_label"],
-                "rows": [],
-                "total_items": 0,
-                "fully_submitted_items": 0,
-                "my_items": 0,
-                "total_assignments": 0,
-            },
-        )
-        group["rows"].append(row)
-        group["total_items"] += 1
-        group["total_assignments"] += row["total_count"]
-        if row["total_count"] and row["submitted_count"] >= row["total_count"]:
-            group["fully_submitted_items"] += 1
-        if row["my_assignment"]:
-            group["my_items"] += 1
-
-    groups = sorted(group_map.values(), key=lambda item: (item["mode"], item["label"].lower()))
-    for group in groups:
-        group["rows"].sort(key=lambda item: (getattr(item["item"], "sort_order", 0), getattr(item["item"], "id", 0)))
-    return groups
+    return build_outline_group_rows(rows, _outline_group_identity)
 
 
 def _build_file_task_rows(task, current_uid):
     assignments = _task_assignments_query(task).all()
-    rows = []
-    for assignment in assignments:
-        submission = _latest_assignment_submission(assignment)
-        rows.append(
-            {
-                "assignment": assignment,
-                "submission": submission,
-                "is_current_user": assignment.user_id == current_uid,
-            }
-        )
-    return rows
+    return build_file_task_rows(assignments, current_uid, _latest_assignment_submission)
 
 
 def _normalize_task_form_field_type(value):
-    normalized = str(value or "").strip().lower()
-    if normalized in TASK_FORM_ALLOWED_FIELD_TYPES:
-        return normalized
-    return "text"
+    return normalize_task_form_field_type(value, TASK_FORM_ALLOWED_FIELD_TYPES)
 
 
 def _task_form_value_is_empty(value):
-    if value is None:
-        return True
-    if isinstance(value, str):
-        return not value.strip()
-    if isinstance(value, list):
-        return len(value) == 0
-    return False
+    return task_form_value_is_empty(value)
 
 
 def _task_form_fields(task):
@@ -4189,60 +3981,27 @@ def _parse_task_form_fields_from_request(form):
 
 
 def _form_field_options(field):
-    raw_value = getattr(field, "field_options_json", None) or ""
-    if not raw_value:
-        return {}
-    try:
-        payload = json.loads(raw_value)
-    except Exception:
-        return {}
-    return payload if isinstance(payload, dict) else {}
+    return form_field_options(field)
 
 
 def _task_form_submission_payload(submission):
-    raw_value = getattr(submission, "payload_json", None) or ""
-    if not raw_value:
-        return {}
-    try:
-        payload = json.loads(raw_value)
-    except Exception:
-        return {}
-    return payload if isinstance(payload, dict) else {}
+    return task_form_submission_payload(submission)
 
 
 def _build_form_task_rows(task, current_uid):
     assignments = _task_assignments_query(task).all()
     fields = _task_form_fields(task)
-    rows = []
-    for assignment in assignments:
-        submission = _latest_assignment_submission(assignment)
-        rows.append(
-            {
-                "assignment": assignment,
-                "submission": submission,
-                "payload": _task_form_submission_payload(submission) if submission else {},
-                "is_current_user": assignment.user_id == current_uid,
-            }
-        )
-    return fields, rows
+    return build_form_task_rows(
+        assignments,
+        fields,
+        current_uid,
+        _latest_assignment_submission,
+        _task_form_submission_payload,
+    )
 
 
 def _task_form_field_views(task):
-    views = []
-    for field in _task_form_fields(task):
-        options = _form_field_options(field)
-        views.append(
-            {
-                "id": field.id,
-                "field_key": field.field_key,
-                "field_label": field.field_label,
-                "field_type": _normalize_task_form_field_type(field.field_type),
-                "is_required": bool(field.is_required),
-                "choices": options.get("choices", []) if isinstance(options.get("choices", []), list) else [],
-                "columns": options.get("columns", []) if isinstance(options.get("columns", []), list) else [],
-            }
-        )
-    return views
+    return task_form_field_views(_task_form_fields(task), _normalize_task_form_field_type, _form_field_options)
 
 
 def _tasks_page_v2():
@@ -4388,7 +4147,15 @@ def _tasks_page_v2():
         is_executor = TaskAssignment.query.filter_by(task_id=task.id, user_id=session["uid"]).first() is not None
         is_manager = _can_manage_task(task, user=current_user)
         is_viewer = _can_watch_task(task, user=current_user)
-        if not (can_view_all_tasks or is_admin or task.author_id == session["uid"] or is_executor or is_manager or is_viewer):
+        if not task_visible_for_user(
+            task,
+            session["uid"],
+            can_view_all_tasks=can_view_all_tasks,
+            is_admin=is_admin,
+            is_executor=is_executor,
+            is_manager=is_manager,
+            is_viewer=is_viewer,
+        ):
             continue
 
         sync_record_categories([task], task_fields, attr_name="category", prefer_stable=True)
@@ -4396,33 +4163,36 @@ def _tasks_page_v2():
         sync_record_categories([task], task_types, attr_name="task_type", prefer_stable=True)
         sync_record_categories([task], priority_items, attr_name="priority", prefer_stable=True)
         _decorate_task_categories(task, task_fields, pro_units, task_types, priority_items)
+        visible_tasks.append(
+            prepare_task_workspace_record(
+                task,
+                session["uid"],
+                is_lead,
+                _build_rebuilt_task_summary,
+                _task_mode,
+                _task_mode_label,
+                _task_mode_description,
+                _task_assignment_status_label,
+                _can_edit_task,
+                _can_delete_task,
+                _task_assignment_display_status,
+                build_task_workspace_attrs,
+                today=datetime.now().date(),
+            )
+        )
 
-        summary = _build_rebuilt_task_summary(task, session["uid"])
-        mode = _task_mode(task)
-        setattr(task, "task_mode", mode)
-        setattr(task, "task_mode_label", _task_mode_label(mode))
-        setattr(task, "task_mode_description", _task_mode_description(mode))
-        setattr(task, "progress_percent", summary["progress_percent"])
-        setattr(task, "assignee_count", summary["total_assignments"])
-        setattr(task, "submitted_assignments", summary["submitted_assignments"])
-        setattr(task, "in_progress_assignments", summary["in_progress_assignments"])
-        setattr(task, "current_user_assignment", summary["current_assignment"])
-        setattr(task, "current_user_status_label", _task_assignment_status_label(getattr(summary["current_assignment"], "status", "")))
-        setattr(task, "is_overdue", bool(task.deadline and task.deadline < datetime.now().date() and summary["submitted_assignments"] < summary["total_assignments"]))
-        setattr(task, "can_edit", _can_edit_task(task))
-        setattr(task, "can_delete", _can_delete_task(task, is_lead=is_lead))
-        visible_tasks.append(task)
-
-    outline_tasks = [task for task in visible_tasks if getattr(task, "task_mode", TASK_MODE_DEFAULT) == "OUTLINE"]
-    file_tasks = [task for task in visible_tasks if getattr(task, "task_mode", TASK_MODE_DEFAULT) == "FILE"]
-    form_tasks = [task for task in visible_tasks if getattr(task, "task_mode", TASK_MODE_DEFAULT) == "FORM"]
+    list_context = build_task_list_page_context(visible_tasks, TASK_MODE_DEFAULT)
 
     return render_template(
         "tasks_rebuild.html",
-        tasks=visible_tasks,
-        outline_tasks=outline_tasks,
-        file_tasks=file_tasks,
-        form_tasks=form_tasks,
+        tasks=list_context["tasks"],
+        attention_tasks=list_context["attention_tasks"],
+        my_tasks=list_context["my_tasks"],
+        managed_tasks=list_context["managed_tasks"],
+        watch_tasks=list_context["watch_tasks"],
+        outline_tasks=list_context["outline_tasks"],
+        file_tasks=list_context["file_tasks"],
+        form_tasks=list_context["form_tasks"],
         users=active_users,
         roles=roles,
         pro_units=stable_form_category_options(pro_units),
@@ -4431,12 +4201,7 @@ def _tasks_page_v2():
         priority_items=stable_form_category_options(priority_items),
         is_lead=is_lead,
         is_admin=is_admin,
-        stats={
-            "total": len(visible_tasks),
-            "outline": len(outline_tasks),
-            "file": len(file_tasks),
-            "form": len(form_tasks),
-        },
+        stats=list_context["stats"],
     )
 
 
@@ -4458,6 +4223,8 @@ def _task_detail_v2(tid):
         flash("Bạn không có quyền xem công việc này.", "danger")
         return redirect(url_for("tasks_bp.tasks"))
 
+    _lazy_repair_task_runtime(task, include_children=False, commit=True)
+
     pro_units = _task_domain_options()
     task_fields = _task_field_options()
     task_types = _task_type_options()
@@ -4473,17 +4240,20 @@ def _task_detail_v2(tid):
     setattr(task, "task_mode_label", _task_mode_label(mode))
     setattr(task, "task_mode_description", _task_mode_description(mode))
 
-    summary = _build_rebuilt_task_summary(task, session["uid"])
-    outline_rows = _parse_outline_item_rows(task, session["uid"]) if mode == "OUTLINE" else []
-    outline_groups = _build_outline_group_rows(task, session["uid"]) if mode == "OUTLINE" else []
-    file_rows = _build_file_task_rows(task, session["uid"]) if mode == "FILE" else []
-    form_fields, form_rows = _build_form_task_rows(task, session["uid"]) if mode == "FORM" else ([], [])
-    form_field_views = _task_form_field_views(task) if mode == "FORM" else []
-    my_file_assignment = next((row["assignment"] for row in file_rows if row["is_current_user"]), None)
-    my_file_submission = next((row["submission"] for row in file_rows if row["is_current_user"]), None)
-    my_form_assignment = next((row["assignment"] for row in form_rows if row["is_current_user"]), None)
-    my_form_submission = next((row["submission"] for row in form_rows if row["is_current_user"]), None)
-    my_form_payload = next((row["payload"] for row in form_rows if row["is_current_user"]), {})
+    detail_page_context = build_task_detail_page_context(
+        task,
+        session["uid"],
+        mode,
+        can_manage_task_view,
+        is_executor,
+        _build_rebuilt_task_summary,
+        _parse_outline_item_rows,
+        _build_outline_group_rows,
+        _build_file_task_rows,
+        _build_form_task_rows,
+        _task_form_field_views,
+        _task_detail_context,
+    )
     active_users = []
     roles = []
     if can_manage_task_view:
@@ -4519,19 +4289,20 @@ def _task_detail_v2(tid):
         is_admin=is_admin,
         users=active_users,
         roles=roles,
-        outline_rows=outline_rows,
-        outline_groups=outline_groups,
+        outline_rows=detail_page_context["outline_rows"],
+        outline_groups=detail_page_context["outline_groups"],
         outline_import_preview_rows=outline_import_preview_rows,
-        file_rows=file_rows,
-        form_fields=form_fields,
-        form_field_views=form_field_views,
-        form_rows=form_rows,
-        my_file_assignment=my_file_assignment,
-        my_file_submission=my_file_submission,
-        my_form_assignment=my_form_assignment,
-        my_form_submission=my_form_submission,
-        my_form_payload=my_form_payload,
-        summary=summary,
+        file_rows=detail_page_context["file_rows"],
+        form_fields=detail_page_context["form_fields"],
+        form_field_views=detail_page_context["form_field_views"],
+        form_rows=detail_page_context["form_rows"],
+        my_file_assignment=detail_page_context["my_file_assignment"],
+        my_file_submission=detail_page_context["my_file_submission"],
+        my_form_assignment=detail_page_context["my_form_assignment"],
+        my_form_submission=detail_page_context["my_form_submission"],
+        my_form_payload=detail_page_context["my_form_payload"],
+        summary=detail_page_context["summary"],
+        detail_context=detail_page_context["detail_context"],
         status_labels=TASK_ASSIGNMENT_STATUS_LABELS,
     )
 

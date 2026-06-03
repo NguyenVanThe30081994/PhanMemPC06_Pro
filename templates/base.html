@@ -752,42 +752,14 @@
             </div>
 
             <div class="nav-center d-none d-lg-flex h-100 justify-content-center align-items-stretch flex-grow-1 px-4">
+                {% set operations_active = (request.endpoint == 'ranking_bp.index') or (request.endpoint and request.endpoint.startswith('attendance_bp.')) %}
+                {% set lookup_active = request.endpoint in ['portal_bp.news', 'portal_bp.library', 'portal_bp.contacts'] or request.path.startswith('/links') %}
+                {% set support_active = request.endpoint == 'portal_bp.user_guide' or request.path.startswith('/ai') %}
                 <a href="/admin"
-                    class="nav-link-top {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">Tổng quan</a>
+                    class="nav-link-top {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">Trang chủ</a>
                 {% if can_module('task', 'view') %}<a href="/tasks"
                     class="nav-link-top {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">Công việc</a>{%
                 endif %}
-                {% if can_module('attendance', 'view') %}<a href="/attendance"
-                    class="nav-link-top {% if request.endpoint and request.endpoint.startswith('attendance_bp.') %}active{% endif %}">Điểm danh</a>{%
-                endif %}
-                <a href="/ranking"
-                    class="nav-link-top {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">Xếp hạng</a>
-                <div class="dropdown h-100 d-flex align-items-center">
-                    <a class="nav-link-top dropdown-toggle {% if request.endpoint in ['portal_bp.news', 'portal_bp.library'] %}active{% endif %}"
-                        href="#" role="button" data-bs-toggle="dropdown">
-                        Bảng tin & Thư viện
-                    </a>
-                    <ul class="dropdown-menu shadow-lg border-0 mt-0 rounded-4 p-2" style="min-width: 220px;">
-                        {% if can_module('news', 'view') %}
-                        <li><a class="dropdown-item py-2 rounded-3" href="/news">Bảng tin</a></li>
-                        {% endif %}
-                        {% if can_module('news', 'view') and can_module('lib', 'view') %}<li>
-                            <hr class="dropdown-divider opacity-10 mx-2">
-                        </li>{% endif %}
-                        {% if can_module('lib', 'view') %}
-                        <li><a class="dropdown-item py-2 rounded-3" href="/library">Thư viện</a></li>
-                        {% endif %}
-                    </ul>
-                </div>
-                {% if can_module('contact', 'view') %}<a href="/contacts"
-                    class="nav-link-top {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">Danh
-                    bạ</a>{% endif %}
-
-                <a href="/guide" class="nav-link-top {% if request.endpoint == 'portal_bp.user_guide' %}active{% endif %}">Hướng dẫn</a>
-
-                <a href="{{ url_for('shortlink_bp.manage_links') }}" class="nav-link-top {% if request.path.startswith('/links') %}active{% endif %}">QR & Link</a>
-
-                <a href="/ai" class="nav-link-top {% if request.path.startswith('/ai') %}active{% endif %}">Trợ lý AI</a>
 
                 {% if can_access_report_center() %}
                 <a href="{{ report_center_url() }}"
@@ -795,6 +767,55 @@
                     Báo cáo
                 </a>
                 {% endif %}
+
+                <div class="dropdown h-100 d-flex align-items-center">
+                    <a class="nav-link-top dropdown-toggle {% if operations_active %}active{% endif %}"
+                        href="#" role="button" data-bs-toggle="dropdown">
+                        Điều hành
+                    </a>
+                    <ul class="dropdown-menu shadow-lg border-0 mt-0 rounded-4 p-2" style="min-width: 220px;">
+                        {% if can_module('attendance', 'view') %}
+                        <li><a class="dropdown-item py-2 rounded-3" href="/attendance">Điểm danh</a></li>
+                        <li>
+                            <hr class="dropdown-divider opacity-10 mx-2">
+                        </li>
+                        {% endif %}
+                        <li><a class="dropdown-item py-2 rounded-3" href="/ranking">Xếp hạng</a></li>
+                    </ul>
+                </div>
+
+                <div class="dropdown h-100 d-flex align-items-center">
+                    <a class="nav-link-top dropdown-toggle {% if lookup_active %}active{% endif %}"
+                        href="#" role="button" data-bs-toggle="dropdown">
+                        Tra cứu
+                    </a>
+                    <ul class="dropdown-menu shadow-lg border-0 mt-0 rounded-4 p-2" style="min-width: 240px;">
+                        {% if can_module('news', 'view') %}
+                        <li><a class="dropdown-item py-2 rounded-3" href="/news">Bảng tin</a></li>
+                        {% endif %}
+                        {% if can_module('lib', 'view') %}
+                        <li><a class="dropdown-item py-2 rounded-3" href="/library">Thư viện</a></li>
+                        {% endif %}
+                        {% if can_module('contact', 'view') %}
+                        <li><a class="dropdown-item py-2 rounded-3" href="/contacts">Danh bạ</a></li>
+                        {% endif %}
+                        <li><a class="dropdown-item py-2 rounded-3" href="{{ url_for('shortlink_bp.manage_links') }}">QR và liên kết</a></li>
+                    </ul>
+                </div>
+
+                <div class="dropdown h-100 d-flex align-items-center">
+                    <a class="nav-link-top dropdown-toggle {% if support_active %}active{% endif %}"
+                        href="#" role="button" data-bs-toggle="dropdown">
+                        Hỗ trợ
+                    </a>
+                    <ul class="dropdown-menu shadow-lg border-0 mt-0 rounded-4 p-2" style="min-width: 220px;">
+                        <li><a class="dropdown-item py-2 rounded-3" href="/guide">Hướng dẫn</a></li>
+                        <li>
+                            <hr class="dropdown-divider opacity-10 mx-2">
+                        </li>
+                        <li><a class="dropdown-item py-2 rounded-3" href="/ai">Trợ lý AI</a></li>
+                    </ul>
+                </div>
 
                 {% if can_module('user', 'view') or can_module('sys', 'view') %}
                 <div class="dropdown h-100 d-flex align-items-center">
@@ -935,13 +956,13 @@
             <div class="mobile-nav-section">
                 <div class="mobile-nav-label">
                     <i class="fa-solid fa-compass"></i>
-                    <span>Điều hướng</span>
+                    <span>Làm việc</span>
                 </div>
                 <div class="mobile-nav-list">
                     <a href="/admin"
                         class="mobile-nav-link {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">
                         <span class="mobile-nav-icon"><i class="fa-solid fa-house"></i></span>
-                        <span>Tổng quan</span>
+                        <span>Trang chủ</span>
                     </a>
 
                     {% if can_module('task', 'view') %}
@@ -952,6 +973,22 @@
                     </a>
                     {% endif %}
 
+                    {% if can_access_reports %}
+                    <a href="{{ report_center_url() }}"
+                        class="mobile-nav-link {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-chart-line"></i></span>
+                        <span>Báo cáo</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="mobile-nav-section">
+                <div class="mobile-nav-label">
+                    <i class="fa-solid fa-chart-column"></i>
+                    <span>Điều hành</span>
+                </div>
+                <div class="mobile-nav-list">
                     {% if can_module('attendance', 'view') %}
                     <a href="/attendance"
                         class="mobile-nav-link {% if request.endpoint and request.endpoint.startswith('attendance_bp.') %}active{% endif %}">
@@ -959,13 +996,20 @@
                         <span>Điểm danh</span>
                     </a>
                     {% endif %}
-
                     <a href="/ranking"
                         class="mobile-nav-link {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">
                         <span class="mobile-nav-icon"><i class="fa-solid fa-ranking-star"></i></span>
                         <span>Xếp hạng</span>
                     </a>
+                </div>
+            </div>
 
+            <div class="mobile-nav-section">
+                <div class="mobile-nav-label">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <span>Tra cứu và hỗ trợ</span>
+                </div>
+                <div class="mobile-nav-list">
                     {% if can_module('news', 'view') %}
                     <a href="/news"
                         class="mobile-nav-link {% if request.endpoint == 'portal_bp.news' %}active{% endif %}">
@@ -973,43 +1017,18 @@
                         <span>Bảng tin</span>
                     </a>
                     {% endif %}
-                </div>
-            </div>
-
-            {% if can_access_reports %}
-            <div class="mobile-nav-section">
-                <div class="mobile-nav-label">
-                    <i class="fa-solid fa-chart-column"></i>
-                    <span>Báo cáo</span>
-                </div>
-                <div class="mobile-nav-list">
-                    <a href="{{ report_center_url() }}"
-                        class="mobile-nav-link {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">
-                        <span class="mobile-nav-icon"><i class="fa-solid fa-chart-line"></i></span>
-                        <span>Trung tâm báo cáo</span>
-                    </a>
-                </div>
-            </div>
-            {% endif %}
-
-            <div class="mobile-nav-section">
-                <div class="mobile-nav-label">
-                    <i class="fa-solid fa-layer-group"></i>
-                    <span>Tiện ích</span>
-                </div>
-                <div class="mobile-nav-list">
                     {% if can_module('lib', 'view') %}
                     <a href="/library"
                         class="mobile-nav-link {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">
                         <span class="mobile-nav-icon"><i class="fa-solid fa-book-open"></i></span>
-                        <span>Thư viện tài liệu</span>
+                        <span>Thư viện</span>
                     </a>
                     {% endif %}
                     {% if can_module('contact', 'view') %}
                     <a href="/contacts"
                         class="mobile-nav-link {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">
                         <span class="mobile-nav-icon"><i class="fa-solid fa-address-book"></i></span>
-                        <span>Danh bạ đơn vị</span>
+                        <span>Danh bạ</span>
                     </a>
                     {% endif %}
                     <a href="/guide"
@@ -1020,12 +1039,12 @@
                     <a href="{{ url_for('shortlink_bp.manage_links') }}"
                         class="mobile-nav-link {% if request.endpoint == 'shortlink_bp.manage_links' %}active{% endif %}">
                         <span class="mobile-nav-icon"><i class="fa-solid fa-qrcode"></i></span>
-                        <span>QR & Link</span>
+                        <span>QR và liên kết</span>
                     </a>
                     <a href="/ai"
                         class="mobile-nav-link {% if request.path.startswith('/ai') %}active{% endif %}">
                         <span class="mobile-nav-icon"><i class="fa-solid fa-robot"></i></span>
-                        <span>Trợ lý AI</span>
+                        <span>Hỏi AI</span>
                     </a>
                 </div>
             </div>
@@ -1097,15 +1116,15 @@
     <div class="mobile-bottom-nav d-lg-none">
         <a href="/admin" class="nav-item {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">
             <i class="fa-solid fa-house-chimney"></i>
-            <span>TỔNG QUAN</span>
+            <span>TRANG CHỦ</span>
         </a>
         <a href="/tasks" class="nav-item {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">
             <i class="fa-solid fa-list-check"></i>
             <span>CÔNG VIỆC</span>
         </a>
-        <a href="/ranking" class="nav-item {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">
-            <i class="fa-solid fa-ranking-star"></i>
-            <span>XẾP HẠNG</span>
+        <a href="{{ report_center_url() if can_access_reports else '/ranking' }}" class="nav-item {% if can_access_reports and request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% elif not can_access_reports and request.endpoint == 'ranking_bp.index' %}active{% endif %}">
+            <i class="fa-solid {% if can_access_reports %}fa-chart-line{% else %}fa-ranking-star{% endif %}"></i>
+            <span>{% if can_access_reports %}BÁO CÁO{% else %}XẾP HẠNG{% endif %}</span>
         </a>
         <a href="#" class="nav-item" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
             <i class="fa-solid fa-ellipsis-h"></i>
