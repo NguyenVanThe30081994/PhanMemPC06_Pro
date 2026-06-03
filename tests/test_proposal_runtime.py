@@ -42,6 +42,7 @@ from routes.reporting import (
     _finalize_due_daily_cycles_job,
     _get_cycle_instance,
     _report_type,
+    _resolve_entry_submission_state,
     _resolve_working_submission_state,
     _save_submission,
     _ensure_reporting_period,
@@ -1526,7 +1527,7 @@ class ProposalRuntimeTests(unittest.TestCase):
         finally:
             self._cleanup_report_cycle_fixture(fixture)
 
-    def test_daily_submission_saves_full_snapshot_and_latest_day_preserves_unsent_cells(self):
+    def test_daily_submission_saves_per_day_delta_and_latest_day_view_is_cumulative(self):
         fixture = self._build_report_cycle_fixture(report_type_code="daily")
         try:
             day_one = date.today() - timedelta(days=1)
@@ -1571,7 +1572,7 @@ class ProposalRuntimeTests(unittest.TestCase):
                     self.assertEqual(errors_one, [])
                     self.assertEqual(
                         json.loads(submission_one.metadata_json or "{}").get("storage_mode"),
-                        "full_snapshot",
+                        "daily_delta",
                     )
                     self.assertEqual(
                         json.loads(submission_one.metadata_json or "{}").get("entry_values", {}).get("Sheet1", {}).get("B2"),
@@ -1584,7 +1585,7 @@ class ProposalRuntimeTests(unittest.TestCase):
                             report_type=report_type,
                             report_date=day_one,
                         )["existing_values"].get("Sheet1", {}).get("B2"),
-                        "2",
+                        2,
                     )
 
                     submission_two, errors_two = _save_submission(
@@ -1600,8 +1601,16 @@ class ProposalRuntimeTests(unittest.TestCase):
                         report_type=report_type,
                         report_date=day_two,
                     )["existing_values"].get("Sheet1", {})
-                    self.assertEqual(day_two_values.get("B2"), "3")
+                    self.assertEqual(day_two_values.get("B2"), 5)
                     self.assertEqual(day_two_values.get("A2"), unit.name)
+                    day_two_entry_values = _resolve_entry_submission_state(
+                        instance,
+                        template_version,
+                        report_type=report_type,
+                        report_date=day_two,
+                    )["existing_values"].get("Sheet1", {})
+                    self.assertEqual(day_two_entry_values.get("B2"), "3")
+                    self.assertNotIn("A2", day_two_entry_values)
                     self.assertEqual(
                         _resolve_working_submission_state(
                             instance,
@@ -1658,7 +1667,7 @@ class ProposalRuntimeTests(unittest.TestCase):
                     self.assertIsNotNone(submission)
                     metadata = json.loads(submission.metadata_json or "{}")
                     self.assertEqual(metadata.get("report_date"), report_day.strftime("%Y-%m-%d"))
-                    self.assertEqual(metadata.get("storage_mode"), "full_snapshot")
+                    self.assertEqual(metadata.get("storage_mode"), "daily_delta")
         finally:
             self._cleanup_report_cycle_fixture(fixture)
 
@@ -1732,7 +1741,93 @@ class ProposalRuntimeTests(unittest.TestCase):
                         report_type=report_type,
                         report_date=day_two,
                     )["existing_values"].get("Sheet1", {})
-                    self.assertEqual(day_two_values.get("B2"), "3")
+                    self.assertEqual(day_two_values.get("B2"), 5)
+        finally:
+            self._cleanup_report_cycle_fixture(fixture)
+
+    def test_daily_workspace_shows_selected_day_entry_values_and_preview_shows_cumulative_copy(self):
+        client, _user = self._login_admin_client()
+        fixture = self._build_report_cycle_fixture(report_type_code="daily")
+        try:
+            day_one = date.today() - timedelta(days=1)
+            day_two = date.today()
+            with app.test_request_context():
+                session["uid"] = 1
+                session["unit_area"] = "Đơn vị test"
+                with app.app_context():
+                    db.session.execute(
+                        text(
+                            """
+                            INSERT OR REPLACE INTO form_template (id, code, name, is_active)
+                            VALUES (:id, :code, :name, :is_active)
+                            """
+                        ),
+                        {
+                            "id": fixture["template_id"],
+                            "code": f"legacy_template_{fixture['template_id']}",
+                            "name": "Legacy template for daily workspace test",
+                            "is_active": 1,
+                        },
+                    )
+                    db.session.commit()
+
+                    cycle = db.session.get(ReportCycle, fixture["cycle_id"])
+                    cycle.open_at = datetime.combine(day_one, datetime.min.time())
+                    cycle.due_at = datetime.combine(day_two, datetime.max.time())
+                    db.session.commit()
+
+                    unit = db.session.get(ReportUnit, fixture["unit_id"])
+                    user = User.query.filter_by(is_active=True).order_by(User.id.asc()).first()
+                    instance = _get_cycle_instance(cycle, unit, user)
+
+                    submission_one, errors_one = _save_submission(
+                        instance,
+                        {"sheets": {"Sheet1": {"A2": unit.name, "B2": "2"}}},
+                        final_submit=True,
+                        report_date=day_one,
+                    )
+                    submission_two, errors_two = _save_submission(
+                        instance,
+                        {"sheets": {"Sheet1": {"B2": "3"}}},
+                        final_submit=True,
+                        report_date=day_two,
+                    )
+                    self.assertEqual(errors_one, [])
+                    self.assertEqual(errors_two, [])
+                    self.assertIsNotNone(submission_one)
+                    self.assertIsNotNone(submission_two)
+
+            workspace_response = client.get(
+                f"/reports/cycles/{fixture['cycle_id']}?unit_id={fixture['unit_id']}&report_date={day_two.strftime('%Y-%m-%d')}"
+            )
+            self.assertEqual(workspace_response.status_code, 200)
+            workspace_html = workspace_response.get_data(as_text=True)
+            self.assertIn(
+                "Biểu mẫu đang nhập dữ liệu riêng của ngày",
+                workspace_html,
+            )
+            self.assertIn('data-cell="B2" value="3"', workspace_html)
+            self.assertNotIn('data-cell="B2" value="5"', workspace_html)
+
+            preview_response = client.get(
+                f"/reports/cycles/{fixture['cycle_id']}/view?unit_id={fixture['unit_id']}&report_date={day_two.strftime('%Y-%m-%d')}"
+            )
+            self.assertEqual(preview_response.status_code, 200)
+
+            with app.app_context():
+                cycle = db.session.get(ReportCycle, fixture["cycle_id"])
+                template_version = db.session.get(ReportTemplateVersion, fixture["version_id"])
+                unit = db.session.get(ReportUnit, fixture["unit_id"])
+                user = User.query.filter_by(is_active=True).order_by(User.id.asc()).first()
+                instance = _get_cycle_instance(cycle, unit, user)
+                existing_values = _resolve_working_submission_state(
+                    instance,
+                    template_version,
+                    report_type=_report_type(cycle),
+                    report_date=day_two,
+                )["existing_values"]
+                workbook, _formula_values = build_preview_workbook(template_version.source_path, existing_values)
+                self.assertEqual(workbook["Sheet1"]["B2"].value, 5)
         finally:
             self._cleanup_report_cycle_fixture(fixture)
 
