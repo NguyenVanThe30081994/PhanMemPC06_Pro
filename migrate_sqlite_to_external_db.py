@@ -23,6 +23,7 @@ def _prepare_table_for_target(source_table, target_meta, dialect_name):
 
     if dialect_name in {"mysql", "mariadb"}:
         target_table.dialect_options["mysql"]["charset"] = "utf8mb4"
+        target_table.dialect_options["mysql"]["collate"] = "utf8mb4_unicode_ci"
         for column in target_table.columns:
             # SQLite defaults are only useful for runtime DDL; when migrating data
             # into MySQL they can break table creation due to collation/sql_mode differences.

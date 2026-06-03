@@ -124,9 +124,20 @@ def allowed_file(filename):
 # ==================== DATABASE CONFIG ====================
 app.config['SQLALCHEMY_DATABASE_URI'] = storage_layout['DATABASE_URI']
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+engine_options = {
     'pool_pre_ping': True,
 }
+if storage_layout['DATABASE_URI'].startswith(('mysql+pymysql://', 'mariadb+pymysql://')):
+    engine_options.update(
+        {
+            'pool_recycle': 3600,
+            'connect_args': {
+                'charset': 'utf8mb4',
+                'init_command': "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
+            },
+        }
+    )
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = engine_options
 
 for folder in [UPLOAD_FOLDER, TASK_FOLDER, LIB_FOLDER, REPORT_TEMPLATE_FOLDER, REPORT_EXPORT_FOLDER, BACKUP_FOLDER, TMP_FOLDER]:
     os.makedirs(folder, exist_ok=True)
