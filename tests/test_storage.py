@@ -32,9 +32,14 @@ class StorageTests(unittest.TestCase):
 
         env["DATABASE_URL"] = "mysql://user:pass@host/dbname"
         with patch.dict(os.environ, env, clear=False):
+            with self.assertRaises(RuntimeError):
+                _resolve_database_uri("/tmp/app", "/tmp/data")
+
+        env["DATABASE_URL"] = "mysql://user:pass@localhost/dbname"
+        with patch.dict(os.environ, env, clear=False):
             self.assertEqual(
                 _resolve_database_uri("/tmp/app", "/tmp/data"),
-                "mysql+pymysql://user:pass@host/dbname",
+                "mysql+pymysql://user:pass@localhost/dbname",
             )
 
 

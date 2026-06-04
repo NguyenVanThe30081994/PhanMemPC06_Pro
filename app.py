@@ -63,7 +63,15 @@ try:
         SESSION_COOKIE_SECURE,
         SESSION_COOKIE_HTTPONLY,
         SESSION_COOKIE_SAMESITE,
+        SESSION_COOKIE_NAME,
+        SESSION_REFRESH_EACH_REQUEST,
         CSRF_TOKEN_LIFETIME,
+        LOGIN_FAILURE_WINDOW_SECONDS,
+        LOGIN_MAX_FAILURES_PER_USER,
+        LOGIN_MAX_FAILURES_PER_IP,
+        LOGIN_LOCKOUT_SECONDS,
+        LOGIN_LOCKOUT_MULTIPLIER_MAX,
+        AUTH_FAILURE_DELAY_MS,
     )
 except ImportError:
     SECRET_KEY = 'PC06_FINAL_V3_5_2026'
@@ -72,7 +80,15 @@ except ImportError:
     SESSION_COOKIE_SECURE = False
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_NAME = 'pc06_session'
+    SESSION_REFRESH_EACH_REQUEST = True
     CSRF_TOKEN_LIFETIME = 3600
+    LOGIN_FAILURE_WINDOW_SECONDS = 900
+    LOGIN_MAX_FAILURES_PER_USER = 5
+    LOGIN_MAX_FAILURES_PER_IP = 20
+    LOGIN_LOCKOUT_SECONDS = 900
+    LOGIN_LOCKOUT_MULTIPLIER_MAX = 4
+    AUTH_FAILURE_DELAY_MS = 600
 
 app.secret_key = SECRET_KEY
 app.config['JSON_AS_ASCII'] = False  # Giữ nguyên tiếng Việt trong jsonify()
@@ -105,8 +121,16 @@ app.logger.setLevel(logging.INFO)
 app.config['SESSION_COOKIE_SECURE'] = SESSION_COOKIE_SECURE  # Set True if using HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent XSS stealing cookies
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+app.config['SESSION_COOKIE_NAME'] = SESSION_COOKIE_NAME
+app.config['SESSION_REFRESH_EACH_REQUEST'] = SESSION_REFRESH_EACH_REQUEST
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=SESSION_LIFETIME)  # 30 min timeout
 app.config['PC06_SESSION_TIMEOUT_SECONDS'] = SESSION_LIFETIME
+app.config['LOGIN_FAILURE_WINDOW_SECONDS'] = LOGIN_FAILURE_WINDOW_SECONDS
+app.config['LOGIN_MAX_FAILURES_PER_USER'] = LOGIN_MAX_FAILURES_PER_USER
+app.config['LOGIN_MAX_FAILURES_PER_IP'] = LOGIN_MAX_FAILURES_PER_IP
+app.config['LOGIN_LOCKOUT_SECONDS'] = LOGIN_LOCKOUT_SECONDS
+app.config['LOGIN_LOCKOUT_MULTIPLIER_MAX'] = LOGIN_LOCKOUT_MULTIPLIER_MAX
+app.config['AUTH_FAILURE_DELAY_MS'] = AUTH_FAILURE_DELAY_MS
 
 # CSRF Protection
 app.config['WTF_CSRF_ENABLED'] = True
@@ -172,6 +196,24 @@ def add_security_headers(response):
     # response.headers['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:;"
     # Referrer Policy
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+    response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
+        "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
+        "img-src 'self' data: blob: https:; "
+        "connect-src 'self' https:; "
+        "frame-ancestors 'self'; "
+        "base-uri 'self'; "
+        "object-src 'none';"
+    )
+    if request.endpoint in {'auth_bp.login', 'auth_bp.logout', 'auth_bp.change_password'} or session.get('uid'):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
     return response
 
 # Rate Limiting Configuration (Simple in-memory implementation)
@@ -194,9 +236,8 @@ def check_rate_limit():
         return
     
     # Get client IP
-    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-    if client_ip and ',' in client_ip:
-        client_ip = client_ip.split(',')[0].strip()
+    from security_utils.security_helpers import get_client_ip
+    client_ip = get_client_ip()
     
     if not client_ip:
         return
@@ -262,11 +303,17 @@ def check_auth():
     g.is_mobile = is_mobile_device()
 
     public_endpoints = {
+        'auth_bp.login',
+        'attendance_bp.attendance_home',
         'attendance_bp.public_attendance',
         'attendance_bp.submit_attendance',
+        'shortlink_bp.redirect_short_link',
+        'shortlink_bp.get_qr',
+        'health_bp.health_check',
+        'health_bp.ping',
         'favicon',
     }
-    if request.endpoint in public_endpoints:
+    if request.endpoint in public_endpoints or (request.endpoint and request.endpoint.startswith('static')):
         return
 
     # 1. Inactivity Check
@@ -279,6 +326,13 @@ def check_auth():
             session.clear()
             return redirect(url_for('auth_bp.login'))
         session['last_active'] = now
+    if not session.get('uid'):
+        if request.endpoint and request.endpoint.startswith('api_bp.'):
+            return jsonify({'error': 'Unauthorized'}), 401
+        return redirect(url_for('auth_bp.login'))
+
+    if session.get('must_change') and request.endpoint not in {'auth_bp.change_password', 'auth_bp.logout'}:
+        return redirect(url_for('auth_bp.change_password'))
 
 
 def build_session_activity_marker():
@@ -287,12 +341,6 @@ def build_session_activity_marker():
     if not uid or not login_nonce:
         return ''
     return f"{uid}:{login_nonce}"
-
-    allowed = ['auth_bp.login', 'static', 'dl_file', 'shortlink_bp.redirect_short_link', 'shortlink_bp.get_qr', 'favicon']
-    if not session.get('uid') and request.endpoint not in allowed and not (request.endpoint and request.endpoint.startswith('static')):
-        return redirect(url_for('auth_bp.login'))
-    if session.get('uid') and session.get('must_change') and request.endpoint not in ['auth_bp.change_password', 'auth_bp.logout', 'static']:
-        return redirect(url_for('auth_bp.change_password'))
 
 @app.context_processor
 def inject_global_data():

@@ -128,7 +128,7 @@ class ModuleFieldBinding(db.Model):
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, index=True)
-    password_hash = db.Column(db.String(128))
+    password_hash = db.Column(db.String(255))
     fullname = db.Column(db.String(100))
     role_id = db.Column(db.Integer, db.ForeignKey('app_role.id'))
     unit_area = db.Column(db.String(100))
@@ -139,6 +139,24 @@ class User(db.Model):
     role = db.relationship('AppRole', backref='users')
     def set_password(self, p): self.password_hash = generate_password_hash(p, method='pbkdf2:sha256')
     def check_password(self, p): return check_password_hash(self.password_hash, p)
+
+
+class LoginSecurityState(db.Model):
+    __tablename__ = 'login_security_state'
+    __table_args__ = (
+        UniqueConstraint('scope_type', 'scope_key', name='uq_login_security_scope'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    scope_type = db.Column(db.String(20), nullable=False, index=True)
+    scope_key = db.Column(db.String(255), nullable=False, index=True)
+    failed_attempts = db.Column(db.Integer, default=0)
+    lock_count = db.Column(db.Integer, default=0)
+    first_failed_at = db.Column(db.DateTime)
+    last_failed_at = db.Column(db.DateTime)
+    locked_until = db.Column(db.DateTime)
+    last_success_at = db.Column(db.DateTime)
+    last_success_ip = db.Column(db.String(64))
 
 
 class Task(db.Model):

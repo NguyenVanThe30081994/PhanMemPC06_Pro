@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import shutil
+from urllib.parse import urlparse
 
 
 MUTABLE_DIR_ENV_MAP = {
@@ -15,6 +16,7 @@ MUTABLE_DIR_ENV_MAP = {
 }
 
 _PLACEHOLDER_FILES = {".gitkeep", ".DS_Store"}
+_PLACEHOLDER_DB_HOSTS = {"host", "hostname", "dbhost", "example", "example.com"}
 
 
 def _absolute_path(base_dir, value):
@@ -39,6 +41,25 @@ def _normalize_database_uri(raw_uri):
     if uri.startswith("mariadb://"):
         return "mariadb+pymysql://" + uri[len("mariadb://"):]
     return uri
+
+
+def _validate_external_database_uri(raw_uri):
+    uri = (raw_uri or "").strip()
+    if not uri.startswith(("mysql+pymysql://", "mariadb+pymysql://")):
+        return
+
+    parsed = urlparse(uri)
+    hostname = (parsed.hostname or "").strip().lower()
+    if not hostname:
+        raise RuntimeError(
+            "DATABASE_URL is missing the database host. "
+            "Use a real MySQL/MariaDB hostname such as localhost or the cPanel database host."
+        )
+    if hostname in _PLACEHOLDER_DB_HOSTS:
+        raise RuntimeError(
+            f"DATABASE_URL is using a placeholder host ({hostname}). "
+            "Replace it with the real MySQL/MariaDB host from cPanel, usually localhost."
+        )
 
 
 def _resolve_data_root(base_dir):
@@ -84,6 +105,7 @@ def _resolve_database_uri(base_dir, data_root):
             resolved_path = os.path.join(data_root, sqlite_path)
         return "sqlite:///" + os.path.abspath(resolved_path)
 
+    _validate_external_database_uri(raw_uri)
     return raw_uri
 
 
