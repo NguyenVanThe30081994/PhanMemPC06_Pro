@@ -1,428 +1,289 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="workspace-shell">
-    <section class="workspace-hero">
-        <div class="workspace-hero-copy">
-            <div class="workspace-eyebrow">Trang chủ điều hành</div>
-            <h1>Trung tâm thao tác PC06</h1>
-            <p>Chọn đúng khu vực cần làm việc thay vì phải nhớ từng module kỹ thuật. Mỗi nhóm bên dưới chỉ giữ các thao tác chính, ngắn gọn và dễ tìm.</p>
-        </div>
-        <div class="workspace-hero-meta">
-            <div class="workspace-date">{{ now_str }}</div>
-            <div class="workspace-flow">
-                <span>1. Mở việc cần xử lý</span>
-                <span>2. Cập nhật kết quả hoặc báo cáo</span>
-                <span>3. Tra cứu và quản trị khi cần</span>
-            </div>
-        </div>
+<div class="overview-shell">
+    <section class="overview-topbar">
+        <h1>Trang chủ</h1>
+        <div class="overview-date">{{ now_str }}</div>
     </section>
 
-    <section class="workspace-summary">
-        {% for card in dashboard_cards %}
-        <article class="workspace-summary-card workspace-summary-{{ card.accent_class }}">
-            <span>{{ card.title }}</span>
-            <strong>{{ card.total }}</strong>
+    <section class="overview-metric-grid">
+        {% for metric in overview_metrics %}
+        <a href="{{ metric.href }}" class="overview-metric-card accent-{{ metric.accent_class }}">
+            <span>{{ metric.title }}</span>
+            <strong>{{ metric.value }}</strong>
+        </a>
+        {% endfor %}
+    </section>
+
+    <section class="overview-chart-grid">
+        <article class="overview-panel">
+            <div class="overview-panel-head">
+                <h2>Tổng hợp</h2>
+            </div>
+            <div class="overview-canvas-wrap">
+                <canvas id="overviewBarChart"></canvas>
+            </div>
         </article>
-        {% endfor %}
-    </section>
 
-    <section class="workspace-section-stack">
-        {% for group in workspace_groups %}
-        <section class="workspace-panel">
-            <div class="workspace-panel-head">
-                <div>
-                    <h2>{{ group.title }}</h2>
-                    <p>{{ group.description }}</p>
-                </div>
+        <article class="overview-panel">
+            <div class="overview-panel-head">
+                <h2>Tỷ lệ đơn vị</h2>
             </div>
-            <div class="workspace-card-grid">
-                {% for card in group.cards %}
-                <article class="workspace-card workspace-card-{{ card.accent_class }}">
-                    <div class="workspace-card-head">
-                        <h3>{{ card.title }}</h3>
-                        {% if card.stat_value %}
-                        <div class="workspace-card-stat">
-                            <strong>{{ card.stat_value }}</strong>
-                            {% if card.stat_label %}<span>{{ card.stat_label }}</span>{% endif %}
-                        </div>
-                        {% endif %}
-                    </div>
-                    <p>{{ card.description }}</p>
-                    <div class="workspace-card-actions">
-                        <a href="{{ card.primary_link }}" class="btn btn-bdhvs primary">{{ card.primary_label }}</a>
-                        {% if card.secondary_label and card.secondary_link %}
-                        <a href="{{ card.secondary_link }}" class="btn btn-bdhvs light">{{ card.secondary_label }}</a>
-                        {% endif %}
-                    </div>
-                </article>
-                {% endfor %}
+            <div class="overview-canvas-wrap">
+                <canvas id="overviewDonutChart"></canvas>
             </div>
-        </section>
-        {% endfor %}
-    </section>
-
-    <section class="workspace-panel">
-        <div class="workspace-panel-head">
-            <div>
-                <h2>Tóm tắt dữ liệu</h2>
-                <p>Giữ phần thống kê ở mức ngắn gọn để người dùng nhìn nhanh toàn cảnh rồi đi thẳng vào module cần xử lý.</p>
-            </div>
-        </div>
-        <div class="workspace-snapshot-grid">
-            {% for card in dashboard_snapshots %}
-            <article class="workspace-snapshot-card">
-                <div class="workspace-snapshot-head">
-                    <div>
-                        <h3>{{ card.title }}</h3>
-                        <span>{{ card.total }} mục</span>
-                    </div>
-                    <a href="{{ card.link }}" class="workspace-inline-link">Mở</a>
-                </div>
-                {% if card.rows %}
-                <div class="workspace-table-wrap">
-                    <table class="workspace-table">
-                        <thead>
-                            <tr>
-                                <th>{{ card.row_label }}</th>
-                                <th>{{ card.count_label }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in card.rows %}
-                            <tr>
-                                <td>{{ row.name }}</td>
-                                <td>{{ row.count }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="workspace-empty">{{ card.empty_text }}</div>
-                {% endif %}
-            </article>
-            {% endfor %}
-        </div>
+        </article>
     </section>
 </div>
 
 <style>
-    .workspace-shell {
+    .overview-shell {
         display: grid;
-        gap: 24px;
+        gap: 20px;
     }
 
-    .workspace-hero,
-    .workspace-panel,
-    .workspace-summary-card,
-    .workspace-card,
-    .workspace-snapshot-card {
+    .overview-topbar,
+    .overview-panel,
+    .overview-metric-card {
+        background: rgba(255, 255, 255, 0.94);
         border: 1px solid rgba(148, 163, 184, 0.16);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
+        border-radius: 26px;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.06);
     }
 
-    .workspace-hero {
-        padding: 28px;
-        border-radius: 28px;
-        display: grid;
-        grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
-        gap: 24px;
-    }
-
-    .workspace-eyebrow {
-        display: inline-flex;
-        padding: 6px 12px;
-        border-radius: 999px;
-        background: rgba(37, 99, 235, 0.1);
-        color: #1d4ed8;
-        font-size: 0.8rem;
-        font-weight: 800;
-        margin-bottom: 12px;
-    }
-
-    .workspace-hero h1 {
-        margin: 0 0 10px;
-        font-size: clamp(2rem, 3vw, 2.8rem);
-        font-weight: 900;
-    }
-
-    .workspace-hero p,
-    .workspace-panel-head p,
-    .workspace-card p {
-        margin: 0;
-        color: var(--text-muted);
-        line-height: 1.6;
-    }
-
-    .workspace-hero-meta {
-        display: grid;
+    .overview-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         gap: 16px;
-        align-content: start;
+        padding: 22px 24px;
     }
 
-    .workspace-date {
-        padding: 18px 20px;
-        border-radius: 22px;
-        background: linear-gradient(135deg, #dbeafe, #eff6ff);
-        color: #1d4ed8;
-        font-weight: 800;
-        text-align: center;
-    }
-
-    .workspace-flow {
-        display: grid;
-        gap: 10px;
-    }
-
-    .workspace-flow span {
-        padding: 14px 16px;
-        border-radius: 18px;
-        background: rgba(248, 250, 252, 0.96);
+    .overview-topbar h1,
+    .overview-panel-head h2 {
+        margin: 0;
         color: var(--text-main);
-        font-weight: 700;
+        font-weight: 800;
     }
 
-    .workspace-summary {
+    .overview-date {
+        padding: 10px 16px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.08);
+        color: var(--primary);
+        font-weight: 800;
+    }
+
+    .overview-metric-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 16px;
     }
 
-    .workspace-summary-card {
-        padding: 18px 20px;
-        border-radius: 22px;
+    .overview-metric-card {
         display: grid;
-        gap: 6px;
+        gap: 12px;
+        padding: 22px;
+        text-decoration: none;
+        color: var(--text-main);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
     }
 
-    .workspace-summary-card span {
-        color: var(--text-muted);
-        font-weight: 700;
+    .overview-metric-card:hover {
+        transform: translateY(-2px);
+        color: var(--text-main);
+        box-shadow: 0 22px 40px rgba(15, 23, 42, 0.1);
     }
 
-    .workspace-summary-card strong {
-        font-size: 2rem;
-        line-height: 1;
-    }
-
-    .workspace-summary-primary {
-        background: linear-gradient(145deg, rgba(219, 234, 254, 0.95), rgba(255, 255, 255, 0.96));
-    }
-
-    .workspace-summary-success {
-        background: linear-gradient(145deg, rgba(220, 252, 231, 0.95), rgba(255, 255, 255, 0.96));
-    }
-
-    .workspace-summary-warning {
-        background: linear-gradient(145deg, rgba(254, 243, 199, 0.95), rgba(255, 255, 255, 0.96));
-    }
-
-    .workspace-summary-indigo {
-        background: linear-gradient(145deg, rgba(224, 231, 255, 0.95), rgba(255, 255, 255, 0.96));
-    }
-
-    .workspace-section-stack {
-        display: grid;
-        gap: 24px;
-    }
-
-    .workspace-panel {
-        padding: 24px;
-        border-radius: 26px;
-    }
-
-    .workspace-panel-head {
-        display: flex;
-        justify-content: space-between;
-        gap: 16px;
-        margin-bottom: 18px;
-    }
-
-    .workspace-panel-head h2,
-    .workspace-card h3,
-    .workspace-snapshot-head h3 {
-        margin: 0 0 6px;
-        font-weight: 800;
-    }
-
-    .workspace-card-grid,
-    .workspace-snapshot-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 16px;
-    }
-
-    .workspace-card,
-    .workspace-snapshot-card {
-        padding: 20px;
-        border-radius: 22px;
-    }
-
-    .workspace-card-head,
-    .workspace-snapshot-head {
-        display: flex;
-        justify-content: space-between;
-        gap: 16px;
-        align-items: flex-start;
-        margin-bottom: 10px;
-    }
-
-    .workspace-card-stat {
-        min-width: 132px;
-        text-align: right;
-        display: grid;
-        gap: 2px;
-    }
-
-    .workspace-card-stat strong {
-        font-size: 1.4rem;
-        line-height: 1;
-    }
-
-    .workspace-card-stat span,
-    .workspace-snapshot-head span {
+    .overview-metric-card span {
         color: var(--text-muted);
         font-size: 0.86rem;
         font-weight: 700;
+        line-height: 1.5;
     }
 
-    .workspace-card-actions {
+    .overview-metric-card strong {
+        font-size: clamp(2rem, 3vw, 2.6rem);
+        line-height: 1;
+        font-weight: 800;
+    }
+
+    .overview-metric-card.accent-primary {
+        border-top: 5px solid #2563eb;
+    }
+
+    .overview-metric-card.accent-warning {
+        border-top: 5px solid #d97706;
+    }
+
+    .overview-metric-card.accent-success {
+        border-top: 5px solid #059669;
+    }
+
+    .overview-metric-card.accent-indigo {
+        border-top: 5px solid #4f46e5;
+    }
+
+    .overview-chart-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+        gap: 20px;
+    }
+
+    .overview-panel {
+        padding: 22px 24px;
+    }
+
+    .overview-panel-head {
         display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 18px;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 18px;
     }
 
-    .workspace-card-primary {
-        background: linear-gradient(145deg, rgba(219, 234, 254, 0.82), rgba(255, 255, 255, 0.96));
+    .overview-canvas-wrap {
+        position: relative;
+        height: 360px;
     }
 
-    .workspace-card-success {
-        background: linear-gradient(145deg, rgba(220, 252, 231, 0.82), rgba(255, 255, 255, 0.96));
-    }
-
-    .workspace-card-warning {
-        background: linear-gradient(145deg, rgba(254, 243, 199, 0.82), rgba(255, 255, 255, 0.96));
-    }
-
-    .workspace-card-indigo {
-        background: linear-gradient(145deg, rgba(224, 231, 255, 0.82), rgba(255, 255, 255, 0.96));
-    }
-
-    .workspace-inline-link {
-        color: var(--primary);
-        font-weight: 800;
-        text-decoration: none;
-    }
-
-    .workspace-table-wrap {
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        border-radius: 18px;
-        overflow: hidden;
-        background: rgba(248, 250, 252, 0.75);
-    }
-
-    .workspace-table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    .workspace-table th,
-    .workspace-table td {
-        padding: 12px 14px;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.1);
-    }
-
-    .workspace-table thead th {
-        background: rgba(255, 255, 255, 0.7);
-        color: var(--text-muted);
-        font-size: 0.82rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-    }
-
-    .workspace-table tbody tr:last-child td {
-        border-bottom: 0;
-    }
-
-    .workspace-table td:last-child,
-    .workspace-table th:last-child {
-        width: 110px;
-        text-align: right;
-        font-weight: 800;
-    }
-
-    .workspace-empty {
-        padding: 28px 16px;
-        border-radius: 18px;
-        border: 1px dashed rgba(148, 163, 184, 0.28);
-        text-align: center;
-        color: var(--text-muted);
-        font-weight: 700;
-        background: rgba(248, 250, 252, 0.72);
-    }
-
-    [data-theme="dark"] .workspace-hero,
-    [data-theme="dark"] .workspace-panel,
-    [data-theme="dark"] .workspace-summary-card,
-    [data-theme="dark"] .workspace-card,
-    [data-theme="dark"] .workspace-snapshot-card {
+    [data-theme="dark"] .overview-topbar,
+    [data-theme="dark"] .overview-panel,
+    [data-theme="dark"] .overview-metric-card {
         background: rgba(15, 23, 42, 0.84);
         border-color: rgba(148, 163, 184, 0.18);
         box-shadow: 0 18px 45px rgba(2, 6, 23, 0.34);
     }
 
-    [data-theme="dark"] .workspace-date {
-        background: linear-gradient(135deg, rgba(30, 64, 175, 0.55), rgba(30, 41, 59, 0.82));
-        color: #dbeafe;
+    [data-theme="dark"] .overview-date {
+        background: rgba(37, 99, 235, 0.16);
+        color: #93c5fd;
     }
 
-    [data-theme="dark"] .workspace-flow span,
-    [data-theme="dark"] .workspace-table thead th,
-    [data-theme="dark"] .workspace-table-wrap,
-    [data-theme="dark"] .workspace-empty {
-        background: rgba(30, 41, 59, 0.82);
+    @media (max-width: 1399.98px) {
+        .overview-metric-grid,
+        .overview-chart-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
     }
 
-    @media (max-width: 1199.98px) {
-        .workspace-hero,
-        .workspace-summary,
-        .workspace-card-grid,
-        .workspace-snapshot-grid {
+    @media (max-width: 991.98px) {
+        .overview-topbar,
+        .overview-metric-grid,
+        .overview-chart-grid {
             grid-template-columns: 1fr;
+        }
+
+        .overview-topbar {
+            flex-direction: column;
+            align-items: flex-start;
         }
     }
 
     @media (max-width: 767.98px) {
-        .workspace-hero,
-        .workspace-panel {
+        .overview-topbar,
+        .overview-panel,
+        .overview-metric-card {
             padding: 18px;
             border-radius: 22px;
         }
 
-        .workspace-card,
-        .workspace-snapshot-card,
-        .workspace-summary-card {
-            padding: 16px;
-            border-radius: 18px;
-        }
-
-        .workspace-card-head,
-        .workspace-snapshot-head {
-            flex-direction: column;
-        }
-
-        .workspace-card-stat {
-            min-width: 0;
-            text-align: left;
-        }
-
-        .workspace-card-actions {
-            flex-direction: column;
+        .overview-canvas-wrap {
+            height: 300px;
         }
     }
 </style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const barCanvas = document.getElementById('overviewBarChart');
+        const donutCanvas = document.getElementById('overviewDonutChart');
+        if (!barCanvas || !donutCanvas || typeof Chart === 'undefined') {
+            return;
+        }
+
+        const barLabels = {{ overview_chart['chart_labels']|tojson }};
+        const barValues = {{ overview_chart['chart_values']|tojson }};
+        const donutLabels = {{ completion_chart['chart_labels']|tojson }};
+        const donutValues = {{ completion_chart['chart_values']|tojson }};
+        const darkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+        const axisColor = darkMode ? '#94a3b8' : '#64748b';
+        const gridColor = darkMode ? 'rgba(148, 163, 184, 0.18)' : 'rgba(148, 163, 184, 0.14)';
+
+        new Chart(barCanvas, {
+            type: 'bar',
+            data: {
+                labels: barLabels,
+                datasets: [{
+                    data: barValues,
+                    backgroundColor: ['#2563eb', '#d97706', '#059669', '#4f46e5'],
+                    borderRadius: 14,
+                    borderSkipped: false,
+                    maxBarThickness: 72,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            color: axisColor,
+                            font: { weight: '700' }
+                        },
+                        grid: { display: false }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                            color: axisColor,
+                            font: { weight: '700' }
+                        },
+                        grid: {
+                            color: gridColor
+                        }
+                    }
+                }
+            }
+        });
+
+        new Chart(donutCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: donutLabels,
+                datasets: [{
+                    data: donutValues,
+                    backgroundColor: ['#2563eb', '#f59e0b', '#10b981', '#7c3aed'],
+                    borderWidth: 0,
+                    hoverOffset: 8,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '62%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: axisColor,
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            boxWidth: 10,
+                            padding: 18,
+                            font: { weight: '700' }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
 {% endblock %}

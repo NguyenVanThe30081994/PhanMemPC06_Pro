@@ -33,9 +33,7 @@
 <div class="task-workspace-shell">
     <section class="task-workspace-hero">
         <div>
-            <div class="task-workspace-eyebrow">Trung tâm giao việc</div>
             <h1>Công việc</h1>
-            <p>Danh sách được tổ chức theo việc cần làm thực tế: việc của bạn, việc bạn đang theo dõi và các việc chỉ cần tra cứu.</p>
         </div>
         {% if is_lead or is_admin %}
         <button class="btn btn-bdhvs primary task-create-btn" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
@@ -65,12 +63,9 @@
     </section>
 
     {% if attention_tasks %}
-    <section class="task-panel">
+    <section class="task-panel" id="attention-tasks">
         <div class="task-panel-head">
-            <div>
-                <h2>Cần xử lý ngay</h2>
-                <p>Ưu tiên các việc quá hạn, sắp đến hạn hoặc việc được giao trực tiếp cho bạn mà chưa hoàn thành.</p>
-            </div>
+            <div><h2>Cần xử lý ngay</h2></div>
         </div>
         <div class="task-highlight-grid">
             {% for task in attention_tasks[:4] %}
@@ -82,12 +77,9 @@
 
     <section class="task-board-grid">
         <div class="task-board-main">
-            <section class="task-panel">
+            <section class="task-panel" id="my-tasks">
                 <div class="task-panel-head">
-                    <div>
-                        <h2>Việc của tôi</h2>
-                        <p>Các việc bạn được giao trực tiếp để tiếp nhận, xử lý và nộp kết quả.</p>
-                    </div>
+                    <div><h2>Việc của tôi</h2></div>
                     <span class="task-count-chip">{{ my_tasks|length }} việc</span>
                 </div>
                 {% if my_tasks %}
@@ -101,12 +93,9 @@
                 {% endif %}
             </section>
 
-            <section class="task-panel">
+            <section class="task-panel" id="managed-tasks">
                 <div class="task-panel-head">
-                    <div>
-                        <h2>Tôi giao hoặc đang theo dõi</h2>
-                        <p>Những đợt công việc bạn tạo hoặc có quyền điều phối để kiểm tra tiến độ chung.</p>
-                    </div>
+                    <div><h2>Tôi giao hoặc đang theo dõi</h2></div>
                     <span class="task-count-chip">{{ managed_tasks|length }} việc</span>
                 </div>
                 {% if managed_tasks %}
@@ -122,7 +111,7 @@
         </div>
 
         <aside class="task-board-side">
-            <section class="task-panel">
+            <section class="task-panel" id="watch-tasks">
                 <div class="task-panel-head">
                     <div>
                         <h2>Chỉ xem và tra cứu</h2>
@@ -547,7 +536,6 @@
                 <div class="modal-header">
                     <div>
                         <h5 class="modal-title mb-1">Tạo công việc</h5>
-                        <div class="small text-muted" id="taskModeHelp">Tạo đợt giao việc theo đề cương, sau đó thêm đầu mục ở màn hình chi tiết.</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -620,7 +608,6 @@
                         <div class="col-lg-5">
                             <div class="border rounded p-3 bg-light-subtle" id="fileAssignmentBox">
                                 <h6 class="fw-bold">Phân công mặc định</h6>
-                                <div class="small text-muted mb-3">Bắt buộc đối với chế độ nộp file và biểu mẫu. Với đề cương, việc phân công sẽ thực hiện khi thêm đầu mục.</div>
                                 <div class="mb-3">
                                     <label class="form-label">Kiểu phân công</label>
                                     <select class="form-select" name="assign_type" id="createAssignType">
@@ -654,7 +641,6 @@
                             </div>
                             <div class="border rounded p-3 bg-light-subtle mt-3 d-none" id="formBuilderBox">
                                 <h6 class="fw-bold">Cấu hình biểu mẫu</h6>
-                                <div class="small text-muted mb-3">Thêm các trường dữ liệu cần đơn vị nhập. Có thể dùng radio, checkbox hoặc bảng đơn giản.</div>
                                 <div id="formFieldList" class="d-grid gap-3"></div>
                                 <button class="btn btn-outline-primary btn-sm mt-3" type="button" id="addFormFieldBtn">Thêm trường</button>
                                 <template id="formFieldTemplate">
@@ -703,7 +689,6 @@
 <script>
 (() => {
     const modeSelect = document.getElementById('taskModeSelect');
-    const modeHelp = document.getElementById('taskModeHelp');
     const fileAssignmentBox = document.getElementById('fileAssignmentBox');
     const formBuilderBox = document.getElementById('formBuilderBox');
     const assignType = document.getElementById('createAssignType');
@@ -713,15 +698,6 @@
 
     function syncTaskMode() {
         const mode = modeSelect?.value || 'OUTLINE';
-        if (modeHelp) {
-            if (mode === 'OUTLINE') {
-                modeHelp.textContent = 'Tạo đợt giao việc theo đề cương, sau đó thêm đầu mục ở màn hình chi tiết.';
-            } else if (mode === 'FILE') {
-                modeHelp.textContent = 'Giao việc trực tiếp cho đơn vị hoặc cán bộ và nhận file báo cáo.';
-            } else {
-                modeHelp.textContent = 'Tạo biểu mẫu động để thu thập dữ liệu và tổng hợp kết quả.';
-            }
-        }
         if (fileAssignmentBox) {
             fileAssignmentBox.classList.toggle('opacity-50', !(mode === 'FILE' || mode === 'FORM'));
         }

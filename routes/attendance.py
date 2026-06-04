@@ -37,6 +37,15 @@ STATUS_META = {
     'upcoming': {'label': 'Sắp đến', 'class_name': 'secondary'},
     'missed': {'label': 'Quá hạn', 'class_name': 'danger'},
 }
+TASK_STATUS_META = {
+    'inactive': {'label': 'Tạm dừng', 'class_name': 'secondary'},
+    'unassigned': {'label': 'Chưa gán', 'class_name': 'warning'},
+    'not_today': {'label': 'Không áp dụng hôm nay', 'class_name': 'secondary'},
+    'completed': STATUS_META['completed'],
+    'available': STATUS_META['available'],
+    'upcoming': STATUS_META['upcoming'],
+    'missed': STATUS_META['missed'],
+}
 
 
 def _attendance_role_context():
@@ -63,7 +72,7 @@ def _can_view_attendance(perms, role_name):
 
 def _can_submit_attendance(perms, role_name):
     if not session.get('uid'):
-        return True
+        return False
     return bool(
         session.get('is_admin')
         or has_module_permission(perms, 'attendance', 'exec', is_admin=session.get('is_admin'), role_name=role_name)
@@ -135,6 +144,214 @@ def _dedupe_unit_options(unit_option_map):
         if unit_key and unit_key not in unique_options:
             unique_options[unit_key] = item
     return sorted(unique_options.values(), key=lambda item: (item.get('unit_name') or '').lower())
+
+
+def _attendance_role_options():
+    return AppRole.query.order_by(AppRole.name.asc(), AppRole.id.asc()).all()
+
+
+def _attendance_target_type(config):
+    target_type = (getattr(config, 'target_type', None) or 'role').strip().lower()
+    return target_type if target_type in {'role', 'unit'} else 'role'
+
+
+def _attendance_primary_time(config):
+    normalized = normalize_attendance_config(config)
+    if normalized['schedule_times']:
+        return normalized['schedule_times'][0]
+    return normalized['day_start_time']
+
+
+def _attendance_time_summary(config):
+    normalized = normalize_attendance_config(config)
+    start_time = normalized['day_start_time']
+    end_time = normalized['day_end_time']
+    interval_minutes = max(1, normalized['interval_minutes'])
+    late_allow_minutes = max(0, normalized['late_allow_minutes'])
+
+    summary = f"{start_time}-{end_time}"
+    if start_time == end_time:
+        summary = start_time
+    return f"{summary} · {interval_minutes}p/lần · báo danh {late_allow_minutes}p"
+
+
+def _resolve_user_unit_option(unit_option_map, user=None):
+    candidates = [
+        session.get('unit_key'),
+        getattr(user, 'unit_key', None),
+        session.get('unit_area_ref'),
+        session.get('unit_area'),
+        getattr(user, 'unit_area', None),
+    ]
+    for raw_candidate in candidates:
+        candidate = (raw_candidate or '').strip()
+        if not candidate:
+            continue
+        if candidate in unit_option_map:
+            return unit_option_map[candidate]
+        derived_key = extract_unit_key(candidate)
+        if derived_key and derived_key in unit_option_map:
+            return unit_option_map[derived_key]
+    return None
+
+
+def _attendance_scope_label(config, role_map, unit_option_map):
+    if _attendance_target_type(config) == 'unit':
+        unit_key = (getattr(config, 'target_unit_key', None) or '').strip()
+        unit_option = unit_option_map.get(unit_key)
+        return unit_option['unit_name'] if unit_option else (unit_key or 'Chưa chọn đơn vị')
+    role = role_map.get(getattr(config, 'target_role_id', None) or 0)
+    return getattr(role, 'name', None) or 'Chưa chọn vai trò'
+
+
+def _attendance_config_applies_to_user(config, user, user_unit_option):
+    if not config or not getattr(config, 'is_active', False) or not user:
+        return False
+    if _attendance_target_type(config) == 'unit':
+        target_unit_key = (getattr(config, 'target_unit_key', None) or '').strip()
+        return bool(target_unit_key and user_unit_option and user_unit_option['unit_key'] == target_unit_key)
+    return bool(getattr(config, 'target_role_id', None) and user.role_id == config.target_role_id)
+
+
+def _attendance_submission_for_task(config, slot, user=None, user_unit_option=None):
+    if not config or not slot:
+        return None
+    query = AttendanceSubmission.query.filter_by(config_id=config.id, slot_key=slot['slot_key'])
+    if _attendance_target_type(config) == 'unit':
+        target_unit_key = (getattr(config, 'target_unit_key', None) or '').strip()
+        if not target_unit_key:
+            return None
+        return query.filter_by(unit_key=target_unit_key).order_by(
+            AttendanceSubmission.submitted_at.desc(),
+            AttendanceSubmission.id.desc(),
+        ).first()
+    if not user:
+        return None
+    return query.filter_by(user_id=user.id).order_by(
+        AttendanceSubmission.submitted_at.desc(),
+        AttendanceSubmission.id.desc(),
+    ).first()
+
+
+def _attendance_slot_submissions(config, slots, user=None, user_unit_option=None):
+    if not config or not slots:
+        return {}
+    slot_keys = [slot['slot_key'] for slot in slots]
+    query = AttendanceSubmission.query.filter(
+        AttendanceSubmission.config_id == config.id,
+        AttendanceSubmission.slot_key.in_(slot_keys),
+    )
+    if _attendance_target_type(config) == 'unit':
+        target_unit_key = (getattr(config, 'target_unit_key', None) or '').strip()
+        if not target_unit_key:
+            return {}
+        query = query.filter_by(unit_key=target_unit_key)
+    elif user:
+        query = query.filter_by(user_id=user.id)
+    submissions = query.order_by(AttendanceSubmission.submitted_at.desc(), AttendanceSubmission.id.desc()).all()
+    output = {}
+    for submission in submissions:
+        output.setdefault(submission.slot_key, submission)
+    return output
+
+
+def _attendance_task_state(config, now, user=None, user_unit_option=None):
+    if not config or not getattr(config, 'is_active', False):
+        return 'inactive', None, None, None
+    if _attendance_target_type(config) == 'unit':
+        has_target = bool((getattr(config, 'target_unit_key', None) or '').strip())
+    else:
+        has_target = bool(getattr(config, 'target_role_id', None))
+    if not has_target:
+        return 'unassigned', None, None, None
+
+    slots = build_slots_for_date(now.date(), config)
+    if not slots:
+        return 'not_today', None, None, None
+
+    submissions_by_slot = _attendance_slot_submissions(config, slots, user=user, user_unit_option=user_unit_option)
+    latest_submission = None
+    latest_submission_time = None
+    latest_missed_slot = None
+    next_upcoming_slot = None
+
+    for slot in slots:
+        submission = submissions_by_slot.get(slot['slot_key'])
+        if submission:
+            submitted_at = submission.submitted_at or submission.created_at
+            if submitted_at and (latest_submission_time is None or submitted_at > latest_submission_time):
+                latest_submission = submission
+                latest_submission_time = submitted_at
+        status_key = resolve_slot_status(slot, submission=submission, now=now)
+        if status_key == 'available' and not submission:
+            return 'available', slot, submission, latest_submission
+        if status_key == 'upcoming' and next_upcoming_slot is None:
+            next_upcoming_slot = slot
+        if status_key == 'missed' and not submission:
+            latest_missed_slot = slot
+
+    if next_upcoming_slot is not None:
+        return 'upcoming', next_upcoming_slot, submissions_by_slot.get(next_upcoming_slot['slot_key']), latest_submission
+    if latest_missed_slot is not None:
+        return 'missed', latest_missed_slot, submissions_by_slot.get(latest_missed_slot['slot_key']), latest_submission
+    return 'completed', slots[-1], submissions_by_slot.get(slots[-1]['slot_key']), latest_submission
+
+
+def _attendance_progress_for_task(config, slots):
+    if not config or not slots:
+        return {'submitted_count': 0, 'expected_count': 0}
+    slot_keys = [slot['slot_key'] for slot in slots]
+    query = AttendanceSubmission.query.filter(
+        AttendanceSubmission.config_id == config.id,
+        AttendanceSubmission.slot_key.in_(slot_keys),
+        AttendanceSubmission.slot_date == slots[0]['slot_date'],
+    )
+    if _attendance_target_type(config) == 'unit':
+        target_unit_key = (getattr(config, 'target_unit_key', None) or '').strip()
+        if not target_unit_key:
+            return {'submitted_count': 0, 'expected_count': 0}
+        return {
+            'submitted_count': query.filter_by(unit_key=target_unit_key).count(),
+            'expected_count': len(slots),
+        }
+    target_role_id = getattr(config, 'target_role_id', None) or 0
+    role_user_count = User.query.filter_by(is_active=True, role_id=target_role_id).count() if target_role_id else 0
+    expected_count = role_user_count * len(slots)
+    submitted_count = query.count()
+    if expected_count:
+        submitted_count = min(submitted_count, expected_count)
+    return {
+        'submitted_count': submitted_count,
+        'expected_count': expected_count,
+    }
+
+
+def _build_attendance_task_rows(configs, now, role_map, unit_option_map, current_user=None, user_unit_option=None, include_all=False):
+    rows = []
+    for config in configs:
+        slots = build_slots_for_date(now.date(), config) if getattr(config, 'is_active', False) else []
+        status_key, slot, submission, latest_submission = _attendance_task_state(
+            config,
+            now,
+            user=current_user,
+            user_unit_option=user_unit_option,
+        )
+        progress = _attendance_progress_for_task(config, slots) if include_all else {'submitted_count': 0, 'expected_count': 0}
+        rows.append({
+            'id': config.id,
+            'name': (config.name or 'Nhiệm vụ điểm danh').strip(),
+            'time_text': _attendance_time_summary(config),
+            'target_type': _attendance_target_type(config),
+            'scope_label': _attendance_scope_label(config, role_map, unit_option_map),
+            'status_key': status_key,
+            'status_label': TASK_STATUS_META[status_key]['label'],
+            'status_class': TASK_STATUS_META[status_key]['class_name'],
+            'slot': slot,
+            'submission': submission or latest_submission,
+            'progress': progress,
+            'is_active': bool(config.is_active),
+        })
+    return rows
 
 
 def _attendance_return_endpoint():
@@ -448,147 +665,109 @@ def _load_editable_submission(submission_id, can_manage):
 
 @attendance_bp.route('/attendance')
 def attendance_home():
+    if not session.get('uid'):
+        return public_attendance()
+
     perms, role_name = _attendance_role_context()
     can_manage = _can_manage_attendance(perms, role_name)
-    is_public_view = not session.get('uid')
-    if session.get('uid') and not _can_view_attendance(perms, role_name):
+    if not _can_view_attendance(perms, role_name):
         flash('Bạn không có quyền truy cập tính năng điểm danh.', 'danger')
         return redirect(url_for('admin_bp.index'))
 
-    active_config, latest_config = _get_current_config()
-    config_for_display = active_config or latest_config
-    normalized_config = normalize_attendance_config(config_for_display) if config_for_display else None
     now = datetime.now()
+    current_user = db.session.get(User, session['uid'])
+    role_options = _attendance_role_options()
+    role_map = {role.id: role for role in role_options}
     unit_options = _unit_category_options()
     unit_option_map = _build_unit_option_maps(unit_options)
-    config_records = _build_attendance_config_list() if can_manage else []
+    unit_list = _dedupe_unit_options(unit_option_map)
+    user_unit_option = _resolve_user_unit_option(unit_option_map, current_user)
+    configs = AttendanceConfig.query.order_by(
+        AttendanceConfig.is_active.desc(),
+        AttendanceConfig.updated_at.desc(),
+        AttendanceConfig.id.desc(),
+    ).all()
     edit_config_id = request.args.get('edit_config_id', type=int) or 0
     editing_config = db.session.get(AttendanceConfig, edit_config_id) if can_manage and edit_config_id else None
-    edit_submission_id = request.args.get('edit_submission_id', type=int) or 0
-    editing_submission = _load_editable_submission(edit_submission_id, can_manage) if session.get('uid') and edit_submission_id else None
     form_config = editing_config
     form_config_payload = normalize_attendance_config(form_config) if form_config else None
-
-    slot_rows = _build_slot_rows(active_config, now)
-    selected_slot_key = (request.args.get('slot_key') or '').strip()
-    monitor_slot_context = _build_monitor_slot_context(
-        build_slots_for_date(now.date(), active_config) if active_config else [],
+    manager_task_rows = _build_attendance_task_rows(
+        configs,
         now,
-        selected_slot_key=selected_slot_key,
+        role_map,
+        unit_option_map,
+        current_user=current_user,
+        user_unit_option=user_unit_option,
+        include_all=True,
     )
-    stats = {
-        'completed': sum(1 for row in slot_rows if row['status'] == 'completed'),
-        'available': sum(1 for row in slot_rows if row['status'] == 'available'),
-        'upcoming': sum(1 for row in slot_rows if row['status'] == 'upcoming'),
-        'missed': sum(1 for row in slot_rows if row['status'] == 'missed'),
-    }
-
-    own_recent_submissions = []
-    if session.get('uid'):
-        own_recent_submissions = AttendanceSubmission.query.filter_by(user_id=session['uid']).order_by(
-            AttendanceSubmission.submitted_at.desc(),
-            AttendanceSubmission.id.desc(),
-        ).limit(12).all()
-        stats['completed'] = sum(1 for submission in own_recent_submissions if submission.slot_date == now.date())
-
+    applicable_configs = [
+        config for config in configs
+        if _attendance_config_applies_to_user(config, current_user, user_unit_option)
+    ]
+    my_task_rows = _build_attendance_task_rows(
+        applicable_configs,
+        now,
+        role_map,
+        unit_option_map,
+        current_user=current_user,
+        user_unit_option=user_unit_option,
+        include_all=False,
+    )
     can_submit = _can_submit_attendance(perms, role_name)
-    admin_recent_submissions = []
-    admin_summary = None
-    unit_attendance = _build_unit_attendance_stats(active_config, monitor_slot_context['selected_slot'], unit_options) if can_manage else None
+    selected_task_id = editing_config.id if editing_config else (manager_task_rows[0]['id'] if manager_task_rows else None)
+    sidebar_submenu_items = [
+        {
+            'label': 'Danh sách',
+            'href': url_for('attendance_bp.attendance_home') + '#attendance-task-list',
+            'active': True,
+        },
+    ]
     if can_manage:
-        admin_recent_submissions = AttendanceSubmission.query.order_by(
-            AttendanceSubmission.submitted_at.desc(),
-            AttendanceSubmission.id.desc(),
-        ).limit(20).all()
-        active_user_count = User.query.filter_by(is_active=True).count()
-        today_query = AttendanceSubmission.query.filter_by(slot_date=now.date())
-        if active_config:
-            today_query = today_query.filter(AttendanceSubmission.config_id == active_config.id)
-        admin_summary = {
-            'active_user_count': active_user_count,
-            'today_submission_count': today_query.count(),
-            'config_status': 'Đang kích hoạt' if active_config else 'Chưa kích hoạt',
-            'checked_units_count': unit_attendance['checked_units_count'] if unit_attendance else 0,
-            'pending_units_count': unit_attendance['pending_units_count'] if unit_attendance else 0,
-            'coverage_percent': unit_attendance['coverage_percent'] if unit_attendance else 0,
-        }
+        sidebar_submenu_items.append({
+            'label': 'Tạo mới',
+            'href': url_for('attendance_bp.attendance_home') + '#attendance-task-form',
+            'active': False,
+        })
+    for row in manager_task_rows[:8]:
+        sidebar_submenu_items.append({
+            'label': row['name'],
+            'href': url_for('attendance_bp.attendance_home', edit_config_id=row['id']) + f"#attendance-config-{row['id']}",
+            'active': row['id'] == selected_task_id,
+        })
 
     return render_template(
         'attendance.html',
         title='Điểm danh',
-        active_config=active_config,
-        latest_config=latest_config,
-        normalized_config=normalized_config,
         editing_config=editing_config,
-        editing_submission=editing_submission,
         form_config=form_config,
         form_config_payload=form_config_payload,
-        config_records=config_records,
-        config_summary=_format_config_summary(normalized_config),
-        form_schedule_times_text='\n'.join((form_config_payload or {}).get('schedule_times', [])),
-        form_active_weekdays=((form_config_payload or {}).get('active_weekdays') or list(range(7))),
-        weekday_labels=[
-            {'value': 0, 'label': 'Thứ 2'},
-            {'value': 1, 'label': 'Thứ 3'},
-            {'value': 2, 'label': 'Thứ 4'},
-            {'value': 3, 'label': 'Thứ 5'},
-            {'value': 4, 'label': 'Thứ 6'},
-            {'value': 5, 'label': 'Thứ 7'},
-            {'value': 6, 'label': 'Chủ nhật'},
-        ],
-        slot_rows=slot_rows,
-        stats=stats,
-        own_recent_submissions=own_recent_submissions,
-        admin_recent_submissions=admin_recent_submissions,
-        admin_summary=admin_summary,
-        unit_attendance=unit_attendance,
-        monitor_slot_context=monitor_slot_context,
-        selected_slot_key=selected_slot_key,
-        attendance_unit_options=_dedupe_unit_options(unit_option_map),
-        default_attendance_unit_key=(
-            (
-                unit_option_map.get((session.get('unit_area_ref') or '').strip())
-                or unit_option_map.get((session.get('unit_key') or '').strip())
-                or unit_option_map.get((session.get('unit_area') or '').strip())
-            ) or {}
-        ).get('unit_key', ''),
-        is_public_attendance=is_public_view,
+        start_time_value=(form_config_payload or {}).get('day_start_time', '08:00'),
+        end_time_value=(form_config_payload or {}).get('day_end_time', '10:00'),
+        interval_minutes_value=(form_config_payload or {}).get('interval_minutes', 30),
+        late_allow_minutes_value=(form_config_payload or {}).get('late_allow_minutes', 15),
+        role_options=role_options,
+        unit_options=unit_list,
+        selected_target_type=_attendance_target_type(form_config) if form_config else 'role',
+        selected_role_id=getattr(form_config, 'target_role_id', None) if form_config else None,
+        selected_unit_key=(getattr(form_config, 'target_unit_key', None) or '') if form_config else '',
+        manager_task_rows=manager_task_rows,
+        my_task_rows=my_task_rows,
+        current_user_unit_label=(user_unit_option or {}).get('unit_name', getattr(current_user, 'unit_area', '') or 'Chưa xác định'),
         can_manage_attendance=can_manage,
         can_submit_attendance=can_submit,
+        sidebar_submenu_parent='attendance',
+        sidebar_submenu_title='Điểm danh',
+        sidebar_submenu_items=sidebar_submenu_items,
         now=now,
     )
 
 
 @attendance_bp.route('/diem-danh')
 def public_attendance():
-    active_config, latest_config = _get_current_config()
-    config_for_display = active_config or latest_config
-    normalized_config = normalize_attendance_config(config_for_display) if config_for_display else None
-    now = datetime.now()
-    unit_options = _unit_category_options()
-    unit_option_map = _build_unit_option_maps(unit_options)
-    slot_rows = _build_slot_rows(active_config, now)
-
-    stats = {
-        'completed': 0,
-        'available': sum(1 for row in slot_rows if row['status'] == 'available'),
-        'upcoming': sum(1 for row in slot_rows if row['status'] == 'upcoming'),
-        'missed': sum(1 for row in slot_rows if row['status'] == 'missed'),
-    }
-
     return render_template(
         'attendance_public.html',
         title='Điểm danh công khai',
-        active_config=active_config,
-        latest_config=latest_config,
-        normalized_config=normalized_config,
-        config_summary=_format_config_summary(normalized_config),
-        slot_rows=slot_rows,
-        stats=stats,
-        attendance_unit_options=_dedupe_unit_options(unit_option_map),
-        default_attendance_unit_key='',
-        can_submit_attendance=True,
-        now=now,
+        login_url=url_for('auth_bp.login'),
     )
 
 
@@ -602,30 +781,35 @@ def save_attendance_config():
         flash('Bạn không có quyền cấu hình điểm danh.', 'danger')
         return redirect(url_for('attendance_bp.attendance_home'))
 
-    mode = (request.form.get('mode') or 'interval').strip().lower()
-    if mode not in {'interval', 'schedule'}:
-        flash('Chế độ điểm danh không hợp lệ.', 'danger')
+    target_type = (request.form.get('target_type') or 'role').strip().lower()
+    if target_type not in {'role', 'unit'}:
+        flash('Đối tượng điểm danh không hợp lệ.', 'danger')
         return redirect(url_for('attendance_bp.attendance_home'))
 
-    schedule_times = normalize_schedule_times(request.form.get('schedule_times'))
-    interval_minutes = request.form.get('interval_minutes', type=int) or 0
-    early_checkin_minutes = max(0, request.form.get('early_checkin_minutes', type=int) or 0)
+    start_time = normalize_time_string(request.form.get('day_start_time'), '')
+    end_time = normalize_time_string(request.form.get('day_end_time'), '')
+    interval_minutes = max(1, request.form.get('interval_minutes', type=int) or 0)
     late_allow_minutes = max(0, request.form.get('late_allow_minutes', type=int) or 0)
-    day_start_time = normalize_time_string(request.form.get('day_start_time'), '08:00')
-    day_end_time = normalize_time_string(request.form.get('day_end_time'), '17:00')
-    weekdays = normalize_weekdays(request.form.getlist('weekdays'))
+    start_time_obj = parse_hhmm(start_time)
+    end_time_obj = parse_hhmm(end_time)
+    if not start_time_obj or not end_time_obj:
+        flash('Bạn cần nhập thời gian bắt đầu và kết thúc hợp lệ.', 'danger')
+        return redirect(url_for('attendance_bp.attendance_home'))
+    if (end_time_obj.hour, end_time_obj.minute) < (start_time_obj.hour, start_time_obj.minute):
+        flash('Thời gian kết thúc phải sau hoặc bằng thời gian bắt đầu.', 'danger')
+        return redirect(url_for('attendance_bp.attendance_home'))
+    if interval_minutes <= 0:
+        flash('Tần suất lặp lại phải lớn hơn 0 phút.', 'danger')
+        return redirect(url_for('attendance_bp.attendance_home'))
 
-    if mode == 'interval':
-        if interval_minutes <= 0:
-            flash('Chu kỳ tự động phải lớn hơn 0 phút.', 'danger')
-            return redirect(url_for('attendance_bp.attendance_home'))
-        start_time = parse_hhmm(day_start_time)
-        end_time = parse_hhmm(day_end_time)
-        if not start_time or not end_time or (end_time.hour, end_time.minute) < (start_time.hour, start_time.minute):
-            flash('Khung giờ áp dụng không hợp lệ.', 'danger')
-            return redirect(url_for('attendance_bp.attendance_home'))
-    elif not schedule_times:
-        flash('Bạn cần khai báo ít nhất một mốc giờ cố định.', 'danger')
+    unit_option_map = _build_unit_option_maps(_unit_category_options())
+    target_role_id = request.form.get('target_role_id', type=int) or None
+    target_unit_key = (request.form.get('target_unit_key') or '').strip()
+    if target_type == 'role' and not target_role_id:
+        flash('Bạn cần chọn vai trò áp dụng.', 'danger')
+        return redirect(url_for('attendance_bp.attendance_home'))
+    if target_type == 'unit' and target_unit_key not in unit_option_map:
+        flash('Bạn cần chọn đơn vị áp dụng.', 'danger')
         return redirect(url_for('attendance_bp.attendance_home'))
 
     config_id = request.form.get('config_id', type=int) or 0
@@ -640,40 +824,37 @@ def save_attendance_config():
         db.session.add(config)
 
     config.name = (request.form.get('name') or 'Điểm danh tự động').strip()
-    config.mode = mode
-    config.interval_minutes = interval_minutes or config.interval_minutes or 120
-    config.day_start_time = day_start_time
-    config.day_end_time = day_end_time
-    config.schedule_times_json = json.dumps(schedule_times, ensure_ascii=False)
-    config.active_weekdays_json = json.dumps(weekdays, ensure_ascii=False)
-    config.early_checkin_minutes = early_checkin_minutes
+    config.mode = 'interval'
+    config.interval_minutes = interval_minutes
+    config.day_start_time = start_time
+    config.day_end_time = end_time
+    config.schedule_times_json = json.dumps([], ensure_ascii=False)
+    config.active_weekdays_json = json.dumps(list(range(7)), ensure_ascii=False)
+    config.early_checkin_minutes = 0
     config.late_allow_minutes = late_allow_minutes
     config.is_active = bool(request.form.get('is_active'))
-    config.note = (request.form.get('note') or '').strip()
+    config.note = ''
+    config.target_type = target_type
+    config.target_role_id = target_role_id if target_type == 'role' else None
+    config.target_unit_key = target_unit_key if target_type == 'unit' else None
     config.updated_by = session['uid']
 
     try:
-        db.session.flush()
-        if config.is_active:
-            AttendanceConfig.query.filter(AttendanceConfig.id != config.id).update(
-                {'is_active': False},
-                synchronize_session=False,
-            )
         db.session.commit()
         log_action(
             session['uid'],
             session['fullname'],
-            'Tạo cấu hình điểm danh' if is_new_config else 'Cập nhật cấu hình điểm danh',
+            'Tạo nhiệm vụ điểm danh' if is_new_config else 'Cập nhật nhiệm vụ điểm danh',
             'Điểm danh',
             config.name,
         )
         flash(
-            'Đã tạo cấu hình điểm danh mới.' if is_new_config else 'Đã cập nhật cấu hình điểm danh.',
+            'Đã tạo nhiệm vụ điểm danh.' if is_new_config else 'Đã cập nhật nhiệm vụ điểm danh.',
             'success',
         )
     except Exception as exc:
         db.session.rollback()
-        flash(f'Lỗi khi lưu cấu hình: {exc}', 'danger')
+        flash(f'Lỗi khi lưu nhiệm vụ điểm danh: {exc}', 'danger')
 
     return redirect(url_for('attendance_bp.attendance_home'))
 
@@ -822,22 +1003,26 @@ def delete_attendance_submission(submission_id):
 @attendance_bp.route('/attendance/submit', methods=['POST'])
 @attendance_bp.route('/diem-danh/submit', methods=['POST'])
 def submit_attendance():
+    if not session.get('uid'):
+        flash('Bạn cần đăng nhập để điểm danh.', 'warning')
+        return redirect(url_for('auth_bp.login'))
+
     perms, role_name = _attendance_role_context()
     if not _can_submit_attendance(perms, role_name):
         flash('Bạn không có quyền điểm danh.', 'danger')
         return redirect(url_for(_attendance_return_endpoint()))
 
-    active_config, _latest_config = _get_current_config()
-    if not active_config:
-        flash('Hệ thống chưa kích hoạt cấu hình điểm danh.', 'warning')
+    config_id = request.form.get('config_id', type=int) or 0
+    config = db.session.get(AttendanceConfig, config_id)
+    if not config or not config.is_active:
+        flash('Không tìm thấy nhiệm vụ điểm danh đang hoạt động.', 'warning')
         return redirect(url_for(_attendance_return_endpoint()))
 
     slot_date_raw = (request.form.get('slot_date') or '').strip()
     slot_key = (request.form.get('slot_key') or '').strip()
-    selected_unit_key = (request.form.get('unit_key') or '').strip()
-    note = (request.form.get('note') or '').strip()
+    current_user = db.session.get(User, session['uid'])
     unit_option_map = _build_unit_option_maps(_unit_category_options())
-    selected_unit = unit_option_map.get(selected_unit_key)
+    user_unit_option = _resolve_user_unit_option(unit_option_map, current_user)
 
     try:
         slot_date = date.fromisoformat(slot_date_raw)
@@ -845,56 +1030,60 @@ def submit_attendance():
         flash('Mốc điểm danh không hợp lệ.', 'danger')
         return redirect(url_for(_attendance_return_endpoint()))
 
-    if not selected_unit:
-        flash('Bạn cần chọn đơn vị từ danh mục đã cấu hình.', 'danger')
+    if _attendance_target_type(config) == 'unit':
+        target_unit_key = (getattr(config, 'target_unit_key', None) or '').strip()
+        if not user_unit_option or user_unit_option['unit_key'] != target_unit_key:
+            flash('Tài khoản của bạn không thuộc đơn vị được giao điểm danh này.', 'danger')
+            return redirect(url_for(_attendance_return_endpoint()))
+    elif current_user.role_id != config.target_role_id:
+        flash('Tài khoản của bạn không thuộc vai trò được giao điểm danh này.', 'danger')
         return redirect(url_for(_attendance_return_endpoint()))
 
-    slots = build_slots_for_date(slot_date, active_config)
+    slots = build_slots_for_date(slot_date, config)
     slot = next((item for item in slots if item['slot_key'] == slot_key), None)
     if not slot:
-        flash('Không tìm thấy mốc điểm danh cần nộp.', 'danger')
+        flash('Không tìm thấy thời điểm điểm danh cần nộp.', 'danger')
         return redirect(url_for(_attendance_return_endpoint()))
 
-    existing_submission = AttendanceSubmission.query.filter_by(
-        config_id=active_config.id,
-        slot_key=slot_key,
-        unit_key=selected_unit['unit_key'],
-    ).first()
+    existing_submission = _attendance_submission_for_task(
+        config,
+        slot,
+        user=current_user,
+        user_unit_option=user_unit_option,
+    )
     slot_status = resolve_slot_status(slot, submission=existing_submission, now=datetime.now())
     if existing_submission:
-        flash('Đơn vị này đã được điểm danh ở mốc đã chọn.', 'info')
+        flash('Nhiệm vụ này đã được điểm danh.', 'info')
         return redirect(url_for(_attendance_return_endpoint()))
     if slot_status != 'available':
-        flash('Mốc điểm danh này chưa mở hoặc đã quá hạn.', 'warning')
+        flash('Chưa đến giờ điểm danh hoặc đã quá hạn.', 'warning')
         return redirect(url_for(_attendance_return_endpoint()))
 
     try:
-        submitter_user = db.session.get(User, session['uid']) if session.get('uid') else _get_public_submitter_user()
-        proof_path, proof_filename = _save_proof_file(request.files.get('proof_image'))
         submission = AttendanceSubmission(
-            config_id=active_config.id,
-            user_id=submitter_user.id,
-            unit_area=selected_unit['unit_name'],
-            unit_key=selected_unit['unit_key'],
+            config_id=config.id,
+            user_id=current_user.id,
+            unit_area=(user_unit_option or {}).get('unit_name', current_user.unit_area or ''),
+            unit_key=(user_unit_option or {}).get('unit_key', current_user.unit_key or ''),
             slot_key=slot['slot_key'],
             slot_label=slot['slot_label'],
             slot_date=slot['slot_date'],
             due_at=slot['due_at'],
             window_start_at=slot['window_start_at'],
             window_end_at=slot['window_end_at'],
-            proof_filename=proof_filename,
-            proof_path=proof_path,
-            note=note,
+            proof_filename='',
+            proof_path='',
+            note='',
             submitted_at=datetime.now(),
         )
         db.session.add(submission)
         db.session.commit()
         log_action(
-            session.get('uid', 0),
-            session.get('fullname', 'Điểm danh công khai'),
+            session['uid'],
+            session['fullname'],
             'Điểm danh thành công',
             'Điểm danh',
-            f"{slot['slot_label']} - {selected_unit['unit_name']}",
+            f"{config.name} - {slot['slot_time']}",
         )
         flash('Điểm danh thành công.', 'success')
     except Exception as exc:

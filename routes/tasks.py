@@ -4182,6 +4182,35 @@ def _tasks_page_v2():
         )
 
     list_context = build_task_list_page_context(visible_tasks, TASK_MODE_DEFAULT)
+    current_task_view = (request.args.get("view") or "attention").strip().lower()
+    sidebar_submenu_items = []
+    if list_context["attention_tasks"]:
+        sidebar_submenu_items.append({
+            "label": "Cần xử lý ngay",
+            "href": url_for("tasks_bp.tasks", view="attention") + "#attention-tasks",
+            "count": len(list_context["attention_tasks"]),
+            "active": current_task_view == "attention",
+        })
+    sidebar_submenu_items.extend([
+        {
+            "label": "Việc của tôi",
+            "href": url_for("tasks_bp.tasks", view="my") + "#my-tasks",
+            "count": len(list_context["my_tasks"]),
+            "active": current_task_view == "my",
+        },
+        {
+            "label": "Tôi giao / theo dõi",
+            "href": url_for("tasks_bp.tasks", view="managed") + "#managed-tasks",
+            "count": len(list_context["managed_tasks"]),
+            "active": current_task_view == "managed",
+        },
+        {
+            "label": "Chỉ xem / tra cứu",
+            "href": url_for("tasks_bp.tasks", view="watch") + "#watch-tasks",
+            "count": len(list_context["watch_tasks"]),
+            "active": current_task_view == "watch",
+        },
+    ])
 
     return render_template(
         "tasks_rebuild.html",
@@ -4202,6 +4231,9 @@ def _tasks_page_v2():
         is_lead=is_lead,
         is_admin=is_admin,
         stats=list_context["stats"],
+        sidebar_submenu_parent="tasks",
+        sidebar_submenu_title="Công việc",
+        sidebar_submenu_items=sidebar_submenu_items,
     )
 
 

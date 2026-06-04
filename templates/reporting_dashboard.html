@@ -21,6 +21,7 @@
 
 {% block content %}
 {% set report_groups = template_groups if is_admin else cycle_groups %}
+{% set selected_group = (selected_report_group if selected_report_group is defined and selected_report_group else 'all')|lower %}
 <div class="pc06-page-shell">
     <section class="pc06-hero-card">
         <div class="pc06-hero-grid">
@@ -82,35 +83,23 @@
     </section>
 
     <div class="reporting-workspace">
-        <aside class="reporting-sidebar">
-            <section class="pc06-panel reporting-team-panel">
-                <div class="reporting-team-head">
-                    <h2>Đội nghiệp vụ</h2>
-                </div>
-                <div class="reporting-team-list">
-                    <button type="button" class="reporting-team-chip active" data-report-group-filter="ALL">
-                        <strong>Tất cả đội nghiệp vụ</strong>
-                        <span>{{ cycles|length if not is_admin else templates|length }}</span>
-                    </button>
-                    {% for group in report_groups %}
-                    <button type="button" class="reporting-team-chip" data-report-group-filter="{{ group.name|lower }}">
-                        <strong>{{ group.name }}</strong>
-                        <span>{{ group.entries|length }}</span>
-                    </button>
-                    {% endfor %}
-                </div>
-            </section>
-        </aside>
-
         <div class="reporting-board">
             <section class="pc06-panel reporting-board-panel">
                 <div class="reporting-board-head">
-                    <h2 id="reportingSelectedGroup">Tất cả đội nghiệp vụ</h2>
+                    <h2 id="reportingSelectedGroup">
+                        {% if selected_group == 'all' %}
+                        Tất cả đội nghiệp vụ
+                        {% else %}
+                        {% for group in report_groups %}
+                            {% if group.name|lower == selected_group %}{{ group.name }}{% endif %}
+                        {% endfor %}
+                        {% endif %}
+                    </h2>
                 </div>
 
                 {% if report_groups %}
                 <div class="reporting-group-stack" id="reportingGroupStack">
-                    <section class="report-group-section" data-report-group="all">
+                    <section class="report-group-section {% if selected_group != 'all' %}d-none{% endif %}" data-report-group="all">
                         <div class="report-template-list">
                             {% if is_admin %}
                                 {% for group in report_groups %}
@@ -204,7 +193,7 @@
                     </section>
 
                     {% for group in report_groups %}
-                    <section class="report-group-section d-none" data-report-group="{{ group.name|lower }}">
+                    <section class="report-group-section {% if group.name|lower != selected_group %}d-none{% endif %}" data-report-group="{{ group.name|lower }}">
                         <div class="report-template-list">
                             {% if is_admin %}
                                 {% for item in group.entries %}
@@ -377,11 +366,6 @@
                     <div class="pc06-form-panel mt-4">
                         <details class="border rounded-4 p-3" open>
                             <summary class="fw-bold">Thiết lập nhận dạng dữ liệu</summary>
-                            <div class="small text-muted mt-2 mb-3">
-                                Các giá trị dưới đây là mặc định để hệ thống nhận dạng lần đầu.
-                                Với workbook nhiều sheet, bạn chỉ cần nhập tương đối đúng rồi bấm tạo.
-                                Ở bước tiếp theo, bạn sẽ cấu hình riêng từng sheet.
-                            </div>
                             <div class="row g-3 mt-1">
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">Header từ dòng</label>
@@ -442,12 +426,8 @@
 
 <style>
     .reporting-workspace {
-        display: grid;
-        grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
-        gap: 22px;
-        align-items: start;
+        display: block;
     }
-    .reporting-sidebar,
     .reporting-board {
         display: grid;
         gap: 18px;
@@ -574,6 +554,7 @@
         const chips = document.querySelectorAll('[data-report-group-filter]');
         const sections = document.querySelectorAll('[data-report-group]');
         const titleNode = document.getElementById('reportingSelectedGroup');
+        const selectedGroup = {{ selected_group|tojson }};
 
         function applyReportGroupFilter(value, label) {
             sections.forEach((section) => {
@@ -594,7 +575,10 @@
             });
         });
 
-        applyReportGroupFilter('all', 'Tất cả đội nghiệp vụ');
+        if (!chips.length) {
+            return;
+        }
+        applyReportGroupFilter(selectedGroup || 'all', titleNode?.textContent?.trim() || 'Tất cả đội nghiệp vụ');
     });
 </script>
 {% endblock %}

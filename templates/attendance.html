@@ -1,1007 +1,282 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="pc06-page-shell attendance-shell">
-    <section class="pc06-hero-card attendance-hero-card">
-        <div class="attendance-hero-copy">
-            <span class="attendance-hero-kicker">Điểm danh đơn vị</span>
-            <h1 class="pc06-page-title mb-2">Theo dõi điểm danh theo mốc giám sát</h1>
-            <p class="text-muted mb-0">
-                Theo dõi lượt điểm danh có ảnh minh chứng, đối chiếu nhanh đơn vị đã nộp và đơn vị chưa nộp trong ngày.
-            </p>
+<div class="attendance-simple-shell">
+    {% if can_manage_attendance %}
+    <section class="pc06-panel attendance-simple-panel" id="attendance-task-form">
+        <div class="attendance-simple-head">
+            <div>
+                <h1 class="pc06-page-title mb-0">{{ 'Sửa nhiệm vụ điểm danh' if editing_config else 'Tạo nhiệm vụ điểm danh' }}</h1>
+            </div>
         </div>
-        <div class="attendance-hero-summary">
-            <div class="attendance-hero-summary-label">Cấu hình hiện hành</div>
-            <strong>{{ 'Đang kích hoạt' if active_config else 'Chưa kích hoạt' }}</strong>
-            <p>{{ config_summary or 'Hệ thống chưa có cấu hình điểm danh đang hoạt động.' }}</p>
-        </div>
-    </section>
 
-    <section class="attendance-metric-grid">
-        <article class="attendance-metric-card metric-checked">
-            <span>{{ 'Mốc đang mở' if is_public_attendance else 'Đơn vị đã điểm danh' }}</span>
-            <strong>{{ stats.available if is_public_attendance else (admin_summary.checked_units_count if admin_summary else stats.completed) }}</strong>
-            <small>
-                {% if is_public_attendance %}
-                Có thể chọn đơn vị để nộp ngay
-                {% elif admin_summary %}
-                Theo mốc giám sát đang chọn
-                {% else %}
-                Số mốc cá nhân đã nộp hôm nay
-                {% endif %}
-            </small>
-        </article>
-        <article class="attendance-metric-card metric-pending">
-            <span>{{ 'Mốc sắp tới' if is_public_attendance else 'Đơn vị chưa điểm danh' }}</span>
-            <strong>{{ stats.upcoming if is_public_attendance else (admin_summary.pending_units_count if admin_summary else stats.missed) }}</strong>
-            <small>
-                {% if is_public_attendance %}
-                Theo cấu hình của ngày hôm nay
-                {% elif admin_summary %}
-                Cần bổ sung minh chứng
-                {% else %}
-                Mốc cá nhân đã quá hạn
-                {% endif %}
-            </small>
-        </article>
-        <article class="attendance-metric-card metric-coverage">
-            <span>{{ 'Mốc quá hạn' if is_public_attendance else 'Tỷ lệ bao phủ' }}</span>
-            <strong>
-                {% if is_public_attendance %}
-                {{ stats.missed }}
-                {% else %}
-                {{ admin_summary.coverage_percent if admin_summary else 0 }}%
-                {% endif %}
-            </strong>
-            <small>
-                {% if is_public_attendance %}
-                Các mốc đã đóng cửa sổ nộp
-                {% elif admin_summary %}
-                {{ unit_attendance.checked_units_count if unit_attendance else 0 }}/{{ unit_attendance.total_units if unit_attendance else 0 }} đơn vị
-                {% else %}
-                Điểm danh cá nhân trong ngày
-                {% endif %}
-            </small>
-        </article>
-        <article class="attendance-metric-card metric-submission">
-            <span>{{ 'Đơn vị cấu hình' if is_public_attendance else 'Lượt nộp hôm nay' }}</span>
-            <strong>{{ attendance_unit_options|length if is_public_attendance else (admin_summary.today_submission_count if admin_summary else own_recent_submissions|length) }}</strong>
-            <small>{{ 'Chọn trực tiếp trên biểu mẫu điểm danh' if is_public_attendance else now.strftime('%d/%m/%Y %H:%M') }}</small>
-        </article>
-    </section>
-
-    <section class="attendance-grid">
-        <div class="attendance-main-stack">
-            {% if can_manage_attendance %}
-            <article class="pc06-panel attendance-panel">
-                <div class="attendance-panel-head">
-                    <div>
-                        <h3 class="mb-1">Thống kê đơn vị theo mốc giám sát</h3>
-                        <p class="text-muted mb-0">Chọn một mốc điểm danh trong ngày để xem đơn vị nào đã nộp hoặc chưa nộp ảnh minh chứng.</p>
-                    </div>
-                    <span class="attendance-stamp">{{ now.strftime('%d/%m/%Y') }}</span>
-                </div>
-
-                {% if monitor_slot_context.slot_options %}
-                <form method="get" action="{{ url_for('attendance_bp.attendance_home') }}" class="attendance-filter-row">
-                    <div class="attendance-filter-field">
-                        <label class="form-label fw-semibold">Mốc giám sát</label>
-                        <select class="form-select" name="slot_key" onchange="this.form.submit()">
-                            {% for option in monitor_slot_context.slot_options %}
-                            <option value="{{ option.slot_key }}" {% if unit_attendance and unit_attendance.selected_slot and option.slot_key == unit_attendance.selected_slot.slot_key %}selected{% endif %}>
-                                {{ option.slot_time }} - {{ option.status_label }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    {% if unit_attendance and unit_attendance.selected_slot %}
-                    <div class="attendance-slot-pill">
-                        <span class="badge text-bg-{{ unit_attendance.selected_slot.status_class }}">{{ unit_attendance.selected_slot.status_label }}</span>
-                        <strong>{{ unit_attendance.selected_slot.slot_label }}</strong>
-                        <small>Mở {{ unit_attendance.selected_slot.window_start_at.strftime('%H:%M') }} - hết hạn {{ unit_attendance.selected_slot.window_end_at.strftime('%H:%M') }}</small>
-                    </div>
-                    {% endif %}
-                </form>
-
-                <div class="attendance-unit-metrics">
-                    <div class="attendance-unit-metric">
-                        <span>Tổng đơn vị</span>
-                        <strong>{{ unit_attendance.total_units if unit_attendance else 0 }}</strong>
-                    </div>
-                    <div class="attendance-unit-metric success">
-                        <span>Đã điểm danh</span>
-                        <strong>{{ unit_attendance.checked_units_count if unit_attendance else 0 }}</strong>
-                    </div>
-                    <div class="attendance-unit-metric danger">
-                        <span>Chưa điểm danh</span>
-                        <strong>{{ unit_attendance.pending_units_count if unit_attendance else 0 }}</strong>
-                    </div>
-                    <div class="attendance-unit-metric primary">
-                        <span>Lượt nộp</span>
-                        <strong>{{ unit_attendance.submission_count if unit_attendance else 0 }}</strong>
-                    </div>
-                </div>
-
-                <div class="attendance-unit-grid">
-                    <section class="attendance-unit-column">
-                        <div class="attendance-column-head success">
-                            <h4>Đơn vị đã điểm danh</h4>
-                            <span>{{ unit_attendance.checked_units_count if unit_attendance else 0 }}</span>
-                        </div>
-                        {% if unit_attendance and unit_attendance.checked_units %}
-                        <div class="table-responsive">
-                            <table class="table table-custom align-middle mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Đơn vị</th>
-                                        <th>Nhân sự</th>
-                                        <th>Người nộp gần nhất</th>
-                                        <th>Thời điểm</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for row in unit_attendance.checked_units %}
-                                    <tr>
-                                        <td>
-                                            <div class="fw-bold">{{ row.unit_name }}</div>
-                                            <div class="small text-muted">{{ row.submission_count }} lượt minh chứng</div>
-                                        </td>
-                                        <td>{{ row.member_count }}</td>
-                                        <td>
-                                            <div>{{ row.latest_submitter or 'N/A' }}</div>
-                                            {% if row.latest_note %}<div class="small text-muted">{{ row.latest_note }}</div>{% endif %}
-                                        </td>
-                                        <td>{{ row.latest_submission_at.strftime('%H:%M %d/%m/%Y') if row.latest_submission_at else '-' }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        {% else %}
-                        <div class="attendance-empty">Chưa có đơn vị nào điểm danh ở mốc này.</div>
-                        {% endif %}
-                    </section>
-
-                    <section class="attendance-unit-column">
-                        <div class="attendance-column-head danger">
-                            <h4>Đơn vị chưa điểm danh</h4>
-                            <span>{{ unit_attendance.pending_units_count if unit_attendance else 0 }}</span>
-                        </div>
-                        {% if unit_attendance and unit_attendance.pending_units %}
-                        <div class="table-responsive">
-                            <table class="table table-custom align-middle mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Đơn vị</th>
-                                        <th>Nhân sự</th>
-                                        <th>Trạng thái</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for row in unit_attendance.pending_units %}
-                                    <tr>
-                                        <td class="fw-bold">{{ row.unit_name }}</td>
-                                        <td>{{ row.member_count }}</td>
-                                        <td><span class="badge text-bg-danger">Chưa nộp minh chứng</span></td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        {% else %}
-                        <div class="attendance-empty">Không còn đơn vị nào đang thiếu minh chứng ở mốc này.</div>
-                        {% endif %}
-                    </section>
-                </div>
-                {% else %}
-                <div class="attendance-empty">Hôm nay chưa có mốc điểm danh để thống kê theo đơn vị.</div>
-                {% endif %}
-            </article>
+        <form method="post" action="{{ url_for('attendance_bp.save_attendance_config') }}" class="attendance-simple-form">
+            {% if editing_config %}
+            <input type="hidden" name="config_id" value="{{ editing_config.id }}">
             {% endif %}
 
-            <article class="pc06-panel attendance-panel">
-                <div class="attendance-panel-head">
-                    <div>
-                        <h3 class="mb-1">{{ 'Chọn đơn vị và điểm danh' if is_public_attendance else 'Các mốc điểm danh của tôi hôm nay' }}</h3>
-                        <p class="text-muted mb-0">
-                            {% if is_public_attendance %}
-                            Không cần đăng nhập đơn vị. Chỉ cần chọn đơn vị trong danh mục và nộp ảnh minh chứng ở mốc đang mở.
-                            {% else %}
-                            Chỉ nộp được ảnh minh chứng trong cửa sổ đang mở của từng mốc.
-                            {% endif %}
-                        </p>
-                    </div>
-                    <span class="attendance-stamp">{{ now.strftime('%H:%M') }}</span>
+            <div class="attendance-simple-grid">
+                <div>
+                    <label class="form-label fw-semibold">Tên nhiệm vụ</label>
+                    <input type="text" class="form-control" name="name" value="{{ form_config_payload.name if form_config_payload else '' }}" required>
                 </div>
+                <div>
+                    <label class="form-label fw-semibold">Bắt đầu lúc</label>
+                    <input type="time" class="form-control" name="day_start_time" value="{{ start_time_value }}" required>
+                </div>
+                <div>
+                    <label class="form-label fw-semibold">Lặp lại mỗi</label>
+                    <div class="input-group">
+                        <input type="number" min="1" class="form-control" name="interval_minutes" value="{{ interval_minutes_value }}" required>
+                        <span class="input-group-text">phút</span>
+                    </div>
+                </div>
+                <div>
+                    <label class="form-label fw-semibold">Báo danh trong</label>
+                    <div class="input-group">
+                        <input type="number" min="0" class="form-control" name="late_allow_minutes" value="{{ late_allow_minutes_value }}" required>
+                        <span class="input-group-text">phút</span>
+                    </div>
+                </div>
+                <div>
+                    <label class="form-label fw-semibold">Kết thúc lúc</label>
+                    <input type="time" class="form-control" name="day_end_time" value="{{ end_time_value }}" required>
+                </div>
+                <div>
+                    <label class="form-label fw-semibold">Áp dụng theo</label>
+                    <select class="form-select" name="target_type" id="attendanceTargetType" required>
+                        <option value="role" {% if selected_target_type == 'role' %}selected{% endif %}>Vai trò</option>
+                        <option value="unit" {% if selected_target_type == 'unit' %}selected{% endif %}>Đơn vị</option>
+                    </select>
+                </div>
+                <div id="attendanceRoleField" {% if selected_target_type != 'role' %}hidden{% endif %}>
+                    <label class="form-label fw-semibold">Vai trò</label>
+                    <select class="form-select" name="target_role_id">
+                        <option value="">Chọn vai trò</option>
+                        {% for role in role_options %}
+                        <option value="{{ role.id }}" {% if selected_role_id == role.id %}selected{% endif %}>{{ role.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="attendanceUnitField" {% if selected_target_type != 'unit' %}hidden{% endif %}>
+                    <label class="form-label fw-semibold">Đơn vị</label>
+                    <select class="form-select" name="target_unit_key">
+                        <option value="">Chọn đơn vị</option>
+                        {% for unit in unit_options %}
+                        <option value="{{ unit.unit_key }}" {% if selected_unit_key == unit.unit_key %}selected{% endif %}>{{ unit.unit_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="attendance-simple-toggle">
+                    <label class="form-check attendance-simple-check">
+                        <input class="form-check-input" type="checkbox" name="is_active" value="1" {% if (form_config and form_config.is_active) or not form_config %}checked{% endif %}>
+                        <span class="form-check-label">Đang sử dụng</span>
+                    </label>
+                </div>
+            </div>
 
-                {% if active_config and slot_rows %}
-                <div class="attendance-slot-list">
-                    {% for row in slot_rows %}
-                    <article class="attendance-slot-card">
-                        <div class="attendance-slot-card-head">
-                            <div>
-                                <div class="attendance-slot-time">{{ row.slot_time }}</div>
-                                <div class="small text-muted">Mở {{ row.window_start_at.strftime('%H:%M') }} - hết hạn {{ row.window_end_at.strftime('%H:%M') }}</div>
-                            </div>
+            <div class="attendance-simple-actions">
+                <button type="submit" class="btn btn-primary rounded-pill fw-semibold">{{ 'Lưu' if editing_config else 'Tạo nhiệm vụ' }}</button>
+                {% if editing_config %}
+                <a href="{{ url_for('attendance_bp.attendance_home') }}" class="btn btn-outline-secondary rounded-pill fw-semibold">Huỷ</a>
+                {% endif %}
+            </div>
+        </form>
+    </section>
+    {% endif %}
+
+    <section class="pc06-panel attendance-simple-panel" id="attendance-task-list">
+        <div class="attendance-simple-head">
+            <div>
+                <h2 class="mb-0">Nhiệm vụ của tôi</h2>
+            </div>
+        </div>
+
+        {% if my_task_rows %}
+        <div class="table-responsive">
+            <table class="table table-custom align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Tên nhiệm vụ</th>
+                        <th>Thời gian</th>
+                        <th>Áp dụng</th>
+                        <th>Trạng thái</th>
+                        <th class="text-end">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in my_task_rows %}
+                    <tr id="attendance-task-{{ row.id }}">
+                        <td class="fw-semibold">{{ row.name }}</td>
+                        <td>
+                            {{ row.time_text }}
+                        </td>
+                        <td>{{ row.scope_label }}</td>
+                        <td>
                             <span class="badge text-bg-{{ row.status_class }}">{{ row.status_label }}</span>
-                        </div>
-
-                        {% if row.submission %}
-                        <div class="attendance-proof-preview">
-                            <img src="{{ url_for('attendance_bp.attendance_proof', submission_id=row.submission.id) }}" alt="Ảnh minh chứng">
-                            <div class="attendance-proof-copy">
-                                <strong>Đã nộp minh chứng</strong>
-                                <div class="small fw-semibold">{{ row.submission.unit_area or 'Chưa chọn đơn vị' }}</div>
-                                <div class="small text-muted">{{ row.submission.submitted_at.strftime('%H:%M %d/%m/%Y') if row.submission.submitted_at else '' }}</div>
-                                {% if row.submission.note %}<div class="small text-muted mt-2">{{ row.submission.note }}</div>{% endif %}
-                            </div>
-                        </div>
-                        {% elif row.status == 'available' and can_submit_attendance %}
-                        {% if attendance_unit_options %}
-                        <form method="post" action="{{ url_for('attendance_bp.submit_attendance') }}" enctype="multipart/form-data" class="attendance-submit-form">
-                            <input type="hidden" name="slot_key" value="{{ row.slot_key }}">
-                            <input type="hidden" name="slot_date" value="{{ row.slot_date.isoformat() }}">
-                            <div class="row g-3 align-items-end">
-                                <div class="col-xl-4">
-                                    <label class="form-label fw-semibold">Đơn vị</label>
-                                    <select class="form-select" name="unit_key" required>
-                                        <option value="">Chọn đơn vị</option>
-                                        {% for option in attendance_unit_options %}
-                                        <option value="{{ option.unit_key }}" {% if option.unit_key == default_attendance_unit_key %}selected{% endif %}>{{ option.unit_name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-xl-4">
-                                    <label class="form-label fw-semibold">Ảnh minh chứng</label>
-                                    <input type="file" class="form-control" name="proof_image" accept="image/*" required>
-                                </div>
-                                <div class="col-xl-3">
-                                    <label class="form-label fw-semibold">Ghi chú</label>
-                                    <input type="text" class="form-control" name="note" maxlength="255" placeholder="Ví dụ: Có mặt tại đơn vị">
-                                </div>
-                                <div class="col-xl-1">
-                                    <button type="submit" class="btn btn-primary rounded-pill w-100 fw-bold">Nộp ảnh</button>
-                                </div>
-                            </div>
-                        </form>
-                        {% else %}
-                        <div class="attendance-slot-note">
-                            Chưa có danh mục đơn vị để chọn. Quản trị cần cấu hình đơn vị trong phần thiết lập danh mục trước khi điểm danh.
-                        </div>
-                        {% endif %}
-                        {% else %}
-                        <div class="attendance-slot-note">
-                            {% if row.status == 'upcoming' %}
-                            Mốc này chưa mở để nộp điểm danh.
-                            {% elif row.status == 'missed' %}
-                            Mốc này đã quá hạn và chưa có ảnh minh chứng.
-                            {% else %}
-                            Bạn chưa có quyền nộp điểm danh cho mốc này.
+                            {% if row.submission and row.submission.submitted_at %}
+                            <div class="small text-muted mt-1">{{ row.submission.submitted_at.strftime('%H:%M %d/%m/%Y') }}</div>
                             {% endif %}
-                        </div>
-                        {% endif %}
-                    </article>
+                        </td>
+                        <td class="text-end">
+                            {% if can_submit_attendance and row.slot and row.status_key == 'available' %}
+                            <form method="post" action="{{ url_for('attendance_bp.submit_attendance') }}" class="d-inline">
+                                <input type="hidden" name="config_id" value="{{ row.id }}">
+                                <input type="hidden" name="slot_key" value="{{ row.slot.slot_key }}">
+                                <input type="hidden" name="slot_date" value="{{ row.slot.slot_date.isoformat() }}">
+                                <button type="submit" class="btn btn-sm btn-primary rounded-pill fw-semibold">Điểm danh</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
                     {% endfor %}
-                </div>
-                {% elif active_config %}
-                <div class="attendance-empty">Hôm nay không có mốc điểm danh theo cấu hình hiện tại.</div>
-                {% else %}
-                <div class="attendance-empty">Hệ thống chưa kích hoạt cấu hình điểm danh.</div>
-                {% endif %}
-            </article>
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="attendance-simple-empty">Không có nhiệm vụ.</div>
+        {% endif %}
+    </section>
 
-            {% if editing_submission and not is_public_attendance %}
-            <article class="pc06-panel attendance-panel">
-                <div class="attendance-panel-head">
-                    <div>
-                        <h3 class="mb-1">Chỉnh sửa lượt điểm danh</h3>
-                        <p class="text-muted mb-0">Cập nhật đơn vị, ghi chú hoặc thay ảnh minh chứng cho lượt đã nộp.</p>
-                    </div>
-                    <a href="{{ url_for('attendance_bp.attendance_home', slot_key=selected_slot_key, edit_config_id=editing_config.id if editing_config else None) }}" class="btn btn-sm btn-outline-secondary rounded-pill fw-semibold">Huỷ</a>
-                </div>
-                <form method="post" action="{{ url_for('attendance_bp.update_attendance_submission', submission_id=editing_submission.id) }}" enctype="multipart/form-data" class="attendance-config-form">
-                    <input type="hidden" name="return_slot_key" value="{{ selected_slot_key }}">
-                    {% if editing_config %}
-                    <input type="hidden" name="return_edit_config_id" value="{{ editing_config.id }}">
-                    {% endif %}
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Mốc điểm danh</label>
-                            <input type="text" class="form-control" value="{{ editing_submission.slot_label or editing_submission.slot_key }}" readonly>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Thời điểm nộp</label>
-                            <input type="text" class="form-control" value="{{ editing_submission.submitted_at.strftime('%H:%M %d/%m/%Y') if editing_submission.submitted_at else '' }}" readonly>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Đơn vị</label>
-                            <select class="form-select" name="unit_key" required>
-                                <option value="">Chọn đơn vị</option>
-                                {% for option in attendance_unit_options %}
-                                <option value="{{ option.unit_key }}" {% if option.unit_key == editing_submission.unit_key %}selected{% endif %}>{{ option.unit_name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Người nộp</label>
-                            <input type="text" class="form-control" value="{{ editing_submission.user.fullname if editing_submission.user else editing_submission.user_id }}" readonly>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <label class="form-label fw-semibold">Ảnh minh chứng hiện tại</label>
-                        <div class="attendance-edit-proof">
-                            <a href="{{ url_for('attendance_bp.attendance_proof', submission_id=editing_submission.id) }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill fw-semibold">Xem ảnh hiện tại</a>
-                            <input type="file" class="form-control" name="proof_image" accept="image/*">
-                        </div>
-                        <div class="form-text">Bỏ trống nếu không cần thay ảnh.</div>
-                    </div>
-                    <div class="mt-3">
-                        <label class="form-label fw-semibold">Ghi chú</label>
-                        <textarea class="form-control" name="note" rows="3" maxlength="255" placeholder="Cập nhật ghi chú ngắn">{{ editing_submission.note or '' }}</textarea>
-                    </div>
-                    <div class="attendance-config-form-actions">
-                        <button type="submit" class="btn btn-primary rounded-pill fw-bold w-100">Lưu lượt điểm danh</button>
-                    </div>
-                </form>
-            </article>
-            {% endif %}
-
-            {% if not is_public_attendance %}
-            <article class="pc06-panel attendance-panel">
-                <div class="attendance-panel-head">
-                    <div>
-                        <h3 class="mb-1">Lịch sử điểm danh của tôi</h3>
-                        <p class="text-muted mb-0">12 lượt điểm danh gần nhất kèm đường dẫn ảnh minh chứng.</p>
-                    </div>
-                </div>
-                {% if own_recent_submissions %}
-                <div class="table-responsive">
-                    <table class="table table-custom align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th>Mốc</th>
-                                <th>Đơn vị</th>
-                                <th>Thời điểm</th>
-                                <th>Ảnh</th>
-                                <th>Ghi chú</th>
-                                <th>Thao tác</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for submission in own_recent_submissions %}
-                            <tr>
-                                <td>{{ submission.slot_label or submission.slot_key }}</td>
-                                <td>{{ submission.unit_area or 'Chưa có đơn vị' }}</td>
-                                <td>{{ submission.submitted_at.strftime('%H:%M %d/%m/%Y') if submission.submitted_at else '' }}</td>
-                                <td><a href="{{ url_for('attendance_bp.attendance_proof', submission_id=submission.id) }}" target="_blank">Xem ảnh</a></td>
-                                <td>{{ submission.note or 'Không có' }}</td>
-                                <td>
-                                    <div class="attendance-inline-actions">
-                                        <a href="{{ url_for('attendance_bp.attendance_home', edit_submission_id=submission.id, slot_key=selected_slot_key, edit_config_id=editing_config.id if editing_config else None) }}" class="btn btn-sm btn-outline-primary rounded-pill fw-semibold">Sửa</a>
-                                        <form method="post" action="{{ url_for('attendance_bp.delete_attendance_submission', submission_id=submission.id) }}" onsubmit="return confirm('Xoá lượt điểm danh này?');">
-                                            <input type="hidden" name="return_slot_key" value="{{ selected_slot_key }}">
-                                            {% if editing_config %}
-                                            <input type="hidden" name="return_edit_config_id" value="{{ editing_config.id }}">
-                                            {% endif %}
-                                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill fw-semibold">Xoá</button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="attendance-empty">Bạn chưa có lượt điểm danh nào.</div>
-                {% endif %}
-            </article>
-            {% else %}
-            <article class="pc06-panel attendance-panel">
-                <div class="attendance-panel-head">
-                    <div>
-                        <h3 class="mb-1">Hướng dẫn điểm danh công khai</h3>
-                        <p class="text-muted mb-0">Luồng này dùng để điểm danh nhanh theo đơn vị mà không cần đăng nhập tài khoản đơn vị.</p>
-                    </div>
-                </div>
-                <div class="attendance-empty">
-                    Chọn mốc đang mở, chọn đúng đơn vị trong danh mục quản trị đã cấu hình, sau đó tải ảnh minh chứng lên để hoàn tất điểm danh.
-                </div>
-            </article>
-            {% endif %}
+    {% if can_manage_attendance %}
+    <section class="pc06-panel attendance-simple-panel">
+        <div class="attendance-simple-head">
+            <div>
+                <h2 class="mb-0">Danh sách nhiệm vụ</h2>
+            </div>
         </div>
 
-        <aside class="attendance-side-stack">
-            {% if can_manage_attendance %}
-            <article class="pc06-panel attendance-panel">
-                <div class="attendance-panel-head">
-                    <div>
-                        <h3 class="mb-1">Bảng điều khiển nhanh</h3>
-                        <p class="text-muted mb-0">Tổng quan dữ liệu điểm danh theo đơn vị và người dùng.</p>
-                    </div>
-                </div>
-                <div class="attendance-admin-stats">
-                    <div>
-                        <span>Người dùng hoạt động</span>
-                        <strong>{{ admin_summary.active_user_count if admin_summary else 0 }}</strong>
-                    </div>
-                    <div>
-                        <span>Đơn vị đã điểm danh</span>
-                        <strong>{{ admin_summary.checked_units_count if admin_summary else 0 }}</strong>
-                    </div>
-                    <div>
-                        <span>Đơn vị chưa điểm danh</span>
-                        <strong>{{ admin_summary.pending_units_count if admin_summary else 0 }}</strong>
-                    </div>
-                    <div>
-                        <span>Tỷ lệ bao phủ</span>
-                        <strong>{{ admin_summary.coverage_percent if admin_summary else 0 }}%</strong>
-                    </div>
-                </div>
-            </article>
-
-            <article class="pc06-panel attendance-panel">
-                <div class="attendance-panel-head">
-                    <div>
-                        <h3 class="mb-1">Danh sách cấu hình điểm danh</h3>
-                        <p class="text-muted mb-0">Chọn một cấu hình để sửa hoặc xoá khỏi hệ thống.</p>
-                    </div>
-                    <a href="{{ url_for('attendance_bp.attendance_home', slot_key=selected_slot_key) }}" class="btn btn-sm btn-outline-primary rounded-pill fw-semibold">Tạo mới</a>
-                </div>
-                {% if config_records %}
-                <div class="attendance-config-list">
-                    {% for config_item in config_records %}
-                    <div class="attendance-config-item {% if editing_config and editing_config.id == config_item.id %}is-selected{% endif %}">
-                        <div class="attendance-config-item-body">
-                            <div class="d-flex flex-wrap gap-2 align-items-center mb-1">
-                                <strong>{{ config_item.name }}</strong>
-                                <span class="badge text-bg-{{ 'success' if config_item.is_active else 'secondary' }}">
-                                    {{ 'Đang kích hoạt' if config_item.is_active else 'Tạm dừng' }}
-                                </span>
-                                <span class="badge text-bg-light text-dark">{{ config_item.mode_label }}</span>
-                            </div>
-                            <div class="small text-muted mb-1">
-                                Cập nhật {{ config_item.updated_at.strftime('%H:%M %d/%m/%Y') if config_item.updated_at else 'N/A' }}
-                            </div>
-                            <div class="small text-muted">{{ config_item.summary }}</div>
-                            {% if config_item.note %}
-                            <div class="small mt-2">{{ config_item.note }}</div>
+        {% if manager_task_rows %}
+        <div class="table-responsive">
+            <table class="table table-custom align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Tên nhiệm vụ</th>
+                        <th>Thời gian</th>
+                        <th>Áp dụng</th>
+                        <th>Hôm nay</th>
+                        <th>Trạng thái</th>
+                        <th class="text-end">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in manager_task_rows %}
+                    <tr id="attendance-config-{{ row.id }}">
+                        <td class="fw-semibold">{{ row.name }}</td>
+                        <td>{{ row.time_text }}</td>
+                        <td>{{ row.scope_label }}</td>
+                        <td>
+                            {% if row.progress.expected_count %}
+                            {{ row.progress.submitted_count }}/{{ row.progress.expected_count }}
+                            {% else %}
+                            -
                             {% endif %}
-                        </div>
-                        <div class="attendance-config-item-actions">
-                            <a href="{{ url_for('attendance_bp.attendance_home', edit_config_id=config_item.id, slot_key=selected_slot_key) }}" class="btn btn-sm btn-outline-primary rounded-pill fw-semibold">Sửa</a>
-                            <form method="post" action="{{ url_for('attendance_bp.delete_attendance_config', config_id=config_item.id) }}" onsubmit="return confirm('Xoá cấu hình điểm danh này?');">
-                                <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill fw-semibold">Xoá</button>
-                            </form>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="attendance-empty">Chưa có cấu hình điểm danh nào được tạo.</div>
-                {% endif %}
-            </article>
-
-            <article class="pc06-panel attendance-panel">
-                <div class="attendance-panel-head">
-                    <div>
-                        <h3 class="mb-1">{{ 'Chỉnh sửa cấu hình điểm danh' if editing_config else 'Tạo cấu hình điểm danh' }}</h3>
-                        <p class="text-muted mb-0">
-                            {{ 'Bạn đang cập nhật một cấu hình đã có sẵn.' if editing_config else 'Thiết lập chu kỳ tự động hoặc các mốc giờ cố định cho nhiệm vụ điểm danh mới.' }}
-                        </p>
-                    </div>
-                </div>
-
-                <form method="post" action="{{ url_for('attendance_bp.save_attendance_config') }}" class="attendance-config-form">
-                    {% if editing_config %}
-                    <input type="hidden" name="config_id" value="{{ editing_config.id }}">
-                    {% endif %}
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Tên cấu hình</label>
-                        <input type="text" class="form-control" name="name" value="{{ form_config_payload.name if form_config_payload else 'Điểm danh tự động' }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Chế độ</label>
-                        <select class="form-select" name="mode">
-                            <option value="interval" {% if not form_config_payload or form_config_payload.mode == 'interval' %}selected{% endif %}>Tự động theo chu kỳ</option>
-                            <option value="schedule" {% if form_config_payload and form_config_payload.mode == 'schedule' %}selected{% endif %}>Theo khung giờ cố định</option>
-                        </select>
-                    </div>
-
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Bắt đầu</label>
-                            <input type="time" class="form-control" name="day_start_time" value="{{ form_config_payload.day_start_time if form_config_payload else '08:00' }}">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Kết thúc</label>
-                            <input type="time" class="form-control" name="day_end_time" value="{{ form_config_payload.day_end_time if form_config_payload else '17:00' }}">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Chu kỳ (phút)</label>
-                            <input type="number" class="form-control" name="interval_minutes" min="1" value="{{ form_config_payload.interval_minutes if form_config_payload else 120 }}">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Mở trước (phút)</label>
-                            <input type="number" class="form-control" name="early_checkin_minutes" min="0" value="{{ form_config_payload.early_checkin_minutes if form_config_payload else 15 }}">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Cho phép trễ (phút)</label>
-                            <input type="number" class="form-control" name="late_allow_minutes" min="0" value="{{ form_config_payload.late_allow_minutes if form_config_payload else 60 }}">
-                        </div>
-                        <div class="col-md-6 d-flex align-items-end">
-                            <div class="form-check form-switch attendance-switch">
-                                <input class="form-check-input" type="checkbox" name="is_active" id="attendanceActive" value="1" {% if (form_config and form_config.is_active) or (not form_config and not latest_config) %}checked{% endif %}>
-                                <label class="form-check-label fw-semibold" for="attendanceActive">Kích hoạt ngay</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mt-3">
-                        <label class="form-label fw-semibold">Khung giờ cố định</label>
-                        <textarea class="form-control" name="schedule_times" rows="4" placeholder="08:00&#10;11:30&#10;15:00">{{ form_schedule_times_text }}</textarea>
-                        <div class="form-text">Mỗi dòng một mốc giờ hoặc phân tách bằng dấu phẩy.</div>
-                    </div>
-
-                    <div class="mt-3">
-                        <label class="form-label fw-semibold d-block">Ngày áp dụng</label>
-                        <div class="attendance-weekday-grid">
-                            {% for weekday in weekday_labels %}
-                            <label class="attendance-weekday-option">
-                                <input type="checkbox" name="weekdays" value="{{ weekday.value }}" {% if weekday.value in form_active_weekdays %}checked{% endif %}>
-                                <span>{{ weekday.label }}</span>
-                            </label>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-                    <div class="mt-3">
-                        <label class="form-label fw-semibold">Ghi chú</label>
-                        <textarea class="form-control" name="note" rows="3" placeholder="Mô tả quy định điểm danh">{{ form_config_payload.note if form_config_payload else '' }}</textarea>
-                    </div>
-
-                    <div class="attendance-config-note">
-                        Danh mục đơn vị dùng khi điểm danh lấy từ cấu hình quản trị tại mục thiết lập danh mục.
-                    </div>
-
-                    <div class="attendance-config-form-actions">
-                        <button type="submit" class="btn btn-primary rounded-pill fw-bold w-100">{{ 'Lưu cập nhật' if editing_config else 'Tạo cấu hình' }}</button>
-                        {% if editing_config %}
-                        <a href="{{ url_for('attendance_bp.attendance_home', slot_key=selected_slot_key) }}" class="btn btn-outline-secondary rounded-pill fw-semibold w-100">Huỷ chỉnh sửa</a>
-                        {% endif %}
-                    </div>
-                </form>
-            </article>
-
-            <article class="pc06-panel attendance-panel">
-                <div class="attendance-panel-head">
-                    <div>
-                        <h3 class="mb-1">Nộp gần đây toàn hệ thống</h3>
-                        <p class="text-muted mb-0">20 lượt minh chứng gần nhất.</p>
-                    </div>
-                </div>
-                {% if admin_recent_submissions %}
-                <div class="attendance-recent-list">
-                    {% for submission in admin_recent_submissions %}
-                    <div class="attendance-recent-item">
-                        <div>
-                            <div class="fw-bold">{{ submission.user.fullname if submission.user else submission.user_id }}</div>
-                            <div class="small text-muted">{{ submission.unit_area or 'Chưa có đơn vị' }}</div>
-                        </div>
-                        <div class="text-end">
-                            <div class="small fw-semibold">{{ submission.slot_label or submission.slot_key }}</div>
-                            <div class="small text-muted">{{ submission.submitted_at.strftime('%H:%M %d/%m') if submission.submitted_at else '' }}</div>
-                            <div class="attendance-inline-actions attendance-inline-actions-compact">
-                                <a href="{{ url_for('attendance_bp.attendance_proof', submission_id=submission.id) }}" target="_blank" class="small">Xem ảnh</a>
-                                <a href="{{ url_for('attendance_bp.attendance_home', edit_submission_id=submission.id, slot_key=selected_slot_key, edit_config_id=editing_config.id if editing_config else None) }}" class="small">Sửa</a>
-                                <form method="post" action="{{ url_for('attendance_bp.delete_attendance_submission', submission_id=submission.id) }}" onsubmit="return confirm('Xoá lượt điểm danh này?');">
-                                    <input type="hidden" name="return_slot_key" value="{{ selected_slot_key }}">
-                                    {% if editing_config %}
-                                    <input type="hidden" name="return_edit_config_id" value="{{ editing_config.id }}">
-                                    {% endif %}
-                                    <button type="submit" class="btn btn-link btn-sm p-0 small text-danger">Xoá</button>
+                        </td>
+                        <td><span class="badge text-bg-{{ row.status_class }}">{{ row.status_label }}</span></td>
+                        <td class="text-end">
+                            <div class="attendance-simple-inline">
+                                <a href="{{ url_for('attendance_bp.attendance_home', edit_config_id=row.id) }}" class="btn btn-sm btn-outline-primary rounded-pill fw-semibold">Sửa</a>
+                                <form method="post" action="{{ url_for('attendance_bp.delete_attendance_config', config_id=row.id) }}" onsubmit="return confirm('Xoá nhiệm vụ điểm danh này?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill fw-semibold">Xoá</button>
                                 </form>
                             </div>
-                        </div>
-                    </div>
+                        </td>
+                    </tr>
                     {% endfor %}
-                </div>
-                {% else %}
-                <div class="attendance-empty">Chưa có dữ liệu điểm danh.</div>
-                {% endif %}
-            </article>
-            {% else %}
-            <article class="pc06-panel attendance-panel">
-                <div class="attendance-panel-head">
-                    <div>
-                        <h3 class="mb-1">Lưu ý</h3>
-                        <p class="text-muted mb-0">Ảnh minh chứng là thành phần bắt buộc cho mỗi lượt điểm danh.</p>
-                    </div>
-                </div>
-                <ul class="attendance-note-list">
-                    <li>Nộp ảnh đúng mốc giờ đang mở.</li>
-                    <li>Mỗi mốc chỉ chấp nhận một lần nộp.</li>
-                    <li>Nếu quá hạn, hệ thống sẽ đánh dấu chưa điểm danh.</li>
-                </ul>
-            </article>
-            {% endif %}
-        </aside>
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="attendance-simple-empty">Chưa có nhiệm vụ.</div>
+        {% endif %}
     </section>
+    {% endif %}
 </div>
 
 <style>
-    .attendance-shell { display: grid; gap: 18px; }
-    .attendance-hero-card {
+    .attendance-simple-shell {
         display: grid;
-        grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
         gap: 18px;
-        align-items: stretch;
-        background:
-            linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(16, 185, 129, 0.06)),
-            rgba(255, 255, 255, 0.94);
     }
-    .attendance-hero-copy { display: grid; gap: 8px; align-content: start; }
-    .attendance-hero-kicker {
-        display: inline-flex;
-        width: fit-content;
-        padding: 7px 12px;
-        border-radius: 999px;
-        background: rgba(37, 99, 235, 0.1);
-        color: #1d4ed8;
-        font-size: 0.74rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-    }
-    .attendance-hero-summary {
-        padding: 20px 22px;
-        border-radius: 24px;
-        background: rgba(255, 255, 255, 0.78);
-        border: 1px solid rgba(148, 163, 184, 0.18);
+    .attendance-simple-panel {
         display: grid;
-        gap: 6px;
-        align-content: start;
-    }
-    .attendance-hero-summary-label {
-        color: var(--text-muted);
-        font-size: 0.78rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-    }
-    .attendance-hero-summary strong { font-size: 1.2rem; color: var(--text-main); }
-    .attendance-hero-summary p { margin: 0; color: var(--text-muted); line-height: 1.55; }
-
-    .attendance-metric-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 16px;
     }
-    .attendance-metric-card {
-        padding: 18px 20px;
-        border-radius: 22px;
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.05);
-        display: grid;
-        gap: 8px;
-    }
-    .attendance-metric-card span {
-        color: var(--text-muted);
-        font-size: 0.82rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-    }
-    .attendance-metric-card strong {
-        font-size: 2rem;
-        line-height: 1;
-        color: var(--text-main);
-    }
-    .attendance-metric-card small { color: var(--text-muted); font-weight: 600; }
-    .metric-checked strong { color: #059669; }
-    .metric-pending strong { color: #dc2626; }
-    .metric-coverage strong { color: #2563eb; }
-    .metric-submission strong { color: #7c3aed; }
-
-    .attendance-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.72fr);
-        gap: 18px;
-        align-items: start;
-    }
-    .attendance-main-stack,
-    .attendance-side-stack { display: grid; gap: 18px; }
-    .attendance-panel { display: grid; gap: 18px; }
-    .attendance-panel-head {
+    .attendance-simple-head {
         display: flex;
         justify-content: space-between;
-        align-items: flex-start;
+        align-items: center;
         gap: 12px;
     }
-    .attendance-stamp {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 8px 12px;
-        border-radius: 999px;
-        background: rgba(15, 23, 42, 0.05);
-        color: var(--text-muted);
-        font-size: 0.82rem;
-        font-weight: 800;
-    }
-    .attendance-filter-row {
+    .attendance-simple-grid {
         display: grid;
-        grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 16px;
         align-items: end;
     }
-    .attendance-filter-field { display: grid; gap: 8px; }
-    .attendance-slot-pill {
-        padding: 16px 18px;
-        border-radius: 20px;
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        background: rgba(248, 250, 252, 0.8);
-        display: grid;
-        gap: 6px;
-    }
-    .attendance-slot-pill strong { color: var(--text-main); }
-    .attendance-slot-pill small { color: var(--text-muted); }
-
-    .attendance-unit-metrics {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 12px;
-    }
-    .attendance-unit-metric {
-        padding: 16px 18px;
-        border-radius: 18px;
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        background: rgba(248, 250, 252, 0.84);
-        display: grid;
-        gap: 6px;
-    }
-    .attendance-unit-metric span {
-        color: var(--text-muted);
-        font-size: 0.78rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-    }
-    .attendance-unit-metric strong { font-size: 1.4rem; color: var(--text-main); }
-    .attendance-unit-metric.success strong { color: #059669; }
-    .attendance-unit-metric.danger strong { color: #dc2626; }
-    .attendance-unit-metric.primary strong { color: #2563eb; }
-
-    .attendance-unit-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 18px;
-        align-items: start;
-    }
-    .attendance-unit-column {
-        border-radius: 22px;
-        overflow: hidden;
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        background: rgba(255, 255, 255, 0.8);
-    }
-    .attendance-column-head {
-        padding: 16px 18px;
+    .attendance-simple-toggle {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        gap: 12px;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+        min-height: 42px;
     }
-    .attendance-column-head h4 {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 800;
-        color: var(--text-main);
-    }
-    .attendance-column-head span {
-        min-width: 44px;
-        height: 36px;
-        padding: 0 12px;
+    .attendance-simple-check {
         display: inline-flex;
         align-items: center;
-        justify-content: center;
-        border-radius: 999px;
-        color: #fff;
-        font-weight: 800;
+        gap: 8px;
+        margin: 0;
+        font-weight: 700;
     }
-    .attendance-column-head.success { background: rgba(16, 185, 129, 0.08); }
-    .attendance-column-head.success span { background: linear-gradient(135deg, #059669, #10b981); }
-    .attendance-column-head.danger { background: rgba(220, 38, 38, 0.08); }
-    .attendance-column-head.danger span { background: linear-gradient(135deg, #dc2626, #ef4444); }
-
-    .attendance-slot-list,
-    .attendance-recent-list { display: grid; gap: 14px; }
-    .attendance-slot-card,
-    .attendance-recent-item {
-        padding: 16px;
-        border-radius: 20px;
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        background: rgba(248, 250, 252, 0.82);
-    }
-    .attendance-slot-card-head {
+    .attendance-simple-actions {
         display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 12px;
-        margin-bottom: 14px;
+        gap: 10px;
+        flex-wrap: wrap;
     }
-    .attendance-slot-time { font-size: 1.5rem; font-weight: 800; color: var(--text-main); }
-    .attendance-submit-form { padding-top: 4px; }
-    .attendance-proof-preview {
-        display: grid;
-        grid-template-columns: 112px minmax(0, 1fr);
-        gap: 14px;
-        align-items: start;
-    }
-    .attendance-proof-preview img {
-        width: 112px;
-        height: 112px;
-        object-fit: cover;
-        border-radius: 18px;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-    }
-    .attendance-proof-copy { display: grid; gap: 4px; }
-    .attendance-edit-proof {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: 12px;
-        align-items: center;
-    }
-    .attendance-slot-note {
-        padding: 14px 16px;
-        border-radius: 16px;
-        background: rgba(255, 255, 255, 0.7);
-        color: var(--text-muted);
-        font-weight: 600;
-    }
-    .attendance-empty {
-        padding: 28px;
-        border-radius: 20px;
+    .attendance-simple-empty {
+        padding: 24px;
         border: 1px dashed rgba(148, 163, 184, 0.28);
+        border-radius: 18px;
         text-align: center;
         color: var(--text-muted);
         font-weight: 700;
-        background: rgba(248, 250, 252, 0.75);
+        background: rgba(248, 250, 252, 0.7);
     }
-
-    .attendance-admin-stats { display: grid; gap: 12px; }
-    .attendance-admin-stats div {
-        padding: 14px 16px;
-        border-radius: 18px;
-        background: rgba(248, 250, 252, 0.84);
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
+    .attendance-simple-inline {
+        display: inline-flex;
         align-items: center;
-    }
-    .attendance-admin-stats span {
-        color: var(--text-muted);
-        font-weight: 700;
-    }
-    .attendance-admin-stats strong {
-        font-size: 1.12rem;
-        color: var(--text-main);
-    }
-    .attendance-weekday-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-    }
-    .attendance-weekday-option {
-        padding: 10px 12px;
-        border-radius: 16px;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        background: rgba(248, 250, 252, 0.82);
-        display: flex;
-        align-items: center;
+        justify-content: flex-end;
         gap: 8px;
-        font-weight: 600;
-        cursor: pointer;
+        flex-wrap: wrap;
     }
-    .attendance-recent-item {
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        align-items: center;
-    }
-    .attendance-note-list {
+    .attendance-simple-inline form {
         margin: 0;
-        padding-left: 18px;
-        color: var(--text-main);
-        display: grid;
-        gap: 10px;
-    }
-    .attendance-inline-actions {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-    .attendance-inline-actions form { margin: 0; }
-    .attendance-inline-actions-compact {
-        justify-content: flex-end;
-        margin-top: 4px;
-    }
-    .attendance-switch { padding-bottom: 8px; }
-    .attendance-config-list { display: grid; gap: 12px; }
-    .attendance-config-item {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 14px;
-        padding: 14px 16px;
-        border-radius: 18px;
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        background: rgba(248, 250, 252, 0.9);
-    }
-    .attendance-config-item.is-selected {
-        border-color: rgba(37, 99, 235, 0.4);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
-    }
-    .attendance-config-item-body { min-width: 0; }
-    .attendance-config-item-actions {
-        display: flex;
-        gap: 8px;
-        align-items: flex-start;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-    }
-    .attendance-config-item-actions form { margin: 0; }
-    .attendance-config-form-actions {
-        display: grid;
-        gap: 10px;
-        margin-top: 16px;
-    }
-    .attendance-config-note {
-        margin-top: 14px;
-        padding: 12px 14px;
-        border-radius: 16px;
-        background: rgba(37, 99, 235, 0.08);
-        color: var(--text-muted);
-        font-size: 0.88rem;
-        line-height: 1.5;
-        border: 1px solid rgba(37, 99, 235, 0.12);
-    }
-
-    [data-theme="dark"] .attendance-hero-card,
-    [data-theme="dark"] .attendance-hero-summary,
-    [data-theme="dark"] .attendance-metric-card,
-    [data-theme="dark"] .attendance-unit-column,
-    [data-theme="dark"] .attendance-slot-pill,
-    [data-theme="dark"] .attendance-unit-metric,
-    [data-theme="dark"] .attendance-slot-card,
-    [data-theme="dark"] .attendance-recent-item,
-    [data-theme="dark"] .attendance-admin-stats div,
-    [data-theme="dark"] .attendance-config-item,
-    [data-theme="dark"] .attendance-weekday-option,
-    [data-theme="dark"] .attendance-empty,
-    [data-theme="dark"] .attendance-slot-note,
-    [data-theme="dark"] .attendance-config-note {
-        background: rgba(15, 23, 42, 0.78);
-        border-color: rgba(148, 163, 184, 0.18);
-    }
-    [data-theme="dark"] .attendance-stamp { background: rgba(148, 163, 184, 0.12); color: #cbd5e1; }
-
-    @media (max-width: 1399.98px) {
-        .attendance-hero-card,
-        .attendance-grid,
-        .attendance-unit-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 991.98px) {
-        .attendance-metric-grid,
-        .attendance-unit-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .attendance-filter-row { grid-template-columns: 1fr; }
-        .attendance-proof-preview { grid-template-columns: 1fr; }
-        .attendance-proof-preview img { width: 100%; max-width: 240px; height: auto; }
-        .attendance-edit-proof { grid-template-columns: 1fr; }
-        .attendance-config-item { grid-template-columns: 1fr; }
-        .attendance-config-item-actions { justify-content: flex-start; }
+        .attendance-simple-grid {
+            grid-template-columns: 1fr;
+        }
+        .attendance-simple-head {
+            align-items: flex-start;
+            flex-direction: column;
+        }
     }
 </style>
+
+<script>
+    (function () {
+        var targetType = document.getElementById('attendanceTargetType');
+        if (!targetType) return;
+
+        var roleField = document.getElementById('attendanceRoleField');
+        var unitField = document.getElementById('attendanceUnitField');
+
+        function syncTargetFields() {
+            var isRole = targetType.value === 'role';
+            if (roleField) roleField.hidden = !isRole;
+            if (unitField) unitField.hidden = isRole;
+        }
+
+        targetType.addEventListener('change', syncTargetFields);
+        syncTargetFields();
+    })();
+</script>
 {% endblock %}

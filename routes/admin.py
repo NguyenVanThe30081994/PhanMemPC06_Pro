@@ -400,6 +400,117 @@ def _workspace_card(
         'secondary_link': secondary_link,
     }
 
+
+def _report_submission_business_date(submission):
+    metadata = {}
+    try:
+        metadata = json.loads(getattr(submission, 'metadata_json', '') or '{}')
+    except (TypeError, ValueError, json.JSONDecodeError):
+        metadata = {}
+
+    report_date_raw = str(metadata.get('report_date', '') or '').strip()
+    if report_date_raw:
+        try:
+            return datetime.fromisoformat(report_date_raw).date()
+        except ValueError:
+            pass
+
+    submitted_at = getattr(submission, 'submitted_at', None) or getattr(submission, 'created_at', None)
+    return submitted_at.date() if submitted_at else None
+
+
+def _task_dashboard_unit_metrics():
+    from models import TaskAssignment
+
+    total_tasks = Task.query.count()
+    unit_rows = db.session.query(User.unit_key, User.unit_area).join(
+        TaskAssignment, TaskAssignment.user_id == User.id
+    ).distinct().all()
+    pending_rows = db.session.query(User.unit_key, User.unit_area).join(
+        TaskAssignment, TaskAssignment.user_id == User.id
+    ).filter(
+        func.lower(func.coalesce(TaskAssignment.status, '')).notin_(['submitted', 'completed'])
+    ).distinct().all()
+
+    def _collect_units(rows):
+        units = set()
+        for unit_key, unit_area in rows:
+            value = (unit_key or unit_area or '').strip()
+            if value:
+                units.add(value)
+        return units
+
+    all_units = _collect_units(unit_rows)
+    pending_units = _collect_units(pending_rows)
+    return {
+        'total_tasks': total_tasks,
+        'total_units': len(all_units),
+        'unreported_units': len(pending_units),
+        'reported_units': max(len(all_units) - len(pending_units), 0),
+    }
+
+
+def _daily_report_dashboard_unit_metrics():
+    from models import ReportCycle, ReportInstance, ReportSubmission, ReportType
+
+    total_reports = ReportCycle.query.count()
+    daily_cycles = db.session.query(ReportCycle.id).join(
+        ReportType, ReportCycle.report_type_id == ReportType.id
+    ).filter(
+        ReportType.code == 'daily',
+        ReportCycle.status != 'closed',
+    ).all()
+    daily_cycle_ids = [row[0] for row in daily_cycles]
+    if not daily_cycle_ids:
+        return {
+            'total_reports': total_reports,
+            'total_units': 0,
+            'unreported_units': 0,
+            'reported_units': 0,
+        }
+
+    instances = ReportInstance.query.filter(ReportInstance.cycle_id.in_(daily_cycle_ids)).all()
+    if not instances:
+        return {
+            'total_reports': total_reports,
+            'total_units': 0,
+            'unreported_units': 0,
+            'reported_units': 0,
+        }
+
+    today = datetime.now().date()
+    instance_ids = [instance.id for instance in instances]
+    submissions = ReportSubmission.query.filter(
+        ReportSubmission.instance_id.in_(instance_ids)
+    ).all()
+
+    submitted_instance_ids = set()
+    for submission in submissions:
+        if (getattr(submission, 'status', '') or '').strip().lower() != 'submitted':
+            continue
+        if _report_submission_business_date(submission) == today:
+            submitted_instance_ids.add(submission.instance_id)
+
+    def _instance_unit_key(instance):
+        if getattr(instance, 'report_unit_id', None):
+            return f"unit:{instance.report_unit_id}"
+        if getattr(instance, 'org_unit', None):
+            return f"org:{instance.org_unit.strip()}"
+        return f"instance:{instance.id}"
+
+    all_units = {_instance_unit_key(instance) for instance in instances}
+    pending_units = {
+        _instance_unit_key(instance)
+        for instance in instances
+        if instance.id not in submitted_instance_ids
+    }
+    return {
+        'total_reports': total_reports,
+        'total_units': len(all_units),
+        'unreported_units': len(pending_units),
+        'reported_units': max(len(all_units) - len(pending_units), 0),
+    }
+
 @admin_bp.route('/admin')
 def index():
     try:
@@ -511,6 +622,55 @@ def index():
             )
 
         report_center_link = '/admin/reports' if can_module('form', 'process') else '/reports'
+
+        task_metrics = _task_dashboard_unit_metrics()
+        daily_report_metrics = _daily_report_dashboard_unit_metrics()
+
+        overview_metrics = [
+            {
+                'title': 'Số công việc',
+                'value': task_metrics['total_tasks'],
+                'href': '/tasks',
+                'accent_class': 'primary',
+            },
+            {
+                'title': 'Đơn vị chưa báo cáo công việc',
+                'value': task_metrics['unreported_units'],
+                'href': '/tasks',
+                'accent_class': 'warning',
+            },
+            {
+                'title': 'Số báo cáo',
+                'value': daily_report_metrics['total_reports'],
+                'href': report_center_link,
+                'accent_class': 'success',
+            },
+            {
+                'title': 'Đơn vị chưa báo cáo trong ngày',
+                'value': daily_report_metrics['unreported_units'],
+                'href': report_center_link,
+                'accent_class': 'indigo',
+            },
+        ]
+
+        overview_chart = {
+            'chart_labels': [item['title'] for item in overview_metrics],
+            'chart_values': [item['value'] for item in overview_metrics],
+        }
+        completion_chart = {
+            'chart_labels': [
+                'ĐV đã báo cáo công việc',
+                'ĐV chưa báo cáo công việc',
+                'ĐV đã báo cáo trong ngày',
+                'ĐV chưa báo cáo trong ngày',
+            ],
+            'chart_values': [
+                task_metrics['reported_units'],
+                task_metrics['unreported_units'],
+                daily_report_metrics['reported_units'],
+                daily_report_metrics['unreported_units'],
+            ],
+        }
 
         dashboard_cards = [
             {
@@ -697,10 +857,14 @@ def index():
         now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
         
         return render_template('admin_dashboard.html', 
+            title='Trang chủ',
             now_str=now_str, 
             dashboard_cards=dashboard_cards,
             dashboard_snapshots=dashboard_snapshots,
-            workspace_groups=workspace_groups)
+            workspace_groups=workspace_groups,
+            overview_metrics=overview_metrics,
+            overview_chart=overview_chart,
+            completion_chart=completion_chart)
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -1695,6 +1859,9 @@ def module_categories():
 
     groups = CategoryGroup.query.order_by(CategoryGroup.sort_order.asc(), CategoryGroup.name.asc()).all()
     modules = ModuleRegistry.query.order_by(ModuleRegistry.sort_order.asc(), ModuleRegistry.name.asc()).all()
+    current_pane = (request.args.get('pane') or 'groups').strip().lower()
+    if current_pane not in {'groups', 'categories', 'bindings'}:
+        current_pane = 'groups'
     bindings = ModuleFieldBinding.query.all()
     binding_map = {(binding.module_id, binding.field_code): binding for binding in bindings}
     module_fields = {
@@ -1718,7 +1885,34 @@ def module_categories():
             {'code': 'category', 'label': 'Lĩnh vực'}
         ]
     }
-    return render_template('module_categories.html', groups=groups, modules=modules, module_fields=module_fields, binding_map=binding_map)
+    sidebar_submenu_items = [
+        {
+            'label': 'Nhóm danh mục',
+            'href': url_for('admin_bp.module_categories', pane='groups'),
+            'active': current_pane == 'groups',
+        },
+        {
+            'label': 'Danh mục',
+            'href': url_for('admin_bp.module_categories', pane='categories'),
+            'active': current_pane == 'categories',
+        },
+        {
+            'label': 'Liên kết field',
+            'href': url_for('admin_bp.module_categories', pane='bindings'),
+            'active': current_pane == 'bindings',
+        },
+    ]
+    return render_template(
+        'module_categories.html',
+        groups=groups,
+        modules=modules,
+        module_fields=module_fields,
+        binding_map=binding_map,
+        current_pane=current_pane,
+        sidebar_submenu_parent='module_categories',
+        sidebar_submenu_title='Thiết lập danh mục',
+        sidebar_submenu_items=sidebar_submenu_items,
+    )
 
 @admin_bp.route('/admin/categories/delete-old/<string:cat_type>/<int:cat_id>')
 def delete_category_old(cat_type, cat_id):

@@ -3,311 +3,132 @@
 {% block title %}Điểm danh{% endblock %}
 
 {% block content %}
-<section class="mobile-card attendance-mobile-hero">
-    <div class="attendance-mobile-kicker">Điểm danh đơn vị</div>
-    <h1 class="h4 fw-bold mb-2">Theo dõi mốc giám sát trong ngày</h1>
-    <p class="text-muted mb-0">{{ config_summary or 'Hệ thống chưa có cấu hình điểm danh đang hoạt động.' }}</p>
-</section>
-
-<section class="attendance-mobile-metrics">
-    <article class="mobile-card attendance-mobile-metric">
-        <span>{{ 'Mốc đang mở' if is_public_attendance else 'Đã điểm danh' }}</span>
-        <strong>{{ stats.available if is_public_attendance else (admin_summary.checked_units_count if admin_summary else stats.completed) }}</strong>
-    </article>
-    <article class="mobile-card attendance-mobile-metric">
-        <span>{{ 'Mốc sắp tới' if is_public_attendance else 'Chưa điểm danh' }}</span>
-        <strong>{{ stats.upcoming if is_public_attendance else (admin_summary.pending_units_count if admin_summary else stats.missed) }}</strong>
-    </article>
-    <article class="mobile-card attendance-mobile-metric">
-        <span>{{ 'Mốc quá hạn' if is_public_attendance else 'Bao phủ' }}</span>
-        <strong>
-            {% if is_public_attendance %}
-            {{ stats.missed }}
-            {% else %}
-            {{ admin_summary.coverage_percent if admin_summary else 0 }}%
-            {% endif %}
-        </strong>
-    </article>
-    <article class="mobile-card attendance-mobile-metric">
-        <span>{{ 'Đơn vị cấu hình' if is_public_attendance else 'Lượt nộp hôm nay' }}</span>
-        <strong>{{ attendance_unit_options|length if is_public_attendance else (admin_summary.today_submission_count if admin_summary else own_recent_submissions|length) }}</strong>
-    </article>
+<section class="mobile-card attendance-mobile-simple-card">
+    <div class="attendance-mobile-simple-head">
+        <h1 class="h5 fw-bold mb-0">Nhiệm vụ điểm danh</h1>
+    </div>
 </section>
 
 {% if can_manage_attendance %}
-<section class="mobile-card">
-    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-        <div>
-            <h2 class="h6 fw-bold mb-1">Thống kê đơn vị</h2>
-            <p class="text-muted small mb-0">Phân loại theo mốc giám sát trong ngày.</p>
-        </div>
-        <span class="pill pill-primary">{{ now.strftime('%d/%m') }}</span>
-    </div>
+<section class="mobile-card attendance-mobile-simple-card" id="attendance-task-form">
+    <h2 class="h6 fw-bold mb-3">{{ 'Sửa nhiệm vụ' if editing_config else 'Tạo nhiệm vụ' }}</h2>
+    <form method="post" action="{{ url_for('attendance_bp.save_attendance_config') }}">
+        {% if editing_config %}
+        <input type="hidden" name="config_id" value="{{ editing_config.id }}">
+        {% endif %}
 
-    {% if monitor_slot_context.slot_options %}
-    <form method="get" action="{{ url_for('attendance_bp.attendance_home') }}" class="mb-3">
-        <label class="form-label fw-semibold small">Mốc giám sát</label>
-        <select class="form-select" name="slot_key" onchange="this.form.submit()">
-            {% for option in monitor_slot_context.slot_options %}
-            <option value="{{ option.slot_key }}" {% if unit_attendance and unit_attendance.selected_slot and option.slot_key == unit_attendance.selected_slot.slot_key %}selected{% endif %}>
-                {{ option.slot_time }} - {{ option.status_label }}
-            </option>
-            {% endfor %}
+        <label class="form-label fw-semibold small">Tên nhiệm vụ</label>
+        <input type="text" class="form-control mb-3" name="name" value="{{ form_config_payload.name if form_config_payload else '' }}" required>
+
+        <label class="form-label fw-semibold small">Bắt đầu lúc</label>
+        <input type="time" class="form-control mb-3" name="day_start_time" value="{{ start_time_value }}" required>
+
+        <label class="form-label fw-semibold small">Lặp lại mỗi</label>
+        <div class="input-group mb-3">
+            <input type="number" min="1" class="form-control" name="interval_minutes" value="{{ interval_minutes_value }}" required>
+            <span class="input-group-text">phút</span>
+        </div>
+
+        <label class="form-label fw-semibold small">Báo danh trong</label>
+        <div class="input-group mb-3">
+            <input type="number" min="0" class="form-control" name="late_allow_minutes" value="{{ late_allow_minutes_value }}" required>
+            <span class="input-group-text">phút</span>
+        </div>
+
+        <label class="form-label fw-semibold small">Kết thúc lúc</label>
+        <input type="time" class="form-control mb-3" name="day_end_time" value="{{ end_time_value }}" required>
+
+        <label class="form-label fw-semibold small">Áp dụng theo</label>
+        <select class="form-select mb-3" name="target_type" id="attendanceMobileTargetType" required>
+            <option value="role" {% if selected_target_type == 'role' %}selected{% endif %}>Vai trò</option>
+            <option value="unit" {% if selected_target_type == 'unit' %}selected{% endif %}>Đơn vị</option>
         </select>
+
+        <div id="attendanceMobileRoleField" {% if selected_target_type != 'role' %}hidden{% endif %}>
+            <label class="form-label fw-semibold small">Vai trò</label>
+            <select class="form-select mb-3" name="target_role_id">
+                <option value="">Chọn vai trò</option>
+                {% for role in role_options %}
+                <option value="{{ role.id }}" {% if selected_role_id == role.id %}selected{% endif %}>{{ role.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div id="attendanceMobileUnitField" {% if selected_target_type != 'unit' %}hidden{% endif %}>
+            <label class="form-label fw-semibold small">Đơn vị</label>
+            <select class="form-select mb-3" name="target_unit_key">
+                <option value="">Chọn đơn vị</option>
+                {% for unit in unit_options %}
+                <option value="{{ unit.unit_key }}" {% if selected_unit_key == unit.unit_key %}selected{% endif %}>{{ unit.unit_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <label class="attendance-mobile-simple-toggle mb-3">
+            <input type="checkbox" name="is_active" value="1" {% if (form_config and form_config.is_active) or not form_config %}checked{% endif %}>
+            <span>Đang sử dụng</span>
+        </label>
+
+        <button type="submit" class="btn btn-mobile btn-mobile-primary">{{ 'Lưu' if editing_config else 'Tạo nhiệm vụ' }}</button>
+        {% if editing_config %}
+        <a href="{{ url_for('attendance_bp.attendance_home') }}" class="btn btn-mobile btn-mobile-secondary mt-2">Huỷ</a>
+        {% endif %}
     </form>
-
-    {% if unit_attendance and unit_attendance.selected_slot %}
-    <div class="attendance-mobile-slot-summary">
-        <span class="badge text-bg-{{ unit_attendance.selected_slot.status_class }}">{{ unit_attendance.selected_slot.status_label }}</span>
-        <strong>{{ unit_attendance.selected_slot.slot_label }}</strong>
-        <small>Mở {{ unit_attendance.selected_slot.window_start_at.strftime('%H:%M') }} - hết hạn {{ unit_attendance.selected_slot.window_end_at.strftime('%H:%M') }}</small>
-    </div>
-    {% endif %}
-
-    <div class="attendance-mobile-unit-stats">
-        <div>
-            <span>Tổng đơn vị</span>
-            <strong>{{ unit_attendance.total_units if unit_attendance else 0 }}</strong>
-        </div>
-        <div>
-            <span>Đã điểm danh</span>
-            <strong>{{ unit_attendance.checked_units_count if unit_attendance else 0 }}</strong>
-        </div>
-        <div>
-            <span>Chưa điểm danh</span>
-            <strong>{{ unit_attendance.pending_units_count if unit_attendance else 0 }}</strong>
-        </div>
-        <div>
-            <span>Lượt nộp</span>
-            <strong>{{ unit_attendance.submission_count if unit_attendance else 0 }}</strong>
-        </div>
-    </div>
-
-    <div class="attendance-mobile-split">
-        <article class="attendance-mobile-split-card">
-            <div class="attendance-mobile-split-head success">
-                <span>Đã điểm danh</span>
-                <strong>{{ unit_attendance.checked_units_count if unit_attendance else 0 }}</strong>
-            </div>
-            {% if unit_attendance and unit_attendance.checked_units %}
-            <div class="attendance-mobile-unit-list">
-                {% for row in unit_attendance.checked_units %}
-                <div class="attendance-mobile-unit-item">
-                    <div>
-                        <div class="fw-bold small">{{ row.unit_name }}</div>
-                        <div class="text-muted small">{{ row.member_count }} người • {{ row.submission_count }} minh chứng</div>
-                    </div>
-                    <div class="text-end">
-                        <div class="small fw-semibold">{{ row.latest_submitter or 'N/A' }}</div>
-                        <div class="text-muted small">{{ row.latest_submission_at.strftime('%H:%M %d/%m') if row.latest_submission_at else '-' }}</div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="text-center text-muted small py-3">Chưa có đơn vị nào nộp ở mốc này.</div>
-            {% endif %}
-        </article>
-
-        <article class="attendance-mobile-split-card">
-            <div class="attendance-mobile-split-head danger">
-                <span>Chưa điểm danh</span>
-                <strong>{{ unit_attendance.pending_units_count if unit_attendance else 0 }}</strong>
-            </div>
-            {% if unit_attendance and unit_attendance.pending_units %}
-            <div class="attendance-mobile-unit-list">
-                {% for row in unit_attendance.pending_units %}
-                <div class="attendance-mobile-unit-item">
-                    <div>
-                        <div class="fw-bold small">{{ row.unit_name }}</div>
-                        <div class="text-muted small">{{ row.member_count }} người</div>
-                    </div>
-                    <span class="badge text-bg-danger">Chưa nộp</span>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="text-center text-muted small py-3">Không còn đơn vị nào thiếu minh chứng.</div>
-            {% endif %}
-        </article>
-    </div>
-    {% else %}
-    <div class="text-center text-muted small py-3">Hôm nay chưa có mốc điểm danh để thống kê theo đơn vị.</div>
-    {% endif %}
 </section>
 {% endif %}
 
-<section class="mobile-card">
-    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-        <div>
-            <h2 class="h6 fw-bold mb-1">{{ 'Chọn đơn vị và điểm danh' if is_public_attendance else 'Các mốc của tôi hôm nay' }}</h2>
-            <p class="text-muted small mb-0">{{ now.strftime('%d/%m/%Y %H:%M') }}</p>
-        </div>
-        <span class="pill {% if active_config %}pill-primary{% else %}bg-danger text-white{% endif %}">{{ 'Đang bật' if active_config else 'Chưa bật' }}</span>
-    </div>
-
-    {% if active_config and slot_rows %}
-    <div class="attendance-mobile-slots">
-        {% for row in slot_rows %}
-        <article class="attendance-mobile-slot">
-            <div class="d-flex justify-content-between gap-2 align-items-start mb-2">
-                <div>
-                    <div class="attendance-mobile-time">{{ row.slot_time }}</div>
-                    <div class="small text-muted">Mở {{ row.window_start_at.strftime('%H:%M') }} - hết hạn {{ row.window_end_at.strftime('%H:%M') }}</div>
-                </div>
+<section class="mobile-card attendance-mobile-simple-card" id="attendance-task-list">
+    <h2 class="h6 fw-bold mb-3">Nhiệm vụ của tôi</h2>
+    {% if my_task_rows %}
+    <div class="attendance-mobile-simple-list">
+        {% for row in my_task_rows %}
+        <article class="attendance-mobile-simple-item" id="attendance-task-{{ row.id }}">
+            <div class="attendance-mobile-simple-row">
+                <strong>{{ row.name }}</strong>
                 <span class="badge text-bg-{{ row.status_class }}">{{ row.status_label }}</span>
             </div>
-
-            {% if row.submission %}
-            <div class="attendance-mobile-proof">
-                <img src="{{ url_for('attendance_bp.attendance_proof', submission_id=row.submission.id) }}" alt="Ảnh minh chứng">
-                <div class="small text-muted">
-                    <div class="fw-semibold text-dark">{{ row.submission.unit_area or 'Chưa chọn đơn vị' }}</div>
-                    {{ row.submission.submitted_at.strftime('%H:%M %d/%m/%Y') if row.submission.submitted_at else '' }}
-                    {% if row.submission.note %}<div class="mt-1">{{ row.submission.note }}</div>{% endif %}
-                </div>
-            </div>
-            {% elif row.status == 'available' and can_submit_attendance %}
-            {% if attendance_unit_options %}
-            <form method="post" action="{{ url_for('attendance_bp.submit_attendance') }}" enctype="multipart/form-data" class="attendance-mobile-form">
-                <input type="hidden" name="slot_key" value="{{ row.slot_key }}">
-                <input type="hidden" name="slot_date" value="{{ row.slot_date.isoformat() }}">
-                <label class="form-label fw-semibold small">Đơn vị</label>
-                <select class="form-select mb-2" name="unit_key" required>
-                    <option value="">Chọn đơn vị</option>
-                    {% for option in attendance_unit_options %}
-                    <option value="{{ option.unit_key }}" {% if option.unit_key == default_attendance_unit_key %}selected{% endif %}>{{ option.unit_name }}</option>
-                    {% endfor %}
-                </select>
-                <label class="form-label fw-semibold small">Ảnh minh chứng</label>
-                <input type="file" class="form-control mb-2" name="proof_image" accept="image/*" capture="environment" required>
-                <input type="text" class="form-control mb-2" name="note" maxlength="255" placeholder="Ghi chú ngắn">
-                <button type="submit" class="btn btn-mobile btn-mobile-primary">Nộp điểm danh</button>
-            </form>
-            {% else %}
-            <div class="small text-muted">Chưa có danh mục đơn vị để chọn. Quản trị cần cấu hình đơn vị trước khi điểm danh.</div>
+            <div class="small text-muted">{{ row.time_text }} · {{ row.scope_label }}</div>
+            {% if row.submission and row.submission.submitted_at %}
+            <div class="small text-muted">{{ row.submission.submitted_at.strftime('%H:%M %d/%m/%Y') }}</div>
             {% endif %}
-            {% else %}
-            <div class="small text-muted">
-                {% if row.status == 'upcoming' %}
-                Chưa đến thời điểm mở.
-                {% elif row.status == 'missed' %}
-                Đã quá hạn điểm danh.
-                {% else %}
-                Bạn chưa có quyền nộp.
-                {% endif %}
-            </div>
+            {% if can_submit_attendance and row.slot and row.status_key == 'available' %}
+            <form method="post" action="{{ url_for('attendance_bp.submit_attendance') }}" class="mt-2">
+                <input type="hidden" name="config_id" value="{{ row.id }}">
+                <input type="hidden" name="slot_key" value="{{ row.slot.slot_key }}">
+                <input type="hidden" name="slot_date" value="{{ row.slot.slot_date.isoformat() }}">
+                <button type="submit" class="btn btn-mobile btn-mobile-primary">Điểm danh</button>
+            </form>
             {% endif %}
         </article>
         {% endfor %}
     </div>
-    {% elif active_config %}
-    <div class="text-center text-muted small py-3">Hôm nay không có mốc điểm danh.</div>
     {% else %}
-    <div class="text-center text-muted small py-3">Hệ thống chưa kích hoạt cấu hình điểm danh.</div>
+    <div class="text-muted small">Không có nhiệm vụ.</div>
     {% endif %}
 </section>
-
-{% if is_public_attendance %}
-<section class="mobile-card">
-    <h2 class="h6 fw-bold mb-3">Hướng dẫn điểm danh công khai</h2>
-    <div class="text-muted small">
-        Chọn đơn vị từ danh mục quản trị đã cấu hình, chọn đúng mốc đang mở và nộp ảnh minh chứng. Không cần đăng nhập tài khoản đơn vị.
-    </div>
-</section>
-{% else %}
-{% if editing_submission %}
-<section class="mobile-card">
-    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-        <div>
-            <h2 class="h6 fw-bold mb-1">Chỉnh sửa lượt điểm danh</h2>
-            <p class="text-muted small mb-0">Đổi đơn vị, ghi chú hoặc thay ảnh minh chứng.</p>
-        </div>
-        <a href="{{ url_for('attendance_bp.attendance_home', slot_key=selected_slot_key, edit_config_id=editing_config.id if editing_config else None) }}" class="btn btn-sm btn-outline-secondary rounded-pill fw-semibold">Huỷ</a>
-    </div>
-    <form method="post" action="{{ url_for('attendance_bp.update_attendance_submission', submission_id=editing_submission.id) }}" enctype="multipart/form-data">
-        <input type="hidden" name="return_slot_key" value="{{ selected_slot_key }}">
-        {% if editing_config %}
-        <input type="hidden" name="return_edit_config_id" value="{{ editing_config.id }}">
-        {% endif %}
-        <label class="form-label fw-semibold small">Mốc điểm danh</label>
-        <input type="text" class="form-control mb-3" value="{{ editing_submission.slot_label or editing_submission.slot_key }}" readonly>
-
-        <label class="form-label fw-semibold small">Đơn vị</label>
-        <select class="form-select mb-3" name="unit_key" required>
-            <option value="">Chọn đơn vị</option>
-            {% for option in attendance_unit_options %}
-            <option value="{{ option.unit_key }}" {% if option.unit_key == editing_submission.unit_key %}selected{% endif %}>{{ option.unit_name }}</option>
-            {% endfor %}
-        </select>
-
-        <label class="form-label fw-semibold small">Ảnh hiện tại</label>
-        <div class="attendance-mobile-edit-proof mb-2">
-            <a href="{{ url_for('attendance_bp.attendance_proof', submission_id=editing_submission.id) }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill fw-semibold">Xem ảnh</a>
-        </div>
-        <input type="file" class="form-control mb-3" name="proof_image" accept="image/*">
-
-        <label class="form-label fw-semibold small">Ghi chú</label>
-        <textarea class="form-control mb-3" name="note" rows="3" maxlength="255">{{ editing_submission.note or '' }}</textarea>
-
-        <button type="submit" class="btn btn-mobile btn-mobile-primary">Lưu lượt điểm danh</button>
-    </form>
-</section>
-{% endif %}
-
-<section class="mobile-card">
-    <h2 class="h6 fw-bold mb-3">Lịch sử của tôi</h2>
-    {% if own_recent_submissions %}
-    <div class="attendance-mobile-history">
-        {% for submission in own_recent_submissions %}
-        <div class="attendance-mobile-history-item">
-            <div>
-                <div class="fw-bold small">{{ submission.slot_label or submission.slot_key }}</div>
-                <div class="text-muted small">{{ submission.unit_area or 'Chưa có đơn vị' }} • {{ submission.submitted_at.strftime('%H:%M %d/%m/%Y') if submission.submitted_at else '' }}</div>
-            </div>
-            <div class="attendance-mobile-action-stack">
-                <a href="{{ url_for('attendance_bp.attendance_proof', submission_id=submission.id) }}" target="_blank" class="small">Xem ảnh</a>
-                <a href="{{ url_for('attendance_bp.attendance_home', edit_submission_id=submission.id, slot_key=selected_slot_key, edit_config_id=editing_config.id if editing_config else None) }}" class="small">Sửa</a>
-                <form method="post" action="{{ url_for('attendance_bp.delete_attendance_submission', submission_id=submission.id) }}" onsubmit="return confirm('Xoá lượt điểm danh này?');">
-                    <input type="hidden" name="return_slot_key" value="{{ selected_slot_key }}">
-                    {% if editing_config %}
-                    <input type="hidden" name="return_edit_config_id" value="{{ editing_config.id }}">
-                    {% endif %}
-                    <button type="submit" class="btn btn-link btn-sm p-0 small text-danger">Xoá</button>
-                </form>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="text-center text-muted small py-3">Chưa có lượt điểm danh nào.</div>
-    {% endif %}
-</section>
-{% endif %}
 
 {% if can_manage_attendance %}
-<section class="mobile-card">
-    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-        <div>
-            <h2 class="h6 fw-bold mb-1">Danh sách cấu hình điểm danh</h2>
-            <p class="text-muted small mb-0">Chọn cấu hình để sửa hoặc xoá nhanh.</p>
-        </div>
-        <a href="{{ url_for('attendance_bp.attendance_home', slot_key=selected_slot_key) }}" class="btn btn-sm btn-outline-primary rounded-pill fw-semibold">Tạo mới</a>
-    </div>
-    {% if config_records %}
-    <div class="attendance-mobile-config-list">
-        {% for config_item in config_records %}
-        <article class="attendance-mobile-config-item {% if editing_config and editing_config.id == config_item.id %}is-selected{% endif %}">
-            <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-                <strong class="small">{{ config_item.name }}</strong>
-                <span class="badge text-bg-{{ 'success' if config_item.is_active else 'secondary' }}">{{ 'Đang bật' if config_item.is_active else 'Tạm dừng' }}</span>
-                <span class="badge text-bg-light text-dark">{{ config_item.mode_label }}</span>
+<section class="mobile-card attendance-mobile-simple-card">
+    <h2 class="h6 fw-bold mb-3">Danh sách nhiệm vụ</h2>
+    {% if manager_task_rows %}
+    <div class="attendance-mobile-simple-list">
+        {% for row in manager_task_rows %}
+        <article class="attendance-mobile-simple-item" id="attendance-config-{{ row.id }}">
+            <div class="attendance-mobile-simple-row">
+                <strong>{{ row.name }}</strong>
+                <span class="badge text-bg-{{ row.status_class }}">{{ row.status_label }}</span>
             </div>
-            <div class="text-muted small mb-2">{{ config_item.summary }}</div>
-            <div class="text-muted small mb-3">Cập nhật {{ config_item.updated_at.strftime('%H:%M %d/%m/%Y') if config_item.updated_at else 'N/A' }}</div>
-            <div class="attendance-mobile-config-actions">
-                <a href="{{ url_for('attendance_bp.attendance_home', edit_config_id=config_item.id, slot_key=selected_slot_key) }}" class="btn btn-sm btn-outline-primary rounded-pill fw-semibold">Sửa</a>
-                <form method="post" action="{{ url_for('attendance_bp.delete_attendance_config', config_id=config_item.id) }}" onsubmit="return confirm('Xoá cấu hình điểm danh này?');">
+            <div class="small text-muted">{{ row.time_text }} · {{ row.scope_label }}</div>
+            <div class="small text-muted">
+                {% if row.progress.expected_count %}
+                {{ row.progress.submitted_count }}/{{ row.progress.expected_count }}
+                {% else %}
+                -
+                {% endif %}
+            </div>
+            <div class="attendance-mobile-simple-actions">
+                <a href="{{ url_for('attendance_bp.attendance_home', edit_config_id=row.id) }}" class="btn btn-sm btn-outline-primary rounded-pill fw-semibold">Sửa</a>
+                <form method="post" action="{{ url_for('attendance_bp.delete_attendance_config', config_id=row.id) }}" onsubmit="return confirm('Xoá nhiệm vụ điểm danh này?');">
                     <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill fw-semibold">Xoá</button>
                 </form>
             </div>
@@ -315,267 +136,68 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="text-center text-muted small py-3">Chưa có cấu hình điểm danh nào.</div>
-    {% endif %}
-</section>
-
-<section class="mobile-card">
-    <h2 class="h6 fw-bold mb-3">Cấu hình điểm danh</h2>
-    <form method="post" action="{{ url_for('attendance_bp.save_attendance_config') }}">
-        {% if editing_config %}
-        <input type="hidden" name="config_id" value="{{ editing_config.id }}">
-        {% endif %}
-        <label class="form-label fw-semibold small">Tên cấu hình</label>
-        <input type="text" class="form-control mb-3" name="name" value="{{ form_config_payload.name if form_config_payload else 'Điểm danh tự động' }}" required>
-
-        <label class="form-label fw-semibold small">Chế độ</label>
-        <select class="form-select mb-3" name="mode">
-            <option value="interval" {% if not form_config_payload or form_config_payload.mode == 'interval' %}selected{% endif %}>Tự động theo chu kỳ</option>
-            <option value="schedule" {% if form_config_payload and form_config_payload.mode == 'schedule' %}selected{% endif %}>Theo khung giờ cố định</option>
-        </select>
-
-        <div class="row g-2 mb-2">
-            <div class="col-6">
-                <label class="form-label fw-semibold small">Bắt đầu</label>
-                <input type="time" class="form-control" name="day_start_time" value="{{ form_config_payload.day_start_time if form_config_payload else '08:00' }}">
-            </div>
-            <div class="col-6">
-                <label class="form-label fw-semibold small">Kết thúc</label>
-                <input type="time" class="form-control" name="day_end_time" value="{{ form_config_payload.day_end_time if form_config_payload else '17:00' }}">
-            </div>
-            <div class="col-6">
-                <label class="form-label fw-semibold small">Chu kỳ (phút)</label>
-                <input type="number" class="form-control" name="interval_minutes" min="1" value="{{ form_config_payload.interval_minutes if form_config_payload else 120 }}">
-            </div>
-            <div class="col-6">
-                <label class="form-label fw-semibold small">Mở trước</label>
-                <input type="number" class="form-control" name="early_checkin_minutes" min="0" value="{{ form_config_payload.early_checkin_minutes if form_config_payload else 15 }}">
-            </div>
-            <div class="col-6">
-                <label class="form-label fw-semibold small">Cho phép trễ</label>
-                <input type="number" class="form-control" name="late_allow_minutes" min="0" value="{{ form_config_payload.late_allow_minutes if form_config_payload else 60 }}">
-            </div>
-            <div class="col-6 d-flex align-items-end">
-                <label class="attendance-mobile-toggle">
-                    <input type="checkbox" name="is_active" value="1" {% if (form_config and form_config.is_active) or (not form_config and not latest_config) %}checked{% endif %}>
-                    <span>Kích hoạt</span>
-                </label>
-            </div>
-        </div>
-
-        <label class="form-label fw-semibold small">Khung giờ cố định</label>
-        <textarea class="form-control mb-3" name="schedule_times" rows="4" placeholder="08:00&#10;11:30&#10;15:00">{{ form_schedule_times_text }}</textarea>
-
-        <label class="form-label fw-semibold small d-block">Ngày áp dụng</label>
-        <div class="attendance-mobile-weekdays mb-3">
-            {% for weekday in weekday_labels %}
-            <label class="attendance-mobile-weekday">
-                <input type="checkbox" name="weekdays" value="{{ weekday.value }}" {% if weekday.value in form_active_weekdays %}checked{% endif %}>
-                <span>{{ weekday.label }}</span>
-            </label>
-            {% endfor %}
-        </div>
-
-        <label class="form-label fw-semibold small">Ghi chú</label>
-        <textarea class="form-control mb-3" name="note" rows="3">{{ form_config_payload.note if form_config_payload else '' }}</textarea>
-
-        <button type="submit" class="btn btn-mobile btn-mobile-primary">{{ 'Lưu cập nhật' if editing_config else 'Tạo cấu hình' }}</button>
-        {% if editing_config %}
-        <a href="{{ url_for('attendance_bp.attendance_home', slot_key=selected_slot_key) }}" class="btn btn-mobile btn-mobile-secondary mt-2">Huỷ chỉnh sửa</a>
-        {% endif %}
-    </form>
-</section>
-
-<section class="mobile-card">
-    <h2 class="h6 fw-bold mb-3">Nộp gần đây toàn hệ thống</h2>
-    {% if admin_recent_submissions %}
-    <div class="attendance-mobile-history">
-        {% for submission in admin_recent_submissions %}
-        <div class="attendance-mobile-history-item">
-            <div>
-                <div class="fw-bold small">{{ submission.user.fullname if submission.user else submission.user_id }}</div>
-                <div class="text-muted small">{{ submission.slot_label or submission.slot_key }} • {{ submission.unit_area or 'N/A' }}</div>
-            </div>
-            <div class="attendance-mobile-action-stack">
-                <a href="{{ url_for('attendance_bp.attendance_proof', submission_id=submission.id) }}" target="_blank" class="small">Ảnh</a>
-                <a href="{{ url_for('attendance_bp.attendance_home', edit_submission_id=submission.id, slot_key=selected_slot_key, edit_config_id=editing_config.id if editing_config else None) }}" class="small">Sửa</a>
-                <form method="post" action="{{ url_for('attendance_bp.delete_attendance_submission', submission_id=submission.id) }}" onsubmit="return confirm('Xoá lượt điểm danh này?');">
-                    <input type="hidden" name="return_slot_key" value="{{ selected_slot_key }}">
-                    {% if editing_config %}
-                    <input type="hidden" name="return_edit_config_id" value="{{ editing_config.id }}">
-                    {% endif %}
-                    <button type="submit" class="btn btn-link btn-sm p-0 small text-danger">Xoá</button>
-                </form>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="text-center text-muted small py-3">Chưa có dữ liệu.</div>
+    <div class="text-muted small">Chưa có nhiệm vụ.</div>
     {% endif %}
 </section>
 {% endif %}
 
 <style>
-    .attendance-mobile-hero {
-        background: linear-gradient(135deg, rgba(37, 99, 235, 0.14), rgba(16, 185, 129, 0.06));
-    }
-    .attendance-mobile-kicker {
-        display: inline-flex;
-        width: fit-content;
-        padding: 6px 10px;
-        border-radius: 999px;
-        background: rgba(37, 99, 235, 0.12);
-        color: var(--primary);
-        font-size: 11px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        margin-bottom: 10px;
-    }
-    .attendance-mobile-metrics {
+    .attendance-mobile-simple-card {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-        margin-bottom: 16px;
+        gap: 14px;
     }
-    .attendance-mobile-metric { margin-bottom: 0; }
-    .attendance-mobile-metric span {
-        display: block;
-        color: var(--text-muted);
-        font-size: 12px;
-        font-weight: 800;
-        margin-bottom: 8px;
-        text-transform: uppercase;
-    }
-    .attendance-mobile-metric strong { font-size: 1.85rem; line-height: 1; }
-    .attendance-mobile-slot-summary,
-    .attendance-mobile-unit-stats div,
-    .attendance-mobile-split-card,
-    .attendance-mobile-slot,
-    .attendance-mobile-history-item {
-        border-radius: 16px;
-        border: 1px solid var(--border);
-        background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.72);
-    }
-    .attendance-mobile-slot-summary {
-        padding: 14px;
-        display: grid;
-        gap: 6px;
-        margin-bottom: 14px;
-    }
-    .attendance-mobile-unit-stats {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-        margin-bottom: 14px;
-    }
-    .attendance-mobile-unit-stats div {
-        padding: 12px;
-        display: grid;
-        gap: 4px;
-    }
-    .attendance-mobile-unit-stats span {
-        color: var(--text-muted);
-        font-size: 11px;
-        font-weight: 800;
-        text-transform: uppercase;
-    }
-    .attendance-mobile-unit-stats strong { font-size: 1.3rem; }
-    .attendance-mobile-split {
-        display: grid;
-        gap: 12px;
-    }
-    .attendance-mobile-split-card {
-        padding: 14px;
-    }
-    .attendance-mobile-split-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 10px;
-    }
-    .attendance-mobile-split-head span {
-        font-size: 12px;
-        font-weight: 800;
-        text-transform: uppercase;
-    }
-    .attendance-mobile-split-head strong { font-size: 1.1rem; }
-    .attendance-mobile-split-head.success span,
-    .attendance-mobile-split-head.success strong { color: #059669; }
-    .attendance-mobile-split-head.danger span,
-    .attendance-mobile-split-head.danger strong { color: #dc2626; }
-    .attendance-mobile-unit-list,
-    .attendance-mobile-slots,
-    .attendance-mobile-history { display: grid; gap: 12px; }
-    .attendance-mobile-unit-item,
-    .attendance-mobile-history-item {
-        padding: 12px;
+    .attendance-mobile-simple-head,
+    .attendance-mobile-simple-row {
         display: flex;
         justify-content: space-between;
         gap: 12px;
         align-items: center;
     }
-    .attendance-mobile-slot {
-        padding: 14px;
-    }
-    .attendance-mobile-time { font-size: 1.35rem; font-weight: 800; }
-    .attendance-mobile-form { margin-top: 10px; }
-    .attendance-mobile-proof { display: grid; gap: 10px; }
-    .attendance-mobile-proof img {
-        width: 100%;
-        border-radius: 16px;
-        border: 1px solid var(--border);
-    }
-    .attendance-mobile-edit-proof {
-        display: flex;
-        justify-content: flex-start;
-    }
-    .attendance-mobile-action-stack {
+    .attendance-mobile-simple-list {
         display: grid;
-        gap: 4px;
-        justify-items: end;
+        gap: 12px;
     }
-    .attendance-mobile-action-stack form { margin: 0; }
-    .attendance-mobile-config-list { display: grid; gap: 12px; }
-    .attendance-mobile-config-item {
+    .attendance-mobile-simple-item {
         padding: 14px;
         border-radius: 16px;
         border: 1px solid var(--border);
         background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.72);
+        display: grid;
+        gap: 8px;
     }
-    .attendance-mobile-config-item.is-selected {
-        border-color: rgba(37, 99, 235, 0.5);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
-    }
-    .attendance-mobile-config-actions {
+    .attendance-mobile-simple-actions {
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
     }
-    .attendance-mobile-config-actions form { margin: 0; }
-    .attendance-mobile-weekdays {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
+    .attendance-mobile-simple-actions form {
+        margin: 0;
     }
-    .attendance-mobile-weekday,
-    .attendance-mobile-toggle {
-        padding: 10px 12px;
-        border-radius: 14px;
-        border: 1px solid var(--border);
-        display: flex;
+    .attendance-mobile-simple-toggle {
+        display: inline-flex;
         align-items: center;
         gap: 8px;
-        background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.72);
         font-size: 13px;
         font-weight: 600;
     }
-    .attendance-mobile-toggle {
-        width: 100%;
-        justify-content: center;
-        min-height: 42px;
-    }
 </style>
+
+<script>
+    (function () {
+        var targetType = document.getElementById('attendanceMobileTargetType');
+        if (!targetType) return;
+
+        var roleField = document.getElementById('attendanceMobileRoleField');
+        var unitField = document.getElementById('attendanceMobileUnitField');
+
+        function syncTargetFields() {
+            var isRole = targetType.value === 'role';
+            if (roleField) roleField.hidden = !isRole;
+            if (unitField) unitField.hidden = isRole;
+        }
+
+        targetType.addEventListener('change', syncTargetFields);
+        syncTargetFields();
+    })();
+</script>
 {% endblock %}

@@ -609,14 +609,45 @@ def news():
     news_records = _sync_record_categories(news_records, news_category_items, prefer_stable=True)
     decorated_news = _decorate_records_with_category(news_records, news_category_items, allow_unknown_label=False)
     news_filters = _category_filter_counts(decorated_news, news_category_items)
+    category_filter = (request.args.get('category') or '').strip()
+    canonical_category_filter = _canonicalize_category_value(category_filter, news_category_items, prefer_stable=True) if category_filter else ''
+    current_category_info = _resolve_category_display(canonical_category_filter or category_filter, news_category_items, fallback_label='')
+    current_category_filter = current_category_info['filter_value'] if canonical_category_filter else ''
+    current_category_display = current_category_info['display_name'] if canonical_category_filter else 'Tất cả lĩnh vực'
+    filtered_news_cards = [
+        item for item in decorated_news
+        if not current_category_filter or item['category_filter'] == current_category_filter
+    ]
+    news_sidebar_items = [
+        {
+            'label': 'Tất cả lĩnh vực',
+            'href': url_for('portal_bp.news'),
+            'count': len(decorated_news),
+            'active': not current_category_filter,
+        }
+    ]
+    news_sidebar_items.extend(
+        {
+            'label': item['name'],
+            'href': url_for('portal_bp.news', category=item['filter_value']),
+            'count': item['count'],
+            'active': current_category_filter == item['filter_value'],
+        }
+        for item in news_filters
+    )
 
     return render_template('news.html',
                           news_list=news_records,
                           news_cards=decorated_news,
+                          filtered_news_cards=filtered_news_cards,
                           category_filters=news_filters,
                           category_options=_stable_form_category_options(news_category_items),
                           cats=news_category_items,
                           pro_units=news_category_items,
+                          current_category=current_category_filter,
+                          current_category_display=current_category_display,
+                          sidebar_submenu_parent='news',
+                          sidebar_submenu_items=news_sidebar_items,
                           now_str=now_str,
                           perms=perms,
                           is_admin=is_admin,
@@ -720,6 +751,32 @@ def library():
     decorated_docs = _decorate_records_with_category(docs, library_category_items, allow_unknown_label=False)
     library_filters = _category_filter_counts(decorated_docs, library_category_items)
     library_form_category_options = _stable_form_category_options(library_category_items)
+    category_filter = (request.args.get('category') or '').strip()
+    canonical_category_filter = _canonicalize_category_value(category_filter, library_category_items, prefer_stable=True) if category_filter else ''
+    current_category_info = _resolve_category_display(canonical_category_filter or category_filter, library_category_items, fallback_label='')
+    current_category_filter = current_category_info['filter_value'] if canonical_category_filter else ''
+    current_category_display = current_category_info['display_name'] if canonical_category_filter else 'Tất cả lĩnh vực'
+    filtered_doc_cards = [
+        item for item in decorated_docs
+        if not current_category_filter or item['category_filter'] == current_category_filter
+    ]
+    library_sidebar_items = [
+        {
+            'label': 'Tất cả lĩnh vực',
+            'href': url_for('portal_bp.library'),
+            'count': len(decorated_docs),
+            'active': not current_category_filter,
+        }
+    ]
+    library_sidebar_items.extend(
+        {
+            'label': item['name'],
+            'href': url_for('portal_bp.library', category=item['filter_value']),
+            'count': item['count'],
+            'active': current_category_filter == item['filter_value'],
+        }
+        for item in library_filters
+    )
 
     legal_field_options = []
     legal_docs = []
@@ -786,11 +843,14 @@ def library():
         'library.html',
         docs=docs,
         doc_cards=decorated_docs,
+        filtered_doc_cards=filtered_doc_cards,
         library_filters=library_filters,
         category_options=library_form_category_options,
         cats=library_category_items,
         categories=library_category_items,
         items=docs,
+        current_category=current_category_filter,
+        current_category_display=current_category_display,
         legal_field_options=legal_field_options,
         selected_legal_field=selected_legal_field,
         selected_legal_field_name=selected_legal_field_name,
@@ -809,6 +869,8 @@ def library():
         selected_bca_type_name=selected_bca_type_name,
         selected_bca_effective_id=selected_bca_effective_id,
         selected_bca_effective_name=selected_bca_effective_name,
+        sidebar_submenu_parent='library',
+        sidebar_submenu_items=library_sidebar_items,
         perms=perms,
         is_admin=is_admin,
         can_manage_library=can_manage_library,
@@ -916,6 +978,24 @@ def contacts():
                           total_contact_count=len(scoped_contacts),
                           current_group=current_group_filter,
                           current_group_display=current_group_display,
+                          sidebar_submenu_parent='contacts',
+                          sidebar_submenu_items=[
+                              {
+                                  'label': 'Tất cả nhóm',
+                                  'href': url_for('portal_bp.contacts'),
+                                  'count': len(scoped_contacts),
+                                  'active': not current_group_filter,
+                              },
+                              *[
+                                  {
+                                      'label': cat['name'],
+                                      'href': url_for('portal_bp.contacts', group=cat['filter_value']),
+                                      'count': cat['count'],
+                                      'active': current_group_filter == cat['filter_value'],
+                                  }
+                                  for cat in contact_group_filters
+                              ],
+                          ],
                           perms=perms,
                           is_admin=is_admin,
                           can_manage_contacts=can_manage_contacts)

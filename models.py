@@ -380,10 +380,15 @@ class AttendanceConfig(db.Model):
     late_allow_minutes = db.Column(db.Integer, default=60)
     is_active = db.Column(db.Boolean, default=True)
     note = db.Column(db.Text)
+    target_type = db.Column(db.String(20), default='role')
+    target_role_id = db.Column(db.Integer, db.ForeignKey('app_role.id'), index=True)
+    target_unit_key = db.Column(db.String(100), index=True)
     created_by = db.Column(db.Integer)
     updated_by = db.Column(db.Integer)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    target_role = db.relationship('AppRole', backref='attendance_configs')
 
 
 class AttendanceSubmission(db.Model):

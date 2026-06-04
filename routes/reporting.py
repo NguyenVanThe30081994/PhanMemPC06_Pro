@@ -3535,6 +3535,26 @@ def admin_dashboard():
         cycle_status_map=dashboard_maps["cycle_status_map"],
         cycle_progress_map=dashboard_maps["cycle_progress_map"],
     )
+    grouped_templates = _group_admin_templates(templates)
+    selected_group = (request.args.get("group") or "all").strip().lower()
+    sidebar_submenu_items = [
+        {
+            "label": "Tất cả đội nghiệp vụ",
+            "href": url_for("reporting_bp.admin_dashboard", group="all"),
+            "count": len(templates),
+            "active": selected_group == "all",
+        }
+    ]
+    for group in grouped_templates:
+        group_slug = (group.get("name") or "").strip().lower()
+        sidebar_submenu_items.append(
+            {
+                "label": group.get("name") or "Chưa phân đội",
+                "href": url_for("reporting_bp.admin_dashboard", group=group_slug),
+                "count": len(group.get("entries") or []),
+                "active": selected_group == group_slug,
+            }
+        )
 
     return render_template(
         "reporting_dashboard.html",
@@ -3552,8 +3572,12 @@ def admin_dashboard():
             dashboard_maps["cycle_progress_map"],
             dashboard_maps["cycle_deadline_map"],
             hero_stats,
-            _group_admin_templates(templates),
+            grouped_templates,
         ),
+        selected_report_group=selected_group,
+        sidebar_submenu_parent="reporting",
+        sidebar_submenu_title="Báo cáo",
+        sidebar_submenu_items=sidebar_submenu_items,
     )
 
 
@@ -4594,6 +4618,26 @@ def user_dashboard():
         cycle_status_map=dashboard_maps["cycle_status_map"],
         cycle_progress_map=dashboard_maps["cycle_progress_map"],
     )
+    grouped_cycles = _group_cycles_by_professional_unit(accessible_cycles)
+    selected_group = (request.args.get("group") or "all").strip().lower()
+    sidebar_submenu_items = [
+        {
+            "label": "Tất cả đội nghiệp vụ",
+            "href": url_for("reporting_bp.user_dashboard", group="all"),
+            "count": len(accessible_cycles),
+            "active": selected_group == "all",
+        }
+    ]
+    for group in grouped_cycles:
+        group_slug = (group.get("name") or "").strip().lower()
+        sidebar_submenu_items.append(
+            {
+                "label": group.get("name") or "Chưa phân đội",
+                "href": url_for("reporting_bp.user_dashboard", group=group_slug),
+                "count": len(group.get("entries") or []),
+                "active": selected_group == group_slug,
+            }
+        )
 
     return render_template(
         "reporting_dashboard.html",
@@ -4607,8 +4651,12 @@ def user_dashboard():
             accessible_cycles,
             can_view_cycle_progress,
             is_admin,
-            _group_cycles_by_professional_unit(accessible_cycles),
+            grouped_cycles,
         ),
+        selected_report_group=selected_group,
+        sidebar_submenu_parent="reporting",
+        sidebar_submenu_title="Báo cáo",
+        sidebar_submenu_items=sidebar_submenu_items,
     )
 
 

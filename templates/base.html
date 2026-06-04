@@ -633,6 +633,11 @@
             gap: 4px;
         }
 
+        .mobile-sidebar .mobile-nav-group {
+            display: grid;
+            gap: 6px;
+        }
+
         .mobile-sidebar .mobile-nav-link {
             display: flex;
             align-items: center;
@@ -678,6 +683,21 @@
 
         .mobile-sidebar .mobile-nav-link.active .mobile-nav-icon {
             background: rgba(255, 255, 255, 0.16);
+        }
+
+        .mobile-sidebar .mobile-nav-children {
+            display: grid;
+            gap: 6px;
+            padding-left: 52px;
+        }
+
+        .mobile-sidebar .mobile-subnav-link {
+            min-height: 0;
+            padding: 10px 12px;
+            border-radius: 14px;
+            font-size: 0.92rem;
+            background: rgba(248, 250, 252, 0.72);
+            border: 1px solid rgba(148, 163, 184, 0.12);
         }
 
         .sidebar-unit-info {
@@ -733,16 +753,258 @@
 </head>
 
 <body class="pc06-bdhvs-body">
+    {% set submenu_parent = sidebar_submenu_parent|default('') %}
+    {% set operations_active = (request.endpoint == 'ranking_bp.index') or (request.endpoint and request.endpoint.startswith('attendance_bp.')) %}
+    {% set lookup_active = request.endpoint in ['portal_bp.news', 'portal_bp.library', 'portal_bp.contacts'] or request.path.startswith('/links') %}
+    {% set support_active = request.endpoint == 'portal_bp.user_guide' or request.path.startswith('/ai') %}
+    {% set can_access_reports = can_access_report_center() %}
+    <aside class="desktop-sidebar d-none d-lg-flex">
+        <div class="desktop-sidebar-inner" id="desktopSidebarInner">
+            <a href="/admin" class="desktop-brand text-decoration-none">
+                <div class="desktop-brand-badge">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <strong>PC06</strong>
+                </div>
+            </a>
+
+            <div class="desktop-sidebar-section">
+                <div class="desktop-nav-list">
+                    <a href="/admin" class="desktop-nav-link {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">
+                        <span class="desktop-nav-icon"><i class="fa-solid fa-house"></i></span>
+                        <span>Trang chủ</span>
+                    </a>
+                    {% if can_module('task', 'view') %}
+                    <div class="desktop-nav-group">
+                        <a href="/tasks" class="desktop-nav-link {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %} {% if submenu_parent == 'tasks' and sidebar_submenu_items %}has-children{% endif %}">
+                            <span class="desktop-nav-icon"><i class="fa-solid fa-list-check"></i></span>
+                            <span>Công việc</span>
+                            {% if submenu_parent == 'tasks' and sidebar_submenu_items %}
+                            <span class="desktop-nav-caret"><i class="fa-solid fa-chevron-down"></i></span>
+                            {% endif %}
+                        </a>
+                        {% if submenu_parent == 'tasks' and sidebar_submenu_items %}
+                        <div class="desktop-nav-children">
+                            {% for item in sidebar_submenu_items %}
+                            <a href="{{ item.href }}" class="desktop-nav-link desktop-subnav-link {% if item.active %}active{% endif %}">
+                                <span>{{ item.label }}</span>
+                                {% if item.count is defined and item.count is not none %}
+                                <small>{{ item.count }}</small>
+                                {% endif %}
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% if can_access_reports %}
+                    <div class="desktop-nav-group">
+                        <a href="{{ report_center_url() }}" class="desktop-nav-link {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %} {% if submenu_parent == 'reporting' and sidebar_submenu_items %}has-children{% endif %}">
+                            <span class="desktop-nav-icon"><i class="fa-solid fa-chart-line"></i></span>
+                            <span>Báo cáo</span>
+                            {% if submenu_parent == 'reporting' and sidebar_submenu_items %}
+                            <span class="desktop-nav-caret"><i class="fa-solid fa-chevron-down"></i></span>
+                            {% endif %}
+                        </a>
+                        {% if submenu_parent == 'reporting' and sidebar_submenu_items %}
+                        <div class="desktop-nav-children">
+                            {% for item in sidebar_submenu_items %}
+                            <a href="{{ item.href }}" class="desktop-nav-link desktop-subnav-link {% if item.active %}active{% endif %}">
+                                <span>{{ item.label }}</span>
+                                {% if item.count is defined and item.count is not none %}
+                                <small>{{ item.count }}</small>
+                                {% endif %}
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% if can_module('attendance', 'view') %}
+                    <div class="desktop-nav-group">
+                        <a href="/attendance" class="desktop-nav-link {% if request.endpoint and request.endpoint.startswith('attendance_bp.') %}active{% endif %} {% if submenu_parent == 'attendance' and sidebar_submenu_items %}has-children{% endif %}">
+                            <span class="desktop-nav-icon"><i class="fa-solid fa-camera"></i></span>
+                            <span>Điểm danh</span>
+                            {% if submenu_parent == 'attendance' and sidebar_submenu_items %}
+                            <span class="desktop-nav-caret"><i class="fa-solid fa-chevron-down"></i></span>
+                            {% endif %}
+                        </a>
+                        {% if submenu_parent == 'attendance' and sidebar_submenu_items %}
+                        <div class="desktop-nav-children">
+                            {% for item in sidebar_submenu_items %}
+                            <a href="{{ item.href }}" class="desktop-nav-link desktop-subnav-link {% if item.active %}active{% endif %}">
+                                <span>{{ item.label }}</span>
+                                {% if item.count is defined and item.count is not none %}
+                                <small>{{ item.count }}</small>
+                                {% endif %}
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <a href="/ranking" class="desktop-nav-link {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">
+                        <span class="desktop-nav-icon"><i class="fa-solid fa-ranking-star"></i></span>
+                        <span>Xếp hạng</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="desktop-sidebar-section">
+                <div class="desktop-nav-list">
+                    {% if can_module('news', 'view') %}
+                    <div class="desktop-nav-group">
+                        <a href="/news" class="desktop-nav-link {% if request.endpoint == 'portal_bp.news' %}active{% endif %} {% if submenu_parent == 'news' and sidebar_submenu_items %}has-children{% endif %}">
+                            <span class="desktop-nav-icon"><i class="fa-solid fa-newspaper"></i></span>
+                            <span>Bảng tin</span>
+                            {% if submenu_parent == 'news' and sidebar_submenu_items %}
+                            <span class="desktop-nav-caret"><i class="fa-solid fa-chevron-down"></i></span>
+                            {% endif %}
+                        </a>
+                        {% if submenu_parent == 'news' and sidebar_submenu_items %}
+                        <div class="desktop-nav-children">
+                            {% for item in sidebar_submenu_items %}
+                            <a href="{{ item.href }}" class="desktop-nav-link desktop-subnav-link {% if item.active %}active{% endif %}">
+                                <span>{{ item.label }}</span>
+                                {% if item.count is defined and item.count is not none %}
+                                <small>{{ item.count }}</small>
+                                {% endif %}
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% if can_module('lib', 'view') %}
+                    <div class="desktop-nav-group">
+                        <a href="/library" class="desktop-nav-link {% if request.endpoint == 'portal_bp.library' %}active{% endif %} {% if submenu_parent == 'library' and sidebar_submenu_items %}has-children{% endif %}">
+                            <span class="desktop-nav-icon"><i class="fa-solid fa-book-open"></i></span>
+                            <span>Thư viện</span>
+                            {% if submenu_parent == 'library' and sidebar_submenu_items %}
+                            <span class="desktop-nav-caret"><i class="fa-solid fa-chevron-down"></i></span>
+                            {% endif %}
+                        </a>
+                        {% if submenu_parent == 'library' and sidebar_submenu_items %}
+                        <div class="desktop-nav-children">
+                            {% for item in sidebar_submenu_items %}
+                            <a href="{{ item.href }}" class="desktop-nav-link desktop-subnav-link {% if item.active %}active{% endif %}">
+                                <span>{{ item.label }}</span>
+                                {% if item.count is defined and item.count is not none %}
+                                <small>{{ item.count }}</small>
+                                {% endif %}
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% if can_module('contact', 'view') %}
+                    <div class="desktop-nav-group">
+                        <a href="/contacts" class="desktop-nav-link {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %} {% if submenu_parent == 'contacts' and sidebar_submenu_items %}has-children{% endif %}">
+                            <span class="desktop-nav-icon"><i class="fa-solid fa-address-book"></i></span>
+                            <span>Danh bạ</span>
+                            {% if submenu_parent == 'contacts' and sidebar_submenu_items %}
+                            <span class="desktop-nav-caret"><i class="fa-solid fa-chevron-down"></i></span>
+                            {% endif %}
+                        </a>
+                        {% if submenu_parent == 'contacts' and sidebar_submenu_items %}
+                        <div class="desktop-nav-children">
+                            {% for item in sidebar_submenu_items %}
+                            <a href="{{ item.href }}" class="desktop-nav-link desktop-subnav-link {% if item.active %}active{% endif %}">
+                                <span>{{ item.label }}</span>
+                                {% if item.count is defined and item.count is not none %}
+                                <small>{{ item.count }}</small>
+                                {% endif %}
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <a href="{{ url_for('shortlink_bp.manage_links') }}" class="desktop-nav-link {% if request.endpoint == 'shortlink_bp.manage_links' %}active{% endif %}">
+                        <span class="desktop-nav-icon"><i class="fa-solid fa-qrcode"></i></span>
+                        <span>QR và liên kết</span>
+                    </a>
+                    <a href="/guide" class="desktop-nav-link {% if request.endpoint == 'portal_bp.user_guide' %}active{% endif %}">
+                        <span class="desktop-nav-icon"><i class="fa-solid fa-circle-info"></i></span>
+                        <span>Hướng dẫn sử dụng</span>
+                    </a>
+                    <a href="/ai" class="desktop-nav-link {% if request.path.startswith('/ai') %}active{% endif %}">
+                        <span class="desktop-nav-icon"><i class="fa-solid fa-robot"></i></span>
+                        <span>Trợ lý AI</span>
+                    </a>
+                </div>
+            </div>
+
+            {% if can_module('user', 'view') or can_module('sys', 'view') %}
+            <div class="desktop-sidebar-section">
+                <div class="desktop-nav-list">
+                    {% if can_module('user', 'view') %}
+                    <a href="/roles" class="desktop-nav-link {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">
+                        <span class="desktop-nav-icon"><i class="fa-solid fa-user-shield"></i></span>
+                        <span>Tài khoản và vai trò</span>
+                    </a>
+                    {% endif %}
+                    {% if can_module('sys', 'view') %}
+                    <div class="desktop-nav-group">
+                        <a href="/admin/module-categories" class="desktop-nav-link {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %} {% if submenu_parent == 'module_categories' and sidebar_submenu_items %}has-children{% endif %}">
+                            <span class="desktop-nav-icon"><i class="fa-solid fa-table-cells-large"></i></span>
+                            <span>Thiết lập danh mục</span>
+                            {% if submenu_parent == 'module_categories' and sidebar_submenu_items %}
+                            <span class="desktop-nav-caret"><i class="fa-solid fa-chevron-down"></i></span>
+                            {% endif %}
+                        </a>
+                        {% if submenu_parent == 'module_categories' and sidebar_submenu_items %}
+                        <div class="desktop-nav-children">
+                            {% for item in sidebar_submenu_items %}
+                            <a href="{{ item.href }}" class="desktop-nav-link desktop-subnav-link {% if item.active %}active{% endif %}">
+                                <span>{{ item.label }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <a href="/admin/ai-settings" class="desktop-nav-link {% if request.endpoint == 'admin_bp.ai_settings' %}active{% endif %}">
+                        <span class="desktop-nav-icon"><i class="fa-solid fa-sliders"></i></span>
+                        <span>Cấu hình AI</span>
+                    </a>
+                    <a href="/logs" class="desktop-nav-link {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">
+                        <span class="desktop-nav-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                        <span>Nhật ký hoạt động</span>
+                    </a>
+                    <a href="/admin/system/update" class="desktop-nav-link {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">
+                        <span class="desktop-nav-icon"><i class="fa-solid fa-cloud-arrow-down"></i></span>
+                        <span>Cập nhật bản vá</span>
+                    </a>
+                    <a href="/admin/db-tool" class="desktop-nav-link {% if request.endpoint == 'admin_bp.db_tool' %}active{% endif %}">
+                        <span class="desktop-nav-icon"><i class="fa-solid fa-database"></i></span>
+                        <span>Công cụ Database</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="desktop-user-panel">
+                <div class="desktop-user-avatar">{{ session.get('fullname', 'CB')[:2].upper() }}</div>
+                <div class="desktop-user-copy">
+                    <strong>{{ session.get('fullname', 'Người dùng') }}</strong>
+                </div>
+            </div>
+        </div>
+    </aside>
+
     <nav class="top-navbar">
         <div class="nav-container px-4">
-            <div class="nav-left d-flex align-items-center">
+            <div class="nav-left d-flex align-items-center gap-3">
                 <!-- Mobile Toggle: Stitch Styled -->
                 <button class="btn btn-light d-lg-none me-3 btn-circle btn-circle-sm border-0" type="button"
                     data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
                     <i class="fa-solid fa-bars-staggered text-primary"></i>
                 </button>
 
-                <a href="/admin" class="nav-logo text-decoration-none d-flex align-items-center">
+                <a href="/admin" class="nav-logo text-decoration-none d-flex align-items-center d-lg-none">
                     <div class="header-title-pill shadow-sm glass-card"
                         style="background: var(--primary-gradient) !important; border-top: 1px solid rgba(255,255,255,0.4) !important; padding: 5px 12px; color: #fff;">
                         <i class="fa-solid fa-shield-halved text-white" style="font-size: 0.75rem;"></i>
@@ -751,107 +1013,9 @@
                 </a>
             </div>
 
-            <div class="nav-center d-none d-lg-flex h-100 justify-content-center align-items-stretch flex-grow-1 px-4">
-                {% set operations_active = (request.endpoint == 'ranking_bp.index') or (request.endpoint and request.endpoint.startswith('attendance_bp.')) %}
-                {% set lookup_active = request.endpoint in ['portal_bp.news', 'portal_bp.library', 'portal_bp.contacts'] or request.path.startswith('/links') %}
-                {% set support_active = request.endpoint == 'portal_bp.user_guide' or request.path.startswith('/ai') %}
-                <a href="/admin"
-                    class="nav-link-top {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">Trang chủ</a>
-                {% if can_module('task', 'view') %}<a href="/tasks"
-                    class="nav-link-top {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">Công việc</a>{%
-                endif %}
-
-                {% if can_access_report_center() %}
-                <a href="{{ report_center_url() }}"
-                    class="nav-link-top {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">
-                    Báo cáo
-                </a>
-                {% endif %}
-
-                <div class="dropdown h-100 d-flex align-items-center">
-                    <a class="nav-link-top dropdown-toggle {% if operations_active %}active{% endif %}"
-                        href="#" role="button" data-bs-toggle="dropdown">
-                        Điều hành
-                    </a>
-                    <ul class="dropdown-menu shadow-lg border-0 mt-0 rounded-4 p-2" style="min-width: 220px;">
-                        {% if can_module('attendance', 'view') %}
-                        <li><a class="dropdown-item py-2 rounded-3" href="/attendance">Điểm danh</a></li>
-                        <li>
-                            <hr class="dropdown-divider opacity-10 mx-2">
-                        </li>
-                        {% endif %}
-                        <li><a class="dropdown-item py-2 rounded-3" href="/ranking">Xếp hạng</a></li>
-                    </ul>
-                </div>
-
-                <div class="dropdown h-100 d-flex align-items-center">
-                    <a class="nav-link-top dropdown-toggle {% if lookup_active %}active{% endif %}"
-                        href="#" role="button" data-bs-toggle="dropdown">
-                        Tra cứu
-                    </a>
-                    <ul class="dropdown-menu shadow-lg border-0 mt-0 rounded-4 p-2" style="min-width: 240px;">
-                        {% if can_module('news', 'view') %}
-                        <li><a class="dropdown-item py-2 rounded-3" href="/news">Bảng tin</a></li>
-                        {% endif %}
-                        {% if can_module('lib', 'view') %}
-                        <li><a class="dropdown-item py-2 rounded-3" href="/library">Thư viện</a></li>
-                        {% endif %}
-                        {% if can_module('contact', 'view') %}
-                        <li><a class="dropdown-item py-2 rounded-3" href="/contacts">Danh bạ</a></li>
-                        {% endif %}
-                        <li><a class="dropdown-item py-2 rounded-3" href="{{ url_for('shortlink_bp.manage_links') }}">QR và liên kết</a></li>
-                    </ul>
-                </div>
-
-                <div class="dropdown h-100 d-flex align-items-center">
-                    <a class="nav-link-top dropdown-toggle {% if support_active %}active{% endif %}"
-                        href="#" role="button" data-bs-toggle="dropdown">
-                        Hỗ trợ
-                    </a>
-                    <ul class="dropdown-menu shadow-lg border-0 mt-0 rounded-4 p-2" style="min-width: 220px;">
-                        <li><a class="dropdown-item py-2 rounded-3" href="/guide">Hướng dẫn</a></li>
-                        <li>
-                            <hr class="dropdown-divider opacity-10 mx-2">
-                        </li>
-                        <li><a class="dropdown-item py-2 rounded-3" href="/ai">Trợ lý AI</a></li>
-                    </ul>
-                </div>
-
-                {% if can_module('user', 'view') or can_module('sys', 'view') %}
-                <div class="dropdown h-100 d-flex align-items-center">
-                    <a class="nav-link-top dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Hệ
-                        thống</a>
-                    <ul class="dropdown-menu shadow-lg border-0 mt-0 rounded-4 p-2" style="min-width: 240px;">
-                        {% if can_module('user', 'view') %}
-                        <li><a class="dropdown-item py-2 rounded-3" href="/roles"> Tài khoản & Vai trò</a></li>
-                        <li>
-                            <hr class="dropdown-divider opacity-10 mx-2">
-                        </li>
-                        {% endif %}
-                        {% if can_module('sys', 'view') %}
-                        <li><a class="dropdown-item py-2 rounded-3" href="/admin/module-categories"> Thiết lập danh
-                                mục</a></li>
-                        <li>
-                            <hr class="dropdown-divider opacity-10 mx-2">
-                        </li>
-                        <li><a class="dropdown-item py-2 rounded-3" href="/admin/ai-settings"> Cấu hình dịch vụ AI</a></li>
-                        <li>
-                            <hr class="dropdown-divider opacity-10 mx-2">
-                        </li>
-                        <li><a class="dropdown-item py-2 rounded-3" href="/logs"> Nhật ký hoạt động</a></li>
-                        <li>
-                            <hr class="dropdown-divider opacity-10 mx-2">
-                        </li>
-                        <li><a class="dropdown-item py-2 rounded-3" href="/admin/system/update"> Cập nhật bản vá</a>
-                        </li>
-                        <li>
-                            <hr class="dropdown-divider opacity-10 mx-2">
-                        </li>
-                        <li><a class="dropdown-item py-2 rounded-3" href="/admin/db-tool"> Công cụ Database</a></li>
-                        {% endif %}
-                    </ul>
-                </div>
-                {% endif %}
+            <div class="nav-center d-none d-lg-flex align-items-center flex-grow-1 px-4">
+                <div class="top-status-pill" id="dashboard-clock"></div>
+                <div class="top-status-pill top-status-soft" id="dashboard-weather">Đang tải thời tiết</div>
             </div>
 
             <div class="nav-right d-flex align-items-center gap-3">
@@ -945,8 +1109,6 @@
                     <div class="mobile-nav-avatar">{{ session.get('fullname', 'CB')[:2].upper() }}</div>
                     <div style="min-width: 0;">
                         <div class="fw-bold text-dark text-truncate">{{ session.get('fullname', 'User') }}</div>
-                        <div class="tiny text-muted text-truncate">{{ session.get('role_name', 'Thành viên') }}</div>
-                        <div class="tiny text-muted text-truncate">{{ session.get('unit', 'Phòng Cảnh sát QLHC về TTXH') }}</div>
                     </div>
                 </div>
             </div>
@@ -954,10 +1116,6 @@
 
         <div class="offcanvas-body p-0 pb-3">
             <div class="mobile-nav-section">
-                <div class="mobile-nav-label">
-                    <i class="fa-solid fa-compass"></i>
-                    <span>Làm việc</span>
-                </div>
                 <div class="mobile-nav-list">
                     <a href="/admin"
                         class="mobile-nav-link {% if request.endpoint == 'admin_bp.index' %}active{% endif %}">
@@ -966,35 +1124,64 @@
                     </a>
 
                     {% if can_module('task', 'view') %}
-                    <a href="/tasks"
-                        class="mobile-nav-link {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">
-                        <span class="mobile-nav-icon"><i class="fa-solid fa-list-check"></i></span>
-                        <span>Công việc</span>
-                    </a>
+                    <div class="mobile-nav-group">
+                        <a href="/tasks"
+                            class="mobile-nav-link {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">
+                            <span class="mobile-nav-icon"><i class="fa-solid fa-list-check"></i></span>
+                            <span>Công việc</span>
+                        </a>
+                        {% if submenu_parent == 'tasks' and sidebar_submenu_items %}
+                        <div class="mobile-nav-children">
+                            {% for item in sidebar_submenu_items %}
+                            <a href="{{ item.href }}" class="mobile-nav-link mobile-subnav-link {% if item.active %}active{% endif %}">
+                                <span>{{ item.label }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
                     {% endif %}
 
                     {% if can_access_reports %}
-                    <a href="{{ report_center_url() }}"
-                        class="mobile-nav-link {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">
-                        <span class="mobile-nav-icon"><i class="fa-solid fa-chart-line"></i></span>
-                        <span>Báo cáo</span>
-                    </a>
+                    <div class="mobile-nav-group">
+                        <a href="{{ report_center_url() }}"
+                            class="mobile-nav-link {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">
+                            <span class="mobile-nav-icon"><i class="fa-solid fa-chart-line"></i></span>
+                            <span>Báo cáo</span>
+                        </a>
+                        {% if submenu_parent == 'reporting' and sidebar_submenu_items %}
+                        <div class="mobile-nav-children">
+                            {% for item in sidebar_submenu_items %}
+                            <a href="{{ item.href }}" class="mobile-nav-link mobile-subnav-link {% if item.active %}active{% endif %}">
+                                <span>{{ item.label }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
                     {% endif %}
                 </div>
             </div>
 
             <div class="mobile-nav-section">
-                <div class="mobile-nav-label">
-                    <i class="fa-solid fa-chart-column"></i>
-                    <span>Điều hành</span>
-                </div>
                 <div class="mobile-nav-list">
                     {% if can_module('attendance', 'view') %}
-                    <a href="/attendance"
-                        class="mobile-nav-link {% if request.endpoint and request.endpoint.startswith('attendance_bp.') %}active{% endif %}">
-                        <span class="mobile-nav-icon"><i class="fa-solid fa-camera"></i></span>
-                        <span>Điểm danh</span>
-                    </a>
+                    <div class="mobile-nav-group">
+                        <a href="/attendance"
+                            class="mobile-nav-link {% if request.endpoint and request.endpoint.startswith('attendance_bp.') %}active{% endif %}">
+                            <span class="mobile-nav-icon"><i class="fa-solid fa-camera"></i></span>
+                            <span>Điểm danh</span>
+                        </a>
+                        {% if submenu_parent == 'attendance' and sidebar_submenu_items %}
+                        <div class="mobile-nav-children">
+                            {% for item in sidebar_submenu_items %}
+                            <a href="{{ item.href }}" class="mobile-nav-link mobile-subnav-link {% if item.active %}active{% endif %}">
+                                <span>{{ item.label }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
                     {% endif %}
                     <a href="/ranking"
                         class="mobile-nav-link {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">
@@ -1005,31 +1192,60 @@
             </div>
 
             <div class="mobile-nav-section">
-                <div class="mobile-nav-label">
-                    <i class="fa-solid fa-layer-group"></i>
-                    <span>Tra cứu và hỗ trợ</span>
-                </div>
                 <div class="mobile-nav-list">
                     {% if can_module('news', 'view') %}
-                    <a href="/news"
-                        class="mobile-nav-link {% if request.endpoint == 'portal_bp.news' %}active{% endif %}">
-                        <span class="mobile-nav-icon"><i class="fa-solid fa-newspaper"></i></span>
-                        <span>Bảng tin</span>
-                    </a>
+                    <div class="mobile-nav-group">
+                        <a href="/news"
+                            class="mobile-nav-link {% if request.endpoint == 'portal_bp.news' %}active{% endif %}">
+                            <span class="mobile-nav-icon"><i class="fa-solid fa-newspaper"></i></span>
+                            <span>Bảng tin</span>
+                        </a>
+                        {% if submenu_parent == 'news' and sidebar_submenu_items %}
+                        <div class="mobile-nav-children">
+                            {% for item in sidebar_submenu_items %}
+                            <a href="{{ item.href }}" class="mobile-nav-link mobile-subnav-link {% if item.active %}active{% endif %}">
+                                <span>{{ item.label }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
                     {% endif %}
                     {% if can_module('lib', 'view') %}
-                    <a href="/library"
-                        class="mobile-nav-link {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">
-                        <span class="mobile-nav-icon"><i class="fa-solid fa-book-open"></i></span>
-                        <span>Thư viện</span>
-                    </a>
+                    <div class="mobile-nav-group">
+                        <a href="/library"
+                            class="mobile-nav-link {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">
+                            <span class="mobile-nav-icon"><i class="fa-solid fa-book-open"></i></span>
+                            <span>Thư viện</span>
+                        </a>
+                        {% if submenu_parent == 'library' and sidebar_submenu_items %}
+                        <div class="mobile-nav-children">
+                            {% for item in sidebar_submenu_items %}
+                            <a href="{{ item.href }}" class="mobile-nav-link mobile-subnav-link {% if item.active %}active{% endif %}">
+                                <span>{{ item.label }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
                     {% endif %}
                     {% if can_module('contact', 'view') %}
-                    <a href="/contacts"
-                        class="mobile-nav-link {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">
-                        <span class="mobile-nav-icon"><i class="fa-solid fa-address-book"></i></span>
-                        <span>Danh bạ</span>
-                    </a>
+                    <div class="mobile-nav-group">
+                        <a href="/contacts"
+                            class="mobile-nav-link {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">
+                            <span class="mobile-nav-icon"><i class="fa-solid fa-address-book"></i></span>
+                            <span>Danh bạ</span>
+                        </a>
+                        {% if submenu_parent == 'contacts' and sidebar_submenu_items %}
+                        <div class="mobile-nav-children">
+                            {% for item in sidebar_submenu_items %}
+                            <a href="{{ item.href }}" class="mobile-nav-link mobile-subnav-link {% if item.active %}active{% endif %}">
+                                <span>{{ item.label }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
                     {% endif %}
                     <a href="/guide"
                         class="mobile-nav-link {% if request.endpoint == 'portal_bp.user_guide' %}active{% endif %}">
@@ -1051,10 +1267,6 @@
 
             {% if can_module('user', 'view') or can_module('sys', 'view') %}
             <div class="mobile-nav-section">
-                <div class="mobile-nav-label">
-                    <i class="fa-solid fa-gears"></i>
-                    <span>Quản trị</span>
-                </div>
                 <div class="mobile-nav-list">
                     {% if can_module('user', 'view') %}
                     <a href="/roles" class="mobile-nav-link {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">
@@ -1063,10 +1275,21 @@
                     </a>
                     {% endif %}
                     {% if can_module('sys', 'view') %}
-                    <a href="/admin/module-categories" class="mobile-nav-link {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">
-                        <span class="mobile-nav-icon"><i class="fa-solid fa-table-cells-large"></i></span>
-                        <span>Thiết lập danh mục</span>
-                    </a>
+                    <div class="mobile-nav-group">
+                        <a href="/admin/module-categories" class="mobile-nav-link {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">
+                            <span class="mobile-nav-icon"><i class="fa-solid fa-table-cells-large"></i></span>
+                            <span>Thiết lập danh mục</span>
+                        </a>
+                        {% if submenu_parent == 'module_categories' and sidebar_submenu_items %}
+                        <div class="mobile-nav-children">
+                            {% for item in sidebar_submenu_items %}
+                            <a href="{{ item.href }}" class="mobile-nav-link mobile-subnav-link {% if item.active %}active{% endif %}">
+                                <span>{{ item.label }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
                     <a href="/admin/ai-settings" class="mobile-nav-link {% if request.endpoint == 'admin_bp.ai_settings' %}active{% endif %}">
                         <span class="mobile-nav-icon"><i class="fa-solid fa-sliders"></i></span>
                         <span>Cấu hình dịch vụ AI</span>
@@ -1089,10 +1312,6 @@
             {% endif %}
 
             <div class="mobile-nav-section mb-0">
-                <div class="mobile-nav-label">
-                    <i class="fa-solid fa-user"></i>
-                    <span>Tài khoản</span>
-                </div>
                 <div class="mobile-nav-list">
                     <a href="/password" class="mobile-nav-link {% if request.endpoint == 'auth_bp.change_password' %}active{% endif %}">
                         <span class="mobile-nav-icon"><i class="fa-solid fa-key"></i></span>
@@ -1109,7 +1328,6 @@
         <div class="offcanvas-footer p-4 border-top bg-light bg-opacity-50">
             <div class="text-center text-muted tiny">HỆ THỐNG PC06</div>
         </div>
-    </div>
     </div>
 
     <!-- Mobile Bottom Navigation Bar -->
@@ -1212,6 +1430,42 @@
             });
         }
 
+        function initDesktopSidebarScrollMemory() {
+            const sidebar = document.getElementById('desktopSidebarInner');
+            if (!sidebar) return;
+
+            const storageKey = 'pc06:desktop-sidebar-scroll';
+            const savedValue = sessionStorage.getItem(storageKey);
+            const activeLink = sidebar.querySelector('.desktop-nav-link.active');
+
+            if (savedValue !== null) {
+                const parsed = Number(savedValue);
+                if (!Number.isNaN(parsed)) {
+                    sidebar.scrollTop = parsed;
+                }
+            } else if (activeLink) {
+                activeLink.scrollIntoView({ block: 'nearest' });
+            }
+
+            let saveTimer = null;
+            const saveScrollPosition = () => {
+                sessionStorage.setItem(storageKey, String(sidebar.scrollTop));
+            };
+
+            sidebar.addEventListener('scroll', () => {
+                if (saveTimer) {
+                    window.clearTimeout(saveTimer);
+                }
+                saveTimer = window.setTimeout(saveScrollPosition, 60);
+            }, { passive: true });
+
+            sidebar.querySelectorAll('.desktop-nav-link').forEach((link) => {
+                link.addEventListener('click', saveScrollPosition);
+            });
+
+            window.addEventListener('beforeunload', saveScrollPosition);
+        }
+
         // Clock & Weather
         function updateClock() {
             const el = document.getElementById('dashboard-clock');
@@ -1249,6 +1503,7 @@
         updateWeather();
         setInterval(updateWeather, 600000);
         initSectionMenuContainers();
+        initDesktopSidebarScrollMemory();
 
         // Modern Confirm Helper
         window.ModernConfirm = function (title, text, icon, confirmText, callback) {
