@@ -2,11 +2,16 @@
 import os
 import sys
 import sqlite3
+from env_loader import load_env_file
 
 # ── UTF-8 Environment (safe for Python 3.9 on Mắt Bão / cPanel) ──
 os.environ['PYTHONIOENCODING'] = 'utf-8'
 os.environ.setdefault('LC_ALL', 'C.UTF-8')
 os.environ.setdefault('LANG', 'C.UTF-8')
+
+APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+if os.environ.get('PC06_PASSENGER') != '1':
+    load_env_file(os.path.join(APP_ROOT, '.env'), override=True)
 
 # Reconfigure stdout/stderr to UTF-8 (Python 3.7+)
 if hasattr(sys.stdout, 'reconfigure'):
@@ -34,7 +39,7 @@ from utils import (
 )
 
 # --- RELIABLE PATH RESOLUTION (Improved for Mắt Bão/Passenger) ---
-basedir = os.path.dirname(os.path.abspath(__file__))
+basedir = APP_ROOT
 TEMPLATE_DIR = os.path.join(basedir, 'templates')
 STATIC_DIR = os.path.join(basedir, 'static')
 storage_layout = build_storage_layout(basedir)
