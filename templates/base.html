@@ -691,6 +691,10 @@
             padding-left: 52px;
         }
 
+        .mobile-sidebar .mobile-nav-grandchildren {
+            padding-left: 14px;
+        }
+
         .mobile-sidebar .mobile-subnav-link {
             min-height: 0;
             padding: 10px 12px;
@@ -698,6 +702,12 @@
             font-size: 0.92rem;
             background: rgba(248, 250, 252, 0.72);
             border: 1px solid rgba(148, 163, 184, 0.12);
+        }
+
+        .mobile-sidebar .mobile-subnav-link-nested {
+            padding: 9px 10px;
+            border-radius: 12px;
+            font-size: 0.86rem;
         }
 
         .sidebar-unit-info {
@@ -758,6 +768,9 @@
     {% set lookup_active = request.endpoint in ['portal_bp.news', 'portal_bp.library', 'portal_bp.contacts'] or request.path.startswith('/links') %}
     {% set support_active = request.endpoint == 'portal_bp.user_guide' or request.path.startswith('/ai') %}
     {% set can_access_reports = can_access_report_center() %}
+    {% set system_endpoints = ['admin_bp.roles', 'admin_bp.module_categories', 'admin_bp.ai_settings', 'admin_bp.logs', 'admin_bp.system_update', 'admin_bp.db_tool'] %}
+    {% set system_page_active = request.endpoint in system_endpoints %}
+    {% set system_root_href = '/roles' if can_module('user', 'view') else '/admin/module-categories' %}
     <aside class="desktop-sidebar d-none d-lg-flex">
         <div class="desktop-sidebar-inner" id="desktopSidebarInner">
             <a href="/admin" class="desktop-brand text-decoration-none">
@@ -940,48 +953,51 @@
             {% if can_module('user', 'view') or can_module('sys', 'view') %}
             <div class="desktop-sidebar-section">
                 <div class="desktop-nav-list">
-                    {% if can_module('user', 'view') %}
-                    <a href="/roles" class="desktop-nav-link {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">
-                        <span class="desktop-nav-icon"><i class="fa-solid fa-user-shield"></i></span>
-                        <span>Tài khoản và vai trò</span>
-                    </a>
-                    {% endif %}
-                    {% if can_module('sys', 'view') %}
                     <div class="desktop-nav-group">
-                        <a href="/admin/module-categories" class="desktop-nav-link {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %} {% if submenu_parent == 'module_categories' and sidebar_submenu_items %}has-children{% endif %}">
-                            <span class="desktop-nav-icon"><i class="fa-solid fa-table-cells-large"></i></span>
-                            <span>Thiết lập danh mục</span>
-                            {% if submenu_parent == 'module_categories' and sidebar_submenu_items %}
+                        <a href="{{ system_root_href }}" class="desktop-nav-link {% if system_page_active %}active{% endif %} has-children">
+                            <span class="desktop-nav-icon"><i class="fa-solid fa-gear"></i></span>
+                            <span>Hệ thống</span>
                             <span class="desktop-nav-caret"><i class="fa-solid fa-chevron-down"></i></span>
-                            {% endif %}
                         </a>
-                        {% if submenu_parent == 'module_categories' and sidebar_submenu_items %}
                         <div class="desktop-nav-children">
-                            {% for item in sidebar_submenu_items %}
-                            <a href="{{ item.href }}" class="desktop-nav-link desktop-subnav-link {% if item.active %}active{% endif %}">
-                                <span>{{ item.label }}</span>
+                            {% if can_module('user', 'view') %}
+                            <a href="/roles" class="desktop-nav-link desktop-subnav-link {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">
+                                <span>Tài khoản và vai trò</span>
                             </a>
-                            {% endfor %}
+                            {% endif %}
+                            {% if can_module('sys', 'view') %}
+                            <div class="desktop-nav-group">
+                                <a href="/admin/module-categories" class="desktop-nav-link desktop-subnav-link {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %} {% if submenu_parent == 'module_categories' and sidebar_submenu_items %}has-children{% endif %}">
+                                    <span>Thiết lập danh mục</span>
+                                    {% if submenu_parent == 'module_categories' and sidebar_submenu_items %}
+                                    <span class="desktop-nav-caret"><i class="fa-solid fa-chevron-down"></i></span>
+                                    {% endif %}
+                                </a>
+                                {% if submenu_parent == 'module_categories' and sidebar_submenu_items %}
+                                <div class="desktop-nav-children desktop-nav-grandchildren">
+                                    {% for item in sidebar_submenu_items %}
+                                    <a href="{{ item.href }}" class="desktop-nav-link desktop-subnav-link desktop-subnav-link-nested {% if item.active %}active{% endif %}">
+                                        <span>{{ item.label }}</span>
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <a href="/admin/ai-settings" class="desktop-nav-link desktop-subnav-link {% if request.endpoint == 'admin_bp.ai_settings' %}active{% endif %}">
+                                <span>Cấu hình AI</span>
+                            </a>
+                            <a href="/logs" class="desktop-nav-link desktop-subnav-link {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">
+                                <span>Nhật ký hoạt động</span>
+                            </a>
+                            <a href="/admin/system/update" class="desktop-nav-link desktop-subnav-link {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">
+                                <span>Cập nhật bản vá</span>
+                            </a>
+                            <a href="/admin/db-tool" class="desktop-nav-link desktop-subnav-link {% if request.endpoint == 'admin_bp.db_tool' %}active{% endif %}">
+                                <span>Công cụ Database</span>
+                            </a>
+                            {% endif %}
                         </div>
-                        {% endif %}
                     </div>
-                    <a href="/admin/ai-settings" class="desktop-nav-link {% if request.endpoint == 'admin_bp.ai_settings' %}active{% endif %}">
-                        <span class="desktop-nav-icon"><i class="fa-solid fa-sliders"></i></span>
-                        <span>Cấu hình AI</span>
-                    </a>
-                    <a href="/logs" class="desktop-nav-link {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">
-                        <span class="desktop-nav-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
-                        <span>Nhật ký hoạt động</span>
-                    </a>
-                    <a href="/admin/system/update" class="desktop-nav-link {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">
-                        <span class="desktop-nav-icon"><i class="fa-solid fa-cloud-arrow-down"></i></span>
-                        <span>Cập nhật bản vá</span>
-                    </a>
-                    <a href="/admin/db-tool" class="desktop-nav-link {% if request.endpoint == 'admin_bp.db_tool' %}active{% endif %}">
-                        <span class="desktop-nav-icon"><i class="fa-solid fa-database"></i></span>
-                        <span>Công cụ Database</span>
-                    </a>
-                    {% endif %}
                 </div>
             </div>
             {% endif %}
@@ -1268,45 +1284,47 @@
             {% if can_module('user', 'view') or can_module('sys', 'view') %}
             <div class="mobile-nav-section">
                 <div class="mobile-nav-list">
-                    {% if can_module('user', 'view') %}
-                    <a href="/roles" class="mobile-nav-link {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">
-                        <span class="mobile-nav-icon"><i class="fa-solid fa-user-shield"></i></span>
-                        <span>Tài khoản & Vai trò</span>
-                    </a>
-                    {% endif %}
-                    {% if can_module('sys', 'view') %}
                     <div class="mobile-nav-group">
-                        <a href="/admin/module-categories" class="mobile-nav-link {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">
-                            <span class="mobile-nav-icon"><i class="fa-solid fa-table-cells-large"></i></span>
-                            <span>Thiết lập danh mục</span>
+                        <a href="{{ system_root_href }}" class="mobile-nav-link {% if system_page_active %}active{% endif %}">
+                            <span class="mobile-nav-icon"><i class="fa-solid fa-gear"></i></span>
+                            <span>Hệ thống</span>
                         </a>
-                        {% if submenu_parent == 'module_categories' and sidebar_submenu_items %}
                         <div class="mobile-nav-children">
-                            {% for item in sidebar_submenu_items %}
-                            <a href="{{ item.href }}" class="mobile-nav-link mobile-subnav-link {% if item.active %}active{% endif %}">
-                                <span>{{ item.label }}</span>
+                            {% if can_module('user', 'view') %}
+                            <a href="/roles" class="mobile-nav-link mobile-subnav-link {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">
+                                <span>Tài khoản & Vai trò</span>
                             </a>
-                            {% endfor %}
+                            {% endif %}
+                            {% if can_module('sys', 'view') %}
+                            <div class="mobile-nav-group">
+                                <a href="/admin/module-categories" class="mobile-nav-link mobile-subnav-link {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">
+                                    <span>Thiết lập danh mục</span>
+                                </a>
+                                {% if submenu_parent == 'module_categories' and sidebar_submenu_items %}
+                                <div class="mobile-nav-children mobile-nav-grandchildren">
+                                    {% for item in sidebar_submenu_items %}
+                                    <a href="{{ item.href }}" class="mobile-nav-link mobile-subnav-link mobile-subnav-link-nested {% if item.active %}active{% endif %}">
+                                        <span>{{ item.label }}</span>
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <a href="/admin/ai-settings" class="mobile-nav-link mobile-subnav-link {% if request.endpoint == 'admin_bp.ai_settings' %}active{% endif %}">
+                                <span>Cấu hình dịch vụ AI</span>
+                            </a>
+                            <a href="/logs" class="mobile-nav-link mobile-subnav-link {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">
+                                <span>Nhật ký hoạt động</span>
+                            </a>
+                            <a href="/admin/system/update" class="mobile-nav-link mobile-subnav-link {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">
+                                <span>Cập nhật bản vá</span>
+                            </a>
+                            <a href="/admin/db-tool" class="mobile-nav-link mobile-subnav-link {% if request.endpoint == 'admin_bp.db_tool' %}active{% endif %}">
+                                <span>Công cụ Database</span>
+                            </a>
+                            {% endif %}
                         </div>
-                        {% endif %}
                     </div>
-                    <a href="/admin/ai-settings" class="mobile-nav-link {% if request.endpoint == 'admin_bp.ai_settings' %}active{% endif %}">
-                        <span class="mobile-nav-icon"><i class="fa-solid fa-sliders"></i></span>
-                        <span>Cấu hình dịch vụ AI</span>
-                    </a>
-                    <a href="/logs" class="mobile-nav-link {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">
-                        <span class="mobile-nav-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
-                        <span>Nhật ký hoạt động</span>
-                    </a>
-                    <a href="/admin/system/update" class="mobile-nav-link {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">
-                        <span class="mobile-nav-icon"><i class="fa-solid fa-cloud-arrow-down"></i></span>
-                        <span>Cập nhật bản vá</span>
-                    </a>
-                    <a href="/admin/db-tool" class="mobile-nav-link {% if request.endpoint == 'admin_bp.db_tool' %}active{% endif %}">
-                        <span class="mobile-nav-icon"><i class="fa-solid fa-database"></i></span>
-                        <span>Công cụ Database</span>
-                    </a>
-                    {% endif %}
                 </div>
             </div>
             {% endif %}

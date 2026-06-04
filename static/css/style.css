@@ -944,6 +944,11 @@ body {
     margin-top: -2px;
 }
 
+.desktop-nav-grandchildren {
+    padding-left: 12px;
+    margin-top: 0;
+}
+
 .desktop-nav-link {
     display: flex;
     align-items: center;
@@ -1001,6 +1006,12 @@ body {
     color: inherit;
     font-size: 0.78rem;
     font-weight: 800;
+}
+
+.desktop-subnav-link-nested {
+    font-size: 0.84rem;
+    padding: 8px 10px;
+    border-radius: 12px;
 }
 
 [data-theme="dark"] .desktop-subnav-link {
