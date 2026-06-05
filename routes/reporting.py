@@ -9,7 +9,7 @@ from datetime import date, datetime, time, timedelta
 from openpyxl import load_workbook
 from openpyxl.utils import column_index_from_string
 from flask import Blueprint, current_app, flash, g, has_request_context, jsonify, redirect, request, session, send_file, url_for
-from sqlalchemy import func, inspect, or_, text
+from sqlalchemy import MetaData, Table, delete, func, inspect, or_, select, text
 from werkzeug.utils import secure_filename
 
 from models import (
@@ -86,6 +86,8 @@ from utils import (
 )
 
 reporting_bp = Blueprint("reporting_bp", __name__)
+_LEGACY_META = MetaData()
+_LEGACY_TABLE_CACHE = {}
 
 PERIODIC_CYCLE_OPTIONS = [
     ("monthly", "Hàng tháng"),
@@ -410,6 +412,16 @@ def _legacy_sql_ident(name):
     return f'"{text_name}"'
 
 
+def _legacy_reflected_table(table_name):
+    safe_name = str(table_name or "").strip()
+    _legacy_sql_ident(safe_name)
+    table = _LEGACY_TABLE_CACHE.get(safe_name)
+    if table is None:
+        table = Table(safe_name, _LEGACY_META, autoload_with=db.engine, extend_existing=True)
+        _LEGACY_TABLE_CACHE[safe_name] = table
+    return table
+
+
 def _legacy_primary_key_column(table_name):
     if not _legacy_table_exists(table_name):
         return None
@@ -449,19 +461,17 @@ def _legacy_child_foreign_keys(parent_table_name):
 
 
 def _legacy_cleanup_row_assets(table_name, row_id, pk_column):
-    table_ident = _legacy_sql_ident(table_name)
-    pk_ident = _legacy_sql_ident(pk_column)
+    table = _legacy_reflected_table(table_name)
+    pk_col = table.c[pk_column]
 
     if table_name == "report_submission":
         row = db.session.execute(
-            text(
-                f"""
-                SELECT file_path, original_file_path, processed_file_path, error_file_path
-                FROM {table_ident}
-                WHERE {pk_ident} = :row_id
-                """
-            ),
-            {"row_id": row_id},
+            select(
+                table.c.file_path,
+                table.c.original_file_path,
+                table.c.processed_file_path,
+                table.c.error_file_path,
+            ).where(pk_col == row_id)
         ).mappings().first()
         if row:
             for stored_path in {
@@ -486,15 +496,9 @@ def _legacy_cleanup_row_assets(table_name, row_id, pk_column):
         return
 
     if table_name == "report_attachment":
+        table = _legacy_reflected_table(table_name)
         row = db.session.execute(
-            text(
-                f"""
-                SELECT file_path
-                FROM {table_ident}
-                WHERE {pk_ident} = :row_id
-                """
-            ),
-            {"row_id": row_id},
+            select(table.c.file_path).where(table.c[pk_column] == row_id)
         ).mappings().first()
         if row and row["file_path"] and os.path.exists(row["file_path"]):
             try:
@@ -504,15 +508,9 @@ def _legacy_cleanup_row_assets(table_name, row_id, pk_column):
         return
 
     if table_name == "report_export_job":
+        table = _legacy_reflected_table(table_name)
         row = db.session.execute(
-            text(
-                f"""
-                SELECT output_path
-                FROM {table_ident}
-                WHERE {pk_ident} = :row_id
-                """
-            ),
-            {"row_id": row_id},
+            select(table.c.output_path).where(table.c[pk_column] == row_id)
         ).mappings().first()
         if row and row["output_path"] and os.path.exists(row["output_path"]):
             try:
@@ -539,45 +537,20 @@ def _delete_legacy_row_tree(table_name, row_id, pk_column=None, visited=None):
             continue
         child_table = child_ref["child_table"]
         child_pk = _legacy_primary_key_column(child_table)
-        child_table_ident = _legacy_sql_ident(child_table)
-        child_column_ident = _legacy_sql_ident(child_ref["child_column"])
+        child_table_obj = _legacy_reflected_table(child_table)
+        child_fk_col = child_table_obj.c[child_ref["child_column"]]
         if child_pk:
-            child_pk_ident = _legacy_sql_ident(child_pk)
             child_ids = db.session.execute(
-                text(
-                    f"""
-                    SELECT {child_pk_ident}
-                    FROM {child_table_ident}
-                    WHERE {child_column_ident} = :row_id
-                    """
-                ),
-                {"row_id": row_id},
+                select(child_table_obj.c[child_pk]).where(child_fk_col == row_id)
             ).scalars().all()
             for child_id in child_ids:
                 _delete_legacy_row_tree(child_table, child_id, pk_column=child_pk, visited=visited)
         else:
-            db.session.execute(
-                text(
-                    f"""
-                    DELETE FROM {child_table_ident}
-                    WHERE {child_column_ident} = :row_id
-                    """
-                ),
-                {"row_id": row_id},
-            )
+            db.session.execute(delete(child_table_obj).where(child_fk_col == row_id))
 
     _legacy_cleanup_row_assets(table_name, row_id, pk_column)
-    table_ident = _legacy_sql_ident(table_name)
-    pk_ident = _legacy_sql_ident(pk_column)
-    db.session.execute(
-        text(
-            f"""
-            DELETE FROM {table_ident}
-            WHERE {pk_ident} = :row_id
-            """
-        ),
-        {"row_id": row_id},
-    )
+    table = _legacy_reflected_table(table_name)
+    db.session.execute(delete(table).where(table.c[pk_column] == row_id))
 
 
 def _report_type_id_from_legacy(report_type_code=None, frequency_code=None):

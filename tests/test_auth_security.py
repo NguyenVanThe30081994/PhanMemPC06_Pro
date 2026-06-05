@@ -63,11 +63,53 @@ class AuthSecurityTests(unittest.TestCase):
         response = self.client.get('/api/category-picker')
         self.assertEqual(response.status_code, 401)
 
+    def test_login_page_sets_security_headers(self):
+        response = self.client.get('/login', headers={'X-Forwarded-Proto': 'https'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get('X-Content-Type-Options'), 'nosniff')
+        self.assertEqual(response.headers.get('Referrer-Policy'), 'strict-origin-when-cross-origin')
+        self.assertIn("default-src 'self'", response.headers.get('Content-Security-Policy', ''))
+        self.assertIn('max-age=', response.headers.get('Strict-Transport-Security', ''))
+
+    def test_login_post_requires_csrf_token(self):
+        self.client.get('/login')
+        response = self.client.post(
+            '/login',
+            data={'username': 'auth_security_test', 'password': 'StrongPass1!'},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_login_post_accepts_valid_csrf_token(self):
+        self.client.get('/login')
+        with self.client.session_transaction() as sess:
+            csrf_token = sess.get('csrf_token')
+        response = self.client.post(
+            '/login',
+            data={
+                'username': 'auth_security_test',
+                'password': 'StrongPass1!',
+                'csrf_token': csrf_token,
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 302)
+
+    def test_security_txt_is_public(self):
+        response = self.client.get('/.well-known/security.txt')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, 'text/plain')
+        self.assertIn('Contact:'.encode('utf-8'), response.data)
+        self.assertIn('Policy:'.encode('utf-8'), response.data)
+
     def test_login_lockout_blocks_after_repeated_failures(self):
+        self.client.get('/login')
+        with self.client.session_transaction() as sess:
+            csrf_token = sess.get('csrf_token')
         for attempt in range(2):
             response = self.client.post(
                 '/login',
-                data={'username': 'auth_security_test', 'password': 'wrong-pass'},
+                data={'username': 'auth_security_test', 'password': 'wrong-pass', 'csrf_token': csrf_token},
                 follow_redirects=True,
             )
             self.assertEqual(response.status_code, 200)
@@ -75,7 +117,7 @@ class AuthSecurityTests(unittest.TestCase):
 
         lock_response = self.client.post(
             '/login',
-            data={'username': 'auth_security_test', 'password': 'wrong-pass'},
+            data={'username': 'auth_security_test', 'password': 'wrong-pass', 'csrf_token': csrf_token},
             follow_redirects=True,
         )
         self.assertEqual(lock_response.status_code, 200)
@@ -83,7 +125,7 @@ class AuthSecurityTests(unittest.TestCase):
 
         blocked_response = self.client.post(
             '/login',
-            data={'username': 'auth_security_test', 'password': 'StrongPass1!'},
+            data={'username': 'auth_security_test', 'password': 'StrongPass1!', 'csrf_token': csrf_token},
             follow_redirects=True,
         )
         self.assertEqual(blocked_response.status_code, 200)

@@ -5,9 +5,10 @@ from models import db, ShortLink, User
 from category_helpers import canonicalize_category_value, module_category_options, stable_form_category_options, sync_record_categories
 import qrcode
 from io import BytesIO
-import random
+import secrets
 import string
 import datetime
+from urllib.parse import urlparse
 
 shortlink_bp = Blueprint('shortlink_bp', __name__)
 
@@ -27,18 +28,32 @@ def generate_short_code(length=6):
     
     # Try up to 100 times before giving up
     for _ in range(100):
-        code = ''.join(random.choice(chars) for _ in range(length))
+        code = ''.join(secrets.choice(chars) for _ in range(length))
         if code not in existing_codes:
             return code
     
     # Fallback: try longer length
     for length in range(7, 12):
         for _ in range(100):
-            code = ''.join(random.choice(chars) for _ in range(length))
+            code = ''.join(secrets.choice(chars) for _ in range(length))
             if code not in existing_codes:
                 return code
     
     raise Exception("Không thể tạo mã rút gọn. Vui lòng thử lại.")
+
+
+def _normalize_target_url(raw_url):
+    candidate = (raw_url or '').strip()
+    if not candidate:
+        return None
+    if not (candidate.startswith('http://') or candidate.startswith('https://')):
+        candidate = 'https://' + candidate
+    parsed = urlparse(candidate)
+    if parsed.scheme not in {'http', 'https'}:
+        return None
+    if not parsed.netloc or parsed.username or parsed.password:
+        return None
+    return candidate
 
 @shortlink_bp.route('/links')
 def manage_links():
@@ -72,7 +87,7 @@ def add_link():
         return redirect(url_for('auth_bp.login'))
     _ensure_shortlink_schema()
 
-    original_url = request.form.get('original_url', '').strip()
+    original_url = _normalize_target_url(request.form.get('original_url', ''))
     custom_code = request.form.get('custom_code', '').strip()
     custom_name = request.form.get('custom_name', '').strip()
     info = request.form.get('info', '').strip()
@@ -84,9 +99,6 @@ def add_link():
     if not original_url:
         flash('Vui lòng nhập đường dẫn gốc!', 'danger')
         return redirect(url_for('shortlink_bp.manage_links'))
-        
-    if not (original_url.startswith('http://') or original_url.startswith('https://')):
-        original_url = 'https://' + original_url
 
     if custom_code:
         # Check if custom code exists
@@ -134,7 +146,7 @@ def edit_link(link_id):
         flash('Bạn không có quyền sửa liên kết này!', 'danger')
         return redirect(url_for('shortlink_bp.manage_links'))
 
-    original_url = request.form.get('original_url', '').strip()
+    original_url = _normalize_target_url(request.form.get('original_url', ''))
     custom_code = request.form.get('custom_code', '').strip()
     custom_name = request.form.get('custom_name', '').strip()
     info = request.form.get('info', '').strip()
@@ -144,9 +156,6 @@ def edit_link(link_id):
     if not original_url:
         flash('Vui lòng nhập đường dẫn gốc!', 'danger')
         return redirect(url_for('shortlink_bp.manage_links'))
-
-    if not (original_url.startswith('http://') or original_url.startswith('https://')):
-        original_url = 'https://' + original_url
 
     if not custom_code:
         flash('Mã rút gọn không được để trống khi cập nhật.', 'danger')

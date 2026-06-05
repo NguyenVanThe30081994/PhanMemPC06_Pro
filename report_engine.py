@@ -4,6 +4,8 @@ import json
 import os
 import re
 import unicodedata
+import ast
+import operator as op
 from copy import copy
 from datetime import date, datetime
 
@@ -15,6 +17,18 @@ from openpyxl.utils.cell import range_boundaries
 CELL_REF_RE = re.compile(r'(?<![A-Z0-9_"])\$?[A-Z]{1,3}\$?\d+')
 RANGE_REF_RE = re.compile(r'\$?[A-Z]{1,3}\$?\d+:\$?[A-Z]{1,3}\$?\d+')
 ROW_RANGE_REF_RE = re.compile(r'(?<![A-Z0-9_"])\$?\d+:\$?\d+(?![A-Z0-9_"])')
+_FORMULA_BIN_OPS = {
+    ast.Add: op.add,
+    ast.Sub: op.sub,
+    ast.Mult: op.mul,
+    ast.Div: op.truediv,
+    ast.Pow: op.pow,
+    ast.Mod: op.mod,
+}
+_FORMULA_UNARY_OPS = {
+    ast.UAdd: op.pos,
+    ast.USub: op.neg,
+}
 
 
 def normalize_code(value):
@@ -59,6 +73,31 @@ def _safe_color(color_obj):
     except Exception:
         return None
     return None
+
+
+def _safe_formula_eval(expression, allowed_functions):
+    def eval_node(node):
+        if isinstance(node, ast.Expression):
+            return eval_node(node.body)
+        if isinstance(node, ast.Constant):
+            if isinstance(node.value, (int, float, str)):
+                return node.value
+            raise ValueError("Unsupported constant in formula")
+        if isinstance(node, ast.Num):
+            return node.n
+        if isinstance(node, ast.BinOp) and type(node.op) in _FORMULA_BIN_OPS:
+            return _FORMULA_BIN_OPS[type(node.op)](eval_node(node.left), eval_node(node.right))
+        if isinstance(node, ast.UnaryOp) and type(node.op) in _FORMULA_UNARY_OPS:
+            return _FORMULA_UNARY_OPS[type(node.op)](eval_node(node.operand))
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            func = allowed_functions.get(node.func.id)
+            if not func:
+                raise ValueError("Unsupported function in formula")
+            return func(*[eval_node(arg) for arg in node.args])
+        raise ValueError("Unsupported formula expression")
+
+    parsed = ast.parse(expression, mode="eval")
+    return eval_node(parsed)
 
 
 def is_input_cell(cell):
@@ -341,17 +380,14 @@ def _evaluate_sheet_formulas(ws):
         transformed = CELL_REF_RE.sub(lambda m: f'CELL("{m.group(0).replace("$", "").upper()}")', transformed)
         for key, replacement in range_placeholders.items():
             transformed = transformed.replace(key, replacement)
+        allowed_functions = {
+            "CELL": cell_value,
+            "RANGE": range_values,
+            "FUNC_SUM": func_sum,
+            "FUNC_IFERROR": func_iferror,
+        }
         try:
-            result = eval(
-                transformed,
-                {"__builtins__": {}},
-                {
-                    "CELL": cell_value,
-                    "RANGE": range_values,
-                    "FUNC_SUM": func_sum,
-                    "FUNC_IFERROR": func_iferror,
-                },
-            )
+            result = _safe_formula_eval(transformed, allowed_functions)
         except ZeroDivisionError:
             return ""
         except Exception:
@@ -360,16 +396,7 @@ def _evaluate_sheet_formulas(ws):
                 args = _split_formula_args(inner)
                 if len(args) == 2:
                     try:
-                        return eval(
-                            args[1],
-                            {"__builtins__": {}},
-                            {
-                                "CELL": cell_value,
-                                "RANGE": range_values,
-                                "FUNC_SUM": func_sum,
-                                "FUNC_IFERROR": func_iferror,
-                            },
-                        )
+                        return _safe_formula_eval(args[1], allowed_functions)
                     except Exception:
                         return ""
             return formula

@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token_value }}">
     <title>{{ title|default("Hệ thống Quản trị PC06") }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
@@ -1369,6 +1370,59 @@
     {% block scripts %}{% endblock %}
 
     <script>
+        (function () {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+            function attachCsrfToken(form) {
+                if (!form || !csrfToken) {
+                    return;
+                }
+                if (!/^(POST|PUT|PATCH|DELETE)$/i.test(form.method || 'GET')) {
+                    return;
+                }
+                let input = form.querySelector('input[name="csrf_token"]');
+                if (!input) {
+                    input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'csrf_token';
+                    form.appendChild(input);
+                }
+                input.value = csrfToken;
+            }
+
+            document.querySelectorAll('form').forEach(attachCsrfToken);
+
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    mutation.addedNodes.forEach((node) => {
+                        if (!(node instanceof Element)) {
+                            return;
+                        }
+                        if (node.matches('form')) {
+                            attachCsrfToken(node);
+                        }
+                        node.querySelectorAll?.('form').forEach(attachCsrfToken);
+                    });
+                });
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+
+            const originalFetch = window.fetch;
+            window.fetch = function (resource, options = {}) {
+                const request = new Request(resource, options);
+                const method = (request.method || 'GET').toUpperCase();
+                const url = new URL(request.url, window.location.origin);
+                if (csrfToken && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && url.origin === window.location.origin) {
+                    const headers = new Headers(options.headers || request.headers || {});
+                    if (!headers.has('X-CSRF-Token')) {
+                        headers.set('X-CSRF-Token', csrfToken);
+                    }
+                    options = { ...options, headers };
+                }
+                return originalFetch(resource, options);
+            };
+        })();
+
         async function checkUpdates() {
             try {
                 const r = await fetch('/api/notifications');

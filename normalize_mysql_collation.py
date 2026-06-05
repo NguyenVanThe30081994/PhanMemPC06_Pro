@@ -3,11 +3,19 @@
 
 import argparse
 import os
+import re
 
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.engine import make_url
 
 from storage import _normalize_database_uri
+
+
+def _validate_mysql_identifier(name):
+    candidate = str(name or "").strip()
+    if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", candidate):
+        raise ValueError(f"Invalid identifier: {name!r}")
+    return candidate
 
 
 def normalize(target_url, apply=False, charset="utf8mb4", collation="utf8mb4_unicode_ci"):
@@ -37,18 +45,20 @@ def normalize(target_url, apply=False, charset="utf8mb4", collation="utf8mb4_uni
 
     with engine.begin() as conn:
         if db_name:
-            sql = f"ALTER DATABASE `{db_name}` CHARACTER SET {charset} COLLATE {collation}"
+            safe_db_name = _validate_mysql_identifier(db_name)
+            sql = f"ALTER DATABASE `{safe_db_name}` CHARACTER SET {charset} COLLATE {collation}"
             print(sql)
             if apply:
-                conn.execute(text(sql))
+                conn.exec_driver_sql(sql)
                 summary["database_altered"] = 1
 
         for table_name in inspector.get_table_names():
             summary["tables_seen"] += 1
-            sql = f"ALTER TABLE `{table_name}` CONVERT TO CHARACTER SET {charset} COLLATE {collation}"
+            safe_table_name = _validate_mysql_identifier(table_name)
+            sql = f"ALTER TABLE `{safe_table_name}` CONVERT TO CHARACTER SET {charset} COLLATE {collation}"
             print(sql)
             if apply:
-                conn.execute(text(sql))
+                conn.exec_driver_sql(sql)
                 summary["tables_altered"] += 1
 
     return summary

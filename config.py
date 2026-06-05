@@ -3,10 +3,21 @@
 Configuration constants for PC06 application
 """
 import os
+import hashlib
 from datetime import timedelta
 
 # Security
-SECRET_KEY = os.environ.get('SECRET_KEY', 'PC06_FINAL_V3_5_2026')  # Change in production!
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    secret_seed = '::'.join(
+        [
+            os.path.abspath(__file__),
+            os.environ.get('DATABASE_URL', 'sqlite:///pc06_system.db'),
+            os.environ.get('PC06_DATA_DIR', ''),
+            os.environ.get('FLASK_ENV', 'development'),
+        ]
+    )
+    SECRET_KEY = hashlib.sha256(secret_seed.encode('utf-8')).hexdigest()
 SESSION_LIFETIME = int(os.environ.get('SESSION_LIFETIME', 28800))  # 8 hours
 
 # File Upload
@@ -42,6 +53,10 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_NAME = os.environ.get('SESSION_COOKIE_NAME', 'pc06_session')
 SESSION_REFRESH_EACH_REQUEST = True
+HSTS_MAX_AGE_SECONDS = int(os.environ.get('HSTS_MAX_AGE_SECONDS', 31536000))
+HSTS_INCLUDE_SUBDOMAINS = os.environ.get('HSTS_INCLUDE_SUBDOMAINS', 'true').lower() == 'true'
+HSTS_PRELOAD = os.environ.get('HSTS_PRELOAD', 'false').lower() == 'true'
+REFERRER_POLICY = os.environ.get('REFERRER_POLICY', 'strict-origin-when-cross-origin')
 
 # Password Policy
 MIN_PASSWORD_LENGTH = 8

@@ -3,8 +3,9 @@
 
 import argparse
 import os
+import re
 
-from sqlalchemy import MetaData, create_engine, inspect, schema, select, text
+from sqlalchemy import MetaData, create_engine, func, inspect, schema, select
 
 from storage import _normalize_database_uri
 
@@ -46,7 +47,14 @@ def _create_table_on_target(target_table, target_conn, dialect_name):
 
 def _set_target_session_guards(target_conn, dialect_name, enabled):
     if dialect_name in {"mysql", "mariadb"}:
-        target_conn.execute(text(f"SET FOREIGN_KEY_CHECKS = {1 if enabled else 0}"))
+        target_conn.exec_driver_sql(f"SET FOREIGN_KEY_CHECKS = {1 if enabled else 0}")
+
+
+def _validate_identifier(name):
+    candidate = str(name or "").strip()
+    if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", candidate):
+        raise ValueError(f"Invalid SQL identifier: {name!r}")
+    return candidate
 
 
 def _target_engine(target_url):
@@ -104,8 +112,13 @@ def migrate(source_sqlite_path, target_url, apply=False, chunk_size=500):
                     target_meta.reflect(bind=target_engine, only=[table_name])
                     target_table = target_meta.tables[table_name]
 
-                source_total = source_conn.execute(text(f'SELECT COUNT(*) FROM "{table_name}"')).scalar() or 0
-                existing_total = target_conn.execute(text(f"SELECT COUNT(*) FROM `{table_name}`")).scalar() or 0
+                _validate_identifier(table_name)
+                source_total = source_conn.execute(
+                    select(func.count()).select_from(source_table)
+                ).scalar() or 0
+                existing_total = target_conn.execute(
+                    select(func.count()).select_from(target_table)
+                ).scalar() or 0
                 summary["rows_existing"] += existing_total
                 if existing_total:
                     summary["tables_skipped_non_empty"] += 1

@@ -832,7 +832,7 @@ def save_attendance_config():
     config.active_weekdays_json = json.dumps(list(range(7)), ensure_ascii=False)
     config.early_checkin_minutes = 0
     config.late_allow_minutes = late_allow_minutes
-    config.is_active = bool(request.form.get('is_active'))
+    config.is_active = (request.form.get('is_active') or '').strip().lower() in {'1', 'true', 'on', 'yes'}
     config.note = ''
     config.target_type = target_type
     config.target_role_id = target_role_id if target_type == 'role' else None
@@ -914,7 +914,8 @@ def update_attendance_submission(submission_id):
     selected_unit_key = (request.form.get('unit_key') or '').strip()
     selected_unit = unit_option_map.get(selected_unit_key)
     note = (request.form.get('note') or '').strip()
-    replace_proof = bool(request.files.get('proof_image') and request.files.get('proof_image').filename)
+    proof_file = request.files.get('proof_image')
+    replace_proof = proof_file is not None and (proof_file.filename or '').strip() != ''
 
     if not selected_unit:
         flash('Bạn cần chọn đơn vị hợp lệ để cập nhật.', 'danger')

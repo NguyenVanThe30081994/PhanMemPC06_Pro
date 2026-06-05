@@ -31,6 +31,7 @@
     <p class="login-subtitle">Chào mừng bạn quay trở lại hệ thống</p>
 
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
         <div class="form-floating mb-3 text-start">
             <input type="text" name="username" class="form-control" id="uInput" placeholder="Tên đăng nhập" required autofocus>
             <label for="uInput" class="fw-medium small"><i class="fa-solid fa-user me-2"></i>Tên đăng nhập</label>

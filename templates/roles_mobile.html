@@ -107,6 +107,7 @@
 </form>
 <form method="POST" action="{{ url_for('admin_bp.reset_users_password_bulk') }}" id="mobileBulkPasswordResetForm" class="d-none">
     <input type="hidden" name="selected_ids" id="mobileBulkPasswordResetSelectedIds">
+    <input type="hidden" name="temporary_password" id="mobileBulkPasswordResetTemporaryPassword">
     {% if selected_role_id %}<input type="hidden" name="role_id" value="{{ selected_role_id }}">{% endif %}
     {% if selected_unit %}<input type="hidden" name="unit" value="{{ selected_unit }}">{% endif %}
     {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
@@ -346,8 +347,15 @@ function submitMobileBulkPasswordReset() {
         alert('Không có tài khoản nào trong danh sách hiện tại để reset mật khẩu.');
         return;
     }
-    if (!confirm(`Reset mật khẩu cho toàn bộ ${resettableIds.length} tài khoản đang hiển thị về mặc định 123456 và yêu cầu đổi mật khẩu khi đăng nhập?`)) return;
+    const tempPassword = window.prompt(`Nhập mật khẩu tạm thời mạnh cho ${resettableIds.length} tài khoản được chọn.`, '');
+    if (!tempPassword) return;
+    const confirmPassword = window.prompt('Nhập lại mật khẩu tạm thời để xác nhận.', '');
+    if (tempPassword !== confirmPassword) {
+        alert('Mật khẩu xác nhận không khớp.');
+        return;
+    }
     document.getElementById('mobileBulkPasswordResetSelectedIds').value = JSON.stringify(resettableIds);
+    document.getElementById('mobileBulkPasswordResetTemporaryPassword').value = tempPassword;
     document.getElementById('mobileBulkPasswordResetForm').submit();
 }
 

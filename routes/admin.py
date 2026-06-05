@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, current_app, Response, send_from_directory
 from sqlalchemy import func
-from models import db, User, AppRole, MasterData, SystemLog, Task, NewsDoc, DocumentLib, Contact, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding, AIAssistantConfig
+from models import db, User, AppRole, SystemLog, Task, NewsDoc, DocumentLib, Contact, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding, AIAssistantConfig
 from werkzeug.security import generate_password_hash
+from urllib.parse import urlparse
+import ipaddress
 try:
     from security_utils.password_validator import validate_password, get_password_requirements
 except ImportError:
@@ -305,7 +307,7 @@ def _mask_secret(value):
     return f"{value[:4]}{'*' * (len(value) - 8)}{value[-4:]}"
 
 
-def _reset_users_passwords_bulk(user_query, default_password='123456'):
+def _reset_users_passwords_bulk(user_query, temporary_password):
     target_rows = user_query.with_entities(User.id, User.username).all()
     if not target_rows:
         return 0, False
@@ -315,7 +317,7 @@ def _reset_users_passwords_bulk(user_query, default_password='123456'):
     if not target_ids:
         return 0, skipped_admin
 
-    default_hash = generate_password_hash(default_password, method='pbkdf2:sha256')
+    default_hash = generate_password_hash(temporary_password, method='pbkdf2:sha256')
     User.query.filter(User.id.in_(target_ids)).update(
         {
             User.password_hash: default_hash,
@@ -324,6 +326,55 @@ def _reset_users_passwords_bulk(user_query, default_password='123456'):
         synchronize_session=False,
     )
     return len(target_ids), skipped_admin
+
+
+GIT_BIN = shutil.which('git') or 'git'
+
+
+def _run_git_command(args, **kwargs):
+    return subprocess.run(
+        [GIT_BIN, *args],
+        cwd=kwargs.pop('cwd', current_app.root_path),
+        capture_output=kwargs.pop('capture_output', True),
+        text=kwargs.pop('text', True),
+        **kwargs,
+    )
+
+
+def _is_private_or_local_host(hostname):
+    if not hostname:
+        return True
+    normalized = hostname.strip().strip('[]').lower()
+    if normalized in {'localhost', '127.0.0.1', '::1'} or normalized.endswith('.local'):
+        return True
+    try:
+        ip_value = ipaddress.ip_address(normalized)
+        return (
+            ip_value.is_private
+            or ip_value.is_loopback
+            or ip_value.is_link_local
+            or ip_value.is_multicast
+            or ip_value.is_reserved
+        )
+    except ValueError:
+        return False
+
+
+def _is_safe_git_remote_url(remote_url):
+    candidate = (remote_url or '').strip()
+    if not candidate:
+        return False
+
+    parsed = urlparse(candidate)
+    if parsed.scheme in {'http', 'https', 'ssh'}:
+        return bool(parsed.hostname) and not _is_private_or_local_host(parsed.hostname)
+
+    # Support SCP-like git remotes such as git@github.com:owner/repo.git
+    if re.match(r'^[A-Za-z0-9_.-]+@[A-Za-z0-9.-]+:[A-Za-z0-9._/\-]+(?:\.git)?$', candidate):
+        host = candidate.split('@', 1)[1].split(':', 1)[0]
+        return not _is_private_or_local_host(host)
+
+    return False
 
 
 def _test_ai_runtime_connection():
@@ -1041,7 +1092,6 @@ def roles():
         permission_modules=PERMISSION_MODULES,
         default_role_permission_map=json.dumps(build_default_role_permissions(''), ensure_ascii=False),
         default_role_module_codes=json.dumps(list(DEFAULT_ROLE_MODULE_CODES), ensure_ascii=False),
-        units=[u[0] for u in db.session.query(MasterData.name).distinct().all() if u[0]],
         unit_cats=stable_form_category_options(unit_options)
     )
 
@@ -1220,7 +1270,13 @@ def reset_users_password_bulk():
     else:
         reset_query = users_query
 
-    updated_count, skipped_admin = _reset_users_passwords_bulk(reset_query, default_password='123456')
+    temporary_password = (request.form.get('temporary_password') or '').strip()
+    is_valid_password, password_error = validate_password(temporary_password)
+    if not is_valid_password:
+        flash(password_error or f'Mật khẩu tạm thời không hợp lệ. {get_password_requirements()}', 'danger')
+        return redirect(url_for('admin_bp.roles', role_id=selected_role_id, unit=selected_unit, q=search_query))
+
+    updated_count, skipped_admin = _reset_users_passwords_bulk(reset_query, temporary_password=temporary_password)
     if updated_count == 0 and not skipped_admin:
         flash('Không có tài khoản nào trong danh sách hiện tại để reset mật khẩu.', 'warning')
         return redirect(url_for('admin_bp.roles', role_id=selected_role_id, unit=selected_unit, q=search_query))
@@ -1244,9 +1300,9 @@ def reset_users_password_bulk():
         session['fullname'],
         "Reset mật khẩu hàng loạt",
         "Tài khoản",
-        f"so_luong={updated_count} | mat_khau_mac_dinh=123456" + (f" | {'; '.join(filter_parts)}" if filter_parts else "")
+        f"so_luong={updated_count} | reset_tam_thoi=co_bat_buoc_doi_mat_khau" + (f" | {'; '.join(filter_parts)}" if filter_parts else "")
     )
-    flash(f'Đã reset {updated_count} tài khoản về mật khẩu mặc định 123456 và yêu cầu đổi mật khẩu khi đăng nhập.', 'success')
+    flash(f'Đã reset {updated_count} tài khoản với mật khẩu tạm thời bạn vừa nhập và yêu cầu đổi mật khẩu khi đăng nhập.', 'success')
     if skipped_admin:
         flash('Tài khoản admin hệ thống được giữ lại và không bị reset mật khẩu.', 'warning')
     return redirect(url_for('admin_bp.roles', role_id=selected_role_id, unit=selected_unit, q=search_query))
@@ -1460,19 +1516,19 @@ def system_update():
     # Get git info
     git_info = {'branch': 'main', 'version': 'v3.5.0', 'commit_msg': 'Phiên bản hiện tại', 'commit_author': 'PC06', 'commit_date': datetime.now().strftime('%d/%m/%Y')}
     try:
-        br = subprocess.run(['git', 'branch', '--show-current'], cwd=current_app.root_path, capture_output=True, text=True)
+        br = _run_git_command(['branch', '--show-current'])
         if br.stdout: git_info['branch'] = br.stdout.strip()
         
-        ver = subprocess.run(['git', 'describe', '--tags', '--always'], cwd=current_app.root_path, capture_output=True, text=True)
+        ver = _run_git_command(['describe', '--tags', '--always'])
         if ver.stdout: git_info['version'] = ver.stdout.strip()
         
-        msg = subprocess.run(['git', 'log', '-1', '--format=%s'], cwd=current_app.root_path, capture_output=True, text=True)
+        msg = _run_git_command(['log', '-1', '--format=%s'])
         if msg.stdout: git_info['commit_msg'] = msg.stdout.strip()
         
-        author = subprocess.run(['git', 'log', '-1', '--format=%an'], cwd=current_app.root_path, capture_output=True, text=True)
+        author = _run_git_command(['log', '-1', '--format=%an'])
         if author.stdout: git_info['commit_author'] = author.stdout.strip()
         
-        date = subprocess.run(['git', 'log', '-1', '--format=%ad', '--date=short'], cwd=current_app.root_path, capture_output=True, text=True)
+        date = _run_git_command(['log', '-1', '--format=%ad', '--date=short'])
         if date.stdout: git_info['commit_date'] = date.stdout.strip()
     except: pass
     
@@ -1495,8 +1551,8 @@ def ai_settings():
         model_name = (request.form.get('model_name') or AI_PROVIDER_DEFAULTS[provider]).strip()
         system_prompt = (request.form.get('system_prompt') or '').strip()
         new_api_key = (request.form.get('api_key') or '').strip()
-        clear_api_key = bool(request.form.get('clear_api_key'))
-        is_active = bool(request.form.get('is_active'))
+        clear_api_key = (request.form.get('clear_api_key') or '').strip().lower() in {'1', 'true', 'on', 'yes'}
+        is_active = (request.form.get('is_active') or '').strip().lower() in {'1', 'true', 'on', 'yes'}
 
         try:
             if not config:
@@ -1587,29 +1643,25 @@ def git_pull():
     
     try:
         # Check if git is available
-        git_check = subprocess.run(['git', '--version'], capture_output=True, text=True)
+        git_check = _run_git_command(['--version'], cwd=current_app.root_path)
         if git_check.returncode != 0:
             flash('Git không khả dụng trên máy chủ này!', 'danger')
             return redirect(url_for('admin_bp.system_update'))
         
         # Check if this is a git repo
-        repo_check = subprocess.run(['git', 'rev-parse', '--git-dir'], 
-                                cwd=current_app.root_path, capture_output=True, text=True)
+        repo_check = _run_git_command(['rev-parse', '--git-dir'])
         if repo_check.returncode != 0:
             flash('Thư mục này không phải là Git repository!', 'danger')
             return redirect(url_for('admin_bp.system_update'))
         
         # Check remote
-        remote_check = subprocess.run(['git', 'remote', '-v'], 
-                                    cwd=current_app.root_path, capture_output=True, text=True)
+        remote_check = _run_git_command(['remote', '-v'])
         if not remote_check.stdout.strip():
             flash('Chưa cấu hình Git remote! Vui lòng thêm remote: git remote add origin <url>', 'warning')
             return redirect(url_for('admin_bp.system_update'))
         
         # Perform Git Pull
-        result = subprocess.run(['git', 'pull', 'origin', 'main'], 
-                             cwd=current_app.root_path, 
-                             capture_output=True, text=True, timeout=120)
+        result = _run_git_command(['pull', 'origin', 'main'], timeout=120)
         
         if result.returncode != 0:
             # Check if it's auth error
@@ -1645,8 +1697,7 @@ def git_status():
     """API: Get git status"""
     if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
     try:
-        result = subprocess.run(['git', 'status', '--short'], cwd=current_app.root_path, 
-                              capture_output=True, text=True)
+        result = _run_git_command(['status', '--short'])
         return jsonify({'output': result.stdout or 'Không có thay đổi'})
     except Exception as e:
         return jsonify({'output': f'Lỗi: {str(e)}'})
@@ -1656,8 +1707,7 @@ def git_log():
     """API: Get recent commits"""
     if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
     try:
-        result = subprocess.run(['git', 'log', '--oneline', '-5'], cwd=current_app.root_path, 
-                              capture_output=True, text=True)
+        result = _run_git_command(['log', '--oneline', '-5'])
         lines = result.stdout.strip().split('\n')
         commits = []
         for line in lines:
@@ -1678,26 +1728,16 @@ def git_remote():
         remote_url = request.form.get('remote_url', '').strip()
         if not remote_url:
             return jsonify({'status': 'error', 'message': 'Thiếu URL'})
-        
-        try:
-            # Check if remote exists
-            check = subprocess.run(['git', 'remote'], cwd=current_app.root_path, capture_output=True, text=True)
-            if 'origin' in check.stdout:
-                # Update existing
-                subprocess.run(['git', 'remote', 'set-url', 'origin', remote_url], 
-                             cwd=current_app.root_path, capture_output=True)
-            else:
-                # Add new
-                subprocess.run(['git', 'remote', 'add', 'origin', remote_url], 
-                             cwd=current_app.root_path, capture_output=True)
-            return jsonify({'status': 'success', 'message': 'Đã cập nhật remote URL'})
-        except Exception as e:
-            return jsonify({'status': 'error', 'message': str(e)})
+        if not _is_safe_git_remote_url(remote_url):
+            return jsonify({'status': 'error', 'message': 'Remote URL không hợp lệ hoặc không an toàn'})
+        return jsonify({
+            'status': 'error',
+            'message': 'Đã khóa thay đổi Git remote từ giao diện web. Hãy cập nhật remote trực tiếp trên máy chủ.'
+        }), 403
     
     # GET: Return current remote
     try:
-        result = subprocess.run(['git', 'remote', '-v'], cwd=current_app.root_path, 
-                              capture_output=True, text=True)
+        result = _run_git_command(['remote', '-v'])
         return jsonify({'output': result.stdout})
     except Exception as e:
         return jsonify({'output': '', 'error': str(e)})

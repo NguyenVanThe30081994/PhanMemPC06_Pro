@@ -1014,6 +1014,47 @@ body {
     border-radius: 11px;
 }
 
+.pc06-page-shell {
+    display: grid;
+    gap: 14px;
+}
+
+.pc06-hero-card {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+}
+
+.pc06-hero-grid {
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 0 !important;
+    min-height: 0 !important;
+}
+
+.pc06-hero-grid > div {
+    width: 100%;
+}
+
+.pc06-page-title {
+    display: none !important;
+}
+
+.pc06-hero-grid .pc06-action-cluster,
+.pc06-hero-grid .pc06-toolbar-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    width: 100%;
+}
+
 [data-theme="dark"] .desktop-subnav-link {
     background: rgba(30, 41, 59, 0.6);
 }

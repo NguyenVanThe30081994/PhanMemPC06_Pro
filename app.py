@@ -22,7 +22,8 @@ if hasattr(sys.stderr, 'reconfigure'):
 import logging
 from logging.handlers import RotatingFileHandler
 import json
-from flask import Flask, session, request, redirect, url_for, send_from_directory, render_template, g, jsonify
+from urllib.parse import urlparse
+from flask import Flask, session, request, redirect, url_for, send_from_directory, render_template, g, jsonify, Response
 from datetime import datetime, timedelta
 from werkzeug.exceptions import HTTPException
 from sqlalchemy import event
@@ -71,15 +72,20 @@ try:
         SESSION_COOKIE_NAME,
         SESSION_REFRESH_EACH_REQUEST,
         CSRF_TOKEN_LIFETIME,
+        HSTS_MAX_AGE_SECONDS,
+        HSTS_INCLUDE_SUBDOMAINS,
+        HSTS_PRELOAD,
+        REFERRER_POLICY,
         LOGIN_FAILURE_WINDOW_SECONDS,
         LOGIN_MAX_FAILURES_PER_USER,
         LOGIN_MAX_FAILURES_PER_IP,
         LOGIN_LOCKOUT_SECONDS,
         LOGIN_LOCKOUT_MULTIPLIER_MAX,
+        DEBUG,
         AUTH_FAILURE_DELAY_MS,
     )
 except ImportError:
-    SECRET_KEY = 'PC06_FINAL_V3_5_2026'
+    SECRET_KEY = os.environ.get('SECRET_KEY') or os.urandom(32).hex()
     SESSION_LIFETIME = 28800
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
     SESSION_COOKIE_SECURE = False
@@ -88,11 +94,16 @@ except ImportError:
     SESSION_COOKIE_NAME = 'pc06_session'
     SESSION_REFRESH_EACH_REQUEST = True
     CSRF_TOKEN_LIFETIME = 3600
+    HSTS_MAX_AGE_SECONDS = 31536000
+    HSTS_INCLUDE_SUBDOMAINS = True
+    HSTS_PRELOAD = False
+    REFERRER_POLICY = 'strict-origin-when-cross-origin'
     LOGIN_FAILURE_WINDOW_SECONDS = 900
     LOGIN_MAX_FAILURES_PER_USER = 5
     LOGIN_MAX_FAILURES_PER_IP = 20
     LOGIN_LOCKOUT_SECONDS = 900
     LOGIN_LOCKOUT_MULTIPLIER_MAX = 4
+    DEBUG = False
     AUTH_FAILURE_DELAY_MS = 600
 
 app.secret_key = SECRET_KEY
@@ -130,6 +141,10 @@ app.config['SESSION_COOKIE_NAME'] = SESSION_COOKIE_NAME
 app.config['SESSION_REFRESH_EACH_REQUEST'] = SESSION_REFRESH_EACH_REQUEST
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=SESSION_LIFETIME)  # 30 min timeout
 app.config['PC06_SESSION_TIMEOUT_SECONDS'] = SESSION_LIFETIME
+app.config['HSTS_MAX_AGE_SECONDS'] = HSTS_MAX_AGE_SECONDS
+app.config['HSTS_INCLUDE_SUBDOMAINS'] = HSTS_INCLUDE_SUBDOMAINS
+app.config['HSTS_PRELOAD'] = HSTS_PRELOAD
+app.config['REFERRER_POLICY'] = REFERRER_POLICY
 app.config['LOGIN_FAILURE_WINDOW_SECONDS'] = LOGIN_FAILURE_WINDOW_SECONDS
 app.config['LOGIN_MAX_FAILURES_PER_USER'] = LOGIN_MAX_FAILURES_PER_USER
 app.config['LOGIN_MAX_FAILURES_PER_IP'] = LOGIN_MAX_FAILURES_PER_IP
@@ -186,6 +201,31 @@ def _set_sqlite_pragmas(dbapi_connection, _connection_record):
         cursor.close()
 
 # Security Headers Configuration
+def _request_is_secure():
+    forwarded_proto = (request.headers.get('X-Forwarded-Proto') or '').lower()
+    forwarded_ssl = (request.headers.get('X-Forwarded-SSL') or '').lower()
+    return bool(request.is_secure or forwarded_proto == 'https' or forwarded_ssl == 'on')
+
+
+def _get_csrf_token():
+    token = session.get('csrf_token')
+    if not token:
+        import secrets
+        token = secrets.token_urlsafe(32)
+        session['csrf_token'] = token
+    return token
+
+
+def _is_same_origin(target_url):
+    if not target_url:
+        return False
+    parsed = urlparse(target_url)
+    if not parsed.scheme or not parsed.netloc:
+        return True
+    expected_scheme = 'https' if _request_is_secure() else request.scheme
+    return parsed.scheme == expected_scheme and parsed.netloc == request.host
+
+
 @app.after_request
 def add_security_headers(response):
     """Add security headers to all responses"""
@@ -195,15 +235,12 @@ def add_security_headers(response):
     response.headers['X-XSS-Protection'] = '1; mode=block'
     # Prevent content type sniffing
     response.headers['X-Content-Type-Options'] = 'nosniff'
-    # Strict Transport Security (if HTTPS is enabled)
-    # response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-    # Content Security Policy (basic - can be enhanced later)
-    # response.headers['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:;"
     # Referrer Policy
-    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Referrer-Policy'] = app.config.get('REFERRER_POLICY', 'strict-origin-when-cross-origin')
     response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
     response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
     response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
+    response.headers['X-Permitted-Cross-Domain-Policies'] = 'none'
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
@@ -215,6 +252,13 @@ def add_security_headers(response):
         "base-uri 'self'; "
         "object-src 'none';"
     )
+    if _request_is_secure():
+        hsts_value = f"max-age={int(app.config.get('HSTS_MAX_AGE_SECONDS', 31536000))}"
+        if app.config.get('HSTS_INCLUDE_SUBDOMAINS', True):
+            hsts_value += '; includeSubDomains'
+        if app.config.get('HSTS_PRELOAD', False):
+            hsts_value += '; preload'
+        response.headers['Strict-Transport-Security'] = hsts_value
     if request.endpoint in {'auth_bp.login', 'auth_bp.logout', 'auth_bp.change_password'} or session.get('uid'):
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         response.headers['Pragma'] = 'no-cache'
@@ -302,6 +346,14 @@ app.register_blueprint(health_bp)
 app.register_blueprint(ai_bp)
 app.register_blueprint(attendance_bp)
 
+@app.context_processor
+def inject_security_tokens():
+    return {
+        'csrf_token': _get_csrf_token,
+        'csrf_token_value': _get_csrf_token(),
+    }
+
+
 @app.before_request
 def check_auth():
     # 0. Device Detection
@@ -316,6 +368,8 @@ def check_auth():
         'shortlink_bp.get_qr',
         'health_bp.health_check',
         'health_bp.ping',
+        'security_txt',
+        'security_txt_well_known',
         'favicon',
     }
     if request.endpoint in public_endpoints or (request.endpoint and request.endpoint.startswith('static')):
@@ -338,6 +392,37 @@ def check_auth():
 
     if session.get('must_change') and request.endpoint not in {'auth_bp.change_password', 'auth_bp.logout'}:
         return redirect(url_for('auth_bp.change_password'))
+
+
+@app.before_request
+def enforce_csrf_protection():
+    if request.method in {'GET', 'HEAD', 'OPTIONS'}:
+        return
+    if request.endpoint and request.endpoint.startswith('static'):
+        return
+
+    csrf_exempt_endpoints = {
+        'attendance_bp.submit_attendance',
+    }
+    if request.endpoint in csrf_exempt_endpoints:
+        return
+
+    origin = request.headers.get('Origin')
+    referer = request.headers.get('Referer')
+    if origin and not _is_same_origin(origin):
+        return jsonify({'error': 'CSRF validation failed.'}), 400
+    if referer and not _is_same_origin(referer):
+        return jsonify({'error': 'CSRF validation failed.'}), 400
+
+    token = request.headers.get('X-CSRF-Token')
+    if not token:
+        token = request.form.get('csrf_token') or request.headers.get('X-CSRFToken')
+
+    expected_token = session.get('csrf_token')
+    if not expected_token or not token or token != expected_token:
+        if request.endpoint and request.endpoint.startswith('api_bp.'):
+            return jsonify({'error': 'CSRF validation failed.'}), 400
+        return ('Yêu cầu không hợp lệ hoặc phiên làm việc đã hết hạn.', 400)
 
 
 def build_session_activity_marker():
@@ -462,6 +547,30 @@ def favicon(): return send_from_directory(STATIC_DIR, 'favicon.ico') if os.path.
 @app.route('/')
 def index(): return redirect(url_for('admin_bp.index'))
 
+
+def _security_txt_content():
+    contact_email = os.environ.get('SECURITY_CONTACT_EMAIL', 'security@pc06tuyenquang.net')
+    contact_url = os.environ.get('SECURITY_CONTACT_URL', 'https://www.pc06tuyenquang.net/login')
+    policy_url = os.environ.get('SECURITY_POLICY_URL', contact_url)
+    expires = os.environ.get('SECURITY_TXT_EXPIRES', '2027-06-05T23:59:59+07:00')
+    return (
+        f"Contact: mailto:{contact_email}\n"
+        f"Contact: {contact_url}\n"
+        f"Policy: {policy_url}\n"
+        f"Expires: {expires}\n"
+        "Preferred-Languages: vi, en\n"
+    )
+
+
+@app.route('/security.txt')
+def security_txt():
+    return Response(_security_txt_content(), mimetype='text/plain')
+
+
+@app.route('/.well-known/security.txt')
+def security_txt_well_known():
+    return Response(_security_txt_content(), mimetype='text/plain')
+
 @app.route('/dl_file/<path:fn>')
 def dl_file(fn): 
     legacy_task_folder = os.path.join(app.root_path, 'task_files')
@@ -477,4 +586,4 @@ def dl_file(fn):
 if __name__ == '__main__':
     host = os.environ.get('PC06_HOST', '127.0.0.1')
     port = int(os.environ.get('PC06_PORT', '5000'))
-    app.run(host=host, port=port, debug=True)
+    app.run(host=host, port=port, debug=DEBUG)
