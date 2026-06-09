@@ -78,11 +78,9 @@ def save_submission(
         if has_later_daily_submission_fn(instance.id, report_date):
             return None, [f"Không thể cập nhật ngày {report_date.strftime('%d/%m/%Y')} vì đã có báo cáo ngày mới hơn."]
         metadata_payload["report_date"] = report_date.strftime("%Y-%m-%d")
-        metadata_payload["storage_mode"] = "full_snapshot"
+        metadata_payload["storage_mode"] = "daily_delta"
         metadata_payload["entry_values"] = payload_sheets
-        base_submissions = daily_snapshot_submissions_through_date_fn(instance.id, report_date)
-        base_values = effective_daily_cell_values_fn(base_submissions, template_version.id)
-        stored_sheet_values = merge_sheet_values_fn(base_values, payload_sheets)
+        stored_sheet_values = payload_sheets
 
     submission = make_submission_fn(
         template_id=template_version.template_id,

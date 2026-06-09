@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import shutil
+from urllib.parse import urlparse
 
 
 MUTABLE_DIR_ENV_MAP = {
@@ -15,6 +16,7 @@ MUTABLE_DIR_ENV_MAP = {
 }
 
 _PLACEHOLDER_FILES = {".gitkeep", ".DS_Store"}
+_PLACEHOLDER_DB_HOSTS = {"host", "hostname", "dbhost", "example", "example.com"}
 
 
 def _absolute_path(base_dir, value):
@@ -30,6 +32,34 @@ def _running_under_passenger():
         os.environ.get(key)
         for key in ("PASSENGER_APP_ENV", "PASSENGER_BASE_URI", "PASSENGER_SPAWN_METHOD")
     )
+
+
+def _normalize_database_uri(raw_uri):
+    uri = (raw_uri or "").strip()
+    if uri.startswith("mysql://"):
+        return "mysql+pymysql://" + uri[len("mysql://"):]
+    if uri.startswith("mariadb://"):
+        return "mariadb+pymysql://" + uri[len("mariadb://"):]
+    return uri
+
+
+def _validate_external_database_uri(raw_uri):
+    uri = (raw_uri or "").strip()
+    if not uri.startswith(("mysql+pymysql://", "mariadb+pymysql://")):
+        return
+
+    parsed = urlparse(uri)
+    hostname = (parsed.hostname or "").strip().lower()
+    if not hostname:
+        raise RuntimeError(
+            "DATABASE_URL is missing the database host. "
+            "Use a real MySQL/MariaDB hostname such as localhost or the cPanel database host."
+        )
+    if hostname in _PLACEHOLDER_DB_HOSTS:
+        raise RuntimeError(
+            f"DATABASE_URL is using a placeholder host ({hostname}). "
+            "Replace it with the real MySQL/MariaDB host from cPanel, usually localhost."
+        )
 
 
 def _resolve_data_root(base_dir):
@@ -52,7 +82,18 @@ def _resolve_mutable_path(base_dir, data_root, env_name, default_dirname):
 
 
 def _resolve_database_uri(base_dir, data_root):
-    raw_uri = (os.environ.get("DATABASE_URL") or "").strip()
+    raw_uri = _normalize_database_uri(os.environ.get("DATABASE_URL") or "")
+    strict_passenger_db = _running_under_passenger() and os.environ.get("PC06_ALLOW_SQLITE_IN_PASSENGER") != "1"
+    if strict_passenger_db and not raw_uri:
+        raise RuntimeError(
+            "DATABASE_URL must be set when running under Passenger. "
+            "Production deployments must use an external database instead of SQLite fallback."
+        )
+    if strict_passenger_db and raw_uri.startswith("sqlite:///"):
+        raise RuntimeError(
+            "SQLite is not allowed when running under Passenger. "
+            "Set DATABASE_URL to the cPanel MySQL/MariaDB connection string."
+        )
     if not raw_uri:
         return "sqlite:///" + os.path.abspath(os.path.join(data_root, "pc06_system.db"))
 
@@ -64,6 +105,7 @@ def _resolve_database_uri(base_dir, data_root):
             resolved_path = os.path.join(data_root, sqlite_path)
         return "sqlite:///" + os.path.abspath(resolved_path)
 
+    _validate_external_database_uri(raw_uri)
     return raw_uri
 
 

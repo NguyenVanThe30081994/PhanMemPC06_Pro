@@ -25,6 +25,17 @@ PYTHONPYCACHEPREFIX=/private/tmp/pc06_pycache python3 -m unittest tests.test_pro
 
 `migrate.py` hiện kiểm tra và backfill các lớp runtime mới của đề án: `task_item`, `task_participant`, `task_submission`, `task_report_link`.
 
+## 🗄 Production Database
+
+Reporty production should run on cPanel MySQL/MariaDB with mutable files stored outside `public_html`.
+
+- Set `DATABASE_URL=mysql://user:password@localhost/db_name`
+- Set `PC06_DATA_DIR=/home/<cpanel_user>/pc06_data`
+- Install `PyMySQL` from [requirements.txt](/Users/thenhung/Documents/GitHub/PhanMemPC06_Pro/requirements.txt)
+- Restart Passenger after config changes with `touch tmp/restart.txt`
+
+For SQLite to MySQL cutover and daily-report recovery steps, see [docs/reporty-mysql-cutover.md](/Users/thenhung/Documents/GitHub/PhanMemPC06_Pro/docs/reporty-mysql-cutover.md).
+
 ## 📄 Tài liệu
 
 - **CHANGELOG.md** - Timeline gộp toàn bộ ghi chú thay đổi

@@ -63,7 +63,7 @@ class AttendanceRouteTests(unittest.TestCase):
         return user
 
     def test_attendance_page_renders_for_logged_in_admin(self):
-        self._login_admin_session()
+        admin_user = self._login_admin_session()
 
         with app.app_context():
             config = AttendanceConfig(
@@ -74,6 +74,8 @@ class AttendanceRouteTests(unittest.TestCase):
                 early_checkin_minutes=15,
                 late_allow_minutes=45,
                 is_active=True,
+                target_type='role',
+                target_role_id=admin_user.role_id,
             )
             db.session.add(config)
             db.session.commit()
@@ -83,7 +85,7 @@ class AttendanceRouteTests(unittest.TestCase):
             response = self.client.get('/attendance')
             self.assertEqual(response.status_code, 200)
             self.assertIn('Điểm danh'.encode('utf-8'), response.data)
-            self.assertIn('ảnh minh chứng'.encode('utf-8'), response.data)
+            self.assertIn('Tạo nhiệm vụ điểm danh'.encode('utf-8'), response.data)
         finally:
             with app.app_context():
                 AttendanceConfig.query.filter_by(id=config_id).delete()
@@ -107,8 +109,8 @@ class AttendanceRouteTests(unittest.TestCase):
         try:
             response = self.client.get('/attendance')
             self.assertEqual(response.status_code, 200)
-            self.assertIn('Không cần đăng nhập'.encode('utf-8'), response.data)
-            self.assertIn('Chọn đơn vị'.encode('utf-8'), response.data)
+            self.assertIn('Điểm danh cần đăng nhập'.encode('utf-8'), response.data)
+            self.assertIn('Đăng nhập'.encode('utf-8'), response.data)
         finally:
             with app.app_context():
                 AttendanceConfig.query.filter_by(id=config_id).delete()
@@ -132,28 +134,26 @@ class AttendanceRouteTests(unittest.TestCase):
         try:
             response = self.client.get('/diem-danh')
             self.assertEqual(response.status_code, 200)
-            self.assertIn('/diem-danh'.encode('utf-8'), response.data)
-            self.assertIn('Điểm danh trực tiếp theo đơn vị'.encode('utf-8'), response.data)
+            self.assertIn('Điểm danh cần đăng nhập'.encode('utf-8'), response.data)
+            self.assertIn('Đăng nhập'.encode('utf-8'), response.data)
         finally:
             with app.app_context():
                 AttendanceConfig.query.filter_by(id=config_id).delete()
                 db.session.commit()
 
     def test_admin_can_create_update_and_delete_attendance_config(self):
-        self._login_admin_session()
+        admin_user = self._login_admin_session()
 
         create_response = self.client.post(
             '/attendance/config',
             data={
                 'name': 'CRUD attendance config',
-                'mode': 'schedule',
-                'schedule_times': '08:00\n11:30',
-                'weekdays': ['0', '1', '2'],
-                'early_checkin_minutes': '10',
-                'late_allow_minutes': '30',
                 'day_start_time': '08:00',
-                'day_end_time': '17:00',
-                'note': 'Initial note',
+                'day_end_time': '10:00',
+                'interval_minutes': '30',
+                'late_allow_minutes': '20',
+                'target_type': 'role',
+                'target_role_id': str(admin_user.role_id),
             },
         )
         self.assertEqual(create_response.status_code, 302)
@@ -164,21 +164,19 @@ class AttendanceRouteTests(unittest.TestCase):
                 config = AttendanceConfig.query.filter_by(name='CRUD attendance config').order_by(AttendanceConfig.id.desc()).first()
                 self.assertIsNotNone(config)
                 config_id = config.id
-                self.assertEqual(config.note, 'Initial note')
+                self.assertEqual(config.target_role_id, admin_user.role_id)
 
             update_response = self.client.post(
                 '/attendance/config',
                 data={
                     'config_id': str(config_id),
                     'name': 'CRUD attendance config updated',
-                    'mode': 'interval',
-                    'interval_minutes': '90',
-                    'weekdays': ['0', '1', '2', '3', '4'],
-                    'early_checkin_minutes': '5',
-                    'late_allow_minutes': '20',
-                    'day_start_time': '07:30',
-                    'day_end_time': '18:00',
-                    'note': 'Updated note',
+                    'day_start_time': '09:30',
+                    'day_end_time': '11:30',
+                    'interval_minutes': '15',
+                    'late_allow_minutes': '10',
+                    'target_type': 'role',
+                    'target_role_id': str(admin_user.role_id),
                 },
             )
             self.assertEqual(update_response.status_code, 302)
@@ -188,8 +186,11 @@ class AttendanceRouteTests(unittest.TestCase):
                 self.assertIsNotNone(updated)
                 self.assertEqual(updated.name, 'CRUD attendance config updated')
                 self.assertEqual(updated.mode, 'interval')
-                self.assertEqual(updated.interval_minutes, 90)
-                self.assertEqual(updated.note, 'Updated note')
+                self.assertEqual(updated.day_start_time, '09:30')
+                self.assertEqual(updated.day_end_time, '11:30')
+                self.assertEqual(updated.interval_minutes, 15)
+                self.assertEqual(updated.late_allow_minutes, 10)
+                self.assertEqual(updated.target_role_id, admin_user.role_id)
 
             delete_response = self.client.post(f'/attendance/config/{config_id}/delete')
             self.assertEqual(delete_response.status_code, 302)

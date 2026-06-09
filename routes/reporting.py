@@ -9,7 +9,7 @@ from datetime import date, datetime, time, timedelta
 from openpyxl import load_workbook
 from openpyxl.utils import column_index_from_string
 from flask import Blueprint, current_app, flash, g, has_request_context, jsonify, redirect, request, session, send_file, url_for
-from sqlalchemy import func, or_, text
+from sqlalchemy import func, inspect, or_, text
 from werkzeug.utils import secure_filename
 
 from models import (
@@ -341,11 +341,10 @@ def _notify_report_submission(cycle, cycle_name, unit_name):
 
 
 def _legacy_table_exists(table_name):
-    row = db.session.execute(
-        text("SELECT name FROM sqlite_master WHERE type = 'table' AND name = :name"),
-        {"name": table_name},
-    ).fetchone()
-    return bool(row)
+    try:
+        return table_name in inspect(db.engine).get_table_names()
+    except Exception:
+        return False
 
 
 def _current_actor_id():
@@ -407,38 +406,35 @@ def _legacy_version_row(version_id):
 def _legacy_sql_ident(name):
     text_name = str(name or "").strip()
     if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", text_name):
-        raise ValueError(f"Invalid SQLite identifier: {name!r}")
+        raise ValueError(f"Invalid SQL identifier: {name!r}")
     return f'"{text_name}"'
 
 
 def _legacy_primary_key_column(table_name):
     if not _legacy_table_exists(table_name):
         return None
-    table_ident = _legacy_sql_ident(table_name)
-    rows = db.session.execute(text(f"PRAGMA table_info({table_ident})")).mappings().all()
-    pk_columns = sorted(
-        ((int(row["pk"]), row["name"]) for row in rows if int(row["pk"] or 0) > 0),
-        key=lambda item: item[0],
-    )
-    if len(pk_columns) != 1:
+    try:
+        pk_columns = inspect(db.engine).get_pk_constraint(table_name).get("constrained_columns") or []
+    except Exception:
         return None
-    return pk_columns[0][1]
+    return pk_columns[0] if len(pk_columns) == 1 else None
 
 
 def _legacy_child_foreign_keys(parent_table_name):
     child_refs = []
-    table_names = db.session.execute(
-        text("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name ASC")
-    ).scalars().all()
+    inspector = inspect(db.engine)
+    table_names = sorted(inspector.get_table_names())
     for child_name in table_names:
-        child_ident = _legacy_sql_ident(child_name)
-        for fk in db.session.execute(text(f"PRAGMA foreign_key_list({child_ident})")).mappings().all():
-            if fk["table"] == parent_table_name:
+        for fk in inspector.get_foreign_keys(child_name):
+            referred_table = fk.get("referred_table")
+            constrained_columns = fk.get("constrained_columns") or []
+            referred_columns = fk.get("referred_columns") or []
+            if referred_table == parent_table_name and constrained_columns:
                 child_refs.append(
                     {
                         "child_table": child_name,
-                        "child_column": fk["from"],
-                        "parent_column": fk["to"] or "id",
+                        "child_column": constrained_columns[0],
+                        "parent_column": referred_columns[0] if referred_columns else "id",
                     }
                 )
     return sorted(
@@ -1375,11 +1371,9 @@ def _configure_cycle_for_report_type(cycle, template, report_type, reset_window=
     cycle.close_at = None
 
     if report_code == "daily":
-        target_day = now.date()
-        if not reset_window and cycle.open_at:
-            target_day = cycle.open_at.date()
-        cycle.open_at = _start_of_day(target_day)
-        cycle.due_at = _end_of_day(target_day)
+        if reset_window or not cycle.open_at:
+            cycle.open_at = _start_of_day(now.date())
+        cycle.due_at = None
         if reset_window or not cycle.name:
             cycle.name = _build_cycle_name(template, report_type)
         return
@@ -1950,9 +1944,6 @@ def _merge_sheet_values(base_values, override_values):
 def _effective_daily_cell_values(submissions, template_version_id):
     if not submissions:
         return {}
-    latest_submission = submissions[-1]
-    if _submission_storage_mode(latest_submission) == "full_snapshot":
-        return _submission_cell_values(latest_submission.id)
     return _cumulative_submission_cell_values(submissions, template_version_id)
 
 
@@ -1980,6 +1971,11 @@ def _cumulative_submission_cell_values(submissions, template_version_id):
     numeric_totals = {}
 
     for submission in submissions:
+        storage_mode = _submission_storage_mode(submission)
+        is_delta_submission = storage_mode == "daily_delta"
+        if not is_delta_submission:
+            values = {}
+            numeric_totals = {}
         rows = (
             ReportSubmissionCell.query.filter_by(submission_id=submission.id)
             .order_by(ReportSubmissionCell.id.asc())
@@ -2004,7 +2000,11 @@ def _cumulative_submission_cell_values(submissions, template_version_id):
                 if parsed is None:
                     sheet_values[cell_address] = row.raw_value or ""
                     continue
-                total = numeric_totals.get((row.sheet_name, cell_address), 0.0) + parsed
+                total = (
+                    numeric_totals.get((row.sheet_name, cell_address), 0.0) + parsed
+                    if is_delta_submission
+                    else parsed
+                )
                 numeric_totals[(row.sheet_name, cell_address)] = total
                 sheet_values[cell_address] = int(total) if float(total).is_integer() else total
             else:
@@ -2077,10 +2077,10 @@ def _effective_daily_cutoff_date(cycle, instance_id=None):
 def _resolve_daily_submission_date(cycle, report_date=None, instance_id=None):
     if report_date:
         return report_date
-    if cycle and cycle.open_at:
-        return cycle.open_at.date()
-    if cycle and cycle.due_at:
-        return cycle.due_at.date()
+    if cycle and (cycle.is_locked or cycle.status == "closed"):
+        cutoff_date = _effective_daily_cutoff_date(cycle, instance_id=instance_id)
+        if cutoff_date:
+            return cutoff_date
     if instance_id:
         latest = _latest_submission(instance_id)
         latest_date = _submission_business_date(latest) if latest else None
@@ -2862,8 +2862,9 @@ def _report_schedule_text(cycle, report_type=None, report_date=None):
         return ""
     report_code = report_type.code if report_type else ""
     if report_code == "daily":
-        target_day = report_date or (cycle.open_at or cycle.due_at or cycle.created_at)
-        return f"Báo cáo ngày {target_day.strftime('%d/%m/%Y')}" if target_day else "Báo cáo hằng ngày"
+        if report_date:
+            return f"Báo cáo ngày {report_date.strftime('%d/%m/%Y')}"
+        return "Báo cáo hằng ngày"
     if report_code == "periodic":
         template = _template_for_cycle(cycle)
         rule_text = _periodic_schedule_rule_text(template)
@@ -2883,8 +2884,7 @@ def _cycle_deadline_badge_text(cycle, report_type=None):
     if cycle.due_at:
         return cycle.due_at.strftime("%d/%m/%Y")
     if report_type and report_type.code == "daily":
-        target_day = cycle.open_at or cycle.created_at
-        return target_day.strftime("%d/%m/%Y") if target_day else "Hôm nay"
+        return "Hằng ngày"
     return "Không đặt hạn"
 
 
@@ -2904,7 +2904,7 @@ def _period_dates_for_cycle(cycle, report_type=None):
     start_date = (cycle.open_at or cycle.created_at or datetime.now()).date()
     end_date = (cycle.due_at or cycle.open_at or cycle.created_at or datetime.now()).date()
     if report_type and report_type.code == "daily":
-        end_date = start_date
+        end_date = (cycle.close_at or cycle.open_at or cycle.created_at or datetime.now()).date()
     return start_date, end_date
 
 
@@ -3039,9 +3039,8 @@ def _finalize_due_daily_cycles(now=None, cycle_id=None):
 
 
 def _build_cycle_name(template, report_type):
-    today = datetime.now().strftime("%d/%m/%Y")
     if report_type and report_type.code == "daily":
-        return f"{template.name} - ngày {today}"
+        return f"{template.name} - báo cáo hằng ngày"
     return template.name
 
 
@@ -3070,16 +3069,17 @@ def _ensure_cycle_instances(cycle):
                 .order_by(User.id.asc())
                 .first()
             )
+        fallback_user_id = getattr(user, "id", None) or _current_actor_id() or 0
         db.session.add(
             ReportInstance(
                 template_id=template_version.template_id if template_version else None,
                 version_id=template_version.id if template_version else None,
                 period_id=period.id if period else None,
-                user_id=user.id if user else None,
+                user_id=fallback_user_id,
                 org_unit=unit.name if unit else "",
                 cycle_id=cycle.id,
                 report_unit_id=unit_id,
-                assigned_user_id=user.id if user else None,
+                assigned_user_id=getattr(user, "id", None),
                 status="draft",
             )
         )
@@ -3289,8 +3289,8 @@ def _history_rows_for_submissions(submissions, template_version, report_type, in
     )
 
 
-def _ensure_active_cycle_for_template(template, version, report_type):
-    scope_json = template.assignment_scope_json or json.dumps(_empty_scope_payload(), ensure_ascii=False)
+def _ensure_active_cycle_for_template(template, version, report_type, scope_json_override=None, note_override=None):
+    scope_json = scope_json_override or template.assignment_scope_json or json.dumps(_empty_scope_payload(), ensure_ascii=False)
     version_ids = _template_version_ids(template.id)
     open_cycles = ReportCycle.query.filter(
         ReportCycle.template_version_id.in_(version_ids),
@@ -3315,11 +3315,14 @@ def _ensure_active_cycle_for_template(template, version, report_type):
             continue
         same_type_cycles.append((cycle, has_submissions))
 
-    for cycle, has_submissions in same_type_cycles:
-        if not has_submissions:
-            selected_cycle = cycle
-            selected_cycle_has_submissions = False
-            break
+    if report_type and report_type.code == "daily" and same_type_cycles:
+        selected_cycle, selected_cycle_has_submissions = same_type_cycles[0]
+    else:
+        for cycle, has_submissions in same_type_cycles:
+            if not has_submissions:
+                selected_cycle = cycle
+                selected_cycle_has_submissions = False
+                break
 
     if not selected_cycle and same_type_cycles:
         selected_cycle, selected_cycle_has_submissions = same_type_cycles[0]
@@ -3360,6 +3363,10 @@ def _ensure_active_cycle_for_template(template, version, report_type):
             report_type,
             reset_window=should_reset_window,
         )
+    if note_override is not None:
+        selected_cycle.note = note_override
+    elif selected_cycle.note is None:
+        selected_cycle.note = ""
 
     _ensure_reporting_period(selected_cycle, report_type=report_type)
     _ensure_cycle_instances(selected_cycle)
@@ -3528,6 +3535,26 @@ def admin_dashboard():
         cycle_status_map=dashboard_maps["cycle_status_map"],
         cycle_progress_map=dashboard_maps["cycle_progress_map"],
     )
+    grouped_templates = _group_admin_templates(templates)
+    selected_group = (request.args.get("group") or "all").strip().lower()
+    sidebar_submenu_items = [
+        {
+            "label": "Tất cả đội nghiệp vụ",
+            "href": url_for("reporting_bp.admin_dashboard", group="all"),
+            "count": len(templates),
+            "active": selected_group == "all",
+        }
+    ]
+    for group in grouped_templates:
+        group_slug = (group.get("name") or "").strip().lower()
+        sidebar_submenu_items.append(
+            {
+                "label": group.get("name") or "Chưa phân đội",
+                "href": url_for("reporting_bp.admin_dashboard", group=group_slug),
+                "count": len(group.get("entries") or []),
+                "active": selected_group == group_slug,
+            }
+        )
 
     return render_template(
         "reporting_dashboard.html",
@@ -3545,8 +3572,12 @@ def admin_dashboard():
             dashboard_maps["cycle_progress_map"],
             dashboard_maps["cycle_deadline_map"],
             hero_stats,
-            _group_admin_templates(templates),
+            grouped_templates,
         ),
+        selected_report_group=selected_group,
+        sidebar_submenu_parent="reporting",
+        sidebar_submenu_title="Báo cáo",
+        sidebar_submenu_items=sidebar_submenu_items,
     )
 
 
@@ -4310,8 +4341,9 @@ def update_cycle(cycle_id):
     cycle.auto_lock_at = None
     if report_type.code == "daily":
         report_date = _parse_date(request.form.get("report_date")) or datetime.now().date()
-        cycle.open_at = _start_of_day(report_date)
-        cycle.due_at = _end_of_day(report_date)
+        if not cycle.open_at or not _cycle_has_submissions(cycle):
+            cycle.open_at = _start_of_day(report_date)
+        cycle.due_at = None
     elif report_type.code == "periodic":
         due_date = _parse_date(request.form.get("due_date"))
         if not due_date and template:
@@ -4472,9 +4504,17 @@ def create_cycle():
     unit_ids = [unit.id for unit in _resolve_scope_units(scope_payload)]
 
     if report_type.code == "daily":
-        report_date = _parse_date(request.form.get("report_date")) or datetime.now().date()
-        open_at = _start_of_day(report_date)
-        due_at = _end_of_day(report_date)
+        daily_cycle = _ensure_active_cycle_for_template(
+            template,
+            template_version,
+            report_type,
+            scope_json_override=json.dumps(scope_payload, ensure_ascii=False),
+            note_override=(request.form.get("note") or "").strip(),
+        )
+        _notify_cycle_assignees(daily_cycle, daily_cycle.name)
+        _audit("create_cycle", "report_cycle", daily_cycle.id, daily_cycle.name)
+        flash("Đã mở hoặc tiếp tục báo cáo hằng ngày.", "success")
+        return redirect(url_for("reporting_bp.admin_cycle_detail", cycle_id=daily_cycle.id))
     else:
         due_date = _parse_date(request.form.get("due_date"))
         if report_type.code == "periodic" and not due_date and template:
@@ -4514,16 +4554,17 @@ def create_cycle():
                 .order_by(User.id.asc())
                 .first()
             )
+        fallback_user_id = getattr(user, "id", None) or _current_actor_id() or 0
         db.session.add(
             ReportInstance(
                 template_id=template_version.template_id if template_version else None,
                 version_id=template_version.id if template_version else None,
                 period_id=period.id if period else None,
-                user_id=user.id if user else None,
+                user_id=fallback_user_id,
                 org_unit=unit.name if unit else "",
                 cycle_id=cycle.id,
                 report_unit_id=unit_id,
-                assigned_user_id=user.id if user else None,
+                assigned_user_id=getattr(user, "id", None),
                 status="draft",
             )
         )
@@ -4577,6 +4618,26 @@ def user_dashboard():
         cycle_status_map=dashboard_maps["cycle_status_map"],
         cycle_progress_map=dashboard_maps["cycle_progress_map"],
     )
+    grouped_cycles = _group_cycles_by_professional_unit(accessible_cycles)
+    selected_group = (request.args.get("group") or "all").strip().lower()
+    sidebar_submenu_items = [
+        {
+            "label": "Tất cả đội nghiệp vụ",
+            "href": url_for("reporting_bp.user_dashboard", group="all"),
+            "count": len(accessible_cycles),
+            "active": selected_group == "all",
+        }
+    ]
+    for group in grouped_cycles:
+        group_slug = (group.get("name") or "").strip().lower()
+        sidebar_submenu_items.append(
+            {
+                "label": group.get("name") or "Chưa phân đội",
+                "href": url_for("reporting_bp.user_dashboard", group=group_slug),
+                "count": len(group.get("entries") or []),
+                "active": selected_group == group_slug,
+            }
+        )
 
     return render_template(
         "reporting_dashboard.html",
@@ -4590,8 +4651,12 @@ def user_dashboard():
             accessible_cycles,
             can_view_cycle_progress,
             is_admin,
-            _group_cycles_by_professional_unit(accessible_cycles),
+            grouped_cycles,
         ),
+        selected_report_group=selected_group,
+        sidebar_submenu_parent="reporting",
+        sidebar_submenu_title="Báo cáo",
+        sidebar_submenu_items=sidebar_submenu_items,
     )
 
 

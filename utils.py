@@ -527,7 +527,10 @@ def apply_migrations(app):
         ("report_export_job", "output_path", "VARCHAR(500)"),
         ("report_export_job", "error_message", "TEXT"),
         ("report_export_job", "created_at", "DATETIME"),
-        ("report_export_job", "finished_at", "DATETIME")
+        ("report_export_job", "finished_at", "DATETIME"),
+        ("attendance_config", "target_type", "VARCHAR(20) DEFAULT 'role'"),
+        ("attendance_config", "target_role_id", "INTEGER"),
+        ("attendance_config", "target_unit_key", "VARCHAR(100)")
     ]
     for table, col, col_type in migrations:
         try:

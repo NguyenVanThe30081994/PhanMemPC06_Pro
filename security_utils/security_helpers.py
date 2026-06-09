@@ -6,6 +6,14 @@ import re
 from functools import wraps
 from flask import session, redirect, url_for, flash, request, current_app
 
+
+def get_client_ip():
+    """Resolve client IP safely when app is behind a proxy/load balancer."""
+    forwarded = request.headers.get('X-Forwarded-For', '') or ''
+    if forwarded:
+        return forwarded.split(',')[0].strip()
+    return request.remote_addr or 'unknown'
+
 def require_login(f):
     """Decorator to require login"""
     @wraps(f)
@@ -74,6 +82,7 @@ def validate_table_name(table_name):
         'module_registry', 'module_field_binding', 'contact', 'contact_group',
         'contact_role', 'document_lib', 'library_field', 'master_data',
         'news_category', 'news_doc', 'notification', 'professional_unit',
+        'login_security_state',
         'ranking_entry', 'ranking_indicator', 'ranking_unit',
         'report_audit_log', 'report_cycle', 'report_export_job', 'report_instance',
         'report_submission', 'report_submission_cell', 'report_submission_value',
@@ -103,8 +112,8 @@ def log_security_event(event_type, details=''):
     try:
         user_id = session.get('uid', 0)
         username = session.get('username', 'anonymous')
-        ip_address = request.remote_addr
-        
+        ip_address = get_client_ip()
+
         current_app.logger.warning(
             f"SECURITY: {event_type} | User: {username} (ID: {user_id}) | "
             f"IP: {ip_address} | Details: {details}"

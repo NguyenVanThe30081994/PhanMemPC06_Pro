@@ -4,98 +4,22 @@
 <style>
     .pc06-library-workspace {
         display: grid;
-        grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
-        gap: 22px;
-        align-items: start;
-    }
-
-    .pc06-library-sidebar,
-    .pc06-library-board {
-        display: grid;
         gap: 18px;
     }
 
-    .pc06-library-field-panel,
     .pc06-library-board-panel {
         padding: 20px;
     }
 
-    .pc06-library-field-head,
     .pc06-library-board-head {
         margin-bottom: 16px;
     }
 
-    .pc06-library-field-head h2,
     .pc06-library-board-head h2 {
         margin: 0;
         font-size: 1.08rem;
         font-weight: 800;
         color: var(--text-main, #0f172a);
-    }
-
-    .pc06-library-sidebar-search {
-        margin-bottom: 16px;
-    }
-
-    .pc06-library-field-list {
-        display: grid;
-        gap: 10px;
-    }
-
-    .pc06-library-field-chip {
-        width: 100%;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        background: rgba(248, 250, 252, 0.92);
-        border-radius: 18px;
-        padding: 14px 16px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        text-align: left;
-        transition: all 0.2s ease;
-        color: var(--text-main, #0f172a);
-        box-shadow: none;
-        min-width: 0;
-    }
-
-    .pc06-library-field-chip strong {
-        display: block;
-        font-size: 0.94rem;
-        font-weight: 800;
-        flex: 1 1 auto;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .pc06-library-field-chip span {
-        min-width: 38px;
-        height: 38px;
-        border-radius: 999px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(37, 99, 235, 0.08);
-        color: #1d4ed8;
-        font-weight: 900;
-        flex-shrink: 0;
-    }
-
-    .pc06-library-field-chip.active {
-        border-color: rgba(37, 99, 235, 0.32);
-        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(37, 99, 235, 0.92));
-        box-shadow: 0 18px 34px rgba(37, 99, 235, 0.14);
-    }
-
-    .pc06-library-field-chip.active strong,
-    .pc06-library-field-chip.active span {
-        color: #fff;
-    }
-
-    .pc06-library-field-chip.active span {
-        background: rgba(255, 255, 255, 0.18);
     }
 
     .pc06-library-grid {
@@ -318,10 +242,9 @@
     </section>
 
     <div class="pc06-library-workspace">
-        <aside class="pc06-library-sidebar">
-            <section class="pc06-panel pc06-library-field-panel">
-                <div class="pc06-library-field-head">
-                    <h2>Lĩnh vực</h2>
+            <section class="pc06-panel pc06-library-board-panel">
+                <div class="pc06-library-board-head">
+                    <h2 id="librarySelectedCategory">{{ current_category_display }}</h2>
                 </div>
                 <div class="pc06-library-sidebar-search">
                     <label class="pc06-search-control">
@@ -329,29 +252,9 @@
                         <input type="text" id="librarySearch" placeholder="Tìm theo tên tài liệu">
                     </label>
                 </div>
-                <div class="pc06-library-field-list">
-                    <button type="button" class="pc06-library-field-chip active" data-category-filter="ALL">
-                        <strong>Tất cả lĩnh vực</strong>
-                        <span>{{ doc_cards|length }}</span>
-                    </button>
-                    {% for item in library_filters %}
-                    <button type="button" class="pc06-library-field-chip" data-category-filter="{{ item.filter_value }}">
-                        <strong>{{ item.name }}</strong>
-                        <span>{{ item.count }}</span>
-                    </button>
-                    {% endfor %}
-                </div>
-            </section>
-        </aside>
-
-        <div class="pc06-library-board">
-            <section class="pc06-panel pc06-library-board-panel">
-                <div class="pc06-library-board-head">
-                    <h2 id="librarySelectedCategory">Tất cả lĩnh vực</h2>
-                </div>
-                {% if doc_cards %}
+                {% if filtered_doc_cards %}
                 <section class="pc06-library-grid" id="libraryGrid">
-                    {% for item in doc_cards %}
+                    {% for item in filtered_doc_cards %}
                     {% set doc = item.record %}
                     <article class="pc06-library-card library-item" data-category="{{ item.category_filter }}" data-search="{{ (doc.title ~ ' ' ~ item.category_display)|lower }}">
                         <div class="pc06-library-card-head">
@@ -407,6 +310,7 @@
                 </div>
                 <div class="pc06-legal-toolbar">
                     <form method="GET">
+                        {% if current_category %}<input type="hidden" name="category" value="{{ current_category }}">{% endif %}
                         {% if selected_bca_doc_group %}<input type="hidden" name="bca_doc_group" value="{{ selected_bca_doc_group }}">{% endif %}
                         {% if selected_bca_type_id %}<input type="hidden" name="bca_type_id" value="{{ selected_bca_type_id }}">{% endif %}
                         {% if selected_bca_effective_id %}<input type="hidden" name="bca_effective_id" value="{{ selected_bca_effective_id }}">{% endif %}
@@ -459,6 +363,7 @@
                 </div>
                 <div class="pc06-legal-toolbar">
                     <form method="GET">
+                        {% if current_category %}<input type="hidden" name="category" value="{{ current_category }}">{% endif %}
                         {% if selected_legal_field %}<input type="hidden" name="legal_field" value="{{ selected_legal_field }}">{% endif %}
                         <div>
                             <label class="form-label">Nhóm văn bản</label>
@@ -529,7 +434,6 @@
                 </div>
                 {% endif %}
             </section>
-        </div>
     </div>
 </div>
 
@@ -579,19 +483,12 @@
 
 {% block scripts %}
 <script>
-    const libraryFilters = {
-        category: 'ALL',
-        query: ''
-    };
-
     function applyLibraryFilters() {
         let visibleCount = 0;
         document.querySelectorAll('.library-item').forEach((item) => {
-            const category = item.dataset.category || '';
             const search = item.dataset.search || '';
-            const categoryMatch = libraryFilters.category === 'ALL' || category === libraryFilters.category;
-            const searchMatch = !libraryFilters.query || search.includes(libraryFilters.query);
-            const isVisible = categoryMatch && searchMatch;
+            const query = (document.getElementById('librarySearch')?.value || '').trim().toLowerCase();
+            const isVisible = !query || search.includes(query);
             item.style.display = isVisible ? '' : 'none';
             if (isVisible) visibleCount += 1;
         });
@@ -603,19 +500,7 @@
     }
 
     document.getElementById('librarySearch')?.addEventListener('input', (event) => {
-        libraryFilters.query = event.target.value.trim().toLowerCase();
         applyLibraryFilters();
-    });
-
-    document.querySelectorAll('[data-category-filter]').forEach((button) => {
-        button.addEventListener('click', () => {
-            libraryFilters.category = button.dataset.categoryFilter || 'ALL';
-            document.querySelectorAll('[data-category-filter]').forEach((item) => item.classList.toggle('active', item === button));
-            const selected = button.querySelector('strong')?.textContent?.trim() || 'Tất cả lĩnh vực';
-            const titleNode = document.getElementById('librarySelectedCategory');
-            if (titleNode) titleNode.textContent = selected;
-            applyLibraryFilters();
-        });
     });
 
     applyLibraryFilters();
