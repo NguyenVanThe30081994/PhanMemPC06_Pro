@@ -537,36 +537,234 @@
             width: 100%;
         }
     }
+
+    .task-create-wizard {
+        display: grid;
+        gap: 20px;
+    }
+
+    .task-create-stepper {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .task-create-step {
+        display: grid;
+        gap: 6px;
+        justify-items: center;
+        padding: 14px 10px;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 18px;
+        background: #f8fafc;
+        color: #475569;
+    }
+
+    .task-create-step span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.2);
+        font-weight: 800;
+    }
+
+    .task-create-step strong {
+        font-size: 0.92rem;
+    }
+
+    .task-create-step.is-active {
+        border-color: rgba(37, 99, 235, 0.24);
+        background: rgba(37, 99, 235, 0.08);
+        color: #1d4ed8;
+    }
+
+    .task-create-step.is-active span,
+    .task-create-step.is-complete span {
+        background: rgba(37, 99, 235, 0.16);
+        color: #1d4ed8;
+    }
+
+    .task-create-step.is-complete {
+        border-color: rgba(22, 163, 74, 0.2);
+        background: rgba(22, 163, 74, 0.08);
+        color: #166534;
+    }
+
+    .task-create-pane {
+        display: none;
+        gap: 16px;
+    }
+
+    .task-create-pane.is-active {
+        display: grid;
+    }
+
+    .task-create-pane-head h6 {
+        margin: 0 0 6px;
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
+    .task-create-pane-head p {
+        margin: 0;
+        color: var(--text-muted);
+    }
+
+    .task-mode-choice-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .task-mode-choice {
+        display: grid;
+        gap: 8px;
+        align-content: start;
+        text-align: left;
+        min-height: 180px;
+        padding: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.92));
+        color: #0f172a;
+    }
+
+    .task-mode-choice strong {
+        font-size: 1.05rem;
+    }
+
+    .task-mode-choice span {
+        color: #475569;
+        line-height: 1.55;
+    }
+
+    .task-mode-choice.is-active {
+        border-color: rgba(37, 99, 235, 0.28);
+        box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.15);
+        background: linear-gradient(180deg, rgba(219, 234, 254, 0.95), rgba(239, 246, 255, 0.92));
+    }
+
+    .task-assignee-list {
+        max-height: 240px;
+        overflow: auto;
+    }
+
+    .task-assignee-list-tall {
+        max-height: 300px;
+    }
+
+    .task-preview-card {
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 20px;
+        background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(255, 255, 255, 0.94));
+    }
+
+    .task-preview-group {
+        display: grid;
+        gap: 8px;
+    }
+
+    .task-preview-group h6 {
+        margin: 0;
+        font-size: 0.92rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #475569;
+    }
+
+    .task-preview-group ul {
+        margin: 0;
+        padding-left: 18px;
+    }
+
+    .task-preview-group li {
+        color: #0f172a;
+    }
+
+    @media (max-width: 991.98px) {
+        .task-create-stepper,
+        .task-mode-choice-grid {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 
 {% if is_lead or is_admin %}
 <div class="modal fade" id="createTaskModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
-            <form method="POST" enctype="multipart/form-data">
+            <form method="POST" enctype="multipart/form-data" id="createTaskForm">
                 <div class="modal-header">
                     <div>
                         <h5 class="modal-title mb-1">Tạo công việc</h5>
-                        <div class="small text-muted" id="taskModeHelp">Tạo đợt giao việc theo đề cương, sau đó thêm đầu mục ở màn hình chi tiết.</div>
+                        <div class="small text-muted" id="taskModeHelp">Bắt đầu bằng việc chọn hình thức giao việc phù hợp.</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="row g-4">
-                        <div class="col-lg-7">
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Chế độ công việc</label>
-                                <select class="form-select" name="task_mode" id="taskModeSelect">
-                                    <option value="OUTLINE">Theo đề cương</option>
-                                    <option value="FILE">Nộp file</option>
-                                    <option value="FORM">Biểu mẫu</option>
-                                </select>
+                    <input type="hidden" name="task_mode" id="taskModeSelect" value="OUTLINE">
+                    <div class="task-create-wizard">
+                        <div class="task-create-stepper" id="taskCreateStepper">
+                            <button class="task-create-step is-active" type="button" data-step-target="0">
+                                <span>1</span>
+                                <strong>Loại</strong>
+                            </button>
+                            <button class="task-create-step" type="button" data-step-target="1">
+                                <span>2</span>
+                                <strong>Thông tin</strong>
+                            </button>
+                            <button class="task-create-step" type="button" data-step-target="2">
+                                <span>3</span>
+                                <strong>Nội dung</strong>
+                            </button>
+                            <button class="task-create-step" type="button" data-step-target="3">
+                                <span>4</span>
+                                <strong>Nhận việc</strong>
+                            </button>
+                            <button class="task-create-step" type="button" data-step-target="4">
+                                <span>5</span>
+                                <strong>Xác nhận</strong>
+                            </button>
+                        </div>
+
+                        <div class="task-create-pane is-active" data-step-pane="0">
+                            <div class="task-create-pane-head">
+                                <h6>Chọn hình thức giao việc</h6>
+                                <p>Đây là bước đầu tiên để hệ thống xác định đúng luồng xử lý và cách thu thập kết quả.</p>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Tiêu đề</label>
-                                <input class="form-control" type="text" name="title" required>
+                            <div class="task-mode-choice-grid">
+                                <button type="button" class="task-mode-choice is-active" data-mode-card="OUTLINE">
+                                    <strong>Đề cương</strong>
+                                    <span>Giao việc theo đầu mục, tách nội dung để các đơn vị báo cáo theo từng phần.</span>
+                                </button>
+                                <button type="button" class="task-mode-choice" data-mode-card="FILE">
+                                    <strong>File</strong>
+                                    <span>Giao việc trực tiếp, yêu cầu nộp file báo cáo, công văn hoặc tài liệu minh chứng.</span>
+                                </button>
+                                <button type="button" class="task-mode-choice" data-mode-card="FORM">
+                                    <strong>Form</strong>
+                                    <span>Thu thập dữ liệu theo biểu mẫu nội bộ hoặc đồng bộ từ Google Form thật.</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="task-create-pane" data-step-pane="1">
+                            <div class="task-create-pane-head">
+                                <h6>Khai báo thông tin chung</h6>
+                                <p>Thiết lập metadata của đợt giao việc: tiêu đề, phạm vi nghiệp vụ, hạn xử lý và tài liệu gốc.</p>
                             </div>
                             <div class="row g-3">
+                                <div class="col-12">
+                                    <label class="form-label fw-bold">Tiêu đề</label>
+                                    <input class="form-control" type="text" name="title" required data-step-required="1">
+                                </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">Lĩnh vực</label>
                                     <select class="form-select" name="category">
@@ -578,7 +776,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">Đội nghiệp vụ</label>
-                                    <select class="form-select" name="unit_name">
+                                    <select class="form-select" name="unit_name" id="taskOwnerUnitSelect">
                                         <option value="">Chọn đội nghiệp vụ</option>
                                         {% for item in pro_units %}
                                         <option value="{{ item.value }}">{{ item.name }}</option>
@@ -609,54 +807,103 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">Tài liệu đính kèm</label>
-                                    <input class="form-control" type="file" name="task_file">
+                                    <input class="form-control" type="file" name="task_file" id="taskFileInput">
                                 </div>
                             </div>
-                            <div class="mt-3">
+                        </div>
+
+                        <div class="task-create-pane" data-step-pane="2">
+                            <div class="task-create-pane-head">
+                                <h6>Nội dung và đầu ra cần nộp</h6>
+                                <p>Tùy theo loại task đã chọn, bước này sẽ hiển thị phần mô tả, file mẫu hoặc cấu hình biểu mẫu phù hợp.</p>
+                            </div>
+                            <div class="mb-3">
                                 <label class="form-label fw-bold">Mô tả</label>
                                 <textarea class="form-control" name="description" rows="5"></textarea>
                             </div>
-                        </div>
-                        <div class="col-lg-5">
-                            <div class="border rounded p-3 bg-light-subtle" id="fileAssignmentBox">
-                                <h6 class="fw-bold">Phân công mặc định</h6>
-                                <div class="small text-muted mb-3">Bắt buộc đối với chế độ nộp file và biểu mẫu. Với đề cương, việc phân công sẽ thực hiện khi thêm đầu mục.</div>
+                            <div class="border rounded p-3 bg-light-subtle d-none" id="formBuilderBox">
+                                <h6 class="fw-bold">Cấu hình biểu mẫu</h6>
+                                <div class="small text-muted mb-3">Chọn biểu mẫu nội bộ hoặc tích hợp trực tiếp với Google Form để đồng bộ phản hồi thật.</div>
                                 <div class="mb-3">
-                                    <label class="form-label">Kiểu phân công</label>
-                                    <select class="form-select" name="assign_type" id="createAssignType">
-                                        <option value="unit">Theo đơn vị</option>
-                                        <option value="role">Theo vai trò</option>
-                                        <option value="user">Theo cá nhân</option>
+                                    <label class="form-label fw-bold">Nguồn biểu mẫu</label>
+                                    <select class="form-select" name="form_provider" id="formProviderSelect">
+                                        <option value="internal">Biểu mẫu nội bộ</option>
+                                        <option value="google">Google Form</option>
                                     </select>
                                 </div>
-                                <div class="mb-3" data-assign-box="role">
-                                    <label class="form-label">Vai trò nhận việc</label>
-                                    <div class="border rounded p-2" style="max-height: 200px; overflow:auto;">
-                                        {% for role in roles %}
-                                        <label class="d-flex gap-2 align-items-center mb-2">
-                                            <input type="checkbox" name="assignee_role_ids" value="{{ role.id }}">
-                                            <span>{{ role.name }}</span>
-                                        </label>
-                                        {% endfor %}
+                                <div id="internalFormBuilderBox">
+                                    <div id="formFieldList" class="d-grid gap-3"></div>
+                                    <button class="btn btn-outline-primary btn-sm mt-3" type="button" id="addFormFieldBtn">Thêm trường</button>
+                                </div>
+                                <div id="googleFormConfigBox" class="d-none">
+                                    <div class="alert alert-light border small mb-3">
+                                        {% if google_forms_enabled %}
+                                        Máy chủ đang bật Google Forms API. PC06 sẽ lưu schema chuẩn, tạo Google Form thật khi quản lý bấm phát hành ở màn chi tiết.
+                                        {% else %}
+                                        Máy chủ chưa bật credentials Google Forms. Anh/chị vẫn có thể dựng schema và lưu task, nhưng server cần cấu hình trước khi tạo/publish/sync form thật.
+                                        {% endif %}
+                                    </div>
+                                    <input type="hidden" name="google_form_builder_json" id="googleFormBuilderJsonInput">
+                                    <div class="row g-3 mb-3">
+                                        <div class="col-lg-7">
+                                            <label class="form-label fw-bold">Tiêu đề biểu mẫu Google</label>
+                                            <input class="form-control" type="text" id="googleBuilderTitle" placeholder="Ví dụ: Thu thập số liệu tháng 6">
+                                        </div>
+                                        <div class="col-lg-5">
+                                            <label class="form-label fw-bold">Kiểu đối sánh phản hồi</label>
+                                            <select class="form-select" name="google_form_match_mode" id="googleFormMatchMode">
+                                                <option value="unit">Câu hỏi đơn vị</option>
+                                                <option value="fullname">Câu hỏi họ tên</option>
+                                                <option value="username">Câu hỏi tên đăng nhập</option>
+                                                <option value="respondent_email">Email người trả lời</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label fw-bold">Mô tả biểu mẫu</label>
+                                            <textarea class="form-control" id="googleBuilderDescription" rows="2" placeholder="Hướng dẫn ngắn cho đơn vị điền biểu mẫu"></textarea>
+                                        </div>
+                                        <div class="col-lg-6" id="googleFormMatchFieldBox">
+                                            <label class="form-label fw-bold">Tên câu hỏi dùng để đối sánh</label>
+                                            <input class="form-control" type="text" name="google_form_match_field" id="googleFormMatchField" placeholder="Ví dụ: Đơn vị báo cáo">
+                                            <div class="form-text">Không cần nhập khi đối sánh bằng email người trả lời.</div>
+                                        </div>
+                                        <div class="col-lg-3">
+                                            <label class="form-label fw-bold">Trạng thái phát hành mặc định</label>
+                                            <select class="form-select" id="googleBuilderPublishState">
+                                                <option value="draft">Nháp</option>
+                                                <option value="published">Phát hành ngay sau khi tạo thật</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-lg-3">
+                                            <label class="form-label fw-bold">Nhận phản hồi</label>
+                                            <select class="form-select" id="googleBuilderAcceptResponses">
+                                                <option value="false">Tắt</option>
+                                                <option value="true">Bật</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="border rounded-4 p-3 bg-white mb-3">
+                                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                                            <div>
+                                                <div class="fw-bold">Builder câu hỏi Google Form</div>
+                                                <div class="small text-muted">Chỉ hỗ trợ các loại mà Google Forms API cho phép tạo/cập nhật trực tiếp trong v1.</div>
+                                            </div>
+                                            <div class="d-flex flex-wrap gap-2">
+                                                <button class="btn btn-outline-primary btn-sm" type="button" id="addGoogleQuestionBtn">Thêm câu hỏi</button>
+                                                <button class="btn btn-outline-secondary btn-sm" type="button" id="addGoogleSectionBtn">Thêm section</button>
+                                                <button class="btn btn-outline-secondary btn-sm" type="button" id="addGooglePageBreakBtn">Thêm page break</button>
+                                            </div>
+                                        </div>
+                                        <div id="googleFormBuilderList" class="d-grid gap-3"></div>
+                                        <div id="googleFormBuilderEmpty" class="small text-muted">Chưa có item nào. Hãy thêm câu hỏi hoặc section để bắt đầu.</div>
+                                    </div>
+                                    <div class="border rounded-4 p-3 bg-light-subtle">
+                                        <div class="fw-bold mb-1">Nâng cấp task Google Form cũ</div>
+                                        <div class="small text-muted mb-3">Nếu đang có sẵn form ngoài hệ thống, có thể gắn link để nhập cấu trúc vào builder ở màn chi tiết sau khi tạo task.</div>
+                                        <label class="form-label fw-bold">Link Google Form có sẵn (không bắt buộc)</label>
+                                        <input class="form-control" type="url" name="google_form_url" id="googleFormUrlInput" placeholder="https://docs.google.com/forms/d/.../edit hoặc /viewform">
                                     </div>
                                 </div>
-                                <div class="mb-3 d-none" data-assign-box="user">
-                                    <label class="form-label">Cán bộ nhận việc</label>
-                                    <div class="border rounded p-2" style="max-height: 220px; overflow:auto;">
-                                        {% for user in users %}
-                                        <label class="d-flex gap-2 align-items-center mb-2">
-                                            <input type="checkbox" name="target_users" value="{{ user.id }}">
-                                            <span>{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</span>
-                                        </label>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="border rounded p-3 bg-light-subtle mt-3 d-none" id="formBuilderBox">
-                                <h6 class="fw-bold">Cấu hình biểu mẫu</h6>
-                                <div class="small text-muted mb-3">Thêm các trường dữ liệu cần đơn vị nhập. Có thể dùng radio, checkbox hoặc bảng đơn giản.</div>
-                                <div id="formFieldList" class="d-grid gap-3"></div>
-                                <button class="btn btn-outline-primary btn-sm mt-3" type="button" id="addFormFieldBtn">Thêm trường</button>
                                 <template id="formFieldTemplate">
                                     <div class="border rounded p-3 form-field-item">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -688,12 +935,180 @@
                                         </div>
                                     </div>
                                 </template>
+                                <template id="googleBuilderItemTemplate">
+                                    <div class="border rounded-4 p-3 google-builder-item">
+                                        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                                            <div class="flex-grow-1">
+                                                <div class="small text-muted mb-1">Item Google Form</div>
+                                                <input class="form-control google-builder-title" type="text" placeholder="Tiêu đề câu hỏi hoặc section">
+                                            </div>
+                                            <div class="d-flex gap-2">
+                                                <button class="btn btn-sm btn-outline-secondary" type="button" data-google-move-up>Lên</button>
+                                                <button class="btn btn-sm btn-outline-secondary" type="button" data-google-move-down>Xuống</button>
+                                                <button class="btn btn-sm btn-outline-danger" type="button" data-google-remove>Xóa</button>
+                                            </div>
+                                        </div>
+                                        <div class="row g-3">
+                                            <div class="col-lg-4">
+                                                <label class="form-label fw-bold">Loại</label>
+                                                <select class="form-select google-builder-kind">
+                                                    <option value="text">Trả lời ngắn</option>
+                                                    <option value="textarea">Đoạn</option>
+                                                    <option value="radio">Trắc nghiệm</option>
+                                                    <option value="checkbox">Hộp kiểm</option>
+                                                    <option value="dropdown">Menu thả xuống</option>
+                                                    <option value="scale">Thang điểm</option>
+                                                    <option value="date">Ngày</option>
+                                                    <option value="time">Giờ</option>
+                                                    <option value="rating">Đánh giá</option>
+                                                    <option value="grid_radio">Lưới trắc nghiệm</option>
+                                                    <option value="grid_checkbox">Lưới hộp kiểm</option>
+                                                    <option value="section">Section</option>
+                                                    <option value="page_break">Page break</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-lg-8">
+                                                <label class="form-label fw-bold">Mô tả</label>
+                                                <input class="form-control google-builder-description" type="text" placeholder="Mô tả ngắn hoặc hướng dẫn bổ sung">
+                                            </div>
+                                            <div class="col-12 google-builder-options-box d-none">
+                                                <label class="form-label fw-bold">Tùy chọn</label>
+                                                <textarea class="form-control google-builder-options" rows="3" placeholder="Mỗi dòng là một lựa chọn"></textarea>
+                                            </div>
+                                            <div class="col-lg-6 google-builder-rows-box d-none">
+                                                <label class="form-label fw-bold">Hàng</label>
+                                                <textarea class="form-control google-builder-rows" rows="3" placeholder="Mỗi dòng là một hàng"></textarea>
+                                            </div>
+                                            <div class="col-lg-6 google-builder-columns-box d-none">
+                                                <label class="form-label fw-bold">Cột</label>
+                                                <textarea class="form-control google-builder-columns" rows="3" placeholder="Mỗi dòng là một cột"></textarea>
+                                            </div>
+                                            <div class="col-lg-3 google-builder-scale-low-box d-none">
+                                                <label class="form-label fw-bold">Scale low</label>
+                                                <input class="form-control google-builder-scale-low" type="number" min="0" step="1" value="1">
+                                            </div>
+                                            <div class="col-lg-3 google-builder-scale-high-box d-none">
+                                                <label class="form-label fw-bold">Scale high</label>
+                                                <input class="form-control google-builder-scale-high" type="number" min="1" step="1" value="5">
+                                            </div>
+                                            <div class="col-lg-3 google-builder-scale-low-label-box d-none">
+                                                <label class="form-label fw-bold">Nhãn low</label>
+                                                <input class="form-control google-builder-scale-low-label" type="text">
+                                            </div>
+                                            <div class="col-lg-3 google-builder-scale-high-label-box d-none">
+                                                <label class="form-label fw-bold">Nhãn high</label>
+                                                <input class="form-control google-builder-scale-high-label" type="text">
+                                            </div>
+                                            <div class="col-lg-4 google-builder-rating-level-box d-none">
+                                                <label class="form-label fw-bold">Mức đánh giá</label>
+                                                <input class="form-control google-builder-rating-level" type="number" min="2" step="1" value="5">
+                                            </div>
+                                            <div class="col-lg-4 google-builder-rating-icon-box d-none">
+                                                <label class="form-label fw-bold">Biểu tượng</label>
+                                                <select class="form-select google-builder-rating-icon">
+                                                    <option value="STAR">Sao</option>
+                                                    <option value="HEART">Tim</option>
+                                                    <option value="THUMB_UP">Thumb up</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-lg-4 google-builder-date-settings-box d-none">
+                                                <label class="form-label fw-bold">Tùy chọn ngày</label>
+                                                <div class="d-grid gap-2 mt-2">
+                                                    <label class="d-flex gap-2 align-items-center"><input type="checkbox" class="google-builder-include-year" checked><span>Có năm</span></label>
+                                                    <label class="d-flex gap-2 align-items-center"><input type="checkbox" class="google-builder-include-time"><span>Kèm giờ</span></label>
+                                                </div>
+                                            </div>
+                                            <div class="col-lg-4 google-builder-time-settings-box d-none">
+                                                <label class="form-label fw-bold">Tùy chọn giờ</label>
+                                                <div class="d-grid gap-2 mt-2">
+                                                    <label class="d-flex gap-2 align-items-center"><input type="checkbox" class="google-builder-duration"><span>Thời lượng</span></label>
+                                                </div>
+                                            </div>
+                                            <div class="col-lg-4 google-builder-grid-settings-box d-none">
+                                                <label class="form-label fw-bold">Tùy chọn lưới</label>
+                                                <div class="d-grid gap-2 mt-2">
+                                                    <label class="d-flex gap-2 align-items-center"><input type="checkbox" class="google-builder-shuffle-rows"><span>Trộn hàng</span></label>
+                                                </div>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="d-flex gap-2 align-items-center">
+                                                    <input type="checkbox" class="google-builder-required">
+                                                    <span>Bắt buộc trả lời</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
                             </div>
+                        </div>
+
+                        <div class="task-create-pane" data-step-pane="3">
+                            <div class="task-create-pane-head">
+                                <h6>Chọn đối tượng nhận việc</h6>
+                                <p>Thiết lập kiểu phân công và danh sách đơn vị, vai trò hoặc cá nhân sẽ nhận việc ngay khi tạo task.</p>
+                            </div>
+                            <div class="border rounded p-3 bg-light-subtle" id="fileAssignmentBox">
+                                <h6 class="fw-bold">Phân công mặc định</h6>
+                                <div class="small text-muted mb-3">Bắt buộc đối với chế độ nộp file và biểu mẫu. Với đề cương, việc phân công sẽ thực hiện khi thêm đầu mục.</div>
+                                <div class="mb-3">
+                                    <label class="form-label">Kiểu phân công</label>
+                                    <select class="form-select" name="assign_type" id="createAssignType">
+                                        <option value="unit">Theo đơn vị</option>
+                                        <option value="role">Theo vai trò</option>
+                                        <option value="user">Theo cá nhân</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3" data-assign-box="unit">
+                                    <label class="form-label">Đơn vị nhận việc</label>
+                                    <div class="border rounded p-2 task-assignee-list">
+                                        {% for item in pro_units %}
+                                        <label class="d-flex gap-2 align-items-start mb-2">
+                                            <input type="checkbox" name="child_domains" value="{{ item.value }}" data-unit-checkbox>
+                                            <span>{{ item.name }}</span>
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="form-text">Nếu không chọn đơn vị nào, hệ thống sẽ dùng “Đội nghiệp vụ” ở bước thông tin chung làm phạm vi mặc định.</div>
+                                </div>
+                                <div class="mb-3 d-none" data-assign-box="role">
+                                    <label class="form-label">Vai trò nhận việc</label>
+                                    <div class="border rounded p-2 task-assignee-list">
+                                        {% for role in roles %}
+                                        <label class="d-flex gap-2 align-items-center mb-2">
+                                            <input type="checkbox" name="assignee_role_ids" value="{{ role.id }}">
+                                            <span>{{ role.name }}</span>
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="mb-3 d-none" data-assign-box="user">
+                                    <label class="form-label">Cán bộ nhận việc</label>
+                                    <div class="border rounded p-2 task-assignee-list task-assignee-list-tall">
+                                        {% for user in users %}
+                                        <label class="d-flex gap-2 align-items-center mb-2">
+                                            <input type="checkbox" name="target_users" value="{{ user.id }}">
+                                            <span>{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</span>
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="task-create-pane" data-step-pane="4">
+                            <div class="task-create-pane-head">
+                                <h6>Xem trước cấu hình công việc</h6>
+                                <p>Kiểm tra lại toàn bộ trước khi giao việc để tránh tạo sai hình thức, sai đối tượng nhận hoặc thiếu cấu hình đầu vào.</p>
+                            </div>
+                            <div class="task-preview-card" id="taskCreatePreview"></div>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-primary" type="submit">Tạo công việc</button>
+                    <div class="me-auto small text-muted" id="taskWizardHint">Bước 1/5</div>
+                    <button class="btn btn-outline-secondary" type="button" id="taskWizardPrevBtn">Quay lại</button>
+                    <button class="btn btn-primary" type="button" id="taskWizardNextBtn">Tiếp tục</button>
+                    <button class="btn btn-primary d-none" type="submit" id="taskWizardSubmitBtn">Tạo công việc</button>
                 </div>
             </form>
         </div>
@@ -702,17 +1117,223 @@
 
 <script>
 (() => {
+    const form = document.getElementById('createTaskForm');
     const modeSelect = document.getElementById('taskModeSelect');
     const modeHelp = document.getElementById('taskModeHelp');
+    const modeCards = Array.from(document.querySelectorAll('[data-mode-card]'));
+    const stepButtons = Array.from(document.querySelectorAll('[data-step-target]'));
+    const stepPanes = Array.from(document.querySelectorAll('[data-step-pane]'));
+    const prevBtn = document.getElementById('taskWizardPrevBtn');
+    const nextBtn = document.getElementById('taskWizardNextBtn');
+    const submitBtn = document.getElementById('taskWizardSubmitBtn');
+    const wizardHint = document.getElementById('taskWizardHint');
+    const previewBox = document.getElementById('taskCreatePreview');
     const fileAssignmentBox = document.getElementById('fileAssignmentBox');
     const formBuilderBox = document.getElementById('formBuilderBox');
+    const formProviderSelect = document.getElementById('formProviderSelect');
+    const internalFormBuilderBox = document.getElementById('internalFormBuilderBox');
+    const googleFormConfigBox = document.getElementById('googleFormConfigBox');
+    const googleBuilderTitle = document.getElementById('googleBuilderTitle');
+    const googleBuilderDescription = document.getElementById('googleBuilderDescription');
+    const googleBuilderPublishState = document.getElementById('googleBuilderPublishState');
+    const googleBuilderAcceptResponses = document.getElementById('googleBuilderAcceptResponses');
+    const googleBuilderJsonInput = document.getElementById('googleFormBuilderJsonInput');
+    const googleBuilderList = document.getElementById('googleFormBuilderList');
+    const googleBuilderEmpty = document.getElementById('googleFormBuilderEmpty');
+    const googleBuilderTemplate = document.getElementById('googleBuilderItemTemplate');
+    const addGoogleQuestionBtn = document.getElementById('addGoogleQuestionBtn');
+    const addGoogleSectionBtn = document.getElementById('addGoogleSectionBtn');
+    const addGooglePageBreakBtn = document.getElementById('addGooglePageBreakBtn');
+    const googleFormMatchMode = document.getElementById('googleFormMatchMode');
+    const googleFormMatchFieldBox = document.getElementById('googleFormMatchFieldBox');
+    const googleFormUrlInput = document.getElementById('googleFormUrlInput');
+    const ownerUnitSelect = document.getElementById('taskOwnerUnitSelect');
     const assignType = document.getElementById('createAssignType');
     const formFieldList = document.getElementById('formFieldList');
     const formFieldTemplate = document.getElementById('formFieldTemplate');
     const addFormFieldBtn = document.getElementById('addFormFieldBtn');
+    let currentStep = 0;
+
+    function splitLines(value) {
+        return String(value || '')
+            .split('\n')
+            .map((item) => item.trim())
+            .filter(Boolean);
+    }
+
+    function builderItemControls(itemNode) {
+        return {
+            kind: itemNode.querySelector('.google-builder-kind'),
+            title: itemNode.querySelector('.google-builder-title'),
+            description: itemNode.querySelector('.google-builder-description'),
+            options: itemNode.querySelector('.google-builder-options'),
+            rows: itemNode.querySelector('.google-builder-rows'),
+            columns: itemNode.querySelector('.google-builder-columns'),
+            required: itemNode.querySelector('.google-builder-required'),
+            scaleLow: itemNode.querySelector('.google-builder-scale-low'),
+            scaleHigh: itemNode.querySelector('.google-builder-scale-high'),
+            scaleLowLabel: itemNode.querySelector('.google-builder-scale-low-label'),
+            scaleHighLabel: itemNode.querySelector('.google-builder-scale-high-label'),
+            ratingLevel: itemNode.querySelector('.google-builder-rating-level'),
+            ratingIcon: itemNode.querySelector('.google-builder-rating-icon'),
+            includeYear: itemNode.querySelector('.google-builder-include-year'),
+            includeTime: itemNode.querySelector('.google-builder-include-time'),
+            duration: itemNode.querySelector('.google-builder-duration'),
+            shuffleRows: itemNode.querySelector('.google-builder-shuffle-rows'),
+        };
+    }
+
+    function syncGoogleBuilderItemUI(itemNode) {
+        const controls = builderItemControls(itemNode);
+        const kind = controls.kind?.value || 'text';
+        itemNode.querySelector('.google-builder-options-box')?.classList.toggle('d-none', !['radio', 'checkbox', 'dropdown'].includes(kind));
+        itemNode.querySelector('.google-builder-rows-box')?.classList.toggle('d-none', !['grid_radio', 'grid_checkbox'].includes(kind));
+        itemNode.querySelector('.google-builder-columns-box')?.classList.toggle('d-none', !['grid_radio', 'grid_checkbox'].includes(kind));
+        itemNode.querySelector('.google-builder-scale-low-box')?.classList.toggle('d-none', kind !== 'scale');
+        itemNode.querySelector('.google-builder-scale-high-box')?.classList.toggle('d-none', kind !== 'scale');
+        itemNode.querySelector('.google-builder-scale-low-label-box')?.classList.toggle('d-none', kind !== 'scale');
+        itemNode.querySelector('.google-builder-scale-high-label-box')?.classList.toggle('d-none', kind !== 'scale');
+        itemNode.querySelector('.google-builder-rating-level-box')?.classList.toggle('d-none', kind !== 'rating');
+        itemNode.querySelector('.google-builder-rating-icon-box')?.classList.toggle('d-none', kind !== 'rating');
+        itemNode.querySelector('.google-builder-date-settings-box')?.classList.toggle('d-none', kind !== 'date');
+        itemNode.querySelector('.google-builder-time-settings-box')?.classList.toggle('d-none', kind !== 'time');
+        itemNode.querySelector('.google-builder-grid-settings-box')?.classList.toggle('d-none', !['grid_radio', 'grid_checkbox'].includes(kind));
+        if (controls.required) {
+            controls.required.disabled = ['section', 'page_break'].includes(kind);
+            if (controls.required.disabled) {
+                controls.required.checked = false;
+            }
+        }
+    }
+
+    function googleBuilderItems() {
+        return Array.from(googleBuilderList?.querySelectorAll('.google-builder-item') || []);
+    }
+
+    function collectGoogleBuilderSchema() {
+        const items = googleBuilderItems().map((itemNode, index) => {
+            const controls = builderItemControls(itemNode);
+            const kind = controls.kind?.value || 'text';
+            const payload = {
+                kind,
+                title: controls.title?.value?.trim() || `${kind === 'section' ? 'Section' : kind === 'page_break' ? 'Page break' : `Câu hỏi ${index + 1}`}`,
+                description: controls.description?.value?.trim() || '',
+                required: Boolean(controls.required?.checked),
+                options: splitLines(controls.options?.value),
+                rows: splitLines(controls.rows?.value),
+                columns: splitLines(controls.columns?.value),
+                settings: {},
+                pc06_item_id: itemNode.dataset.pc06ItemId || `gf_${index + 1}`,
+            };
+            if (kind === 'scale') {
+                payload.settings = {
+                    low: Number(controls.scaleLow?.value || 1),
+                    high: Number(controls.scaleHigh?.value || 5),
+                    low_label: controls.scaleLowLabel?.value?.trim() || '',
+                    high_label: controls.scaleHighLabel?.value?.trim() || '',
+                };
+            } else if (kind === 'date') {
+                payload.settings = {
+                    include_year: Boolean(controls.includeYear?.checked),
+                    include_time: Boolean(controls.includeTime?.checked),
+                };
+            } else if (kind === 'time') {
+                payload.settings = {
+                    duration: Boolean(controls.duration?.checked),
+                };
+            } else if (kind === 'rating') {
+                payload.settings = {
+                    rating_scale_level: Number(controls.ratingLevel?.value || 5),
+                    icon_type: controls.ratingIcon?.value || 'STAR',
+                };
+            } else if (kind === 'grid_radio' || kind === 'grid_checkbox') {
+                payload.settings = {
+                    shuffle_questions: Boolean(controls.shuffleRows?.checked),
+                };
+            }
+            return payload;
+        });
+        return {
+            form_info: {
+                title: googleBuilderTitle?.value?.trim() || form?.querySelector('input[name="title"]')?.value?.trim() || 'Biểu mẫu Google',
+                description: googleBuilderDescription?.value?.trim() || '',
+            },
+            items,
+            publish_settings: {
+                isPublished: (googleBuilderPublishState?.value || 'draft') === 'published',
+                isAcceptingResponses: (googleBuilderAcceptResponses?.value || 'false') === 'true',
+                responderAccess: 'anyone_with_link',
+            },
+            matching: {
+                mode: googleFormMatchMode?.value || 'unit',
+                match_field: document.getElementById('googleFormMatchField')?.value?.trim() || '',
+            },
+        };
+    }
+
+    function syncGoogleBuilderJson() {
+        if (!googleBuilderJsonInput) return;
+        googleBuilderJsonInput.value = JSON.stringify(collectGoogleBuilderSchema());
+        googleBuilderEmpty?.classList.toggle('d-none', googleBuilderItems().length > 0);
+    }
+
+    function addGoogleBuilderItem(kind = 'text') {
+        if (!googleBuilderTemplate || !googleBuilderList) return;
+        const clone = googleBuilderTemplate.content.firstElementChild.cloneNode(true);
+        clone.dataset.pc06ItemId = `gf_${Math.random().toString(36).slice(2, 10)}`;
+        const controls = builderItemControls(clone);
+        if (controls.kind) {
+            controls.kind.value = kind;
+        }
+        if (kind === 'section') {
+            controls.title.value = 'Section mới';
+        } else if (kind === 'page_break') {
+            controls.title.value = 'Chuyển trang';
+        }
+        clone.querySelector('[data-google-remove]')?.addEventListener('click', () => {
+            clone.remove();
+            syncGoogleBuilderJson();
+            syncPreview();
+        });
+        clone.querySelector('[data-google-move-up]')?.addEventListener('click', () => {
+            const previous = clone.previousElementSibling;
+            if (previous) {
+                googleBuilderList.insertBefore(clone, previous);
+                syncGoogleBuilderJson();
+                syncPreview();
+            }
+        });
+        clone.querySelector('[data-google-move-down]')?.addEventListener('click', () => {
+            const next = clone.nextElementSibling;
+            if (next) {
+                googleBuilderList.insertBefore(next, clone);
+                syncGoogleBuilderJson();
+                syncPreview();
+            }
+        });
+        clone.querySelectorAll('input, textarea, select').forEach((field) => {
+            field.addEventListener('input', () => {
+                syncGoogleBuilderItemUI(clone);
+                syncGoogleBuilderJson();
+                syncPreview();
+            });
+            field.addEventListener('change', () => {
+                syncGoogleBuilderItemUI(clone);
+                syncGoogleBuilderJson();
+                syncPreview();
+            });
+        });
+        googleBuilderList.appendChild(clone);
+        syncGoogleBuilderItemUI(clone);
+        syncGoogleBuilderJson();
+        syncPreview();
+    }
 
     function syncTaskMode() {
         const mode = modeSelect?.value || 'OUTLINE';
+        modeCards.forEach((card) => {
+            card.classList.toggle('is-active', card.dataset.modeCard === mode);
+        });
         if (modeHelp) {
             if (mode === 'OUTLINE') {
                 modeHelp.textContent = 'Tạo đợt giao việc theo đề cương, sau đó thêm đầu mục ở màn hình chi tiết.';
@@ -726,6 +1347,8 @@
             fileAssignmentBox.classList.toggle('opacity-50', !(mode === 'FILE' || mode === 'FORM'));
         }
         formBuilderBox?.classList.toggle('d-none', mode !== 'FORM');
+        syncFormProvider();
+        syncPreview();
     }
 
     function syncAssignType() {
@@ -733,6 +1356,23 @@
         document.querySelectorAll('[data-assign-box]').forEach((node) => {
             node.classList.toggle('d-none', node.dataset.assignBox !== mode);
         });
+        syncPreview();
+    }
+
+    function syncFormProvider() {
+        const taskMode = modeSelect?.value || 'OUTLINE';
+        const provider = formProviderSelect?.value || 'internal';
+        const shouldShowBuilder = taskMode === 'FORM';
+        internalFormBuilderBox?.classList.toggle('d-none', !(shouldShowBuilder && provider === 'internal'));
+        googleFormConfigBox?.classList.toggle('d-none', !(shouldShowBuilder && provider === 'google'));
+        syncGoogleMatchMode();
+        syncPreview();
+    }
+
+    function syncGoogleMatchMode() {
+        const mode = googleFormMatchMode?.value || 'unit';
+        googleFormMatchFieldBox?.classList.toggle('d-none', mode === 'respondent_email');
+        syncPreview();
     }
 
     function addFormField() {
@@ -754,9 +1394,15 @@
         clone.querySelector('[data-remove-form-field]')?.addEventListener('click', () => {
             clone.remove();
             syncFormRequiredIndexes();
+            syncPreview();
+        });
+        clone.querySelectorAll('input, textarea, select').forEach((field) => {
+            field.addEventListener('input', syncPreview);
+            field.addEventListener('change', syncPreview);
         });
         formFieldList.appendChild(clone);
         syncFormRequiredIndexes();
+        syncPreview();
     }
 
     function syncFormRequiredIndexes() {
@@ -770,12 +1416,235 @@
         });
     }
 
+    function selectedLabel(select) {
+        return select?.selectedOptions?.[0]?.textContent?.trim() || '';
+    }
+
+    function checkedLabels(selector) {
+        return Array.from(document.querySelectorAll(selector))
+            .filter((node) => node.checked)
+            .map((node) => node.parentElement?.textContent?.trim() || '')
+            .filter(Boolean);
+    }
+
+    function internalFieldLabels() {
+        return Array.from(formFieldList?.querySelectorAll('input[name="form_field_label"]') || [])
+            .map((node) => node.value.trim())
+            .filter(Boolean);
+    }
+
+    function assignmentSummary() {
+        const mode = assignType?.value || 'unit';
+        if (mode === 'role') {
+            const roles = checkedLabels('input[name="assignee_role_ids"]');
+            return roles.length ? roles : ['Chưa chọn vai trò'];
+        }
+        if (mode === 'user') {
+            const users = checkedLabels('input[name="target_users"]');
+            return users.length ? users : ['Chưa chọn cán bộ'];
+        }
+        const units = checkedLabels('input[name="child_domains"]');
+        if (units.length) return units;
+        const ownerUnit = selectedLabel(ownerUnitSelect);
+        return [ownerUnit || 'Theo đội nghiệp vụ mặc định'];
+    }
+
+    function syncPreview() {
+        if (!previewBox) return;
+        const mode = modeSelect?.value || 'OUTLINE';
+        const provider = formProviderSelect?.value || 'internal';
+        const title = form?.querySelector('input[name="title"]')?.value?.trim() || 'Chưa nhập tiêu đề';
+        const category = selectedLabel(form?.querySelector('select[name="category"]')) || 'Chưa chọn';
+        const ownerUnit = selectedLabel(ownerUnitSelect) || 'Chưa chọn';
+        const taskType = selectedLabel(form?.querySelector('select[name="task_type"]')) || 'Công việc thường xuyên';
+        const priority = selectedLabel(form?.querySelector('select[name="priority"]')) || 'Trung bình';
+        const deadline = form?.querySelector('input[name="deadline"]')?.value || 'Không đặt hạn';
+        const fileName = document.getElementById('taskFileInput')?.files?.[0]?.name || 'Không có';
+        const description = form?.querySelector('textarea[name="description"]')?.value?.trim() || 'Chưa có mô tả';
+
+        let contentItems = [];
+        if (mode === 'OUTLINE') {
+            contentItems = [
+                'Đầu mục đề cương sẽ được tạo sau ở màn hình chi tiết.',
+                `Mô tả hiện tại: ${description.slice(0, 120)}${description.length > 120 ? '...' : ''}`,
+            ];
+        } else if (mode === 'FILE') {
+            contentItems = [
+                `Tệp/tài liệu gốc: ${fileName}`,
+                `Mô tả yêu cầu: ${description.slice(0, 120)}${description.length > 120 ? '...' : ''}`,
+            ];
+        } else if (provider === 'google') {
+            const schema = collectGoogleBuilderSchema();
+            contentItems = [
+                `Nguồn biểu mẫu: Google Form`,
+                `Số item builder: ${schema.items.length}`,
+                `Form cũ để nhập/nâng cấp: ${(googleFormUrlInput?.value || 'Chưa gắn')}`,
+                `Đối sánh phản hồi: ${selectedLabel(googleFormMatchMode)}${googleFormMatchMode?.value !== 'respondent_email' ? ` - ${document.getElementById('googleFormMatchField')?.value?.trim() || 'Chưa nhập tên câu hỏi'}` : ''}`,
+            ];
+        } else {
+            const fields = internalFieldLabels();
+            contentItems = [
+                `Nguồn biểu mẫu: Biểu mẫu nội bộ`,
+                `Số trường đã cấu hình: ${fields.length}`,
+                fields.length ? `Các trường đầu: ${fields.slice(0, 4).join(', ')}` : 'Chưa có trường biểu mẫu',
+            ];
+        }
+
+        const assignmentItems = assignmentSummary();
+        previewBox.innerHTML = `
+            <div class="task-preview-group">
+                <h6>Thông tin chung</h6>
+                <ul>
+                    <li><strong>Loại task:</strong> ${mode === 'OUTLINE' ? 'Đề cương' : mode === 'FILE' ? 'File' : 'Form'}</li>
+                    <li><strong>Tiêu đề:</strong> ${title}</li>
+                    <li><strong>Lĩnh vực:</strong> ${category}</li>
+                    <li><strong>Đội nghiệp vụ:</strong> ${ownerUnit}</li>
+                    <li><strong>Loại công việc:</strong> ${taskType}</li>
+                    <li><strong>Ưu tiên:</strong> ${priority}</li>
+                    <li><strong>Hạn xử lý:</strong> ${deadline}</li>
+                </ul>
+            </div>
+            <div class="task-preview-group">
+                <h6>Nội dung và đầu ra</h6>
+                <ul>${contentItems.map((item) => `<li>${item}</li>`).join('')}</ul>
+            </div>
+            <div class="task-preview-group">
+                <h6>Đối tượng nhận việc</h6>
+                <ul>${assignmentItems.map((item) => `<li>${item}</li>`).join('')}</ul>
+            </div>
+        `;
+    }
+
+    function showStep(index) {
+        currentStep = Math.max(0, Math.min(index, stepPanes.length - 1));
+        stepPanes.forEach((pane) => {
+            pane.classList.toggle('is-active', Number(pane.dataset.stepPane) === currentStep);
+        });
+        stepButtons.forEach((button, indexValue) => {
+            button.classList.toggle('is-active', indexValue === currentStep);
+            button.classList.toggle('is-complete', indexValue < currentStep);
+        });
+        if (wizardHint) {
+            wizardHint.textContent = `Bước ${currentStep + 1}/${stepPanes.length}`;
+        }
+        prevBtn?.classList.toggle('d-none', currentStep === 0);
+        nextBtn?.classList.toggle('d-none', currentStep === stepPanes.length - 1);
+        submitBtn?.classList.toggle('d-none', currentStep !== stepPanes.length - 1);
+        if (currentStep === stepPanes.length - 1) {
+            syncPreview();
+        }
+    }
+
+    function validateStep(index) {
+        const mode = modeSelect?.value || 'OUTLINE';
+        const provider = formProviderSelect?.value || 'internal';
+        const title = form?.querySelector('input[name="title"]')?.value?.trim() || '';
+        const selectedUnits = document.querySelectorAll('input[name="child_domains"]:checked').length;
+        const selectedRoles = document.querySelectorAll('input[name="assignee_role_ids"]:checked').length;
+        const selectedUsers = document.querySelectorAll('input[name="target_users"]:checked').length;
+
+        if (index === 1 && !title) {
+            alert('Cần nhập tiêu đề công việc.');
+            form?.querySelector('input[name="title"]')?.focus();
+            return false;
+        }
+
+        if (index === 2 && mode === 'FORM') {
+            if (provider === 'internal' && internalFieldLabels().length === 0) {
+                alert('Cần cấu hình ít nhất một trường dữ liệu cho biểu mẫu nội bộ.');
+                return false;
+            }
+            if (provider === 'google') {
+                const schema = collectGoogleBuilderSchema();
+                if (!schema.form_info.title?.trim()) {
+                    alert('Cần nhập tiêu đề biểu mẫu Google.');
+                    googleBuilderTitle?.focus();
+                    return false;
+                }
+                if (!schema.items.length) {
+                    alert('Cần thêm ít nhất một item trong builder Google Form.');
+                    return false;
+                }
+                if (googleFormMatchMode?.value !== 'respondent_email' && !document.getElementById('googleFormMatchField')?.value?.trim()) {
+                    alert('Cần nhập tên câu hỏi dùng để đối sánh phản hồi Google Form.');
+                    document.getElementById('googleFormMatchField')?.focus();
+                    return false;
+                }
+            }
+        }
+
+        if (index === 3 && (mode === 'FILE' || mode === 'FORM')) {
+            const assignMode = assignType?.value || 'unit';
+            if (assignMode === 'role' && !selectedRoles) {
+                alert('Cần chọn ít nhất một vai trò nhận việc.');
+                return false;
+            }
+            if (assignMode === 'user' && !selectedUsers) {
+                alert('Cần chọn ít nhất một cán bộ nhận việc.');
+                return false;
+            }
+            if (assignMode === 'unit' && !selectedUnits && !ownerUnitSelect?.value) {
+                alert('Cần chọn ít nhất một đơn vị nhận việc hoặc chọn Đội nghiệp vụ ở bước thông tin chung.');
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function goNext() {
+        if (!validateStep(currentStep)) return;
+        showStep(currentStep + 1);
+    }
+
     modeSelect?.addEventListener('change', syncTaskMode);
     assignType?.addEventListener('change', syncAssignType);
+    formProviderSelect?.addEventListener('change', syncFormProvider);
+    googleFormMatchMode?.addEventListener('change', syncGoogleMatchMode);
+    modeCards.forEach((card) => {
+        card.addEventListener('click', () => {
+            modeSelect.value = card.dataset.modeCard || 'OUTLINE';
+            syncTaskMode();
+        });
+    });
+    stepButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            const nextStep = Number(button.dataset.stepTarget || 0);
+            if (nextStep <= currentStep) {
+                showStep(nextStep);
+                return;
+            }
+            for (let index = currentStep; index < nextStep; index += 1) {
+                if (!validateStep(index)) {
+                    return;
+                }
+            }
+            showStep(nextStep);
+        });
+    });
+    prevBtn?.addEventListener('click', () => showStep(currentStep - 1));
+    nextBtn?.addEventListener('click', goNext);
     addFormFieldBtn?.addEventListener('click', addFormField);
+    addGoogleQuestionBtn?.addEventListener('click', () => addGoogleBuilderItem('text'));
+    addGoogleSectionBtn?.addEventListener('click', () => addGoogleBuilderItem('section'));
+    addGooglePageBreakBtn?.addEventListener('click', () => addGoogleBuilderItem('page_break'));
+    form?.addEventListener('submit', (event) => {
+        syncGoogleBuilderJson();
+        if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
+            event.preventDefault();
+        }
+    });
+    form?.querySelectorAll('input, textarea, select').forEach((field) => {
+        field.addEventListener('input', syncPreview);
+        field.addEventListener('change', syncPreview);
+    });
     syncTaskMode();
     syncAssignType();
+    syncFormProvider();
     addFormField();
+    addGoogleBuilderItem('text');
+    showStep(0);
+    syncPreview();
 })();
 </script>
 {% endif %}

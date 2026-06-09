@@ -28,6 +28,27 @@ from category_helpers import (
     stable_form_category_options,
     sync_record_categories,
 )
+from google_forms import (
+    GoogleFormsConfigError,
+    GoogleFormsSyncError,
+    GoogleFormsValidationError,
+    build_google_forms_service,
+    builder_schema_from_form_definition,
+    builder_schema_to_task_form_fields,
+    build_google_form_create_requests,
+    create_google_form,
+    extract_google_form_id,
+    fetch_google_form_definition,
+    fetch_google_form_responses,
+    GOOGLE_FORMS_MANAGE_SCOPES,
+    GOOGLE_FORMS_READ_SCOPES,
+    load_google_form_into_builder,
+    normalize_google_form_builder_schema,
+    parse_google_form_definition,
+    parse_google_form_responses,
+    publish_google_form,
+    update_google_form,
+)
 from models import (
     AppRole,
     RankingUnit,
@@ -138,6 +159,20 @@ TASK_ASSIGNMENT_STATUS_LABELS = {
     "overdue": "Quá hạn",
 }
 TASK_FORM_ALLOWED_FIELD_TYPES = {"text", "number", "textarea", "radio", "checkbox", "table"}
+TASK_FORM_PROVIDER_ALLOWED = {"internal", "google"}
+TASK_FORM_PROVIDER_DEFAULT = "internal"
+TASK_FORM_PROVIDER_LABELS = {
+    "internal": "Biểu mẫu nội bộ",
+    "google": "Google Form",
+}
+TASK_GOOGLE_FORM_MATCH_ALLOWED = {"username", "fullname", "unit", "respondent_email"}
+TASK_GOOGLE_FORM_MATCH_DEFAULT = "unit"
+TASK_GOOGLE_FORM_MATCH_LABELS = {
+    "username": "Câu hỏi tên đăng nhập",
+    "fullname": "Câu hỏi họ tên",
+    "unit": "Câu hỏi đơn vị",
+    "respondent_email": "Email người trả lời",
+}
 DEFAULT_TASK_REPORT_SCHEMA = {
     "enabled": False,
     "narrative": {
@@ -323,6 +358,235 @@ def _task_mode_label(task_mode):
 def _task_mode_description(task_mode):
     normalized = _normalize_task_mode(task_mode)
     return TASK_MODE_DESCRIPTIONS.get(normalized, TASK_MODE_DESCRIPTIONS[TASK_MODE_DEFAULT])
+
+
+def _normalize_task_form_provider(value):
+    normalized = str(value or "").strip().lower()
+    if normalized in TASK_FORM_PROVIDER_ALLOWED:
+        return normalized
+    return ""
+
+
+def _requested_task_form_provider(form, fallback=TASK_FORM_PROVIDER_DEFAULT):
+    requested = _normalize_task_form_provider(form.get("form_provider"))
+    if requested:
+        return requested
+    normalized_fallback = _normalize_task_form_provider(fallback)
+    return normalized_fallback or TASK_FORM_PROVIDER_DEFAULT
+
+
+def _task_form_provider(task):
+    if not task or _task_mode(task) != "FORM":
+        return TASK_FORM_PROVIDER_DEFAULT
+    normalized = _normalize_task_form_provider(getattr(task, "form_provider", None))
+    return normalized or TASK_FORM_PROVIDER_DEFAULT
+
+
+def _task_form_provider_label(provider):
+    normalized = _normalize_task_form_provider(provider)
+    return TASK_FORM_PROVIDER_LABELS.get(normalized, TASK_FORM_PROVIDER_LABELS[TASK_FORM_PROVIDER_DEFAULT])
+
+
+def _task_uses_google_form(task):
+    return _task_mode(task) == "FORM" and _task_form_provider(task) == "google"
+
+
+def _normalize_google_form_match_mode(value):
+    normalized = str(value or "").strip().lower()
+    if normalized in TASK_GOOGLE_FORM_MATCH_ALLOWED:
+        return normalized
+    return ""
+
+
+def _requested_google_form_match_mode(form, fallback=TASK_GOOGLE_FORM_MATCH_DEFAULT):
+    requested = _normalize_google_form_match_mode(form.get("google_form_match_mode"))
+    if requested:
+        return requested
+    normalized_fallback = _normalize_google_form_match_mode(fallback)
+    return normalized_fallback or TASK_GOOGLE_FORM_MATCH_DEFAULT
+
+
+def _google_form_match_mode_label(mode):
+    normalized = _normalize_google_form_match_mode(mode)
+    return TASK_GOOGLE_FORM_MATCH_LABELS.get(normalized, TASK_GOOGLE_FORM_MATCH_LABELS[TASK_GOOGLE_FORM_MATCH_DEFAULT])
+
+
+def _task_google_sync_state(task):
+    raw_payload = getattr(task, "google_form_sync_state_json", None) or ""
+    if not raw_payload:
+        return {}
+    try:
+        payload = json.loads(raw_payload)
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _store_task_google_sync_state(task, payload):
+    normalized = payload if isinstance(payload, dict) else {}
+    task.google_form_sync_state_json = json.dumps(normalized, ensure_ascii=False) if normalized else None
+    return normalized
+
+
+def _task_google_builder(task):
+    raw_payload = getattr(task, "google_form_builder_json", None) or ""
+    if not raw_payload:
+        return {}
+    try:
+        payload = json.loads(raw_payload)
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _store_task_google_builder(task, payload):
+    normalized = payload if isinstance(payload, dict) else {}
+    task.google_form_builder_json = json.dumps(normalized, ensure_ascii=False) if normalized else None
+    return normalized
+
+
+def _task_google_runtime(task):
+    raw_payload = getattr(task, "google_form_runtime_json", None) or ""
+    if not raw_payload:
+        return {}
+    try:
+        payload = json.loads(raw_payload)
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _store_task_google_runtime(task, payload):
+    normalized = payload if isinstance(payload, dict) else {}
+    task.google_form_runtime_json = json.dumps(normalized, ensure_ascii=False) if normalized else None
+    return normalized
+
+
+def _task_google_builder_managed(task):
+    builder = _task_google_builder(task)
+    return bool(builder.get("form_info") or builder.get("items"))
+
+
+def _task_google_normalized_builder(task, fallback_title="", fallback_description=""):
+    raw_builder = _task_google_builder(task)
+    if not raw_builder:
+        return {}
+    return normalize_google_form_builder_schema(
+        raw_builder,
+        fallback_title=fallback_title or getattr(task, "title", "") or "Biểu mẫu",
+        fallback_description=fallback_description or getattr(task, "content", "") or "",
+    )
+
+
+def _task_google_default_builder_from_request(form, fallback_title="", fallback_description=""):
+    raw_builder = (form.get("google_form_builder_json") or "").strip()
+    if raw_builder:
+        try:
+            payload = json.loads(raw_builder)
+        except Exception as exc:
+            raise GoogleFormsValidationError("Cấu hình builder Google Form không phải JSON hợp lệ.") from exc
+    else:
+        payload = {
+            "form_info": {
+                "title": fallback_title,
+                "description": fallback_description,
+            },
+            "items": [],
+            "publish_settings": {
+                "isPublished": False,
+                "isAcceptingResponses": False,
+                "responderAccess": "anyone_with_link",
+            },
+            "matching": {
+                "mode": _requested_google_form_match_mode(form),
+                "match_field": (form.get("google_form_match_field") or "").strip(),
+            },
+        }
+    return normalize_google_form_builder_schema(
+        payload,
+        fallback_title=fallback_title or "Biểu mẫu",
+        fallback_description=fallback_description or "",
+    )
+
+
+def _task_google_sync_runtime_to_columns(task, builder_schema=None, runtime_payload=None):
+    builder = builder_schema if isinstance(builder_schema, dict) else _task_google_builder(task)
+    runtime = runtime_payload if isinstance(runtime_payload, dict) else _task_google_runtime(task)
+    matching = builder.get("matching") if isinstance(builder.get("matching"), dict) else {}
+    task.google_form_match_mode = _normalize_google_form_match_mode(matching.get("mode")) or TASK_GOOGLE_FORM_MATCH_DEFAULT
+    task.google_form_match_field = (matching.get("match_field") or "").strip() or None
+    task.google_form_id = (runtime.get("form_id") or task.google_form_id or "").strip() or None
+    task.google_form_url = (
+        runtime.get("responder_uri")
+        or runtime.get("form_url")
+        or task.google_form_url
+        or (f"https://docs.google.com/forms/d/{task.google_form_id}/viewform" if task.google_form_id else "")
+    ).strip() or None
+
+
+def _replace_task_google_projection_fields(task, builder_schema=None):
+    builder = builder_schema if isinstance(builder_schema, dict) else _task_google_normalized_builder(task)
+    if not builder:
+        return []
+    field_defs = builder_schema_to_task_form_fields(builder)
+    _replace_task_form_fields(task, field_defs)
+    return field_defs
+
+
+def _task_google_match_value(response_payload, task):
+    mode = _normalize_google_form_match_mode(getattr(task, "google_form_match_mode", None))
+    if mode == "respondent_email":
+        return str(response_payload.get("respondent_email") or "").strip()
+
+    match_field = remove_accents(getattr(task, "google_form_match_field", None) or "")
+    payload_by_label = response_payload.get("payload_by_label") or {}
+    for label, value in payload_by_label.items():
+        if remove_accents(label or "") != match_field:
+            continue
+        if isinstance(value, list):
+            return ", ".join(str(item) for item in value)
+        return str(value or "").strip()
+    return ""
+
+
+def _task_google_match_assignment(task, assignments, response_payload):
+    mode = _normalize_google_form_match_mode(getattr(task, "google_form_match_mode", None))
+    raw_value = _task_google_match_value(response_payload, task)
+    if not raw_value:
+        return None, ""
+
+    if mode == "respondent_email":
+        normalized = raw_value.strip().lower()
+        for assignment in assignments or []:
+            user = getattr(assignment, "user", None)
+            if str(getattr(user, "username", "") or "").strip().lower() == normalized:
+                return assignment, raw_value
+        return None, raw_value
+
+    if mode == "username":
+        normalized = raw_value.strip().lower()
+        for assignment in assignments or []:
+            user = getattr(assignment, "user", None)
+            if str(getattr(user, "username", "") or "").strip().lower() == normalized:
+                return assignment, raw_value
+        return None, raw_value
+
+    if mode == "fullname":
+        normalized = remove_accents(raw_value)
+        for assignment in assignments or []:
+            user = getattr(assignment, "user", None)
+            if remove_accents(getattr(user, "fullname", None) or getattr(user, "username", None) or "") == normalized:
+                return assignment, raw_value
+        return None, raw_value
+
+    if mode == "unit":
+        for assignment in assignments or []:
+            user = getattr(assignment, "user", None)
+            if is_unit_match(raw_value, _task_assignee_unit_name(user)):
+                return assignment, raw_value
+        return None, raw_value
+
+    return None, raw_value
 
 
 def _task_assignment_status_label(status):
@@ -3950,6 +4214,12 @@ def _task_form_fields(task):
     )
 
 
+def _replace_task_form_fields(task, field_defs):
+    TaskFormField.query.filter_by(task_id=task.id).delete(synchronize_session=False)
+    for field_def in field_defs or []:
+        db.session.add(TaskFormField(task_id=task.id, **field_def))
+
+
 def _parse_task_form_fields_from_request(form):
     labels = form.getlist("form_field_label")
     field_types = form.getlist("form_field_type")
@@ -3986,6 +4256,137 @@ def _form_field_options(field):
 
 def _task_form_submission_payload(submission):
     return task_form_submission_payload(submission)
+
+
+def _hydrate_google_form_fields(task):
+    if not _task_uses_google_form(task):
+        return []
+
+    if _task_google_builder_managed(task):
+        builder = _task_google_normalized_builder(task, fallback_title=task.title, fallback_description=task.content)
+        if builder:
+            return _replace_task_google_projection_fields(task, builder)
+
+    if not getattr(task, "google_form_id", None):
+        return []
+
+    service = build_google_forms_service(current_app.config, scopes=GOOGLE_FORMS_READ_SCOPES)
+    form_payload = fetch_google_form_definition(service, task.google_form_id)
+    field_defs, _question_map = parse_google_form_definition(form_payload)
+    if field_defs:
+        _replace_task_form_fields(task, field_defs)
+    return field_defs
+
+
+def _sync_google_form_task(task):
+    if not _task_uses_google_form(task):
+        raise GoogleFormsSyncError("Công việc này không dùng Google Form.")
+    if not getattr(task, "google_form_id", None):
+        raise GoogleFormsSyncError("Thiếu mã Google Form để đồng bộ.")
+
+    service = build_google_forms_service(current_app.config, scopes=GOOGLE_FORMS_READ_SCOPES)
+    form_payload = fetch_google_form_definition(service, task.google_form_id)
+    response_payloads = fetch_google_form_responses(service, task.google_form_id)
+    field_defs, parsed_responses = parse_google_form_responses(form_payload, response_payloads)
+    if field_defs:
+        _replace_task_form_fields(task, field_defs)
+
+    assignments = _task_assignments_query(task).all()
+    matched_count = 0
+    created_count = 0
+    updated_count = 0
+    unmatched = []
+    now = datetime.now()
+
+    for response_payload in parsed_responses:
+        assignment, match_value = _task_google_match_assignment(task, assignments, response_payload)
+        if not assignment:
+            unmatched.append(
+                {
+                    "response_id": response_payload.get("response_id"),
+                    "match_value": match_value,
+                }
+            )
+            continue
+
+        matched_count += 1
+        response_id = str(response_payload.get("response_id") or "").strip()
+        submission = None
+        if response_id:
+            submission = TaskSubmission.query.filter_by(
+                task_id=task.id,
+                assignment_id=assignment.id,
+                external_source="google_form",
+                external_submission_id=response_id,
+            ).first()
+
+        if submission is None:
+            submission = TaskSubmission(
+                task_id=task.id,
+                assignment_id=assignment.id,
+                submitted_by=assignment.user_id,
+                submission_type="FORM",
+                status="submitted",
+                external_submission_id=response_id or None,
+                external_source="google_form",
+            )
+            db.session.add(submission)
+            db.session.flush()
+            created_count += 1
+        else:
+            updated_count += 1
+
+        submission.payload_json = json.dumps(response_payload.get("payload") or {}, ensure_ascii=False)
+        submission.narrative_content = "Đồng bộ từ Google Form"
+        submission.submitted_at = response_payload.get("submitted_at") or now
+        submission.synced_at = now
+        submission.status = "submitted"
+
+        assignment.status = "submitted"
+        if assignment.submitted_at is None or (submission.submitted_at and submission.submitted_at >= assignment.submitted_at):
+            assignment.submitted_at = submission.submitted_at
+            assignment.last_submission_id = submission.id
+            assignment.report_payload_json = json.dumps(
+                {
+                    "source": "google_form",
+                    "payload": response_payload.get("payload") or {},
+                    "submitted_at": submission.submitted_at.strftime("%d/%m/%Y %H:%M") if submission.submitted_at else "",
+                },
+                ensure_ascii=False,
+            )
+        assignment.updated_at = now
+
+    sync_state = {
+        "source": "google_form",
+        "form_id": task.google_form_id,
+        "form_title": str((form_payload or {}).get("info", {}).get("title") or task.title or "").strip(),
+        "last_sync_at": now.isoformat(),
+        "responses_total": len(parsed_responses),
+        "matched_total": matched_count,
+        "unmatched_total": len(unmatched),
+        "created_total": created_count,
+        "updated_total": updated_count,
+        "match_mode": _normalize_google_form_match_mode(task.google_form_match_mode),
+        "match_field": getattr(task, "google_form_match_field", None) or "",
+        "unmatched_samples": unmatched[:10],
+    }
+    _store_task_google_sync_state(task, sync_state)
+    runtime_state = _task_google_runtime(task)
+    runtime_state.update(
+        {
+            "form_id": task.google_form_id,
+            "form_url": getattr(task, "google_form_url", None) or "",
+            "responder_uri": (form_payload or {}).get("responderUri") or runtime_state.get("responder_uri") or "",
+            "revision_id": (form_payload or {}).get("revisionId") or runtime_state.get("revision_id") or "",
+            "publish_settings": (form_payload or {}).get("publishSettings") or runtime_state.get("publish_settings") or {},
+            "last_sync_at": now.isoformat(),
+            "form_title": str((form_payload or {}).get("info", {}).get("title") or task.title or "").strip(),
+        }
+    )
+    _store_task_google_runtime(task, runtime_state)
+    if _task_google_builder_managed(task):
+        _task_google_sync_runtime_to_columns(task, _task_google_builder(task), runtime_state)
+    return sync_state
 
 
 def _build_form_task_rows(task, current_uid):
@@ -4037,6 +4438,7 @@ def _tasks_page_v2():
     if request.method == "POST" and is_lead:
         title = (request.form.get("title") or "").strip()
         task_mode = _requested_task_mode(request.form)
+        form_provider = _requested_task_form_provider(request.form) if task_mode == "FORM" else TASK_FORM_PROVIDER_DEFAULT
         category = canonicalize_category_value(request.form.get("category") or "", task_fields, prefer_stable=True)
         domain = canonicalize_category_value(
             request.form.get("unit_name") or request.form.get("domain") or "",
@@ -4086,8 +4488,57 @@ def _tasks_page_v2():
             task_type=task_type,
             initial_status="Chưa tiếp nhận",
             task_mode=task_mode,
+            form_provider=form_provider,
             workflow_mode=_workflow_mode_from_task_mode(task_mode),
         )
+
+        google_form_warning = ""
+        if task_mode == "FORM" and form_provider == "google":
+            google_form_url = (request.form.get("google_form_url") or "").strip()
+            google_form_id = extract_google_form_id(google_form_url)
+            try:
+                builder_schema = _task_google_default_builder_from_request(
+                    request.form,
+                    fallback_title=title,
+                    fallback_description=content,
+                )
+            except GoogleFormsValidationError as validation_error:
+                flash(str(validation_error), "danger")
+                return redirect(url_for("tasks_bp.tasks"))
+
+            match_mode = _normalize_google_form_match_mode(builder_schema.get("matching", {}).get("mode")) or _requested_google_form_match_mode(request.form)
+            match_field = (builder_schema.get("matching", {}).get("match_field") or "").strip()
+            if match_mode != "respondent_email" and not match_field:
+                flash("Cần nhập tên câu hỏi dùng để đối sánh phản hồi Google Form.", "danger")
+                return redirect(url_for("tasks_bp.tasks"))
+
+            runtime_payload = {
+                "provider": "google",
+                "builder_managed": True,
+                "form_id": google_form_id,
+                "form_url": google_form_url,
+                "responder_uri": google_form_url,
+                "edit_url": f"https://docs.google.com/forms/d/{google_form_id}/edit" if google_form_id else "",
+                "publish_settings": {
+                    "publishState": {
+                        "isPublished": False,
+                        "isAcceptingResponses": False,
+                    }
+                },
+                "last_sync_at": "",
+            }
+            _store_task_google_builder(new_task, builder_schema)
+            _store_task_google_runtime(new_task, runtime_payload)
+            _task_google_sync_runtime_to_columns(new_task, builder_schema, runtime_payload)
+            _store_task_google_sync_state(
+                new_task,
+                {
+                    "source": "google_form",
+                    "status": "draft",
+                    "match_mode": match_mode,
+                    "match_field": match_field,
+                },
+            )
         _store_assignment_scope(
             new_task,
             request.form.get("assign_type", "unit"),
@@ -4119,20 +4570,29 @@ def _tasks_page_v2():
             )
 
         if task_mode == "FORM":
-            field_defs = _parse_task_form_fields_from_request(request.form)
-            if not field_defs:
-                flash("Cần cấu hình ít nhất một trường dữ liệu cho biểu mẫu.", "danger")
-                db.session.rollback()
-                return redirect(url_for("tasks_bp.tasks"))
-            for field_def in field_defs:
-                db.session.add(TaskFormField(task_id=new_task.id, **field_def))
+            if form_provider == "internal":
+                field_defs = _parse_task_form_fields_from_request(request.form)
+                if not field_defs:
+                    flash("Cần cấu hình ít nhất một trường dữ liệu cho biểu mẫu.", "danger")
+                    db.session.rollback()
+                    return redirect(url_for("tasks_bp.tasks"))
+                for field_def in field_defs:
+                    db.session.add(TaskFormField(task_id=new_task.id, **field_def))
+            else:
+                try:
+                    _hydrate_google_form_fields(new_task)
+                except (GoogleFormsConfigError, GoogleFormsSyncError, GoogleFormsValidationError) as google_error:
+                    google_form_warning = str(google_error)
 
         db.session.commit()
 
         for user in assignees:
             push_notif(user.id, "Công việc mới", f"Bạn vừa được giao: {new_task.title}", f"/tasks/{new_task.id}")
 
-        flash("Đã tạo công việc mới.", "success")
+        if google_form_warning:
+            flash(f"Đã tạo công việc mới. Chưa thể đọc cấu trúc Google Form: {google_form_warning}", "warning")
+        else:
+            flash("Đã tạo công việc mới.", "success")
         return redirect(url_for("tasks_bp.task_detail", tid=new_task.id))
 
     candidate_tasks = (
@@ -4202,6 +4662,7 @@ def _tasks_page_v2():
         is_lead=is_lead,
         is_admin=is_admin,
         stats=list_context["stats"],
+        google_forms_enabled=bool(current_app.config.get("GOOGLE_FORMS_ENABLED")),
     )
 
 
@@ -4239,6 +4700,13 @@ def _task_detail_v2(tid):
     setattr(task, "task_mode", mode)
     setattr(task, "task_mode_label", _task_mode_label(mode))
     setattr(task, "task_mode_description", _task_mode_description(mode))
+    setattr(task, "form_provider", _task_form_provider(task))
+    setattr(task, "form_provider_label", _task_form_provider_label(task.form_provider))
+    setattr(task, "google_form_match_mode_label", _google_form_match_mode_label(getattr(task, "google_form_match_mode", None)))
+    setattr(task, "google_form_sync_state", _task_google_sync_state(task))
+    setattr(task, "google_form_builder", _task_google_builder(task))
+    setattr(task, "google_form_runtime", _task_google_runtime(task))
+    setattr(task, "google_form_builder_managed", _task_google_builder_managed(task))
 
     detail_page_context = build_task_detail_page_context(
         task,
@@ -4304,6 +4772,7 @@ def _task_detail_v2(tid):
         summary=detail_page_context["summary"],
         detail_context=detail_page_context["detail_context"],
         status_labels=TASK_ASSIGNMENT_STATUS_LABELS,
+        google_forms_enabled=bool(current_app.config.get("GOOGLE_FORMS_ENABLED")),
     )
 
 
@@ -4498,6 +4967,10 @@ def _submit_task_report_v2(tid):
         flash("Bạn không được giao nội dung này.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
+    if _task_uses_google_form(task):
+        flash("Biểu mẫu này dùng Google Form thật. Hãy mở link biểu mẫu và dùng chức năng đồng bộ để cập nhật kết quả.", "warning")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
     narrative = (request.form.get("report_content") or request.form.get("report_narrative") or "").strip()
     report_file = request.files.get("report_file")
     numeric_value = None
@@ -4609,6 +5082,102 @@ def _submit_task_report_v2(tid):
     db.session.commit()
     flash("Đã gửi báo cáo.", "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+def _sync_google_form_task_v2(tid):
+    task = Task.query.options(joinedload(Task.assignments).joinedload(TaskAssignment.user)).filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    if not _task_uses_google_form(task):
+        flash("Công việc này không dùng Google Form.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    current_user = db.session.get(User, session["uid"])
+    is_executor = TaskAssignment.query.filter_by(task_id=task.id, user_id=session["uid"]).first() is not None
+    perms = _current_perms()
+    can_manage_task_view = bool(
+        bool(session.get("is_admin"))
+        or _can_process_task_module(perms)
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+    )
+    if not (can_manage_task_view or is_executor or task.author_id == session["uid"]):
+        flash("Bạn không có quyền đồng bộ Google Form cho công việc này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    try:
+        sync_state = _sync_google_form_task(task)
+        db.session.add(
+            TaskComment(
+                task_id=task.id,
+                user_id=session["uid"],
+                user_name=session.get("fullname", "Người dùng"),
+                content=(
+                    "[GOOGLE FORM] Đồng bộ "
+                    f"{sync_state.get('matched_total', 0)}/{sync_state.get('responses_total', 0)} phản hồi"
+                ),
+            )
+        )
+        db.session.commit()
+    except (GoogleFormsConfigError, GoogleFormsSyncError) as google_error:
+        db.session.rollback()
+        flash(str(google_error), "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    flash(
+        "Đã đồng bộ Google Form: "
+        f"{sync_state.get('matched_total', 0)}/{sync_state.get('responses_total', 0)} phản hồi khớp, "
+        f"{sync_state.get('unmatched_total', 0)} phản hồi chưa ghép.",
+        "success",
+    )
+    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+def _load_google_form_task_for_action(tid, require_manage=True):
+    task = Task.query.options(joinedload(Task.assignments).joinedload(TaskAssignment.user)).filter_by(id=tid).first()
+    if not task:
+        return None, ("Not Found", 404)
+
+    if not _task_uses_google_form(task):
+        return None, ("Công việc này không dùng Google Form.", 400)
+
+    current_user = db.session.get(User, session["uid"])
+    is_executor = TaskAssignment.query.filter_by(task_id=task.id, user_id=session["uid"]).first() is not None
+    perms = _current_perms()
+    can_manage_task_view = bool(
+        bool(session.get("is_admin"))
+        or _can_process_task_module(perms)
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+    )
+    if require_manage and not can_manage_task_view:
+        return None, ("Bạn không có quyền quản trị Google Form cho công việc này.", 403)
+    if not require_manage and not (can_manage_task_view or is_executor or task.author_id == session["uid"]):
+        return None, ("Bạn không có quyền dùng chức năng Google Form cho công việc này.", 403)
+    return task, None
+
+
+def _google_action_error_response(message, status=400, as_json=False):
+    if as_json:
+        return jsonify({"ok": False, "message": message}), status
+    flash(message, "danger")
+    return None
+
+
+def _task_google_preview_summary(builder_schema):
+    normalized = normalize_google_form_builder_schema(builder_schema, fallback_title="Biểu mẫu")
+    kind_counts = {}
+    for item in normalized.get("items", []):
+        kind_counts[item.get("kind")] = kind_counts.get(item.get("kind"), 0) + 1
+    return {
+        "title": normalized.get("form_info", {}).get("title", ""),
+        "description": normalized.get("form_info", {}).get("description", ""),
+        "items_total": len(normalized.get("items", [])),
+        "kind_counts": kind_counts,
+        "matching": normalized.get("matching", {}),
+        "publish_settings": normalized.get("publish_settings", {}),
+    }
 
 
 def _export_form_task_v2(tid):
@@ -4967,6 +5536,283 @@ def submit_task_report(tid):
 
     _ensure_task_schema()
     return _submit_task_report_v2(tid)
+
+
+@tasks_bp.route("/tasks/google-form/preview-schema", methods=["POST"])
+def preview_google_form_schema():
+    if not session.get("uid"):
+        return jsonify({"ok": False, "message": "Chưa đăng nhập."}), 401
+
+    _ensure_task_schema()
+    raw_payload = request.get_json(silent=True) if request.is_json else request.form.to_dict(flat=False)
+    try:
+        if request.is_json:
+            builder_schema = normalize_google_form_builder_schema(raw_payload or {}, fallback_title="Biểu mẫu Google")
+        else:
+            form_data = MultiDict()
+            for key, values in (raw_payload or {}).items():
+                if isinstance(values, list):
+                    for value in values:
+                        form_data.add(key, value)
+                else:
+                    form_data.add(key, values)
+            builder_schema = _task_google_default_builder_from_request(form_data, fallback_title="Biểu mẫu Google")
+        return jsonify({"ok": True, "schema": builder_schema, "summary": _task_google_preview_summary(builder_schema)})
+    except GoogleFormsValidationError as validation_error:
+        return jsonify({"ok": False, "message": str(validation_error)}), 400
+
+
+@tasks_bp.route("/tasks/<int:tid>/google-form/create", methods=["POST"])
+def create_task_google_form(tid):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    task, error = _load_google_form_task_for_action(tid, require_manage=True)
+    if error:
+        flash(error[0], "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid)) if error[1] != 404 else error
+
+    try:
+        builder_schema = _task_google_normalized_builder(task, fallback_title=task.title, fallback_description=task.content)
+        if not builder_schema:
+            raise GoogleFormsValidationError("Task chưa có cấu trúc builder Google Form để tạo biểu mẫu thật.")
+        service = build_google_forms_service(current_app.config, scopes=GOOGLE_FORMS_MANAGE_SCOPES)
+        result = create_google_form(service, builder_schema, task.title or "Biểu mẫu", task.content or "", unpublished=True)
+        runtime_payload = _task_google_runtime(task)
+        runtime_payload.update(
+            {
+                "provider": "google",
+                "builder_managed": True,
+                "form_id": result.get("form_id") or "",
+                "form_url": result.get("form_url") or "",
+                "responder_uri": result.get("form_url") or "",
+                "edit_url": result.get("edit_url") or "",
+                "revision_id": result.get("revision_id") or "",
+                "publish_settings": result.get("publish_settings") or {},
+                "form_title": builder_schema.get("form_info", {}).get("title") or task.title or "",
+            }
+        )
+        _store_task_google_runtime(task, runtime_payload)
+        _task_google_sync_runtime_to_columns(task, builder_schema, runtime_payload)
+        _replace_task_google_projection_fields(task, builder_schema)
+        _store_task_google_sync_state(
+            task,
+            {
+                **_task_google_sync_state(task),
+                "source": "google_form",
+                "status": "draft",
+                "form_id": task.google_form_id,
+                "form_title": runtime_payload.get("form_title") or task.title or "",
+            },
+        )
+        db.session.add(
+            TaskComment(
+                task_id=task.id,
+                user_id=session["uid"],
+                user_name=session.get("fullname", "Người dùng"),
+                content="[GOOGLE FORM] Đã tạo Google Form thật từ builder PC06",
+            )
+        )
+        db.session.commit()
+        flash("Đã tạo Google Form thật ở trạng thái nháp.", "success")
+    except (GoogleFormsConfigError, GoogleFormsSyncError, GoogleFormsValidationError) as google_error:
+        db.session.rollback()
+        flash(str(google_error), "danger")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+@tasks_bp.route("/tasks/<int:tid>/google-form/update", methods=["POST"])
+def update_task_google_form(tid):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    task, error = _load_google_form_task_for_action(tid, require_manage=True)
+    if error:
+        flash(error[0], "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid)) if error[1] != 404 else error
+
+    try:
+        if (request.form.get("google_form_builder_json") or "").strip():
+            builder_schema = _task_google_default_builder_from_request(
+                request.form,
+                fallback_title=task.title,
+                fallback_description=task.content,
+            )
+            _store_task_google_builder(task, builder_schema)
+        else:
+            builder_schema = _task_google_normalized_builder(task, fallback_title=task.title, fallback_description=task.content)
+        if not builder_schema:
+            raise GoogleFormsValidationError("Task chưa có builder schema để cập nhật.")
+        if not getattr(task, "google_form_id", None):
+            raise GoogleFormsSyncError("Task chưa có Google Form thật. Hãy dùng chức năng tạo form trước.")
+        service = build_google_forms_service(current_app.config, scopes=GOOGLE_FORMS_MANAGE_SCOPES)
+        runtime_payload = _task_google_runtime(task)
+        result = update_google_form(service, task.google_form_id, builder_schema, revision_id=runtime_payload.get("revision_id"))
+        runtime_payload.update(
+            {
+                "provider": "google",
+                "builder_managed": True,
+                "form_id": result.get("form_id") or task.google_form_id or "",
+                "form_url": result.get("form_url") or task.google_form_url or "",
+                "responder_uri": result.get("form_url") or task.google_form_url or "",
+                "edit_url": result.get("edit_url") or runtime_payload.get("edit_url") or "",
+                "revision_id": result.get("revision_id") or runtime_payload.get("revision_id") or "",
+                "publish_settings": result.get("publish_settings") or runtime_payload.get("publish_settings") or {},
+                "form_title": builder_schema.get("form_info", {}).get("title") or task.title or "",
+            }
+        )
+        _store_task_google_runtime(task, runtime_payload)
+        _task_google_sync_runtime_to_columns(task, builder_schema, runtime_payload)
+        _replace_task_google_projection_fields(task, builder_schema)
+        db.session.add(
+            TaskComment(
+                task_id=task.id,
+                user_id=session["uid"],
+                user_name=session.get("fullname", "Người dùng"),
+                content="[GOOGLE FORM] Đã cập nhật cấu trúc Google Form từ builder PC06",
+            )
+        )
+        db.session.commit()
+        flash("Đã cập nhật Google Form thật.", "success")
+    except (GoogleFormsConfigError, GoogleFormsSyncError, GoogleFormsValidationError) as google_error:
+        db.session.rollback()
+        flash(str(google_error), "danger")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+@tasks_bp.route("/tasks/<int:tid>/google-form/publish", methods=["POST"])
+def publish_task_google_form(tid):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    task, error = _load_google_form_task_for_action(tid, require_manage=True)
+    if error:
+        flash(error[0], "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid)) if error[1] != 404 else error
+
+    try:
+        if not getattr(task, "google_form_id", None):
+            raise GoogleFormsSyncError("Task chưa có Google Form thật để phát hành.")
+        is_published = str(request.form.get("is_published") or "true").strip().lower() not in {"0", "false", "off"}
+        accept_responses = str(request.form.get("accept_responses") or "true").strip().lower() not in {"0", "false", "off"}
+        service = build_google_forms_service(current_app.config, scopes=GOOGLE_FORMS_MANAGE_SCOPES)
+        publish_result = publish_google_form(
+            service,
+            task.google_form_id,
+            is_published=is_published,
+            accept_responses=accept_responses,
+        )
+        runtime_payload = _task_google_runtime(task)
+        runtime_payload["publish_settings"] = publish_result.get("publishSettings") or {}
+        _store_task_google_runtime(task, runtime_payload)
+        builder_schema = _task_google_normalized_builder(task, fallback_title=task.title, fallback_description=task.content)
+        _task_google_sync_runtime_to_columns(task, builder_schema, runtime_payload)
+        sync_state = _task_google_sync_state(task)
+        sync_state["status"] = "published" if is_published else "draft"
+        _store_task_google_sync_state(task, sync_state)
+        db.session.add(
+            TaskComment(
+                task_id=task.id,
+                user_id=session["uid"],
+                user_name=session.get("fullname", "Người dùng"),
+                content="[GOOGLE FORM] " + ("Đã phát hành biểu mẫu" if is_published else "Đã chuyển biểu mẫu về nháp"),
+            )
+        )
+        db.session.commit()
+        flash("Đã cập nhật trạng thái phát hành Google Form.", "success")
+    except (GoogleFormsConfigError, GoogleFormsSyncError, GoogleFormsValidationError) as google_error:
+        db.session.rollback()
+        flash(str(google_error), "danger")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+@tasks_bp.route("/tasks/<int:tid>/google-form/import-structure", methods=["POST"])
+def import_task_google_form_structure(tid):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    task, error = _load_google_form_task_for_action(tid, require_manage=True)
+    if error:
+        flash(error[0], "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid)) if error[1] != 404 else error
+
+    google_form_url = (request.form.get("google_form_url") or getattr(task, "google_form_url", None) or "").strip()
+    google_form_id = extract_google_form_id(google_form_url) or getattr(task, "google_form_id", None)
+    if not google_form_id:
+        flash("Không tìm thấy formId để nhập cấu trúc.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    try:
+        service = build_google_forms_service(current_app.config, scopes=GOOGLE_FORMS_READ_SCOPES)
+        imported = load_google_form_into_builder(service, google_form_id)
+        builder_schema = imported.get("builder_schema") or {}
+        if not builder_schema:
+            raise GoogleFormsValidationError("Không thể chuyển cấu trúc Google Form sang builder PC06.")
+        builder_schema["matching"] = builder_schema.get("matching") or {
+            "mode": _requested_google_form_match_mode(request.form),
+            "match_field": (request.form.get("google_form_match_field") or getattr(task, "google_form_match_field", None) or "").strip(),
+        }
+        builder_schema = normalize_google_form_builder_schema(
+            builder_schema,
+            fallback_title=task.title or "Biểu mẫu",
+            fallback_description=task.content or "",
+        )
+        payload = imported.get("form_payload") or {}
+        runtime_payload = _task_google_runtime(task)
+        runtime_payload.update(
+            {
+                "provider": "google",
+                "builder_managed": True,
+                "form_id": google_form_id,
+                "form_url": payload.get("responderUri") or google_form_url or f"https://docs.google.com/forms/d/{google_form_id}/viewform",
+                "responder_uri": payload.get("responderUri") or google_form_url or f"https://docs.google.com/forms/d/{google_form_id}/viewform",
+                "edit_url": f"https://docs.google.com/forms/d/{google_form_id}/edit",
+                "revision_id": payload.get("revisionId") or runtime_payload.get("revision_id") or "",
+                "publish_settings": payload.get("publishSettings") or runtime_payload.get("publish_settings") or {},
+                "form_title": (payload.get("info") or {}).get("title") or task.title or "",
+            }
+        )
+        _store_task_google_builder(task, builder_schema)
+        _store_task_google_runtime(task, runtime_payload)
+        _task_google_sync_runtime_to_columns(task, builder_schema, runtime_payload)
+        _replace_task_google_projection_fields(task, builder_schema)
+        sync_state = _task_google_sync_state(task)
+        sync_state.update(
+            {
+                "source": "google_form",
+                "status": "imported",
+                "form_id": google_form_id,
+                "form_title": runtime_payload.get("form_title") or task.title or "",
+            }
+        )
+        _store_task_google_sync_state(task, sync_state)
+        db.session.add(
+            TaskComment(
+                task_id=task.id,
+                user_id=session["uid"],
+                user_name=session.get("fullname", "Người dùng"),
+                content="[GOOGLE FORM] Đã nhập cấu trúc form cũ vào builder PC06",
+            )
+        )
+        db.session.commit()
+        flash("Đã nhập cấu trúc Google Form vào builder PC06.", "success")
+    except (GoogleFormsConfigError, GoogleFormsSyncError, GoogleFormsValidationError) as google_error:
+        db.session.rollback()
+        flash(str(google_error), "danger")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+@tasks_bp.route("/tasks/<int:tid>/sync-google-form", methods=["POST"])
+def sync_google_form_task(tid):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    return _sync_google_form_task_v2(tid)
 
 
 @tasks_bp.route("/tasks/<int:tid>/submission-files/<int:file_id>")
