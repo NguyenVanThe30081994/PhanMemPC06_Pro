@@ -81,3 +81,9 @@ LOG_BACKUP_COUNT = 5
 # Application
 APP_VERSION = '3.5.0'
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+
+# Google Forms integration
+GOOGLE_FORMS_ENABLED = os.environ.get('GOOGLE_FORMS_ENABLED', 'False').lower() == 'true'
+GOOGLE_FORMS_CREDENTIALS_FILE = os.environ.get('GOOGLE_FORMS_CREDENTIALS_FILE', '')
+GOOGLE_FORMS_CREDENTIALS_JSON = os.environ.get('GOOGLE_FORMS_CREDENTIALS_JSON', '')
+GOOGLE_FORMS_IMPERSONATED_USER = os.environ.get('GOOGLE_FORMS_IMPERSONATED_USER', '')
