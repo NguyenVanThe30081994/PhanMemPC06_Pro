@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import secrets
 import sys
 import sqlite3
 from env_loader import load_env_file
@@ -23,13 +24,14 @@ import logging
 from logging.handlers import RotatingFileHandler
 import json
 from urllib.parse import urlparse
-from flask import Flask, session, request, redirect, url_for, send_from_directory, render_template, g, jsonify, Response
+from flask import Flask, session, request, redirect, url_for, send_file, send_from_directory, render_template, g, jsonify, Response
 from datetime import datetime, timedelta
 from werkzeug.exceptions import HTTPException
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from models import db, AppRole
 from storage import bootstrap_storage, build_storage_layout
+from security_utils.runtime_security import ensure_persistent_secret_key, resolve_safe_path
 from utils import (
     get_perms_labels,
     has_any_module_permission,
@@ -83,9 +85,13 @@ try:
         LOGIN_LOCKOUT_MULTIPLIER_MAX,
         DEBUG,
         AUTH_FAILURE_DELAY_MS,
+        RATE_LIMIT_WINDOW_SECONDS,
+        RATE_LIMIT_MAX_REQUESTS,
+        RATE_LIMIT_MAX_API_REQUESTS,
+        TRUSTED_PROXY_CIDRS,
     )
 except ImportError:
-    SECRET_KEY = os.environ.get('SECRET_KEY') or os.urandom(32).hex()
+    SECRET_KEY = (os.environ.get('SECRET_KEY') or '').strip()
     SESSION_LIFETIME = 28800
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
     SESSION_COOKIE_SECURE = False
@@ -105,8 +111,14 @@ except ImportError:
     LOGIN_LOCKOUT_MULTIPLIER_MAX = 4
     DEBUG = False
     AUTH_FAILURE_DELAY_MS = 600
+    RATE_LIMIT_WINDOW_SECONDS = 60
+    RATE_LIMIT_MAX_REQUESTS = 240
+    RATE_LIMIT_MAX_API_REQUESTS = 120
+    TRUSTED_PROXY_CIDRS = '127.0.0.1/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16'
 
+SECRET_KEY = ensure_persistent_secret_key(storage_layout['data_root'], SECRET_KEY)
 app.secret_key = SECRET_KEY
+app.config['SECRET_KEY'] = SECRET_KEY
 app.config['JSON_AS_ASCII'] = False  # Giữ nguyên tiếng Việt trong jsonify()
 app.config['PC06_DATA_ROOT'] = storage_layout['data_root']
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -151,6 +163,10 @@ app.config['LOGIN_MAX_FAILURES_PER_IP'] = LOGIN_MAX_FAILURES_PER_IP
 app.config['LOGIN_LOCKOUT_SECONDS'] = LOGIN_LOCKOUT_SECONDS
 app.config['LOGIN_LOCKOUT_MULTIPLIER_MAX'] = LOGIN_LOCKOUT_MULTIPLIER_MAX
 app.config['AUTH_FAILURE_DELAY_MS'] = AUTH_FAILURE_DELAY_MS
+app.config['RATE_LIMIT_WINDOW_SECONDS'] = RATE_LIMIT_WINDOW_SECONDS
+app.config['RATE_LIMIT_MAX_REQUESTS'] = RATE_LIMIT_MAX_REQUESTS
+app.config['RATE_LIMIT_MAX_API_REQUESTS'] = RATE_LIMIT_MAX_API_REQUESTS
+app.config['TRUSTED_PROXY_CIDRS'] = TRUSTED_PROXY_CIDRS
 
 # CSRF Protection
 app.config['WTF_CSRF_ENABLED'] = True
@@ -210,9 +226,14 @@ def _request_is_secure():
 def _get_csrf_token():
     token = session.get('csrf_token')
     if not token:
-        import secrets
         token = secrets.token_urlsafe(32)
         session['csrf_token'] = token
+    return token
+
+
+def _rotate_csrf_token():
+    token = secrets.token_urlsafe(32)
+    session['csrf_token'] = token
     return token
 
 
@@ -265,54 +286,41 @@ def add_security_headers(response):
         response.headers['Expires'] = '0'
     return response
 
-# Rate Limiting Configuration (Simple in-memory implementation)
-from collections import defaultdict
+# Rate limiting storage: {(ip, scope): [timestamp, ...]}
+from collections import defaultdict, deque
 
-# Rate limit storage: {ip: [(timestamp, count)]}
-rate_limit_store = defaultdict(list)
-RATE_LIMIT_WINDOW = 60  # seconds
-RATE_LIMIT_MAX = 30  # max requests per window
+rate_limit_store = defaultdict(deque)
 
 @app.before_request
 def check_rate_limit():
-    """Simple rate limiting to prevent spam and brute force"""
-    # Skip for static files and favicon
+    """Apply a small sliding-window rate limit per IP and request scope."""
     if request.path.startswith('/static') or request.path == '/favicon.ico':
         return
-    
-    # Skip login route to allow login attempts
+
     if request.endpoint == 'auth_bp.login':
         return
-    
-    # Get client IP
+
     from security_utils.security_helpers import get_client_ip
     client_ip = get_client_ip()
-    
     if not client_ip:
         return
-    
+
     current_time = datetime.now().timestamp()
-    
-    # Clean old entries
-    if client_ip in rate_limit_store:
-        rate_limit_store[client_ip] = [
-            (t, count) for t, count in rate_limit_store[client_ip]
-            if current_time - t < RATE_LIMIT_WINDOW
-        ]
-        
-        # Count requests in current window
-        total_requests = sum(count for t, count in rate_limit_store[client_ip])
-        
-        if total_requests >= RATE_LIMIT_MAX:
-            # Too many requests - return 429 with proper JSON response
-            return jsonify({'error': 'Quá nhiều yêu cầu. Vui lòng thử lại sau.'}), 429
-        
-        # Add current request
-        if rate_limit_store[client_ip]:
-            last_time, last_count = rate_limit_store[client_ip][-1]
-            rate_limit_store[client_ip][-1] = (last_time, last_count + 1)
-        else:
-            rate_limit_store[client_ip].append((current_time, 1))
+    window_seconds = int(app.config.get('RATE_LIMIT_WINDOW_SECONDS', 60))
+    default_limit = int(app.config.get('RATE_LIMIT_MAX_REQUESTS', 240))
+    api_limit = int(app.config.get('RATE_LIMIT_MAX_API_REQUESTS', 120))
+    limit = api_limit if request.path.startswith('/api/') else default_limit
+    scope = request.endpoint or request.path
+    bucket = rate_limit_store[(client_ip, scope)]
+    cutoff = current_time - window_seconds
+
+    while bucket and bucket[0] < cutoff:
+        bucket.popleft()
+
+    if len(bucket) >= limit:
+        return jsonify({'error': 'Quá nhiều yêu cầu. Vui lòng thử lại sau.'}), 429
+
+    bucket.append(current_time)
 
 db.init_app(app)
 
@@ -419,7 +427,7 @@ def enforce_csrf_protection():
         token = request.form.get('csrf_token') or request.headers.get('X-CSRFToken')
 
     expected_token = session.get('csrf_token')
-    if not expected_token or not token or token != expected_token:
+    if not expected_token or not token or not secrets.compare_digest(str(token), str(expected_token)):
         if request.endpoint and request.endpoint.startswith('api_bp.'):
             return jsonify({'error': 'CSRF validation failed.'}), 400
         return ('Yêu cầu không hợp lệ hoặc phiên làm việc đã hết hạn.', 400)
@@ -578,9 +586,12 @@ def dl_file(fn):
     if legacy_task_folder not in candidate_dirs:
         candidate_dirs.append(legacy_task_folder)
     for b in candidate_dirs:
-        target = os.path.join(b, fn)
-        if os.path.exists(target): 
-            return send_from_directory(b, fn, as_attachment=True)
+        try:
+            target = resolve_safe_path(b, fn)
+        except (FileNotFoundError, ValueError):
+            continue
+        if target.is_file():
+            return send_file(target, as_attachment=True, download_name=target.name)
     return render_template('404.html'), 404
 
 if __name__ == '__main__':

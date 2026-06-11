@@ -177,6 +177,7 @@ def login():
         else:
             _register_login_success(username, client_ip)
             session.clear()
+            session['csrf_token'] = secrets.token_urlsafe(32)
             unit_display = resolve_category_display(
                 usr.unit_area,
                 module_category_options('contacts', 'unit_name', 'Đơn vị'),
@@ -220,6 +221,7 @@ def login():
 @auth_bp.route('/logout')
 def logout():
     session.clear()
+    session['csrf_token'] = secrets.token_urlsafe(32)
     flash('Đã đăng xuất an toàn!', 'info')
     return redirect(url_for('auth_bp.login', clear_storage='true'))
 
@@ -244,6 +246,7 @@ def change_password():
             usr.must_change_password = False
             db.session.commit()
             session['must_change'] = False
+            session['csrf_token'] = secrets.token_urlsafe(32)
             flash('Đổi mật khẩu thành công!', 'success')
             return redirect('/')
         else:

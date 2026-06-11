@@ -11,6 +11,11 @@ class AttendanceRouteTests(unittest.TestCase):
     def setUp(self):
         self.client = app.test_client()
 
+    def _issue_csrf_token(self):
+        with self.client.session_transaction() as sess:
+            sess['csrf_token'] = 'attendance-test-csrf'
+            return sess['csrf_token']
+
     def _ensure_unit_test_items(self):
         with app.app_context():
             group = CategoryGroup.query.filter_by(code='contact_unit').first()
@@ -143,10 +148,12 @@ class AttendanceRouteTests(unittest.TestCase):
 
     def test_admin_can_create_update_and_delete_attendance_config(self):
         admin_user = self._login_admin_session()
+        csrf_token = self._issue_csrf_token()
 
         create_response = self.client.post(
             '/attendance/config',
             data={
+                'csrf_token': csrf_token,
                 'name': 'CRUD attendance config',
                 'day_start_time': '08:00',
                 'day_end_time': '10:00',
@@ -169,6 +176,7 @@ class AttendanceRouteTests(unittest.TestCase):
             update_response = self.client.post(
                 '/attendance/config',
                 data={
+                    'csrf_token': csrf_token,
                     'config_id': str(config_id),
                     'name': 'CRUD attendance config updated',
                     'day_start_time': '09:30',
@@ -192,7 +200,10 @@ class AttendanceRouteTests(unittest.TestCase):
                 self.assertEqual(updated.late_allow_minutes, 10)
                 self.assertEqual(updated.target_role_id, admin_user.role_id)
 
-            delete_response = self.client.post(f'/attendance/config/{config_id}/delete')
+            delete_response = self.client.post(
+                f'/attendance/config/{config_id}/delete',
+                data={'csrf_token': csrf_token},
+            )
             self.assertEqual(delete_response.status_code, 302)
 
             with app.app_context():
@@ -206,6 +217,7 @@ class AttendanceRouteTests(unittest.TestCase):
     def test_admin_can_update_and_delete_attendance_submission(self):
         admin_user = self._login_admin_session()
         unit_items = self._ensure_unit_test_items()
+        csrf_token = self._issue_csrf_token()
 
         config_id = None
         submission_id = None
@@ -255,6 +267,7 @@ class AttendanceRouteTests(unittest.TestCase):
             update_response = self.client.post(
                 f'/attendance/submission/{submission_id}/update',
                 data={
+                    'csrf_token': csrf_token,
                     'unit_key': unit_items[1]['unit_key'],
                     'note': 'Updated submission note',
                 },
@@ -268,7 +281,10 @@ class AttendanceRouteTests(unittest.TestCase):
                 self.assertEqual(updated.unit_area, unit_items[1]['name'])
                 self.assertEqual(updated.note, 'Updated submission note')
 
-            delete_response = self.client.post(f'/attendance/submission/{submission_id}/delete')
+            delete_response = self.client.post(
+                f'/attendance/submission/{submission_id}/delete',
+                data={'csrf_token': csrf_token},
+            )
             self.assertEqual(delete_response.status_code, 302)
 
             with app.app_context():

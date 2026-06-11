@@ -5,14 +5,17 @@ Security helper functions
 import re
 from functools import wraps
 from flask import session, redirect, url_for, flash, request, current_app
+from .runtime_security import extract_client_ip, parse_trusted_cidrs, resolve_safe_path, safe_extract_zip, generate_temporary_password
 
 
 def get_client_ip():
     """Resolve client IP safely when app is behind a proxy/load balancer."""
-    forwarded = request.headers.get('X-Forwarded-For', '') or ''
-    if forwarded:
-        return forwarded.split(',')[0].strip()
-    return request.remote_addr or 'unknown'
+    trusted_cidrs = parse_trusted_cidrs(current_app.config.get('TRUSTED_PROXY_CIDRS', ''))
+    return extract_client_ip(
+        request.remote_addr or '',
+        request.headers.get('X-Forwarded-For', '') or '',
+        trusted_cidrs=trusted_cidrs,
+    )
 
 def require_login(f):
     """Decorator to require login"""

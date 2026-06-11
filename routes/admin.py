@@ -7,11 +7,16 @@ from urllib.parse import urlparse
 import ipaddress
 try:
     from security_utils.password_validator import validate_password, get_password_requirements
+    from security_utils.runtime_security import generate_temporary_password, safe_extract_zip
 except ImportError:
     def validate_password(pwd):
         return len(pwd) >= 8, "Mật khẩu phải có ít nhất 8 ký tự"
     def get_password_requirements():
         return "Ít nhất 8 ký tự, có chữ hoa, chữ thường, chữ số"
+    def generate_temporary_password(length=16):
+        return os.urandom(max(12, int(length or 0))).hex()
+    def safe_extract_zip(zip_path, dest_dir, max_members=2000, max_total_size=250 * 1024 * 1024):
+        shutil.unpack_archive(zip_path, dest_dir)
 
 import os, json, shutil, zipfile, io, subprocess
 try:
@@ -997,6 +1002,7 @@ def roles():
                 unit = request.form.get('unit', 'Chưa xác định')
                 role_id = request.form.get('role_id')
                 password = request.form.get('password', '')
+                generated_password = ''
                 unit, unit_key = _resolve_user_unit_value(fullname, unit, username)
                 role = db.session.get(AppRole, role_id) if role_id else None
                 
@@ -1008,10 +1014,22 @@ def roles():
                     if not username:
                         flash('Không thể sinh tên đăng nhập từ đơn vị đã chọn!', 'danger')
                     else:
+                        if not password:
+                            generated_password = generate_temporary_password()
+                            password = generated_password
+                        is_valid_password, password_error = validate_password(password)
+                        if not is_valid_password:
+                            flash(password_error, 'danger')
+                            return redirect(url_for('admin_bp.roles'))
                         u = User(username=username, fullname=fullname, unit_area=unit, unit_key=unit_key, role_id=role_id)
                         u.set_password(password)
                         db.session.add(u)
                         log_action(session['uid'], session['fullname'], "Thêm tài khoản", "Tài khoản", u.username)
+                        if generated_password:
+                            flash(
+                                f'Tài khoản {u.username} được tạo với mật khẩu tạm thời: {generated_password}',
+                                'warning',
+                            )
             elif action == 'edit_user':
                 uid = request.form.get('user_id')
                 u = db.session.get(User, uid)
@@ -1028,6 +1046,10 @@ def roles():
                     u.role_id = request.form.get('role_id')
                     pwd = request.form.get('password')
                     if pwd and pwd.strip() and pwd != '******':
+                        is_valid_password, password_error = validate_password(pwd)
+                        if not is_valid_password:
+                            flash(password_error, 'danger')
+                            return redirect(url_for('admin_bp.roles'))
                         u.set_password(pwd)
                     log_action(session['uid'], session['fullname'], "Sửa tài khoản", "Tài khoản", u.username)
             db.session.commit()
@@ -1381,6 +1403,7 @@ def import_users():
             skipped_empty = 0
             skipped_invalid = 0
             import_mode = 'unit'
+            temporary_password = generate_temporary_password()
 
             fullname_col, title_col = _user_import_commander_columns(df, has_header=inferred_has_header)
             if fullname_col is not None and title_col is not None:
@@ -1410,7 +1433,7 @@ def import_users():
                         unit_key='pc06',
                         role_id=role_id
                     )
-                    u.set_password('123456')
+                    u.set_password(temporary_password)
                     db.session.add(u)
                     created_count += 1
             else:
@@ -1442,7 +1465,7 @@ def import_users():
                         unit_key=unit_key,
                         role_id=role_id
                     )
-                    u.set_password('123456')
+                    u.set_password(temporary_password)
                     db.session.add(u)
                     created_count += 1
             db.session.commit()
@@ -1456,6 +1479,11 @@ def import_users():
             header_note = 'có tiêu đề' if inferred_has_header else 'không có tiêu đề'
             mode_note = 'chỉ huy đội' if import_mode == 'commander' else 'đơn vị'
             flash(f'Đã nhập {created_count} tài khoản {mode_note} từ {len(df)} dòng dữ liệu ({header_note}).', 'success')
+            if created_count:
+                flash(
+                    f'Mật khẩu tạm thời áp dụng cho đợt import này: {temporary_password}. Yêu cầu người dùng đổi mật khẩu ngay khi đăng nhập.',
+                    'warning',
+                )
             if skipped_empty:
                 flash(f'Có {skipped_empty} dòng trống bị bỏ qua.', 'warning')
             if skipped_invalid:
@@ -1501,7 +1529,7 @@ def system_update():
                         shutil.copytree(src, os.path.join(backup_dir, folder), dirs_exist_ok=True)
                 
                 # 3. Unpack and Restart
-                shutil.unpack_archive(p, current_app.root_path)
+                safe_extract_zip(p, current_app.root_path)
                 restart = os.path.join(current_app.root_path, 'tmp', 'restart.txt')
                 os.makedirs(os.path.dirname(restart), exist_ok=True)
                 with open(restart, 'w', encoding='utf-8') as f_out: f_out.write(str(datetime.now()))
