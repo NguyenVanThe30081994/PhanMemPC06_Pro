@@ -29,7 +29,7 @@ from datetime import datetime, timedelta
 from werkzeug.exceptions import HTTPException
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
-from models import db, AppRole
+from models import db, AppRole, DocumentLib, NewsDoc
 from storage import bootstrap_storage, build_storage_layout
 from security_utils.runtime_security import ensure_persistent_secret_key, resolve_safe_path
 from utils import (
@@ -89,6 +89,10 @@ try:
         RATE_LIMIT_MAX_REQUESTS,
         RATE_LIMIT_MAX_API_REQUESTS,
         TRUSTED_PROXY_CIDRS,
+        ADMIN_DB_RESET_ENABLED,
+        ADMIN_DB_BACKUP_ENABLED,
+        WEB_SYSTEM_UPDATE_ENABLED,
+        WEB_GIT_PULL_ENABLED,
     )
 except ImportError:
     SECRET_KEY = (os.environ.get('SECRET_KEY') or '').strip()
@@ -115,6 +119,10 @@ except ImportError:
     RATE_LIMIT_MAX_REQUESTS = 240
     RATE_LIMIT_MAX_API_REQUESTS = 120
     TRUSTED_PROXY_CIDRS = '127.0.0.1/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16'
+    ADMIN_DB_RESET_ENABLED = False
+    ADMIN_DB_BACKUP_ENABLED = False
+    WEB_SYSTEM_UPDATE_ENABLED = False
+    WEB_GIT_PULL_ENABLED = False
 
 SECRET_KEY = ensure_persistent_secret_key(storage_layout['data_root'], SECRET_KEY)
 app.secret_key = SECRET_KEY
@@ -167,6 +175,10 @@ app.config['RATE_LIMIT_WINDOW_SECONDS'] = RATE_LIMIT_WINDOW_SECONDS
 app.config['RATE_LIMIT_MAX_REQUESTS'] = RATE_LIMIT_MAX_REQUESTS
 app.config['RATE_LIMIT_MAX_API_REQUESTS'] = RATE_LIMIT_MAX_API_REQUESTS
 app.config['TRUSTED_PROXY_CIDRS'] = TRUSTED_PROXY_CIDRS
+app.config['ADMIN_DB_RESET_ENABLED'] = ADMIN_DB_RESET_ENABLED
+app.config['ADMIN_DB_BACKUP_ENABLED'] = ADMIN_DB_BACKUP_ENABLED
+app.config['WEB_SYSTEM_UPDATE_ENABLED'] = WEB_SYSTEM_UPDATE_ENABLED
+app.config['WEB_GIT_PULL_ENABLED'] = WEB_GIT_PULL_ENABLED
 
 # CSRF Protection
 app.config['WTF_CSRF_ENABLED'] = True
@@ -581,13 +593,21 @@ def security_txt_well_known():
 
 @app.route('/dl_file/<path:fn>')
 def dl_file(fn): 
-    legacy_task_folder = os.path.join(app.root_path, 'task_files')
-    candidate_dirs = [TASK_FOLDER, UPLOAD_FOLDER, LIB_FOLDER]
-    if legacy_task_folder not in candidate_dirs:
-        candidate_dirs.append(legacy_task_folder)
+    normalized_name = os.path.basename((fn or '').strip())
+    if not normalized_name or normalized_name != (fn or '').strip():
+        return render_template('404.html'), 404
+
+    candidate_dirs = []
+    if NewsDoc.query.filter_by(filename=normalized_name).first():
+        candidate_dirs.append(UPLOAD_FOLDER)
+    if DocumentLib.query.filter_by(filename=normalized_name).first():
+        candidate_dirs.append(LIB_FOLDER)
+    if not candidate_dirs:
+        return render_template('404.html'), 404
+
     for b in candidate_dirs:
         try:
-            target = resolve_safe_path(b, fn)
+            target = resolve_safe_path(b, normalized_name)
         except (FileNotFoundError, ValueError):
             continue
         if target.is_file():

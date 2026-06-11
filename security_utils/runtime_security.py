@@ -100,9 +100,18 @@ def _is_symlink_member(member):
     return stat.S_ISLNK(member.external_attr >> 16)
 
 
-def safe_extract_zip(zip_path, dest_dir, max_members=2000, max_total_size=250 * 1024 * 1024):
+def safe_extract_zip(
+    zip_path,
+    dest_dir,
+    max_members=2000,
+    max_total_size=250 * 1024 * 1024,
+    blocked_roots=None,
+    blocked_names=None,
+):
     destination = Path(dest_dir).resolve()
     destination.mkdir(parents=True, exist_ok=True)
+    blocked_roots = {str(item or "").strip().lower() for item in (blocked_roots or set()) if str(item or "").strip()}
+    blocked_names = {str(item or "").strip().lower() for item in (blocked_names or set()) if str(item or "").strip()}
 
     with zipfile.ZipFile(zip_path) as archive:
         members = archive.infolist()
@@ -121,6 +130,13 @@ def safe_extract_zip(zip_path, dest_dir, max_members=2000, max_total_size=250 * 
                 raise ValueError("Goi cap nhat vuot qua gioi han kich thuoc cho phep.")
             if _is_symlink_member(member):
                 raise ValueError("Goi cap nhat chua lien ket bieu tuong khong duoc phep.")
+            parts = [part for part in Path(filename).parts if part not in {"", "."}]
+            if any(part in {".."} for part in parts):
+                raise ValueError("Goi cap nhat chua duong dan khong hop le.")
+            root_name = (parts[0].lower() if parts else "")
+            basename = (Path(filename).name or "").lower()
+            if root_name in blocked_roots or basename in blocked_names:
+                raise ValueError("Goi cap nhat chua tep hoac thu muc bi cam.")
             resolve_safe_path(destination, filename, allow_missing=True)
 
         archive.extractall(destination)

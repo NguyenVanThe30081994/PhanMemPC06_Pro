@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import re, json, sqlite3, os, ast, operator as op
+from urllib.parse import urlparse
 from flask import request, render_template as flask_render_template, g, session, redirect, url_for
 from openpyxl.utils import range_boundaries
 from datetime import datetime, timedelta
@@ -817,6 +818,38 @@ def push_global_notif(title, msg, link, exclude_uid=None):
         print(f"Global Notif Error: {e}")
 
 
+def normalize_notification_text(value, max_length=255):
+    text = str(value or '').replace('\x00', ' ').strip()
+    text = re.sub(r'<[^>]+>', ' ', text)
+    text = re.sub(r'[\r\n\t]+', ' ', text)
+    text = re.sub(r'\s{2,}', ' ', text)
+    if max_length and len(text) > int(max_length):
+        return text[: int(max_length)].rstrip()
+    return text
+
+
+def sanitize_notification_link(link):
+    candidate = str(link or '').strip()
+    if not candidate:
+        return ''
+
+    parsed = urlparse(candidate)
+    if not parsed.scheme and not parsed.netloc:
+        return candidate if candidate.startswith('/') else ''
+
+    if parsed.scheme not in {'http', 'https'}:
+        return ''
+    if parsed.netloc != request.host:
+        return ''
+
+    path = parsed.path or '/'
+    if parsed.query:
+        path += f'?{parsed.query}'
+    if parsed.fragment:
+        path += f'#{parsed.fragment}'
+    return path
+
+
 def infer_notification_source(title="", msg="", link=""):
     title_text = (title or "").strip().lower()
     msg_text = (msg or "").strip().lower()
@@ -910,6 +943,7 @@ def eval_f(formula_str, data_dict):
 
 PERMISSION_MODULES = [
     ("dash", "Tổng quan"),
+    ("rank", "Xếp hạng"),
     ("task", "Công việc"),
     ("attendance", "Điểm danh"),
     ("lib", "Thư viện"),
@@ -924,6 +958,7 @@ PERMISSION_MODULES = [
 
 DEFAULT_ROLE_MODULE_CODES = (
     "dash",
+    "rank",
     "task",
     "attendance",
     "lib",

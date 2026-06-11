@@ -10,17 +10,82 @@ try:
 except ImportError:
     HAS_PANDAS = False
     pd = None
-from flask import Blueprint, jsonify, render_template, request, send_file
-from utils import extract_unit_key, normalize_unit_name, remove_accents, safe_float, render_auto_template
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, send_file, session, url_for
+from utils import (
+    extract_unit_key,
+    has_module_permission,
+    normalize_permission_payload,
+    normalize_unit_name,
+    remove_accents,
+    safe_float,
+    render_auto_template,
+)
 
-from models import RankingEntry, RankingIndicator, RankingUnit, db
+from models import AppRole, RankingEntry, RankingIndicator, RankingUnit, db
 
 
 ranking_bp = Blueprint('ranking_bp', __name__)
 
 
+def _ranking_permission_context():
+    role = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
+    role_name = getattr(role, 'name', '') or ''
+    perms = {}
+    if role and role.perms:
+        try:
+            perms = normalize_permission_payload(role.perms, is_admin=session.get('is_admin'), role_name=role_name)
+        except Exception:
+            perms = {}
+    return perms, role_name
+
+
+def _can_view_ranking(perms, role_name):
+    if not session.get('uid'):
+        return False
+    is_admin = bool(session.get('is_admin'))
+    return bool(
+        is_admin
+        or has_module_permission(perms, 'rank', 'view', is_admin=is_admin, role_name=role_name)
+        or has_module_permission(perms, 'stat', 'view', is_admin=is_admin, role_name=role_name)
+        or has_module_permission(perms, 'dash', 'view', is_admin=is_admin, role_name=role_name)
+    )
+
+
+def _can_manage_ranking(perms, role_name):
+    if not session.get('uid'):
+        return False
+    is_admin = bool(session.get('is_admin'))
+    return bool(
+        is_admin
+        or has_module_permission(perms, 'rank', 'process', is_admin=is_admin, role_name=role_name)
+        or has_module_permission(perms, 'sys', 'process', is_admin=is_admin, role_name=role_name)
+    )
+
+
+def _require_ranking_view():
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    perms, role_name = _ranking_permission_context()
+    if _can_view_ranking(perms, role_name):
+        return None
+    flash('Bạn không có quyền xem bảng xếp hạng.', 'danger')
+    return redirect(url_for('admin_bp.index'))
+
+
+def _require_ranking_manage_json():
+    if not session.get('uid'):
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    perms, role_name = _ranking_permission_context()
+    if _can_manage_ranking(perms, role_name):
+        return None
+    return jsonify({'success': False, 'message': 'Forbidden'}), 403
+
+
 @ranking_bp.route('/ranking')
 def index():
+    denied = _require_ranking_view()
+    if denied is not None:
+        return denied
     units = RankingUnit.query.all()
     indicators = RankingIndicator.query.all()
     leaderboard = calculate_leaderboard()
@@ -29,12 +94,21 @@ def index():
 
 @ranking_bp.route('/ranking/input')
 def input_data():
+    denied = _require_ranking_manage_json()
+    if denied is not None:
+        if denied[1] == 401:
+            return redirect(url_for('auth_bp.login'))
+        flash('Bạn không có quyền cập nhật dữ liệu xếp hạng.', 'danger')
+        return redirect(url_for('ranking_bp.index'))
     indicators = RankingIndicator.query.all()
     return render_template('ranking_input.html', indicators=indicators)
 
 
 @ranking_bp.route('/ranking/api/save', methods=['POST'])
 def save_entry():
+    denied = _require_ranking_manage_json()
+    if denied is not None:
+        return denied
     data = request.json
     unit_id = data.get('unit_id')
     indicator_id = data.get('indicator_id')
@@ -55,12 +129,23 @@ def save_entry():
 
 @ranking_bp.route('/ranking/api/values/<int:indicator_id>')
 def get_values(indicator_id):
+    denied = _require_ranking_view()
+    if denied is not None:
+        if session.get('uid'):
+            return jsonify({'error': 'Forbidden'}), 403
+        return jsonify({'error': 'Unauthorized'}), 401
     entries = RankingEntry.query.filter_by(indicator_id=indicator_id).all()
     return jsonify({e.unit_id: e.raw_value for e in entries})
 
 
 @ranking_bp.route('/ranking/template')
 def download_template():
+    denied = _require_ranking_manage_json()
+    if denied is not None:
+        if denied[1] == 401:
+            return redirect(url_for('auth_bp.login'))
+        flash('Bạn không có quyền tải mẫu chấm điểm.', 'danger')
+        return redirect(url_for('ranking_bp.index'))
     if not HAS_PANDAS:
         return "Pandas chưa được cài đặt. Vui lòng cài đặt: pip install pandas", 500
     
@@ -179,6 +264,9 @@ except ImportError:
 
 @ranking_bp.route('/ranking/import', methods=['POST'])
 def import_ranking_data():
+    denied = _require_ranking_manage_json()
+    if denied is not None:
+        return denied
     if not HAS_PANDAS:
         return jsonify({"success": False, "message": "Pandas chưa được cài đặt. Vui lòng cài đặt: pip install pandas"}), 500
     
@@ -351,6 +439,9 @@ def import_ranking_data():
 
 @ranking_bp.route('/ranking/export')
 def export_ranking():
+    denied = _require_ranking_view()
+    if denied is not None:
+        return denied
     if not HAS_PANDAS:
         return "Pandas chưa được cài đặt. Vui lòng cài đặt: pip install pandas", 500
     

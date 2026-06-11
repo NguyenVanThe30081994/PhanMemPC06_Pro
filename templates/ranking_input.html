@@ -74,6 +74,12 @@
 </div>
 
 <script>
+function escapeSummaryHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value == null ? '' : String(value);
+    return div.innerHTML;
+}
+
 function triggerUpload() {
     document.getElementById('excelUpload').click();
 }
@@ -83,6 +89,7 @@ async function handleExcelUpload(input) {
 
     const file = input.files[0];
     const indicatorId = document.getElementById('indicatorId').value;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const formData = new FormData();
     formData.append('file', file);
     if (indicatorId) {
@@ -99,23 +106,29 @@ async function handleExcelUpload(input) {
     try {
         const res = await fetch('/ranking/import', {
             method: 'POST',
+            headers: {
+                'X-CSRF-Token': csrfToken
+            },
             body: formData
         });
         const d = await res.json();
 
         if (d.success) {
             const summary = document.getElementById('uploadSummary');
+            const unmatchedUnits = Array.isArray(d.unmatched_units) ? d.unmatched_units.map(escapeSummaryHtml) : [];
+            const unmatchedIndicators = Array.isArray(d.unmatched_indicators) ? d.unmatched_indicators.map(escapeSummaryHtml) : [];
+            const indicatorName = escapeSummaryHtml(d.indicator_name || '');
             summary.className = 'mt-4 alert alert-success rounded-4 border-0';
             summary.innerHTML =
                 `<div class="fw-bold mb-2">Đồng bộ thành công</div>` +
-                `<div class="small mb-1">Đã cập nhật <b>${d.synced_entries}</b> đơn vị.</div>` +
-                (d.indicator_name ? `<div class="small mb-1">Chỉ tiêu cập nhật: <b>${d.indicator_name}</b></div>` : 
-                `<div class="small mb-1">Nhận diện được <b>${d.matched_indicators}</b> chỉ tiêu từ <b>${(d.processed_sheets || []).length}</b> sheet.</div>`) +
-                ((d.unmatched_units || []).length > 0
-                    ? `<div class="small text-danger mb-1 mt-2">Đơn vị chưa khớp (${d.unmatched_units.length}): ${d.unmatched_units.join(', ')}...</div>`
+                `<div class="small mb-1">Đã cập nhật <b>${Number(d.synced_entries || 0)}</b> đơn vị.</div>` +
+                (d.indicator_name ? `<div class="small mb-1">Chỉ tiêu cập nhật: <b>${indicatorName}</b></div>` : 
+                `<div class="small mb-1">Nhận diện được <b>${Number(d.matched_indicators || 0)}</b> chỉ tiêu từ <b>${Array.isArray(d.processed_sheets) ? d.processed_sheets.length : 0}</b> sheet.</div>`) +
+                (unmatchedUnits.length > 0
+                    ? `<div class="small text-danger mb-1 mt-2">Đơn vị chưa khớp (${unmatchedUnits.length}): ${unmatchedUnits.join(', ')}...</div>`
                     : '') +
-                ((d.unmatched_indicators || []).length > 0
-                    ? `<div class="small text-warning">Cột/sheet chưa nhận diện: ${d.unmatched_indicators.join(', ')}</div>`
+                (unmatchedIndicators.length > 0
+                    ? `<div class="small text-warning">Cột/sheet chưa nhận diện: ${unmatchedIndicators.join(', ')}</div>`
                     : '');
             summary.classList.remove('d-none');
 

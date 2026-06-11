@@ -71,6 +71,10 @@ TRUSTED_PROXY_CIDRS = os.environ.get(
     'TRUSTED_PROXY_CIDRS',
     '127.0.0.1/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16',
 )
+ADMIN_DB_RESET_ENABLED = os.environ.get('ADMIN_DB_RESET_ENABLED', 'false').lower() == 'true'
+ADMIN_DB_BACKUP_ENABLED = os.environ.get('ADMIN_DB_BACKUP_ENABLED', 'false').lower() == 'true'
+WEB_SYSTEM_UPDATE_ENABLED = os.environ.get('WEB_SYSTEM_UPDATE_ENABLED', 'false').lower() == 'true'
+WEB_GIT_PULL_ENABLED = os.environ.get('WEB_GIT_PULL_ENABLED', 'false').lower() == 'true'
 
 # Logging
 LOG_DIR = 'logs'

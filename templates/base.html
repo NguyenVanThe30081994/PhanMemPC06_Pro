@@ -1423,6 +1423,29 @@
             };
         })();
 
+        function escapeNotifHtml(value) {
+            const div = document.createElement('div');
+            div.textContent = value == null ? '' : String(value);
+            return div.innerHTML;
+        }
+
+        function sanitizeNotifHref(rawHref) {
+            try {
+                const value = String(rawHref || '').trim();
+                if (!value) return '#';
+                const parsed = new URL(value, window.location.origin);
+                if (parsed.origin !== window.location.origin) return '#';
+                return parsed.pathname + parsed.search + parsed.hash;
+            } catch (error) {
+                return '#';
+            }
+        }
+
+        function sanitizeNotifToken(rawValue, fallbackValue) {
+            const value = String(rawValue || '').trim();
+            return /^[a-z0-9\-_ ]+$/i.test(value) ? value : fallbackValue;
+        }
+
         async function checkUpdates() {
             try {
                 const r = await fetch('/api/notifications');
@@ -1435,16 +1458,16 @@
                 if (d.length > 0) {
                     document.getElementById('notifList').innerHTML = d.map(n => `
                         <li class="notif-item p-0 ${n.is_read ? '' : 'unread'}">
-                            <a href="${n.link || '#'}" class="dropdown-item p-3">
+                            <a href="${sanitizeNotifHref(n.link)}" class="dropdown-item p-3">
                                 <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
-                                    <span class="notif-source-tag ${n.source_class || ''}">
-                                        <i class="fa-solid ${n.source_icon || 'fa-bell'}"></i>
-                                        ${n.source_label || 'Thông báo'}
+                                    <span class="notif-source-tag ${sanitizeNotifToken(n.source_class, '')}">
+                                        <i class="fa-solid ${sanitizeNotifToken(n.source_icon, 'fa-bell')}"></i>
+                                        ${escapeNotifHtml(n.source_label || 'Thông báo')}
                                     </span>
-                                    <div class="text-end text-muted" style="font-size:10px">${n.time}</div>
+                                    <div class="text-end text-muted" style="font-size:10px">${escapeNotifHtml(n.time)}</div>
                                 </div>
-                                <div class="fw-bold text-dark small mb-1">${n.title}</div>
-                                <div class="text-muted small text-truncate" style="max-width:250px">${n.msg}</div>
+                                <div class="fw-bold text-dark small mb-1">${escapeNotifHtml(n.title)}</div>
+                                <div class="text-muted small text-truncate" style="max-width:250px">${escapeNotifHtml(n.msg)}</div>
                             </a>
                         </li>
                     `).join('');
@@ -1544,7 +1567,7 @@
             const year = now.getFullYear();
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
-            el.innerHTML = `${d}, ${day}/${month}/${year} | <span class="text-primary">${hours}:${minutes}</span>`;
+            el.textContent = `${d}, ${day}/${month}/${year} | ${hours}:${minutes}`;
         }
         setInterval(updateClock, 1000);
         updateClock();
@@ -1563,7 +1586,7 @@
                 else if (code >= 51 && code <= 67) { desc = 'Có mưa'; }
                 else if (code >= 71 && code <= 86) { desc = 'Lạnh/Tuyết'; }
                 else if (code >= 95) { desc = 'Có dông'; }
-                el.innerHTML = `Tuyên Quang: ${temp}°C, ${desc}`;
+                el.textContent = `Tuyên Quang: ${temp}°C, ${desc}`;
             } catch (e) { el.style.display = 'none'; }
         }
         updateWeather();

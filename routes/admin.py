@@ -947,6 +947,9 @@ def db_manage():
     action = request.form.get('action')
     try:
         if action == 'reset':
+            if not current_app.config.get('ADMIN_DB_RESET_ENABLED', False):
+                flash('Đã khóa reset cơ sở dữ liệu từ giao diện web. Chỉ bật lại bằng biến môi trường khi thật sự cần.', 'danger')
+                return redirect(url_for('admin_bp.db_tool'))
             from utils import init_db
             db.drop_all()
             db.create_all()
@@ -957,12 +960,14 @@ def db_manage():
             return redirect(url_for('auth_bp.login'))
             
         elif action == 'backup':
-            # Use the correct database name from app.py
-            db_path = os.path.join(current_app.root_path, 'pc06_system.db')
-            if os.path.exists(db_path):
-                return send_from_directory(current_app.root_path, 'pc06_system.db', as_attachment=True)
+            if not current_app.config.get('ADMIN_DB_BACKUP_ENABLED', False):
+                flash('Đã khóa tải backup DB từ giao diện web. Hãy sao lưu trực tiếp trên máy chủ.', 'danger')
+                return redirect(url_for('admin_bp.db_tool'))
+            db_path = current_app.config.get('SQLITE_DB_PATH') or ''
+            if db_path and os.path.exists(db_path):
+                return send_file(db_path, as_attachment=True, download_name=os.path.basename(db_path))
             else: 
-                flash(f'Không tìm thấy file database tại {db_path}!', 'danger')
+                flash('Không tìm thấy tệp SQLite backup khả dụng hoặc hệ thống đang dùng cơ sở dữ liệu ngoài.', 'danger')
     except Exception as e:
         flash(f'Lỗi thao tác: {e}', 'danger')
     return redirect(url_for('admin_bp.db_tool'))
@@ -1499,6 +1504,9 @@ def import_users():
 def system_update():
     if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
     if request.method == 'POST':
+        if not current_app.config.get('WEB_SYSTEM_UPDATE_ENABLED', False):
+            flash('Đã khóa cập nhật hệ thống qua giao diện web. Hãy triển khai bản vá trực tiếp trên máy chủ.', 'danger')
+            return redirect(url_for('admin_bp.system_update'))
         f = request.files.get('update_pkg')
         if f and f.filename.endswith('.zip'):
             upload_dir = os.path.join(current_app.root_path, 'uploads')
@@ -1529,7 +1537,12 @@ def system_update():
                         shutil.copytree(src, os.path.join(backup_dir, folder), dirs_exist_ok=True)
                 
                 # 3. Unpack and Restart
-                safe_extract_zip(p, current_app.root_path)
+                safe_extract_zip(
+                    p,
+                    current_app.root_path,
+                    blocked_roots={'uploads', 'task_files', 'library_files', 'backups', 'logs', 'tmp', '__pycache__'},
+                    blocked_names={'.env', '.secret_key', 'pc06_system.db', 'pc06_system.db-journal', 'db.sqlite3'},
+                )
                 restart = os.path.join(current_app.root_path, 'tmp', 'restart.txt')
                 os.makedirs(os.path.dirname(restart), exist_ok=True)
                 with open(restart, 'w', encoding='utf-8') as f_out: f_out.write(str(datetime.now()))
@@ -1668,6 +1681,9 @@ def ai_settings():
 @admin_bp.route('/admin/system/git-pull', methods=['POST'])
 def git_pull():
     if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    if not current_app.config.get('WEB_GIT_PULL_ENABLED', False):
+        flash('Đã khóa Git pull qua giao diện web. Hãy thao tác trực tiếp trên máy chủ.', 'danger')
+        return redirect(url_for('admin_bp.system_update'))
     
     try:
         # Check if git is available
