@@ -3,6 +3,7 @@ import re, json, sqlite3, os, ast, operator as op
 from flask import request, render_template as flask_render_template, g, session, redirect, url_for
 from openpyxl.utils import range_boundaries
 from datetime import datetime, timedelta
+from sqlalchemy import inspect, text
 from models import db, User, AppRole, SystemLog, Notification, MasterData, NewsCategory, LibraryField, ContactGroup, ProfessionalUnit
 
 
@@ -305,16 +306,9 @@ def normalize_unit_key(unit_name):
 
 def apply_migrations(app):
     with app.app_context():
-        db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
-        if not db_uri.startswith('sqlite:///'): return
-        db_path = db_uri.replace('sqlite:///', '')
-        if not os.path.exists(db_path):
-            db_path = app.config.get('SQLITE_DB_PATH') or os.path.join(app.root_path, 'pc06_system.db')
-            if not os.path.exists(db_path): return
-    
-    conn = sqlite3.connect(db_path, timeout=30)
-    cursor = conn.cursor()
-    migrations = [
+        engine = db.engine
+        dialect_name = engine.dialect.name
+        migrations = [
         ("user", "must_change_password", "BOOLEAN DEFAULT 1"), 
         ("user", "unit_key", "VARCHAR(100)"),
         ("app_role", "perms", "TEXT"),
@@ -532,33 +526,72 @@ def apply_migrations(app):
         ("attendance_config", "target_role_id", "INTEGER"),
         ("attendance_config", "target_unit_key", "VARCHAR(100)")
     ]
-    for table, col, col_type in migrations:
-        try:
-            cursor.execute(f"PRAGMA table_info({table})")
-            if col not in [c[1] for c in cursor.fetchall()]:
-                cursor.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}")
-                conn.commit()
-        except Exception as e: 
-            print(f"Migration Error on {table}.{col}: {e}")
+        inspector = inspect(engine)
+        existing_tables = set(inspector.get_table_names())
+        existing_columns = {}
+        quote_identifier = engine.dialect.identifier_preparer.quote_identifier
 
-    try:
-        cursor.execute("PRAGMA table_info(user)")
-        user_columns = [c[1] for c in cursor.fetchall()]
-        if 'unit_key' in user_columns:
-            cursor.execute("SELECT id, fullname, unit_area, unit_key FROM user")
-            for user_id, fullname, unit_area, unit_key in cursor.fetchall():
-                if unit_key:
+        with engine.begin() as conn:
+            for table, col, col_type in migrations:
+                if table not in existing_tables:
                     continue
-                computed_key = extract_unit_key(fullname or unit_area or '')
-                if computed_key:
-                    cursor.execute(
-                        "UPDATE user SET unit_key = ? WHERE id = ?",
-                        (computed_key, user_id)
+                if table not in existing_columns:
+                    try:
+                        existing_columns[table] = {column["name"] for column in inspector.get_columns(table)}
+                    except Exception as e:
+                        print(f"Schema Inspect Error on {table}: {e}")
+                        existing_columns[table] = set()
+                if col in existing_columns[table]:
+                    continue
+                try:
+                    alter_sql = (
+                        f"ALTER TABLE {quote_identifier(table)} "
+                        f"ADD COLUMN {quote_identifier(col)} {col_type}"
                     )
-            conn.commit()
-    except Exception as e:
-        print(f"Backfill Error on user.unit_key: {e}")
+                    conn.execute(text(alter_sql))
+                    existing_columns[table].add(col)
+                except Exception as e:
+                    print(f"Migration Error on {table}.{col}: {e}")
 
+        try:
+            user_columns = existing_columns.get("user")
+            if user_columns is None and "user" in existing_tables:
+                user_columns = {column["name"] for column in inspector.get_columns("user")}
+            if user_columns and "unit_key" in user_columns:
+                users_to_update = []
+                for user_id, fullname, unit_area, unit_key in db.session.query(
+                    User.id,
+                    User.fullname,
+                    User.unit_area,
+                    User.unit_key,
+                ).all():
+                    if unit_key:
+                        continue
+                    computed_key = extract_unit_key(fullname or unit_area or '')
+                    if computed_key:
+                        users_to_update.append({"id": user_id, "unit_key": computed_key})
+                if users_to_update:
+                    db.session.execute(
+                        text("UPDATE user SET unit_key = :unit_key WHERE id = :id"),
+                        users_to_update,
+                    )
+                    db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f"Backfill Error on user.unit_key: {e}")
+
+    if dialect_name != 'sqlite':
+        return
+
+    db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    db_path = db_uri.replace('sqlite:///', '')
+    if not os.path.exists(db_path):
+        db_path = app.config.get('SQLITE_DB_PATH') or os.path.join(app.root_path, 'pc06_system.db')
+        if not os.path.exists(db_path):
+            return
+
+    conn = sqlite3.connect(db_path, timeout=30)
+    cursor = conn.cursor()
     create_table_statements = [
         """
         CREATE TABLE IF NOT EXISTS module_registry (
