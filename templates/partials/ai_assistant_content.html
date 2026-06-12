@@ -4,23 +4,18 @@
   data-chat-endpoint="{{ url_for('ai_bp.chat') }}"
   data-news-endpoint="{{ url_for('ai_bp.news') }}"
   data-welcome="{{ assistant_welcome|e }}">
-  <section class="pc06-hero-card assistant-hero-card">
-    <div class="assistant-hero-layout">
-      <div>
-        <h1 class="pc06-page-title">Trợ lý AI</h1>
-      </div>
-      <div class="assistant-hero-actions">
-        <span class="assistant-pill">
-          <i class="fa-solid fa-microchip"></i>
-          {{ assistant_runtime.label }}
-        </span>
-        <span class="assistant-pill">
-          <i class="fa-solid fa-shield-halved"></i>
-          Phục vụ nội bộ
-        </span>
-      </div>
+  <div class="pc06-page-toolbar">
+    <div class="assistant-hero-actions">
+      <span class="assistant-pill">
+        <i class="fa-solid fa-microchip"></i>
+        {{ assistant_runtime.label }}
+      </span>
+      <span class="assistant-pill">
+        <i class="fa-solid fa-shield-halved"></i>
+        Phục vụ nội bộ
+      </span>
     </div>
-  </section>
+  </div>
 
   {% if not assistant_runtime.configured %}
   <div class="assistant-warning">

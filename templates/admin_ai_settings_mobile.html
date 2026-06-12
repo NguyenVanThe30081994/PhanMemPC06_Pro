@@ -158,33 +158,26 @@
 {% endblock %}
 
 {% block content %}
-<section class="mobile-ai-hero">
-  <div class="mobile-ai-kicker">
-    <i class="fa-solid fa-microchip"></i>Cấu hình dịch vụ AI
-  </div>
-  <h1>Quản trị nhà cung cấp và mô hình</h1>
-  <p>Quản lý khóa dịch vụ, mô hình và prompt hệ thống cho phân hệ hỗ trợ thủ tục.</p>
-  <div class="mobile-ai-actions">
-    <a href="/ai/" class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" aria-label="Mở hỗ trợ thủ tục" title="Mở hỗ trợ thủ tục">
-      <i class="fa-solid fa-arrow-up-right-from-square"></i><span class="visually-hidden">Mở hỗ trợ thủ tục</span>
-    </a>
-  </div>
+<section class="mobile-page-toolbar">
+  <a href="/ai/" class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" aria-label="Mở hỗ trợ thủ tục" title="Mở hỗ trợ thủ tục">
+    <i class="fa-solid fa-arrow-up-right-from-square"></i><span class="visually-hidden">Mở hỗ trợ thủ tục</span>
+  </a>
 </section>
 
-<div class="mobile-ai-stats">
-  <div class="mobile-ai-stat">
+<div class="mobile-page-stats">
+  <div class="mobile-page-stat">
     <span>Nhà cung cấp</span>
     <strong>{{ status.provider_label }}</strong>
   </div>
-  <div class="mobile-ai-stat">
+  <div class="mobile-page-stat">
     <span>Mô hình</span>
     <strong>{{ status.model_name }}</strong>
   </div>
-  <div class="mobile-ai-stat">
+  <div class="mobile-page-stat">
     <span>Trạng thái</span>
     <strong>{{ 'Kích hoạt' if status.is_active else 'Tạm dừng' }}</strong>
   </div>
-  <div class="mobile-ai-stat">
+  <div class="mobile-page-stat">
     <span>Nguồn hiệu lực</span>
     <strong class="text-capitalize">{{ status.effective_source }}</strong>
   </div>

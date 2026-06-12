@@ -4,33 +4,29 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    <section class="pc06-hero-card">
-        <div class="pc06-hero-grid">
-            <div>
-                <h1 class="pc06-page-title">QR&Link</h1>
-                <div class="pc06-action-cluster">
-                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLinkModal">
-                        <i class="fa-solid fa-plus"></i>
-                        Tạo liên kết
-                    </button>
-                </div>
-            </div>
-            <div class="pc06-stat-strip">
-                <div class="pc06-metric-card">
-                    <span>Tổng liên kết</span>
-                    <strong>{{ links|length }}</strong>
-                </div>
-                <div class="pc06-metric-card">
-                    <span>Tổng lượt mở</span>
-                    <strong>{{ links|sum(attribute='clicks') }}</strong>
-                </div>
-                <div class="pc06-metric-card">
-                    <span>Phạm vi</span>
-                    <strong style="font-size:1rem;">{{ 'Toàn hệ thống' if is_admin else 'Cá nhân' }}</strong>
-                </div>
-            </div>
+    <div class="pc06-page-toolbar">
+        <div class="pc06-page-actions">
+            <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLinkModal">
+                <i class="fa-solid fa-plus"></i>
+                Tạo liên kết
+            </button>
         </div>
-    </section>
+    </div>
+
+    <div class="pc06-page-summary">
+        <div class="pc06-page-summary-card">
+            <span>Tổng liên kết</span>
+            <strong>{{ links|length }}</strong>
+        </div>
+        <div class="pc06-page-summary-card">
+            <span>Tổng lượt mở</span>
+            <strong>{{ links|sum(attribute='clicks') }}</strong>
+        </div>
+        <div class="pc06-page-summary-card">
+            <span>Phạm vi</span>
+            <strong>{{ 'Toàn hệ thống' if is_admin else 'Cá nhân' }}</strong>
+        </div>
+    </div>
 
     <section class="pc06-panel">
         <div class="pc06-panel-head">

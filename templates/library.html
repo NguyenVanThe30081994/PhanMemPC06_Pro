@@ -225,21 +225,16 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    <section class="pc06-hero-card">
-        <div class="pc06-hero-grid compact">
-            <div>
-                <div class="pc06-library-title-row">
-                    <h1 class="pc06-page-title">Thư viện</h1>
-                    {% if can_manage_with_system('lib') %}
-                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLibraryModal">
-                        <i class="fa-solid fa-upload"></i>
-                        Tải tài liệu lên
-                    </button>
-                    {% endif %}
-                </div>
-            </div>
+    {% if can_manage_with_system('lib') %}
+    <div class="pc06-page-toolbar">
+        <div class="pc06-page-actions">
+            <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLibraryModal">
+                <i class="fa-solid fa-upload"></i>
+                Tải tài liệu lên
+            </button>
         </div>
-    </section>
+    </div>
+    {% endif %}
 
     <div class="pc06-library-workspace">
             <section class="pc06-panel pc06-library-board-panel">

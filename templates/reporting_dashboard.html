@@ -23,64 +23,60 @@
 {% set report_groups = template_groups if is_admin else cycle_groups %}
 {% set selected_group = (selected_report_group if selected_report_group is defined and selected_report_group else 'all')|lower %}
 <div class="pc06-page-shell">
-    <section class="pc06-hero-card">
-        <div class="pc06-hero-grid">
-            <div>
-                <h1 class="pc06-page-title">Báo cáo</h1>
-                {% if is_admin %}
-                <div class="pc06-action-cluster">
-                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#createReportTemplateModal">
-                        <i class="fa-solid fa-plus"></i>
-                        Thiết lập mẫu
-                    </button>
-                    <form method="POST" action="{{ url_for('reporting_bp.sync_units') }}">
-                        <button class="btn btn-bdhvs light" type="submit">
-                            <i class="fa-solid fa-rotate"></i>
-                            Đồng bộ đơn vị
-                        </button>
-                    </form>
-                </div>
-                {% endif %}
-            </div>
-            <div class="pc06-stat-strip">
-                {% if is_admin %}
-                <div class="pc06-metric-card">
-                    <span>Biểu mẫu</span>
-                    <strong>{{ templates|length }}</strong>
-                </div>
-                <div class="pc06-metric-card">
-                    <span>Đội nghiệp vụ</span>
-                    <strong>{{ template_groups|length }}</strong>
-                </div>
-                <div class="pc06-metric-card">
-                    <span>Báo cáo đang mở</span>
-                    <strong>{{ hero_stats.active_total if hero_stats is defined else cycles|length }}</strong>
-                </div>
-                <div class="pc06-metric-card">
-                    <span>Quá hạn</span>
-                    <strong>{{ hero_stats.overdue_total if hero_stats is defined else 0 }}</strong>
-                </div>
-                {% else %}
-                <div class="pc06-metric-card">
-                    <span>Đội nghiệp vụ</span>
-                    <strong>{{ cycle_groups|length }}</strong>
-                </div>
-                <div class="pc06-metric-card">
-                    <span>Chưa báo cáo</span>
-                    <strong>{{ hero_stats.unreported_total if hero_stats is defined else 0 }}</strong>
-                </div>
-                <div class="pc06-metric-card">
-                    <span>Đã báo cáo</span>
-                    <strong>{{ hero_stats.reported_total if hero_stats is defined else 0 }}</strong>
-                </div>
-                <div class="pc06-metric-card">
-                    <span>Quá hạn</span>
-                    <strong>{{ hero_stats.overdue_total if hero_stats is defined else 0 }}</strong>
-                </div>
-                {% endif %}
-            </div>
+    {% if is_admin %}
+    <div class="pc06-page-toolbar">
+        <div class="pc06-page-actions">
+            <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#createReportTemplateModal">
+                <i class="fa-solid fa-plus"></i>
+                Thiết lập mẫu
+            </button>
+            <form method="POST" action="{{ url_for('reporting_bp.sync_units') }}">
+                <button class="btn btn-bdhvs light" type="submit">
+                    <i class="fa-solid fa-rotate"></i>
+                    Đồng bộ đơn vị
+                </button>
+            </form>
         </div>
-    </section>
+    </div>
+    {% endif %}
+
+    <div class="pc06-page-summary">
+        {% if is_admin %}
+        <div class="pc06-page-summary-card">
+            <span>Biểu mẫu</span>
+            <strong>{{ templates|length }}</strong>
+        </div>
+        <div class="pc06-page-summary-card">
+            <span>Đội nghiệp vụ</span>
+            <strong>{{ template_groups|length }}</strong>
+        </div>
+        <div class="pc06-page-summary-card">
+            <span>Báo cáo đang mở</span>
+            <strong>{{ hero_stats.active_total if hero_stats is defined else cycles|length }}</strong>
+        </div>
+        <div class="pc06-page-summary-card">
+            <span>Quá hạn</span>
+            <strong>{{ hero_stats.overdue_total if hero_stats is defined else 0 }}</strong>
+        </div>
+        {% else %}
+        <div class="pc06-page-summary-card">
+            <span>Đội nghiệp vụ</span>
+            <strong>{{ cycle_groups|length }}</strong>
+        </div>
+        <div class="pc06-page-summary-card">
+            <span>Chưa báo cáo</span>
+            <strong>{{ hero_stats.unreported_total if hero_stats is defined else 0 }}</strong>
+        </div>
+        <div class="pc06-page-summary-card">
+            <span>Đã báo cáo</span>
+            <strong>{{ hero_stats.reported_total if hero_stats is defined else 0 }}</strong>
+        </div>
+        <div class="pc06-page-summary-card">
+            <span>Quá hạn</span>
+            <strong>{{ hero_stats.overdue_total if hero_stats is defined else 0 }}</strong>
+        </div>
+        {% endif %}
+    </div>
 
     <div class="reporting-workspace">
         <div class="reporting-board">

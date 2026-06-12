@@ -64,31 +64,24 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    <section class="pc06-hero-card">
-        <div class="pc06-hero-grid compact">
-            <div>
-                <div class="pc06-contacts-title-row">
-                    <h1 class="pc06-page-title">Danh bạ</h1>
-                    {% if can_manage_with_system('contact') %}
-                    <div class="pc06-action-cluster">
-                        <a href="{{ url_for('portal_bp.contact_template') }}" class="btn btn-bdhvs light">
-                            <i class="fa-solid fa-download"></i>
-                            Tải biểu mẫu
-                        </a>
-                        <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importContactModal">
-                            <i class="fa-solid fa-file-excel"></i>
-                            Nhập Excel
-                        </button>
-                        <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addContactModal">
-                            <i class="fa-solid fa-plus"></i>
-                            Thêm liên hệ
-                        </button>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
+    {% if can_manage_with_system('contact') %}
+    <div class="pc06-page-toolbar">
+        <div class="pc06-page-actions">
+            <a href="{{ url_for('portal_bp.contact_template') }}" class="btn btn-bdhvs light">
+                <i class="fa-solid fa-download"></i>
+                Tải biểu mẫu
+            </a>
+            <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importContactModal">
+                <i class="fa-solid fa-file-excel"></i>
+                Nhập Excel
+            </button>
+            <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addContactModal">
+                <i class="fa-solid fa-plus"></i>
+                Thêm liên hệ
+            </button>
         </div>
-    </section>
+    </div>
+    {% endif %}
 
     <div class="pc06-contacts-workspace">
         <section class="pc06-panel pc06-contacts-board-panel">

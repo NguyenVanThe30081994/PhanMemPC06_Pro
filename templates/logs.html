@@ -4,31 +4,27 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    <section class="pc06-hero-card">
-        <div class="pc06-hero-grid">
-            <div>
-                <h1 class="pc06-page-title">Nhật ký hoạt động</h1>
-                <div class="pc06-action-cluster">
-                    <form method="POST" action="/logs" class="m-0">
-                        <input type="hidden" name="action" value="backup">
-                        <button type="submit" class="btn btn-bdhvs light">
-                            <i class="fa-solid fa-file-excel"></i>
-                            Xuất Excel
-                        </button>
-                    </form>
-                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#clearLogsModal">
-                        <i class="fa-solid fa-broom"></i>
-                        Dọn nhật ký
-                    </button>
-                </div>
-            </div>
-            <div class="pc06-stat-strip">
-                <div class="pc06-metric-card"><span>Bản ghi hiển thị</span><strong>{{ logs|length }}</strong></div>
-                <div class="pc06-metric-card"><span>Người dùng</span><strong>{{ user_list|length }}</strong></div>
-                <div class="pc06-metric-card"><span>Bộ lọc</span><strong style="font-size:1rem;">{{ 'Đang áp dụng' if start or end or user_search else 'Mặc định' }}</strong></div>
-            </div>
+    <div class="pc06-page-toolbar">
+        <div class="pc06-page-actions">
+            <form method="POST" action="/logs">
+                <input type="hidden" name="action" value="backup">
+                <button type="submit" class="btn btn-bdhvs light">
+                    <i class="fa-solid fa-file-excel"></i>
+                    Xuất Excel
+                </button>
+            </form>
+            <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#clearLogsModal">
+                <i class="fa-solid fa-broom"></i>
+                Dọn nhật ký
+            </button>
         </div>
-    </section>
+    </div>
+
+    <div class="pc06-page-summary">
+        <div class="pc06-page-summary-card"><span>Bản ghi hiển thị</span><strong>{{ logs|length }}</strong></div>
+        <div class="pc06-page-summary-card"><span>Người dùng</span><strong>{{ user_list|length }}</strong></div>
+        <div class="pc06-page-summary-card"><span>Bộ lọc</span><strong>{{ 'Đang áp dụng' if start or end or user_search else 'Mặc định' }}</strong></div>
+    </div>
 
     <div class="pc06-section-workspace" data-section-menu-container data-default-pane="filters">
         <div class="pc06-section-menu-shell">

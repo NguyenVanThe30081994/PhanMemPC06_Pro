@@ -4,33 +4,28 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    <section class="pc06-hero-card">
-        <div class="pc06-hero-grid compact">
-            <div>
-                <h1 class="pc06-page-title">Tài khoản & Vai trò</h1>
-                {% if can_manage_roles %}
-                <div class="pc06-action-cluster">
-                    <a class="btn btn-bdhvs light" href="{{ url_for('admin_bp.export_users', role_id=selected_role_id, unit=selected_unit, q=search_query) }}">
-                        <i class="fa-solid fa-file-arrow-down"></i>
-                        {{ 'Xuất ' ~ selected_role.name if selected_role else 'Xuất danh sách' }}
-                    </a>
-                    <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importUserModal">
-                        <i class="fa-solid fa-file-excel"></i>
-                        Nhập Excel
-                    </button>
-                    <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#addRoleModal">
-                        <i class="fa-solid fa-user-tag"></i>
-                        Thêm vai trò
-                    </button>
-                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
-                        <i class="fa-solid fa-user-plus"></i>
-                        Thêm tài khoản
-                    </button>
-                </div>
-                {% endif %}
-            </div>
+    {% if can_manage_roles %}
+    <div class="pc06-page-toolbar">
+        <div class="pc06-page-actions">
+            <a class="btn btn-bdhvs light" href="{{ url_for('admin_bp.export_users', role_id=selected_role_id, unit=selected_unit, q=search_query) }}">
+                <i class="fa-solid fa-file-arrow-down"></i>
+                {{ 'Xuất ' ~ selected_role.name if selected_role else 'Xuất danh sách' }}
+            </a>
+            <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importUserModal">
+                <i class="fa-solid fa-file-excel"></i>
+                Nhập Excel
+            </button>
+            <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#addRoleModal">
+                <i class="fa-solid fa-user-tag"></i>
+                Thêm vai trò
+            </button>
+            <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                <i class="fa-solid fa-user-plus"></i>
+                Thêm tài khoản
+            </button>
         </div>
-    </section>
+    </div>
+    {% endif %}
 
     <div class="pc06-section-workspace" data-section-menu-container data-default-pane="filters">
         <div class="pc06-section-menu-shell">

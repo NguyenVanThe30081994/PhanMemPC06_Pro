@@ -692,6 +692,77 @@
     color: rgba(226, 232, 240, 0.82);
 }
 
+.pc06-page-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.pc06-page-toolbar-main {
+    display: grid;
+    gap: 6px;
+    flex: 1 1 280px;
+}
+
+.pc06-page-toolbar-note {
+    margin: 0;
+    color: var(--text-muted, #64748b);
+    font-size: 0.92rem;
+    line-height: 1.55;
+}
+
+.pc06-page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-left: auto;
+    justify-content: flex-end;
+}
+
+.pc06-page-actions form {
+    margin: 0;
+}
+
+.pc06-page-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.pc06-page-summary-card {
+    padding: 16px 18px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+}
+
+.pc06-page-summary-card span {
+    display: block;
+    color: var(--text-muted, #64748b);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.pc06-page-summary-card strong {
+    display: block;
+    margin-top: 6px;
+    color: var(--text-main, #0f172a);
+    font-size: clamp(1.1rem, 2vw, 1.5rem);
+    font-weight: 900;
+    line-height: 1.2;
+}
+
+[data-theme="dark"] .pc06-page-summary-card {
+    background: rgba(30, 41, 59, 0.92);
+    border-color: rgba(148, 163, 184, 0.14);
+    box-shadow: 0 18px 40px rgba(2, 6, 23, 0.28);
+}
+
 .pc06-search-control input {
     width: 100%;
     border: 0;
@@ -1573,6 +1644,22 @@ a.pc06-chip {
 
     .pc06-toolbar-note {
         text-align: left;
+    }
+
+    .pc06-page-toolbar,
+    .pc06-page-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .pc06-page-actions {
+        margin-left: 0;
+        justify-content: flex-start;
+    }
+
+    .pc06-page-actions .btn {
+        width: 100%;
+        justify-content: center;
     }
 
     .pc06-search-control {
