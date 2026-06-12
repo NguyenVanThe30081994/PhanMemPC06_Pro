@@ -8,25 +8,10 @@
         <div class="pc06-page-summary-card"><span>Bản ghi hiển thị</span><strong>{{ logs|length }}</strong></div>
         <div class="pc06-page-summary-card"><span>Người dùng</span><strong>{{ user_list|length }}</strong></div>
         <div class="pc06-page-summary-card"><span>Bộ lọc</span><strong>{{ 'Đang áp dụng' if start or end or user_search else 'Mặc định' }}</strong></div>
-        <div class="pc06-page-summary-card actions">
-            <div class="pc06-page-summary-actions">
-                <form method="POST" action="/logs">
-                    <input type="hidden" name="action" value="backup">
-                    <button type="submit" class="btn btn-bdhvs light">
-                        <i class="fa-solid fa-file-excel"></i>
-                        Xuất Excel
-                    </button>
-                </form>
-                <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#clearLogsModal">
-                    <i class="fa-solid fa-broom"></i>
-                    Dọn nhật ký
-                </button>
-            </div>
-        </div>
     </div>
 
     <div class="pc06-section-workspace" data-section-menu-container data-default-pane="filters">
-        <div class="pc06-section-menu-shell">
+        <div class="pc06-section-menu-shell with-actions">
             <div class="pc06-section-menu" role="tablist" aria-label="Các khu vực chức năng của nhật ký hoạt động">
                 <button type="button" class="btn pc06-section-menu-tab is-active" data-section-pane-target="filters" role="tab" aria-selected="true">
                     <i class="fa-solid fa-filter"></i>
@@ -39,6 +24,19 @@
                 <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="results" role="tab" aria-selected="false">
                     <i class="fa-solid fa-clock-rotate-left"></i>
                     Nhật ký
+                </button>
+            </div>
+            <div class="pc06-section-menu-actions">
+                <form method="POST" action="/logs">
+                    <input type="hidden" name="action" value="backup">
+                    <button type="submit" class="btn btn-bdhvs light">
+                        <i class="fa-solid fa-file-excel"></i>
+                        Xuất Excel
+                    </button>
+                </form>
+                <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#clearLogsModal">
+                    <i class="fa-solid fa-broom"></i>
+                    Dọn nhật ký
                 </button>
             </div>
         </div>

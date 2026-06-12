@@ -17,18 +17,10 @@
             <span>Trạng thái</span>
             <strong>{{ 'Kích hoạt' if status.is_active else 'Tạm dừng' }}</strong>
         </div>
-        <div class="pc06-page-summary-card actions">
-            <div class="pc06-page-summary-actions">
-                <a href="/ai/" class="btn btn-bdhvs light">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                    Mở Trợ lý AI
-                </a>
-            </div>
-        </div>
     </div>
 
     <div class="pc06-section-workspace" data-section-menu-container data-default-pane="connection">
-        <div class="pc06-section-menu-shell">
+        <div class="pc06-section-menu-shell with-actions">
             <div class="pc06-section-menu" role="tablist" aria-label="Các khu vực chức năng của cấu hình AI">
                 <button type="button" class="btn pc06-section-menu-tab is-active" data-section-pane-target="connection" role="tab" aria-selected="true">
                     <i class="fa-solid fa-plug-circle-check"></i>
@@ -42,6 +34,12 @@
                     <i class="fa-solid fa-lightbulb"></i>
                     Gợi ý triển khai
                 </button>
+            </div>
+            <div class="pc06-section-menu-actions">
+                <a href="/ai/" class="btn btn-bdhvs light">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    Mở Trợ lý AI
+                </a>
             </div>
         </div>
 

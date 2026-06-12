@@ -15,22 +15,10 @@
             <span>Điểm dẫn đầu</span>
             <strong>{{ leaderboard[0].total_score if leaderboard else 0 }}</strong>
         </div>
-        <div class="pc06-page-summary-card actions">
-            <div class="pc06-page-summary-actions">
-                <a href="/ranking/export" class="btn btn-bdhvs light">
-                    <i class="fa-solid fa-file-excel"></i>
-                    Xuất biểu
-                </a>
-                <a href="/ranking/input" class="btn btn-bdhvs primary">
-                    <i class="fa-solid fa-cloud-arrow-up"></i>
-                    Tải file chấm điểm
-                </a>
-            </div>
-        </div>
     </div>
 
     <div class="pc06-section-workspace" data-section-menu-container data-default-pane="leaders">
-        <div class="pc06-section-menu-shell">
+        <div class="pc06-section-menu-shell with-actions">
             <div class="pc06-section-menu" role="tablist" aria-label="Các khu vực chức năng của xếp hạng">
                 <button type="button" class="btn pc06-section-menu-tab is-active" data-section-pane-target="leaders" role="tab" aria-selected="true">
                     <i class="fa-solid fa-trophy"></i>
@@ -48,6 +36,16 @@
                     <i class="fa-solid fa-layer-group"></i>
                     Cơ cấu nhóm
                 </button>
+            </div>
+            <div class="pc06-section-menu-actions">
+                <a href="/ranking/export" class="btn btn-bdhvs light">
+                    <i class="fa-solid fa-file-excel"></i>
+                    Xuất biểu
+                </a>
+                <a href="/ranking/input" class="btn btn-bdhvs primary">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    Tải file chấm điểm
+                </a>
             </div>
         </div>
 

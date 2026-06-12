@@ -23,26 +23,28 @@
 {% set report_groups = template_groups if is_admin else cycle_groups %}
 {% set selected_group = (selected_report_group if selected_report_group is defined and selected_report_group else 'all')|lower %}
 <div class="pc06-page-shell">
-    <div class="pc06-page-summary">
-        {% if is_admin %}
-        <div class="pc06-page-summary-card">
-            <span>Biểu mẫu</span>
-            <strong>{{ templates|length }}</strong>
+    {% if is_admin %}
+    <div class="pc06-page-summary-bar">
+        <div class="pc06-page-summary">
+            <div class="pc06-page-summary-card">
+                <span>Biểu mẫu</span>
+                <strong>{{ templates|length }}</strong>
+            </div>
+            <div class="pc06-page-summary-card">
+                <span>Đội nghiệp vụ</span>
+                <strong>{{ template_groups|length }}</strong>
+            </div>
+            <div class="pc06-page-summary-card">
+                <span>Báo cáo đang mở</span>
+                <strong>{{ hero_stats.active_total if hero_stats is defined else cycles|length }}</strong>
+            </div>
+            <div class="pc06-page-summary-card">
+                <span>Quá hạn</span>
+                <strong>{{ hero_stats.overdue_total if hero_stats is defined else 0 }}</strong>
+            </div>
         </div>
-        <div class="pc06-page-summary-card">
-            <span>Đội nghiệp vụ</span>
-            <strong>{{ template_groups|length }}</strong>
-        </div>
-        <div class="pc06-page-summary-card">
-            <span>Báo cáo đang mở</span>
-            <strong>{{ hero_stats.active_total if hero_stats is defined else cycles|length }}</strong>
-        </div>
-        <div class="pc06-page-summary-card">
-            <span>Quá hạn</span>
-            <strong>{{ hero_stats.overdue_total if hero_stats is defined else 0 }}</strong>
-        </div>
-        <div class="pc06-page-summary-card actions">
-            <div class="pc06-page-summary-actions">
+        <div class="pc06-page-summary-side">
+            <div class="pc06-page-actions">
                 <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#createReportTemplateModal">
                     <i class="fa-solid fa-plus"></i>
                     Thiết lập mẫu
@@ -55,7 +57,9 @@
                 </form>
             </div>
         </div>
-        {% else %}
+    </div>
+    {% else %}
+    <div class="pc06-page-summary">
         <div class="pc06-page-summary-card">
             <span>Đội nghiệp vụ</span>
             <strong>{{ cycle_groups|length }}</strong>
@@ -72,8 +76,8 @@
             <span>Quá hạn</span>
             <strong>{{ hero_stats.overdue_total if hero_stats is defined else 0 }}</strong>
         </div>
-        {% endif %}
     </div>
+    {% endif %}
 
     <div class="reporting-workspace">
         <div class="reporting-board">
