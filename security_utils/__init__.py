@@ -10,6 +10,13 @@ from .security_helpers import (
     get_client_ip, log_security_event, sanitize_html,
     resolve_safe_path, safe_extract_zip, generate_temporary_password,
 )
+from .runtime_security import (
+    fingerprint_security_value,
+    build_ip_network_hint,
+    describe_user_agent,
+    encrypt_secret_value,
+    decrypt_secret_value,
+)
 
 __all__ = [
     'validate_file_upload', 'allowed_file', 'validate_file_size',
@@ -18,4 +25,6 @@ __all__ = [
     'validate_table_name', 'validate_column_name', 'validate_column_type',
     'get_client_ip', 'log_security_event', 'sanitize_html',
     'resolve_safe_path', 'safe_extract_zip', 'generate_temporary_password',
+    'fingerprint_security_value', 'build_ip_network_hint', 'describe_user_agent',
+    'encrypt_secret_value', 'decrypt_secret_value',
 ]

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from flask import Blueprint, request, session, jsonify, redirect, url_for
+from flask import Blueprint, current_app, request, session, jsonify, redirect, url_for
 import os
 import requests
 import re
@@ -9,7 +9,7 @@ import html
 from datetime import datetime, timedelta
 from urllib.parse import quote
 from utils import render_auto_template as render_template
-from models import AIAssistantConfig
+from models import AIAssistantConfig, db
 
 ai_bp = Blueprint('ai_bp', __name__, url_prefix='/ai')
 
@@ -1173,8 +1173,16 @@ def _get_provider_runtime():
 def _get_provider_api_key(provider, config=None):
     cfg = config or _get_ai_config()
 
-    if cfg and cfg.is_active and (cfg.provider or '').strip().lower() == provider and (cfg.api_key or '').strip():
-        return cfg.api_key.strip()
+    if cfg and cfg.is_active and (cfg.provider or '').strip().lower() == provider:
+        try:
+            current_key = cfg.get_api_key(current_app.secret_key or current_app.config.get('SECRET_KEY') or '')
+        except Exception:
+            current_key = ''
+        if current_key:
+            if cfg.api_key and not cfg.api_key_encrypted:
+                cfg.set_api_key(current_app.secret_key or current_app.config.get('SECRET_KEY') or '', current_key)
+                db.session.commit()
+            return current_key.strip()
 
     env_keys = {
         'deepseek': 'DEEPSEEK_API_KEY',

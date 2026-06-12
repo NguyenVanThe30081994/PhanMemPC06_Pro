@@ -6,6 +6,7 @@ from openpyxl.utils import range_boundaries
 from datetime import datetime, timedelta
 from sqlalchemy import inspect, text
 from models import db, User, AppRole, SystemLog, Notification, MasterData, NewsCategory, LibraryField, ContactGroup, ProfessionalUnit
+from security_utils.runtime_security import generate_temporary_password
 
 
 # ==================== SECURITY FUNCTIONS ====================
@@ -312,8 +313,10 @@ def apply_migrations(app):
         migrations = [
         ("user", "must_change_password", "BOOLEAN DEFAULT 1"), 
         ("user", "unit_key", "VARCHAR(100)"),
+        ("user", "session_version", "INTEGER DEFAULT 0"),
         ("app_role", "perms", "TEXT"),
         ("notification", "is_read", "BOOLEAN DEFAULT 0"),
+        ("ai_assistant_config", "api_key_encrypted", "TEXT"),
         ("news_doc", "content", "TEXT"),
         ("news_doc", "target_scope", "VARCHAR(50) DEFAULT 'Toàn tỉnh'"),
         ("document_lib", "uploaded_at", "DATETIME"),
@@ -418,6 +421,7 @@ def apply_migrations(app):
         ("report_template_sheet", "visible_in_preview", "BOOLEAN DEFAULT 1"),
         ("report_template_sheet", "summary_json", "TEXT"),
         ("report_template_field", "version_id", "INTEGER"),
+        ("login_security_state", "last_failed_secret_hash", "VARCHAR(64)"),
         ("report_template_field", "sheet_name", "VARCHAR(255)"),
         ("report_template_field", "field_code", "VARCHAR(120)"),
         ("report_template_field", "field_name", "VARCHAR(255)"),
@@ -750,6 +754,7 @@ def init_db(app):
         # Admin User
         if admin_role and not User.query.filter_by(username='admin').first():
             try:
+                bootstrap_password = (os.environ.get('BOOTSTRAP_ADMIN_PASSWORD') or '').strip() or generate_temporary_password()
                 u = User(
                     username='admin',
                     fullname='Tài khoản quản trị',
@@ -757,9 +762,11 @@ def init_db(app):
                     unit_area='Hệ thống',
                     unit_key=extract_unit_key('Hệ thống')
                 )
-                u.set_password('123')
+                u.must_change_password = True
+                u.set_password(bootstrap_password)
                 db.session.add(u)
                 db.session.commit()
+                print(f"[SECURITY] Initial admin account created with a temporary password: {bootstrap_password}")
             except Exception:
                 db.session.rollback()
 

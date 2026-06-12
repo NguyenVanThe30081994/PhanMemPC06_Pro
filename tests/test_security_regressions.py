@@ -1,19 +1,36 @@
 # -*- coding: utf-8 -*-
 import json
 import os
+import time
 import unittest
 from datetime import datetime
 
 from app import app
-from models import AppRole, Notification, User, db
+from models import AIAssistantConfig, AppRole, Notification, User, db
+from security_utils.runtime_security import build_ip_network_hint, fingerprint_security_value
 
 
 class SecurityRegressionTests(unittest.TestCase):
+    TEST_USER_AGENT = 'SecurityRegressionTest/1.0'
+
     def setUp(self):
         self.client = app.test_client()
         self.created_user_ids = []
         self.created_role_ids = []
         self.created_upload_paths = []
+        self._ai_config_snapshot = None
+        with app.app_context():
+            config = AIAssistantConfig.query.first()
+            if config:
+                self._ai_config_snapshot = {
+                    'id': config.id,
+                    'provider': config.provider,
+                    'model_name': config.model_name,
+                    'api_key': config.api_key,
+                    'api_key_encrypted': config.api_key_encrypted,
+                    'system_prompt': config.system_prompt,
+                    'is_active': config.is_active,
+                }
 
     def tearDown(self):
         with app.app_context():
@@ -22,6 +39,19 @@ class SecurityRegressionTests(unittest.TestCase):
                 User.query.filter(User.id.in_(self.created_user_ids)).delete(synchronize_session=False)
             if self.created_role_ids:
                 AppRole.query.filter(AppRole.id.in_(self.created_role_ids)).delete(synchronize_session=False)
+            if self._ai_config_snapshot is None:
+                AIAssistantConfig.query.delete(synchronize_session=False)
+            else:
+                config = db.session.get(AIAssistantConfig, self._ai_config_snapshot['id'])
+                if not config:
+                    config = AIAssistantConfig(id=self._ai_config_snapshot['id'])
+                    db.session.add(config)
+                config.provider = self._ai_config_snapshot['provider']
+                config.model_name = self._ai_config_snapshot['model_name']
+                config.api_key = self._ai_config_snapshot['api_key']
+                config.api_key_encrypted = self._ai_config_snapshot['api_key_encrypted']
+                config.system_prompt = self._ai_config_snapshot['system_prompt']
+                config.is_active = self._ai_config_snapshot['is_active']
             db.session.commit()
 
         for path in self.created_upload_paths:
@@ -64,9 +94,13 @@ class SecurityRegressionTests(unittest.TestCase):
             sess['role_id'] = user.role_id
             sess['must_change'] = False
             sess['is_admin'] = False
-            sess['last_active'] = datetime.now().timestamp()
+            sess['last_active'] = time.time()
             sess['login_nonce'] = 'security-regression-session'
+            sess['session_version'] = int(user.session_version or 0)
+            sess['session_user_agent_hash'] = fingerprint_security_value(app.secret_key, 'user_agent', self.TEST_USER_AGENT)
+            sess['session_ip_hint'] = build_ip_network_hint('127.0.0.1')
             sess['csrf_token'] = 'security-regression-csrf'
+            sess['reauth_at'] = time.time()
 
     def _login_admin_session(self, user):
         self._login_session(user)
@@ -80,7 +114,7 @@ class SecurityRegressionTests(unittest.TestCase):
         )
         self._login_session(user)
 
-        response = self.client.get('/ranking')
+        response = self.client.get('/ranking', headers={'User-Agent': self.TEST_USER_AGENT})
         self.assertEqual(response.status_code, 200)
 
     def test_ranking_save_forbidden_without_manage_permission(self):
@@ -93,7 +127,7 @@ class SecurityRegressionTests(unittest.TestCase):
         response = self.client.post(
             '/ranking/api/save',
             json={'unit_id': 1, 'indicator_id': 1, 'value': 5},
-            headers={'X-CSRF-Token': 'security-regression-csrf'},
+            headers={'X-CSRF-Token': 'security-regression-csrf', 'User-Agent': self.TEST_USER_AGENT},
         )
         self.assertEqual(response.status_code, 403)
 
@@ -112,7 +146,7 @@ class SecurityRegressionTests(unittest.TestCase):
             db.session.commit()
         self._login_session(user)
 
-        response = self.client.get('/api/notifications')
+        response = self.client.get('/api/notifications', headers={'User-Agent': self.TEST_USER_AGENT})
         self.assertEqual(response.status_code, 200)
         payload = response.get_json()
         self.assertTrue(payload)
@@ -133,7 +167,7 @@ class SecurityRegressionTests(unittest.TestCase):
             handle.write('private')
         self.created_upload_paths.append(test_path)
 
-        response = self.client.get('/dl_file/unregistered_security_test.txt')
+        response = self.client.get('/dl_file/unregistered_security_test.txt', headers={'User-Agent': self.TEST_USER_AGENT})
         self.assertEqual(response.status_code, 404)
 
     def test_db_reset_is_disabled_by_default(self):
@@ -143,6 +177,7 @@ class SecurityRegressionTests(unittest.TestCase):
         response = self.client.post(
             '/admin/db-manage',
             data={'action': 'reset', 'csrf_token': 'security-regression-csrf'},
+            headers={'User-Agent': self.TEST_USER_AGENT},
             follow_redirects=False,
         )
         self.assertEqual(response.status_code, 302)
@@ -154,6 +189,7 @@ class SecurityRegressionTests(unittest.TestCase):
         response = self.client.post(
             '/admin/db-manage',
             data={'action': 'backup', 'csrf_token': 'security-regression-csrf'},
+            headers={'User-Agent': self.TEST_USER_AGENT},
             follow_redirects=False,
         )
         self.assertEqual(response.status_code, 302)
@@ -165,6 +201,7 @@ class SecurityRegressionTests(unittest.TestCase):
         response = self.client.post(
             '/admin/system/git-pull',
             data={'csrf_token': 'security-regression-csrf'},
+            headers={'User-Agent': self.TEST_USER_AGENT},
             follow_redirects=False,
         )
         self.assertEqual(response.status_code, 302)
@@ -176,9 +213,41 @@ class SecurityRegressionTests(unittest.TestCase):
         response = self.client.post(
             '/admin/system/update',
             data={'csrf_token': 'security-regression-csrf'},
+            headers={'User-Agent': self.TEST_USER_AGENT},
             follow_redirects=False,
         )
         self.assertEqual(response.status_code, 302)
+
+    def test_ai_api_key_is_encrypted_at_rest(self):
+        user = self._create_user_with_role('security_admin_ai')
+        self._login_admin_session(user)
+
+        response = self.client.post(
+            '/admin/ai-settings',
+            data={
+                'csrf_token': 'security-regression-csrf',
+                'provider': 'openai',
+                'model_name': 'gpt-4.1-mini',
+                'api_key': 'sk-test-super-secret',
+                'is_active': 'on',
+            },
+            headers={'User-Agent': self.TEST_USER_AGENT},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 302)
+
+        with app.app_context():
+            config = AIAssistantConfig.query.first()
+            self.assertIsNotNone(config)
+            self.assertFalse(bool((config.api_key or '').strip()))
+            self.assertTrue(bool((config.api_key_encrypted or '').strip()))
+            self.assertNotIn('sk-test-super-secret', config.api_key_encrypted or '')
+            self.assertEqual(config.get_api_key(app.secret_key), 'sk-test-super-secret')
+
+    def test_login_redirect_with_clear_storage_sets_clear_site_data_header(self):
+        response = self.client.get('/login?clear_storage=true')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('cookies', response.headers.get('Clear-Site-Data', ''))
 
 
 if __name__ == '__main__':

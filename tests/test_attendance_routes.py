@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
 import os
+import time
 import unittest
 from datetime import datetime
 
 from app import app
 from models import AttendanceConfig, AttendanceSubmission, CategoryGroup, CategoryItem, User, db
+from security_utils.runtime_security import build_ip_network_hint, fingerprint_security_value
 
 
 class AttendanceRouteTests(unittest.TestCase):
+    TEST_USER_AGENT = 'AttendanceRouteTest/1.0'
+
     def setUp(self):
         self.client = app.test_client()
 
@@ -63,8 +67,12 @@ class AttendanceRouteTests(unittest.TestCase):
             sess['role_id'] = user.role_id
             sess['must_change'] = False
             sess['is_admin'] = True
-            sess['last_active'] = datetime.now().timestamp()
+            sess['last_active'] = time.time()
             sess['login_nonce'] = 'attendance-test-session'
+            sess['session_version'] = int(user.session_version or 0)
+            sess['session_user_agent_hash'] = fingerprint_security_value(app.secret_key, 'user_agent', self.TEST_USER_AGENT)
+            sess['session_ip_hint'] = build_ip_network_hint('127.0.0.1')
+            sess['reauth_at'] = time.time()
         return user
 
     def test_attendance_page_renders_for_logged_in_admin(self):
@@ -87,7 +95,7 @@ class AttendanceRouteTests(unittest.TestCase):
             config_id = config.id
 
         try:
-            response = self.client.get('/attendance')
+            response = self.client.get('/attendance', headers={'User-Agent': self.TEST_USER_AGENT})
             self.assertEqual(response.status_code, 200)
             self.assertIn('Điểm danh'.encode('utf-8'), response.data)
             self.assertIn('Tạo nhiệm vụ điểm danh'.encode('utf-8'), response.data)
@@ -162,6 +170,7 @@ class AttendanceRouteTests(unittest.TestCase):
                 'target_type': 'role',
                 'target_role_id': str(admin_user.role_id),
             },
+            headers={'User-Agent': self.TEST_USER_AGENT},
         )
         self.assertEqual(create_response.status_code, 302)
 
@@ -186,6 +195,7 @@ class AttendanceRouteTests(unittest.TestCase):
                     'target_type': 'role',
                     'target_role_id': str(admin_user.role_id),
                 },
+                headers={'User-Agent': self.TEST_USER_AGENT},
             )
             self.assertEqual(update_response.status_code, 302)
 
@@ -203,6 +213,7 @@ class AttendanceRouteTests(unittest.TestCase):
             delete_response = self.client.post(
                 f'/attendance/config/{config_id}/delete',
                 data={'csrf_token': csrf_token},
+                headers={'User-Agent': self.TEST_USER_AGENT},
             )
             self.assertEqual(delete_response.status_code, 302)
 
@@ -271,6 +282,7 @@ class AttendanceRouteTests(unittest.TestCase):
                     'unit_key': unit_items[1]['unit_key'],
                     'note': 'Updated submission note',
                 },
+                headers={'User-Agent': self.TEST_USER_AGENT},
             )
             self.assertEqual(update_response.status_code, 302)
 
@@ -284,6 +296,7 @@ class AttendanceRouteTests(unittest.TestCase):
             delete_response = self.client.post(
                 f'/attendance/submission/{submission_id}/delete',
                 data={'csrf_token': csrf_token},
+                headers={'User-Agent': self.TEST_USER_AGENT},
             )
             self.assertEqual(delete_response.status_code, 302)
 

@@ -312,6 +312,20 @@ def _mask_secret(value):
     return f"{value[:4]}{'*' * (len(value) - 8)}{value[-4:]}"
 
 
+def _get_ai_config_secret(config):
+    if not config:
+        return ''
+    secret_key = current_app.secret_key or current_app.config.get('SECRET_KEY') or ''
+    try:
+        value = config.get_api_key(secret_key)
+    except Exception:
+        return ''
+    if value and config.api_key and not config.api_key_encrypted:
+        config.set_api_key(secret_key, value)
+        db.session.commit()
+    return value
+
+
 def _reset_users_passwords_bulk(user_query, temporary_password):
     target_rows = user_query.with_entities(User.id, User.username).all()
     if not target_rows:
@@ -327,6 +341,7 @@ def _reset_users_passwords_bulk(user_query, temporary_password):
         {
             User.password_hash: default_hash,
             User.must_change_password: True,
+            User.session_version: func.coalesce(User.session_version, 0) + 1,
         },
         synchronize_session=False,
     )
@@ -1056,6 +1071,8 @@ def roles():
                             flash(password_error, 'danger')
                             return redirect(url_for('admin_bp.roles'))
                         u.set_password(pwd)
+                        u.must_change_password = True
+                        u.session_version = int(getattr(u, 'session_version', 0) or 0) + 1
                     log_action(session['uid'], session['fullname'], "Sửa tài khoản", "Tài khoản", u.username)
             db.session.commit()
             flash('Thao tác thành công!', 'success')
@@ -1606,9 +1623,9 @@ def ai_settings():
             config.is_active = is_active
 
             if clear_api_key:
-                config.api_key = None
+                config.clear_api_key()
             elif new_api_key:
-                config.api_key = new_api_key
+                config.set_api_key(current_app.secret_key or current_app.config.get('SECRET_KEY') or '', new_api_key)
 
             db.session.commit()
 
@@ -1648,7 +1665,7 @@ def ai_settings():
     if provider not in AI_PROVIDER_CHOICES:
         provider = 'deepseek'
 
-    current_key = (config.api_key or '').strip() if config else ''
+    current_key = _get_ai_config_secret(config)
     env_key_names = {
         'deepseek': 'DEEPSEEK_API_KEY',
         'gemini': 'GEMINI_API_KEY',

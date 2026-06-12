@@ -23,15 +23,22 @@ if hasattr(sys.stderr, 'reconfigure'):
 import logging
 from logging.handlers import RotatingFileHandler
 import json
+import time
 from urllib.parse import urlparse
-from flask import Flask, session, request, redirect, url_for, send_file, send_from_directory, render_template, g, jsonify, Response
+from flask import Flask, flash, session, request, redirect, url_for, send_file, send_from_directory, render_template, g, jsonify, Response
 from datetime import datetime, timedelta
 from werkzeug.exceptions import HTTPException
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
-from models import db, AppRole, DocumentLib, NewsDoc
+from models import db, AppRole, DocumentLib, NewsDoc, User
 from storage import bootstrap_storage, build_storage_layout
-from security_utils.runtime_security import ensure_persistent_secret_key, resolve_safe_path
+from security_utils.runtime_security import (
+    build_ip_network_hint,
+    ensure_persistent_secret_key,
+    fingerprint_security_value,
+    resolve_safe_path,
+)
+from security_utils.security_helpers import get_client_ip, log_security_event
 from utils import (
     get_perms_labels,
     has_any_module_permission,
@@ -83,6 +90,9 @@ try:
         LOGIN_MAX_FAILURES_PER_IP,
         LOGIN_LOCKOUT_SECONDS,
         LOGIN_LOCKOUT_MULTIPLIER_MAX,
+        SECURITY_REAUTH_WINDOW_SECONDS,
+        SECURITY_DEVICE_COOKIE_NAME,
+        SECURITY_DEVICE_COOKIE_MAX_AGE,
         DEBUG,
         AUTH_FAILURE_DELAY_MS,
         RATE_LIMIT_WINDOW_SECONDS,
@@ -113,6 +123,9 @@ except ImportError:
     LOGIN_MAX_FAILURES_PER_IP = 20
     LOGIN_LOCKOUT_SECONDS = 900
     LOGIN_LOCKOUT_MULTIPLIER_MAX = 4
+    SECURITY_REAUTH_WINDOW_SECONDS = 900
+    SECURITY_DEVICE_COOKIE_NAME = 'pc06_device'
+    SECURITY_DEVICE_COOKIE_MAX_AGE = 31536000
     DEBUG = False
     AUTH_FAILURE_DELAY_MS = 600
     RATE_LIMIT_WINDOW_SECONDS = 60
@@ -170,6 +183,9 @@ app.config['LOGIN_MAX_FAILURES_PER_USER'] = LOGIN_MAX_FAILURES_PER_USER
 app.config['LOGIN_MAX_FAILURES_PER_IP'] = LOGIN_MAX_FAILURES_PER_IP
 app.config['LOGIN_LOCKOUT_SECONDS'] = LOGIN_LOCKOUT_SECONDS
 app.config['LOGIN_LOCKOUT_MULTIPLIER_MAX'] = LOGIN_LOCKOUT_MULTIPLIER_MAX
+app.config['SECURITY_REAUTH_WINDOW_SECONDS'] = SECURITY_REAUTH_WINDOW_SECONDS
+app.config['SECURITY_DEVICE_COOKIE_NAME'] = SECURITY_DEVICE_COOKIE_NAME
+app.config['SECURITY_DEVICE_COOKIE_MAX_AGE'] = SECURITY_DEVICE_COOKIE_MAX_AGE
 app.config['AUTH_FAILURE_DELAY_MS'] = AUTH_FAILURE_DELAY_MS
 app.config['RATE_LIMIT_WINDOW_SECONDS'] = RATE_LIMIT_WINDOW_SECONDS
 app.config['RATE_LIMIT_MAX_REQUESTS'] = RATE_LIMIT_MAX_REQUESTS
@@ -259,6 +275,32 @@ def _is_same_origin(target_url):
     return parsed.scheme == expected_scheme and parsed.netloc == request.host
 
 
+SENSITIVE_REAUTH_ENDPOINTS = {
+    'admin_bp.roles',
+    'admin_bp.db_tool',
+    'admin_bp.db_manage',
+    'admin_bp.reset_users_password_bulk',
+    'admin_bp.system_update',
+    'admin_bp.git_pull',
+    'admin_bp.ai_settings',
+}
+
+
+def _current_user_agent_hash():
+    return fingerprint_security_value(
+        app.secret_key or app.config.get('SECRET_KEY') or '',
+        'user_agent',
+        request.headers.get('User-Agent', '') or '',
+    )
+
+
+def _get_reauth_redirect_target():
+    for candidate in (request.referrer, request.path):
+        if candidate and _is_same_origin(candidate):
+            return candidate
+    return url_for('admin_bp.index')
+
+
 @app.after_request
 def add_security_headers(response):
     """Add security headers to all responses"""
@@ -296,6 +338,8 @@ def add_security_headers(response):
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
+    if (request.args.get('clear_storage') or '').strip().lower() == 'true':
+        response.headers['Clear-Site-Data'] = '"cache", "cookies", "storage"'
     return response
 
 # Rate limiting storage: {(ip, scope): [timestamp, ...]}
@@ -412,6 +456,73 @@ def check_auth():
 
     if session.get('must_change') and request.endpoint not in {'auth_bp.change_password', 'auth_bp.logout'}:
         return redirect(url_for('auth_bp.change_password'))
+
+
+@app.before_request
+def enforce_session_integrity():
+    uid = session.get('uid')
+    if not uid:
+        return
+
+    user = db.session.get(User, uid)
+    if not user or not user.is_active:
+        session.clear()
+        session['csrf_token'] = secrets.token_urlsafe(32)
+        return redirect(url_for('auth_bp.login', clear_storage='true'))
+
+    session_version = int(session.get('session_version', -1))
+    current_version = int(getattr(user, 'session_version', 0) or 0)
+    if session_version != current_version:
+        log_security_event('session_revoked', f'uid={uid} | reason=session_version_changed')
+        session.clear()
+        session['csrf_token'] = secrets.token_urlsafe(32)
+        flash('Phiên đăng nhập đã hết hiệu lực do mật khẩu hoặc thông tin bảo mật vừa thay đổi.', 'warning')
+        return redirect(url_for('auth_bp.login', clear_storage='true'))
+
+    expected_user_agent_hash = session.get('session_user_agent_hash') or ''
+    current_user_agent_hash = _current_user_agent_hash()
+    if expected_user_agent_hash and current_user_agent_hash and not secrets.compare_digest(
+        str(expected_user_agent_hash),
+        str(current_user_agent_hash),
+    ):
+        log_security_event('session_binding_mismatch', f'uid={uid} | reason=user_agent_changed')
+        session.clear()
+        session['csrf_token'] = secrets.token_urlsafe(32)
+        flash('Phiên đăng nhập không còn an toàn. Vui lòng đăng nhập lại.', 'warning')
+        return redirect(url_for('auth_bp.login', clear_storage='true'))
+
+    current_ip_hint = build_ip_network_hint(get_client_ip())
+    stored_ip_hint = session.get('session_ip_hint') or ''
+    if stored_ip_hint and current_ip_hint and stored_ip_hint != current_ip_hint:
+        session['security_step_up_required'] = True
+        session['security_step_up_reason'] = 'network_change'
+
+
+@app.before_request
+def enforce_step_up_auth():
+    if not session.get('uid') or not session.get('is_admin'):
+        return
+    if request.endpoint == 'auth_bp.reauthenticate':
+        return
+    if request.endpoint not in SENSITIVE_REAUTH_ENDPOINTS:
+        return
+
+    reauth_window = int(app.config.get('SECURITY_REAUTH_WINDOW_SECONDS', 900))
+    reauth_at = float(session.get('reauth_at') or 0)
+    requires_reauth = (
+        not reauth_at
+        or (time.time() - reauth_at) > reauth_window
+        or bool(session.get('security_step_up_required'))
+    )
+    if not requires_reauth:
+        return
+
+    if request.method in {'GET', 'HEAD', 'OPTIONS'}:
+        flash('Vui lòng xác minh lại mật khẩu trước khi truy cập khu vực quản trị nhạy cảm.', 'warning')
+        return redirect(url_for('auth_bp.reauthenticate', next=request.full_path.rstrip('?')))
+
+    flash('Phiên xác minh đã hết hạn hoặc bối cảnh đăng nhập thay đổi. Hãy xác minh lại rồi thực hiện thao tác một lần nữa.', 'warning')
+    return redirect(url_for('auth_bp.reauthenticate', next=_get_reauth_redirect_target()))
 
 
 @app.before_request

@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import UniqueConstraint
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+from security_utils.runtime_security import decrypt_secret_value, encrypt_secret_value
 
 db = SQLAlchemy()
 
@@ -136,6 +137,7 @@ class User(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     phone = db.Column(db.String(20))  # SĐT Zalo format E.164 (+84...)
     must_change_password = db.Column(db.Boolean, default=True)
+    session_version = db.Column(db.Integer, default=0)
     role = db.relationship('AppRole', backref='users')
     def set_password(self, p): self.password_hash = generate_password_hash(p, method='pbkdf2:sha256')
     def check_password(self, p): return check_password_hash(self.password_hash, p)
@@ -157,6 +159,26 @@ class LoginSecurityState(db.Model):
     locked_until = db.Column(db.DateTime)
     last_success_at = db.Column(db.DateTime)
     last_success_ip = db.Column(db.String(64))
+    last_failed_secret_hash = db.Column(db.String(64))
+
+
+class UserTrustedDevice(db.Model):
+    __tablename__ = 'user_trusted_device'
+    __table_args__ = (
+        UniqueConstraint('user_id', 'device_key', name='uq_user_trusted_device'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    device_key = db.Column(db.String(64), nullable=False, index=True)
+    device_label = db.Column(db.String(255))
+    first_seen_ip = db.Column(db.String(64))
+    last_seen_ip = db.Column(db.String(64))
+    last_user_agent = db.Column(db.String(255))
+    first_seen_at = db.Column(db.DateTime, default=datetime.now)
+    last_seen_at = db.Column(db.DateTime, default=datetime.now)
+
+    user = db.relationship('User', backref='trusted_devices')
 
 
 class Task(db.Model):
@@ -760,7 +782,26 @@ class AIAssistantConfig(db.Model):
     provider = db.Column(db.String(30), default='deepseek', nullable=False)
     model_name = db.Column(db.String(100), default='deepseek-v4-flash', nullable=False)
     api_key = db.Column(db.Text)
+    api_key_encrypted = db.Column(db.Text)
     system_prompt = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     created_at = db.Column(db.DateTime, default=datetime.now)
+
+    def get_api_key(self, secret_key=""):
+        if self.api_key_encrypted:
+            return decrypt_secret_value(secret_key, self.api_key_encrypted, namespace='ai-provider-key')
+        return (self.api_key or '').strip()
+
+    def set_api_key(self, secret_key, raw_value):
+        value = str(raw_value or '').strip()
+        if not value:
+            self.api_key = None
+            self.api_key_encrypted = None
+            return
+        self.api_key_encrypted = encrypt_secret_value(secret_key, value, namespace='ai-provider-key')
+        self.api_key = None
+
+    def clear_api_key(self):
+        self.api_key = None
+        self.api_key_encrypted = None
