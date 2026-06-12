@@ -168,9 +168,75 @@
 </div>
 
 <style>
+    .shortlink-table-wrap {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    .shortlink-table-wrap .table {
+        width: 100%;
+        min-width: 1180px;
+        table-layout: fixed;
+    }
+
     .shortlink-table-wrap .table td,
     .shortlink-table-wrap .table th {
         vertical-align: middle;
+    }
+
+    .shortlink-table-wrap .table th:nth-child(1),
+    .shortlink-table-wrap .table td:nth-child(1) {
+        width: 22%;
+    }
+
+    .shortlink-table-wrap .table th:nth-child(2),
+    .shortlink-table-wrap .table td:nth-child(2) {
+        width: 24%;
+    }
+
+    .shortlink-table-wrap .table th:nth-child(3),
+    .shortlink-table-wrap .table td:nth-child(3) {
+        width: 28%;
+    }
+
+    .shortlink-table-wrap .table th:nth-child(4),
+    .shortlink-table-wrap .table td:nth-child(4) {
+        width: 8%;
+    }
+
+    .shortlink-table-wrap .table th:nth-child(5),
+    .shortlink-table-wrap .table td:nth-child(5) {
+        width: 8%;
+    }
+
+    .shortlink-table-wrap .table th:nth-child(6),
+    .shortlink-table-wrap .table td:nth-child(6) {
+        width: 10%;
+    }
+
+    .shortlink-table-wrap .table th:nth-child(7),
+    .shortlink-table-wrap .table td:nth-child(7) {
+        width: 10%;
+    }
+
+    .shortlink-table-wrap .table td:nth-child(2) > div,
+    .shortlink-table-wrap .table td:nth-child(3) a {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .shortlink-table-wrap .table td:nth-child(3) .d-flex {
+        min-width: 0;
+    }
+
+    .shortlink-table-wrap .table td:nth-child(3) a {
+        min-width: 0;
+        flex: 1 1 auto;
     }
 
     .shortlink-modal-head {

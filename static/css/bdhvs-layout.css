@@ -418,6 +418,10 @@
     gap: 18px;
 }
 
+.pc06-page-shell > * {
+    min-width: 0;
+}
+
 .pc06-hero-card {
     padding: 22px 24px;
     border-radius: 28px;
@@ -588,6 +592,7 @@
     border: 1px solid rgba(255, 255, 255, 0.16);
     border-radius: 28px;
     box-shadow: 0 20px 44px rgba(15, 23, 42, 0.08);
+    min-width: 0;
 }
 
 [data-theme="dark"] .pc06-panel,
@@ -731,6 +736,7 @@
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 12px;
     margin-bottom: 18px;
+    min-width: 0;
 }
 
 .pc06-page-summary-bar {
