@@ -31,15 +31,6 @@
 
 {% block content %}
 <div class="task-workspace-shell">
-    {% if is_lead or is_admin %}
-    <div class="task-action-bar">
-        <button class="btn btn-bdhvs primary task-create-btn" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
-            <i class="fa-solid fa-plus"></i>
-            Tạo công việc
-        </button>
-    </div>
-    {% endif %}
-
     <section class="task-metric-grid">
         <article class="task-metric-card danger">
             <span>Cần xử lý ngay</span>
@@ -57,6 +48,14 @@
             <span>Đã hoàn tất</span>
             <strong>{{ stats.completed }}</strong>
         </article>
+        {% if is_lead or is_admin %}
+        <article class="task-metric-card task-metric-card-action">
+            <button class="btn btn-bdhvs primary task-create-btn" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+                <i class="fa-solid fa-plus"></i>
+                Tạo công việc
+            </button>
+        </article>
+        {% endif %}
     </section>
 
     {% if attention_tasks %}
@@ -171,11 +170,6 @@
         box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
     }
 
-    .task-action-bar {
-        display: flex;
-        justify-content: flex-end;
-    }
-
     .task-panel-head p,
     .task-card-main p {
         margin: 0;
@@ -189,7 +183,7 @@
 
     .task-metric-grid {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 16px;
     }
 
@@ -208,6 +202,17 @@
     .task-metric-card strong {
         font-size: 2rem;
         line-height: 1;
+    }
+
+    .task-metric-card-action {
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(145deg, rgba(239, 246, 255, 0.95), rgba(255, 255, 255, 0.96));
+    }
+
+    .task-metric-card-action .task-create-btn {
+        width: 100%;
+        justify-content: center;
     }
 
     .task-metric-card.primary {
@@ -486,7 +491,6 @@
             border-radius: 18px;
         }
 
-        .task-action-bar,
         .task-panel-head,
         .task-card-top,
         .task-progress-line {

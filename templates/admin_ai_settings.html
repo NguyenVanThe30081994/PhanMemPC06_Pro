@@ -4,15 +4,6 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    <div class="pc06-page-toolbar">
-        <div class="pc06-page-actions">
-            <a href="/ai/" class="btn btn-bdhvs light">
-                <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                Mở Trợ lý AI
-            </a>
-        </div>
-    </div>
-
     <div class="pc06-page-summary">
         <div class="pc06-page-summary-card">
             <span>Nhà cung cấp</span>
@@ -25,6 +16,14 @@
         <div class="pc06-page-summary-card">
             <span>Trạng thái</span>
             <strong>{{ 'Kích hoạt' if status.is_active else 'Tạm dừng' }}</strong>
+        </div>
+        <div class="pc06-page-summary-card actions">
+            <div class="pc06-page-summary-actions">
+                <a href="/ai/" class="btn btn-bdhvs light">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    Mở Trợ lý AI
+                </a>
+            </div>
         </div>
     </div>
 

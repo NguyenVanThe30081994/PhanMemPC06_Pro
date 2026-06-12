@@ -11,6 +11,11 @@
     }
 
     .pc06-contacts-board-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
         margin-bottom: 16px;
     }
 
@@ -64,29 +69,26 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    {% if can_manage_with_system('contact') %}
-    <div class="pc06-page-toolbar">
-        <div class="pc06-page-actions">
-            <a href="{{ url_for('portal_bp.contact_template') }}" class="btn btn-bdhvs light">
-                <i class="fa-solid fa-download"></i>
-                Tải biểu mẫu
-            </a>
-            <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importContactModal">
-                <i class="fa-solid fa-file-excel"></i>
-                Nhập Excel
-            </button>
-            <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addContactModal">
-                <i class="fa-solid fa-plus"></i>
-                Thêm liên hệ
-            </button>
-        </div>
-    </div>
-    {% endif %}
-
     <div class="pc06-contacts-workspace">
         <section class="pc06-panel pc06-contacts-board-panel">
             <div class="pc06-contacts-board-head">
                 <h2>{{ current_group_display or 'Tất cả nhóm' }}</h2>
+                {% if can_manage_with_system('contact') %}
+                <div class="pc06-page-actions">
+                    <a href="{{ url_for('portal_bp.contact_template') }}" class="btn btn-bdhvs light">
+                        <i class="fa-solid fa-download"></i>
+                        Tải biểu mẫu
+                    </a>
+                    <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importContactModal">
+                        <i class="fa-solid fa-file-excel"></i>
+                        Nhập Excel
+                    </button>
+                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addContactModal">
+                        <i class="fa-solid fa-plus"></i>
+                        Thêm liên hệ
+                    </button>
+                </div>
+                {% endif %}
             </div>
 
             <div class="pc06-contacts-board-tools">

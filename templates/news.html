@@ -12,6 +12,11 @@
     }
 
     .pc06-news-board-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
         margin-bottom: 16px;
     }
 
@@ -149,21 +154,18 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    {% if can_manage_news %}
-    <div class="pc06-page-toolbar">
-        <div class="pc06-page-actions">
-            <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addNewsModal">
-                <i class="fa-solid fa-plus"></i>
-                Đăng tin mới
-            </button>
-        </div>
-    </div>
-    {% endif %}
-
     <div class="pc06-news-workspace">
         <section class="pc06-panel pc06-news-board-panel">
             <div class="pc06-news-board-head">
                 <h2 id="newsSelectedCategory">{{ current_category_display }}</h2>
+                {% if can_manage_news %}
+                <div class="pc06-page-actions">
+                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addNewsModal">
+                        <i class="fa-solid fa-plus"></i>
+                        Đăng tin mới
+                    </button>
+                </div>
+                {% endif %}
             </div>
             <div class="pc06-news-sidebar-search">
                 <label class="pc06-search-control">

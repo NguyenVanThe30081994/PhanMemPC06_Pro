@@ -2,19 +2,6 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    <div class="pc06-page-toolbar">
-        <div class="pc06-page-actions">
-            <a href="/ranking/export" class="btn btn-bdhvs light">
-                <i class="fa-solid fa-file-excel"></i>
-                Xuất biểu
-            </a>
-            <a href="/ranking/input" class="btn btn-bdhvs primary">
-                <i class="fa-solid fa-cloud-arrow-up"></i>
-                Tải file chấm điểm
-            </a>
-        </div>
-    </div>
-
     <div class="pc06-page-summary">
         <div class="pc06-page-summary-card">
             <span>Tổng đơn vị</span>
@@ -27,6 +14,18 @@
         <div class="pc06-page-summary-card">
             <span>Điểm dẫn đầu</span>
             <strong>{{ leaderboard[0].total_score if leaderboard else 0 }}</strong>
+        </div>
+        <div class="pc06-page-summary-card actions">
+            <div class="pc06-page-summary-actions">
+                <a href="/ranking/export" class="btn btn-bdhvs light">
+                    <i class="fa-solid fa-file-excel"></i>
+                    Xuất biểu
+                </a>
+                <a href="/ranking/input" class="btn btn-bdhvs primary">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    Tải file chấm điểm
+                </a>
+            </div>
         </div>
     </div>
 

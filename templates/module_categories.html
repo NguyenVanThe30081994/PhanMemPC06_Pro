@@ -4,23 +4,22 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    <div class="pc06-page-toolbar">
-        <div class="pc06-page-actions">
-            <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addGroupModal">
-                <i class="fa-solid fa-plus"></i>
-                Thêm danh mục
-            </button>
-            <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#deleteGroupModal">
-                <i class="fa-solid fa-trash"></i>
-                Xóa danh mục
-            </button>
-        </div>
-    </div>
-
     <div class="pc06-page-summary">
         <div class="pc06-page-summary-card"><span>Nhóm danh mục</span><strong>{{ groups|length }}</strong></div>
         <div class="pc06-page-summary-card"><span>Phân hệ</span><strong>{{ modules|length }}</strong></div>
         <div class="pc06-page-summary-card"><span>Field cấu hình</span><strong>{{ module_fields.values()|map('length')|sum }}</strong></div>
+        <div class="pc06-page-summary-card actions">
+            <div class="pc06-page-summary-actions">
+                <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addGroupModal">
+                    <i class="fa-solid fa-plus"></i>
+                    Thêm danh mục
+                </button>
+                <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#deleteGroupModal">
+                    <i class="fa-solid fa-trash"></i>
+                    Xóa danh mục
+                </button>
+            </div>
+        </div>
     </div>
 
     <div class="pc06-section-pane-shell">

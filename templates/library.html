@@ -12,6 +12,11 @@
     }
 
     .pc06-library-board-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
         margin-bottom: 16px;
     }
 
@@ -225,21 +230,18 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    {% if can_manage_with_system('lib') %}
-    <div class="pc06-page-toolbar">
-        <div class="pc06-page-actions">
-            <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLibraryModal">
-                <i class="fa-solid fa-upload"></i>
-                Tải tài liệu lên
-            </button>
-        </div>
-    </div>
-    {% endif %}
-
     <div class="pc06-library-workspace">
             <section class="pc06-panel pc06-library-board-panel">
                 <div class="pc06-library-board-head">
                     <h2 id="librarySelectedCategory">{{ current_category_display }}</h2>
+                    {% if can_manage_with_system('lib') %}
+                    <div class="pc06-page-actions">
+                        <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLibraryModal">
+                            <i class="fa-solid fa-upload"></i>
+                            Tải tài liệu lên
+                        </button>
+                    </div>
+                    {% endif %}
                 </div>
                 <div class="pc06-library-sidebar-search">
                     <label class="pc06-search-control">

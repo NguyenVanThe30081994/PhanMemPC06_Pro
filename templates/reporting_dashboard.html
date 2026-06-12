@@ -23,23 +23,6 @@
 {% set report_groups = template_groups if is_admin else cycle_groups %}
 {% set selected_group = (selected_report_group if selected_report_group is defined and selected_report_group else 'all')|lower %}
 <div class="pc06-page-shell">
-    {% if is_admin %}
-    <div class="pc06-page-toolbar">
-        <div class="pc06-page-actions">
-            <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#createReportTemplateModal">
-                <i class="fa-solid fa-plus"></i>
-                Thiết lập mẫu
-            </button>
-            <form method="POST" action="{{ url_for('reporting_bp.sync_units') }}">
-                <button class="btn btn-bdhvs light" type="submit">
-                    <i class="fa-solid fa-rotate"></i>
-                    Đồng bộ đơn vị
-                </button>
-            </form>
-        </div>
-    </div>
-    {% endif %}
-
     <div class="pc06-page-summary">
         {% if is_admin %}
         <div class="pc06-page-summary-card">
@@ -57,6 +40,20 @@
         <div class="pc06-page-summary-card">
             <span>Quá hạn</span>
             <strong>{{ hero_stats.overdue_total if hero_stats is defined else 0 }}</strong>
+        </div>
+        <div class="pc06-page-summary-card actions">
+            <div class="pc06-page-summary-actions">
+                <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#createReportTemplateModal">
+                    <i class="fa-solid fa-plus"></i>
+                    Thiết lập mẫu
+                </button>
+                <form method="POST" action="{{ url_for('reporting_bp.sync_units') }}">
+                    <button class="btn btn-bdhvs light" type="submit">
+                        <i class="fa-solid fa-rotate"></i>
+                        Đồng bộ đơn vị
+                    </button>
+                </form>
+            </div>
         </div>
         {% else %}
         <div class="pc06-page-summary-card">
