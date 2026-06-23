@@ -107,6 +107,7 @@ class MartyrAdnMapBuilderTestCase(unittest.TestCase):
         shorter_score = builder.score_distance_priority_solution(
             load_values=[110, 230, 260, 380],
             distance_values=[18.0, 20.0, 24.0, 26.0],
+            travel_minutes_values=[25.0, 28.0, 33.0, 35.0],
             average_load=245.0,
             preferred_load_min=98.0,
             preferred_load_max=420.0,
@@ -114,6 +115,7 @@ class MartyrAdnMapBuilderTestCase(unittest.TestCase):
         longer_score = builder.score_distance_priority_solution(
             load_values=[100, 210, 290, 380],
             distance_values=[24.0, 28.0, 31.0, 35.0],
+            travel_minutes_values=[32.0, 36.0, 40.0, 44.0],
             average_load=245.0,
             preferred_load_min=98.0,
             preferred_load_max=420.0,
@@ -125,6 +127,7 @@ class MartyrAdnMapBuilderTestCase(unittest.TestCase):
         distance_only_option = builder.score_distance_priority_solution(
             load_values=[50, 60, 430, 440],
             distance_values=[12.0, 13.0, 14.0, 15.0],
+            travel_minutes_values=[18.0, 19.0, 20.0, 21.0],
             average_load=245.0,
             preferred_load_min=98.0,
             preferred_load_max=420.0,
@@ -132,6 +135,7 @@ class MartyrAdnMapBuilderTestCase(unittest.TestCase):
         balanced_enough_option = builder.score_distance_priority_solution(
             load_values=[105, 220, 300, 355],
             distance_values=[16.0, 17.0, 18.0, 19.0],
+            travel_minutes_values=[23.0, 24.0, 25.0, 26.0],
             average_load=245.0,
             preferred_load_min=98.0,
             preferred_load_max=420.0,
@@ -143,6 +147,7 @@ class MartyrAdnMapBuilderTestCase(unittest.TestCase):
         tighter_sites_score = builder.score_distance_priority_solution(
             load_values=[105, 220, 300, 355],
             distance_values=[16.0, 17.0, 18.0, 19.0],
+            travel_minutes_values=[23.0, 24.0, 25.0, 26.0],
             average_load=245.0,
             preferred_load_min=98.0,
             preferred_load_max=420.0,
@@ -152,6 +157,7 @@ class MartyrAdnMapBuilderTestCase(unittest.TestCase):
         wider_sites_score = builder.score_distance_priority_solution(
             load_values=[105, 220, 300, 355],
             distance_values=[16.0, 17.0, 18.0, 19.0],
+            travel_minutes_values=[23.0, 24.0, 25.0, 26.0],
             average_load=245.0,
             preferred_load_min=98.0,
             preferred_load_max=420.0,
@@ -160,6 +166,9 @@ class MartyrAdnMapBuilderTestCase(unittest.TestCase):
         )
 
         self.assertLess(wider_sites_score, tighter_sites_score)
+
+    def test_minimum_old_ha_giang_site_count_biases_toward_that_side(self):
+        self.assertEqual(builder.minimum_old_ha_giang_site_count(15), 9)
 
     def test_distance_priority_assignments_keep_selected_sites_on_themselves(self):
         areas = [
