@@ -103,6 +103,42 @@ class MartyrAdnMapBuilderTestCase(unittest.TestCase):
         )
         self.assertEqual(provider, 'osrm')
 
+    def test_distance_priority_score_prefers_shorter_distance_when_loads_are_within_soft_band(self):
+        shorter_score = builder.score_distance_priority_solution(
+            load_values=[110, 230, 260, 380],
+            distance_values=[18.0, 20.0, 24.0, 26.0],
+            average_load=245.0,
+            preferred_load_min=98.0,
+            preferred_load_max=420.0,
+        )
+        longer_score = builder.score_distance_priority_solution(
+            load_values=[100, 210, 290, 380],
+            distance_values=[24.0, 28.0, 31.0, 35.0],
+            average_load=245.0,
+            preferred_load_min=98.0,
+            preferred_load_max=420.0,
+        )
+
+        self.assertLess(shorter_score, longer_score)
+
+    def test_distance_priority_score_penalizes_extreme_imbalance_before_distance(self):
+        distance_only_option = builder.score_distance_priority_solution(
+            load_values=[50, 60, 430, 440],
+            distance_values=[12.0, 13.0, 14.0, 15.0],
+            average_load=245.0,
+            preferred_load_min=98.0,
+            preferred_load_max=420.0,
+        )
+        balanced_enough_option = builder.score_distance_priority_solution(
+            load_values=[105, 220, 300, 355],
+            distance_values=[16.0, 17.0, 18.0, 19.0],
+            average_load=245.0,
+            preferred_load_min=98.0,
+            preferred_load_max=420.0,
+        )
+
+        self.assertLess(balanced_enough_option, distance_only_option)
+
     @unittest.skipIf(builder.pulp is None, 'pulp is not installed in this test environment')
     def test_solve_balanced_sites_uses_google_route_distances(self):
         areas = [
