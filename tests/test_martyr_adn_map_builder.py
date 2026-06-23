@@ -139,6 +139,28 @@ class MartyrAdnMapBuilderTestCase(unittest.TestCase):
 
         self.assertLess(balanced_enough_option, distance_only_option)
 
+    def test_distance_priority_score_prefers_more_spread_out_sites_when_travel_is_equal(self):
+        tighter_sites_score = builder.score_distance_priority_solution(
+            load_values=[105, 220, 300, 355],
+            distance_values=[16.0, 17.0, 18.0, 19.0],
+            average_load=245.0,
+            preferred_load_min=98.0,
+            preferred_load_max=420.0,
+            site_min_spacing_km=18.0,
+            site_average_spacing_km=34.0,
+        )
+        wider_sites_score = builder.score_distance_priority_solution(
+            load_values=[105, 220, 300, 355],
+            distance_values=[16.0, 17.0, 18.0, 19.0],
+            average_load=245.0,
+            preferred_load_min=98.0,
+            preferred_load_max=420.0,
+            site_min_spacing_km=42.0,
+            site_average_spacing_km=66.0,
+        )
+
+        self.assertLess(wider_sites_score, tighter_sites_score)
+
     @unittest.skipIf(builder.pulp is None, 'pulp is not installed in this test environment')
     def test_solve_balanced_sites_uses_google_route_distances(self):
         areas = [
