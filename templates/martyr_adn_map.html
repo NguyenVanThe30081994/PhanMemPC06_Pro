@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ page_title or 'Bản đồ ADN liệt sĩ - PhanMemPC06_Pro' }}</title>
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+    referrerpolicy="no-referrer"
+  />
+  <style>
+    html, body { height: 100%; margin: 0; font-family: Arial, sans-serif; }
+    #map { height: 100%; width: 100%; }
+    body.menu-open { overflow: hidden; }
+    .mobile-menu-toggle {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 1200;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      border: 0;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.96);
+      color: #222;
+      padding: 12px 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .pc06-home-link {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 1200;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.92);
+      color: #fff;
+      padding: 10px 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .pc06-home-link:hover,
+    .pc06-home-link:focus-visible {
+      color: #fff;
+      text-decoration: none;
+      background: rgba(15, 23, 42, 0.98);
+    }
+    .pc06-shell-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.08);
+      color: #0f172a;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .mobile-menu-toggle .icon { font-size: 18px; line-height: 1; }
+    .panel {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 1000;
+      width: 320px;
+      max-height: calc(100% - 28px);
+      overflow: auto;
+      background: rgba(255,255,255,0.96);
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+      padding: 14px 16px;
+    }
+    .panel h1 { font-size: 18px; margin: 0 0 10px; }
+    .panel .meta { font-size: 13px; color: #444; margin-bottom: 10px; }
+    .site-item { border-top: 1px solid #e6e6e6; padding: 8px 0; font-size: 13px; }
+    .site-toggle {
+      width: 100%;
+      background: transparent;
+      border: 0;
+      padding: 0;
+      text-align: left;
+      cursor: pointer;
+      font: inherit;
+      color: inherit;
+    }
+    .site-toggle-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .site-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+    }
+    .site-chevron {
+      font-size: 12px;
+      color: #666;
+      transition: transform 0.15s ease;
+    }
+    .site-item.open .site-chevron {
+      transform: rotate(90deg);
+    }
+    .site-stats {
+      margin-top: 4px;
+      color: #444;
+      line-height: 1.45;
+    }
+    .site-actions {
+      margin-top: 8px;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .site-map-action {
+      border: 0;
+      border-radius: 999px;
+      background: rgba(34, 197, 94, 0.12);
+      color: #166534;
+      padding: 7px 12px;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .direction-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .direction-action {
+      border: 0;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .direction-action.origin-area {
+      background: rgba(37, 99, 235, 0.12);
+      color: #1d4ed8;
+    }
+    .direction-action.origin-site {
+      background: rgba(22, 163, 74, 0.12);
+      color: #166534;
+    }
+    .area-list {
+      display: none;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed #d9d9d9;
+    }
+    .site-item.open .area-list {
+      display: block;
+    }
+    .area-entry {
+      padding: 6px 0;
+      border-bottom: 1px solid #f1f1f1;
+      line-height: 1.4;
+    }
+    .area-entry:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+    .area-entry button {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      text-align: left;
+      cursor: pointer;
+      font: inherit;
+      color: inherit;
+    }
+    .area-name {
+      font-weight: 600;
+      color: #222;
+    }
+    .area-meta {
+      color: #555;
+      font-size: 12px;
+    }
+    .area-entry-actions {
+      margin-top: 8px;
+    }
+    .swatch { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:8px; }
+    .legend {
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      z-index: 1000;
+      background: rgba(255,255,255,0.96);
+      border-radius: 10px;
+      padding: 10px 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+      font-size: 12px;
+      max-width: 280px;
+    }
+    .legend-item { display:flex; align-items:center; gap:8px; margin: 5px 0; }
+    .panel-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 999;
+      background: rgba(15, 23, 42, 0.25);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    body.menu-open .panel-backdrop {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    @media (max-width: 768px) {
+      .mobile-menu-toggle {
+        display: inline-flex;
+      }
+      .pc06-home-link {
+        top: auto;
+        right: 10px;
+        bottom: 120px;
+        font-size: 12px;
+        padding: 9px 12px;
+      }
+      .panel {
+        top: 0;
+        left: 0;
+        width: min(84vw, 320px);
+        max-height: 100%;
+        height: 100%;
+        border-radius: 0 16px 16px 0;
+        padding: 18px 16px 24px;
+        transform: translateX(-104%);
+        transition: transform 0.2s ease;
+      }
+      body.menu-open .panel {
+        transform: translateX(0);
+      }
+      .legend {
+        right: 10px;
+        left: 10px;
+        bottom: 10px;
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="pc06-home-link" href="{{ pc06_home_url or '/dashboard' }}">
+    {{ pc06_home_label or 'Đăng nhập PC06' }}
+  </a>
+  <button type="button" class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Mo danh sach diem tap ket" aria-expanded="false">
+    <span class="icon">☰</span>
+    <span>Diem tap ket</span>
+  </button>
+  <div class="panel-backdrop" id="panel-backdrop"></div>
+  <div class="panel">
+    <div class="pc06-shell-chip">{{ pc06_shell_label or 'PhanMemPC06_Pro' }}</div>
+    <h1>15 điểm thu mẫu ADN</h1>
+    <div class="meta">Tỉnh Tuyên Quang với 124 xã/phường. 15 điểm được chọn trong nhóm trung tâm huyện cũ để cân bằng giữa khoảng cách di chuyển và số lượng thân nhân thu mẫu.</div>
+    <div class="meta"><b>Nguồn khoảng cách:</b> OSRM public<br/><b>Ghi chú:</b> Khoảng cách và thời gian đang dùng OSRM public server; không cần API key nhưng độ chính xác phụ thuộc dữ liệu OSM và giới hạn dịch vụ công cộng.</div>
+    <div class="meta"><b>Tổng thân nhân có thể đến:</b> 3.711<br/><b>Tải trung bình/điểm:</b> 247.4 người (min 242, max 258)<br/><b>Khoảng cách trung bình:</b> 61.93 km<br/><b>Thời gian trung bình:</b> 56.16 phút</div>
+    <div id="site-list"></div>
+  </div>
+  <div id="map"></div>
+  <div class="legend">
+    <div><b>Chú giải</b></div>
+    <div>Màu biểu diễn cụm xã/phường của từng điểm tập kết.</div>
+  </div>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"
+    referrerpolicy="no-referrer"
+  ></script>
+  <script>
+    const bodyEl = document.body;
+    const menuToggleEl = document.getElementById('mobile-menu-toggle');
+    const panelBackdropEl = document.getElementById('panel-backdrop');
+    const isMobileView = () => window.innerWidth <= 768;
+    const setMenuOpen = (isOpen) => {
+      bodyEl.classList.toggle('menu-open', isOpen);
+      if (menuToggleEl) {
+        menuToggleEl.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      }
+    };
+    const closeMobileMenu = () => {
+      if (isMobileView()) {
+        setMenuOpen(false);
+      }
+    };
+    if (menuToggleEl) {
+      menuToggleEl.addEventListener('click', () => {
+        setMenuOpen(!bodyEl.classList.contains('menu-open'));
+      });
+    }
+    if (panelBackdropEl) {
+      panelBackdropEl.addEventListener('click', closeMobileMenu);
+    }
+    window.addEventListener('resize', () => {
+      if (!isMobileView()) {
+        setMenuOpen(false);
+      }
+    });
+    const formatNumber = (value) => new Intl.NumberFormat('vi-VN').format(Number(value || 0));
+    const buildDirectionsUrl = (originLat, originLng, destinationLat, destinationLng) => {
+      const params = new URLSearchParams({
+        api: '1',
+        origin: `${originLat},${originLng}`,
+        destination: `${destinationLat},${destinationLng}`,
+        travelmode: 'driving'
+      });
+      return `https://www.google.com/maps/dir/?${params.toString()}`;
+    };
+    const openGoogleDirections = (originLat, originLng, destinationLat, destinationLng) => {
+      window.open(
+        buildDirectionsUrl(originLat, originLng, destinationLat, destinationLng),
+        '_blank',
+        'noopener,noreferrer'
+      );
+    };
+    window.openGoogleDirections = openGoogleDirections;
+    const buildDirectionActions = (area) => `
+      <div class="direction-actions">
+        <button
+          type="button"
+          class="direction-action origin-area"
+          onclick="openGoogleDirections(${area.latitude}, ${area.longitude}, ${area.site_latitude}, ${area.site_longitude})"
+        >
+          Xa -> diem tap ket
+        </button>
+        <button
+          type="button"
+          class="direction-action origin-site"
+          onclick="openGoogleDirections(${area.site_latitude}, ${area.site_longitude}, ${area.latitude}, ${area.longitude})"
+        >
+          Diem tap ket -> xa
+        </button>
+      </div>
+    `;
+
+    const map = L.map('map', {
+      worldCopyJump: false
+    }).setView([22.475615, 105.091416], 8);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    map.createPane('province-mask');
+    map.getPane('province-mask').style.zIndex = '350';
+    map.createPane('province-boundary');
+    map.getPane('province-boundary').style.zIndex = '360';
+
+    const sites = [{"site_id": "TQ068", "site_name": "Bắc Mê", "latitude": 22.7382587, "longitude": 105.3107381, "cluster_index": 0, "color": "#c0392b", "assigned_area_count": 9, "assigned_weight_sum": 243, "average_travel_minutes": 55.558333, "average_distance_km": 65.155344, "max_travel_minutes": 132.316667, "max_distance_km": 182.7198}, {"site_id": "TQ013", "site_name": "Chiêm Hóa", "latitude": 22.1439406, "longitude": 105.2714938, "cluster_index": 1, "color": "#2980b9", "assigned_area_count": 5, "assigned_weight_sum": 249, "average_travel_minutes": 25.404333, "average_distance_km": 23.06408, "max_travel_minutes": 36.345, "max_distance_km": 32.8893}, {"site_id": "TQ009", "site_name": "Nà Hang", "latitude": 22.3512578, "longitude": 105.3841719, "cluster_index": 2, "color": "#27ae60", "assigned_area_count": 5, "assigned_weight_sum": 249, "average_travel_minutes": 50.078, "average_distance_km": 65.13206, "max_travel_minutes": 111.035, "max_distance_km": 142.2507}, {"site_id": "TQ002", "site_name": "Lâm Bình", "latitude": 22.5056128, "longitude": 105.1642373, "cluster_index": 3, "color": "#8e44ad", "assigned_area_count": 6, "assigned_weight_sum": 247, "average_travel_minutes": 60.858333, "average_distance_km": 60.119, "max_travel_minutes": 120.718333, "max_distance_km": 126.3705}, {"site_id": "TQ051", "site_name": "Mèo Vạc", "latitude": 23.1525, "longitude": 105.4058333, "cluster_index": 4, "color": "#d35400", "assigned_area_count": 11, "assigned_weight_sum": 248, "average_travel_minutes": 77.325909, "average_distance_km": 89.2589, "max_travel_minutes": 248.55, "max_distance_km": 339.7574}, {"site_id": "TQ064", "site_name": "Quản Bạ", "latitude": 23.04527778, "longitude": 105.0097222, "cluster_index": 5, "color": "#16a085", "assigned_area_count": 7, "assigned_weight_sum": 245, "average_travel_minutes": 84.582381, "average_distance_km": 97.4558, "max_travel_minutes": 188.071667, "max_distance_km": 250.8194}, {"site_id": "TQ082", "site_name": "Bắc Quang", "latitude": 22.416992, "longitude": 104.8248675, "cluster_index": 6, "color": "#2c3e50", "assigned_area_count": 5, "assigned_weight_sum": 253, "average_travel_minutes": 40.774, "average_distance_km": 52.72466, "max_travel_minutes": 70.361667, "max_distance_km": 96.503}, {"site_id": "TQ096", "site_name": "Hoàng Su Phì", "latitude": 22.744784027368, "longitude": 104.68367828654, "cluster_index": 7, "color": "#f39c12", "assigned_area_count": 17, "assigned_weight_sum": 248, "average_travel_minutes": 66.166667, "average_distance_km": 50.547412, "max_travel_minutes": 173.58, "max_distance_km": 185.0224}, {"site_id": "TQ106", "site_name": "phường Minh Xuân", "latitude": 21.8209373, "longitude": 105.2052444, "cluster_index": 8, "color": "#7f8c8d", "assigned_area_count": 2, "assigned_weight_sum": 247, "average_travel_minutes": 13.6275, "average_distance_km": 17.54715, "max_travel_minutes": 27.255, "max_distance_km": 35.0943}, {"site_id": "TQ032", "site_name": "Yên Sơn", "latitude": 21.8797832, "longitude": 105.1377982, "cluster_index": 9, "color": "#e67e22", "assigned_area_count": 4, "assigned_weight_sum": 258, "average_travel_minutes": 32.430833, "average_distance_km": 38.232175, "max_travel_minutes": 66.08, "max_distance_km": 81.4865}, {"site_id": "TQ036", "site_name": "Sơn Dương", "latitude": 21.6720456, "longitude": 105.3615404, "cluster_index": 10, "color": "#1abc9c", "assigned_area_count": 3, "assigned_weight_sum": 242, "average_travel_minutes": 16.368889, "average_distance_km": 15.8716, "max_travel_minutes": 25.426667, "max_distance_km": 25.4277}, {"site_id": "TQ022", "site_name": "Hàm Yên", "latitude": 22.0394107, "longitude": 105.0347046, "cluster_index": 11, "color": "#9b59b6", "assigned_area_count": 4, "assigned_weight_sum": 245, "average_travel_minutes": 39.45125, "average_distance_km": 48.98705, "max_travel_minutes": 65.29, "max_distance_km": 86.6001}, {"site_id": "TQ110", "site_name": "phường Hà Giang 1", "latitude": 22.8235533, "longitude": 104.9841167, "cluster_index": 12, "color": "#34495e", "assigned_area_count": 10, "assigned_weight_sum": 249, "average_travel_minutes": 42.800333, "average_distance_km": 52.10274, "max_travel_minutes": 117.121667, "max_distance_km": 162.8317}, {"site_id": "TQ076", "site_name": "Vị Xuyên", "latitude": 22.8639552, "longitude": 105.0117102, "cluster_index": 13, "color": "#2ecc71", "assigned_area_count": 25, "assigned_weight_sum": 242, "average_travel_minutes": 45.245533, "average_distance_km": 56.641388, "max_travel_minutes": 125.03, "max_distance_km": 173.6973}, {"site_id": "TQ090", "site_name": "Quang Bình", "latitude": 22.60477526, "longitude": 105.02783474, "cluster_index": 14, "color": "#e74c3c", "assigned_area_count": 11, "assigned_weight_sum": 246, "average_travel_minutes": 93.358788, "average_distance_km": 103.290455, "max_travel_minutes": 147.733333, "max_distance_km": 182.7149}];
+    const areas = [{"area_id": "TQ007", "area_name": "Thượng Nông", "latitude": 22.6100639, "longitude": 105.5036792, "assigned_site_id": "TQ068", "assigned_site_name": "Bắc Mê", "site_latitude": 22.7382587, "site_longitude": 105.3107381, "travel_minutes": 32.936667, "distance_km": 37.2005, "cluster_index": 0, "color": "#c0392b", "registrant_count": 2}, {"area_id": "TQ006", "area_name": "Yên Hoa", "latitude": 22.5112398, "longitude": 105.4799934, "assigned_site_id": "TQ068", "assigned_site_name": "Bắc Mê", "site_latitude": 22.7382587, "site_longitude": 105.3107381, "travel_minutes": 50.551667, "distance_km": 55.8596, "cluster_index": 0, "color": "#c0392b", "registrant_count": 14}, {"area_id": "TQ067", "area_name": "Đường Hồng", "latitude": 22.63917, "longitude": 105.41083, "assigned_site_id": "TQ068", "assigned_site_name": "Bắc Mê", "site_latitude": 22.7382587, "site_longitude": 105.3107381, "travel_minutes": 41.343333, "distance_km": 34.1553, "cluster_index": 0, "color": "#c0392b", "registrant_count": 14}, {"area_id": "TQ066", "area_name": "Yên Cường", "latitude": 22.68555556, "longitude": 105.3661111, "assigned_site_id": "TQ068", "assigned_site_name": "Bắc Mê", "site_latitude": 22.7382587, "site_longitude": 105.3107381, "travel_minutes": 16.586667, "distance_km": 14.87, "cluster_index": 0, "color": "#c0392b", "registrant_count": 0}, {"area_id": "TQ005", "area_name": "Côn Lôn", "latitude": 22.528001, "longitude": 105.4410946, "assigned_site_id": "TQ068", "assigned_site_name": "Bắc Mê", "site_latitude": 22.7382587, "site_longitude": 105.3107381, "travel_minutes": 64.263333, "distance_km": 61.7693, "cluster_index": 0, "color": "#c0392b", "registrant_count": 10}, {"area_id": "TQ068", "area_name": "Bắc Mê", "latitude": 22.7382587, "longitude": 105.3107381, "assigned_site_id": "TQ068", "assigned_site_name": "Bắc Mê", "site_latitude": 22.7382587, "site_longitude": 105.3107381, "travel_minutes": 0.0, "distance_km": 0.0, "cluster_index": 0, "color": "#c0392b", "registrant_count": 23}, {"area_id": "TQ008", "area_name": "Hồng Thái", "latitude": 22.4199241, "longitude": 105.5052071, "assigned_site_id": "TQ068", "assigned_site_name": "Bắc Mê", "site_latitude": 22.7382587, "site_longitude": 105.3107381, "travel_minutes": 68.731667, "distance_km": 78.688, "cluster_index": 0, "color": "#c0392b", "registrant_count": 33}, {"area_id": "TQ013", "area_name": "Chiêm Hóa", "latitude": 22.1439406, "longitude": 105.2714938, "assigned_site_id": "TQ013", "assigned_site_name": "Chiêm Hóa", "site_latitude": 22.1439406, "site_longitude": 105.2714938, "travel_minutes": 0.0, "distance_km": 0.0, "cluster_index": 1, "color": "#2980b9", "registrant_count": 131}, {"area_id": "TQ017", "area_name": "Kim Bình", "latitude": 22.0936018, "longitude": 105.3113856, "assigned_site_id": "TQ096", "assigned_site_name": "Hoàng Su Phì", "site_latitude": 22.744784027368, "site_longitude": 104.68367828654, "travel_minutes": 173.58, "distance_km": 185.0224, "cluster_index": 7, "color": "#f39c12", "registrant_count": 79}, {"area_id": "TQ015", "area_name": "Kiên Đài", "latitude": 22.1755791, "longitude": 105.3462261, "assigned_site_id": "TQ002", "assigned_site_name": "Lâm Bình", "site_latitude": 22.5056128, "site_longitude": 105.1642373, "travel_minutes": 70.366667, "distance_km": 76.9704, "cluster_index": 3, "color": "#8e44ad", "registrant_count": 48}, {"area_id": "TQ014", "area_name": "Hòa An", "latitude": 22.093946, "longitude": 105.2431425, "assigned_site_id": "TQ090", "assigned_site_name": "Quang Bình", "site_latitude": 22.60477526, "site_longitude": 105.02783474, "travel_minutes": 123.766667, "distance_km": 107.0135, "cluster_index": 14, "color": "#e74c3c", "registrant_count": 27}, {"area_id": "TQ011", "area_name": "Yên Lập", "latitude": 22.2180738, "longitude": 105.3466424, "assigned_site_id": "TQ090", "assigned_site_name": "Quang Bình", "site_latitude": 22.60477526, "site_longitude": 105.02783474, "travel_minutes": 104.271667, "distance_km": 103.336, "cluster_index": 14, "color": "#e74c3c", "registrant_count": 23}, {"area_id": "TQ018", "area_name": "Yên Nguyên", "latitude": 22.0680474, "longitude": 105.1742812, "assigned_site_id": "TQ009", "assigned_site_name": "Nà Hang", "site_latitude": 22.3512578, "site_longitude": 105.3841719, "travel_minutes": 43.755, "distance_km": 57.4351, "cluster_index": 2, "color": "#27ae60", "registrant_count": 64}, {"area_id": "TQ012", "area_name": "Tân An", "latitude": 22.1927554, "longitude": 105.2088412, "assigned_site_id": "TQ032", "assigned_site_name": "Yên Sơn", "site_latitude": 21.8797832, "site_longitude": 105.1377982, "travel_minutes": 46.378333, "distance_km": 49.8339, "cluster_index": 9, "color": "#e67e22", "registrant_count": 51}, {"area_id": "TQ010", "area_name": "Tân Mỹ", "latitude": 22.2565961, "longitude": 105.1988525, "assigned_site_id": "TQ002", "assigned_site_name": "Lâm Bình", "site_latitude": 22.5056128, "site_longitude": 105.1642373, "travel_minutes": 54.825, "distance_km": 48.2831, "cluster_index": 3, "color": "#8e44ad", "registrant_count": 41}, {"area_id": "TQ023", "area_name": "Bình Xa", "latitude": 22.0543609, "longitude": 105.1190845, "assigned_site_id": "TQ068", "assigned_site_name": "Bắc Mê", "site_latitude": 22.7382587, "site_longitude": 105.3107381, "travel_minutes": 132.316667, "distance_km": 182.7198, "cluster_index": 0, "color": "#c0392b", "registrant_count": 64}, {"area_id": "TQ016", "area_name": "Tri Phú", "latitude": 22.0207272, "longitude": 105.4095999, "assigned_site_id": "TQ013", "assigned_site_name": "Chiêm Hóa", "site_latitude": 22.1439406, "site_longitude": 105.2714938, "travel_minutes": 28.683333, "distance_km": 28.4559, "cluster_index": 1, "color": "#2980b9", "registrant_count": 4}, {"area_id": "TQ113", "area_name": "Kiến Thiết", "latitude": 22.0023994, "longitude": 105.3204131, "assigned_site_id": "TQ022", "assigned_site_name": "Hàm Yên", "site_latitude": 22.0394107, "site_longitude": 105.0347046, "travel_minutes": 51.438333, "distance_km": 53.6991, "cluster_index": 11, "color": "#9b59b6", "registrant_count": 4}, {"area_id": "TQ009", "area_name": "Nà Hang", "latitude": 22.3512578, "longitude": 105.3841719, "assigned_site_id": "TQ009", "assigned_site_name": "Nà Hang", "site_latitude": 22.3512578, "site_longitude": 105.3841719, "travel_minutes": 0.0, "distance_km": 0.0, "cluster_index": 2, "color": "#27ae60", "registrant_count": 53}, {"area_id": "TQ031", "area_name": "Lực Hành", "latitude": 22.0104218, "longitude": 105.2095842, "assigned_site_id": "TQ013", "assigned_site_name": "Chiêm Hóa", "site_latitude": 22.1439406, "site_longitude": 105.2714938, "travel_minutes": 29.368333, "distance_km": 23.3268, "cluster_index": 1, "color": "#2980b9", "registrant_count": 38}, {"area_id": "TQ003", "area_name": "Minh Quang", "latitude": 22.3245254, "longitude": 105.1876469, "assigned_site_id": "TQ013", "assigned_site_name": "Chiêm Hóa", "site_latitude": 22.1439406, "site_longitude": 105.2714938, "travel_minutes": 32.625, "distance_km": 30.6484, "cluster_index": 1, "color": "#2980b9", "registrant_count": 72}, {"area_id": "TQ112", "area_name": "Trung Hà", "latitude": 22.2988985, "longitude": 105.1071013, "assigned_site_id": "TQ013", "assigned_site_name": "Chiêm Hóa", "site_latitude": 22.1439406, "site_longitude": 105.2714938, "travel_minutes": 36.345, "distance_km": 32.8893, "cluster_index": 1, "color": "#2980b9", "registrant_count": 4}, {"area_id": "TQ004", "area_name": "Bình An", "latitude": 22.3681165, "longitude": 105.1869619, "assigned_site_id": "TQ082", "assigned_site_name": "Bắc Quang", "site_latitude": 22.416992, "site_longitude": 104.8248675, "travel_minutes": 45.143333, "distance_km": 57.8332, "cluster_index": 6, "color": "#2c3e50", "registrant_count": 37}, {"area_id": "TQ001", "area_name": "Thượng Lâm", "latitude": 22.4775463, "longitude": 105.2990314, "assigned_site_id": "TQ002", "assigned_site_name": "Lâm Bình", "site_latitude": 22.5056128, "site_longitude": 105.1642373, "travel_minutes": 23.326667, "distance_km": 22.8388, "cluster_index": 3, "color": "#8e44ad", "registrant_count": 44}, {"area_id": "TQ002", "area_name": "Lâm Bình", "latitude": 22.5056128, "longitude": 105.1642373, "assigned_site_id": "TQ002", "assigned_site_name": "Lâm Bình", "site_latitude": 22.5056128, "site_longitude": 105.1642373, "travel_minutes": 0.0, "distance_km": 0.0, "cluster_index": 3, "color": "#8e44ad", "registrant_count": 25}, {"area_id": "TQ051", "area_name": "Mèo Vạc", "latitude": 23.1525, "longitude": 105.4058333, "assigned_site_id": "TQ051", "assigned_site_name": "Mèo Vạc", "site_latitude": 23.1525, "site_longitude": 105.4058333, "travel_minutes": 0.0, "distance_km": 0.0, "cluster_index": 4, "color": "#d35400", "registrant_count": 0}, {"area_id": "TQ052", "area_name": "Khâu Vai", "latitude": 23.172091716666667, "longitude": 105.37821838333332, "assigned_site_id": "TQ051", "assigned_site_name": "Mèo Vạc", "site_latitude": 23.1525, "site_longitude": 105.4058333, "travel_minutes": 7.395, "distance_km": 6.9752, "cluster_index": 4, "color": "#d35400", "registrant_count": 4}, {"area_id": "TQ048", "area_name": "Lũng Phìn", "latitude": 23.172091716666667, "longitude": 105.37821838333332, "assigned_site_id": "TQ051", "assigned_site_name": "Mèo Vạc", "site_latitude": 23.1525, "site_longitude": 105.4058333, "travel_minutes": 7.395, "distance_km": 6.9752, "cluster_index": 4, "color": "#d35400", "registrant_count": 0}, {"area_id": "TQ049", "area_name": "Sủng Máng", "latitude": 23.172091716666667, "longitude": 105.37821838333332, "assigned_site_id": "TQ051", "assigned_site_name": "Mèo Vạc", "site_latitude": 23.1525, "site_longitude": 105.4058333, "travel_minutes": 7.395, "distance_km": 6.9752, "cluster_index": 4, "color": "#d35400", "registrant_count": 4}, {"area_id": "TQ053", "area_name": "Niêm Sơn", "latitude": 23.0365596, "longitude": 105.4210151, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 86.96, "distance_km": 122.238, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 6}, {"area_id": "TQ045", "area_name": "Đồng Văn", "latitude": 23.2773185, "longitude": 105.3602632, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 95.965, "distance_km": 134.553, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 6}, {"area_id": "TQ044", "area_name": "Lũng Cú", "latitude": 23.35833333, "longitude": 105.3133333, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 114.708333, "distance_km": 154.0504, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 5}, {"area_id": "TQ050", "area_name": "Sơn Vĩ", "latitude": 23.2466028, "longitude": 105.4695338, "assigned_site_id": "TQ051", "assigned_site_name": "Mèo Vạc", "site_latitude": 23.1525, "site_longitude": 105.4058333, "travel_minutes": 41.75, "distance_km": 29.7708, "cluster_index": 4, "color": "#d35400", "registrant_count": 1}, {"area_id": "TQ054", "area_name": "Tát Ngà", "latitude": 23.0868802, "longitude": 105.3662019, "assigned_site_id": "TQ051", "assigned_site_name": "Mèo Vạc", "site_latitude": 23.1525, "site_longitude": 105.4058333, "travel_minutes": 75.53, "distance_km": 28.679, "cluster_index": 4, "color": "#d35400", "registrant_count": 0}, {"area_id": "TQ057", "area_name": "Yên Minh", "latitude": 23.1172045, "longitude": 105.1491234, "assigned_site_id": "TQ064", "assigned_site_name": "Quản Bạ", "site_latitude": 23.04527778, "site_longitude": 105.0097222, "travel_minutes": 39.766667, "distance_km": 49.9657, "cluster_index": 5, "color": "#16a085", "registrant_count": 16}, {"area_id": "TQ047", "area_name": "Phố Bảng", "latitude": 23.24639, "longitude": 105.19278, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 83.571667, "distance_km": 112.4986, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 4}, {"area_id": "TQ056", "area_name": "Bạch Đích", "latitude": 23.20611111, "longitude": 105.0455556, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 58.163333, "distance_km": 76.6303, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 6}, {"area_id": "TQ046", "area_name": "Sà Phìn", "latitude": 23.2209227, "longitude": 105.2425036, "assigned_site_id": "TQ051", "assigned_site_name": "Mèo Vạc", "site_latitude": 23.1525, "site_longitude": 105.4058333, "travel_minutes": 46.945, "distance_km": 51.8223, "cluster_index": 4, "color": "#d35400", "registrant_count": 2}, {"area_id": "TQ061", "area_name": "Lùng Tám", "latitude": 23.049309, "longitude": 105.0438435, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 38.765, "distance_km": 49.5238, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 4}, {"area_id": "TQ055", "area_name": "Thắng Mố", "latitude": 23.23305556, "longitude": 105.0930556, "assigned_site_id": "TQ064", "assigned_site_name": "Quản Bạ", "site_latitude": 23.04527778, "site_longitude": 105.0097222, "travel_minutes": 46.833333, "distance_km": 44.6644, "cluster_index": 5, "color": "#16a085", "registrant_count": 0}, {"area_id": "TQ064", "area_name": "Quản Bạ", "latitude": 23.04527778, "longitude": 105.0097222, "assigned_site_id": "TQ064", "assigned_site_name": "Quản Bạ", "site_latitude": 23.04527778, "site_longitude": 105.0097222, "travel_minutes": 0.0, "distance_km": 0.0, "cluster_index": 5, "color": "#16a085", "registrant_count": 28}, {"area_id": "TQ062", "area_name": "Cán Tỷ", "latitude": 23.1269709, "longitude": 105.0156665, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 64.723333, "distance_km": 68.6318, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 3}, {"area_id": "TQ058", "area_name": "Mậu Duệ", "latitude": 23.0249203, "longitude": 105.18574755, "assigned_site_id": "TQ064", "assigned_site_name": "Quản Bạ", "site_latitude": 23.04527778, "site_longitude": 105.0097222, "travel_minutes": 97.413333, "distance_km": 74.483, "cluster_index": 5, "color": "#16a085", "registrant_count": 14}, {"area_id": "TQ060", "area_name": "Đường Thượng", "latitude": 23.0249203, "longitude": 105.18574755, "assigned_site_id": "TQ051", "assigned_site_name": "Mèo Vạc", "site_latitude": 23.1525, "site_longitude": 105.4058333, "travel_minutes": 83.186667, "distance_km": 47.7111, "cluster_index": 4, "color": "#d35400", "registrant_count": 1}, {"area_id": "TQ082", "area_name": "Bắc Quang", "latitude": 22.416992, "longitude": 104.8248675, "assigned_site_id": "TQ082", "assigned_site_name": "Bắc Quang", "site_latitude": 22.416992, "site_longitude": 104.8248675, "travel_minutes": 0.0, "distance_km": 0.0, "cluster_index": 6, "color": "#2c3e50", "registrant_count": 68}, {"area_id": "TQ078", "area_name": "Tân Quang", "latitude": 22.4967572, "longitude": 104.8742248, "assigned_site_id": "TQ090", "assigned_site_name": "Quang Bình", "site_latitude": 22.60477526, "site_longitude": 105.02783474, "travel_minutes": 43.048333, "distance_km": 39.0287, "cluster_index": 14, "color": "#e74c3c", "registrant_count": 21}, {"area_id": "TQ083", "area_name": "Hùng An", "latitude": 22.3393483, "longitude": 104.875181, "assigned_site_id": "TQ090", "assigned_site_name": "Quang Bình", "site_latitude": 22.60477526, "site_longitude": 105.02783474, "travel_minutes": 62.65, "distance_km": 65.2883, "cluster_index": 14, "color": "#e74c3c", "registrant_count": 27}, {"area_id": "TQ091", "area_name": "Tân Trịnh", "latitude": 22.41611, "longitude": 104.74222, "assigned_site_id": "TQ090", "assigned_site_name": "Quang Bình", "site_latitude": 22.60477526, "site_longitude": 105.02783474, "travel_minutes": 64.116667, "distance_km": 60.8911, "cluster_index": 14, "color": "#e74c3c", "registrant_count": 8}, {"area_id": "TQ081", "area_name": "Bằng Hành", "latitude": 22.378170150000003, "longitude": 104.85002425, "assigned_site_id": "TQ068", "assigned_site_name": "Bắc Mê", "site_latitude": 22.7382587, "site_longitude": 105.3107381, "travel_minutes": 93.295, "distance_km": 121.1356, "cluster_index": 0, "color": "#c0392b", "registrant_count": 83}, {"area_id": "TQ084", "area_name": "Vĩnh Tuy", "latitude": 22.378170150000003, "longitude": 104.85002425, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 62.288333, "distance_km": 77.522, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 12}, {"area_id": "TQ085", "area_name": "Đồng Yên", "latitude": 22.378170150000003, "longitude": 104.85002425, "assigned_site_id": "TQ032", "assigned_site_name": "Yên Sơn", "site_latitude": 21.8797832, "site_longitude": 105.1377982, "travel_minutes": 66.08, "distance_km": 81.4865, "cluster_index": 9, "color": "#e67e22", "registrant_count": 53}, {"area_id": "TQ080", "area_name": "Liên Hiệp", "latitude": 22.3921978, "longitude": 105.0344018, "assigned_site_id": "TQ009", "assigned_site_name": "Nà Hang", "site_latitude": 22.3512578, "site_longitude": 105.3841719, "travel_minutes": 37.418333, "distance_km": 51.7869, "cluster_index": 2, "color": "#27ae60", "registrant_count": 18}, {"area_id": "TQ088", "area_name": "Bằng Lang", "latitude": 22.3638902, "longitude": 104.6360103, "assigned_site_id": "TQ096", "assigned_site_name": "Hoàng Su Phì", "site_latitude": 22.744784027368, "site_longitude": 104.68367828654, "travel_minutes": 109.233333, "distance_km": 85.0466, "cluster_index": 7, "color": "#f39c12", "registrant_count": 10}, {"area_id": "TQ019", "area_name": "Yên Phú", "latitude": 22.1247355, "longitude": 104.9883599, "assigned_site_id": "TQ090", "assigned_site_name": "Quang Bình", "site_latitude": 22.60477526, "site_longitude": 105.02783474, "travel_minutes": 82.316667, "distance_km": 94.9312, "cluster_index": 14, "color": "#e74c3c", "registrant_count": 24}, {"area_id": "TQ020", "area_name": "Bạch Xa", "latitude": 22.2254306, "longitude": 104.9701208, "assigned_site_id": "TQ082", "assigned_site_name": "Bắc Quang", "site_latitude": 22.416992, "site_longitude": 104.8248675, "travel_minutes": 37.968333, "distance_km": 39.2474, "cluster_index": 6, "color": "#2c3e50", "registrant_count": 17}, {"area_id": "TQ087", "area_name": "Xuân Giang", "latitude": 22.31444, "longitude": 104.64, "assigned_site_id": "TQ110", "assigned_site_name": "phường Hà Giang 1", "site_latitude": 22.8235533, "site_longitude": 104.9841167, "travel_minutes": 81.873333, "distance_km": 100.3977, "cluster_index": 12, "color": "#34495e", "registrant_count": 30}, {"area_id": "TQ086", "area_name": "Tiên Yên", "latitude": 22.28889, "longitude": 104.70472, "assigned_site_id": "TQ096", "assigned_site_name": "Hoàng Su Phì", "site_latitude": 22.744784027368, "site_longitude": 104.68367828654, "travel_minutes": 123.451667, "distance_km": 97.6489, "cluster_index": 7, "color": "#f39c12", "registrant_count": 16}, {"area_id": "TQ098", "area_name": "Bản Máy", "latitude": 22.624211175, "longitude": 104.700320725, "assigned_site_id": "TQ096", "assigned_site_name": "Hoàng Su Phì", "site_latitude": 22.744784027368, "site_longitude": 104.68367828654, "travel_minutes": 32.578333, "distance_km": 22.3197, "cluster_index": 7, "color": "#f39c12", "registrant_count": 8}, {"area_id": "TQ094", "area_name": "Nậm Dịch", "latitude": 22.624211175, "longitude": 104.700320725, "assigned_site_id": "TQ096", "assigned_site_name": "Hoàng Su Phì", "site_latitude": 22.744784027368, "site_longitude": 104.68367828654, "travel_minutes": 32.578333, "distance_km": 22.3197, "cluster_index": 7, "color": "#f39c12", "registrant_count": 6}, {"area_id": "TQ095", "area_name": "Tân Tiến", "latitude": 22.624211175, "longitude": 104.700320725, "assigned_site_id": "TQ096", "assigned_site_name": "Hoàng Su Phì", "site_latitude": 22.744784027368, "site_longitude": 104.68367828654, "travel_minutes": 32.578333, "distance_km": 22.3197, "cluster_index": 7, "color": "#f39c12", "registrant_count": 10}, {"area_id": "TQ093", "area_name": "Hồ Thầu", "latitude": 22.62972222, "longitude": 104.6313889, "assigned_site_id": "TQ096", "assigned_site_name": "Hoàng Su Phì", "site_latitude": 22.744784027368, "site_longitude": 104.68367828654, "travel_minutes": 48.048333, "distance_km": 32.4839, "cluster_index": 7, "color": "#f39c12", "registrant_count": 9}, {"area_id": "TQ096", "area_name": "Hoàng Su Phì", "latitude": 22.744784027368, "longitude": 104.68367828654, "assigned_site_id": "TQ096", "assigned_site_name": "Hoàng Su Phì", "site_latitude": 22.744784027368, "site_longitude": 104.68367828654, "travel_minutes": 0.0, "distance_km": 0.0, "cluster_index": 7, "color": "#f39c12", "registrant_count": 11}, {"area_id": "TQ097", "area_name": "Thàng Tín", "latitude": 22.7651472, "longitude": 104.6815397, "assigned_site_id": "TQ096", "assigned_site_name": "Hoàng Su Phì", "site_latitude": 22.744784027368, "site_longitude": 104.68367828654, "travel_minutes": 10.191667, "distance_km": 5.2782, "cluster_index": 7, "color": "#f39c12", "registrant_count": 2}, {"area_id": "TQ092", "area_name": "Thông Nguyên", "latitude": 22.5740726, "longitude": 104.723698, "assigned_site_id": "TQ096", "assigned_site_name": "Hoàng Su Phì", "site_latitude": 22.744784027368, "site_longitude": 104.68367828654, "travel_minutes": 60.121667, "distance_km": 39.0756, "cluster_index": 7, "color": "#f39c12", "registrant_count": 0}, {"area_id": "TQ103", "area_name": "Trung Thịnh", "latitude": 22.7018506, "longitude": 104.5577718, "assigned_site_id": "TQ096", "assigned_site_name": "Hoàng Su Phì", "site_latitude": 22.744784027368, "site_longitude": 104.68367828654, "travel_minutes": 55.431667, "distance_km": 30.8308, "cluster_index": 7, "color": "#f39c12", "registrant_count": 10}, {"area_id": "TQ099", "area_name": "Pờ Ly Ngài", "latitude": 22.7046941, "longitude": 104.6251855, "assigned_site_id": "TQ096", "assigned_site_name": "Hoàng Su Phì", "site_latitude": 22.744784027368, "site_longitude": 104.68367828654, "travel_minutes": 33.05, "distance_km": 15.9618, "cluster_index": 7, "color": "#f39c12", "registrant_count": 7}, {"area_id": "TQ104", "area_name": "Khuôn Lùng", "latitude": 22.6705079, "longitude": 104.523736325, "assigned_site_id": "TQ096", "assigned_site_name": "Hoàng Su Phì", "site_latitude": 22.744784027368, "site_longitude": 104.68367828654, "travel_minutes": 65.336667, "distance_km": 38.8847, "cluster_index": 7, "color": "#f39c12", "registrant_count": 34}, {"area_id": "TQ101", "area_name": "Pà Vầy Sủ", "latitude": 22.6626609, "longitude": 104.4269013, "assigned_site_id": "TQ096", "assigned_site_name": "Hoàng Su Phì", "site_latitude": 22.744784027368, "site_longitude": 104.68367828654, "travel_minutes": 64.246667, "distance_km": 45.2374, "cluster_index": 7, "color": "#f39c12", "registrant_count": 9}, {"area_id": "TQ102", "area_name": "Nấm Dẩn", "latitude": 22.612826, "longitude": 104.4850867, "assigned_site_id": "TQ096", "assigned_site_name": "Hoàng Su Phì", "site_latitude": 22.744784027368, "site_longitude": 104.68367828654, "travel_minutes": 70.273333, "distance_km": 49.3203, "cluster_index": 7, "color": "#f39c12", "registrant_count": 5}, {"area_id": "TQ100", "area_name": "Xín Mần", "latitude": 22.76, "longitude": 104.4991667, "assigned_site_id": "TQ096", "assigned_site_name": "Hoàng Su Phì", "site_latitude": 22.744784027368, "site_longitude": 104.68367828654, "travel_minutes": 74.203333, "distance_km": 45.7586, "cluster_index": 7, "color": "#f39c12", "registrant_count": 3}, {"area_id": "TQ107", "area_name": "phường Nông Tiến", "latitude": 21.814105, "longitude": 105.2269445, "assigned_site_id": "TQ082", "assigned_site_name": "Bắc Quang", "site_latitude": 22.416992, "site_longitude": 104.8248675, "travel_minutes": 70.361667, "distance_km": 96.503, "cluster_index": 6, "color": "#2c3e50", "registrant_count": 66}, {"area_id": "TQ106", "area_name": "phường Minh Xuân", "latitude": 21.8209373, "longitude": 105.2052444, "assigned_site_id": "TQ106", "assigned_site_name": "phường Minh Xuân", "site_latitude": 21.8209373, "site_longitude": 105.2052444, "travel_minutes": 0.0, "distance_km": 0.0, "cluster_index": 8, "color": "#7f8c8d", "registrant_count": 237}, {"area_id": "TQ028", "area_name": "Thái Bình", "latitude": 21.81139, "longitude": 105.25083, "assigned_site_id": "TQ036", "assigned_site_name": "Sơn Dương", "site_latitude": 21.6720456, "site_longitude": 105.3615404, "travel_minutes": 23.68, "distance_km": 25.4277, "cluster_index": 10, "color": "#1abc9c", "registrant_count": 48}, {"area_id": "TQ108", "area_name": "phường An Tường", "latitude": 21.7998113, "longitude": 105.2049594, "assigned_site_id": "TQ051", "assigned_site_name": "Mèo Vạc", "site_latitude": 23.1525, "site_longitude": 105.4058333, "travel_minutes": 212.661667, "distance_km": 298.4059, "cluster_index": 4, "color": "#d35400", "registrant_count": 111}, {"area_id": "TQ105", "area_name": "phường Mỹ Lâm", "latitude": 21.7699784, "longitude": 105.1348729, "assigned_site_id": "TQ032", "assigned_site_name": "Yên Sơn", "site_latitude": 21.8797832, "site_longitude": 105.1377982, "travel_minutes": 17.265, "distance_km": 21.6083, "cluster_index": 9, "color": "#e67e22", "registrant_count": 75}, {"area_id": "TQ029", "area_name": "Tân Long", "latitude": 21.8734321, "longitude": 105.226686, "assigned_site_id": "TQ002", "assigned_site_name": "Lâm Bình", "site_latitude": 22.5056128, "site_longitude": 105.1642373, "travel_minutes": 120.718333, "distance_km": 126.3705, "cluster_index": 3, "color": "#8e44ad", "registrant_count": 48}, {"area_id": "TQ032", "area_name": "Yên Sơn", "latitude": 21.8797832, "longitude": 105.1377982, "assigned_site_id": "TQ032", "assigned_site_name": "Yên Sơn", "site_latitude": 21.8797832, "site_longitude": 105.1377982, "travel_minutes": 0.0, "distance_km": 0.0, "cluster_index": 9, "color": "#e67e22", "registrant_count": 79}, {"area_id": "TQ109", "area_name": "phường Bình Thuận", "latitude": 21.7148714, "longitude": 105.2389654, "assigned_site_id": "TQ110", "assigned_site_name": "phường Hà Giang 1", "site_latitude": 22.8235533, "site_longitude": 104.9841167, "travel_minutes": 117.121667, "distance_km": 162.8317, "cluster_index": 12, "color": "#34495e", "registrant_count": 32}, {"area_id": "TQ037", "area_name": "Bình Ca", "latitude": 21.7368552, "longitude": 105.2832145, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 125.03, "distance_km": 173.6973, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 60}, {"area_id": "TQ033", "area_name": "Nhữ Khê", "latitude": 21.6995116, "longitude": 105.1759225, "assigned_site_id": "TQ022", "assigned_site_name": "Hàm Yên", "site_latitude": 22.0394107, "site_longitude": 105.0347046, "travel_minutes": 41.076667, "distance_km": 55.649, "cluster_index": 11, "color": "#9b59b6", "registrant_count": 69}, {"area_id": "TQ030", "area_name": "Xuân Vân", "latitude": 21.9451553, "longitude": 105.2271366, "assigned_site_id": "TQ110", "assigned_site_name": "phường Hà Giang 1", "site_latitude": 22.8235533, "site_longitude": 104.9841167, "travel_minutes": 114.406667, "distance_km": 148.985, "cluster_index": 12, "color": "#34495e", "registrant_count": 36}, {"area_id": "TQ027", "area_name": "Trung Sơn", "latitude": 21.8765036, "longitude": 105.4302871, "assigned_site_id": "TQ090", "assigned_site_name": "Quang Bình", "site_latitude": 22.60477526, "site_longitude": 105.02783474, "travel_minutes": 140.386667, "distance_km": 173.5064, "cluster_index": 14, "color": "#e74c3c", "registrant_count": 28}, {"area_id": "TQ025", "area_name": "Thái Hòa", "latitude": 21.9689453, "longitude": 105.0965433, "assigned_site_id": "TQ082", "assigned_site_name": "Bắc Quang", "site_latitude": 22.416992, "site_longitude": 104.8248675, "travel_minutes": 50.396667, "distance_km": 70.0397, "cluster_index": 6, "color": "#2c3e50", "registrant_count": 65}, {"area_id": "TQ036", "area_name": "Sơn Dương", "latitude": 21.6720456, "longitude": 105.3615404, "assigned_site_id": "TQ036", "assigned_site_name": "Sơn Dương", "site_latitude": 21.6720456, "site_longitude": 105.3615404, "travel_minutes": 0.0, "distance_km": 0.0, "cluster_index": 10, "color": "#1abc9c", "registrant_count": 112}, {"area_id": "TQ026", "area_name": "Hùng Lợi", "latitude": 21.8945531, "longitude": 105.4680204, "assigned_site_id": "TQ106", "assigned_site_name": "phường Minh Xuân", "site_latitude": 21.8209373, "site_longitude": 105.2052444, "travel_minutes": 27.255, "distance_km": 35.0943, "cluster_index": 8, "color": "#7f8c8d", "registrant_count": 10}, {"area_id": "TQ114", "area_name": "Hùng Đức", "latitude": 21.9137382, "longitude": 105.1000733, "assigned_site_id": "TQ090", "assigned_site_name": "Quang Bình", "site_latitude": 22.60477526, "site_longitude": 105.02783474, "travel_minutes": 111.655, "distance_km": 128.5122, "cluster_index": 14, "color": "#e74c3c", "registrant_count": 12}, {"area_id": "TQ035", "area_name": "Minh Thanh", "latitude": 21.7534019, "longitude": 105.4260192, "assigned_site_id": "TQ090", "assigned_site_name": "Quang Bình", "site_latitude": 22.60477526, "site_longitude": 105.02783474, "travel_minutes": 147.001667, "distance_km": 180.9727, "cluster_index": 14, "color": "#e74c3c", "registrant_count": 25}, {"area_id": "TQ038", "area_name": "Tân Thanh", "latitude": 21.6262648, "longitude": 105.4103304, "assigned_site_id": "TQ090", "assigned_site_name": "Quang Bình", "site_latitude": 22.60477526, "site_longitude": 105.02783474, "travel_minutes": 147.733333, "distance_km": 182.7149, "cluster_index": 14, "color": "#e74c3c", "registrant_count": 25}, {"area_id": "TQ043", "area_name": "Đông Thọ", "latitude": 21.651867, "longitude": 105.2777402, "assigned_site_id": "TQ036", "assigned_site_name": "Sơn Dương", "site_latitude": 21.6720456, "site_longitude": 105.3615404, "travel_minutes": 25.426667, "distance_km": 22.1871, "cluster_index": 10, "color": "#1abc9c", "registrant_count": 82}, {"area_id": "TQ024", "area_name": "Thái Sơn", "latitude": 21.9918063, "longitude": 105.0685173, "assigned_site_id": "TQ009", "assigned_site_name": "Nà Hang", "site_latitude": 22.3512578, "site_longitude": 105.3841719, "travel_minutes": 58.181667, "distance_km": 74.1876, "cluster_index": 2, "color": "#27ae60", "registrant_count": 58}, {"area_id": "TQ034", "area_name": "Tân Trào", "latitude": 21.7745505, "longitude": 105.4442417, "assigned_site_id": "TQ064", "assigned_site_name": "Quản Bạ", "site_latitude": 23.04527778, "site_longitude": 105.0097222, "travel_minutes": 181.543333, "distance_km": 239.8345, "cluster_index": 5, "color": "#16a085", "registrant_count": 70}, {"area_id": "TQ022", "area_name": "Hàm Yên", "latitude": 22.0394107, "longitude": 105.0347046, "assigned_site_id": "TQ022", "assigned_site_name": "Hàm Yên", "site_latitude": 22.0394107, "site_longitude": 105.0347046, "travel_minutes": 0.0, "distance_km": 0.0, "cluster_index": 11, "color": "#9b59b6", "registrant_count": 134}, {"area_id": "TQ039", "area_name": "Sơn Thủy", "latitude": 21.570233, "longitude": 105.4670936, "assigned_site_id": "TQ022", "assigned_site_name": "Hàm Yên", "site_latitude": 22.0394107, "site_longitude": 105.0347046, "travel_minutes": 65.29, "distance_km": 86.6001, "cluster_index": 11, "color": "#9b59b6", "registrant_count": 38}, {"area_id": "TQ040", "area_name": "Phú Lương", "latitude": 21.5415335, "longitude": 105.4321984, "assigned_site_id": "TQ064", "assigned_site_name": "Quản Bạ", "site_latitude": 23.04527778, "site_longitude": 105.0097222, "travel_minutes": 188.071667, "distance_km": 250.8194, "cluster_index": 5, "color": "#16a085", "registrant_count": 102}, {"area_id": "TQ042", "area_name": "Hồng Sơn", "latitude": 21.5932234, "longitude": 105.2911357, "assigned_site_id": "TQ009", "assigned_site_name": "Nà Hang", "site_latitude": 22.3512578, "site_longitude": 105.3841719, "travel_minutes": 111.035, "distance_km": 142.2507, "cluster_index": 2, "color": "#27ae60", "registrant_count": 56}, {"area_id": "TQ041", "area_name": "Trường Sinh", "latitude": 21.5502764, "longitude": 105.3157917, "assigned_site_id": "TQ051", "assigned_site_name": "Mèo Vạc", "site_latitude": 23.1525, "site_longitude": 105.4058333, "travel_minutes": 248.55, "distance_km": 339.7574, "cluster_index": 4, "color": "#d35400", "registrant_count": 83}, {"area_id": "TQ021", "area_name": "Phù Lưu", "latitude": 22.1657182, "longitude": 105.0161038, "assigned_site_id": "TQ096", "assigned_site_name": "Hoàng Su Phì", "site_latitude": 22.744784027368, "site_longitude": 104.68367828654, "travel_minutes": 139.93, "distance_km": 121.7977, "cluster_index": 7, "color": "#f39c12", "registrant_count": 29}, {"area_id": "TQ110", "area_name": "phường Hà Giang 1", "latitude": 22.8235533, "longitude": 104.9841167, "assigned_site_id": "TQ110", "assigned_site_name": "phường Hà Giang 1", "site_latitude": 22.8235533, "site_longitude": 104.9841167, "travel_minutes": 0.0, "distance_km": 0.0, "cluster_index": 12, "color": "#34495e", "registrant_count": 50}, {"area_id": "TQ121", "area_name": "Ngọc Long", "latitude": 22.829924740000003, "longitude": 104.98127388, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 5.793333, "distance_km": 7.4585, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 3}, {"area_id": "TQ123", "area_name": "Tiên Nguyên", "latitude": 22.829924740000003, "longitude": 104.98127388, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 5.793333, "distance_km": 7.4585, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 1}, {"area_id": "TQ111", "area_name": "phường Hà Giang 2", "latitude": 22.8328517, "longitude": 104.9878376, "assigned_site_id": "TQ002", "assigned_site_name": "Lâm Bình", "site_latitude": 22.5056128, "site_longitude": 105.1642373, "travel_minutes": 95.913333, "distance_km": 86.2512, "cluster_index": 3, "color": "#8e44ad", "registrant_count": 41}, {"area_id": "TQ124", "area_name": "Quảng Nguyên", "latitude": 22.8123623, "longitude": 104.9814349, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 7.548333, "distance_km": 9.4869, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 2}, {"area_id": "TQ076", "area_name": "Vị Xuyên", "latitude": 22.8639552, "longitude": 105.0117102, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 0.0, "distance_km": 0.0, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 31}, {"area_id": "TQ069", "area_name": "Minh Ngọc", "latitude": 22.81576468333333, "longitude": 105.00643355, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 6.505, "distance_km": 5.8355, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 7}, {"area_id": "TQ117", "area_name": "Thuận Hòa", "latitude": 22.8959919, "longitude": 104.973469, "assigned_site_id": "TQ110", "assigned_site_name": "phường Hà Giang 1", "site_latitude": 22.8235533, "site_longitude": 104.9841167, "travel_minutes": 9.993333, "distance_km": 13.6878, "cluster_index": 12, "color": "#34495e", "registrant_count": 12}, {"area_id": "TQ122", "area_name": "Giáp Trung", "latitude": 22.7792173, "longitude": 104.959767, "assigned_site_id": "TQ110", "assigned_site_name": "phường Hà Giang 1", "site_latitude": 22.8235533, "site_longitude": 104.9841167, "travel_minutes": 11.731667, "distance_km": 6.8735, "cluster_index": 12, "color": "#34495e", "registrant_count": 0}, {"area_id": "TQ070", "area_name": "Ngọc Đường", "latitude": 22.84194, "longitude": 105.03333, "assigned_site_id": "TQ110", "assigned_site_name": "phường Hà Giang 1", "site_latitude": 22.8235533, "site_longitude": 104.9841167, "travel_minutes": 12.248333, "distance_km": 9.0983, "cluster_index": 12, "color": "#34495e", "registrant_count": 14}, {"area_id": "TQ120", "area_name": "Cao Bồ", "latitude": 22.67900315, "longitude": 104.95191508333332, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 22.09, "distance_km": 27.0527, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 3}, {"area_id": "TQ074", "area_name": "Linh Hồ", "latitude": 22.67900315, "longitude": 104.95191508333332, "assigned_site_id": "TQ110", "assigned_site_name": "phường Hà Giang 1", "site_latitude": 22.8235533, "site_longitude": 104.9841167, "travel_minutes": 16.415, "distance_km": 19.0215, "cluster_index": 12, "color": "#34495e", "registrant_count": 35}, {"area_id": "TQ073", "area_name": "Phú Linh", "latitude": 22.67900315, "longitude": 104.95191508333332, "assigned_site_id": "TQ110", "assigned_site_name": "phường Hà Giang 1", "site_latitude": 22.8235533, "site_longitude": 104.9841167, "travel_minutes": 16.415, "distance_km": 19.0215, "cluster_index": 12, "color": "#34495e", "registrant_count": 40}, {"area_id": "TQ119", "area_name": "Thượng Sơn", "latitude": 22.67900315, "longitude": 104.95191508333332, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 22.09, "distance_km": 27.0527, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 2}, {"area_id": "TQ118", "area_name": "Tùng Bá", "latitude": 22.67900315, "longitude": 104.95191508333332, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 22.09, "distance_km": 27.0527, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 6}, {"area_id": "TQ077", "area_name": "Việt Lâm", "latitude": 22.67900315, "longitude": 104.95191508333332, "assigned_site_id": "TQ051", "assigned_site_name": "Mèo Vạc", "site_latitude": 23.1525, "site_longitude": 105.4058333, "travel_minutes": 119.776667, "distance_km": 164.7758, "cluster_index": 4, "color": "#d35400", "registrant_count": 42}, {"area_id": "TQ079", "area_name": "Đồng Tâm", "latitude": 22.67900315, "longitude": 104.95191508333332, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 22.09, "distance_km": 27.0527, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 15}, {"area_id": "TQ116", "area_name": "Minh Tân", "latitude": 22.9600008, "longitude": 104.9480136, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 11.486667, "distance_km": 16.0353, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 6}, {"area_id": "TQ072", "area_name": "Thanh Thủy", "latitude": 22.90333333, "longitude": 104.8575, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 24.448333, "distance_km": 29.5488, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 20}, {"area_id": "TQ115", "area_name": "Minh Sơn", "latitude": 22.8237249, "longitude": 105.2005269, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 32.166667, "distance_km": 38.9563, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 2}, {"area_id": "TQ075", "area_name": "Bạch Ngọc", "latitude": 22.587802, "longitude": 105.049345, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 50.233333, "distance_km": 49.8698, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 16}, {"area_id": "TQ071", "area_name": "Lao Chải", "latitude": 22.8373148, "longitude": 104.7683397, "assigned_site_id": "TQ110", "assigned_site_name": "phường Hà Giang 1", "site_latitude": 22.8235533, "site_longitude": 104.9841167, "travel_minutes": 47.798333, "distance_km": 41.1104, "cluster_index": 12, "color": "#34495e", "registrant_count": 0}, {"area_id": "TQ090", "area_name": "Quang Bình", "latitude": 22.60477526, "longitude": 105.02783474, "assigned_site_id": "TQ090", "assigned_site_name": "Quang Bình", "site_latitude": 22.60477526, "site_longitude": 105.02783474, "travel_minutes": 0.0, "distance_km": 0.0, "cluster_index": 14, "color": "#e74c3c", "registrant_count": 26}, {"area_id": "TQ089", "area_name": "Yên Thành", "latitude": 22.60477526, "longitude": 105.02783474, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 53.941667, "distance_km": 50.6455, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 9}, {"area_id": "TQ063", "area_name": "Nghĩa Thuận", "latitude": 23.14694444, "longitude": 104.9133333, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 52.043333, "distance_km": 55.8014, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 6}, {"area_id": "TQ065", "area_name": "Tùng Vài", "latitude": 23.07611111, "longitude": 104.8833333, "assigned_site_id": "TQ064", "assigned_site_name": "Quản Bạ", "site_latitude": 23.04527778, "site_longitude": 105.0097222, "travel_minutes": 38.448333, "distance_km": 22.4236, "cluster_index": 5, "color": "#16a085", "registrant_count": 15}, {"area_id": "TQ059", "area_name": "Du Già", "latitude": 22.9326361, "longitude": 105.2223717, "assigned_site_id": "TQ076", "assigned_site_name": "Vị Xuyên", "site_latitude": 22.8639552, "site_longitude": 105.0117102, "travel_minutes": 62.643333, "distance_km": 67.3822, "cluster_index": 13, "color": "#2ecc71", "registrant_count": 7}];
+
+    const rawSites = sites;
+    const rawAreas = areas;
+    const listEl = document.getElementById('site-list');
+    const provinceBoundaryCoordinateBounds = {
+      minLat: 18,
+      maxLat: 24.5,
+      minLng: 103,
+      maxLng: 107.5
+    };
+    const provinceLayers = {
+      mask: null,
+      boundary: null
+    };
+    let displayState = {
+      sites: rawSites,
+      areas: rawAreas,
+      areasBySite: new Map(),
+      siteMarkers: new Map(),
+      areaMarkers: new Map(),
+      areaLines: new Map(),
+      provinceBounds: null
+    };
+
+    function isFiniteCoordinate(lat, lng) {
+      return Number.isFinite(lat) && Number.isFinite(lng);
+    }
+
+    function isReasonableBoundaryCoordinate(lat, lng) {
+      return (
+        isFiniteCoordinate(lat, lng)
+        && lat >= provinceBoundaryCoordinateBounds.minLat
+        && lat <= provinceBoundaryCoordinateBounds.maxLat
+        && lng >= provinceBoundaryCoordinateBounds.minLng
+        && lng <= provinceBoundaryCoordinateBounds.maxLng
+      );
+    }
+
+    function collectReferenceExtent() {
+      const points = [];
+      const pushPoint = (lat, lng) => {
+        if (isFiniteCoordinate(lat, lng)) {
+          points.push([lat, lng]);
+        }
+      };
+
+      rawSites.forEach(site => pushPoint(Number(site.latitude), Number(site.longitude)));
+      rawAreas.forEach(area => pushPoint(Number(area.latitude), Number(area.longitude)));
+
+      if (points.length === 0) {
+        return null;
+      }
+
+      const latitudes = points.map(point => point[0]);
+      const longitudes = points.map(point => point[1]);
+      return {
+        minLat: Math.min(...latitudes) - 0.08,
+        maxLat: Math.max(...latitudes) + 0.08,
+        minLng: Math.min(...longitudes) - 0.08,
+        maxLng: Math.max(...longitudes) + 0.08
+      };
+    }
+
+    function isPointInsideExtent(lat, lng, extent) {
+      return (
+        lat >= extent.minLat
+        && lat <= extent.maxLat
+        && lng >= extent.minLng
+        && lng <= extent.maxLng
+      );
+    }
+
+    function ensureClosedRing(ring) {
+      if (!Array.isArray(ring) || ring.length < 3) {
+        return null;
+      }
+
+      const closedRing = ring.map(point => [point[0], point[1]]);
+      const firstPoint = closedRing[0];
+      const lastPoint = closedRing[closedRing.length - 1];
+      if (firstPoint[0] !== lastPoint[0] || firstPoint[1] !== lastPoint[1]) {
+        closedRing.push([firstPoint[0], firstPoint[1]]);
+      }
+
+      return closedRing.length >= 4 ? closedRing : null;
+    }
+
+    function sanitizeBoundaryRing(ring) {
+      if (!Array.isArray(ring)) {
+        return null;
+      }
+
+      const sanitizedRing = ring
+        .map((point) => {
+          if (!Array.isArray(point) || point.length < 2) {
+            return null;
+          }
+
+          const lng = Number(point[0]);
+          const lat = Number(point[1]);
+          return isReasonableBoundaryCoordinate(lat, lng) ? [lng, lat] : null;
+        })
+        .filter(Boolean);
+
+      return ensureClosedRing(sanitizedRing);
+    }
+
+    function sanitizeBoundaryGeometry(geometry) {
+      if (!geometry || !Array.isArray(geometry.coordinates)) {
+        return null;
+      }
+
+      if (geometry.type === 'Polygon') {
+        const polygonRings = geometry.coordinates.map(sanitizeBoundaryRing).filter(Boolean);
+        return polygonRings.length > 0 ? { type: 'Polygon', coordinates: polygonRings } : null;
+      }
+
+      if (geometry.type === 'MultiPolygon') {
+        const polygons = geometry.coordinates
+          .map((polygon) => {
+            if (!Array.isArray(polygon)) {
+              return null;
+            }
+
+            const polygonRings = polygon.map(sanitizeBoundaryRing).filter(Boolean);
+            return polygonRings.length > 0 ? polygonRings : null;
+          })
+          .filter(Boolean);
+
+        if (polygons.length === 0) {
+          return null;
+        }
+
+        return polygons.length === 1
+          ? { type: 'Polygon', coordinates: polygons[0] }
+          : { type: 'MultiPolygon', coordinates: polygons };
+      }
+
+      return null;
+    }
+
+    function forEachGeometryPoint(geometry, callback) {
+      if (!geometry || !Array.isArray(geometry.coordinates)) {
+        return;
+      }
+
+      const pushPoint = (point) => {
+        if (!Array.isArray(point) || point.length < 2) {
+          return;
+        }
+
+        const lng = Number(point[0]);
+        const lat = Number(point[1]);
+        if (isFiniteCoordinate(lat, lng)) {
+          callback(lat, lng);
+        }
+      };
+
+      if (geometry.type === 'Polygon') {
+        geometry.coordinates.forEach((ring) => {
+          if (Array.isArray(ring)) {
+            ring.forEach(pushPoint);
+          }
+        });
+        return;
+      }
+
+      if (geometry.type === 'MultiPolygon') {
+        geometry.coordinates.forEach((polygon) => {
+          if (!Array.isArray(polygon)) {
+            return;
+          }
+
+          polygon.forEach((ring) => {
+            if (Array.isArray(ring)) {
+              ring.forEach(pushPoint);
+            }
+          });
+        });
+      }
+    }
+
+    function collectGeometryPoints(geometry) {
+      const points = [];
+      forEachGeometryPoint(geometry, (lat, lng) => {
+        points.push([lat, lng]);
+      });
+      return points;
+    }
+
+    function computeGeometryCentroid(points) {
+      if (!Array.isArray(points) || points.length === 0) {
+        return null;
+      }
+
+      const total = points.reduce(
+        (sum, point) => ({
+          lat: sum.lat + point[0],
+          lng: sum.lng + point[1]
+        }),
+        { lat: 0, lng: 0 }
+      );
+
+      return {
+        lat: total.lat / points.length,
+        lng: total.lng / points.length
+      };
+    }
+
+    function filterProvinceBoundaries(featureCollection) {
+      const features = Array.isArray(featureCollection && featureCollection.features) ? featureCollection.features : [];
+      const extent = collectReferenceExtent();
+
+      const sanitizedFeatures = features
+        .map((feature) => {
+          const geometry = sanitizeBoundaryGeometry(feature && feature.geometry);
+          return geometry ? { ...feature, geometry } : null;
+        })
+        .filter(Boolean);
+
+      if (!extent) {
+        return {
+          type: 'FeatureCollection',
+          features: sanitizedFeatures
+        };
+      }
+
+      return {
+        type: 'FeatureCollection',
+        features: sanitizedFeatures.filter((feature) => {
+          const points = collectGeometryPoints(feature.geometry);
+          if (points.length === 0) {
+            return false;
+          }
+
+          const intersectsExtent = points.some(([lat, lng]) => isPointInsideExtent(lat, lng, extent));
+          if (!intersectsExtent) {
+            return false;
+          }
+
+          const centroid = computeGeometryCentroid(points);
+          return centroid ? isPointInsideExtent(centroid.lat, centroid.lng, extent) : false;
+        })
+      };
+    }
+
+    function pointInRing(lat, lng, ring) {
+      if (!Array.isArray(ring) || ring.length < 4) {
+        return false;
+      }
+
+      let inside = false;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+        const xi = Number(ring[i][0]);
+        const yi = Number(ring[i][1]);
+        const xj = Number(ring[j][0]);
+        const yj = Number(ring[j][1]);
+
+        const intersects = ((yi > lat) !== (yj > lat))
+          && (lng < ((xj - xi) * (lat - yi)) / ((yj - yi) || Number.EPSILON) + xi);
+        if (intersects) {
+          inside = !inside;
+        }
+      }
+
+      return inside;
+    }
+
+    function pointInGeometry(lat, lng, geometry) {
+      if (!geometry || !Array.isArray(geometry.coordinates)) {
+        return false;
+      }
+
+      const pointInPolygon = (polygon) => {
+        if (!Array.isArray(polygon) || polygon.length === 0) {
+          return false;
+        }
+
+        if (!pointInRing(lat, lng, polygon[0])) {
+          return false;
+        }
+
+        for (let index = 1; index < polygon.length; index += 1) {
+          if (pointInRing(lat, lng, polygon[index])) {
+            return false;
+          }
+        }
+
+        return true;
+      };
+
+      if (geometry.type === 'Polygon') {
+        return pointInPolygon(geometry.coordinates);
+      }
+
+      if (geometry.type === 'MultiPolygon') {
+        return geometry.coordinates.some(pointInPolygon);
+      }
+
+      return false;
+    }
+
+    function pointInFeatureCollection(lat, lng, featureCollection) {
+      const features = Array.isArray(featureCollection && featureCollection.features) ? featureCollection.features : [];
+      return features.some(feature => pointInGeometry(lat, lng, feature.geometry));
+    }
+
+    function buildLeafletMaskRings(featureCollection) {
+      const holes = [];
+      const features = Array.isArray(featureCollection && featureCollection.features) ? featureCollection.features : [];
+
+      features.forEach((feature) => {
+        const geometry = feature && feature.geometry;
+        if (!geometry || !Array.isArray(geometry.coordinates)) {
+          return;
+        }
+
+        if (geometry.type === 'Polygon') {
+          if (Array.isArray(geometry.coordinates[0])) {
+            holes.push(geometry.coordinates[0].map(([lng, lat]) => [lat, lng]));
+          }
+          return;
+        }
+
+        if (geometry.type === 'MultiPolygon') {
+          geometry.coordinates.forEach((polygon) => {
+            if (Array.isArray(polygon) && Array.isArray(polygon[0])) {
+              holes.push(polygon[0].map(([lng, lat]) => [lat, lng]));
+            }
+          });
+        }
+      });
+
+      if (holes.length === 0) {
+        return null;
+      }
+
+      return [
+        [
+          [-85, -180],
+          [-85, 180],
+          [85, 180],
+          [85, -180],
+          [-85, -180]
+        ],
+        ...holes
+      ];
+    }
+
+    function computeProvinceBounds(featureCollection) {
+      const bounds = [];
+      const features = Array.isArray(featureCollection && featureCollection.features) ? featureCollection.features : [];
+
+      features.forEach((feature) => {
+        forEachGeometryPoint(feature.geometry, (lat, lng) => {
+          bounds.push([lat, lng]);
+        });
+      });
+
+      return bounds.length > 0 ? L.latLngBounds(bounds) : null;
+    }
+
+    function renderProvinceBoundary(featureCollection) {
+      if (provinceLayers.mask) {
+        map.removeLayer(provinceLayers.mask);
+        provinceLayers.mask = null;
+      }
+      if (provinceLayers.boundary) {
+        map.removeLayer(provinceLayers.boundary);
+        provinceLayers.boundary = null;
+      }
+
+      if (!featureCollection || !Array.isArray(featureCollection.features) || featureCollection.features.length === 0) {
+        return null;
+      }
+
+      const maskRings = buildLeafletMaskRings(featureCollection);
+      if (maskRings) {
+        provinceLayers.mask = L.polygon(maskRings, {
+          pane: 'province-mask',
+          stroke: false,
+          fillColor: '#ffffff',
+          fillOpacity: 1,
+          interactive: false
+        }).addTo(map);
+      }
+
+      provinceLayers.boundary = L.geoJSON(featureCollection, {
+        pane: 'province-boundary',
+        interactive: false,
+        style: {
+          color: '#0f766e',
+          weight: 1.4,
+          opacity: 0.75,
+          fillColor: '#14b8a6',
+          fillOpacity: 0.04
+        }
+      }).addTo(map);
+
+      return computeProvinceBounds(featureCollection);
+    }
+
+    function buildAreasBySite(siteAreas) {
+      const areasBySite = new Map();
+      siteAreas.forEach((area) => {
+        if (!areasBySite.has(area.assigned_site_id)) {
+          areasBySite.set(area.assigned_site_id, []);
+        }
+        areasBySite.get(area.assigned_site_id).push(area);
+      });
+      areasBySite.forEach((list) => {
+        list.sort((a, b) => a.distance_km - b.distance_km || a.travel_minutes - b.travel_minutes);
+      });
+      return areasBySite;
+    }
+
+    function normalizeDisplayData(boundaries) {
+      const boundaryBox = boundaries ? computeProvinceBounds(boundaries) : null;
+      const isInsideBoundaryBox = (lat, lng) => (
+        !boundaryBox
+        || boundaryBox.contains(L.latLng(lat, lng))
+      );
+      const filteredAreas = rawAreas.filter((area) => (
+        isFiniteCoordinate(Number(area.latitude), Number(area.longitude))
+        && isInsideBoundaryBox(Number(area.latitude), Number(area.longitude))
+      ));
+
+      const rawAreasBySite = buildAreasBySite(filteredAreas);
+      const filteredSites = rawSites
+        .filter((site) => {
+          const siteInside = (
+            isFiniteCoordinate(Number(site.latitude), Number(site.longitude))
+            && isInsideBoundaryBox(Number(site.latitude), Number(site.longitude))
+          );
+          return siteInside || rawAreasBySite.has(site.site_id);
+        })
+        .map((site) => {
+          const siteAreas = rawAreasBySite.get(site.site_id) || [];
+          if (siteAreas.length === 0) {
+            return null;
+          }
+
+          const distanceValues = siteAreas.map(area => Number(area.distance_km) || 0);
+          const travelValues = siteAreas.map(area => Number(area.travel_minutes) || 0);
+          const assignedWeightSum = siteAreas.reduce((sum, area) => sum + (Number(area.registrant_count) || 0), 0);
+
+          return {
+            ...site,
+            assigned_area_count: siteAreas.length,
+            assigned_weight_sum: assignedWeightSum,
+            average_distance_km: distanceValues.reduce((sum, value) => sum + value, 0) / distanceValues.length,
+            average_travel_minutes: travelValues.reduce((sum, value) => sum + value, 0) / travelValues.length,
+            max_distance_km: Math.max(...distanceValues),
+            max_travel_minutes: Math.max(...travelValues)
+          };
+        })
+        .filter(Boolean);
+
+      const visibleSiteIds = new Set(filteredSites.map(site => site.site_id));
+      const visibleAreas = filteredAreas.filter(area => visibleSiteIds.has(area.assigned_site_id));
+
+      return {
+        sites: filteredSites,
+        areas: visibleAreas,
+        areasBySite: buildAreasBySite(visibleAreas)
+      };
+    }
+
+    function clearDisplayLayers() {
+      displayState.siteMarkers.forEach(marker => map.removeLayer(marker));
+      displayState.areaMarkers.forEach(marker => map.removeLayer(marker));
+      displayState.areaLines.forEach(line => map.removeLayer(line));
+      displayState.siteMarkers.clear();
+      displayState.areaMarkers.clear();
+      displayState.areaLines.clear();
+    }
+
+    function focusSite(siteId) {
+      const site = displayState.sites.find(item => item.site_id === siteId);
+      if (!site) {
+        return;
+      }
+
+      const bounds = L.latLngBounds([[site.latitude, site.longitude]]);
+      (displayState.areasBySite.get(siteId) || []).forEach(area => bounds.extend([area.latitude, area.longitude]));
+      map.fitBounds(bounds.pad(0.08));
+
+      const marker = displayState.siteMarkers.get(siteId);
+      if (marker) {
+        marker.openPopup();
+      }
+      closeMobileMenu();
+    }
+
+    function focusArea(areaId) {
+      const marker = displayState.areaMarkers.get(areaId);
+      const line = displayState.areaLines.get(areaId);
+      if (marker) {
+        map.setView(marker.getLatLng(), Math.max(map.getZoom(), 10));
+        marker.openPopup();
+      }
+      if (line) {
+        line.setStyle({ weight: 3, opacity: 0.9 });
+        window.setTimeout(() => line.setStyle({ weight: 1.3, opacity: 0.45 }), 1800);
+      }
+      closeMobileMenu();
+    }
+
+    function renderSiteList() {
+      listEl.innerHTML = '';
+      displayState.sites.forEach((site, index) => {
+        const item = document.createElement('div');
+        item.className = 'site-item' + (index === 0 ? ' open' : '');
+
+        const toggle = document.createElement('button');
+        toggle.className = 'site-toggle';
+        toggle.type = 'button';
+        toggle.innerHTML = `
+          <div class="site-toggle-head">
+            <div class="site-title">
+              <span class="swatch" style="background:${site.color}"></span>
+              <span>${site.site_name}</span>
+            </div>
+            <span class="site-chevron">▶</span>
+          </div>
+          <div class="site-stats">
+            ${site.assigned_area_count} xã/phường<br/>
+            ${formatNumber(site.assigned_weight_sum)} thân nhân có thể đến<br/>
+            TB: ${site.average_distance_km.toFixed(2)} km | ${site.average_travel_minutes.toFixed(2)} phút<br/>
+            Cao nhất: ${site.max_distance_km.toFixed(2)} km | ${site.max_travel_minutes.toFixed(2)} phút
+          </div>
+        `;
+        toggle.addEventListener('click', () => {
+          item.classList.toggle('open');
+        });
+
+        const actions = document.createElement('div');
+        actions.className = 'site-actions';
+        const mapAction = document.createElement('button');
+        mapAction.className = 'site-map-action';
+        mapAction.type = 'button';
+        mapAction.textContent = 'Xem bản đồ';
+        mapAction.addEventListener('click', (event) => {
+          event.stopPropagation();
+          focusSite(site.site_id);
+        });
+        actions.appendChild(mapAction);
+
+        const areaList = document.createElement('div');
+        areaList.className = 'area-list';
+        (displayState.areasBySite.get(site.site_id) || []).forEach((area) => {
+          const entry = document.createElement('div');
+          entry.className = 'area-entry';
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.innerHTML = `
+            <div class="area-name">${area.area_name}</div>
+            <div class="area-meta">${formatNumber(area.registrant_count)} thân nhân | ${area.distance_km.toFixed(2)} km | ${area.travel_minutes.toFixed(2)} phút</div>
+          `;
+          button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            focusArea(area.area_id);
+          });
+          entry.appendChild(button);
+
+          const entryActions = document.createElement('div');
+          entryActions.className = 'area-entry-actions';
+          entryActions.innerHTML = buildDirectionActions(area);
+          entryActions.querySelectorAll('button').forEach((actionButton) => {
+            actionButton.addEventListener('click', (event) => {
+              event.stopPropagation();
+            });
+          });
+          entry.appendChild(entryActions);
+          areaList.appendChild(entry);
+        });
+
+        item.appendChild(toggle);
+        item.appendChild(actions);
+        item.appendChild(areaList);
+        listEl.appendChild(item);
+      });
+    }
+
+    function renderMapData() {
+      clearDisplayLayers();
+
+      displayState.sites.forEach((site) => {
+        const marker = L.circleMarker([site.latitude, site.longitude], {
+          radius: 9,
+          color: site.color,
+          fillColor: site.color,
+          fillOpacity: 0.95,
+          weight: 2
+        }).addTo(map).bindPopup(
+          `<b>${site.site_name}</b><br/>`
+          + `So xa/phuong: ${site.assigned_area_count}<br/>`
+          + `Than nhan co the den: ${formatNumber(site.assigned_weight_sum)}<br/>`
+          + `TB khoang cach: ${site.average_distance_km.toFixed(2)} km<br/>`
+          + `TB thoi gian: ${site.average_travel_minutes.toFixed(2)} phut<br/>`
+          + `Xa nhat: ${site.max_distance_km.toFixed(2)} km | ${site.max_travel_minutes.toFixed(2)} phut`
+        );
+        displayState.siteMarkers.set(site.site_id, marker);
+      });
+
+      displayState.areas.forEach((area) => {
+        const marker = L.circleMarker([area.latitude, area.longitude], {
+          radius: 4,
+          color: area.color,
+          fillColor: area.color,
+          fillOpacity: 0.55,
+          weight: 1
+        }).addTo(map).bindPopup(
+          `<b>${area.area_name}</b><br/>`
+          + `Diem tap ket: ${area.assigned_site_name}<br/>`
+          + `Than nhan co the den: ${formatNumber(area.registrant_count)}<br/>`
+          + `Khoang cach: ${area.distance_km.toFixed(2)} km<br/>`
+          + `Thoi gian: ${area.travel_minutes.toFixed(2)} phut`
+          + buildDirectionActions(area)
+        );
+        displayState.areaMarkers.set(area.area_id, marker);
+
+        const line = L.polyline(
+          [
+            [area.latitude, area.longitude],
+            [area.site_latitude, area.site_longitude]
+          ],
+          {
+            color: area.color,
+            weight: 1.3,
+            opacity: 0.45
+          }
+        ).addTo(map);
+        displayState.areaLines.set(area.area_id, line);
+      });
+    }
+
+    async function loadProvinceBoundaries() {
+      return null;
+    }
+
+    function applyViewportFallback() {
+      const markers = displayState.areas.map(area => L.marker([area.latitude, area.longitude])).concat(
+        displayState.sites.map(site => L.marker([site.latitude, site.longitude]))
+      );
+      if (markers.length === 0) {
+        return;
+      }
+
+      const pointBounds = L.featureGroup(markers).getBounds();
+      const paddedBounds = pointBounds.pad(0.08);
+      map.fitBounds(paddedBounds);
+      map.setMaxBounds(paddedBounds.pad(0.2));
+      map.options.maxBoundsViscosity = 1.0;
+    }
+
+    async function initializeAdnMap() {
+      const provinceBoundaries = await loadProvinceBoundaries();
+      const normalizedData = normalizeDisplayData(provinceBoundaries);
+
+      displayState = {
+        ...displayState,
+        ...normalizedData,
+        provinceBounds: renderProvinceBoundary(provinceBoundaries)
+      };
+
+      renderSiteList();
+      renderMapData();
+
+      if (displayState.provinceBounds) {
+        map.fitBounds(displayState.provinceBounds, { padding: [8, 8] });
+        map.setMaxBounds(displayState.provinceBounds);
+        map.options.maxBoundsViscosity = 1.0;
+        return;
+      }
+
+      applyViewportFallback();
+    }
+
+    initializeAdnMap();
+  </script>
+</body>
+</html>
