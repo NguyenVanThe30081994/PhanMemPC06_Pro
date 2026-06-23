@@ -161,6 +161,90 @@ class MartyrAdnMapBuilderTestCase(unittest.TestCase):
 
         self.assertLess(wider_sites_score, tighter_sites_score)
 
+    def test_distance_priority_assignments_keep_selected_sites_on_themselves(self):
+        areas = [
+            {'area_name': 'A', 'registrant_count': 100},
+            {'area_name': 'B', 'registrant_count': 100},
+            {'area_name': 'C', 'registrant_count': 60},
+        ]
+        candidate_routes = {
+            (0, 0): {'distance_km': 0.0, 'travel_minutes': 0.0},
+            (0, 1): {'distance_km': 25.0, 'travel_minutes': 30.0},
+            (1, 0): {'distance_km': 25.0, 'travel_minutes': 30.0},
+            (1, 1): {'distance_km': 0.0, 'travel_minutes': 0.0},
+            (2, 0): {'distance_km': 6.0, 'travel_minutes': 8.0},
+            (2, 1): {'distance_km': 8.0, 'travel_minutes': 10.0},
+        }
+
+        assignments, loads = builder.build_distance_capped_assignments(
+            areas=areas,
+            selected_sites=[0, 1],
+            candidate_routes=candidate_routes,
+            max_distance_km=100.0,
+            preferred_load_min=50.0,
+            soft_load_max=220.0,
+        )
+
+        self.assertIsNotNone(assignments)
+        self.assertEqual(assignments[0], 0)
+        self.assertEqual(assignments[1], 1)
+        self.assertEqual(loads[0], 160)
+        self.assertEqual(loads[1], 100)
+
+    def test_distance_priority_assignments_limit_large_detours_from_nearest_site(self):
+        areas = [
+            {'area_name': 'A', 'registrant_count': 100},
+            {'area_name': 'B', 'registrant_count': 100},
+            {'area_name': 'C', 'registrant_count': 40},
+        ]
+        candidate_routes = {
+            (0, 0): {'distance_km': 0.0, 'travel_minutes': 0.0},
+            (0, 1): {'distance_km': 40.0, 'travel_minutes': 48.0},
+            (1, 0): {'distance_km': 40.0, 'travel_minutes': 48.0},
+            (1, 1): {'distance_km': 0.0, 'travel_minutes': 0.0},
+            (2, 0): {'distance_km': 10.0, 'travel_minutes': 12.0},
+            (2, 1): {'distance_km': 35.0, 'travel_minutes': 42.0},
+        }
+
+        assignments, _ = builder.build_distance_capped_assignments(
+            areas=areas,
+            selected_sites=[0, 1],
+            candidate_routes=candidate_routes,
+            max_distance_km=100.0,
+            preferred_load_min=50.0,
+            soft_load_max=120.0,
+        )
+
+        self.assertIsNotNone(assignments)
+        self.assertEqual(assignments[2], 0)
+
+    def test_distance_priority_assignments_allow_only_small_detours(self):
+        areas = [
+            {'area_name': 'A', 'registrant_count': 120},
+            {'area_name': 'B', 'registrant_count': 80},
+            {'area_name': 'C', 'registrant_count': 40},
+        ]
+        candidate_routes = {
+            (0, 0): {'distance_km': 0.0, 'travel_minutes': 0.0},
+            (0, 1): {'distance_km': 20.0, 'travel_minutes': 24.0},
+            (1, 0): {'distance_km': 20.0, 'travel_minutes': 24.0},
+            (1, 1): {'distance_km': 0.0, 'travel_minutes': 0.0},
+            (2, 0): {'distance_km': 10.0, 'travel_minutes': 12.0},
+            (2, 1): {'distance_km': 14.9, 'travel_minutes': 18.0},
+        }
+
+        assignments, _ = builder.build_distance_capped_assignments(
+            areas=areas,
+            selected_sites=[0, 1],
+            candidate_routes=candidate_routes,
+            max_distance_km=100.0,
+            preferred_load_min=50.0,
+            soft_load_max=120.0,
+        )
+
+        self.assertIsNotNone(assignments)
+        self.assertEqual(assignments[2], 1)
+
     @unittest.skipIf(builder.pulp is None, 'pulp is not installed in this test environment')
     def test_solve_balanced_sites_uses_google_route_distances(self):
         areas = [
