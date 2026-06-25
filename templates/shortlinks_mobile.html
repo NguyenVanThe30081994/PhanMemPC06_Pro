@@ -27,15 +27,10 @@
 {% endblock %}
 
 {% block content %}
-<section class="mobile-link-hero">
-    <div class="mobile-link-kicker"><i class="fa-solid fa-qrcode"></i>QR và liên kết</div>
-    <h1>Liên kết rút gọn</h1>
-    <p>Quản lý đường dẫn, mã QR và lượt truy cập trên thiết bị di động.</p>
-    <div class="mobile-link-stats">
-        <div class="mobile-link-stat"><span>Liên kết</span><strong>{{ links|length }}</strong></div>
-        <div class="mobile-link-stat"><span>Lượt mở</span><strong>{{ links|sum(attribute='clicks') }}</strong></div>
-        <div class="mobile-link-stat"><span>Phạm vi</span><strong style="font-size:0.88rem;">{{ 'Toàn hệ thống' if is_admin else 'Cá nhân' }}</strong></div>
-    </div>
+<section class="mobile-page-stats">
+    <div class="mobile-page-stat"><span>Liên kết</span><strong>{{ links|length }}</strong></div>
+    <div class="mobile-page-stat"><span>Lượt mở</span><strong>{{ links|sum(attribute='clicks') }}</strong></div>
+    <div class="mobile-page-stat"><span>Phạm vi</span><strong>{{ 'Toàn hệ thống' if is_admin else 'Cá nhân' }}</strong></div>
 </section>
 
 <section class="mobile-link-list">

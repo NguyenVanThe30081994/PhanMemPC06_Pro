@@ -4,18 +4,11 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    <section class="pc06-hero-card">
-        <div class="pc06-hero-grid">
-            <div>
-                <h1 class="pc06-page-title">Cập nhật bản vá</h1>
-            </div>
-            <div class="pc06-stat-strip">
-                <div class="pc06-metric-card"><span>Nhánh</span><strong>{{ git_info.branch|default('main') }}</strong></div>
-                <div class="pc06-metric-card"><span>Phiên bản</span><strong>{{ git_info.version|default('v3.5.0') }}</strong></div>
-                <div class="pc06-metric-card"><span>Commit gần nhất</span><strong style="font-size:1rem;">{{ git_info.commit_author|default('PC06') }}</strong></div>
-            </div>
-        </div>
-    </section>
+    <div class="pc06-page-summary">
+        <div class="pc06-page-summary-card"><span>Nhánh</span><strong>{{ git_info.branch|default('main') }}</strong></div>
+        <div class="pc06-page-summary-card"><span>Phiên bản</span><strong>{{ git_info.version|default('v3.5.0') }}</strong></div>
+        <div class="pc06-page-summary-card"><span>Commit gần nhất</span><strong>{{ git_info.commit_author|default('PC06') }}</strong></div>
+    </div>
 
     <div class="pc06-section-workspace" data-section-menu-container data-default-pane="package">
         <div class="pc06-section-menu-shell">
@@ -147,6 +140,12 @@
 </div>
 
 <script>
+function escapeGitHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value == null ? '' : String(value);
+    return div.innerHTML;
+}
+
 function confirmGitPull() {
     Swal.fire({
         title: 'Xác nhận Git Pull?',
@@ -185,10 +184,10 @@ function showGitLog() {
             html += `
             <div class="list-group-item border-0 py-3">
                 <div class="d-flex justify-content-between gap-3">
-                    <div class="fw-bold text-dark">${c.msg}</div>
-                    <span class="badge bg-light text-dark border">${c.date}</span>
+                    <div class="fw-bold text-dark">${escapeGitHtml(c.msg)}</div>
+                    <span class="badge bg-light text-dark border">${escapeGitHtml(c.date)}</span>
                 </div>
-                <div class="tiny text-muted mt-1"><i class="fa-solid fa-user me-1"></i>${c.author}</div>
+                <div class="tiny text-muted mt-1"><i class="fa-solid fa-user me-1"></i>${escapeGitHtml(c.author)}</div>
             </div>`;
         });
         document.getElementById('gitLogOutput').innerHTML = html || '<div class="p-3 text-muted">Không có commit</div>';

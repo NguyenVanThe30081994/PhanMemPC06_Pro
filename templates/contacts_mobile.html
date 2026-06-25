@@ -31,18 +31,13 @@
 {% endblock %}
 
 {% block content %}
-<section class="mobile-contact-hero">
-    <div class="mobile-contact-kicker"><i class="fa-solid fa-address-book"></i>Danh bạ đơn vị</div>
-    <h1>Danh bạ PC06</h1>
-    <p>Tra cứu liên hệ nội bộ, lọc theo nhóm và cập nhật danh bạ trên thiết bị di động.</p>
-    {% if can_module('contact', 'process') %}
-    <div class="mobile-contact-actions">
-        <a class="btn btn-mobile" href="{{ url_for('portal_bp.contact_template') }}" style="background:#eff6ff;color:#1d4ed8;" aria-label="Tải biểu mẫu" title="Tải biểu mẫu"><i class="fa-solid fa-download"></i><span class="visually-hidden">Tải biểu mẫu</span></a>
-        <button class="btn btn-mobile" type="button" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#importContactModal" aria-label="Nhập Excel" title="Nhập Excel"><i class="fa-solid fa-file-excel"></i><span class="visually-hidden">Nhập Excel</span></button>
-        <button class="btn btn-mobile btn-mobile-primary" type="button" data-bs-toggle="modal" data-bs-target="#addContactModal" aria-label="Thêm liên hệ" title="Thêm liên hệ"><i class="fa-solid fa-plus"></i><span class="visually-hidden">Thêm liên hệ</span></button>
-    </div>
-    {% endif %}
+{% if can_module('contact', 'process') %}
+<section class="mobile-page-actions cols-3">
+    <a class="btn btn-mobile" href="{{ url_for('portal_bp.contact_template') }}" style="background:#eff6ff;color:#1d4ed8;" aria-label="Tải biểu mẫu" title="Tải biểu mẫu"><i class="fa-solid fa-download"></i><span class="visually-hidden">Tải biểu mẫu</span></a>
+    <button class="btn btn-mobile" type="button" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#importContactModal" aria-label="Nhập Excel" title="Nhập Excel"><i class="fa-solid fa-file-excel"></i><span class="visually-hidden">Nhập Excel</span></button>
+    <button class="btn btn-mobile btn-mobile-primary" type="button" data-bs-toggle="modal" data-bs-target="#addContactModal" aria-label="Thêm liên hệ" title="Thêm liên hệ"><i class="fa-solid fa-plus"></i><span class="visually-hidden">Thêm liên hệ</span></button>
 </section>
+{% endif %}
 
 <section class="mobile-contact-search">
     <label class="mobile-search-input">

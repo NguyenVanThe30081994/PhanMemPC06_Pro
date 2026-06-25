@@ -17,17 +17,12 @@
 {% endblock %}
 
 {% block content %}
-<section class="mobile-log-hero">
-    <div class="mobile-log-kicker"><i class="fa-solid fa-scroll"></i>Nhật ký hoạt động</div>
-    <h1>Truy vết hệ thống</h1>
-    <p>Kiểm tra hoạt động gần nhất và xuất dữ liệu phục vụ đối soát.</p>
-    <div class="mobile-log-actions">
-        <form method="POST" action="/logs" class="m-0">
-            <input type="hidden" name="action" value="backup">
-            <button type="submit" class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" aria-label="Xuất Excel" title="Xuất Excel"><i class="fa-solid fa-file-excel"></i><span class="visually-hidden">Xuất Excel</span></button>
-        </form>
-        <button class="btn btn-mobile btn-mobile-primary" type="button" data-bs-toggle="modal" data-bs-target="#clearLogsModal" aria-label="Dọn nhật ký" title="Dọn nhật ký"><i class="fa-solid fa-broom"></i><span class="visually-hidden">Dọn nhật ký</span></button>
-    </div>
+<section class="mobile-page-actions">
+    <form method="POST" action="/logs">
+        <input type="hidden" name="action" value="backup">
+        <button type="submit" class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" aria-label="Xuất Excel" title="Xuất Excel"><i class="fa-solid fa-file-excel"></i><span class="visually-hidden">Xuất Excel</span></button>
+    </form>
+    <button class="btn btn-mobile btn-mobile-primary" type="button" data-bs-toggle="modal" data-bs-target="#clearLogsModal" aria-label="Dọn nhật ký" title="Dọn nhật ký"><i class="fa-solid fa-broom"></i><span class="visually-hidden">Dọn nhật ký</span></button>
 </section>
 
 <section class="mobile-log-filter">

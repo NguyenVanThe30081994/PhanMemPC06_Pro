@@ -27,11 +27,11 @@
 {% endblock %}
 
 {% block content %}
-<section class="mobile-news-hero">
-    <div class="mobile-news-kicker"><i class="fa-solid fa-bullhorn"></i>Bản tin nội bộ</div>
-    <h1>Bảng tin PC06</h1>
-    <p>Tin điều hành, thông báo nội bộ và tài liệu phát hành.</p>
+{% if can_manage_with_system('news') %}
+<section class="mobile-page-actions">
+    <button class="btn btn-mobile btn-mobile-primary" data-bs-toggle="modal" data-bs-target="#addNewsModal"><i class="fa-solid fa-plus"></i><span class="visually-hidden">Đăng tin mới</span></button>
 </section>
+{% endif %}
 
 <section class="mobile-news-search">
     <label class="mobile-search-input">
@@ -73,10 +73,6 @@
     <div class="mobile-news-card text-center text-muted">Chưa phát sinh bản tin.</div>
     {% endfor %}
 </section>
-
-{% if can_manage_with_system('news') %}
-<button class="mobile-news-fab" data-bs-toggle="modal" data-bs-target="#addNewsModal"><i class="fa-solid fa-plus"></i></button>
-{% endif %}
 
 <div class="modal fade" id="addNewsModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">

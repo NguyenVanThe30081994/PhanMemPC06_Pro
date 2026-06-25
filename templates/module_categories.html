@@ -4,28 +4,25 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    <section class="pc06-hero-card">
-        <div class="pc06-hero-grid">
-            <div>
-                <h1 class="pc06-page-title">Thiết lập danh mục</h1>
-                <div class="pc06-action-cluster">
-                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addGroupModal">
-                        <i class="fa-solid fa-plus"></i>
-                        Thêm danh mục
-                    </button>
-                    <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#deleteGroupModal">
-                        <i class="fa-solid fa-trash"></i>
-                        Xóa danh mục
-                    </button>
-                </div>
-            </div>
-            <div class="pc06-stat-strip">
-                <div class="pc06-metric-card"><span>Nhóm danh mục</span><strong>{{ groups|length }}</strong></div>
-                <div class="pc06-metric-card"><span>Phân hệ</span><strong>{{ modules|length }}</strong></div>
-                <div class="pc06-metric-card"><span>Field cấu hình</span><strong>{{ module_fields.values()|map('length')|sum }}</strong></div>
+    <div class="pc06-page-summary-bar">
+        <div class="pc06-page-summary">
+            <div class="pc06-page-summary-card"><span>Nhóm danh mục</span><strong>{{ groups|length }}</strong></div>
+            <div class="pc06-page-summary-card"><span>Phân hệ</span><strong>{{ modules|length }}</strong></div>
+            <div class="pc06-page-summary-card"><span>Field cấu hình</span><strong>{{ module_fields.values()|map('length')|sum }}</strong></div>
+        </div>
+        <div class="pc06-page-summary-side">
+            <div class="pc06-page-actions">
+                <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addGroupModal">
+                    <i class="fa-solid fa-plus"></i>
+                    Thêm danh mục
+                </button>
+                <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#deleteGroupModal">
+                    <i class="fa-solid fa-trash"></i>
+                    Xóa danh mục
+                </button>
             </div>
         </div>
-    </section>
+    </div>
 
     <div class="pc06-section-pane-shell">
         {% if current_pane == 'groups' %}

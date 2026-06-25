@@ -28,14 +28,9 @@
 {% endblock %}
 
 {% block content %}
-<section class="mobile-category-hero">
-    <div class="mobile-category-kicker"><i class="fa-solid fa-tags"></i>Thiết lập danh mục</div>
-    <h1>Nhóm danh mục</h1>
-    <p>Quản lý thành phần và binding field cho các phân hệ nghiệp vụ.</p>
-    <div class="mobile-category-actions">
-        <button class="btn btn-mobile" type="button" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#addGroupModal" aria-label="Thêm danh mục" title="Thêm danh mục"><i class="fa-solid fa-plus"></i><span class="visually-hidden">Thêm danh mục</span></button>
-        <button class="btn btn-mobile btn-mobile-primary" type="button" data-bs-toggle="modal" data-bs-target="#deleteGroupModal" aria-label="Xóa danh mục" title="Xóa danh mục"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Xóa danh mục</span></button>
-    </div>
+<section class="mobile-page-actions">
+    <button class="btn btn-mobile" type="button" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#addGroupModal" aria-label="Thêm danh mục" title="Thêm danh mục"><i class="fa-solid fa-plus"></i><span class="visually-hidden">Thêm danh mục</span></button>
+    <button class="btn btn-mobile btn-mobile-primary" type="button" data-bs-toggle="modal" data-bs-target="#deleteGroupModal" aria-label="Xóa danh mục" title="Xóa danh mục"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Xóa danh mục</span></button>
 </section>
 
 {% for g in groups %}

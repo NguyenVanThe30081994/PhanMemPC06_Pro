@@ -14,19 +14,14 @@
 {% endblock %}
 
 {% block content %}
-<section class="mobile-role-hero">
-    <div class="mobile-role-kicker"><i class="fa-solid fa-user-shield"></i>Tài khoản và vai trò</div>
-    <h1>Quản trị người dùng</h1>
-    <p>Quản lý vai trò, tài khoản và nhập dữ liệu hàng loạt trên thiết bị di động.</p>
-    {% if can_manage_roles %}
-    <div class="mobile-role-actions">
-        <a class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" href="{{ url_for('admin_bp.export_users', role_id=selected_role_id, unit=selected_unit, q=search_query) }}" aria-label="{{ 'Xuất ' ~ selected_role.name if selected_role else 'Xuất danh sách tài khoản' }}" title="{{ 'Xuất ' ~ selected_role.name if selected_role else 'Xuất danh sách tài khoản' }}"><i class="fa-solid fa-file-arrow-down"></i></a>
-        <button class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#importUserModal"><i class="fa-solid fa-file-excel"></i></button>
-        <button class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#addRoleModal"><i class="fa-solid fa-user-tag"></i></button>
-        <button class="btn btn-mobile btn-mobile-primary" data-bs-toggle="modal" data-bs-target="#addUserModal"><i class="fa-solid fa-plus"></i></button>
-    </div>
-    {% endif %}
+{% if can_manage_roles %}
+<section class="mobile-page-actions cols-4">
+    <a class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" href="{{ url_for('admin_bp.export_users', role_id=selected_role_id, unit=selected_unit, q=search_query) }}" aria-label="{{ 'Xuất ' ~ selected_role.name if selected_role else 'Xuất danh sách tài khoản' }}" title="{{ 'Xuất ' ~ selected_role.name if selected_role else 'Xuất danh sách tài khoản' }}"><i class="fa-solid fa-file-arrow-down"></i></a>
+    <button class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#importUserModal"><i class="fa-solid fa-file-excel"></i></button>
+    <button class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#addRoleModal"><i class="fa-solid fa-user-tag"></i></button>
+    <button class="btn btn-mobile btn-mobile-primary" data-bs-toggle="modal" data-bs-target="#addUserModal"><i class="fa-solid fa-plus"></i></button>
 </section>
+{% endif %}
 
 <section class="mobile-role-card">
     <h6 class="fw-bold mb-3">Vai trò</h6>

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import secrets
 import sys
 import sqlite3
 from env_loader import load_env_file
@@ -22,14 +23,22 @@ if hasattr(sys.stderr, 'reconfigure'):
 import logging
 from logging.handlers import RotatingFileHandler
 import json
+import time
 from urllib.parse import urlparse
-from flask import Flask, session, request, redirect, url_for, send_from_directory, render_template, g, jsonify, Response
+from flask import Flask, flash, session, request, redirect, url_for, send_file, send_from_directory, render_template, g, jsonify, Response
 from datetime import datetime, timedelta
 from werkzeug.exceptions import HTTPException
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
-from models import db, AppRole
+from models import db, AppRole, DocumentLib, NewsDoc, User
 from storage import bootstrap_storage, build_storage_layout
+from security_utils.runtime_security import (
+    build_ip_network_hint,
+    ensure_persistent_secret_key,
+    fingerprint_security_value,
+    resolve_safe_path,
+)
+from security_utils.security_helpers import get_client_ip, log_security_event
 from utils import (
     get_perms_labels,
     has_any_module_permission,
@@ -81,11 +90,22 @@ try:
         LOGIN_MAX_FAILURES_PER_IP,
         LOGIN_LOCKOUT_SECONDS,
         LOGIN_LOCKOUT_MULTIPLIER_MAX,
+        SECURITY_REAUTH_WINDOW_SECONDS,
+        SECURITY_DEVICE_COOKIE_NAME,
+        SECURITY_DEVICE_COOKIE_MAX_AGE,
         DEBUG,
         AUTH_FAILURE_DELAY_MS,
+        RATE_LIMIT_WINDOW_SECONDS,
+        RATE_LIMIT_MAX_REQUESTS,
+        RATE_LIMIT_MAX_API_REQUESTS,
+        TRUSTED_PROXY_CIDRS,
+        ADMIN_DB_RESET_ENABLED,
+        ADMIN_DB_BACKUP_ENABLED,
+        WEB_SYSTEM_UPDATE_ENABLED,
+        WEB_GIT_PULL_ENABLED,
     )
 except ImportError:
-    SECRET_KEY = os.environ.get('SECRET_KEY') or os.urandom(32).hex()
+    SECRET_KEY = (os.environ.get('SECRET_KEY') or '').strip()
     SESSION_LIFETIME = 28800
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
     SESSION_COOKIE_SECURE = False
@@ -103,10 +123,23 @@ except ImportError:
     LOGIN_MAX_FAILURES_PER_IP = 20
     LOGIN_LOCKOUT_SECONDS = 900
     LOGIN_LOCKOUT_MULTIPLIER_MAX = 4
+    SECURITY_REAUTH_WINDOW_SECONDS = 900
+    SECURITY_DEVICE_COOKIE_NAME = 'pc06_device'
+    SECURITY_DEVICE_COOKIE_MAX_AGE = 31536000
     DEBUG = False
     AUTH_FAILURE_DELAY_MS = 600
+    RATE_LIMIT_WINDOW_SECONDS = 60
+    RATE_LIMIT_MAX_REQUESTS = 240
+    RATE_LIMIT_MAX_API_REQUESTS = 120
+    TRUSTED_PROXY_CIDRS = '127.0.0.1/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16'
+    ADMIN_DB_RESET_ENABLED = False
+    ADMIN_DB_BACKUP_ENABLED = False
+    WEB_SYSTEM_UPDATE_ENABLED = False
+    WEB_GIT_PULL_ENABLED = False
 
+SECRET_KEY = ensure_persistent_secret_key(storage_layout['data_root'], SECRET_KEY)
 app.secret_key = SECRET_KEY
+app.config['SECRET_KEY'] = SECRET_KEY
 app.config['JSON_AS_ASCII'] = False  # Giữ nguyên tiếng Việt trong jsonify()
 app.config['PC06_DATA_ROOT'] = storage_layout['data_root']
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -150,7 +183,18 @@ app.config['LOGIN_MAX_FAILURES_PER_USER'] = LOGIN_MAX_FAILURES_PER_USER
 app.config['LOGIN_MAX_FAILURES_PER_IP'] = LOGIN_MAX_FAILURES_PER_IP
 app.config['LOGIN_LOCKOUT_SECONDS'] = LOGIN_LOCKOUT_SECONDS
 app.config['LOGIN_LOCKOUT_MULTIPLIER_MAX'] = LOGIN_LOCKOUT_MULTIPLIER_MAX
+app.config['SECURITY_REAUTH_WINDOW_SECONDS'] = SECURITY_REAUTH_WINDOW_SECONDS
+app.config['SECURITY_DEVICE_COOKIE_NAME'] = SECURITY_DEVICE_COOKIE_NAME
+app.config['SECURITY_DEVICE_COOKIE_MAX_AGE'] = SECURITY_DEVICE_COOKIE_MAX_AGE
 app.config['AUTH_FAILURE_DELAY_MS'] = AUTH_FAILURE_DELAY_MS
+app.config['RATE_LIMIT_WINDOW_SECONDS'] = RATE_LIMIT_WINDOW_SECONDS
+app.config['RATE_LIMIT_MAX_REQUESTS'] = RATE_LIMIT_MAX_REQUESTS
+app.config['RATE_LIMIT_MAX_API_REQUESTS'] = RATE_LIMIT_MAX_API_REQUESTS
+app.config['TRUSTED_PROXY_CIDRS'] = TRUSTED_PROXY_CIDRS
+app.config['ADMIN_DB_RESET_ENABLED'] = ADMIN_DB_RESET_ENABLED
+app.config['ADMIN_DB_BACKUP_ENABLED'] = ADMIN_DB_BACKUP_ENABLED
+app.config['WEB_SYSTEM_UPDATE_ENABLED'] = WEB_SYSTEM_UPDATE_ENABLED
+app.config['WEB_GIT_PULL_ENABLED'] = WEB_GIT_PULL_ENABLED
 
 # CSRF Protection
 app.config['WTF_CSRF_ENABLED'] = True
@@ -210,9 +254,14 @@ def _request_is_secure():
 def _get_csrf_token():
     token = session.get('csrf_token')
     if not token:
-        import secrets
         token = secrets.token_urlsafe(32)
         session['csrf_token'] = token
+    return token
+
+
+def _rotate_csrf_token():
+    token = secrets.token_urlsafe(32)
+    session['csrf_token'] = token
     return token
 
 
@@ -224,6 +273,32 @@ def _is_same_origin(target_url):
         return True
     expected_scheme = 'https' if _request_is_secure() else request.scheme
     return parsed.scheme == expected_scheme and parsed.netloc == request.host
+
+
+SENSITIVE_REAUTH_ENDPOINTS = {
+    'admin_bp.roles',
+    'admin_bp.db_tool',
+    'admin_bp.db_manage',
+    'admin_bp.reset_users_password_bulk',
+    'admin_bp.system_update',
+    'admin_bp.git_pull',
+    'admin_bp.ai_settings',
+}
+
+
+def _current_user_agent_hash():
+    return fingerprint_security_value(
+        app.secret_key or app.config.get('SECRET_KEY') or '',
+        'user_agent',
+        request.headers.get('User-Agent', '') or '',
+    )
+
+
+def _get_reauth_redirect_target():
+    for candidate in (request.referrer, request.path):
+        if candidate and _is_same_origin(candidate):
+            return candidate
+    return url_for('admin_bp.index')
 
 
 @app.after_request
@@ -263,56 +338,45 @@ def add_security_headers(response):
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
+    if (request.args.get('clear_storage') or '').strip().lower() == 'true':
+        response.headers['Clear-Site-Data'] = '"cache", "cookies", "storage"'
     return response
 
-# Rate Limiting Configuration (Simple in-memory implementation)
-from collections import defaultdict
+# Rate limiting storage: {(ip, scope): [timestamp, ...]}
+from collections import defaultdict, deque
 
-# Rate limit storage: {ip: [(timestamp, count)]}
-rate_limit_store = defaultdict(list)
-RATE_LIMIT_WINDOW = 60  # seconds
-RATE_LIMIT_MAX = 30  # max requests per window
+rate_limit_store = defaultdict(deque)
 
 @app.before_request
 def check_rate_limit():
-    """Simple rate limiting to prevent spam and brute force"""
-    # Skip for static files and favicon
+    """Apply a small sliding-window rate limit per IP and request scope."""
     if request.path.startswith('/static') or request.path == '/favicon.ico':
         return
-    
-    # Skip login route to allow login attempts
+
     if request.endpoint == 'auth_bp.login':
         return
-    
-    # Get client IP
+
     from security_utils.security_helpers import get_client_ip
     client_ip = get_client_ip()
-    
     if not client_ip:
         return
-    
+
     current_time = datetime.now().timestamp()
-    
-    # Clean old entries
-    if client_ip in rate_limit_store:
-        rate_limit_store[client_ip] = [
-            (t, count) for t, count in rate_limit_store[client_ip]
-            if current_time - t < RATE_LIMIT_WINDOW
-        ]
-        
-        # Count requests in current window
-        total_requests = sum(count for t, count in rate_limit_store[client_ip])
-        
-        if total_requests >= RATE_LIMIT_MAX:
-            # Too many requests - return 429 with proper JSON response
-            return jsonify({'error': 'Quá nhiều yêu cầu. Vui lòng thử lại sau.'}), 429
-        
-        # Add current request
-        if rate_limit_store[client_ip]:
-            last_time, last_count = rate_limit_store[client_ip][-1]
-            rate_limit_store[client_ip][-1] = (last_time, last_count + 1)
-        else:
-            rate_limit_store[client_ip].append((current_time, 1))
+    window_seconds = int(app.config.get('RATE_LIMIT_WINDOW_SECONDS', 60))
+    default_limit = int(app.config.get('RATE_LIMIT_MAX_REQUESTS', 240))
+    api_limit = int(app.config.get('RATE_LIMIT_MAX_API_REQUESTS', 120))
+    limit = api_limit if request.path.startswith('/api/') else default_limit
+    scope = request.endpoint or request.path
+    bucket = rate_limit_store[(client_ip, scope)]
+    cutoff = current_time - window_seconds
+
+    while bucket and bucket[0] < cutoff:
+        bucket.popleft()
+
+    if len(bucket) >= limit:
+        return jsonify({'error': 'Quá nhiều yêu cầu. Vui lòng thử lại sau.'}), 429
+
+    bucket.append(current_time)
 
 db.init_app(app)
 
@@ -395,6 +459,73 @@ def check_auth():
 
 
 @app.before_request
+def enforce_session_integrity():
+    uid = session.get('uid')
+    if not uid:
+        return
+
+    user = db.session.get(User, uid)
+    if not user or not user.is_active:
+        session.clear()
+        session['csrf_token'] = secrets.token_urlsafe(32)
+        return redirect(url_for('auth_bp.login', clear_storage='true'))
+
+    session_version = int(session.get('session_version', -1))
+    current_version = int(getattr(user, 'session_version', 0) or 0)
+    if session_version != current_version:
+        log_security_event('session_revoked', f'uid={uid} | reason=session_version_changed')
+        session.clear()
+        session['csrf_token'] = secrets.token_urlsafe(32)
+        flash('Phiên đăng nhập đã hết hiệu lực do mật khẩu hoặc thông tin bảo mật vừa thay đổi.', 'warning')
+        return redirect(url_for('auth_bp.login', clear_storage='true'))
+
+    expected_user_agent_hash = session.get('session_user_agent_hash') or ''
+    current_user_agent_hash = _current_user_agent_hash()
+    if expected_user_agent_hash and current_user_agent_hash and not secrets.compare_digest(
+        str(expected_user_agent_hash),
+        str(current_user_agent_hash),
+    ):
+        log_security_event('session_binding_mismatch', f'uid={uid} | reason=user_agent_changed')
+        session.clear()
+        session['csrf_token'] = secrets.token_urlsafe(32)
+        flash('Phiên đăng nhập không còn an toàn. Vui lòng đăng nhập lại.', 'warning')
+        return redirect(url_for('auth_bp.login', clear_storage='true'))
+
+    current_ip_hint = build_ip_network_hint(get_client_ip())
+    stored_ip_hint = session.get('session_ip_hint') or ''
+    if stored_ip_hint and current_ip_hint and stored_ip_hint != current_ip_hint:
+        session['security_step_up_required'] = True
+        session['security_step_up_reason'] = 'network_change'
+
+
+@app.before_request
+def enforce_step_up_auth():
+    if not session.get('uid') or not session.get('is_admin'):
+        return
+    if request.endpoint == 'auth_bp.reauthenticate':
+        return
+    if request.endpoint not in SENSITIVE_REAUTH_ENDPOINTS:
+        return
+
+    reauth_window = int(app.config.get('SECURITY_REAUTH_WINDOW_SECONDS', 900))
+    reauth_at = float(session.get('reauth_at') or 0)
+    requires_reauth = (
+        not reauth_at
+        or (time.time() - reauth_at) > reauth_window
+        or bool(session.get('security_step_up_required'))
+    )
+    if not requires_reauth:
+        return
+
+    if request.method in {'GET', 'HEAD', 'OPTIONS'}:
+        flash('Vui lòng xác minh lại mật khẩu trước khi truy cập khu vực quản trị nhạy cảm.', 'warning')
+        return redirect(url_for('auth_bp.reauthenticate', next=request.full_path.rstrip('?')))
+
+    flash('Phiên xác minh đã hết hạn hoặc bối cảnh đăng nhập thay đổi. Hãy xác minh lại rồi thực hiện thao tác một lần nữa.', 'warning')
+    return redirect(url_for('auth_bp.reauthenticate', next=_get_reauth_redirect_target()))
+
+
+@app.before_request
 def enforce_csrf_protection():
     if request.method in {'GET', 'HEAD', 'OPTIONS'}:
         return
@@ -419,7 +550,7 @@ def enforce_csrf_protection():
         token = request.form.get('csrf_token') or request.headers.get('X-CSRFToken')
 
     expected_token = session.get('csrf_token')
-    if not expected_token or not token or token != expected_token:
+    if not expected_token or not token or not secrets.compare_digest(str(token), str(expected_token)):
         if request.endpoint and request.endpoint.startswith('api_bp.'):
             return jsonify({'error': 'CSRF validation failed.'}), 400
         return ('Yêu cầu không hợp lệ hoặc phiên làm việc đã hết hạn.', 400)
@@ -573,14 +704,25 @@ def security_txt_well_known():
 
 @app.route('/dl_file/<path:fn>')
 def dl_file(fn): 
-    legacy_task_folder = os.path.join(app.root_path, 'task_files')
-    candidate_dirs = [TASK_FOLDER, UPLOAD_FOLDER, LIB_FOLDER]
-    if legacy_task_folder not in candidate_dirs:
-        candidate_dirs.append(legacy_task_folder)
+    normalized_name = os.path.basename((fn or '').strip())
+    if not normalized_name or normalized_name != (fn or '').strip():
+        return render_template('404.html'), 404
+
+    candidate_dirs = []
+    if NewsDoc.query.filter_by(filename=normalized_name).first():
+        candidate_dirs.append(UPLOAD_FOLDER)
+    if DocumentLib.query.filter_by(filename=normalized_name).first():
+        candidate_dirs.append(LIB_FOLDER)
+    if not candidate_dirs:
+        return render_template('404.html'), 404
+
     for b in candidate_dirs:
-        target = os.path.join(b, fn)
-        if os.path.exists(target): 
-            return send_from_directory(b, fn, as_attachment=True)
+        try:
+            target = resolve_safe_path(b, normalized_name)
+        except (FileNotFoundError, ValueError):
+            continue
+        if target.is_file():
+            return send_file(target, as_attachment=True, download_name=target.name)
     return render_template('404.html'), 404
 
 if __name__ == '__main__':

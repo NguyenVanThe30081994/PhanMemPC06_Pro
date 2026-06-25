@@ -39,21 +39,13 @@
 {% endblock %}
 
 {% block content %}
-<section class="overview-mobile-hero">
-    <div class="overview-mobile-kicker">
-        <i class="fa-solid fa-house-chimney"></i>
-        Điều hành hệ thống
+<section class="mobile-page-stats">
+    {% for card in dashboard_cards %}
+    <div class="mobile-page-stat">
+        <span>{{ card.title }}</span>
+        <strong>{{ card.total }}</strong>
     </div>
-    <h1>Tổng quan PC06</h1>
-    <p>{{ now_str }}. Tổng hợp công việc, báo cáo, thư viện và danh bạ trên một màn hình điều hành.</p>
-    <div class="overview-mobile-stats">
-        {% for card in dashboard_cards %}
-        <div class="overview-mobile-stat">
-            <span>{{ card.title }}</span>
-            <strong>{{ card.total }}</strong>
-        </div>
-        {% endfor %}
-    </div>
+    {% endfor %}
 </section>
 
 <div class="overview-mobile-grid">

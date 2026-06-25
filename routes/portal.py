@@ -695,6 +695,11 @@ def user_guide():
         return redirect(url_for('auth_bp.login'))
     return render_template('user_guide.html', title='Hướng dẫn sử dụng phần mềm')
 
+@portal_bp.route('/ban-do-adn-liet-si')
+def martyr_adn_map():
+    return render_template('martyr_adn_map.html', title='Bản đồ ADN liệt sĩ - PhanMemPC06_Pro')
+
+
 @portal_bp.route('/notifications')
 def notifications():
     if not session.get('uid'): return redirect(url_for('auth_bp.login'))

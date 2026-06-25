@@ -20,6 +20,7 @@ from attendance_utils import (
 )
 from category_helpers import module_category_options, resolve_category_display
 from models import AppRole, AttendanceConfig, AttendanceSubmission, User, db
+from security_utils.file_validator import validate_file_upload
 from utils import (
     extract_unit_key,
     has_module_permission,
@@ -615,7 +616,9 @@ def _save_proof_file(file_storage):
         raise ValueError('Ảnh minh chứng là bắt buộc.')
 
     original_name = file_storage.filename
-    safe_name = secure_filename(original_name)
+    is_valid, validation_message, safe_name = validate_file_upload(file_storage)
+    if not is_valid:
+        raise ValueError(validation_message)
     if not safe_name or '.' not in safe_name:
         raise ValueError('Tên file ảnh không hợp lệ.')
 

@@ -1,15 +1,24 @@
 # -*- coding: utf-8 -*-
 import os
+import time
 import unittest
 from datetime import datetime
 
 from app import app
 from models import AttendanceConfig, AttendanceSubmission, CategoryGroup, CategoryItem, User, db
+from security_utils.runtime_security import build_ip_network_hint, fingerprint_security_value
 
 
 class AttendanceRouteTests(unittest.TestCase):
+    TEST_USER_AGENT = 'AttendanceRouteTest/1.0'
+
     def setUp(self):
         self.client = app.test_client()
+
+    def _issue_csrf_token(self):
+        with self.client.session_transaction() as sess:
+            sess['csrf_token'] = 'attendance-test-csrf'
+            return sess['csrf_token']
 
     def _ensure_unit_test_items(self):
         with app.app_context():
@@ -58,8 +67,12 @@ class AttendanceRouteTests(unittest.TestCase):
             sess['role_id'] = user.role_id
             sess['must_change'] = False
             sess['is_admin'] = True
-            sess['last_active'] = datetime.now().timestamp()
+            sess['last_active'] = time.time()
             sess['login_nonce'] = 'attendance-test-session'
+            sess['session_version'] = int(user.session_version or 0)
+            sess['session_user_agent_hash'] = fingerprint_security_value(app.secret_key, 'user_agent', self.TEST_USER_AGENT)
+            sess['session_ip_hint'] = build_ip_network_hint('127.0.0.1')
+            sess['reauth_at'] = time.time()
         return user
 
     def test_attendance_page_renders_for_logged_in_admin(self):
@@ -82,7 +95,7 @@ class AttendanceRouteTests(unittest.TestCase):
             config_id = config.id
 
         try:
-            response = self.client.get('/attendance')
+            response = self.client.get('/attendance', headers={'User-Agent': self.TEST_USER_AGENT})
             self.assertEqual(response.status_code, 200)
             self.assertIn('Điểm danh'.encode('utf-8'), response.data)
             self.assertIn('Tạo nhiệm vụ điểm danh'.encode('utf-8'), response.data)
@@ -143,10 +156,12 @@ class AttendanceRouteTests(unittest.TestCase):
 
     def test_admin_can_create_update_and_delete_attendance_config(self):
         admin_user = self._login_admin_session()
+        csrf_token = self._issue_csrf_token()
 
         create_response = self.client.post(
             '/attendance/config',
             data={
+                'csrf_token': csrf_token,
                 'name': 'CRUD attendance config',
                 'day_start_time': '08:00',
                 'day_end_time': '10:00',
@@ -155,6 +170,7 @@ class AttendanceRouteTests(unittest.TestCase):
                 'target_type': 'role',
                 'target_role_id': str(admin_user.role_id),
             },
+            headers={'User-Agent': self.TEST_USER_AGENT},
         )
         self.assertEqual(create_response.status_code, 302)
 
@@ -169,6 +185,7 @@ class AttendanceRouteTests(unittest.TestCase):
             update_response = self.client.post(
                 '/attendance/config',
                 data={
+                    'csrf_token': csrf_token,
                     'config_id': str(config_id),
                     'name': 'CRUD attendance config updated',
                     'day_start_time': '09:30',
@@ -178,6 +195,7 @@ class AttendanceRouteTests(unittest.TestCase):
                     'target_type': 'role',
                     'target_role_id': str(admin_user.role_id),
                 },
+                headers={'User-Agent': self.TEST_USER_AGENT},
             )
             self.assertEqual(update_response.status_code, 302)
 
@@ -192,7 +210,11 @@ class AttendanceRouteTests(unittest.TestCase):
                 self.assertEqual(updated.late_allow_minutes, 10)
                 self.assertEqual(updated.target_role_id, admin_user.role_id)
 
-            delete_response = self.client.post(f'/attendance/config/{config_id}/delete')
+            delete_response = self.client.post(
+                f'/attendance/config/{config_id}/delete',
+                data={'csrf_token': csrf_token},
+                headers={'User-Agent': self.TEST_USER_AGENT},
+            )
             self.assertEqual(delete_response.status_code, 302)
 
             with app.app_context():
@@ -206,6 +228,7 @@ class AttendanceRouteTests(unittest.TestCase):
     def test_admin_can_update_and_delete_attendance_submission(self):
         admin_user = self._login_admin_session()
         unit_items = self._ensure_unit_test_items()
+        csrf_token = self._issue_csrf_token()
 
         config_id = None
         submission_id = None
@@ -255,9 +278,11 @@ class AttendanceRouteTests(unittest.TestCase):
             update_response = self.client.post(
                 f'/attendance/submission/{submission_id}/update',
                 data={
+                    'csrf_token': csrf_token,
                     'unit_key': unit_items[1]['unit_key'],
                     'note': 'Updated submission note',
                 },
+                headers={'User-Agent': self.TEST_USER_AGENT},
             )
             self.assertEqual(update_response.status_code, 302)
 
@@ -268,7 +293,11 @@ class AttendanceRouteTests(unittest.TestCase):
                 self.assertEqual(updated.unit_area, unit_items[1]['name'])
                 self.assertEqual(updated.note, 'Updated submission note')
 
-            delete_response = self.client.post(f'/attendance/submission/{submission_id}/delete')
+            delete_response = self.client.post(
+                f'/attendance/submission/{submission_id}/delete',
+                data={'csrf_token': csrf_token},
+                headers={'User-Agent': self.TEST_USER_AGENT},
+            )
             self.assertEqual(delete_response.status_code, 302)
 
             with app.app_context():

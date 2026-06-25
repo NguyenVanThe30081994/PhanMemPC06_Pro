@@ -1,0 +1,55 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}Xác minh lại - PC06 Mobile{% endblock %}
+
+{% block content %}
+<div class="animate__animated animate__fadeIn">
+    <div class="mb-4 text-center">
+        <div class="d-inline-flex p-3 rounded-circle bg-warning bg-opacity-10 mb-3">
+            <i class="fa-solid fa-user-shield text-warning fs-3"></i>
+        </div>
+        <h4 class="fw-bold text-dark">Xác minh lại danh tính</h4>
+        <p class="text-muted small">Khu vực này yêu cầu nhập lại mật khẩu hiện tại.</p>
+    </div>
+
+    <div class="mobile-card">
+        <div class="badge bg-warning bg-opacity-10 text-warning rounded-pill mb-4 px-3 fw-bold tiny letter-spacing-1 uppercase">STEP-UP AUTH</div>
+        <form method="POST">
+            <input type="hidden" name="next" value="{{ next_url }}">
+            <div class="mb-4">
+                <label class="form-label fw-bold text-muted small text-uppercase mb-2">Mật khẩu hiện tại</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0" style="border-radius: 12px 0 0 12px;"><i class="fa-solid fa-lock text-muted opacity-50"></i></span>
+                    <input type="password" name="password" class="form-control border-start-0" placeholder="••••••••" required autocomplete="current-password" style="height: 50px;">
+                    <button class="btn btn-light border toggle-password" type="button" style="border-radius: 0 12px 12px 0;">
+                        <i class="fa-solid fa-eye-slash text-muted"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-5">
+                <button type="submit" class="btn-mobile btn-mobile-primary shadow" aria-label="Xác minh và tiếp tục" title="Xác minh và tiếp tục">
+                    <i class="fa-solid fa-shield-check"></i><span class="visually-hidden">Xác minh và tiếp tục</span>
+                </button>
+                <a href="{{ next_url or url_for('admin_bp.index') }}" class="btn btn-link w-100 mt-3 text-muted text-decoration-none small fw-bold" aria-label="Quay lại" title="Quay lại"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay lại</span></a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.toggle-password').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const input = btn.parentElement.querySelector('input');
+        const icon = btn.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.replace('fa-eye-slash', 'fa-eye');
+        } else {
+            input.type = 'password';
+            icon.classList.replace('fa-eye', 'fa-eye-slash');
+        }
+    });
+});
+</script>
+{% endblock %}

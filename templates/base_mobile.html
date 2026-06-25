@@ -190,6 +190,93 @@
             transform: scale(0.98);
         }
 
+        .mobile-page-toolbar,
+        .mobile-page-stat {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .mobile-page-toolbar {
+            padding: 16px;
+            display: grid;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .mobile-page-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .mobile-page-actions.cols-3 {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .mobile-page-actions.cols-4 {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .mobile-page-actions form {
+            margin: 0;
+        }
+
+        .mobile-page-actions > :only-child {
+            grid-column: 1 / -1;
+        }
+
+        .mobile-page-stats {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .mobile-page-stat {
+            padding: 14px;
+        }
+
+        .mobile-page-stat span {
+            display: block;
+            color: var(--text-muted);
+            font-size: 0.76rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .mobile-page-stat strong {
+            display: block;
+            margin-top: 6px;
+            color: var(--text-main);
+            font-size: 1rem;
+            font-weight: 800;
+            line-height: 1.35;
+        }
+
+        .mobile-page-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .mobile-page-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 34px;
+            padding: 0 12px;
+            border-radius: 999px;
+            background: var(--bg-body);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
         .btn-mobile i:only-child,
         .btn i:only-child,
         .nav-item i:only-child {

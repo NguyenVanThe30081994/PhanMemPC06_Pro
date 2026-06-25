@@ -7,11 +7,16 @@ from urllib.parse import urlparse
 import ipaddress
 try:
     from security_utils.password_validator import validate_password, get_password_requirements
+    from security_utils.runtime_security import generate_temporary_password, safe_extract_zip
 except ImportError:
     def validate_password(pwd):
         return len(pwd) >= 8, "Mật khẩu phải có ít nhất 8 ký tự"
     def get_password_requirements():
         return "Ít nhất 8 ký tự, có chữ hoa, chữ thường, chữ số"
+    def generate_temporary_password(length=16):
+        return os.urandom(max(12, int(length or 0))).hex()
+    def safe_extract_zip(zip_path, dest_dir, max_members=2000, max_total_size=250 * 1024 * 1024):
+        shutil.unpack_archive(zip_path, dest_dir)
 
 import os, json, shutil, zipfile, io, subprocess
 try:
@@ -307,6 +312,20 @@ def _mask_secret(value):
     return f"{value[:4]}{'*' * (len(value) - 8)}{value[-4:]}"
 
 
+def _get_ai_config_secret(config):
+    if not config:
+        return ''
+    secret_key = current_app.secret_key or current_app.config.get('SECRET_KEY') or ''
+    try:
+        value = config.get_api_key(secret_key)
+    except Exception:
+        return ''
+    if value and config.api_key and not config.api_key_encrypted:
+        config.set_api_key(secret_key, value)
+        db.session.commit()
+    return value
+
+
 def _reset_users_passwords_bulk(user_query, temporary_password):
     target_rows = user_query.with_entities(User.id, User.username).all()
     if not target_rows:
@@ -322,6 +341,7 @@ def _reset_users_passwords_bulk(user_query, temporary_password):
         {
             User.password_hash: default_hash,
             User.must_change_password: True,
+            User.session_version: func.coalesce(User.session_version, 0) + 1,
         },
         synchronize_session=False,
     )
@@ -942,6 +962,9 @@ def db_manage():
     action = request.form.get('action')
     try:
         if action == 'reset':
+            if not current_app.config.get('ADMIN_DB_RESET_ENABLED', False):
+                flash('Đã khóa reset cơ sở dữ liệu từ giao diện web. Chỉ bật lại bằng biến môi trường khi thật sự cần.', 'danger')
+                return redirect(url_for('admin_bp.db_tool'))
             from utils import init_db
             db.drop_all()
             db.create_all()
@@ -952,12 +975,14 @@ def db_manage():
             return redirect(url_for('auth_bp.login'))
             
         elif action == 'backup':
-            # Use the correct database name from app.py
-            db_path = os.path.join(current_app.root_path, 'pc06_system.db')
-            if os.path.exists(db_path):
-                return send_from_directory(current_app.root_path, 'pc06_system.db', as_attachment=True)
+            if not current_app.config.get('ADMIN_DB_BACKUP_ENABLED', False):
+                flash('Đã khóa tải backup DB từ giao diện web. Hãy sao lưu trực tiếp trên máy chủ.', 'danger')
+                return redirect(url_for('admin_bp.db_tool'))
+            db_path = current_app.config.get('SQLITE_DB_PATH') or ''
+            if db_path and os.path.exists(db_path):
+                return send_file(db_path, as_attachment=True, download_name=os.path.basename(db_path))
             else: 
-                flash(f'Không tìm thấy file database tại {db_path}!', 'danger')
+                flash('Không tìm thấy tệp SQLite backup khả dụng hoặc hệ thống đang dùng cơ sở dữ liệu ngoài.', 'danger')
     except Exception as e:
         flash(f'Lỗi thao tác: {e}', 'danger')
     return redirect(url_for('admin_bp.db_tool'))
@@ -997,6 +1022,7 @@ def roles():
                 unit = request.form.get('unit', 'Chưa xác định')
                 role_id = request.form.get('role_id')
                 password = request.form.get('password', '')
+                generated_password = ''
                 unit, unit_key = _resolve_user_unit_value(fullname, unit, username)
                 role = db.session.get(AppRole, role_id) if role_id else None
                 
@@ -1008,10 +1034,22 @@ def roles():
                     if not username:
                         flash('Không thể sinh tên đăng nhập từ đơn vị đã chọn!', 'danger')
                     else:
+                        if not password:
+                            generated_password = generate_temporary_password()
+                            password = generated_password
+                        is_valid_password, password_error = validate_password(password)
+                        if not is_valid_password:
+                            flash(password_error, 'danger')
+                            return redirect(url_for('admin_bp.roles'))
                         u = User(username=username, fullname=fullname, unit_area=unit, unit_key=unit_key, role_id=role_id)
                         u.set_password(password)
                         db.session.add(u)
                         log_action(session['uid'], session['fullname'], "Thêm tài khoản", "Tài khoản", u.username)
+                        if generated_password:
+                            flash(
+                                f'Tài khoản {u.username} được tạo với mật khẩu tạm thời: {generated_password}',
+                                'warning',
+                            )
             elif action == 'edit_user':
                 uid = request.form.get('user_id')
                 u = db.session.get(User, uid)
@@ -1028,7 +1066,13 @@ def roles():
                     u.role_id = request.form.get('role_id')
                     pwd = request.form.get('password')
                     if pwd and pwd.strip() and pwd != '******':
+                        is_valid_password, password_error = validate_password(pwd)
+                        if not is_valid_password:
+                            flash(password_error, 'danger')
+                            return redirect(url_for('admin_bp.roles'))
                         u.set_password(pwd)
+                        u.must_change_password = True
+                        u.session_version = int(getattr(u, 'session_version', 0) or 0) + 1
                     log_action(session['uid'], session['fullname'], "Sửa tài khoản", "Tài khoản", u.username)
             db.session.commit()
             flash('Thao tác thành công!', 'success')
@@ -1381,6 +1425,7 @@ def import_users():
             skipped_empty = 0
             skipped_invalid = 0
             import_mode = 'unit'
+            temporary_password = generate_temporary_password()
 
             fullname_col, title_col = _user_import_commander_columns(df, has_header=inferred_has_header)
             if fullname_col is not None and title_col is not None:
@@ -1410,7 +1455,7 @@ def import_users():
                         unit_key='pc06',
                         role_id=role_id
                     )
-                    u.set_password('123456')
+                    u.set_password(temporary_password)
                     db.session.add(u)
                     created_count += 1
             else:
@@ -1442,7 +1487,7 @@ def import_users():
                         unit_key=unit_key,
                         role_id=role_id
                     )
-                    u.set_password('123456')
+                    u.set_password(temporary_password)
                     db.session.add(u)
                     created_count += 1
             db.session.commit()
@@ -1456,6 +1501,11 @@ def import_users():
             header_note = 'có tiêu đề' if inferred_has_header else 'không có tiêu đề'
             mode_note = 'chỉ huy đội' if import_mode == 'commander' else 'đơn vị'
             flash(f'Đã nhập {created_count} tài khoản {mode_note} từ {len(df)} dòng dữ liệu ({header_note}).', 'success')
+            if created_count:
+                flash(
+                    f'Mật khẩu tạm thời áp dụng cho đợt import này: {temporary_password}. Yêu cầu người dùng đổi mật khẩu ngay khi đăng nhập.',
+                    'warning',
+                )
             if skipped_empty:
                 flash(f'Có {skipped_empty} dòng trống bị bỏ qua.', 'warning')
             if skipped_invalid:
@@ -1471,6 +1521,9 @@ def import_users():
 def system_update():
     if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
     if request.method == 'POST':
+        if not current_app.config.get('WEB_SYSTEM_UPDATE_ENABLED', False):
+            flash('Đã khóa cập nhật hệ thống qua giao diện web. Hãy triển khai bản vá trực tiếp trên máy chủ.', 'danger')
+            return redirect(url_for('admin_bp.system_update'))
         f = request.files.get('update_pkg')
         if f and f.filename.endswith('.zip'):
             upload_dir = os.path.join(current_app.root_path, 'uploads')
@@ -1501,7 +1554,12 @@ def system_update():
                         shutil.copytree(src, os.path.join(backup_dir, folder), dirs_exist_ok=True)
                 
                 # 3. Unpack and Restart
-                shutil.unpack_archive(p, current_app.root_path)
+                safe_extract_zip(
+                    p,
+                    current_app.root_path,
+                    blocked_roots={'uploads', 'task_files', 'library_files', 'backups', 'logs', 'tmp', '__pycache__'},
+                    blocked_names={'.env', '.secret_key', 'pc06_system.db', 'pc06_system.db-journal', 'db.sqlite3'},
+                )
                 restart = os.path.join(current_app.root_path, 'tmp', 'restart.txt')
                 os.makedirs(os.path.dirname(restart), exist_ok=True)
                 with open(restart, 'w', encoding='utf-8') as f_out: f_out.write(str(datetime.now()))
@@ -1565,9 +1623,9 @@ def ai_settings():
             config.is_active = is_active
 
             if clear_api_key:
-                config.api_key = None
+                config.clear_api_key()
             elif new_api_key:
-                config.api_key = new_api_key
+                config.set_api_key(current_app.secret_key or current_app.config.get('SECRET_KEY') or '', new_api_key)
 
             db.session.commit()
 
@@ -1607,7 +1665,7 @@ def ai_settings():
     if provider not in AI_PROVIDER_CHOICES:
         provider = 'deepseek'
 
-    current_key = (config.api_key or '').strip() if config else ''
+    current_key = _get_ai_config_secret(config)
     env_key_names = {
         'deepseek': 'DEEPSEEK_API_KEY',
         'gemini': 'GEMINI_API_KEY',
@@ -1640,6 +1698,9 @@ def ai_settings():
 @admin_bp.route('/admin/system/git-pull', methods=['POST'])
 def git_pull():
     if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    if not current_app.config.get('WEB_GIT_PULL_ENABLED', False):
+        flash('Đã khóa Git pull qua giao diện web. Hãy thao tác trực tiếp trên máy chủ.', 'danger')
+        return redirect(url_for('admin_bp.system_update'))
     
     try:
         # Check if git is available

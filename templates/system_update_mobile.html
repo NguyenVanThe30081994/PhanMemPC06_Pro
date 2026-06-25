@@ -13,19 +13,10 @@
 {% endblock %}
 
 {% block content %}
-<section class="mobile-update-hero">
-    <div class="mobile-update-kicker"><i class="fa-solid fa-code-branch"></i>Cập nhật bản vá</div>
-    <h1>Phiên bản hệ thống</h1>
-    <p>Quản lý gói cập nhật, đồng bộ Git và kiểm tra trạng thái repository.</p>
-</section>
-
-<section class="mobile-update-card">
-    <h6 class="fw-bold mb-3">Thông tin phiên bản</h6>
-    <div class="pc06-info-list">
-        <div class="pc06-info-item"><span>Nhánh</span><strong>{{ git_info.branch|default('main') }}</strong></div>
-        <div class="pc06-info-item"><span>Phiên bản</span><strong>{{ git_info.version|default('v3.5.0') }}</strong></div>
-        <div class="pc06-info-item"><span>Commit gần nhất</span><strong>{{ git_info.commit_msg|default('Phiên bản hiện tại') }}</strong></div>
-    </div>
+<section class="mobile-page-stats">
+    <div class="mobile-page-stat"><span>Nhánh</span><strong>{{ git_info.branch|default('main') }}</strong></div>
+    <div class="mobile-page-stat"><span>Phiên bản</span><strong>{{ git_info.version|default('v3.5.0') }}</strong></div>
+    <div class="mobile-page-stat"><span>Commit gần nhất</span><strong>{{ git_info.commit_msg|default('Phiên bản hiện tại') }}</strong></div>
 </section>
 
 <section class="mobile-update-card">
@@ -80,6 +71,12 @@
 </div>
 
 <script>
+function escapeGitHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value == null ? '' : String(value);
+    return div.innerHTML;
+}
+
 function confirmGitPull() {
     if (confirm('Đồng bộ GitHub và khởi động lại hệ thống?')) {
         document.getElementById('gitPullForm').submit();
@@ -101,7 +98,7 @@ function showGitLog() {
     .then(data => {
         let html = '';
         (data.commits || []).forEach(c => {
-            html += `<div class="border rounded-3 p-3 mb-2"><div class="fw-bold">${c.msg}</div><div class="tiny text-muted mt-1">${c.author} · ${c.date}</div></div>`;
+            html += `<div class="border rounded-3 p-3 mb-2"><div class="fw-bold">${escapeGitHtml(c.msg)}</div><div class="tiny text-muted mt-1">${escapeGitHtml(c.author)} · ${escapeGitHtml(c.date)}</div></div>`;
         });
         document.getElementById('gitLogOutput').innerHTML = html || '<div class="text-muted small">Không có commit</div>';
         new bootstrap.Modal(document.getElementById('gitLogModal')).show();

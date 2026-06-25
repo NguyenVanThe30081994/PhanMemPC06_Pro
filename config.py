@@ -3,21 +3,9 @@
 Configuration constants for PC06 application
 """
 import os
-import hashlib
-from datetime import timedelta
 
 # Security
-SECRET_KEY = os.environ.get('SECRET_KEY')
-if not SECRET_KEY:
-    secret_seed = '::'.join(
-        [
-            os.path.abspath(__file__),
-            os.environ.get('DATABASE_URL', 'sqlite:///pc06_system.db'),
-            os.environ.get('PC06_DATA_DIR', ''),
-            os.environ.get('FLASK_ENV', 'development'),
-        ]
-    )
-    SECRET_KEY = hashlib.sha256(secret_seed.encode('utf-8')).hexdigest()
+SECRET_KEY = (os.environ.get('SECRET_KEY') or '').strip()
 SESSION_LIFETIME = int(os.environ.get('SESSION_LIFETIME', 28800))  # 8 hours
 
 # File Upload
@@ -27,15 +15,19 @@ LIB_FOLDER = os.environ.get('LIB_FOLDER', 'library_files')
 BACKUP_FOLDER = os.environ.get('BACKUP_FOLDER', 'backups')
 MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))  # 16MB
 
-ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'pdf', 'docx', 'doc', 'png', 'jpg', 'jpeg'}
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'webp', 'zip', 'ppt', 'pptx'}
 ALLOWED_MIME_TYPES = {
+    'text/plain',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'application/vnd.ms-excel',
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/msword',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/zip',
     'image/png',
-    'image/jpeg'
+    'image/jpeg',
+    'image/webp',
 }
 
 # CSRF Protection
@@ -71,7 +63,25 @@ LOGIN_MAX_FAILURES_PER_USER = int(os.environ.get('LOGIN_MAX_FAILURES_PER_USER', 
 LOGIN_MAX_FAILURES_PER_IP = int(os.environ.get('LOGIN_MAX_FAILURES_PER_IP', 20))
 LOGIN_LOCKOUT_SECONDS = int(os.environ.get('LOGIN_LOCKOUT_SECONDS', 900))
 LOGIN_LOCKOUT_MULTIPLIER_MAX = int(os.environ.get('LOGIN_LOCKOUT_MULTIPLIER_MAX', 4))
+LOGIN_USER_LOCK_SCHEDULE = os.environ.get('LOGIN_USER_LOCK_SCHEDULE', '60,300,900,3600,14400,43200')
+LOGIN_IP_LOCK_SCHEDULE = os.environ.get('LOGIN_IP_LOCK_SCHEDULE', '300,900,3600,14400,43200')
+LOGIN_COLLAPSE_REPEAT_PASSWORD = os.environ.get('LOGIN_COLLAPSE_REPEAT_PASSWORD', 'true').lower() == 'true'
+LOGIN_LOCKOUT_DECAY_SECONDS = int(os.environ.get('LOGIN_LOCKOUT_DECAY_SECONDS', 86400))
+SECURITY_REAUTH_WINDOW_SECONDS = int(os.environ.get('SECURITY_REAUTH_WINDOW_SECONDS', 900))
+SECURITY_DEVICE_COOKIE_NAME = os.environ.get('SECURITY_DEVICE_COOKIE_NAME', 'pc06_device')
+SECURITY_DEVICE_COOKIE_MAX_AGE = int(os.environ.get('SECURITY_DEVICE_COOKIE_MAX_AGE', 31536000))
 AUTH_FAILURE_DELAY_MS = int(os.environ.get('AUTH_FAILURE_DELAY_MS', 600))
+RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get('RATE_LIMIT_WINDOW_SECONDS', 60))
+RATE_LIMIT_MAX_REQUESTS = int(os.environ.get('RATE_LIMIT_MAX_REQUESTS', 240))
+RATE_LIMIT_MAX_API_REQUESTS = int(os.environ.get('RATE_LIMIT_MAX_API_REQUESTS', 120))
+TRUSTED_PROXY_CIDRS = os.environ.get(
+    'TRUSTED_PROXY_CIDRS',
+    '127.0.0.1/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16',
+)
+ADMIN_DB_RESET_ENABLED = os.environ.get('ADMIN_DB_RESET_ENABLED', 'false').lower() == 'true'
+ADMIN_DB_BACKUP_ENABLED = os.environ.get('ADMIN_DB_BACKUP_ENABLED', 'false').lower() == 'true'
+WEB_SYSTEM_UPDATE_ENABLED = os.environ.get('WEB_SYSTEM_UPDATE_ENABLED', 'false').lower() == 'true'
+WEB_GIT_PULL_ENABLED = os.environ.get('WEB_GIT_PULL_ENABLED', 'false').lower() == 'true'
 
 # Logging
 LOG_DIR = 'logs'

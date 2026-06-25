@@ -4,38 +4,31 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    <section class="pc06-hero-card">
-        <div class="pc06-hero-grid">
-            <div>
-                <h1 class="pc06-page-title">QR&Link</h1>
-                <div class="pc06-action-cluster">
-                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLinkModal">
-                        <i class="fa-solid fa-plus"></i>
-                        Tạo liên kết
-                    </button>
-                </div>
-            </div>
-            <div class="pc06-stat-strip">
-                <div class="pc06-metric-card">
-                    <span>Tổng liên kết</span>
-                    <strong>{{ links|length }}</strong>
-                </div>
-                <div class="pc06-metric-card">
-                    <span>Tổng lượt mở</span>
-                    <strong>{{ links|sum(attribute='clicks') }}</strong>
-                </div>
-                <div class="pc06-metric-card">
-                    <span>Phạm vi</span>
-                    <strong style="font-size:1rem;">{{ 'Toàn hệ thống' if is_admin else 'Cá nhân' }}</strong>
-                </div>
-            </div>
+    <div class="pc06-page-summary">
+        <div class="pc06-page-summary-card">
+            <span>Tổng liên kết</span>
+            <strong>{{ links|length }}</strong>
         </div>
-    </section>
+        <div class="pc06-page-summary-card">
+            <span>Tổng lượt mở</span>
+            <strong>{{ links|sum(attribute='clicks') }}</strong>
+        </div>
+        <div class="pc06-page-summary-card">
+            <span>Phạm vi</span>
+            <strong>{{ 'Toàn hệ thống' if is_admin else 'Cá nhân' }}</strong>
+        </div>
+    </div>
 
     <section class="pc06-panel">
         <div class="pc06-panel-head">
             <div>
                 <h2>Danh sách liên kết</h2>
+            </div>
+            <div class="pc06-page-actions">
+                <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLinkModal">
+                    <i class="fa-solid fa-plus"></i>
+                    Tạo liên kết
+                </button>
             </div>
         </div>
 
@@ -175,9 +168,75 @@
 </div>
 
 <style>
+    .shortlink-table-wrap {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    .shortlink-table-wrap .table {
+        width: 100%;
+        min-width: 1180px;
+        table-layout: fixed;
+    }
+
     .shortlink-table-wrap .table td,
     .shortlink-table-wrap .table th {
         vertical-align: middle;
+    }
+
+    .shortlink-table-wrap .table th:nth-child(1),
+    .shortlink-table-wrap .table td:nth-child(1) {
+        width: 22%;
+    }
+
+    .shortlink-table-wrap .table th:nth-child(2),
+    .shortlink-table-wrap .table td:nth-child(2) {
+        width: 24%;
+    }
+
+    .shortlink-table-wrap .table th:nth-child(3),
+    .shortlink-table-wrap .table td:nth-child(3) {
+        width: 28%;
+    }
+
+    .shortlink-table-wrap .table th:nth-child(4),
+    .shortlink-table-wrap .table td:nth-child(4) {
+        width: 8%;
+    }
+
+    .shortlink-table-wrap .table th:nth-child(5),
+    .shortlink-table-wrap .table td:nth-child(5) {
+        width: 8%;
+    }
+
+    .shortlink-table-wrap .table th:nth-child(6),
+    .shortlink-table-wrap .table td:nth-child(6) {
+        width: 10%;
+    }
+
+    .shortlink-table-wrap .table th:nth-child(7),
+    .shortlink-table-wrap .table td:nth-child(7) {
+        width: 10%;
+    }
+
+    .shortlink-table-wrap .table td:nth-child(2) > div,
+    .shortlink-table-wrap .table td:nth-child(3) a {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .shortlink-table-wrap .table td:nth-child(3) .d-flex {
+        min-width: 0;
+    }
+
+    .shortlink-table-wrap .table td:nth-child(3) a {
+        min-width: 0;
+        flex: 1 1 auto;
     }
 
     .shortlink-modal-head {
