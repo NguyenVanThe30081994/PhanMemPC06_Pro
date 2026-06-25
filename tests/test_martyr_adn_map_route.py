@@ -37,10 +37,11 @@ class MartyrAdnMapRouteTests(unittest.TestCase):
             sess['reauth_at'] = time.time()
             sess['csrf_token'] = 'martyr-adn-map-csrf'
 
-    def test_route_requires_login(self):
+    def test_route_is_public(self):
         response = self.client.get('/ban-do-adn-liet-si', follow_redirects=False)
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('/login', response.headers.get('Location', ''))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('15 điểm thu mẫu ADN'.encode('utf-8'), response.data)
+        self.assertIn('PhanMemPC06_Pro'.encode('utf-8'), response.data)
 
     def test_logged_in_user_can_open_map(self):
         self._login_session()
