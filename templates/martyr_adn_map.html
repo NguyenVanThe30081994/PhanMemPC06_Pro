@@ -101,12 +101,6 @@
       padding-top: 24px;
     }
 
-    .page-shell.is-reference-mode {
-      width: min(1880px, calc(100% - 28px));
-      margin: 16px auto 24px;
-      padding-top: 0;
-    }
-
     .toolbar-card,
     .map-card,
     .summary-card {
@@ -145,7 +139,7 @@
     #direction-tabs,
     #day-filter {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       gap: 8px;
       align-items: center;
     }
@@ -159,12 +153,22 @@
       transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, color 0.16s ease;
     }
 
-    .segmented-button {
-      min-width: 148px;
+    .day-chip {
       padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.84);
+      color: var(--ink-700);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+    }
+
+    .segmented-button {
+      min-width: auto;
+      padding: 10px 20px;
       background: transparent;
       color: var(--ink-700);
-      text-align: left;
+      text-align: center;
       border-radius: 20px;
     }
 
@@ -228,17 +232,123 @@
       overflow: hidden;
       user-select: none;
       background:
-        radial-gradient(circle at 18% 20%, rgba(28, 120, 97, 0.06), transparent 18%),
-        radial-gradient(circle at 75% 16%, rgba(99, 102, 241, 0.07), transparent 16%),
-        radial-gradient(circle at 82% 70%, rgba(196, 102, 31, 0.06), transparent 22%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(251, 249, 244, 0.98));
+        linear-gradient(rgba(255, 255, 255, 0.91), rgba(253, 251, 247, 0.93)),
+        url("{{ url_for('static', filename='img/bg_le_phat_dong.jpg') }}") no-repeat center center / cover;
       border: 1px solid rgba(226, 232, 240, 0.74);
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
       isolation: isolate;
     }
 
+    .map-header-title {
+      font-size: 14.5px;
+      font-weight: 800;
+      color: #b91c1c; /* Dark red */
+      letter-spacing: 0.05em;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 10px 18px;
+      border-radius: 14px;
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      font-family: var(--font-display);
+      text-transform: uppercase;
+      width: fit-content;
+      backdrop-filter: blur(8px);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .map-header-title::before {
+      content: "🛡️";
+      font-size: 16px;
+    }
+
     .map-stage.is-reference-mode {
       min-height: 980px;
+    }
+
+    /* ── Hub Sidebar (left panel, fixed catchment mode) ─────────────── */
+    #hub-sidebar {
+      position: absolute;
+      top: 50%;
+      left: 18px;
+      transform: translateY(-50%);
+      z-index: 12;
+      width: 220px;
+      max-height: calc(100% - 180px);
+      overflow-y: auto;
+      background: rgba(255, 255, 255, 0.97);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.06);
+      padding: 10px 8px;
+      display: none;
+      flex-direction: column;
+      gap: 4px;
+    }
+    #hub-sidebar.is-visible {
+      display: flex;
+    }
+    .hub-sidebar-head {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #94a3b8;
+      padding: 4px 10px 6px;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+      margin-bottom: 4px;
+      font-family: var(--font-display);
+    }
+    .hub-sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: 12px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+      transition: background 0.15s ease;
+      font-family: var(--font-body, inherit);
+    }
+    .hub-sidebar-item:hover {
+      background: rgba(196, 102, 31, 0.07);
+    }
+    .hub-sidebar-item.is-active {
+      background: linear-gradient(135deg, rgba(196, 102, 31, 0.12), rgba(234, 179, 8, 0.08));
+      border: 1px solid rgba(196, 102, 31, 0.2);
+    }
+    .hub-sidebar-dot {
+      flex-shrink: 0;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 2px var(--item-color, #c4661f);
+      background: var(--item-color, #c4661f);
+    }
+    .hub-sidebar-info {
+      min-width: 0;
+    }
+    .hub-sidebar-name {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #1e293b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.2;
+    }
+    .hub-sidebar-sub {
+      display: block;
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 1px;
     }
 
     .map-stage::before {
@@ -272,6 +382,9 @@
     .map-switch-stack {
       width: fit-content;
       max-width: min(1180px, calc(100% - 80px));
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
 
     .map-filter-card {
@@ -280,10 +393,17 @@
 
     .map-filter-bar {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
+      overflow-x: auto;
+      scrollbar-width: none;
     }
+    .map-filter-bar::-webkit-scrollbar {
+      display: none;
+    }
+
+
 
     .filter-divider {
       width: 1px;
@@ -422,13 +542,13 @@
 
     .route-path.route-path-catchment {
       opacity: 0.88;
-      stroke-dasharray: 6 6;
-      animation: dash-catchment 15s linear infinite;
+      stroke-dasharray: 8 6;
+      animation: dash-catchment 2.2s linear infinite;
     }
 
     @keyframes dash-catchment {
       to {
-        stroke-dashoffset: -120;
+        stroke-dashoffset: 140;
       }
     }
 
@@ -449,9 +569,64 @@
       pointer-events: auto;
       color: inherit;
       transform: none;
-      transition: transform 0.16s ease, opacity 0.16s ease;
+      transition:
+        left 0.55s cubic-bezier(0.34, 1.56, 0.64, 1),
+        top  0.55s cubic-bezier(0.34, 1.56, 0.64, 1),
+        opacity 0.36s ease,
+        transform 0.36s ease;
       overflow: visible;
     }
+
+    /* Hub states — hubs always show at full opacity in fixed column */
+    .map-node.is-hub-idle {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .map-node.is-hub-idle:hover {
+      opacity: 1;
+      transform: scale(1.08);
+    }
+    .map-node.is-hub-focused {
+      opacity: 1;
+      transform: scale(1);
+      z-index: 10;
+    }
+    .map-node.is-hub-focused .map-node-dot {
+      animation: hub-pulse 2.2s ease-in-out infinite;
+    }
+    @keyframes hub-pulse {
+      0%, 100% {
+        box-shadow:
+          0 0 0 8px rgba(255,255,255,0.4),
+          0 0 0 18px rgba(196,102,31,0.18),
+          0 0 40px 8px rgba(196,102,31,0.22),
+          0 22px 42px rgba(15,23,42,0.3);
+      }
+      50% {
+        box-shadow:
+          0 0 0 8px rgba(255,255,255,0.4),
+          0 0 0 26px rgba(196,102,31,0.07),
+          0 0 64px 18px rgba(196,102,31,0.12),
+          0 22px 42px rgba(15,23,42,0.3);
+      }
+    }
+
+    /* Staggered satellite reveal */
+    .map-node.is-area-hidden {
+      opacity: 0;
+      transform: scale(0.38) translateX(-24px);
+      pointer-events: none;
+    }
+    .map-node.is-area-reveal {
+      opacity: 1;
+      transform: scale(1);
+      transition:
+        left 0.55s cubic-bezier(0.34, 1.56, 0.64, 1),
+        top  0.55s cubic-bezier(0.34, 1.56, 0.64, 1),
+        opacity 0.38s ease,
+        transform 0.46s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
 
     .map-node.is-dimmed {
       opacity: 0.82;
@@ -1194,6 +1369,9 @@
                   <div class="day-filter" id="day-filter"></div>
                 </div>
               </div>
+              <div class="map-header-title">
+                PHƯƠNG ÁN THU NHẬN MẪU ADN TRÊN ĐỊA BÀN TỈNH TUYÊN QUANG
+              </div>
             </div>
             <div class="map-toolbar">
               <div class="map-toolbar-group">
@@ -1201,12 +1379,13 @@
                 <div class="map-status" id="map-status">100%</div>
                 <button type="button" class="map-control" id="zoom-in-button" aria-label="Phóng to">+</button>
                 <button type="button" class="map-control" id="reset-view-button" aria-label="Đặt lại góc nhìn">↺</button>
-                <span style="font-size: 11px; opacity: 0.6; margin-left: 8px; font-weight: 600; font-family: var(--font-display);">v3.7.0</span>
+                <span style="font-size: 11px; opacity: 0.6; margin-left: 8px; font-weight: 600; font-family: var(--font-display);">v3.8.8</span>
 
               </div>
               <button type="button" class="summary-toggle" id="summary-toggle" aria-label="Mở thông tin">☰</button>
             </div>
           </div>
+          <div id="hub-sidebar"></div>
           <div class="map-viewport" id="map-viewport">
             <svg class="map-svg" id="map-svg" viewBox="0 0 1400 900" aria-hidden="true"></svg>
             <div class="segment-layer" id="segment-layer"></div>
@@ -1401,10 +1580,12 @@
         data.directions.forEach((item) => {
           const button = document.createElement("button");
           button.type = "button";
+          const cleanLabel = item.id === "co-dinh" ? "Cố định" : (item.id === "luu-dong" ? "Lưu động" : item.label);
           button.className = "segmented-button" + (item.id === direction.id ? " is-active" : "");
-          button.title = item.shortLabel || item.label;
-          button.innerHTML = `<strong>${item.label}</strong>`;
-          button.addEventListener("click", () => {
+          button.title = cleanLabel;
+          button.innerHTML = `<strong>${cleanLabel}</strong>`;
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
             if (state.directionId === item.id) {
               return;
             }
@@ -1424,8 +1605,9 @@
         const allButton = document.createElement("button");
         allButton.type = "button";
         allButton.className = "day-chip" + (state.dayIndex === null ? " is-active" : "");
-        allButton.textContent = "Tất cả 5 ngày";
-        allButton.addEventListener("click", () => {
+        allButton.textContent = "Tất cả";
+        allButton.addEventListener("click", (event) => {
+          event.stopPropagation();
           if (state.dayIndex === null) {
             return;
           }
@@ -1442,7 +1624,8 @@
           button.type = "button";
           button.className = "day-chip" + (state.dayIndex === dayIndex ? " is-active" : "");
           button.textContent = day.dateLabel;
-          button.addEventListener("click", () => {
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
             if (state.dayIndex === dayIndex) {
               return;
             }
@@ -1837,6 +2020,12 @@
         }
         const map = new Map();
         routes.forEach((route) => {
+          // Build a lookup: dayIndex -> dayDetail (contains venue, scheduleText, staffCore etc.)
+          const detailByDay = new Map();
+          (route.dayDetails || []).forEach((detail) => {
+            detailByDay.set(detail.dayIndex, detail);
+          });
+
           const sourcePoints = route.allPoints || route.points;
           sourcePoints.forEach((point) => {
             if (!map.has(point.key)) {
@@ -1846,11 +2035,16 @@
                 lat: point.lat,
                 lng: point.lng,
                 total: 0,
+                kind: "hub",
                 occurrences: []
               });
             }
             const node = map.get(point.key);
             node.total += Number(point.total || 0);
+
+            // Fetch detail for this day to get track-level info
+            const detail = detailByDay.get(point.dayIndex) || {};
+
             node.occurrences.push({
               routeId: route.id,
               routeLabel: route.label,
@@ -1864,12 +2058,22 @@
               color: route.color,
               areas: point.areas || [],
               lat: point.lat,
-              lng: point.lng
+              lng: point.lng,
+              // Track-level fields for lưu động panel
+              venue: detail.venue || "",
+              scheduleText: detail.scheduleText || "",
+              noteText: detail.staffSite || "",
+              staffCore: detail.staffCore || "",
+              plannedText: detail.plannedText || "",
+              equipmentTeam: detail.equipmentTeam || "",
+              equipmentProvince: detail.equipmentProvince || "",
+              trackTitle: detail.titleShort || detail.title || route.label || ""
             });
           });
         });
         return map;
       }
+
 
       function projectNodes(nodes, options = {}) {
         const {
@@ -2052,9 +2256,12 @@
         return positions;
       }
 
+
+
       function buildFixedCatchmentPositions(routes, routeNodes) {
         const positions = new Map();
-        
+
+        // Resolve which hub is currently active
         let activeHubKey = null;
         const activeRoute = resolveActiveRoute(routes);
         const preferredNodeKey = getPreferredRouteNodeKey(activeRoute);
@@ -2066,79 +2273,135 @@
           }
         }
 
-        const hubAnchors = routes.length === 1
-          ? [{ x: STAGE_WIDTH * 0.25, y: STAGE_HEIGHT * 0.5 }]
-          : routes.length === 2
-            ? [
-              { x: STAGE_WIDTH * 0.2, y: STAGE_HEIGHT * 0.38 },
-              { x: STAGE_WIDTH * 0.2, y: STAGE_HEIGHT * 0.65 }
-            ]
-            : [
-              { x: STAGE_WIDTH * 0.18, y: STAGE_HEIGHT * 0.25 },
-              { x: STAGE_WIDTH * 0.18, y: STAGE_HEIGHT * 0.52 },
-              { x: STAGE_WIDTH * 0.18, y: STAGE_HEIGHT * 0.78 }
-            ];
+        if (!activeHubKey) return positions;
 
-        routes.forEach((route, routeIndex) => {
-          const hubs = [];
-          const seen = new Set();
-          route.points.forEach((point) => {
-            if (seen.has(point.key) || !routeNodes.has(point.key)) {
-              return;
-            }
-            const hubNode = routeNodes.get(point.key);
-            if (!hubNode || hubNode.kind !== "hub") {
-              return;
-            }
-            seen.add(point.key);
-            hubs.push(hubNode);
-          });
-          if (!hubs.length) {
-            return;
-          }
+        const activeHubNode = routeNodes.get(activeHubKey);
+        if (!activeHubNode) return positions;
 
-          const anchor = hubAnchors[routeIndex] || { x: STAGE_WIDTH / 2, y: STAGE_HEIGHT / 2 };
-          const hubXs = hubs.length === 1
-            ? [anchor.x]
-            : [anchor.x - 110, anchor.x + 110];
+        // Active hub: placed at left-center (anchor point for connecting lines to satellites)
+        const HUB_X = STAGE_WIDTH * 0.32;
+        const HUB_Y = STAGE_HEIGHT * 0.5;
+        positions.set(activeHubKey, { ...activeHubNode, x: HUB_X, y: HUB_Y });
 
-          hubs.forEach((hubNode, hubIndex) => {
-            const hubX = hubXs[hubIndex] || anchor.x;
-            const hubY = anchor.y + (hubIndex % 2 === 0 ? -12 : 12);
-            positions.set(hubNode.key, {
-              ...hubNode,
-              x: hubX,
-              y: hubY
+        // Satellites of the active hub: fan out to the right
+        const areaNodes = Array.from(routeNodes.values())
+          .filter((node) => node.kind === "area" && node.sourceHubKey === activeHubKey)
+          .sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
+
+        const count = areaNodes.length;
+        const verticalGap = 88;
+
+        if (count > 7) {
+          // Two columns: one left, one right of hub center
+          // Hub shifts right so left column clears the sidebar panel (~238px)
+          const HUB_X_WIDE = STAGE_WIDTH * 0.46;  // ~644px
+          const HUB_Y_WIDE = STAGE_HEIGHT * 0.5;
+          // Update hub position for this wide layout
+          positions.set(activeHubKey, { ...activeHubNode, x: HUB_X_WIDE, y: HUB_Y_WIDE });
+
+          const col1 = [], col2 = [];
+          areaNodes.forEach((node, idx) => (idx % 2 === 0 ? col1 : col2).push(node));
+          const placeCol = (nodes, colX, anchorY) => {
+            const h = (nodes.length - 1) * verticalGap;
+            const sy = anchorY - h / 2;
+            nodes.forEach((node, idx) => {
+              positions.set(node.key, { ...node, x: colX, y: sy + idx * verticalGap });
             });
-
-            if (hubNode.key === activeHubKey) {
-              const areaNodes = Array.from(routeNodes.values())
-                .filter((node) => node.kind === "area" && node.sourceHubKey === hubNode.key)
-                .sort((left, right) => Number(right.total || 0) - Number(left.total || 0));
-                
-              const count = areaNodes.length;
-              // Always fan satellites to the RIGHT for consistent layout
-              const deltaX = 320;
-
-              const verticalGap = 90;
-              const totalHeight = (count - 1) * verticalGap;
-              const startY = hubY - totalHeight / 2;
-
-              areaNodes.forEach((node, index) => {
-                positions.set(node.key, {
-                  ...node,
-                  x: hubX + deltaX,
-                  y: startY + index * verticalGap
-                });
-              });
-            }
+          };
+          // Left column: at least 260px from left (sidebar ends ~238px), so 260px is safe
+          placeCol(col1, HUB_X_WIDE - 260, HUB_Y_WIDE);
+          placeCol(col2, HUB_X_WIDE + 260, HUB_Y_WIDE);
+        } else {
+          // Single column to the right
+          const h = (count - 1) * verticalGap;
+          const sy = HUB_Y - h / 2;
+          areaNodes.forEach((node, index) => {
+            positions.set(node.key, { ...node, x: HUB_X + 300, y: sy + index * verticalGap });
           });
-        });
+        }
 
         return positions;
       }
 
+      function renderHubSidebar(routes, routeNodes, activeHubKey, direction, fixedCatchmentMode) {
+        const sidebarEl = document.getElementById("hub-sidebar");
+        if (!sidebarEl) return;
 
+        // Only show sidebar when in fixed catchment mode AND a specific day is selected (not Tất cả)
+        const show = !!fixedCatchmentMode;
+        sidebarEl.classList.toggle("is-visible", show);
+        if (!show) { sidebarEl.innerHTML = ""; return; }
+
+        // Collect all unique hubs across all routes
+        const allHubs = [];
+        const seen = new Set();
+        routes.forEach((route) => {
+          route.points.forEach((point) => {
+            if (seen.has(point.key) || !routeNodes.has(point.key)) return;
+            const hubNode = routeNodes.get(point.key);
+            if (hubNode && hubNode.kind === "hub") {
+              seen.add(point.key);
+              allHubs.push(hubNode);
+            }
+          });
+        });
+
+        sidebarEl.innerHTML = `
+          <div class="hub-sidebar-head">Trạm thu nhận <span id="sidebar-debug" style="font-size:10px;color:#ef4444;margin-left:5px;font-weight:normal;"></span></div>
+          ${allHubs.map((hub) => {
+            const isActive = hub.key === activeHubKey;
+            const color = hub.occurrences?.[0]?.color || "#c4661f";
+            const areaCount = Array.from(routeNodes.values())
+              .filter((n) => n.kind === "area" && n.sourceHubKey === hub.key).length;
+            return `
+              <button
+                type="button"
+                class="hub-sidebar-item${isActive ? " is-active" : ""}"
+                data-hub-key="${hub.key}"
+                style="--item-color: ${color};"
+              >
+                <div class="hub-sidebar-dot"></div>
+                <div class="hub-sidebar-info">
+                  <span class="hub-sidebar-name">${hub.name}</span>
+                  <span class="hub-sidebar-sub">${areaCount} xã/phường</span>
+                </div>
+              </button>
+            `;
+          }).join("")}
+        `;
+
+        sidebarEl.querySelectorAll(".hub-sidebar-item").forEach((btn) => {
+          btn.addEventListener("click", (event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            const hubKey = btn.getAttribute("data-hub-key");
+            const hubNode = routeNodes.get(hubKey);
+            const dbg = document.getElementById("sidebar-debug");
+            if (dbg) {
+              dbg.innerText = `Click: ${hubKey.split('|')[0]} (${hubNode ? "OK" : "ERR"})`;
+            }
+            console.log("Sidebar Clicked:", hubKey, "Node found:", !!hubNode);
+            
+            // Dynamic title change for absolute visual verification
+            const titleEl = document.querySelector(".map-header-title");
+            if (titleEl) {
+              titleEl.innerHTML = `PHƯƠNG ÁN THU NHẬN - ĐÃ CHỌN: <span style="color:#f97316;">${hubNode ? hubNode.name : "ERR"}</span>`;
+            }
+
+            state.activeNodeKey = hubKey;
+            if (hubNode && hubNode.occurrences && hubNode.occurrences[0]) {
+              state.activeRouteId = hubNode.occurrences[0].routeId;
+              console.log("Setting activeRouteId:", state.activeRouteId);
+            } else {
+              console.warn("No occurrences found for hub node:", hubKey);
+            }
+            state.summaryOpen = true;
+            summaryDrawerEl.classList.add("is-open");
+            state.shouldAutoFit = false;
+            render();
+          });
+        });
+      }
 
       function buildFixedCatchmentSegments(routes, routeNodes) {
         const segments = [];
@@ -2430,7 +2693,7 @@
           if (dragMoved) {
             return;
           }
-          if (event.target.closest(".map-node") || event.target.closest(".map-toolbar") || event.target.closest("#summary-drawer") || event.target.closest("#summary-toggle")) {
+          if (event.target.closest(".map-node") || event.target.closest(".map-toolbar") || event.target.closest("#summary-drawer") || event.target.closest("#summary-toggle") || event.target.closest("#hub-sidebar")) {
             return;
           }
           state.activeNodeKey = null;
@@ -2503,7 +2766,7 @@
         if (node.kind === "area" && node.sourceHubKey) {
           const hubNode = positions ? positions.get(node.sourceHubKey) : null;
           if (hubNode) {
-            return hubNode.x < STAGE_WIDTH / 2 ? "anchor-right" : "anchor-left";
+            return node.x < hubNode.x ? "anchor-left" : "anchor-right";
           }
           return "anchor-right";
         }
@@ -2530,6 +2793,8 @@
           mapSvgEl.innerHTML = "";
           segmentLayerEl.innerHTML = "";
           nodeLayerEl.innerHTML = "";
+          const sb = document.getElementById("hub-sidebar");
+          if (sb) { sb.classList.remove("is-visible"); sb.innerHTML = ""; }
           return;
         }
 
@@ -2636,25 +2901,61 @@
             : nodeSize(node.total, maxTotal);
           const isActive = activeNodeKey === node.key;
           const occurrenceCount = node.occurrences.length;
+          const isAreaNode = node.kind === "area";
+
+          // PowerPoint animation class — only in fixedCatchmentMode
+          let pptClass = "";
+          if (fixedCatchmentMode) {
+            if (isAreaNode) {
+              pptClass = " is-area-hidden";
+            } else {
+              pptClass = node.key === activeHubKey ? " is-hub-focused" : " is-hub-idle";
+            }
+          }
+
+          const hubKey = isAreaNode ? (node.sourceHubKey || "") : node.key;
+
           return `
             <button
               type="button"
-              class="map-node ${node.kind === "area" ? "is-area-node " : ""}${anchor}${isActive ? " is-active" : ""}"
+              class="map-node ${isAreaNode ? "is-area-node " : ""}${anchor}${isActive ? " is-active" : ""}${pptClass}"
               style="left:${node.x}px; top:${node.y}px; --node-color:${color}; --node-size:${size}px;"
               data-node-key="${node.key}"
+              data-kind="${node.kind}"
+              data-hub-key="${hubKey}"
             >
               <div class="map-node-dot"></div>
               <div class="map-node-label">
                 <strong>${node.name}</strong>
                 <span>${formatNumber(node.total)} ${direction.id === "co-dinh" ? "TNLS" : "người"}</span>
-                <small>${node.kind === "area" ? `về ${primaryOccurrence?.hubName || ""}` : `${occurrenceCount} lượt`}</small>
+                <small>${isAreaNode ? `về ${primaryOccurrence?.hubName || ""}` : `${occurrenceCount} lượt`}</small>
               </div>
             </button>
           `;
         }).join("");
 
+        // Render hub sidebar (left panel) for fixed catchment mode
+        renderHubSidebar(routes, routeNodes, activeHubKey, direction, fixedCatchmentMode);
+
+        // PowerPoint stagger: reveal satellite area nodes one by one
+        if (fixedCatchmentMode && activeHubKey) {
+          const escapedHubKey = CSS.escape(activeHubKey);
+          const areaButtons = Array.from(
+            nodeLayerEl.querySelectorAll(`.is-area-hidden[data-hub-key="${activeHubKey}"]`)
+          );
+          areaButtons.forEach((btn, idx) => {
+            setTimeout(() => {
+              btn.classList.remove("is-area-hidden");
+              btn.classList.add("is-area-reveal");
+              btn.style.pointerEvents = "auto";
+            }, 100 + idx * 95);
+          });
+        }
+
         nodeLayerEl.querySelectorAll("[data-node-key]").forEach((button) => {
-          button.addEventListener("click", () => {
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            event.preventDefault();
             const nextNodeKey = button.getAttribute("data-node-key");
             const nextNode = routeNodes.get(nextNodeKey);
             state.activeNodeKey = nextNodeKey;
@@ -2663,10 +2964,11 @@
             }
             state.summaryOpen = true;
             summaryDrawerEl.classList.add("is-open");
-            state.shouldAutoFit = true;
+            state.shouldAutoFit = false;
             render();
           });
         });
+
 
         if (state.shouldAutoFit) {
           let fitPoints = [];
@@ -3293,15 +3595,20 @@
 
       function attachSummaryPanelInteractions(routes) {
         summaryPanelEl.querySelectorAll("[data-route-id]").forEach((button) => {
-          button.addEventListener("click", () => {
-            state.activeRouteId = button.getAttribute("data-route-id");
-            const nextRoute = routes.find((route) => route.id === state.activeRouteId);
-            state.activeNodeKey = getPreferredRouteNodeKey(nextRoute);
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            const nextRouteId = button.getAttribute("data-route-id");
+            // If same route tab clicked again, do nothing
+            if (nextRouteId === state.activeRouteId) return;
+            state.activeRouteId = nextRouteId;
+            // Reset activeNodeKey so panel shows route overview, not stale node
+            state.activeNodeKey = null;
             state.summaryOpen = true;
             state.shouldAutoFit = true;
             render();
           });
         });
+
 
         summaryPanelEl.querySelectorAll("[data-detail-tabs]").forEach((shell) => {
           const chips = Array.from(shell.querySelectorAll("[data-detail-tab]"));
@@ -3349,24 +3656,61 @@
         if (activeRoute && !state.activeNodeKey) {
           state.activeNodeKey = getPreferredRouteNodeKey(activeRoute);
         }
-        const activeNode = nodes.get(state.activeNodeKey) || (activeRoute ? nodes.get(getPreferredRouteNodeKey(activeRoute)) : null);
         summaryDrawerEl.classList.toggle("is-open", state.summaryOpen);
 
-        // Shared panel layout: route tab bar on top, then node detail
-        summaryPanelEl.innerHTML = `
-          <div style="padding: 12px 14px 10px; border-bottom: 1px solid #e2e8f0; background: #f8fafc;">
+        // Active node detail (shown when a map point was explicitly clicked)
+        const activeNode = nodes.get(state.activeNodeKey) || null;
+
+        // Tab bar: 3 route buttons
+        const tabBarHtml = `
+          <div style="padding: 10px 14px 8px; border-bottom: 2px solid #e2e8f0; background: #f8fafc; position: sticky; top: 0; z-index: 2;">
             <div style="display: flex; gap: 6px;">
               ${buildRouteTabs(routes, activeRoute)}
             </div>
           </div>
+        `;
 
-          <div style="padding: 14px 14px 20px; overflow-y: auto;">
-            ${buildNodeDetail(activeNode)}
+        // Panel body: active node detail if a point was clicked, else route overview
+        const bodyHtml = activeNode
+          ? buildNodeDetail(activeNode)
+          : (activeRoute
+              ? `
+                <div style="padding: 4px;">
+                  <div style="margin-bottom: 14px;">
+                    <h2 style="margin: 0 0 4px 0; font-size: 19px; font-weight: 800; color: #0f172a;">
+                      ${direction.id === "luu-dong" ? "🛵 " : "🏢 "}${escapeHtml(activeRoute.label)} — ${escapeHtml(activeRoute.title || "")}
+                    </h2>
+                    <div style="font-size: 12.5px; color: #64748b;">
+                      ${escapeHtml(activeRoute.summary || "")}
+                    </div>
+                  </div>
+                  <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+                    <span style="background: rgba(29,78,216,0.08); color: #1d4ed8; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700;">
+                      📊 Tổng: ${formatNumber(activeRoute.total)} TNLS
+                    </span>
+                    <span style="background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;">
+                      🗓️ ${escapeHtml(activeRoute.dateLabel || "")}
+                    </span>
+                  </div>
+                  <div style="font-size: 12px; color: #64748b; font-style: italic; margin-bottom: 8px;">
+                    👆 Bấm vào một điểm trên bản đồ để xem chi tiết, hoặc mở rộng từng ngày bên dưới.
+                  </div>
+                  ${buildRouteDetail(activeRoute)}
+                </div>
+              `
+              : `<div style="padding: 16px; color: #64748b; font-style: italic; text-align: center;">Chọn một tuyến để xem thông tin.</div>`
+          );
+
+        summaryPanelEl.innerHTML = `
+          ${tabBarHtml}
+          <div style="padding: 14px 14px 24px; overflow-y: auto; flex: 1;">
+            ${bodyHtml}
           </div>
         `;
 
         attachSummaryPanelInteractions(routes);
       }
+
 
       async function fetchForecast(lat, lng) {
         const coordKey = buildCoordKey(lat, lng);
@@ -3430,10 +3774,18 @@
         const direction = getSelectedDirection();
         const routes = buildRoutes(direction);
         const activeRoute = resolveActiveRoute(routes);
+        console.log("=== Render Call ===");
+        console.log("state.activeRouteId:", state.activeRouteId);
+        console.log("state.activeNodeKey:", state.activeNodeKey);
         if (activeRoute) {
           state.activeRouteId = activeRoute.id;
-          if (!activeRoute.points.some((point) => point.key === state.activeNodeKey)) {
-            state.activeNodeKey = getPreferredRouteNodeKey(activeRoute);
+          const hasKey = activeRoute.points.some((point) => point.key === state.activeNodeKey);
+          console.log("Active Route Points:", activeRoute.points.map(p => p.key));
+          console.log("Route contains state.activeNodeKey?", hasKey);
+          if (!hasKey) {
+            const preferred = getPreferredRouteNodeKey(activeRoute);
+            console.log("Resetting activeNodeKey to preferred:", preferred);
+            state.activeNodeKey = preferred;
           }
         }
         const nodes = buildVisibleNodes(routes, direction);
