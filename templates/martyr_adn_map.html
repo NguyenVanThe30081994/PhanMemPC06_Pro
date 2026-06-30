@@ -133,21 +133,6 @@
       letter-spacing: -0.03em;
     }
 
-    .hero-card p,
-    .hero-note p {
-      margin: 0;
-      color: var(--ink-700);
-      line-height: 1.6;
-      font-size: 15px;
-    }
-
-    .hero-note strong {
-      color: var(--ink-900);
-      font-size: 16px;
-      letter-spacing: 0.02em;
-      text-transform: uppercase;
-    }
-
     .toolbar {
       display: flex;
       flex-wrap: wrap;
@@ -185,21 +170,9 @@
       text-align: left;
     }
 
-    .segmented-button strong,
-    .segmented-button small {
-      display: block;
-    }
-
     .segmented-button strong {
       font-size: 14px;
       letter-spacing: 0.01em;
-    }
-
-    .segmented-button small {
-      margin-top: 3px;
-      color: inherit;
-      opacity: 0.82;
-      font-size: 12px;
     }
 
     .segmented-button.is-active {
@@ -253,54 +226,12 @@
       top: 22px;
     }
 
-    .board-meta {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 12px;
-      padding: 4px 6px 0;
-    }
-
-    .board-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 11px;
-      border-radius: 999px;
-      background: rgba(21, 128, 61, 0.1);
-      color: #166534;
-      font-size: 12px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-
-    .board-metric-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .board-metric {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 10px;
-      border-radius: 999px;
-      background: rgba(248, 250, 252, 0.9);
-      color: var(--ink-700);
-      font-size: 12px;
-      font-weight: 700;
-      border: 1px solid rgba(226, 232, 240, 0.9);
-    }
-
     .route-board {
       position: relative;
       min-height: 760px;
       border-radius: 28px;
       overflow: hidden;
+      padding: 20px;
       background:
         radial-gradient(circle at 18% 20%, rgba(28, 120, 97, 0.08), transparent 18%),
         radial-gradient(circle at 75% 16%, rgba(99, 102, 241, 0.09), transparent 16%),
@@ -323,148 +254,6 @@
       pointer-events: none;
     }
 
-    .route-board svg,
-    .route-board .route-node-layer {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-    }
-
-    .route-board svg {
-      z-index: 1;
-      overflow: visible;
-    }
-
-    .route-node-layer {
-      z-index: 2;
-      pointer-events: none;
-    }
-
-    .route-track-base {
-      fill: none;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      opacity: 0.18;
-    }
-
-    .route-track-segment {
-      fill: none;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      transition: opacity 0.18s ease, stroke-width 0.18s ease;
-    }
-
-    .route-track-segment.is-muted {
-      opacity: 0.2;
-      stroke-dasharray: 5 12;
-    }
-
-    .route-node {
-      position: absolute;
-      transform: translate(-50%, -50%);
-      border: 0;
-      padding: 0;
-      background: transparent;
-      cursor: pointer;
-      pointer-events: auto;
-      color: inherit;
-      transition: transform 0.18s ease, opacity 0.18s ease;
-    }
-
-    .route-node.is-faded {
-      opacity: 0.38;
-    }
-
-    .route-node:hover,
-    .route-node:focus-visible {
-      transform: translate(-50%, -50%) scale(1.03);
-      z-index: 4;
-      outline: none;
-    }
-
-    .route-node.is-active {
-      z-index: 5;
-    }
-
-    .node-core {
-      position: relative;
-      width: var(--node-size);
-      height: var(--node-size);
-      border-radius: 50%;
-      border: 3px solid rgba(255, 255, 255, 0.95);
-      background: var(--node-color);
-      box-shadow:
-        0 0 0 6px rgba(255, 255, 255, 0.22),
-        0 18px 34px rgba(15, 23, 42, 0.2);
-    }
-
-    .route-node.is-active .node-core {
-      box-shadow:
-        0 0 0 7px rgba(255, 255, 255, 0.32),
-        0 0 0 14px rgba(196, 102, 31, 0.16),
-        0 22px 42px rgba(15, 23, 42, 0.26);
-    }
-
-    .node-label {
-      position: absolute;
-      top: calc(100% + 10px);
-      left: 50%;
-      transform: translateX(-50%);
-      min-width: max-content;
-      max-width: 240px;
-      padding: 8px 11px;
-      border-radius: 16px;
-      background: rgba(255, 255, 255, 0.98);
-      box-shadow: 0 18px 28px rgba(15, 23, 42, 0.12);
-      color: var(--ink-900);
-      text-align: left;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.18s ease, transform 0.18s ease;
-    }
-
-    .route-node.show-label .node-label,
-    .route-node.is-active .node-label,
-    .route-node:hover .node-label,
-    .route-node:focus-visible .node-label {
-      opacity: 1;
-      transform: translateX(-50%) translateY(-2px);
-    }
-
-    .node-label strong,
-    .node-label span,
-    .node-label small {
-      display: block;
-    }
-
-    .node-label strong {
-      font-size: 14px;
-      line-height: 1.2;
-    }
-
-    .node-label span {
-      margin-top: 3px;
-      color: var(--ink-700);
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .node-label small {
-      margin-top: 4px;
-      color: var(--ink-500);
-      font-size: 11px;
-      line-height: 1.45;
-    }
-
-    .board-footnote {
-      margin-top: 14px;
-      padding: 0 6px 4px;
-      color: var(--ink-500);
-      font-size: 12px;
-      line-height: 1.55;
-    }
-
     .summary-card {
       padding: 20px;
       max-height: calc(100vh - 54px);
@@ -478,48 +267,10 @@
     }
 
     .summary-head h2 {
-      margin: 8px 0 6px;
+      margin: 0;
       font-size: 30px;
       line-height: 1.05;
       letter-spacing: -0.03em;
-    }
-
-    .summary-head p {
-      margin: 0;
-      color: var(--ink-700);
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    .summary-chip-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin: 16px 0;
-    }
-
-    .summary-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 10px;
-      border-radius: 999px;
-      background: rgba(248, 250, 252, 0.96);
-      color: var(--ink-700);
-      font-size: 12px;
-      font-weight: 800;
-      border: 1px solid rgba(226, 232, 240, 0.9);
-    }
-
-    .summary-warning {
-      margin: 4px 0 16px;
-      padding: 10px 12px;
-      border-radius: 16px;
-      background: var(--warning-bg);
-      color: var(--warning);
-      font-size: 13px;
-      font-weight: 700;
-      line-height: 1.5;
     }
 
     .focus-card {
@@ -556,121 +307,6 @@
       font-size: 12px;
     }
 
-    .track-list {
-      display: grid;
-      gap: 12px;
-    }
-
-    .track-card {
-      padding: 16px;
-      border-radius: 24px;
-      background: rgba(255, 255, 255, 0.94);
-      border: 1px solid rgba(226, 232, 240, 0.9);
-      box-shadow: 0 14px 26px rgba(15, 23, 42, 0.06);
-    }
-
-    .track-card header {
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-      justify-content: space-between;
-      margin-bottom: 12px;
-    }
-
-    .track-dot {
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      flex: 0 0 auto;
-      margin-top: 4px;
-      background: var(--track-color);
-      box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.78);
-    }
-
-    .track-title-wrap {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .track-title-wrap strong,
-    .track-title-wrap span,
-    .track-title-wrap small {
-      display: block;
-    }
-
-    .track-title-wrap strong {
-      font-size: 16px;
-    }
-
-    .track-title-wrap span {
-      margin-top: 3px;
-      color: var(--ink-700);
-      font-size: 13px;
-      line-height: 1.45;
-    }
-
-    .track-title-wrap small {
-      margin-top: 4px;
-      color: var(--ink-500);
-      line-height: 1.45;
-      font-size: 12px;
-    }
-
-    .track-total {
-      flex: 0 0 auto;
-      text-align: right;
-      color: var(--ink-900);
-      font-size: 18px;
-      font-weight: 900;
-      letter-spacing: -0.02em;
-    }
-
-    .track-total small {
-      display: block;
-      color: var(--ink-500);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-
-    .step-list {
-      display: grid;
-      gap: 10px;
-    }
-
-    .step-item {
-      padding: 12px 13px;
-      border-radius: 18px;
-      background: rgba(248, 250, 252, 0.92);
-      border: 1px solid rgba(226, 232, 240, 0.85);
-    }
-
-    .step-item strong,
-    .step-item span,
-    .step-item small {
-      display: block;
-    }
-
-    .step-item strong {
-      font-size: 14px;
-      line-height: 1.2;
-    }
-
-    .step-item span {
-      margin-top: 4px;
-      color: var(--ink-700);
-      font-size: 12px;
-      font-weight: 800;
-    }
-
-    .step-item small {
-      margin-top: 6px;
-      color: var(--ink-500);
-      font-size: 12px;
-      line-height: 1.55;
-    }
-
     .session-pill {
       display: inline-flex;
       align-items: center;
@@ -686,8 +322,174 @@
       margin-bottom: 8px;
     }
 
-    .track-support {
-      margin-top: 8px;
+    .muted {
+      color: var(--ink-500);
+    }
+
+    .schematic-board {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+
+    .schematic-track {
+      position: relative;
+      padding: 18px 18px 18px 56px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(226, 232, 240, 0.92);
+      box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
+    }
+
+    .schematic-track-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .schematic-track-title strong,
+    .schematic-track-title span,
+    .schematic-track-title small {
+      display: block;
+    }
+
+    .schematic-track-title strong {
+      font-size: 17px;
+      line-height: 1.2;
+    }
+
+    .schematic-track-title span {
+      margin-top: 3px;
+      color: var(--ink-700);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .schematic-track-title small {
+      margin-top: 5px;
+      color: var(--ink-500);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .schematic-track-total {
+      flex: 0 0 auto;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(248, 250, 252, 0.96);
+      color: var(--ink-900);
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid rgba(226, 232, 240, 0.9);
+    }
+
+    .schematic-flow {
+      position: relative;
+      display: grid;
+      gap: 12px;
+    }
+
+    .schematic-flow::before {
+      content: "";
+      position: absolute;
+      left: -28px;
+      top: 14px;
+      bottom: 14px;
+      width: 4px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, var(--track-color), rgba(148, 163, 184, 0.34));
+      opacity: 0.9;
+    }
+
+    .schematic-node {
+      position: relative;
+      display: block;
+      width: 100%;
+      border: 0;
+      border-radius: 18px;
+      padding: 12px 14px;
+      background: rgba(248, 250, 252, 0.9);
+      border: 1px solid rgba(226, 232, 240, 0.92);
+      text-align: left;
+      cursor: pointer;
+      transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+    }
+
+    .schematic-node::before {
+      content: "";
+      position: absolute;
+      left: -35px;
+      top: 18px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--track-color);
+      border: 3px solid rgba(255, 255, 255, 0.95);
+      box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.6);
+    }
+
+    .schematic-node::after {
+      content: "";
+      position: absolute;
+      left: -19px;
+      top: 18px;
+      width: 19px;
+      height: 14px;
+      border-left: 4px solid var(--track-color);
+      border-bottom: 4px solid var(--track-color);
+      border-bottom-left-radius: 14px;
+      opacity: 0.9;
+    }
+
+    .schematic-node:hover,
+    .schematic-node:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 28px rgba(15, 23, 42, 0.1);
+      outline: none;
+    }
+
+    .schematic-node.is-active {
+      background: rgba(255, 255, 255, 0.98);
+      border-color: rgba(148, 163, 184, 0.42);
+      box-shadow: inset 0 0 0 2px var(--track-color), 0 18px 34px rgba(15, 23, 42, 0.12);
+    }
+
+    .schematic-node.is-active::before {
+      box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.72), 0 0 0 10px rgba(196, 102, 31, 0.14);
+    }
+
+    .schematic-node strong,
+    .schematic-node span,
+    .schematic-node small {
+      display: block;
+    }
+
+    .schematic-node strong {
+      font-size: 14px;
+      line-height: 1.25;
+    }
+
+    .schematic-node span {
+      margin-top: 4px;
+      color: var(--ink-700);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .schematic-node small {
+      margin-top: 5px;
+      color: var(--ink-500);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .schematic-support {
+      margin-left: 0;
       padding: 10px 12px;
       border-radius: 16px;
       background: rgba(37, 99, 235, 0.08);
@@ -697,40 +499,93 @@
       line-height: 1.5;
     }
 
-    .legend-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 16px;
+    .summary-strip {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 16px;
     }
 
-    .legend-pill {
-      display: inline-flex;
+    .summary-strip-item {
+      display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 11px;
-      border-radius: 999px;
-      background: rgba(248, 250, 252, 0.94);
-      border: 1px solid rgba(226, 232, 240, 0.9);
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(248, 250, 252, 0.92);
+      border: 1px solid rgba(226, 232, 240, 0.85);
+    }
+
+    .summary-strip-item strong,
+    .summary-strip-item span {
+      display: block;
+    }
+
+    .summary-strip-item strong {
+      font-size: 14px;
+      line-height: 1.2;
+    }
+
+    .summary-strip-item span {
+      margin-top: 4px;
+      color: var(--ink-500);
       font-size: 12px;
-      color: var(--ink-700);
       font-weight: 700;
     }
 
-    .legend-swatch {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: currentColor;
+    .summary-strip-total {
+      flex: 0 0 auto;
+      color: var(--ink-900);
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
     }
 
-    .muted {
-      color: var(--ink-500);
+    .focus-meta {
+      display: block;
+      margin-top: 6px;
+      color: var(--ink-700);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.5;
+    }
+
+    .focus-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .focus-list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 11px;
+      border-radius: 14px;
+      background: rgba(248, 250, 252, 0.9);
+      border: 1px solid rgba(226, 232, 240, 0.82);
+    }
+
+    .focus-list-item span {
+      margin: 0;
+      color: var(--ink-700);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .focus-list-item strong {
+      margin: 0;
+      font-size: 13px;
     }
 
     @media (max-width: 1180px) {
       .workspace {
         grid-template-columns: 1fr;
+      }
+
+      .schematic-board {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .board-card,
@@ -768,15 +623,17 @@
       }
 
       .route-board {
-        min-height: 560px;
+        min-height: auto;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .schematic-board {
+        grid-template-columns: 1fr;
       }
 
       .summary-head h2 {
         font-size: 24px;
-      }
-
-      .node-label {
-        max-width: 180px;
       }
     }
   </style>
@@ -801,18 +658,7 @@
 
     <section class="workspace">
       <div class="board-card">
-        <div class="board-meta">
-          <div class="board-badge">Sơ đồ trực quan 5 ngày</div>
-          <div class="board-metric-row" id="board-metrics"></div>
-        </div>
-        <div class="route-board" id="route-board">
-          <svg id="route-svg" aria-hidden="true"></svg>
-          <div class="route-node-layer" id="route-node-layer"></div>
-        </div>
-        <div class="board-footnote">
-          Chấm tròn thể hiện điểm dừng hoặc điểm phục vụ. Kích thước chấm phản ánh quy mô TNLS của điểm đó.
-          Tuyến màu giữ hành trình toàn bộ 5 ngày; ngày đang chọn được làm nổi bật để đối chiếu nhanh với bảng chi tiết.
-        </div>
+        <div class="route-board" id="route-board"></div>
       </div>
 
       <aside class="summary-card" id="summary-panel"></aside>
@@ -824,22 +670,10 @@
     (() => {
       const data = window.ADN_SCHEDULE_DATA;
       const TRACK_COLORS = ["#c4661f", "#325fd8", "#167b73"];
-      const NODE_OFFSETS = [
-        [0, 0],
-        [18, -14],
-        [-18, 14],
-        [20, 16],
-        [-20, -16],
-        [0, 24],
-        [0, -24]
-      ];
 
       const directionTabsEl = document.getElementById("direction-tabs");
       const dayTabsEl = document.getElementById("day-tabs");
       const boardEl = document.getElementById("route-board");
-      const boardMetricsEl = document.getElementById("board-metrics");
-      const routeSvgEl = document.getElementById("route-svg");
-      const routeNodeLayerEl = document.getElementById("route-node-layer");
       const summaryPanelEl = document.getElementById("summary-panel");
 
       const state = {
@@ -852,158 +686,68 @@
         return new Intl.NumberFormat("vi-VN").format(Number(value || 0));
       }
 
-      function parsePlannedTotal(value) {
-        if (value === null || value === undefined) {
-          return null;
-        }
-        const match = String(value).match(/\d+/);
-        return match ? Number(match[0]) : null;
-      }
-
-      function flattenAllPoints() {
-        const points = [];
-        data.directions.forEach((direction) => {
-          direction.days.forEach((day) => {
-            day.tracks.forEach((track) => {
-              const entries = direction.id === "co-dinh" ? track.stops : track.visits.filter((visit) => visit.name);
-              entries.forEach((entry) => {
-                points.push({ lat: Number(entry.lat), lng: Number(entry.lng) });
-              });
-            });
-          });
-        });
-        return points;
-      }
-
-      const allPoints = flattenAllPoints();
-      const globalBounds = {
-        minLat: Math.min(...allPoints.map((point) => point.lat)),
-        maxLat: Math.max(...allPoints.map((point) => point.lat)),
-        minLng: Math.min(...allPoints.map((point) => point.lng)),
-        maxLng: Math.max(...allPoints.map((point) => point.lng))
-      };
-
-      function projectPoint(lat, lng, width, height) {
-        const paddingX = Math.max(48, width * 0.08);
-        const paddingY = Math.max(44, height * 0.08);
-        const usableWidth = Math.max(1, width - paddingX * 2);
-        const usableHeight = Math.max(1, height - paddingY * 2);
-        const xRatio = (lng - globalBounds.minLng) / Math.max(0.0001, globalBounds.maxLng - globalBounds.minLng);
-        const yRatio = (lat - globalBounds.minLat) / Math.max(0.0001, globalBounds.maxLat - globalBounds.minLat);
-        return {
-          x: paddingX + xRatio * usableWidth,
-          y: height - paddingY - yRatio * usableHeight
-        };
-      }
-
       function getSelectedDirection() {
         return data.directions.find((direction) => direction.id === state.directionId) || data.directions[0];
       }
 
-      function buildDisplayEvents(direction) {
-        const events = [];
-        direction.days.forEach((day, dayIndex) => {
-          day.tracks.forEach((track, trackIndex) => {
-            if (direction.id === "co-dinh") {
-              const mergedStops = [];
-              track.stops.forEach((stop) => {
-                const existing = mergedStops.find((item) => item.name === stop.name);
-                const sessionEntry = {
-                  session: stop.session,
-                  total: stop.total,
-                  areas: stop.areas || []
-                };
-                if (existing) {
-                  existing.total += stop.total;
-                  existing.sessions.push(sessionEntry);
-                } else {
-                  mergedStops.push({
-                    name: stop.name,
-                    lat: stop.lat,
-                    lng: stop.lng,
-                    total: stop.total,
-                    sessions: [sessionEntry]
-                  });
-                }
-              });
-              mergedStops.forEach((stop, stopIndex) => {
-                events.push({
-                  id: `${direction.id}-${dayIndex}-${trackIndex}-${stopIndex}`,
-                  directionId: direction.id,
-                  dayIndex,
-                  dayLabel: day.dayLabel,
-                  dateLabel: day.dateLabel,
-                  trackIndex,
-                  trackLabel: track.label,
-                  trackTitle: track.title,
-                  name: stop.name,
-                  total: stop.total,
-                  lat: Number(stop.lat),
-                  lng: Number(stop.lng),
-                  sessions: stop.sessions,
-                  type: "stop"
-                });
-              });
-              return;
-            }
+      function getCurrentDay(direction) {
+        return direction.days[state.dayIndex] || direction.days[0];
+      }
 
-            track.visits
-              .filter((visit) => visit.name)
-              .forEach((visit, visitIndex) => {
-                events.push({
-                  id: `${direction.id}-${dayIndex}-${trackIndex}-${visitIndex}`,
-                  directionId: direction.id,
-                  dayIndex,
-                  dayLabel: day.dayLabel,
-                  dateLabel: day.dateLabel,
-                  trackIndex,
-                  trackLabel: track.label,
-                  trackTitle: track.title,
-                  name: visit.name,
-                  total: visit.count,
-                  lat: Number(visit.lat),
-                  lng: Number(visit.lng),
-                  session: visit.session || "Cả ngày",
-                  type: "visit"
-                });
+      function buildDisplayEvents(direction, day) {
+        const events = [];
+        day.tracks.forEach((track, trackIndex) => {
+          if (direction.id === "co-dinh") {
+            track.stops.forEach((stop, stopIndex) => {
+              events.push({
+                id: `${direction.id}-${state.dayIndex}-${trackIndex}-${stopIndex}`,
+                directionId: direction.id,
+                dayLabel: day.dayLabel,
+                dateLabel: day.dateLabel,
+                trackIndex,
+                trackLabel: track.label,
+                trackTitle: track.title,
+                name: stop.name,
+                total: stop.total,
+                session: stop.session,
+                areas: stop.areas || [],
+                type: "stop"
               });
+            });
+            return;
+          }
+
+          track.visits
+            .filter((visit) => visit.name)
+            .forEach((visit, visitIndex) => {
+              events.push({
+                id: `${direction.id}-${state.dayIndex}-${trackIndex}-${visitIndex}`,
+                directionId: direction.id,
+                dayLabel: day.dayLabel,
+                dateLabel: day.dateLabel,
+                trackIndex,
+                trackLabel: track.label,
+                trackTitle: track.title,
+                name: visit.name,
+                total: visit.count,
+                session: visit.session || "Cả ngày",
+                type: "visit"
+              });
+            });
           });
-        });
         return events;
       }
 
-      function positionEvents(direction) {
-        const boardRect = boardEl.getBoundingClientRect();
-        const width = Math.max(boardRect.width, 320);
-        const height = Math.max(boardRect.height, 420);
-        const rawEvents = buildDisplayEvents(direction).map((event) => {
-          const projected = projectPoint(event.lat, event.lng, width, height);
-          return { ...event, x: projected.x, y: projected.y };
-        });
-
-        const overlapMap = new Map();
-        rawEvents.forEach((event) => {
-          const key = `${event.name}-${event.trackIndex}`;
-          const group = overlapMap.get(key) || [];
-          group.push(event);
-          overlapMap.set(key, group);
-        });
-
-        overlapMap.forEach((group) => {
-          group.forEach((event, index) => {
-            const offset = NODE_OFFSETS[index % NODE_OFFSETS.length];
-            event.x += offset[0];
-            event.y += offset[1];
-          });
-        });
-
-        return rawEvents;
+      function getTrackTotal(direction, track) {
+        if (direction.id === "co-dinh") {
+          return track.stops.reduce((sum, stop) => sum + Number(stop.total || 0), 0);
+        }
+        return track.visits.filter((visit) => visit.name).reduce((sum, visit) => sum + Number(visit.count || 0), 0);
       }
 
       function getActiveEvent(events) {
-        const selectedDayEvents = events.filter((event) => event.dayIndex === state.dayIndex);
-        const preferred = selectedDayEvents.find((event) => event.id === state.activeEventId);
-        return preferred || selectedDayEvents[0] || events[0] || null;
+        const preferred = events.find((event) => event.id === state.activeEventId);
+        return preferred || events[0] || null;
       }
 
       function renderDirectionTabs(direction) {
@@ -1012,7 +756,7 @@
           const button = document.createElement("button");
           button.type = "button";
           button.className = "segmented-button" + (item.id === direction.id ? " is-active" : "");
-          button.innerHTML = `<strong>${item.label}</strong><small>${item.shortLabel}</small>`;
+          button.innerHTML = `<strong>${item.label}</strong>`;
           button.addEventListener("click", () => {
             if (state.directionId === item.id) {
               return;
@@ -1045,120 +789,52 @@
         });
       }
 
-      function nodeSizeFor(directionId, total) {
-        const min = directionId === "co-dinh" ? 18 : 10;
-        const max = directionId === "co-dinh" ? 34 : 22;
-        const cap = directionId === "co-dinh" ? 430 : 20;
-        const ratio = Math.max(0, Math.min(1, Number(total || 0) / cap));
-        return min + (max - min) * Math.sqrt(ratio);
-      }
-
-      function renderBoardMetrics(direction, day, events) {
-        const selectedDayEvents = events.filter((event) => event.dayIndex === state.dayIndex);
-        const selectedTrackCount = day.tracks.length;
-        const listedTotal = direction.id === "co-dinh"
-          ? day.total
-          : day.tracks.reduce(
-            (sum, track) => sum + track.visits.filter((visit) => visit.name).reduce((visitSum, visit) => visitSum + Number(visit.count || 0), 0),
-            0
-          );
-        boardMetricsEl.innerHTML = `
-          <div class="board-metric">${direction.label}</div>
-          <div class="board-metric">${day.dayLabel} · ${day.dateLabel}</div>
-          <div class="board-metric">${selectedTrackCount} trạm</div>
-          <div class="board-metric">${selectedDayEvents.length} điểm nổi bật</div>
-          <div class="board-metric">${formatNumber(listedTotal)} TNLS hiển thị</div>
-        `;
-      }
-
       function renderBoard(direction, events) {
-        const width = Math.max(boardEl.clientWidth, 320);
-        const height = Math.max(boardEl.clientHeight, 420);
-        routeSvgEl.setAttribute("viewBox", `0 0 ${width} ${height}`);
-        routeSvgEl.innerHTML = "";
-        routeNodeLayerEl.innerHTML = "";
-
-        const tracks = new Map();
-        events.forEach((event) => {
-          const list = tracks.get(event.trackIndex) || [];
-          list.push(event);
-          tracks.set(event.trackIndex, list);
-        });
-
-        tracks.forEach((trackEvents, trackIndex) => {
-          const sortedEvents = trackEvents.slice().sort((left, right) => {
-            if (left.dayIndex !== right.dayIndex) {
-              return left.dayIndex - right.dayIndex;
-            }
-            return left.id.localeCompare(right.id);
-          });
-          if (sortedEvents.length === 0) {
-            return;
-          }
-
-          const color = TRACK_COLORS[trackIndex] || TRACK_COLORS[0];
-          if (sortedEvents.length > 1) {
-            const base = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-            base.setAttribute("points", sortedEvents.map((event) => `${event.x},${event.y}`).join(" "));
-            base.setAttribute("stroke", color);
-            base.setAttribute("stroke-width", direction.id === "co-dinh" ? "6.5" : "4");
-            base.setAttribute("class", "route-track-base");
-            routeSvgEl.appendChild(base);
-
-            sortedEvents.forEach((event, index) => {
-              if (index === 0) {
-                return;
-              }
-              const previous = sortedEvents[index - 1];
-              const segment = document.createElementNS("http://www.w3.org/2000/svg", "line");
-              const isActive = previous.dayIndex === state.dayIndex || event.dayIndex === state.dayIndex;
-              segment.setAttribute("x1", previous.x);
-              segment.setAttribute("y1", previous.y);
-              segment.setAttribute("x2", event.x);
-              segment.setAttribute("y2", event.y);
-              segment.setAttribute("stroke", color);
-              segment.setAttribute("stroke-width", direction.id === "co-dinh" ? (isActive ? "5.6" : "3.6") : (isActive ? "3.4" : "2.3"));
-              segment.setAttribute("class", "route-track-segment" + (isActive ? "" : " is-muted"));
-              segment.style.opacity = isActive ? "0.92" : "0.26";
-              routeSvgEl.appendChild(segment);
-            });
-          }
-        });
-
+        const day = getCurrentDay(direction);
         const activeEvent = getActiveEvent(events);
-        events.forEach((event) => {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = "route-node";
-          if (event.dayIndex !== state.dayIndex) {
-            button.classList.add("is-faded");
-          } else {
-            button.classList.add("show-label");
-          }
-          if (activeEvent && activeEvent.id === event.id) {
-            button.classList.add("is-active");
-          }
-          button.style.left = `${event.x}px`;
-          button.style.top = `${event.y}px`;
-          button.style.setProperty("--node-color", TRACK_COLORS[event.trackIndex] || TRACK_COLORS[0]);
-          button.style.setProperty("--node-size", `${nodeSizeFor(direction.id, event.total)}px`);
-          const subtitle = direction.id === "co-dinh"
-            ? event.sessions.map((session) => `${session.session} ${formatNumber(session.total)}`).join(" · ")
-            : `${event.session} · ${formatNumber(event.total)} TNLS`;
-          button.innerHTML = `
-            <span class="node-core"></span>
-            <span class="node-label">
-              <strong>${event.name}</strong>
-              <span>${event.dayLabel} · ${event.trackLabel}</span>
-              <small>${subtitle}</small>
-            </span>
-          `;
+
+        boardEl.innerHTML = `
+          <div class="schematic-board">
+            ${day.tracks.map((track, trackIndex) => {
+              const trackEvents = events.filter((event) => event.trackIndex === trackIndex);
+              const supportText = direction.id === "luu-dong"
+                ? (track.visits.find((visit) => visit.label && !visit.name) || {}).label
+                : "";
+              return `
+                <article class="schematic-track" style="--track-color:${TRACK_COLORS[trackIndex] || TRACK_COLORS[0]}">
+                  <div class="schematic-track-header">
+                    <div class="schematic-track-title">
+                      <strong>${track.label}</strong>
+                      <span>${track.title}</span>
+                    </div>
+                    <div class="schematic-track-total">${formatNumber(getTrackTotal(direction, track))} TNLS</div>
+                  </div>
+                  <div class="schematic-flow">
+                    ${trackEvents.map((event) => {
+                      const detail = direction.id === "co-dinh"
+                        ? event.areas.map((item) => `${item.name} ${formatNumber(item.count)}`).join(" · ")
+                        : "";
+                      return `
+                        <button type="button" class="schematic-node${activeEvent && activeEvent.id === event.id ? " is-active" : ""}" data-event-id="${event.id}">
+                          <strong>${event.name}</strong>
+                          <span>${event.session} · ${formatNumber(event.total)} TNLS</span>
+                          ${detail ? `<small>${detail}</small>` : ""}
+                        </button>
+                      `;
+                    }).join("")}
+                  </div>
+                  ${supportText ? `<div class="schematic-support">${supportText}</div>` : ""}
+                </article>
+              `;
+            }).join("")}
+          </div>
+        `;
+
+        boardEl.querySelectorAll("[data-event-id]").forEach((button) => {
           button.addEventListener("click", () => {
-            state.activeEventId = event.id;
-            renderSummary(direction, events);
-            renderBoard(direction, events);
+            state.activeEventId = button.getAttribute("data-event-id");
+            render();
           });
-          routeNodeLayerEl.appendChild(button);
         });
       }
 
@@ -1167,148 +843,68 @@
           return "";
         }
         if (direction.id === "co-dinh") {
-          const detailText = activeEvent.sessions
-            .map((session) => `${session.session}: ${formatNumber(session.total)} TNLS`)
-            .join(" · ");
-          const areaCount = activeEvent.sessions.reduce(
-            (sum, session) => sum + session.areas.reduce((acc, item) => acc + Number(item.count || 0), 0),
-            0
-          );
+          const areaMarkup = activeEvent.areas.length
+            ? `
+              <div class="focus-list">
+                ${activeEvent.areas.map((item) => `
+                  <div class="focus-list-item">
+                    <span>${item.name}</span>
+                    <strong>${formatNumber(item.count)} TNLS</strong>
+                  </div>
+                `).join("")}
+              </div>
+            `
+            : "";
           return `
             <div class="focus-card">
               <strong>${activeEvent.name}</strong>
-              <span>${activeEvent.dayLabel} · ${activeEvent.trackLabel} · ${formatNumber(activeEvent.total)} TNLS</span>
-              <small>${detailText}<br/>Tổng tải chi tiết tại điểm: ${formatNumber(areaCount)} TNLS.</small>
+              <span>${activeEvent.dayLabel} · ${activeEvent.trackLabel}</span>
+              <div class="focus-meta">${activeEvent.session} · ${formatNumber(activeEvent.total)} TNLS</div>
+              ${areaMarkup}
             </div>
           `;
         }
         return `
-          <div class="focus-card">
-            <strong>${activeEvent.name}</strong>
-            <span>${activeEvent.dayLabel} · ${activeEvent.trackLabel} · ${activeEvent.session}</span>
-            <small>Dự kiến phục vụ ${formatNumber(activeEvent.total)} TNLS ở điểm lưu động này.</small>
-          </div>
-        `;
-      }
-
-      function renderFixedTrack(track, trackIndex) {
-        const total = track.stops.reduce((sum, stop) => sum + Number(stop.total || 0), 0);
-        const steps = track.stops.map((stop) => {
-          const areaText = stop.areas.length
-            ? stop.areas.map((item) => `${item.name} ${formatNumber(item.count)}`).join(" · ")
-            : "Không tách thêm danh sách xã trong tài liệu.";
-          return `
-            <div class="step-item">
-              <div class="session-pill">${stop.session}</div>
-              <strong>${stop.name} · ${formatNumber(stop.total)} TNLS</strong>
-              <small>${areaText}</small>
+            <div class="focus-card">
+              <strong>${activeEvent.name}</strong>
+              <span>${activeEvent.dayLabel} · ${activeEvent.trackLabel}</span>
+              <div class="focus-meta">${activeEvent.session} · ${formatNumber(activeEvent.total)} TNLS</div>
+              <small>Điểm lưu động này xử lý theo đúng lịch trong hồ sơ lưu động.</small>
             </div>
-          `;
-        }).join("");
-
-        return `
-          <article class="track-card" style="--track-color:${TRACK_COLORS[trackIndex] || TRACK_COLORS[0]}">
-            <header>
-              <div class="track-dot"></div>
-              <div class="track-title-wrap">
-                <strong>${track.label}</strong>
-                <span>${track.title}</span>
-                <small>${track.stops.length} chặng hoạt động trong ngày</small>
-              </div>
-              <div class="track-total">
-                ${formatNumber(total)}
-                <small>TNLS</small>
-              </div>
-            </header>
-            <div class="step-list">${steps}</div>
-          </article>
-        `;
-      }
-
-      function renderMobileTrack(track, trackIndex) {
-        const listedTotal = track.visits.filter((visit) => visit.name).reduce((sum, visit) => sum + Number(visit.count || 0), 0);
-        const plannedTotal = parsePlannedTotal(track.planned);
-        const steps = track.visits.filter((visit) => visit.name).map((visit) => `
-          <div class="step-item">
-            <div class="session-pill">${visit.session || "Cả ngày"}</div>
-            <strong>${visit.name} · ${formatNumber(visit.count)} TNLS</strong>
-            <small>Điểm phục vụ lưu động trong ngày.</small>
-          </div>
-        `).join("");
-        const supportText = track.visits.find((visit) => visit.label && !visit.name);
-        const warning = plannedTotal !== null && plannedTotal !== listedTotal
-          ? `<div class="track-support">Tài liệu ghi kế hoạch ${formatNumber(plannedTotal)} TNLS, nhưng danh sách đọc được hiện hiển thị ${formatNumber(listedTotal)} TNLS.</div>`
-          : "";
-
-        return `
-          <article class="track-card" style="--track-color:${TRACK_COLORS[trackIndex] || TRACK_COLORS[0]}">
-            <header>
-              <div class="track-dot"></div>
-              <div class="track-title-wrap">
-                <strong>${track.label}</strong>
-                <span>${track.title}</span>
-                <small>${track.planned ? `Kế hoạch bảng tổng: ${track.planned}` : "Không có số tổng tách riêng trong dòng trạm."}</small>
-              </div>
-              <div class="track-total">
-                ${formatNumber(listedTotal)}
-                <small>TNLS đọc được</small>
-              </div>
-            </header>
-            <div class="step-list">${steps || '<div class="step-item"><strong>Không có điểm liệt kê trực tiếp</strong><small>Trạm này chỉ ghi chú hỗ trợ hoặc không phát sinh điểm cụ thể.</small></div>'}</div>
-            ${supportText ? `<div class="track-support">${supportText.label}</div>` : ""}
-            ${warning}
-          </article>
         `;
       }
 
       function renderSummary(direction, events) {
         const day = direction.days[state.dayIndex];
         const activeEvent = getActiveEvent(events);
-        const listedTotal = direction.id === "co-dinh"
-          ? day.total
-          : day.tracks.reduce(
-            (sum, track) => sum + track.visits.filter((visit) => visit.name).reduce((visitSum, visit) => visitSum + Number(visit.count || 0), 0),
-            0
-          );
-        const warning = direction.id === "luu-dong" && listedTotal !== day.total
-          ? `<div class="summary-warning">Bảng tổng của tài liệu ghi ${formatNumber(day.total)} TNLS, còn danh sách chi tiết đọc được hiện cộng ra ${formatNumber(listedTotal)} TNLS. Phần chênh lệch được giữ nguyên theo nguồn gốc tài liệu.</div>`
-          : "";
-        const trackMarkup = day.tracks.map((track, index) => (
-          direction.id === "co-dinh" ? renderFixedTrack(track, index) : renderMobileTrack(track, index)
-        )).join("");
+        const trackMarkup = day.tracks.map((track) => `
+          <div class="summary-strip-item">
+            <div>
+              <strong>${track.label}</strong>
+              <span>${track.title}</span>
+            </div>
+            <div class="summary-strip-total">${formatNumber(getTrackTotal(direction, track))} TNLS</div>
+          </div>
+        `).join("");
 
         summaryPanelEl.innerHTML = `
           <div class="summary-head">
             <div class="hero-kicker">${direction.label}</div>
             <h2>${day.dayLabel}</h2>
-            <p>${day.dateLabel} · ${direction.description}</p>
+            <div class="session-pill" style="margin-top:8px;">${day.dateLabel} · ${formatNumber(day.total)} TNLS</div>
           </div>
 
-          <div class="summary-chip-row">
-            <div class="summary-chip">${formatNumber(day.total)} TNLS theo bảng tổng</div>
-            <div class="summary-chip">${formatNumber(listedTotal)} TNLS chi tiết hiển thị</div>
-            <div class="summary-chip">${day.tracks.length} trạm hoạt động</div>
-          </div>
-
-          ${warning}
+          <div class="summary-strip">${trackMarkup}</div>
           ${buildFocusCard(direction, activeEvent)}
-
-          <div class="track-list">${trackMarkup}</div>
-
-          <div class="legend-row">
-            <div class="legend-pill" style="color:${TRACK_COLORS[0]}"><span class="legend-swatch"></span>Trạm 1</div>
-            <div class="legend-pill" style="color:${TRACK_COLORS[1]}"><span class="legend-swatch"></span>Trạm 2</div>
-            <div class="legend-pill" style="color:${TRACK_COLORS[2]}"><span class="legend-swatch"></span>Trạm 3</div>
-          </div>
         `;
       }
 
       function render() {
         const direction = getSelectedDirection();
-        const events = positionEvents(direction);
+        const day = getCurrentDay(direction);
+        const events = buildDisplayEvents(direction, day);
         renderDirectionTabs(direction);
         renderDayTabs(direction);
-        renderBoardMetrics(direction, direction.days[state.dayIndex], events);
         renderBoard(direction, events);
         renderSummary(direction, events);
       }
