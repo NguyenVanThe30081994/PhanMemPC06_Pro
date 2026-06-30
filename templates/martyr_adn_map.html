@@ -354,13 +354,13 @@
       fill: none;
       stroke-linecap: round;
       stroke-linejoin: round;
-      opacity: 0.56;
+      opacity: 0.96;
       transition: opacity 0.18s ease, stroke-width 0.18s ease;
     }
 
     .route-path.is-active {
-      opacity: 0.98;
-      filter: drop-shadow(0 12px 22px rgba(15, 23, 42, 0.16));
+      opacity: 1;
+      filter: drop-shadow(0 10px 20px rgba(15, 23, 42, 0.14));
     }
 
     .map-node {
@@ -411,12 +411,12 @@
     .map-node-label {
       position: absolute;
       min-width: max-content;
-      max-width: 220px;
-      padding: 8px 10px;
-      border-radius: 16px;
-      background: rgba(255, 255, 255, 0.94);
-      border: 1px solid rgba(226, 232, 240, 0.88);
-      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+      max-width: 210px;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
       color: var(--ink-900);
       text-align: left;
       pointer-events: none;
@@ -429,9 +429,10 @@
     }
 
     .map-node-label strong {
-      font-size: 17px;
+      font-size: 16px;
       line-height: 1.14;
       letter-spacing: -0.02em;
+      text-shadow: 0 2px 10px rgba(255, 255, 255, 0.98), 0 0 2px rgba(255, 255, 255, 0.92);
     }
 
     .map-node-label span {
@@ -439,6 +440,7 @@
       color: var(--ink-700);
       font-size: 12px;
       font-weight: 900;
+      text-shadow: 0 2px 10px rgba(255, 255, 255, 0.98), 0 0 2px rgba(255, 255, 255, 0.92);
     }
 
     .map-node-label small {
@@ -447,25 +449,19 @@
       font-size: 11px;
       font-weight: 700;
       line-height: 1.35;
+      text-shadow: 0 2px 10px rgba(255, 255, 255, 0.98), 0 0 2px rgba(255, 255, 255, 0.92);
     }
 
-    .map-node.is-dimmed .map-node-label {
-      opacity: 0.9;
-    }
-
-    .map-node.is-compact .map-node-label {
-      background: rgba(255, 255, 255, 0.82);
-      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
-    }
-
-    .map-node.is-compact .map-node-label span,
-    .map-node.is-compact .map-node-label small {
+    .map-node:not(.is-active) .map-node-label small {
       display: none;
     }
 
-    .map-node.is-compact .map-node-label strong {
-      font-size: 14px;
-      line-height: 1.2;
+    .map-node.is-active .map-node-label {
+      padding: 8px 10px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(226, 232, 240, 0.88);
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
     }
 
     .anchor-right .map-node-label {
@@ -509,6 +505,8 @@
       line-height: 1.35;
       white-space: nowrap;
       pointer-events: none;
+      max-width: 170px;
+      text-align: center;
     }
 
     .segment-badge span {
@@ -1249,6 +1247,21 @@
         return path;
       }
 
+      function buildSegmentBadgePosition(fromNode, toNode) {
+        const midX = (fromNode.x + toNode.x) / 2;
+        const midY = (fromNode.y + toNode.y) / 2;
+        const deltaX = toNode.x - fromNode.x;
+        const deltaY = toNode.y - fromNode.y;
+        const distance = Math.hypot(deltaX, deltaY) || 1;
+        const normalX = -deltaY / distance;
+        const normalY = deltaX / distance;
+        const offset = 24;
+        return {
+          x: midX + normalX * offset,
+          y: midY + normalY * offset
+        };
+      }
+
       function nodeSize(total, maxTotal) {
         if (!maxTotal) {
           return 24;
@@ -1437,12 +1450,19 @@
           if (!fromNode || !toNode || segment.metric.source === "same-site") {
             return "";
           }
+          const path = buildStraightPath([fromNode, toNode]);
           return `
             <path
               class="route-path is-active"
-              d="${buildStraightPath([fromNode, toNode])}"
+              d="${path}"
+              stroke="rgba(255, 255, 255, 0.92)"
+              stroke-width="12"
+            ></path>
+            <path
+              class="route-path is-active"
+              d="${path}"
               stroke="${activeRoute.color}"
-              stroke-width="7"
+              stroke-width="6"
             ></path>
           `;
         }).join("");
@@ -1453,11 +1473,10 @@
           if (!fromNode || !toNode || segment.metric.source === "same-site") {
             return "";
           }
-          const midX = (fromNode.x + toNode.x) / 2;
-          const midY = (fromNode.y + toNode.y) / 2 - 18;
+          const badgePosition = buildSegmentBadgePosition(fromNode, toNode);
           const metricText = `${formatNumber(segment.metric.distance_km)} km · ${formatNumber(segment.metric.travel_minutes)} phút`;
           return `
-            <div class="segment-badge" style="left:${midX}px; top:${midY}px; border-color:${activeRoute.color}; box-shadow:0 14px 28px rgba(15, 23, 42, 0.12), inset 0 0 0 1px ${activeRoute.color};">
+            <div class="segment-badge" style="left:${badgePosition.x}px; top:${badgePosition.y}px; border-color:${activeRoute.color}; box-shadow:0 14px 28px rgba(15, 23, 42, 0.12), inset 0 0 0 1px ${activeRoute.color};">
               ${metricText}
               <span>${segment.fromName} → ${segment.toName}</span>
             </div>
