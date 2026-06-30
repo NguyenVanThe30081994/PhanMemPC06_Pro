@@ -48,6 +48,13 @@
       text-rendering: optimizeLegibility;
     }
 
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
     body::before {
       content: "";
       position: fixed;
@@ -814,6 +821,161 @@
       font-size: 13px;
     }
 
+    .detail-row-note {
+      align-items: flex-start;
+    }
+
+    .detail-row-note strong {
+      max-width: 68%;
+      color: var(--ink-700);
+      font-size: 12px;
+      line-height: 1.45;
+      text-align: right;
+    }
+
+    .detail-day-stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .detail-day-card {
+      display: block;
+      padding: 0;
+      border-radius: 16px;
+      background: rgba(248, 250, 252, 0.78);
+      border: 1px solid rgba(226, 232, 240, 0.78);
+      overflow: hidden;
+    }
+
+    .detail-day-card[open] {
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+    }
+
+    .detail-day-toggle {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      padding: 12px;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .detail-day-toggle::-webkit-details-marker {
+      display: none;
+    }
+
+    .detail-day-head strong,
+    .detail-day-head small {
+      display: block;
+      margin: 0;
+    }
+
+    .detail-day-head strong {
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .detail-day-head small {
+      margin-top: 4px;
+      color: var(--ink-500);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .detail-day-meta {
+      flex: 0 0 auto;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(196, 102, 31, 0.12);
+      color: #9a5f1d;
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .detail-day-body {
+      display: grid;
+      gap: 10px;
+      padding: 0 12px 12px;
+      border-top: 1px solid rgba(226, 232, 240, 0.72);
+    }
+
+    .detail-tab-shell {
+      display: grid;
+      gap: 10px;
+      padding-top: 10px;
+    }
+
+    .detail-tab-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .detail-tab-chip {
+      border: 0;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: rgba(241, 245, 249, 0.92);
+      color: var(--ink-600, #475569);
+      font: inherit;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .detail-tab-chip.is-active {
+      background: rgba(196, 102, 31, 0.14);
+      color: #9a5f1d;
+      box-shadow: inset 0 0 0 1px rgba(196, 102, 31, 0.18);
+    }
+
+    .detail-tab-panel {
+      display: none;
+      gap: 8px;
+    }
+
+    .detail-tab-panel.is-active {
+      display: grid;
+    }
+
+    .detail-copy-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .detail-copy-block {
+      display: grid;
+      gap: 4px;
+      padding: 9px 10px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid rgba(226, 232, 240, 0.72);
+    }
+
+    .detail-copy-label {
+      color: var(--ink-500);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .detail-copy-value {
+      margin: 0;
+      color: var(--ink-800, #334155);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.55;
+      white-space: pre-line;
+      word-break: break-word;
+    }
+
     .summary-metric {
       display: inline-flex;
       align-items: center;
@@ -953,47 +1115,6 @@
       const routeMetrics = window.ADN_ROUTE_METRICS || {};
       const TRACK_COLORS = ["#c4661f", "#325fd8", "#167b73"];
       const DAY_COLORS = ["#c4661f", "#325fd8", "#167b73", "#7c3aed", "#dc2626"];
-      const FIXED_DAY_ROUTE_PLAN = [
-        ["Sơn Dương", "Minh Xuân", "Xuân Vân"],
-        ["Chiêm Hóa", "Lâm Bình", "Bắc Quang"],
-        ["Quang Bình", "Hà Giang 2", "Bắc Mê"],
-        ["Quản Bạ", "Yên Minh", "Đồng Văn", "Mèo Vạc"],
-        ["Hoàng Su Phì", "Pà Vầy Sủ"]
-      ];
-      const FIXED_POINT_TOTALS = {
-        "Sơn Dương": 675,
-        "Minh Xuân": 662,
-        "Xuân Vân": 509,
-        "Chiêm Hóa": 529,
-        "Lâm Bình": 291,
-        "Bắc Quang": 365,
-        "Quang Bình": 246,
-        "Hà Giang 2": 265,
-        "Bắc Mê": 105,
-        "Quản Bạ": 62,
-        "Yên Minh": 48,
-        "Đồng Văn": 17,
-        "Mèo Vạc": 11,
-        "Hoàng Su Phì": 60,
-        "Pà Vầy Sủ": 64
-      };
-      const FIXED_REFERENCE_POSITIONS = {
-        "Pà Vầy Sủ": { x: 150, y: 360 },
-        "Hoàng Su Phì": { x: 360, y: 344 },
-        "Quang Bình": { x: 470, y: 620 },
-        "Hà Giang 2": { x: 770, y: 425 },
-        "Bắc Mê": { x: 1205, y: 470 },
-        "Quản Bạ": { x: 820, y: 145 },
-        "Yên Minh": { x: 1090, y: 145 },
-        "Đồng Văn": { x: 1195, y: 52 },
-        "Mèo Vạc": { x: 1330, y: 82 },
-        "Bắc Quang": { x: 760, y: 660 },
-        "Lâm Bình": { x: 1185, y: 605 },
-        "Chiêm Hóa": { x: 1260, y: 805 },
-        "Minh Xuân": { x: 1080, y: 804 },
-        "Xuân Vân": { x: 1200, y: 720 },
-        "Sơn Dương": { x: 1360, y: 850 }
-      };
       const STAGE_WIDTH = 1400;
       const STAGE_HEIGHT = 900;
       const directionTabsEl = document.getElementById("direction-tabs");
@@ -1229,6 +1350,15 @@
         return Number(value || 0);
       }
 
+      function parsePlannedTotal(value) {
+        const normalized = String(value || "").trim();
+        if (!normalized || /^không có$/i.test(normalized)) {
+          return null;
+        }
+        const match = normalized.match(/(\d[\d.]*)/);
+        return match ? Number(match[1].replace(/\./g, "")) : null;
+      }
+
       function dedupeConsecutivePoints(points) {
         const deduped = [];
         points.forEach((point) => {
@@ -1240,78 +1370,6 @@
       }
 
       function buildRoutes(direction) {
-        if (direction.id === "co-dinh") {
-          const pointLookup = buildDirectionPointLookup(direction);
-          const routePlans = state.dayIndex === null
-            ? FIXED_DAY_ROUTE_PLAN.map((points, dayIndex) => ({ dayIndex, points }))
-            : (FIXED_DAY_ROUTE_PLAN[state.dayIndex] ? [{ dayIndex: state.dayIndex, points: FIXED_DAY_ROUTE_PLAN[state.dayIndex] }] : []);
-
-          return routePlans.map(({ dayIndex, points }) => {
-            const day = direction.days[dayIndex];
-            const routePoints = points.map((name) => {
-              const coords = pointLookup.get(name);
-              if (!coords) {
-                return null;
-              }
-              return {
-                key: buildNodeKey(name, coords.lat, coords.lng),
-                name,
-                lat: coords.lat,
-                lng: coords.lng,
-                total: Number(FIXED_POINT_TOTALS[name] || 0),
-                session: "Cả ngày",
-                dayLabel: day.dayLabel,
-                dateLabel: day.dateLabel,
-                isoDate: toIsoDate(day.dateLabel),
-                dayIndex,
-                areas: []
-              };
-            }).filter(Boolean);
-
-            const segments = [];
-            for (let index = 0; index < routePoints.length - 1; index += 1) {
-              const origin = routePoints[index];
-              const destination = routePoints[index + 1];
-              segments.push({
-                id: `${dayIndex}-${index}`,
-                trackIndex: dayIndex,
-                fromKey: origin.key,
-                toKey: destination.key,
-                fromName: origin.name,
-                toName: destination.name,
-                dayLabel: day.dayLabel,
-                dateLabel: day.dateLabel,
-                color: DAY_COLORS[dayIndex] || DAY_COLORS[0],
-                metric: getMetric(origin, destination)
-              });
-            }
-
-            return {
-              id: `${direction.id}-day-${dayIndex}`,
-              trackIndex: dayIndex,
-              color: DAY_COLORS[dayIndex] || DAY_COLORS[0],
-              label: day.dayLabel,
-              title: points.join(" -> "),
-              dateLabel: day.dateLabel,
-              summary: points.join(" -> "),
-              total: routePoints.reduce((sum, point) => sum + Number(point.total || 0), 0),
-              meta: `${day.dateLabel} · ${routePoints.reduce((sum, point) => sum + Number(point.total || 0), 0).toLocaleString("vi-VN")} TNLS`,
-              points: routePoints,
-              segments,
-              dayDetails: [{
-                dayIndex,
-                dayLabel: day.dayLabel,
-                dateLabel: day.dateLabel,
-                color: DAY_COLORS[dayIndex] || DAY_COLORS[0],
-                title: points.join(" -> "),
-                total: routePoints.reduce((sum, point) => sum + Number(point.total || 0), 0),
-                summary: points.join(" -> "),
-                points: routePoints
-              }]
-            };
-          }).filter((route) => route.points.length);
-        }
-
         const visibleDays = getVisibleDays(direction);
         const routes = [];
         const trackCount = visibleDays[0] ? visibleDays[0].day.tracks.length : 0;
@@ -1324,6 +1382,7 @@
           visibleDays.forEach(({ day, dayIndex }) => {
             const track = day.tracks[trackIndex];
             const dayPoints = [];
+            const dayNotes = [];
 
             if (direction.id === "co-dinh") {
               track.stops.forEach((stop) => {
@@ -1345,42 +1404,67 @@
                 points.push(point);
               });
             } else {
-              track.visits.filter((visit) => visit.name).forEach((visit) => {
-                const point = {
-                  key: buildNodeKey(visit.name, visit.lat, visit.lng),
-                  name: visit.name,
-                  lat: visit.lat,
-                  lng: visit.lng,
-                  total: Number(visit.count || 0),
-                  session: visit.session || "Cả ngày",
-                  dayLabel: day.dayLabel,
-                  dateLabel: day.dateLabel,
-                  isoDate: toIsoDate(day.dateLabel),
-                  dayIndex,
-                  areas: []
-                };
-                total += point.total;
-                dayPoints.push(point);
-                points.push(point);
+              track.visits.forEach((visit) => {
+                if (visit.name) {
+                  const point = {
+                    key: buildNodeKey(visit.name, visit.lat, visit.lng),
+                    name: visit.name,
+                    lat: visit.lat,
+                    lng: visit.lng,
+                    total: Number(visit.count || 0),
+                    session: visit.session || "Cả ngày",
+                    dayLabel: day.dayLabel,
+                    dateLabel: day.dateLabel,
+                    isoDate: toIsoDate(day.dateLabel),
+                    dayIndex,
+                    areas: []
+                  };
+                  total += point.total;
+                  dayPoints.push(point);
+                  points.push(point);
+                  return;
+                }
+
+                if (visit.label) {
+                  dayNotes.push(visit.label);
+                }
               });
             }
 
-            if (dayPoints.length) {
+            const explicitTotal = dayPoints.reduce((sum, point) => sum + Number(point.total || 0), 0);
+            const reportedTotal = direction.id === "luu-dong"
+              ? (parsePlannedTotal(track.planned) ?? explicitTotal)
+              : explicitTotal;
+            const detailSummary = dayPoints.length
+              ? dayPoints.map((point) => point.name).join(" -> ")
+              : (dayNotes.join(" · ") || track.title || track.label);
+
+            if (dayPoints.length || dayNotes.length || reportedTotal > 0) {
               dayDetails.push({
                 dayIndex,
                 dayLabel: day.dayLabel,
                 dateLabel: day.dateLabel,
                 color: DAY_COLORS[dayIndex] || DAY_COLORS[0],
-                title: track.title,
-                total: dayPoints.reduce((sum, point) => sum + Number(point.total || 0), 0),
-                summary: dayPoints.map((point) => point.name).join(" -> "),
-                points: dayPoints
+                title: track.sourceTitle || track.title,
+                titleShort: track.title || track.sourceTitle || track.label,
+                total: reportedTotal,
+                summary: detailSummary,
+                points: dayPoints,
+                notes: dayNotes,
+                planned: track.planned || "",
+                plannedText: track.plannedText || track.planned || "",
+                venue: track.venue || "",
+                equipmentProvince: track.equipmentProvince || "",
+                equipmentTeam: track.equipmentTeam || "",
+                staffCore: track.staffCore || "",
+                staffSite: track.staffSite || "",
+                scheduleText: track.scheduleText || ""
               });
             }
           });
 
           const routePoints = dedupeConsecutivePoints(points);
-          if (!routePoints.length) {
+          if (!routePoints.length && !dayDetails.length) {
             continue;
           }
 
@@ -1403,18 +1487,27 @@
           }
 
           const trackLabel = visibleDays[0].day.tracks[trackIndex].label;
+          const routeTotal = dayDetails.reduce((sum, detail) => sum + Number(detail.total || 0), 0);
+          const noteCount = dayDetails.reduce((sum, detail) => sum + (detail.notes ? detail.notes.length : 0), 0);
+          const routeSummary = routePoints.length
+            ? routePoints.map((point) => point.name).join(" -> ")
+            : (dayDetails.map((detail) => detail.summary).filter(Boolean).join(" · ") || trackLabel);
           routes.push({
             id: `${direction.id}-track-${trackIndex}`,
             trackIndex,
             color: TRACK_COLORS[trackIndex] || TRACK_COLORS[0],
             label: trackLabel,
-            title: visibleDays.length > 1 ? `${trackLabel} · Tuyến xuyên ${visibleDays.length} ngày` : dayDetails[0].title,
+            title: visibleDays.length > 1
+              ? `${trackLabel} · Tuyến xuyên ${visibleDays.length} ngày`
+              : (dayDetails[0]?.title || trackLabel),
             dateLabel: visibleDays.length > 1
               ? `${visibleDays[0].day.dateLabel} -> ${visibleDays[visibleDays.length - 1].day.dateLabel}`
-              : dayDetails[0].dateLabel,
-            summary: routePoints.map((point) => point.name).join(" -> "),
-            total,
+              : (dayDetails[0]?.dateLabel || visibleDays[0]?.day.dateLabel || ""),
+            summary: routeSummary,
+            total: routeTotal,
             meta: dayDetails.map((detail) => `${detail.dayLabel}: ${formatNumber(detail.total)} TNLS`).join(" · "),
+            noteCount,
+            allPoints: points,
             points: routePoints,
             segments,
             dayDetails
@@ -1438,7 +1531,8 @@
       function buildVisibleNodes(routes) {
         const map = new Map();
         routes.forEach((route) => {
-          route.points.forEach((point) => {
+          const sourcePoints = route.allPoints || route.points;
+          sourcePoints.forEach((point) => {
             if (!map.has(point.key)) {
               map.set(point.key, {
                 key: point.key,
@@ -1519,32 +1613,6 @@
         }]));
       }
 
-      function buildReferencePositions(nodes) {
-        const fallback = [];
-        const positions = new Map();
-        Array.from(nodes.values()).forEach((node) => {
-          const preset = FIXED_REFERENCE_POSITIONS[node.name];
-          if (!preset) {
-            fallback.push(node);
-            return;
-          }
-          positions.set(node.key, {
-            ...node,
-            x: preset.x,
-            y: preset.y
-          });
-        });
-
-        fallback.forEach((node, index) => {
-          positions.set(node.key, {
-            ...node,
-            x: 180 + (index % 4) * 180,
-            y: 180 + Math.floor(index / 4) * 140
-          });
-        });
-        return positions;
-      }
-
       function buildSchematicRoutePositions(route, routeNodes) {
         const uniqueNodes = [];
         const seen = new Set();
@@ -1586,12 +1654,42 @@
         return positions;
       }
 
-      function buildBoardPositions(direction, routeNodes, activeRoute, referenceMode) {
-        if (referenceMode || direction.id === "co-dinh") {
-          if (referenceMode) {
-            return buildReferencePositions(routeNodes);
+      function buildMultiRouteTimelinePositions(routes, routeNodes) {
+        const positions = new Map();
+        const rowCount = Math.max(1, routes.length);
+        const yGap = rowCount === 1 ? 0 : Math.min(250, Math.max(170, (STAGE_HEIGHT - 260) / (rowCount - 1)));
+        const startY = rowCount === 1 ? STAGE_HEIGHT / 2 : 190;
+
+        routes.forEach((route, routeIndex) => {
+          const orderedNodes = [];
+          const seen = new Set();
+          route.points.forEach((point) => {
+            if (seen.has(point.key) || !routeNodes.has(point.key)) {
+              return;
+            }
+            seen.add(point.key);
+            orderedNodes.push(routeNodes.get(point.key));
+          });
+          if (!orderedNodes.length) {
+            return;
           }
-          return buildSchematicRoutePositions(activeRoute, routeNodes);
+          const startX = 150;
+          const endX = STAGE_WIDTH - 180;
+          const gap = orderedNodes.length === 1 ? 0 : (endX - startX) / (orderedNodes.length - 1);
+          orderedNodes.forEach((node, nodeIndex) => {
+            positions.set(node.key, {
+              ...node,
+              x: startX + nodeIndex * gap,
+              y: startY + routeIndex * yGap + ((nodeIndex % 2 === 0) ? -16 : 16)
+            });
+          });
+        });
+        return positions;
+      }
+
+      function buildBoardPositions(direction, routeNodes, activeRoute, referenceMode, routes) {
+        if (direction.id === "co-dinh") {
+          return buildMultiRouteTimelinePositions(routes, routeNodes);
         }
         return buildSchematicRoutePositions(activeRoute, routeNodes);
       }
@@ -1814,8 +1912,9 @@
         mapNoteEl.style.display = "none";
         mapNoteEl.innerHTML = "";
 
-        const routeNodes = referenceMode ? nodes : new Map();
-        if (!referenceMode) {
+        const showAllRoutes = direction.id === "co-dinh";
+        const routeNodes = showAllRoutes ? nodes : new Map();
+        if (!showAllRoutes) {
           activeRoute.points.forEach((point) => {
             if (nodes.has(point.key)) {
               routeNodes.set(point.key, nodes.get(point.key));
@@ -1827,10 +1926,10 @@
         if (activeNodeKey && state.activeNodeKey !== activeNodeKey) {
           state.activeNodeKey = activeNodeKey;
         }
-        const positions = buildBoardPositions(direction, routeNodes, activeRoute, referenceMode);
+        const positions = buildBoardPositions(direction, routeNodes, activeRoute, referenceMode, routes);
         const maxTotal = Math.max(...Array.from(routeNodes.values()).map((node) => node.total), 0);
 
-        const visibleRoutes = referenceMode ? routes : [activeRoute];
+        const visibleRoutes = showAllRoutes ? routes : [activeRoute];
         mapSvgEl.innerHTML = visibleRoutes.map((route) => {
           return route.segments.map((segment) => {
             const fromNode = positions.get(segment.fromKey);
@@ -1879,7 +1978,7 @@
           const anchor = labelAnchor(node);
           const primaryOccurrence = node.occurrences[0];
           const color = referenceMode
-            ? (DAY_COLORS[primaryOccurrence.dayIndex] || activeRoute.color)
+            ? (primaryOccurrence.color || activeRoute.color)
             : activeRoute.color;
           const size = nodeSize(node.total, maxTotal);
           const isActive = activeNodeKey === node.key;
@@ -1911,7 +2010,7 @@
         });
 
         if (state.shouldAutoFit) {
-          fitViewportToPositions(referenceMode ? Array.from(routeNodes.values()) : activeRoute.points, positions);
+          fitViewportToPositions(showAllRoutes ? Array.from(routeNodes.values()) : activeRoute.points, positions);
           state.shouldAutoFit = false;
         } else {
           updateViewport();
@@ -1941,6 +2040,9 @@
         if (!route) {
           return "";
         }
+        if (!route.points.length) {
+          return route.summary || route.title || route.label;
+        }
         if (referenceMode || route.points.length <= 3) {
           return route.summary;
         }
@@ -1954,7 +2056,162 @@
         if (referenceMode) {
           return `${formatNumber(route.total)} TNLS`;
         }
+        if (!route.points.length) {
+          const parts = [];
+          if (route.noteCount) {
+            parts.push(`${route.noteCount} mục nghiệp vụ`);
+          }
+          if (route.total > 0) {
+            parts.push(`${formatNumber(route.total)} TNLS`);
+          }
+          return parts.join(" · ") || "Không có điểm bản đồ";
+        }
+        if (route.noteCount) {
+          return `${route.points.length} điểm · ${route.noteCount} mục nghiệp vụ · ${formatNumber(route.total)} TNLS`;
+        }
         return `${route.points.length} điểm · ${formatNumber(route.total)} TNLS`;
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function formatDetailValue(value) {
+        if (!value) {
+          return "";
+        }
+        const normalized = String(value)
+          .replace(/\s+/g, " ")
+          .replace(/\s*-\s*Buổi sáng:/g, "\nBuổi sáng:")
+          .replace(/\s*-\s*Buổi chiều:/g, "\nBuổi chiều:")
+          .replace(/\s*Dự kiến tính trong ngày:/g, "Dự kiến tính trong ngày:")
+          .replace(/\s*Sáng:/g, "\nSáng:")
+          .replace(/\s*Chiều:/g, "\nChiều:")
+          .replace(/\s+\*\s*Lưu ý:/g, "\nLưu ý:")
+          .replace(/\s+\((\d+)\)/g, "\n($1)")
+          .replace(/\s+\+\s/g, "\n+ ")
+          .replace(/\s+-\s+/g, "\n- ")
+          .trim();
+        return escapeHtml(normalized);
+      }
+
+      function buildDetailCopyBlock(label, value) {
+        if (!value) {
+          return "";
+        }
+        return `
+          <div class="detail-copy-block">
+            <div class="detail-copy-label">${escapeHtml(label)}</div>
+            <p class="detail-copy-value">${formatDetailValue(value)}</p>
+          </div>
+        `;
+      }
+
+      function buildPointListRows(detail) {
+        if (!detail.points || !detail.points.length) {
+          return "";
+        }
+        return `
+          <div class="detail-list">
+            ${detail.points.map((point) => `
+              <div class="detail-row">
+                <span>${point.session || "Cả ngày"} · ${point.name}</span>
+                <strong>${formatNumber(point.total)} TNLS</strong>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      }
+
+      function buildNoteListRows(detail) {
+        if (!detail.notes || !detail.notes.length) {
+          return "";
+        }
+        return `
+          <div class="detail-list">
+            ${detail.notes.map((note) => `
+              <div class="detail-row detail-row-note">
+                <span>${detail.dayLabel}</span>
+                <strong>${note}</strong>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      }
+
+      function buildDayDetailTabs(detail) {
+        const overviewPanel = `
+          <section class="detail-tab-panel is-active" data-detail-panel="overview">
+            <div class="detail-copy-grid">
+              ${buildDetailCopyBlock("Chỉ tiêu dự kiến", detail.plannedText || (detail.total ? `${formatNumber(detail.total)} TNLS` : ""))}
+              ${buildDetailCopyBlock("Địa điểm thu mẫu", detail.venue)}
+            </div>
+            ${buildPointListRows(detail)}
+            ${buildNoteListRows(detail)}
+          </section>
+        `;
+        const equipmentPanel = `
+          <section class="detail-tab-panel" data-detail-panel="equipment">
+            <div class="detail-copy-grid">
+              ${buildDetailCopyBlock("Thiết bị cấp căn cước", detail.equipmentProvince)}
+              ${buildDetailCopyBlock("Thiết bị thuộc đơn vị lấy mẫu/tổ", detail.equipmentTeam)}
+            </div>
+          </section>
+        `;
+        const staffPanel = `
+          <section class="detail-tab-panel" data-detail-panel="staff">
+            <div class="detail-copy-grid">
+              ${buildDetailCopyBlock("Nhân lực cố định tại trạm", detail.staffCore)}
+              ${buildDetailCopyBlock("Nhân lực tại điểm bố trí", detail.staffSite)}
+            </div>
+          </section>
+        `;
+        const schedulePanel = `
+          <section class="detail-tab-panel" data-detail-panel="schedule">
+            <div class="detail-copy-grid">
+              ${buildDetailCopyBlock("Địa bàn thu mẫu và khung giờ", detail.scheduleText)}
+            </div>
+          </section>
+        `;
+        return `
+          <div class="detail-tab-shell" data-detail-tabs>
+            <div class="detail-tab-bar" role="tablist" aria-label="${escapeHtml(`${detail.dayLabel} ${detail.dateLabel}`)}">
+              <button type="button" class="detail-tab-chip is-active" data-detail-tab="overview">Tổng quan</button>
+              <button type="button" class="detail-tab-chip" data-detail-tab="equipment">Thiết bị</button>
+              <button type="button" class="detail-tab-chip" data-detail-tab="staff">Nhân lực</button>
+              <button type="button" class="detail-tab-chip" data-detail-tab="schedule">Khung giờ</button>
+            </div>
+            ${overviewPanel}
+            ${equipmentPanel}
+            ${staffPanel}
+            ${schedulePanel}
+          </div>
+        `;
+      }
+
+      function buildDayDetailCard(detail, isOpen = false) {
+        if (!detail) {
+          return "";
+        }
+        return `
+          <details class="detail-day-card"${isOpen ? " open" : ""}>
+            <summary class="detail-day-toggle">
+              <div class="detail-day-head">
+                <strong>${escapeHtml(`${detail.dayLabel} · ${detail.dateLabel}`)}</strong>
+                <small>${escapeHtml(detail.title || detail.titleShort || detail.summary)}</small>
+              </div>
+              <span class="detail-day-meta">${formatNumber(detail.total)} TNLS</span>
+            </summary>
+            <div class="detail-day-body">
+              ${buildDayDetailTabs(detail)}
+            </div>
+          </details>
+        `;
       }
 
       function buildNodeDetail(node) {
@@ -1968,7 +2225,7 @@
         }
         const occurrenceRows = node.occurrences.map((occurrence) => `
           <div class="detail-row">
-            <span>${occurrence.dayLabel} · ${occurrence.routeLabel}</span>
+            <span>${occurrence.dayLabel} · ${occurrence.routeLabel} · ${occurrence.session || "Cả ngày"}</span>
             <strong>${formatNumber(occurrence.total)} TNLS</strong>
           </div>
         `).join("");
@@ -1996,6 +2253,12 @@
             <strong>${formatNumber(detail.total)} TNLS</strong>
           </div>
         `).join("");
+        const expandedDayIndex = state.dayIndex === null
+          ? (route.dayDetails[0] ? route.dayDetails[0].dayIndex : null)
+          : state.dayIndex;
+        const dayCards = route.dayDetails.map((detail) => (
+          buildDayDetailCard(detail, detail.dayIndex === expandedDayIndex)
+        )).join("");
         const segmentRows = route.segments
           .filter((segment) => segment.metric.source !== "same-site")
           .map((segment) => `
@@ -2010,9 +2273,37 @@
             <span>${route.summary}</span>
             <small>${route.dateLabel} · ${formatNumber(route.total)} TNLS</small>
             <div class="detail-list">${dayRows}</div>
+            ${dayCards ? `<div class="detail-day-stack">${dayCards}</div>` : ""}
             ${segmentRows ? `<div class="detail-list">${segmentRows}</div>` : ""}
           </div>
         `;
+      }
+
+      function attachSummaryPanelInteractions(routes) {
+        summaryPanelEl.querySelectorAll("[data-route-id]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.activeRouteId = button.getAttribute("data-route-id");
+            const nextRoute = routes.find((route) => route.id === state.activeRouteId);
+            state.activeNodeKey = getPreferredRouteNodeKey(nextRoute);
+            state.summaryOpen = true;
+            state.shouldAutoFit = true;
+            render();
+          });
+        });
+
+        summaryPanelEl.querySelectorAll("[data-detail-tabs]").forEach((shell) => {
+          const chips = Array.from(shell.querySelectorAll("[data-detail-tab]"));
+          const panels = Array.from(shell.querySelectorAll("[data-detail-panel]"));
+          chips.forEach((chip) => {
+            chip.addEventListener("click", () => {
+              const tabId = chip.getAttribute("data-detail-tab");
+              chips.forEach((item) => item.classList.toggle("is-active", item === chip));
+              panels.forEach((panel) => {
+                panel.classList.toggle("is-active", panel.getAttribute("data-detail-panel") === tabId);
+              });
+            });
+          });
+        });
       }
 
       function renderSummary(direction, routes, nodes) {
@@ -2022,7 +2313,9 @@
           state.activeNodeKey = getPreferredRouteNodeKey(activeRoute);
         }
         const activeNode = nodes.get(state.activeNodeKey) || (activeRoute ? nodes.get(getPreferredRouteNodeKey(activeRoute)) : null);
-        const directionTotal = Array.from(nodes.values()).reduce((sum, node) => sum + Number(node.total || 0), 0);
+        const directionTotal = state.dayIndex === null
+          ? direction.days.reduce((sum, day) => sum + Number(day.total || 0), 0)
+          : Number(direction.days[state.dayIndex]?.total || 0);
         summaryDrawerEl.classList.toggle("is-open", state.summaryOpen);
 
         if (referenceMode) {
@@ -2061,17 +2354,7 @@
               </section>
             </div>
           `;
-
-          summaryPanelEl.querySelectorAll("[data-route-id]").forEach((button) => {
-            button.addEventListener("click", () => {
-              state.activeRouteId = button.getAttribute("data-route-id");
-              const nextRoute = routes.find((route) => route.id === state.activeRouteId);
-              state.activeNodeKey = getPreferredRouteNodeKey(nextRoute);
-              state.summaryOpen = true;
-              state.shouldAutoFit = true;
-              render();
-            });
-          });
+          attachSummaryPanelInteractions(routes);
           return;
         }
 
@@ -2110,17 +2393,7 @@
             </section>
           </div>
         `;
-
-        summaryPanelEl.querySelectorAll("[data-route-id]").forEach((button) => {
-          button.addEventListener("click", () => {
-            state.activeRouteId = button.getAttribute("data-route-id");
-            const nextRoute = routes.find((route) => route.id === state.activeRouteId);
-            state.activeNodeKey = getPreferredRouteNodeKey(nextRoute);
-            state.summaryOpen = true;
-            state.shouldAutoFit = true;
-            render();
-          });
-        });
+        attachSummaryPanelInteractions(routes);
       }
 
       async function fetchForecast(lat, lng) {

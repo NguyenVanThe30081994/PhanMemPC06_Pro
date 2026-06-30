@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import time
 import unittest
+from pathlib import Path
 
 from app import app
 from models import User
@@ -51,6 +52,17 @@ class MartyrAdnMapRouteTests(unittest.TestCase):
         self.assertIn('summary-toggle'.encode('utf-8'), response.data)
         self.assertIn('direction-tabs'.encode('utf-8'), response.data)
         self.assertNotIn('Lăn chuột để zoom, kéo nền để di chuyển'.encode('utf-8'), response.data)
+
+    def test_schedule_data_keeps_non_map_operational_items(self):
+        schedule_data_path = Path(app.root_path) / 'static' / 'js' / 'martyr-adn-schedule-data.js'
+        self.assertTrue(schedule_data_path.exists())
+        schedule_text = schedule_data_path.read_text(encoding='utf-8')
+        self.assertIn('Hỗ trợ cho Trạm 1', schedule_text)
+        self.assertIn('"plannedText"', schedule_text)
+        self.assertIn('"venue"', schedule_text)
+        self.assertIn('"staffCore"', schedule_text)
+        self.assertIn('"staffSite"', schedule_text)
+        self.assertIn('"scheduleText"', schedule_text)
 
 
 if __name__ == '__main__':
