@@ -880,51 +880,6 @@
         return Number(value || 0);
       }
 
-      function buildLocationLookup(direction) {
-        const lookup = new Map();
-        direction.days.forEach((day) => {
-          day.tracks.forEach((track) => {
-            const items = direction.id === "co-dinh" ? track.stops : track.visits.filter((visit) => visit.name);
-            items.forEach((item) => {
-              if (!item.name) {
-                return;
-              }
-              const key = buildNodeKey(item.name, item.lat, item.lng);
-              lookup.set(item.name, {
-                key,
-                name: item.name,
-                lat: item.lat,
-                lng: item.lng
-              });
-            });
-          });
-        });
-        return lookup;
-      }
-
-      function extractFixedOrigin(title) {
-        const text = String(title || "").trim();
-        if (!text) {
-          return "";
-        }
-        if (text.startsWith("Bắt đầu tại ")) {
-          return text.replace("Bắt đầu tại ", "").split(",")[0].trim();
-        }
-        const moveMatch = text.match(/^(.+?)\s+di chuyển đến\s+/i);
-        if (moveMatch) {
-          return moveMatch[1].trim();
-        }
-        const toMatch = text.match(/^(.+?)\s+đến\s+/i);
-        if (toMatch) {
-          return toMatch[1].trim();
-        }
-        const sangMatch = text.match(/^(.+?)\s+sang\s+/i);
-        if (sangMatch) {
-          return sangMatch[1].trim();
-        }
-        return "";
-      }
-
       function dedupeConsecutivePoints(points) {
         const deduped = [];
         points.forEach((point) => {
@@ -936,7 +891,6 @@
       }
 
       function buildRoutes(direction) {
-        const locationLookup = buildLocationLookup(direction);
         const visibleDays = getVisibleDays(direction);
         const routes = [];
 
@@ -946,14 +900,6 @@
             let total = 0;
             let meta = "";
             if (direction.id === "co-dinh") {
-              const originName = extractFixedOrigin(track.title);
-              if (originName && locationLookup.has(originName)) {
-                points.push({
-                  ...locationLookup.get(originName),
-                  total: 0,
-                  session: "Di chuyển"
-                });
-              }
               track.stops.forEach((stop) => {
                 total += Number(stop.total || 0);
                 points.push({
@@ -1112,27 +1058,13 @@
         }]));
       }
 
-      function buildSmoothPath(points) {
+      function buildStraightPath(points) {
         if (points.length < 2) {
           return "";
         }
-        if (points.length === 2) {
-          const [start, end] = points;
-          const cx = (start.x + end.x) / 2;
-          const cy = (start.y + end.y) / 2;
-          return `M ${start.x} ${start.y} Q ${cx} ${cy} ${end.x} ${end.y}`;
-        }
         let path = `M ${points[0].x} ${points[0].y}`;
-        for (let index = 0; index < points.length - 1; index += 1) {
-          const current = points[index];
-          const next = points[index + 1];
-          const previous = points[index - 1] || current;
-          const afterNext = points[index + 2] || next;
-          const control1X = current.x + (next.x - previous.x) / 6;
-          const control1Y = current.y + (next.y - previous.y) / 6;
-          const control2X = next.x - (afterNext.x - current.x) / 6;
-          const control2Y = next.y - (afterNext.y - current.y) / 6;
-          path += ` C ${control1X} ${control1Y}, ${control2X} ${control2Y}, ${next.x} ${next.y}`;
+        for (let index = 1; index < points.length; index += 1) {
+          path += ` L ${points[index].x} ${points[index].y}`;
         }
         return path;
       }
@@ -1184,7 +1116,7 @@
           return `
             <path
               class="route-path${activeRoute && activeRoute.id === route.id ? " is-active" : ""}"
-              d="${buildSmoothPath(routePoints)}"
+              d="${buildStraightPath(routePoints)}"
               stroke="${route.color}"
               stroke-width="${activeRoute && activeRoute.id === route.id ? 7 : 5}"
             ></path>
@@ -1198,11 +1130,12 @@
             if (!fromNode || !toNode) {
               return "";
             }
+            if (segment.metric.source === "same-site") {
+              return "";
+            }
             const midX = (fromNode.x + toNode.x) / 2;
             const midY = (fromNode.y + toNode.y) / 2 - 18;
-            const metricText = segment.metric.source === "same-site"
-              ? "Giữ nguyên điểm"
-              : `${formatNumber(segment.metric.distance_km)} km · ${formatNumber(segment.metric.travel_minutes)} phút`;
+            const metricText = `${formatNumber(segment.metric.distance_km)} km · ${formatNumber(segment.metric.travel_minutes)} phút`;
             return `
               <div class="segment-badge" style="left:${midX}px; top:${midY}px;">
                 ${metricText}
