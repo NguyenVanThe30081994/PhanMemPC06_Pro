@@ -1379,7 +1379,7 @@
                 <div class="map-status" id="map-status">100%</div>
                 <button type="button" class="map-control" id="zoom-in-button" aria-label="Phóng to">+</button>
                 <button type="button" class="map-control" id="reset-view-button" aria-label="Đặt lại góc nhìn">↺</button>
-                <span style="font-size: 11px; opacity: 0.6; margin-left: 8px; font-weight: 600; font-family: var(--font-display);">v3.8.8</span>
+                <span style="font-size: 11px; opacity: 0.6; margin-left: 8px; font-weight: 600; font-family: var(--font-display);">v3.8.9</span>
 
               </div>
               <button type="button" class="summary-toggle" id="summary-toggle" aria-label="Mở thông tin">☰</button>
@@ -3762,18 +3762,10 @@
         const direction = getSelectedDirection();
         const routes = buildRoutes(direction);
         const activeRoute = resolveActiveRoute(routes);
-        console.log("=== Render Call ===");
-        console.log("state.activeRouteId:", state.activeRouteId);
-        console.log("state.activeNodeKey:", state.activeNodeKey);
         if (activeRoute) {
           state.activeRouteId = activeRoute.id;
-          const hasKey = activeRoute.points.some((point) => point.key === state.activeNodeKey);
-          console.log("Active Route Points:", activeRoute.points.map(p => p.key));
-          console.log("Route contains state.activeNodeKey?", hasKey);
-          if (!hasKey) {
-            const preferred = getPreferredRouteNodeKey(activeRoute);
-            console.log("Resetting activeNodeKey to preferred:", preferred);
-            state.activeNodeKey = preferred;
+          if (!activeRoute.points.some((point) => point.key === state.activeNodeKey)) {
+            state.activeNodeKey = getPreferredRouteNodeKey(activeRoute);
           }
         }
         const nodes = buildVisibleNodes(routes, direction);
