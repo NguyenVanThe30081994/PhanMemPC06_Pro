@@ -421,8 +421,17 @@
     }
 
     .route-path.route-path-catchment {
-      opacity: 0.5;
+      opacity: 0.88;
+      stroke-dasharray: 6 6;
+      animation: dash-catchment 15s linear infinite;
     }
+
+    @keyframes dash-catchment {
+      to {
+        stroke-dashoffset: -120;
+      }
+    }
+
 
     .route-path.is-active {
       opacity: 1;
@@ -583,21 +592,23 @@
     .segment-badge {
       position: absolute;
       transform: translate(-50%, -50%);
-      padding: 9px 12px;
-      border-radius: 18px;
-      background: rgba(255, 255, 255, 0.98);
-      border: 1px solid rgba(226, 232, 240, 0.88);
-      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
-      color: var(--ink-900);
-      font-size: 12px;
-      font-weight: 800;
+      padding: 0;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      color: #0f172a;
+      font-size: 11px;
+      font-weight: 700;
       line-height: 1.2;
       white-space: nowrap;
       pointer-events: none;
-      max-width: 150px;
       text-align: center;
       font-family: var(--font-display);
+      text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;
+      transition: transform 0.15s ease;
     }
+
+
 
     .map-note {
       position: absolute;
@@ -1190,6 +1201,8 @@
                 <div class="map-status" id="map-status">100%</div>
                 <button type="button" class="map-control" id="zoom-in-button" aria-label="Phóng to">+</button>
                 <button type="button" class="map-control" id="reset-view-button" aria-label="Đặt lại góc nhìn">↺</button>
+                <span style="font-size: 11px; opacity: 0.6; margin-left: 8px; font-weight: 600; font-family: var(--font-display);">v3.7.0</span>
+
               </div>
               <button type="button" class="summary-toggle" id="summary-toggle" aria-label="Mở thông tin">☰</button>
             </div>
@@ -1314,13 +1327,14 @@
         }
         const parts = [];
         if (Number.isFinite(Number(metric.distance_km))) {
-          parts.push(`${formatNumber(metric.distance_km)} km`);
+          parts.push(`${formatNumber(metric.distance_km)}km`);
         }
         if (Number.isFinite(Number(metric.travel_minutes))) {
-          parts.push(`${formatNumber(metric.travel_minutes)} phút`);
+          parts.push(`${formatNumber(metric.travel_minutes)}p`);
         }
-        return parts.join(" · ");
+        return parts.join(" - ");
       }
+
 
       function describeWeatherCode(code) {
         if (code === 0) {
@@ -1799,6 +1813,12 @@
                 plannedText: detail?.plannedText || "",
                 scheduleText: detail?.scheduleText || "",
                 noteText: detail?.staffSite || "",
+                // Extra fields for lưu động panel
+                directionId: detail?.directionId || "",
+                trackTitle: detail?.title || detail?.titleShort || "",
+                staffCore: detail?.staffCore || "",
+                equipmentTeam: detail?.equipmentTeam || "",
+                equipmentProvince: detail?.equipmentProvince || "",
                 kind: "hub"
               });
             });
@@ -2034,17 +2054,29 @@
 
       function buildFixedCatchmentPositions(routes, routeNodes) {
         const positions = new Map();
+        
+        let activeHubKey = null;
+        const activeRoute = resolveActiveRoute(routes);
+        const preferredNodeKey = getPreferredRouteNodeKey(activeRoute);
+        let activeKey = state.activeNodeKey || preferredNodeKey;
+        if (activeKey) {
+          const activeNode = routeNodes.get(activeKey);
+          if (activeNode) {
+            activeHubKey = activeNode.kind === "hub" ? activeNode.key : activeNode.sourceHubKey;
+          }
+        }
+
         const hubAnchors = routes.length === 1
-          ? [{ x: STAGE_WIDTH / 2, y: STAGE_HEIGHT / 2 }]
+          ? [{ x: STAGE_WIDTH * 0.25, y: STAGE_HEIGHT * 0.5 }]
           : routes.length === 2
             ? [
-              { x: STAGE_WIDTH * 0.34, y: STAGE_HEIGHT * 0.5 },
-              { x: STAGE_WIDTH * 0.7, y: STAGE_HEIGHT * 0.5 }
+              { x: STAGE_WIDTH * 0.2, y: STAGE_HEIGHT * 0.38 },
+              { x: STAGE_WIDTH * 0.2, y: STAGE_HEIGHT * 0.65 }
             ]
             : [
-              { x: STAGE_WIDTH * 0.2, y: STAGE_HEIGHT * 0.5 },
-              { x: STAGE_WIDTH * 0.5, y: STAGE_HEIGHT * 0.5 },
-              { x: STAGE_WIDTH * 0.8, y: STAGE_HEIGHT * 0.5 }
+              { x: STAGE_WIDTH * 0.18, y: STAGE_HEIGHT * 0.25 },
+              { x: STAGE_WIDTH * 0.18, y: STAGE_HEIGHT * 0.52 },
+              { x: STAGE_WIDTH * 0.18, y: STAGE_HEIGHT * 0.78 }
             ];
 
         routes.forEach((route, routeIndex) => {
@@ -2079,37 +2111,48 @@
               y: hubY
             });
 
-            const areaNodes = Array.from(routeNodes.values())
-              .filter((node) => node.kind === "area" && node.sourceHubKey === hubNode.key)
-              .sort((left, right) => Number(right.total || 0) - Number(left.total || 0));
-            const morningNodes = areaNodes.filter((node) => node.occurrences.some((occurrence) => /sáng/i.test(occurrence.session || "")));
-            const afternoonNodes = areaNodes.filter((node) => !morningNodes.includes(node));
+            if (hubNode.key === activeHubKey) {
+              const areaNodes = Array.from(routeNodes.values())
+                .filter((node) => node.kind === "area" && node.sourceHubKey === hubNode.key)
+                .sort((left, right) => Number(right.total || 0) - Number(left.total || 0));
+                
+              const count = areaNodes.length;
+              // Always fan satellites to the RIGHT for consistent layout
+              const deltaX = 320;
 
-            const positionArc = (nodes, startAngle, endAngle, radius) => {
-              if (!nodes.length) {
-                return;
-              }
-              const span = nodes.length === 1 ? 0 : (endAngle - startAngle) / (nodes.length - 1);
-              nodes.forEach((node, index) => {
-                const angle = startAngle + span * index;
+              const verticalGap = 90;
+              const totalHeight = (count - 1) * verticalGap;
+              const startY = hubY - totalHeight / 2;
+
+              areaNodes.forEach((node, index) => {
                 positions.set(node.key, {
                   ...node,
-                  x: hubX + Math.cos(angle) * radius,
-                  y: hubY + Math.sin(angle) * radius
+                  x: hubX + deltaX,
+                  y: startY + index * verticalGap
                 });
               });
-            };
-
-            positionArc(morningNodes, Math.PI * 1.08, Math.PI * 1.92, 160);
-            positionArc(afternoonNodes, Math.PI * 0.08, Math.PI * 0.92, 160);
+            }
           });
         });
 
         return positions;
       }
 
+
+
       function buildFixedCatchmentSegments(routes, routeNodes) {
         const segments = [];
+        
+        let activeHubKey = null;
+        const activeRoute = resolveActiveRoute(routes);
+        const preferredNodeKey = getPreferredRouteNodeKey(activeRoute);
+        let activeKey = state.activeNodeKey || preferredNodeKey;
+        if (activeKey) {
+          const activeNode = routeNodes.get(activeKey);
+          if (activeNode) {
+            activeHubKey = activeNode.kind === "hub" ? activeNode.key : activeNode.sourceHubKey;
+          }
+        }
 
         routes.forEach((route) => {
           route.segments.forEach((segment) => {
@@ -2126,7 +2169,7 @@
         });
 
         Array.from(routeNodes.values())
-          .filter((node) => node.kind === "area" && node.sourceHubKey && routeNodes.has(node.sourceHubKey))
+          .filter((node) => node.kind === "area" && node.sourceHubKey === activeHubKey && routeNodes.has(node.sourceHubKey))
           .forEach((node) => {
             const occurrence = node.occurrences[0] || {};
             segments.push({
@@ -2142,6 +2185,7 @@
 
         return segments;
       }
+
 
       function buildBoardPositions(direction, routeNodes, activeRoute, referenceMode, routes) {
         if (direction.id === "co-dinh") {
@@ -2164,20 +2208,78 @@
         return path;
       }
 
-      function buildSegmentBadgePosition(fromNode, toNode, segmentIndex = 0) {
+      function buildSegmentPath(fromNode, toNode, isCatchment = false) {
+        if (isCatchment) {
+          const startX = toNode.x;
+          const startY = toNode.y;
+          const endX = fromNode.x;
+          const endY = fromNode.y;
+          const controlX1 = startX + (endX - startX) * 0.45;
+          const controlY1 = startY;
+          const controlX2 = startX + (endX - startX) * 0.55;
+          const controlY2 = endY;
+          return `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
+        }
+        return buildStraightPath([fromNode, toNode]);
+      }
+
+      function buildSegmentBadgePosition(fromNode, toNode, segmentIndex = 0, isCatchment = false) {
+        const angleRad = Math.atan2(toNode.y - fromNode.y, toNode.x - fromNode.x);
+        let angleDeg = angleRad * (180 / Math.PI);
+        if (angleDeg > 90 || angleDeg < -90) {
+          angleDeg += 180;
+        }
+
+        if (isCatchment) {
+          const startX = toNode.x;
+          const startY = toNode.y;
+          const endX = fromNode.x;
+          const endY = fromNode.y;
+          const controlX1 = startX + (endX - startX) * 0.45;
+          const controlY1 = startY;
+          const controlX2 = startX + (endX - startX) * 0.55;
+          const controlY2 = endY;
+
+          // Compute exact Bezier midpoint coordinates at t = 0.65
+          const t = 0.65;
+          const mt = 1 - t;
+          const w0 = mt * mt * mt; // 0.042875
+          const w1 = 3 * mt * mt * t; // 0.238875
+          const w2 = 3 * mt * t * t; // 0.443625
+          const w3 = t * t * t; // 0.274625
+ 
+          const bx = w0 * startX + w1 * controlX1 + w2 * controlX2 + w3 * endX;
+          const by = w0 * startY + w1 * controlY1 + w2 * controlY2 + w3 * endY;
+ 
+          // Compute exact Bezier tangent vector at t = 0.65
+          const tangentX = 0.3675 * (controlX1 - startX) + 1.365 * (controlX2 - controlX1) + 1.2675 * (endX - controlX2);
+          const tangentY = 0.3675 * (controlY1 - startY) + 1.365 * (controlY2 - controlY1) + 1.2675 * (endY - controlY2);
+
+          let tangentAngleDeg = Math.atan2(tangentY, tangentX) * (180 / Math.PI);
+          if (tangentAngleDeg > 90 || tangentAngleDeg < -90) {
+            tangentAngleDeg += 180;
+          }
+
+          return {
+            x: bx,
+            y: by,
+            angle: tangentAngleDeg
+          };
+        }
+
         const midX = (fromNode.x + toNode.x) / 2;
         const midY = (fromNode.y + toNode.y) / 2;
-        const deltaX = toNode.x - fromNode.x;
-        const deltaY = toNode.y - fromNode.y;
-        const distance = Math.hypot(deltaX, deltaY) || 1;
-        const normalX = -deltaY / distance;
-        const normalY = deltaX / distance;
-        const offset = segmentIndex % 2 === 0 ? 38 : -38;
+        
         return {
-          x: midX + normalX * offset,
-          y: midY + normalY * offset
+          x: midX,
+          y: midY,
+          angle: angleDeg
         };
       }
+
+
+
+
 
       function nodeSize(total, maxTotal) {
         if (!maxTotal) {
@@ -2257,22 +2359,23 @@
         const horizontalPadding = 180;
         const topSafe = 180;
         const bottomSafe = 90;
+        let padX = 280;
+        let padY = 185;
         if (projected.length === 1) {
-          bounds.minX -= 420;
-          bounds.maxX += 420;
-          bounds.minY -= 260;
-          bounds.maxY += 260;
+          padX = 420;
+          padY = 260;
         } else if (projected.length === 2) {
-          bounds.minX -= 260;
-          bounds.maxX += 260;
-          bounds.minY -= 180;
-          bounds.maxY += 180;
+          padX = 260;
+          padY = 180;
         } else if (projected.length === 3) {
-          bounds.minX -= 180;
-          bounds.maxX += 180;
-          bounds.minY -= 120;
-          bounds.maxY += 120;
+          padX = 180;
+          padY = 120;
         }
+        bounds.minX -= padX;
+        bounds.maxX += padX;
+        bounds.minY -= padY;
+        bounds.maxY += padY;
+
         const contentWidth = Math.max(320, bounds.maxX - bounds.minX);
         const contentHeight = Math.max(260, bounds.maxY - bounds.minY);
         let scale = clampScale(Math.min(
@@ -2285,9 +2388,10 @@
           scale = Math.min(scale, 0.86);
         } else if (projected.length === 3) {
           scale = Math.min(scale, 0.96);
-        } else if (projected.length <= 5) {
-          scale = Math.min(scale, 1.08);
+        } else {
+          scale = Math.min(scale, 1.0);
         }
+
         const centerX = (bounds.minX + bounds.maxX) / 2;
         const centerY = (bounds.minY + bounds.maxY) / 2;
         const translateX = viewWidth / 2 - centerX * scale;
@@ -2302,28 +2406,48 @@
           return;
         }
         mapStageEl.dataset.viewportReady = "true";
-
+        let dragMoved = false;
+ 
         zoomInButtonEl.addEventListener("click", () => {
           const rect = mapStageEl.getBoundingClientRect();
           zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, 1.18);
         });
-
+ 
         zoomOutButtonEl.addEventListener("click", () => {
           const rect = mapStageEl.getBoundingClientRect();
           zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, 1 / 1.18);
         });
-
+ 
         resetViewButtonEl.addEventListener("click", () => {
+          state.activeNodeKey = null;
           state.shouldAutoFit = true;
+          state.summaryOpen = false;
+          summaryDrawerEl.classList.remove("is-open");
           render();
         });
-
+ 
+        mapStageEl.addEventListener("click", (event) => {
+          if (dragMoved) {
+            return;
+          }
+          if (event.target.closest(".map-node") || event.target.closest(".map-toolbar") || event.target.closest("#summary-drawer") || event.target.closest("#summary-toggle")) {
+            return;
+          }
+          state.activeNodeKey = null;
+          state.shouldAutoFit = true;
+          state.summaryOpen = false;
+          summaryDrawerEl.classList.remove("is-open");
+          render();
+        });
+ 
+ 
+ 
         mapStageEl.addEventListener("wheel", (event) => {
           event.preventDefault();
           const scaleFactor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
           zoomAt(event.clientX, event.clientY, scaleFactor);
         }, { passive: false });
-
+ 
         mapStageEl.addEventListener("pointerdown", (event) => {
           if (event.target.closest(".map-node") || event.target.closest(".map-toolbar")) {
             return;
@@ -2333,23 +2457,30 @@
           interactionState.startY = event.clientY;
           interactionState.translateX = state.viewport.translateX;
           interactionState.translateY = state.viewport.translateY;
+          dragMoved = false;
           mapStageEl.classList.add("is-grabbing");
         });
-
+ 
         window.addEventListener("pointermove", (event) => {
           if (!interactionState.isDragging) {
             return;
           }
-          state.viewport.translateX = interactionState.translateX + (event.clientX - interactionState.startX);
-          state.viewport.translateY = interactionState.translateY + (event.clientY - interactionState.startY);
+          const dx = event.clientX - interactionState.startX;
+          const dy = event.clientY - interactionState.startY;
+          if (Math.hypot(dx, dy) > 4) {
+            dragMoved = true;
+          }
+          state.viewport.translateX = interactionState.translateX + dx;
+          state.viewport.translateY = interactionState.translateY + dy;
           updateViewport();
         });
-
+ 
         window.addEventListener("pointerup", () => {
           interactionState.isDragging = false;
           mapStageEl.classList.remove("is-grabbing");
         });
       }
+
 
       function initializeSummaryDrawer() {
         if (summaryDrawerEl.dataset.drawerReady === "true") {
@@ -2368,7 +2499,14 @@
         });
       }
 
-      function labelAnchor(node) {
+      function labelAnchor(node, positions) {
+        if (node.kind === "area" && node.sourceHubKey) {
+          const hubNode = positions ? positions.get(node.sourceHubKey) : null;
+          if (hubNode) {
+            return hubNode.x < STAGE_WIDTH / 2 ? "anchor-right" : "anchor-left";
+          }
+          return "anchor-right";
+        }
         if (node.x > STAGE_WIDTH - 260) {
           return "anchor-left";
         }
@@ -2383,6 +2521,7 @@
         }
         return node.y > STAGE_HEIGHT * 0.64 ? "anchor-top" : "anchor-right";
       }
+
 
       function renderBoard(routes, nodes) {
         const direction = getSelectedDirection();
@@ -2415,9 +2554,17 @@
           state.activeNodeKey = activeNodeKey;
         }
         const fixedCatchmentMode = direction.id === "co-dinh" && state.dayIndex !== null;
+        let activeHubKey = null;
+        if (fixedCatchmentMode && activeNodeKey) {
+          const activeNode = routeNodes.get(activeNodeKey);
+          if (activeNode) {
+            activeHubKey = activeNode.kind === "hub" ? activeNode.key : activeNode.sourceHubKey;
+          }
+        }
         const positions = fixedCatchmentMode
           ? buildFixedCatchmentPositions(routes, routeNodes)
           : buildBoardPositions(direction, routeNodes, activeRoute, referenceMode, routes);
+
         const maxTotal = Math.max(...Array.from(routeNodes.values()).map((node) => node.total), 0);
 
         const renderedSegments = fixedCatchmentMode
@@ -2429,12 +2576,12 @@
         mapSvgEl.innerHTML = renderedSegments.map((segment) => {
           const fromNode = positions.get(segment.fromKey);
           const toNode = positions.get(segment.toKey);
-          if (!fromNode || !toNode || segment.metric.source === "same-site") {
+          if (!fromNode || !toNode || (segment.metric && segment.metric.source === "same-site")) {
             return "";
           }
-          const path = buildStraightPath([fromNode, toNode]);
-          const isActiveRoute = activeRoute && activeRoute.id === segment.routeId;
           const isCatchment = segment.kind === "catchment";
+          const path = buildSegmentPath(fromNode, toNode, isCatchment);
+          const isActiveRoute = activeRoute && activeRoute.id === segment.routeId;
           const baseColor = segment.color || activeRoute.color;
           return `
             <path
@@ -2454,7 +2601,7 @@
           `;
         }).join("");
 
-        const badgeSegments = (fixedCatchmentMode ? renderedSegments : activeRoute.segments)
+        const badgeSegments = (fixedCatchmentMode || showAllRoutes ? renderedSegments : activeRoute.segments)
           .filter((segment) => segment.metric && segment.metric.source !== "same-site" && hasNumericMetric(segment.metric))
           .filter(Boolean);
 
@@ -2464,17 +2611,22 @@
           if (!fromNode || !toNode) {
             return "";
           }
-          const badgePosition = buildSegmentBadgePosition(fromNode, toNode, segmentIndex);
+          const isCatchment = segment.kind === "catchment";
+          const badgePosition = buildSegmentBadgePosition(fromNode, toNode, segmentIndex, isCatchment);
+
           const metricText = formatMetricText(segment.metric);
           return `
-            <div class="segment-badge" style="left:${badgePosition.x}px; top:${badgePosition.y}px; border-color:${activeRoute.color}; box-shadow:0 14px 28px rgba(15, 23, 42, 0.12), inset 0 0 0 1px ${activeRoute.color};">
+            <div class="segment-badge" style="left:${badgePosition.x}px; top:${badgePosition.y}px; transform: translate(-50%, -50%) rotate(${badgePosition.angle}deg);">
               ${metricText}
             </div>
           `;
+
         }).join("");
 
+
         nodeLayerEl.innerHTML = Array.from(positions.values()).map((node) => {
-          const anchor = labelAnchor(node);
+          const anchor = labelAnchor(node, positions);
+
           const primaryOccurrence = node.occurrences[0];
           const color = (showAllRoutes || fixedCatchmentMode)
             ? nodeColor(node, activeRoute)
@@ -2511,16 +2663,29 @@
             }
             state.summaryOpen = true;
             summaryDrawerEl.classList.add("is-open");
+            state.shouldAutoFit = true;
             render();
           });
         });
 
         if (state.shouldAutoFit) {
-          fitViewportToPositions(showAllRoutes ? Array.from(routeNodes.values()) : activeRoute.points, positions);
+          let fitPoints = [];
+          if (fixedCatchmentMode && activeHubKey) {
+            fitPoints.push({ key: activeHubKey });
+            Array.from(routeNodes.values()).forEach((node) => {
+              if (node.kind === "area" && node.sourceHubKey === activeHubKey) {
+                fitPoints.push({ key: node.key });
+              }
+            });
+          } else {
+            fitPoints = showAllRoutes ? Array.from(routeNodes.values()) : activeRoute.points;
+          }
+          fitViewportToPositions(fitPoints, positions);
           state.shouldAutoFit = false;
         } else {
           updateViewport();
         }
+
       }
 
       function buildGoogleMapsUrl(route) {
@@ -2586,6 +2751,91 @@
           .replace(/"/g, "&quot;")
           .replace(/'/g, "&#39;");
       }
+
+      // Normalize a text block: convert inline markers like "- Buổi sáng:", "(1)", "+ " etc.
+      // into actual newlines so subsequent functions can split by line.
+      function normalizeTextToLines(text) {
+        if (!text) return [];
+        return String(text)
+          // Ensure section headers start on their own line
+          .replace(/\s*-\s*Buổi sáng:/gi, "\nBuổi sáng:")
+          .replace(/\s*-\s*Buổi chiều:/gi, "\nBuổi chiều:")
+          .replace(/\s*Buổi sáng:/gi, "\nBuổi sáng:")
+          .replace(/\s*Buổi chiều:/gi, "\nBuổi chiều:")
+          // Numbered items (1) (2) ... start new line
+          .replace(/\s+\((\d+)\)/g, "\n($1)")
+          // "+" bullet items start new line (but not inside times like 7h.00+...)
+          .replace(/\s+\+\s/g, "\n+ ")
+          // "- " at word boundary (not at start already handled above)
+          .replace(/([^\n])\s+-\s+/g, "$1\n- ")
+          // "* Lưu ý" starts new line
+          .replace(/\s+\*\s*Lưu ý/gi, "\nLưu ý")
+          .split(/\n/)
+          .map(l => l.trim())
+          .filter(l => l.length > 0);
+      }
+
+      function formatToBulletPoints(text) {
+        if (!text) {
+          return `<div style="opacity: 0.6; font-style: italic;">Không có thông tin chi tiết</div>`;
+        }
+        const lines = normalizeTextToLines(text);
+        if (!lines.length) {
+          return `<div style="opacity: 0.6; font-style: italic;">Không có thông tin chi tiết</div>`;
+        }
+        const listItems = lines.map(line => {
+          // Strip leading bullet chars before displaying
+          const cleanLine = line.replace(/^[\s\-\•\*\+\u2022]+/, "").trim();
+          return `<li style="margin-bottom: 6px; list-style-type: disc; margin-left: 14px; line-height: 1.6; text-align: justify;">${escapeHtml(cleanLine)}</li>`;
+        }).join("");
+        return `<ul style="margin: 0; padding: 0; list-style-position: outside;">${listItems}</ul>`;
+      }
+
+      function filterSessionText(text, sessionName) {
+        if (!text) return "";
+        if (!sessionName) return text;
+
+        const isMorning   = /s\u00e1ng/i.test(sessionName);
+        const isAfternoon = /chi\u1ec1u/i.test(sessionName);
+        if (!isMorning && !isAfternoon) return text;
+
+        // Pre-normalize so section separators become real newlines
+        const lines = normalizeTextToLines(text);
+
+        const morningRx  = /bu\u1ed5i\s*s\u00e1ng/i;
+        const afternoonRx = /bu\u1ed5i\s*chi\u1ec1u/i;
+
+        const hasBothSections = lines.some(l => morningRx.test(l)) && lines.some(l => afternoonRx.test(l));
+        if (!hasBothSections) {
+          // Only one session in data – return as-is
+          return lines.join("\n");
+        }
+
+        const targetRx = isMorning ? morningRx : afternoonRx;
+        const otherRx  = isMorning ? afternoonRx : morningRx;
+
+        // Collect preamble (before any section header), then target section only
+        const firstSectionIdx = lines.findIndex(l => morningRx.test(l) || afternoonRx.test(l));
+        const preamble = firstSectionIdx > 0 ? lines.slice(0, firstSectionIdx) : [];
+
+        const collected = [];
+        let inTarget = false;
+        for (const line of lines) {
+          if (targetRx.test(line)) {
+            inTarget = true;
+            collected.push(line);
+          } else if (otherRx.test(line)) {
+            inTarget = false;
+          } else if (inTarget) {
+            collected.push(line);
+          }
+        }
+
+        return [...preamble, ...collected].join("\n");
+      }
+
+
+
 
       function formatDetailValue(value) {
         if (!value) {
@@ -2726,17 +2976,49 @@
       function buildOccurrenceSessionRows(node) {
         return node.occurrences.map((occurrence) => {
           const metricText = occurrence.metric ? formatMetricText(occurrence.metric) : "";
+          const color = occurrence.color || TRACK_COLORS[0];
+
+          const sessionSchedule = filterSessionText(occurrence.scheduleText, occurrence.session);
+          const sessionNote    = filterSessionText(occurrence.noteText, occurrence.session);
+
           return `
-            <div class="detail-row">
-              <div class="detail-row-copy">
-                <span>${occurrence.session || "Cả ngày"} · ${occurrence.dayLabel}${occurrence.hubName ? ` · về ${occurrence.hubName}` : ""}</span>
-                ${metricText ? `<small>${metricText}</small>` : ""}
+            <div style="border-left: 4px solid ${color}; padding-left: 14px; margin-bottom: 20px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <strong style="font-size: 14px; color: #1e293b;">📌 Ca ${escapeHtml(occurrence.session || "Cả ngày")} · ${escapeHtml(occurrence.dayLabel || "")}</strong>
+                <span style="font-size: 13px; font-weight: 700; color: ${color};">${formatNumber(occurrence.total)} TNLS</span>
               </div>
-              <strong>${formatNumber(occurrence.total)} TNLS</strong>
+
+              <details style="margin-bottom: 6px;">
+                <summary style="font-size: 12.5px; font-weight: 700; color: #475569; cursor: pointer; display: flex; align-items: center; gap: 4px; user-select: none; outline: none; list-style: none;">
+                  <span>🕒 Thời gian</span>
+                  <span style="font-size: 11px; color: #2563eb; font-weight: 700; margin-left: auto;">Xem chi tiết ▾</span>
+                </summary>
+                <div style="padding: 6px 0 6px 12px; font-size: 12px; color: #334155;">
+                  ${formatToBulletPoints(sessionSchedule)}
+                </div>
+              </details>
+
+              ${sessionNote ? `
+              <details style="margin-bottom: 6px;">
+                <summary style="font-size: 12.5px; font-weight: 700; color: #475569; cursor: pointer; display: flex; align-items: center; gap: 4px; user-select: none; outline: none; list-style: none;">
+                  <span>👥 Nhân sự</span>
+                  <span style="font-size: 11px; color: #2563eb; font-weight: 700; margin-left: auto;">Xem chi tiết ▾</span>
+                </summary>
+                <div style="padding: 6px 0 6px 12px; font-size: 12px; color: #334155;">
+                  ${formatToBulletPoints(sessionNote)}
+                </div>
+              </details>
+              ` : ""}
+
+              ${metricText ? `
+              <div style="margin-top: 4px; font-size: 11px; color: #64748b; font-weight: 600;">🚗 Di chuyển: ${metricText}</div>
+              ` : ""}
             </div>
           `;
         }).join("");
       }
+
+
 
       function buildHubAreaRows(node) {
         const grouped = new Map();
@@ -2756,25 +3038,30 @@
             grouped.get(areaName).total += Number(area.count || 0);
           });
         });
+        if (!grouped.size) {
+          return "";
+        }
         return Array.from(grouped.values())
           .sort((left, right) => Number(right.total || 0) - Number(left.total || 0))
-          .map((area) => `
-            <div class="detail-row">
-              <div class="detail-row-copy">
-                <span>${area.name}</span>
-                <small>${area.metric ? formatMetricText(area.metric) : "Chưa xác minh khoảng cách và thời gian"}</small>
+          .map((area) => {
+            const metricText = area.metric ? formatMetricText(area.metric) : "Chưa xác minh di chuyển";
+            return `
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,255,255,0.7); border: 1px solid rgba(226,232,240,0.6); border-radius: 8px; margin-bottom: 6px; font-size: 12px;">
+                <div>
+                  <span style="color: #334155; font-weight: 700; display: block;">Xã ${area.name}</span>
+                  <small style="color: #64748b; font-size: 11px; font-weight: 600;">🚗 ${metricText}</small>
+                </div>
+                <strong style="color: #0f172a;">${formatNumber(area.total)} TNLS</strong>
               </div>
-              <strong>${formatNumber(area.total)} TNLS</strong>
-            </div>
-          `).join("");
+            `;
+          }).join("");
       }
 
       function buildNodeDetail(node) {
         if (!node) {
           return `
-            <div class="detail-card">
-              <strong>Điểm đang chọn</strong>
-              <span class="summary-empty">Chọn một điểm trên bản đồ để xem thông tin gọn.</span>
+            <div style="padding: 16px; color: #64748b; font-style: italic; text-align: center;">
+              Chọn một điểm trên bản đồ để xem thông tin chi tiết.
             </div>
           `;
         }
@@ -2782,84 +3069,227 @@
         const metric = node.metric || firstOccurrence.metric || null;
         if (node.kind === "area") {
           return `
-            <div class="detail-card">
-              <div class="detail-emphasis">
-                <strong>${node.name}</strong>
-                <span>Địa bàn đưa thân nhân về ${firstOccurrence.hubName || "điểm cố định"} · ${formatNumber(node.total)} TNLS</span>
-                <div class="detail-chip-row">
-                  ${metric ? `<div class="metric-inline">${formatMetricText(metric)}</div>` : `<div class="summary-metric">Chưa xác minh tuyến di chuyển</div>`}
-                  <div class="summary-metric">${firstOccurrence.dayLabel || ""} ${firstOccurrence.dateLabel || ""}</div>
+            <div style="padding: 4px;">
+              <div style="margin-bottom: 16px;">
+                <h2 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 800; color: #0f172a;">📍 Xã ${node.name}</h2>
+                <div style="font-size: 13px; color: #64748b; margin-top: 4px;">
+                  Địa bàn thu gom đưa thân nhân về trạm: <strong>${firstOccurrence.hubName || "điểm cố định"}</strong>
                 </div>
               </div>
-              <div class="detail-copy-grid is-two-col" style="margin-top:10px;">
-                ${buildDetailCopyBlock("Điểm thu mẫu", firstOccurrence.hubVenue || firstOccurrence.hubName || "")}
-                ${buildDetailCopyBlock("Khung giờ trong Word", firstOccurrence.scheduleText || "")}
+              
+              <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
+                <span style="background: rgba(22, 163, 74, 0.1); color: #16a34a; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700;">
+                  📊 ${formatNumber(node.total)} TNLS
+                </span>
+                <span style="background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;">
+                  📅 ${firstOccurrence.dayLabel || ""} · ${firstOccurrence.dateLabel || ""}
+                </span>
               </div>
-              <div class="detail-list">${buildOccurrenceSessionRows(node)}</div>
+              
+              <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+              
+              <div style="margin-bottom: 20px;">
+                <h3 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">🚗 Tuyến Di Chuyển</h3>
+                <div style="font-size: 13px; color: #334155; line-height: 1.6;">
+                  <div style="margin-bottom: 4px;"><strong>Trạm tập kết:</strong> ${firstOccurrence.hubVenue || firstOccurrence.hubName || ""}</div>
+                  ${metric ? `
+                  <div><strong>Cự ly & Thời gian:</strong> ${formatMetricText(metric)}</div>
+                  ` : ""}
+                </div>
+              </div>
+              
+              <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+              
+              <div>
+                <h3 style="margin: 0 0 12px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">📋 Ca Thu Mẫu Tại Trạm</h3>
+                <div>${buildOccurrenceSessionRows(node)}</div>
+              </div>
             </div>
           `;
         }
         const hubAreaRows = buildHubAreaRows(node);
+
+        const isLuuDong = (firstOccurrence.venue || "").includes("u động") ||
+                          (firstOccurrence.venue || "").toLowerCase() === "lưu động" ||
+                          (firstOccurrence.trackTitle || "").includes("động");
+
+        const routeLabel = firstOccurrence.routeLabel || node.name;
+        const hubTitle = isLuuDong
+          ? `🛵 Lưu động ${routeLabel}`
+          : `🏢 Trạm ${node.name}`;
+        const hubSubtitle = isLuuDong
+          ? `Tổ ${firstOccurrence.trackTitle || routeLabel} – Di chuyển lưu động thu mẫu ADN`
+          : `Điểm tập kết cố định thu mẫu ADN`;
+
         return `
-          <div class="detail-card">
-            <div class="detail-emphasis">
-              <strong>${node.name}</strong>
-              <span>Điểm cố định · ${formatNumber(node.total)} TNLS</span>
-              <div class="detail-chip-row">
-                <div class="summary-metric">${firstOccurrence.dayLabel || ""} ${firstOccurrence.dateLabel || ""}</div>
-                ${firstOccurrence.venue ? `<div class="metric-inline">${escapeHtml(firstOccurrence.venue)}</div>` : ""}
+          <div style="padding: 4px;">
+            <div style="margin-bottom: 16px;">
+              <h2 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 800; color: #0f172a;">${hubTitle}</h2>
+              <div style="font-size: 13px; color: #64748b; margin-top: 4px;">${hubSubtitle}</div>
+            </div>
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
+              <span style="background: rgba(29, 78, 216, 0.1); color: #1d4ed8; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700;">
+                📊 Tổng: ${formatNumber(node.total)} TNLS dự kiến
+              </span>
+              <span style="background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;">
+                📅 ${firstOccurrence.dayLabel || ""} · ${firstOccurrence.dateLabel || ""}
+              </span>
+            </div>
+
+            ${isLuuDong ? `
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+
+            <div style="margin-bottom: 20px;">
+              <h3 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">📝 Lịch Trình Địa Bàn</h3>
+              ${formatToBulletPoints(firstOccurrence.scheduleText)}
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+
+            <div style="margin-bottom: 20px;">
+              <h3 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">🧑‍🤝‍🧑 Nhân Lực Tổ</h3>
+              ${formatToBulletPoints(firstOccurrence.staffCore)}
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+
+            <div style="margin-bottom: 20px;">
+              <h3 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">👥 Nhân Lực Tại Điểm</h3>
+              ${formatToBulletPoints(firstOccurrence.noteText)}
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+
+            <div style="margin-bottom: 20px;">
+              <h3 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">📷 Thiết Bị</h3>
+              <div style="font-size: 13px; color: #334155; line-height: 1.6;">
+                ${firstOccurrence.equipmentProvince ? `<div style="margin-bottom: 4px;"><strong>Thiết bị cấp:</strong> ${escapeHtml(firstOccurrence.equipmentProvince)}</div>` : ""}
+                ${firstOccurrence.equipmentTeam ? `<div><strong>Thiết bị tổ:</strong> ${escapeHtml(firstOccurrence.equipmentTeam)}</div>` : ""}
               </div>
             </div>
-            <div class="detail-copy-grid is-two-col" style="margin-top:10px;">
-              ${buildDetailCopyBlock("Chỉ tiêu dự kiến", firstOccurrence.plannedText || "")}
-              ${buildDetailCopyBlock("Khung giờ trong Word", firstOccurrence.scheduleText || "")}
+            ` : `
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+            
+            <div style="margin-bottom: 20px;">
+              <h3 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">📍 Địa Điểm Tập Kết</h3>
+              <div style="font-size: 13px; color: #0f172a; font-weight: 600; background: #f8fafc; padding: 10px 14px; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                ${escapeHtml(firstOccurrence.venue || "Theo kế hoạch")}
+              </div>
             </div>
-            ${hubAreaRows ? `<div class="detail-list">${hubAreaRows}</div>` : ""}
-            <div class="detail-list">${buildOccurrenceSessionRows(node)}</div>
+            
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+            
+            <div style="margin-bottom: 20px;">
+              <h3 style="margin: 0 0 12px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">🕒 Chi Tiết Các Ca & Nhân Sự</h3>
+              <div>${buildOccurrenceSessionRows(node)}</div>
+            </div>
+            
+            ${hubAreaRows ? `
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+            <div>
+              <h3 style="margin: 0 0 12px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">🗺️ Địa Bàn Thu Gom Xã</h3>
+              <div style="max-height: 240px; overflow-y: auto; padding-right: 4px;">${hubAreaRows}</div>
+            </div>
+            ` : ""}
+            `}
           </div>
         `;
       }
 
+
       function buildRouteDetail(route) {
         if (!route) {
           return `
-            <div class="detail-card">
-              <strong>Tuyến đang xem</strong>
-              <span class="summary-empty">Chọn một tuyến ở danh sách phía trên.</span>
+            <div style="padding: 16px; color: #64748b; font-style: italic; text-align: center;">
+              Chọn một tuyến ở danh sách phía trên.
             </div>
           `;
         }
+        
+        const timelineHtml = route.points.map((point, index) => {
+          const isFirst = index === 0;
+          const prevPoint = isFirst ? null : route.points[index - 1];
+          const segment = isFirst ? null : route.segments.find(s => s.fromKey === prevPoint.key && s.toKey === point.key);
+          const metricText = segment && segment.metric && segment.metric.source !== "same-site" 
+            ? `${formatNumber(segment.metric.distance_km)}km - ${formatNumber(segment.metric.travel_minutes)}p` 
+            : "";
+          return `
+            ${!isFirst ? `
+              <div style="padding-left: 20px; border-left: 2px dashed ${route.color}; margin-left: 10px; font-size: 11px; color: #64748b; padding-top: 6px; padding-bottom: 6px; font-weight: 600;">
+                🚗 ${metricText || "Kế tiếp"}
+              </div>
+            ` : ""}
+            <div style="display: flex; align-items: center; gap: 10px; background: rgba(248, 250, 252, 0.85); border: 1px solid rgba(226, 232, 240, 0.5); padding: 8px 12px; border-radius: 10px;">
+              <span style="width: 22px; height: 22px; border-radius: 50%; background: ${route.color}; display: inline-flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 800;">
+                ${index + 1}
+              </span>
+              <div style="flex-grow: 1; display: flex; justify-content: space-between; align-items: center;">
+                <strong style="font-size: 13px; color: #1e293b;">Trạm ${point.name}</strong>
+                <span style="font-size: 12px; font-weight: 700; color: #0f172a;">${formatNumber(point.total)} TNLS</span>
+              </div>
+            </div>
+          `;
+        }).join("");
+
         const dayRows = route.dayDetails.map((detail) => `
-          <div class="detail-row">
-            <span>${detail.dayLabel}</span>
-            <strong>${formatNumber(detail.total)} TNLS</strong>
+          <div style="display: flex; justify-content: space-between; padding: 6px 12px; background: #f8fafc; border-radius: 8px; margin-bottom: 6px; font-size: 12px;">
+            <span style="color: #475569; font-weight: 600;">${detail.dayLabel}</span>
+            <strong style="color: #0f172a;">${formatNumber(detail.total)} TNLS</strong>
           </div>
         `).join("");
+
         const expandedDayIndex = state.dayIndex === null
           ? (route.dayDetails[0] ? route.dayDetails[0].dayIndex : null)
           : state.dayIndex;
         const dayCards = route.dayDetails.map((detail) => (
           buildDayDetailCard(detail, detail.dayIndex === expandedDayIndex)
         )).join("");
-        const segmentRows = route.segments
-          .filter((segment) => segment.metric.source !== "same-site")
-          .map((segment) => `
-          <div class="detail-row">
-            <span>${formatNumber(segment.metric.distance_km)} km</span>
-            <strong>${formatNumber(segment.metric.travel_minutes)} phút</strong>
-          </div>
-        `).join("");
+
         return `
-          <div class="detail-card">
-            <strong>Tuyến đang xem</strong>
-            <span>${route.summary}</span>
-            <small>${route.dateLabel} · ${formatNumber(route.total)} TNLS</small>
-            <div class="detail-list">${dayRows}</div>
-            ${dayCards ? `<div class="detail-day-stack">${dayCards}</div>` : ""}
-            ${segmentRows ? `<div class="detail-list">${segmentRows}</div>` : ""}
+          <div style="padding: 4px;">
+            <div style="margin-bottom: 16px;">
+              <h2 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 800; color: #0f172a;">Tuyến ${route.label || "Kế hoạch"}</h2>
+              <div style="font-size: 13px; color: #64748b; margin-top: 4px;">
+                ${route.summary || "Đoàn công tác di chuyển thu mẫu"}
+              </div>
+            </div>
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
+              <span style="background: rgba(124, 58, 237, 0.1); color: #7c3aed; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700;">
+                Tổng: ${formatNumber(route.total)} TNLS
+              </span>
+              <span style="background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;">
+                Lịch trình: 5 ngày (22.7 - 26.7)
+              </span>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+
+            <div style="margin-bottom: 20px;">
+              <h3 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">🗺️ Trình tự các trạm trong tuyến</h3>
+              <div style="margin-bottom: 20px;">${timelineHtml}</div>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+
+            <div style="margin-bottom: 20px;">
+              <h3 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">📅 Thống kê chỉ tiêu theo ngày</h3>
+              <div style="margin-bottom: 20px;">${dayRows}</div>
+            </div>
+            
+            ${dayCards ? `
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+            <div>
+              <h3 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">📋 Lịch trình chi tiết các ngày</h3>
+              <div class="detail-day-stack">${dayCards}</div>
+            </div>
+            ` : ""}
           </div>
         `;
       }
+
+
 
       function attachSummaryPanelInteractions(routes) {
         summaryPanelEl.querySelectorAll("[data-route-id]").forEach((button) => {
@@ -2888,100 +3318,53 @@
         });
       }
 
+      function buildRouteTabs(routes, activeRoute) {
+        return routes.map((route) => {
+          const isActive = activeRoute && activeRoute.id === route.id;
+          return `<button
+            type="button"
+            data-route-id="${route.id}"
+            style="
+              flex: 1;
+              padding: 6px 8px;
+              border: none;
+              border-radius: 8px;
+              background: ${isActive ? route.color : 'transparent'};
+              color: ${isActive ? '#fff' : route.color};
+              font-size: 12.5px;
+              font-weight: 700;
+              cursor: pointer;
+              transition: background 0.18s, color 0.18s;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              border: 1.5px solid ${route.color};
+            "
+          >${escapeHtml(route.label || route.id)}</button>`;
+        }).join("");
+      }
+
       function renderSummary(direction, routes, nodes) {
         const activeRoute = resolveActiveRoute(routes);
-        const referenceMode = isReferenceBoardMode(direction);
         if (activeRoute && !state.activeNodeKey) {
           state.activeNodeKey = getPreferredRouteNodeKey(activeRoute);
         }
         const activeNode = nodes.get(state.activeNodeKey) || (activeRoute ? nodes.get(getPreferredRouteNodeKey(activeRoute)) : null);
-        const directionTotal = state.dayIndex === null
-          ? direction.days.reduce((sum, day) => sum + Number(day.total || 0), 0)
-          : Number(direction.days[state.dayIndex]?.total || 0);
-        const selectedDateLabel = state.dayIndex === null
-          ? "Tất cả 5 ngày"
-          : (direction.days[state.dayIndex]?.dateLabel || "");
         summaryDrawerEl.classList.toggle("is-open", state.summaryOpen);
 
-        if (referenceMode) {
-          summaryPanelEl.innerHTML = `
-            <div class="summary-head">
-              <h2>${direction.label}</h2>
-              <div class="summary-context">
-                <div class="summary-metric">${selectedDateLabel}</div>
-                <div class="summary-metric">${formatNumber(directionTotal)} TNLS</div>
-              </div>
-            </div>
-
-            <div class="summary-blocks">
-              <section class="summary-block">
-                ${buildNodeDetail(activeNode)}
-              </section>
-
-              <section class="summary-block">
-                <div class="summary-block-title">Danh sách tuyến</div>
-                <div class="route-summary">
-                  ${routes.map((route) => `
-                    <section class="route-day-group">
-                      <div class="route-day-title" style="--day-color:${route.color}">
-                        <span class="route-day-swatch"></span>
-                        ${route.label}
-                      </div>
-                      <button type="button" class="route-item${activeRoute && activeRoute.id === route.id ? " is-active" : ""}" style="--route-color:${route.color}" data-route-id="${route.id}">
-                        <strong>${buildRouteListTitle(route, true)}</strong>
-                        <small>${buildRouteListMeta(route, true)}</small>
-                      </button>
-                    </section>
-                  `).join("")}
-                </div>
-              </section>
-
-              <section class="summary-block">
-                ${buildRouteDetail(activeRoute)}
-              </section>
-            </div>
-          `;
-          attachSummaryPanelInteractions(routes);
-          return;
-        }
-
+        // Shared panel layout: route tab bar on top, then node detail
         summaryPanelEl.innerHTML = `
-          <div class="summary-head">
-            <h2>${direction.label}</h2>
-            <div class="summary-context">
-              <div class="summary-metric">${selectedDateLabel}</div>
-              <div class="summary-metric">${formatNumber(directionTotal)} TNLS</div>
+          <div style="padding: 12px 14px 10px; border-bottom: 1px solid #e2e8f0; background: #f8fafc;">
+            <div style="display: flex; gap: 6px;">
+              ${buildRouteTabs(routes, activeRoute)}
             </div>
           </div>
 
-          <div class="summary-blocks">
-            <section class="summary-block">
-              ${buildNodeDetail(activeNode)}
-            </section>
-
-            <section class="summary-block">
-              <div class="summary-block-title">Danh sách tuyến</div>
-              <div class="route-summary">
-                ${routes.map((route) => `
-                  <section class="route-day-group">
-                    <div class="route-day-title" style="--day-color:${route.color}">
-                      <span class="route-day-swatch"></span>
-                      ${route.label}
-                    </div>
-                    <button type="button" class="route-item${activeRoute && activeRoute.id === route.id ? " is-active" : ""}" style="--route-color:${route.color}" data-route-id="${route.id}">
-                      <strong>${buildRouteListTitle(route, false)}</strong>
-                      <small>${buildRouteListMeta(route, false)}</small>
-                    </button>
-                  </section>
-                `).join("")}
-              </div>
-            </section>
-
-            <section class="summary-block">
-              ${buildRouteDetail(activeRoute)}
-            </section>
+          <div style="padding: 14px 14px 20px; overflow-y: auto;">
+            ${buildNodeDetail(activeNode)}
           </div>
         `;
+
         attachSummaryPanelInteractions(routes);
       }
 
