@@ -170,6 +170,48 @@ class MartyrAdnMapBuilderTestCase(unittest.TestCase):
     def test_minimum_old_ha_giang_site_count_biases_toward_that_side(self):
         self.assertEqual(builder.minimum_old_ha_giang_site_count(15), 9)
 
+    def test_distance_priority_score_penalizes_omitted_old_center_travel(self):
+        lower_omission_score = builder.score_distance_priority_solution(
+            load_values=[105, 220, 300, 355],
+            distance_values=[16.0, 17.0, 18.0, 19.0],
+            travel_minutes_values=[23.0, 24.0, 25.0, 26.0],
+            average_load=245.0,
+            preferred_load_min=98.0,
+            preferred_load_max=420.0,
+            omitted_center_max_travel_minutes=10.0,
+            omitted_center_average_travel_minutes=8.0,
+            omitted_center_max_distance_km=12.0,
+        )
+        higher_omission_score = builder.score_distance_priority_solution(
+            load_values=[105, 220, 300, 355],
+            distance_values=[16.0, 17.0, 18.0, 19.0],
+            travel_minutes_values=[23.0, 24.0, 25.0, 26.0],
+            average_load=245.0,
+            preferred_load_min=98.0,
+            preferred_load_max=420.0,
+            omitted_center_max_travel_minutes=35.0,
+            omitted_center_average_travel_minutes=20.0,
+            omitted_center_max_distance_km=28.0,
+        )
+
+        self.assertLess(lower_omission_score, higher_omission_score)
+
+    def test_compute_omitted_center_metrics(self):
+        candidate_routes = {
+            (0, 0): {'distance_km': 0.0, 'travel_minutes': 0.0},
+            (1, 0): {'distance_km': 12.0, 'travel_minutes': 15.0},
+            (2, 0): {'distance_km': 20.0, 'travel_minutes': 24.0},
+        }
+
+        metrics = builder.compute_omitted_center_metrics(
+            candidate_site_indexes=[0, 1, 2],
+            selected_sites=[0],
+            assignments={0: 0, 1: 0, 2: 0},
+            candidate_routes=candidate_routes,
+        )
+
+        self.assertEqual(metrics, (24.0, 19.5, 20.0))
+
     def test_distance_priority_assignments_keep_selected_sites_on_themselves(self):
         areas = [
             {'area_name': 'A', 'registrant_count': 100},
