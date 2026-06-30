@@ -8,21 +8,18 @@
     :root {
       color-scheme: light;
       --bg-cream: #f4efe4;
-      --bg-warm: #f9f7f1;
+      --bg-warm: #faf8f2;
+      --surface: rgba(255, 255, 255, 0.9);
+      --surface-strong: rgba(255, 255, 255, 0.97);
       --ink-900: #1f2937;
       --ink-700: #475569;
       --ink-500: #64748b;
-      --line-soft: rgba(148, 163, 184, 0.18);
-      --surface: rgba(255, 255, 255, 0.88);
-      --surface-strong: rgba(255, 255, 255, 0.97);
+      --line-soft: rgba(148, 163, 184, 0.2);
       --shadow-soft: 0 24px 70px rgba(63, 46, 18, 0.12);
       --shadow-card: 0 16px 40px rgba(15, 23, 42, 0.12);
       --track-1: #c4661f;
       --track-2: #325fd8;
       --track-3: #167b73;
-      --active: #9a5f1d;
-      --warning: #b45309;
-      --warning-bg: rgba(245, 158, 11, 0.12);
     }
 
     * {
@@ -56,7 +53,7 @@
         linear-gradient(rgba(122, 106, 70, 0.08) 1px, transparent 1px),
         linear-gradient(90deg, rgba(122, 106, 70, 0.08) 1px, transparent 1px);
       background-size: 76px 76px;
-      opacity: 0.45;
+      opacity: 0.4;
     }
 
     .pc06-home-link {
@@ -93,22 +90,20 @@
       padding-top: 24px;
     }
 
-    .hero {
-      display: block;
-      margin-bottom: 20px;
-    }
-
     .hero-card,
-    .hero-note {
+    .control-card,
+    .board-card,
+    .summary-card {
       background: var(--surface);
       backdrop-filter: blur(18px);
-      border: 1px solid rgba(255, 255, 255, 0.74);
-      border-radius: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.76);
+      border-radius: 30px;
       box-shadow: var(--shadow-soft);
     }
 
     .hero-card {
       padding: 26px 28px;
+      margin-bottom: 18px;
     }
 
     .hero-kicker {
@@ -118,7 +113,7 @@
       padding: 7px 12px;
       border-radius: 999px;
       background: rgba(154, 95, 29, 0.12);
-      color: var(--active);
+      color: #9a5f1d;
       font-size: 12px;
       font-weight: 800;
       letter-spacing: 0.09em;
@@ -128,8 +123,8 @@
 
     h1 {
       margin: 0;
-      font-size: clamp(28px, 4.6vw, 46px);
-      line-height: 1.04;
+      font-size: clamp(28px, 4.8vw, 46px);
+      line-height: 1.05;
       letter-spacing: -0.03em;
     }
 
@@ -137,7 +132,6 @@
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
-      align-items: center;
       margin-bottom: 18px;
     }
 
@@ -146,84 +140,63 @@
       align-items: center;
       gap: 8px;
       padding: 8px;
-      border-radius: 22px;
-      background: rgba(255, 255, 255, 0.78);
-      border: 1px solid rgba(255, 255, 255, 0.82);
-      box-shadow: var(--shadow-card);
-      backdrop-filter: blur(14px);
-    }
-
-    .segmented-button,
-    .day-button {
-      border: 0;
-      border-radius: 16px;
-      font: inherit;
-      cursor: pointer;
-      transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, color 0.16s ease;
     }
 
     .segmented-button {
-      min-width: 172px;
+      border: 0;
+      min-width: 174px;
       padding: 12px 14px;
+      border-radius: 18px;
+      font: inherit;
+      cursor: pointer;
       background: transparent;
       color: var(--ink-700);
       text-align: left;
+      transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+    }
+
+    .segmented-button strong,
+    .segmented-button span {
+      display: block;
     }
 
     .segmented-button strong {
       font-size: 14px;
-      letter-spacing: 0.01em;
+    }
+
+    .segmented-button span {
+      margin-top: 3px;
+      color: var(--ink-500);
+      font-size: 12px;
+      line-height: 1.4;
     }
 
     .segmented-button.is-active {
       background: rgba(255, 255, 255, 0.98);
       color: var(--ink-900);
-      box-shadow: inset 0 0 0 1px rgba(196, 102, 31, 0.18), 0 12px 26px rgba(148, 95, 43, 0.1);
+      box-shadow: inset 0 0 0 1px rgba(196, 102, 31, 0.2), 0 12px 26px rgba(148, 95, 43, 0.1);
       transform: translateY(-1px);
-    }
-
-    .day-tabs {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .day-button {
-      padding: 11px 14px;
-      background: rgba(255, 255, 255, 0.76);
-      color: var(--ink-700);
-      font-size: 13px;
-      font-weight: 800;
-      letter-spacing: 0.01em;
-      box-shadow: var(--shadow-card);
-    }
-
-    .day-button.is-active {
-      background: linear-gradient(135deg, rgba(196, 102, 31, 0.98), rgba(154, 95, 29, 0.96));
-      color: #fff;
-      box-shadow: 0 18px 30px rgba(196, 102, 31, 0.24);
     }
 
     .workspace {
       display: grid;
-      grid-template-columns: minmax(0, 1.8fr) minmax(320px, 0.85fr);
+      grid-template-columns: minmax(0, 1.85fr) minmax(320px, 0.85fr);
       gap: 18px;
       align-items: start;
-    }
-
-    .board-card,
-    .summary-card {
-      background: var(--surface);
-      border-radius: 34px;
-      border: 1px solid rgba(255, 255, 255, 0.76);
-      box-shadow: var(--shadow-soft);
-      backdrop-filter: blur(18px);
     }
 
     .board-card {
       padding: 18px;
       position: sticky;
       top: 22px;
+    }
+
+    .summary-card {
+      padding: 20px;
+      position: sticky;
+      top: 22px;
+      max-height: calc(100vh - 54px);
+      overflow: auto;
     }
 
     .route-board {
@@ -246,20 +219,244 @@
       content: "";
       position: absolute;
       inset: 0;
+      pointer-events: none;
       background-image:
         linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
         linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
       background-size: 90px 90px;
-      opacity: 0.85;
-      pointer-events: none;
+      opacity: 0.82;
     }
 
-    .summary-card {
-      padding: 20px;
-      max-height: calc(100vh - 54px);
-      overflow: auto;
-      position: sticky;
-      top: 22px;
+    .route-grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+
+    .track-card {
+      position: relative;
+      padding: 18px 18px 18px 54px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(226, 232, 240, 0.88);
+      box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
+    }
+
+    .track-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .track-title strong,
+    .track-title span {
+      display: block;
+    }
+
+    .track-title strong {
+      font-size: 17px;
+      line-height: 1.2;
+    }
+
+    .track-title span {
+      margin-top: 3px;
+      color: var(--ink-700);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .track-total {
+      flex: 0 0 auto;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(248, 250, 252, 0.96);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      color: var(--ink-900);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .route-chain {
+      position: relative;
+      display: grid;
+      gap: 10px;
+    }
+
+    .route-chain::before {
+      content: "";
+      position: absolute;
+      left: -28px;
+      top: 14px;
+      bottom: 14px;
+      width: 4px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, var(--track-color), rgba(148, 163, 184, 0.28));
+      opacity: 0.95;
+    }
+
+    .route-node {
+      position: relative;
+      width: 100%;
+      border: 0;
+      padding: 13px 14px;
+      border-radius: 18px;
+      background: rgba(248, 250, 252, 0.92);
+      border: 1px solid rgba(226, 232, 240, 0.92);
+      text-align: left;
+      cursor: pointer;
+      transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+    }
+
+    .route-node::before {
+      content: "";
+      position: absolute;
+      left: -35px;
+      top: 19px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--track-color);
+      border: 3px solid rgba(255, 255, 255, 0.96);
+      box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.64);
+    }
+
+    .route-node::after {
+      content: "";
+      position: absolute;
+      left: -19px;
+      top: 18px;
+      width: 19px;
+      height: 14px;
+      border-left: 4px solid var(--track-color);
+      border-bottom: 4px solid var(--track-color);
+      border-bottom-left-radius: 14px;
+      opacity: 0.92;
+    }
+
+    .route-node:hover,
+    .route-node:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 28px rgba(15, 23, 42, 0.1);
+      outline: none;
+    }
+
+    .route-node.is-active {
+      background: rgba(255, 255, 255, 0.98);
+      border-color: rgba(148, 163, 184, 0.44);
+      box-shadow: inset 0 0 0 2px var(--track-color), 0 18px 34px rgba(15, 23, 42, 0.12);
+    }
+
+    .route-node.is-active::before {
+      box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.72), 0 0 0 10px rgba(196, 102, 31, 0.14);
+    }
+
+    .route-node strong,
+    .route-node span,
+    .route-node small {
+      display: block;
+    }
+
+    .route-node strong {
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    .route-node span {
+      margin-top: 4px;
+      color: var(--ink-700);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+
+    .route-node small {
+      margin-top: 5px;
+      color: var(--ink-500);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .route-date {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.06);
+      color: var(--ink-700);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .weather-chip {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      margin-top: 8px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: rgba(37, 99, 235, 0.08);
+      color: #1d4ed8;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .weather-chip.is-pending {
+      color: var(--ink-500);
+      background: rgba(148, 163, 184, 0.12);
+    }
+
+    .weather-chip.is-unavailable {
+      color: #92400e;
+      background: rgba(245, 158, 11, 0.14);
+    }
+
+    .route-leg {
+      position: relative;
+      margin: -2px 0 2px;
+      padding-left: 18px;
+    }
+
+    .route-leg::before {
+      content: "";
+      position: absolute;
+      left: -28px;
+      top: -4px;
+      width: 4px;
+      height: calc(100% + 8px);
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(148, 163, 184, 0.18), rgba(148, 163, 184, 0.05));
+    }
+
+    .route-leg-card {
+      position: relative;
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px dashed rgba(148, 163, 184, 0.35);
+      color: var(--ink-700);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .route-leg-card strong,
+    .route-leg-card span {
+      display: block;
+    }
+
+    .route-leg-card strong {
+      color: var(--ink-900);
+      font-size: 12px;
     }
 
     .summary-head {
@@ -273,230 +470,11 @@
       letter-spacing: -0.03em;
     }
 
-    .focus-card {
-      margin-bottom: 16px;
-      padding: 15px 16px;
-      border-radius: 22px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 246, 239, 0.92));
-      border: 1px solid rgba(226, 232, 240, 0.92);
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
-    }
-
-    .focus-card strong,
-    .focus-card span,
-    .focus-card small {
-      display: block;
-    }
-
-    .focus-card strong {
-      font-size: 19px;
-      line-height: 1.2;
-    }
-
-    .focus-card span {
-      margin-top: 5px;
+    .summary-head p {
+      margin: 10px 0 0;
       color: var(--ink-700);
       font-size: 13px;
-      font-weight: 700;
-    }
-
-    .focus-card small {
-      margin-top: 7px;
-      color: var(--ink-500);
-      line-height: 1.55;
-      font-size: 12px;
-    }
-
-    .session-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 8px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      background: rgba(15, 23, 42, 0.06);
-      color: var(--ink-700);
-      margin-bottom: 8px;
-    }
-
-    .muted {
-      color: var(--ink-500);
-    }
-
-    .schematic-board {
-      position: relative;
-      z-index: 1;
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 16px;
-      align-items: start;
-    }
-
-    .schematic-track {
-      position: relative;
-      padding: 18px 18px 18px 56px;
-      border-radius: 24px;
-      background: rgba(255, 255, 255, 0.9);
-      border: 1px solid rgba(226, 232, 240, 0.92);
-      box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
-    }
-
-    .schematic-track-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-
-    .schematic-track-title strong,
-    .schematic-track-title span,
-    .schematic-track-title small {
-      display: block;
-    }
-
-    .schematic-track-title strong {
-      font-size: 17px;
-      line-height: 1.2;
-    }
-
-    .schematic-track-title span {
-      margin-top: 3px;
-      color: var(--ink-700);
-      font-size: 13px;
-      line-height: 1.45;
-    }
-
-    .schematic-track-title small {
-      margin-top: 5px;
-      color: var(--ink-500);
-      font-size: 12px;
-      line-height: 1.4;
-    }
-
-    .schematic-track-total {
-      flex: 0 0 auto;
-      padding: 7px 10px;
-      border-radius: 999px;
-      background: rgba(248, 250, 252, 0.96);
-      color: var(--ink-900);
-      font-size: 12px;
-      font-weight: 800;
-      border: 1px solid rgba(226, 232, 240, 0.9);
-    }
-
-    .schematic-flow {
-      position: relative;
-      display: grid;
-      gap: 12px;
-    }
-
-    .schematic-flow::before {
-      content: "";
-      position: absolute;
-      left: -28px;
-      top: 14px;
-      bottom: 14px;
-      width: 4px;
-      border-radius: 999px;
-      background: linear-gradient(180deg, var(--track-color), rgba(148, 163, 184, 0.34));
-      opacity: 0.9;
-    }
-
-    .schematic-node {
-      position: relative;
-      display: block;
-      width: 100%;
-      border: 0;
-      border-radius: 18px;
-      padding: 12px 14px;
-      background: rgba(248, 250, 252, 0.9);
-      border: 1px solid rgba(226, 232, 240, 0.92);
-      text-align: left;
-      cursor: pointer;
-      transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
-    }
-
-    .schematic-node::before {
-      content: "";
-      position: absolute;
-      left: -35px;
-      top: 18px;
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      background: var(--track-color);
-      border: 3px solid rgba(255, 255, 255, 0.95);
-      box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.6);
-    }
-
-    .schematic-node::after {
-      content: "";
-      position: absolute;
-      left: -19px;
-      top: 18px;
-      width: 19px;
-      height: 14px;
-      border-left: 4px solid var(--track-color);
-      border-bottom: 4px solid var(--track-color);
-      border-bottom-left-radius: 14px;
-      opacity: 0.9;
-    }
-
-    .schematic-node:hover,
-    .schematic-node:focus-visible {
-      transform: translateY(-1px);
-      box-shadow: 0 14px 28px rgba(15, 23, 42, 0.1);
-      outline: none;
-    }
-
-    .schematic-node.is-active {
-      background: rgba(255, 255, 255, 0.98);
-      border-color: rgba(148, 163, 184, 0.42);
-      box-shadow: inset 0 0 0 2px var(--track-color), 0 18px 34px rgba(15, 23, 42, 0.12);
-    }
-
-    .schematic-node.is-active::before {
-      box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.72), 0 0 0 10px rgba(196, 102, 31, 0.14);
-    }
-
-    .schematic-node strong,
-    .schematic-node span,
-    .schematic-node small {
-      display: block;
-    }
-
-    .schematic-node strong {
-      font-size: 14px;
-      line-height: 1.25;
-    }
-
-    .schematic-node span {
-      margin-top: 4px;
-      color: var(--ink-700);
-      font-size: 12px;
-      font-weight: 800;
-    }
-
-    .schematic-node small {
-      margin-top: 5px;
-      color: var(--ink-500);
-      font-size: 12px;
-      line-height: 1.5;
-    }
-
-    .schematic-support {
-      margin-left: 0;
-      padding: 10px 12px;
-      border-radius: 16px;
-      background: rgba(37, 99, 235, 0.08);
-      color: #1d4ed8;
-      font-size: 12px;
-      font-weight: 700;
-      line-height: 1.5;
+      line-height: 1.6;
     }
 
     .summary-strip {
@@ -541,13 +519,46 @@
       letter-spacing: -0.02em;
     }
 
-    .focus-meta {
+    .focus-card,
+    .segment-card {
+      margin-bottom: 16px;
+      padding: 16px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 246, 239, 0.92));
+      border: 1px solid rgba(226, 232, 240, 0.92);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+    }
+
+    .focus-card strong,
+    .focus-card span,
+    .focus-card small,
+    .segment-card strong,
+    .segment-card span,
+    .segment-card small {
       display: block;
-      margin-top: 6px;
+    }
+
+    .focus-card strong,
+    .segment-card strong {
+      font-size: 19px;
+      line-height: 1.2;
+    }
+
+    .focus-card span,
+    .segment-card span {
+      margin-top: 5px;
       color: var(--ink-700);
       font-size: 13px;
       font-weight: 700;
-      line-height: 1.5;
+      line-height: 1.55;
+    }
+
+    .focus-card small,
+    .segment-card small {
+      margin-top: 8px;
+      color: var(--ink-500);
+      font-size: 12px;
+      line-height: 1.55;
     }
 
     .focus-list {
@@ -563,7 +574,7 @@
       gap: 10px;
       padding: 9px 11px;
       border-radius: 14px;
-      background: rgba(248, 250, 252, 0.9);
+      background: rgba(248, 250, 252, 0.92);
       border: 1px solid rgba(226, 232, 240, 0.82);
     }
 
@@ -579,13 +590,37 @@
       font-size: 13px;
     }
 
+    .maps-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      text-decoration: none;
+      background: rgba(15, 23, 42, 0.92);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      transition: transform 0.16s ease, background 0.16s ease;
+    }
+
+    .maps-link:hover,
+    .maps-link:focus-visible {
+      background: rgba(15, 23, 42, 1);
+      transform: translateY(-1px);
+    }
+
+    @media (max-width: 1280px) {
+      .route-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
     @media (max-width: 1180px) {
       .workspace {
         grid-template-columns: 1fr;
-      }
-
-      .schematic-board {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .board-card,
@@ -609,7 +644,8 @@
 
       .hero-card,
       .board-card,
-      .summary-card {
+      .summary-card,
+      .control-card {
         border-radius: 24px;
       }
 
@@ -618,17 +654,11 @@
         padding: 18px;
       }
 
-      .segmented-button {
-        min-width: 148px;
-      }
-
       .route-board {
         min-height: auto;
       }
-    }
 
-    @media (max-width: 720px) {
-      .schematic-board {
+      .route-grid {
         grid-template-columns: 1fr;
       }
 
@@ -644,110 +674,214 @@
   </a>
 
   <main class="page-shell">
-    <section class="hero">
-      <div class="hero-card">
-        <div class="hero-kicker">{{ pc06_shell_label or 'PhanMemPC06_Pro' }}</div>
-        <h1>15 điểm tập kết ADN theo lịch cố định và lưu động</h1>
-      </div>
+    <section class="hero-card">
+      <div class="hero-kicker">{{ pc06_shell_label or 'PhanMemPC06_Pro' }}</div>
+      <h1>15 điểm tập kết ADN và tuyến thu nhận 5 ngày</h1>
     </section>
 
     <section class="toolbar">
       <div class="control-card" id="direction-tabs"></div>
-      <div class="day-tabs" id="day-tabs"></div>
     </section>
 
     <section class="workspace">
       <div class="board-card">
         <div class="route-board" id="route-board"></div>
       </div>
-
       <aside class="summary-card" id="summary-panel"></aside>
     </section>
   </main>
 
   <script src="{{ url_for('static', filename='js/martyr-adn-schedule-data.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/martyr-adn-route-metrics.js') }}"></script>
   <script>
     (() => {
       const data = window.ADN_SCHEDULE_DATA;
+      const routeMetrics = window.ADN_ROUTE_METRICS || {};
       const TRACK_COLORS = ["#c4661f", "#325fd8", "#167b73"];
-
       const directionTabsEl = document.getElementById("direction-tabs");
-      const dayTabsEl = document.getElementById("day-tabs");
       const boardEl = document.getElementById("route-board");
       const summaryPanelEl = document.getElementById("summary-panel");
 
       const state = {
         directionId: data.directions[0].id,
-        dayIndex: 0,
-        activeEventId: null
+        activeNodeId: null
       };
+
+      const forecastCache = new Map();
+      const weatherByNodeId = new Map();
 
       function formatNumber(value) {
         return new Intl.NumberFormat("vi-VN").format(Number(value || 0));
+      }
+
+      function toIsoDate(dateLabel) {
+        const parts = String(dateLabel || "").split("/");
+        if (parts.length !== 3) {
+          return "";
+        }
+        const [day, month, year] = parts;
+        return `${year}-${String(Number(month)).padStart(2, "0")}-${String(Number(day)).padStart(2, "0")}`;
+      }
+
+      function buildCoordKey(lat, lng) {
+        return `${Number(lat).toFixed(6)}|${Number(lng).toFixed(6)}`;
+      }
+
+      function buildRouteKey(origin, destination) {
+        return `${Number(origin.lat).toFixed(6)}|${Number(origin.lng).toFixed(6)}|${Number(destination.lat).toFixed(6)}|${Number(destination.lng).toFixed(6)}`;
+      }
+
+      function describeWeatherCode(code) {
+        if (code === 0) {
+          return "Trời quang";
+        }
+        if (code >= 1 && code <= 3) {
+          return "Nhiều mây";
+        }
+        if (code >= 45 && code <= 48) {
+          return "Sương mù";
+        }
+        if (code >= 51 && code <= 67) {
+          return "Có mưa";
+        }
+        if (code >= 71 && code <= 77) {
+          return "Mưa tuyết";
+        }
+        if (code >= 80 && code <= 86) {
+          return "Mưa rào";
+        }
+        if (code >= 95) {
+          return "Có dông";
+        }
+        return "Thời tiết thay đổi";
+      }
+
+      function buildGoogleMapsUrl(origin, destination) {
+        if (!origin || !destination) {
+          return "";
+        }
+        const originText = `${origin.lat},${origin.lng}`;
+        const destinationText = `${destination.lat},${destination.lng}`;
+        return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originText)}&destination=${encodeURIComponent(destinationText)}&travelmode=driving`;
+      }
+
+      function estimateMetric(origin, destination) {
+        if (origin.lat === destination.lat && origin.lng === destination.lng) {
+          return {
+            distance_km: 0,
+            travel_minutes: 0,
+            source: "same-site"
+          };
+        }
+        const toRadians = (value) => value * Math.PI / 180;
+        const earthRadiusKm = 6371;
+        const latDelta = toRadians(destination.lat - origin.lat);
+        const lngDelta = toRadians(destination.lng - origin.lng);
+        const startLat = toRadians(origin.lat);
+        const endLat = toRadians(destination.lat);
+        const haversineValue = (
+          Math.sin(latDelta / 2) ** 2
+          + Math.cos(startLat) * Math.cos(endLat) * Math.sin(lngDelta / 2) ** 2
+        );
+        const crowDistance = 2 * earthRadiusKm * Math.atan2(
+          Math.sqrt(haversineValue),
+          Math.sqrt(Math.max(0, 1 - haversineValue))
+        );
+        const distanceKm = crowDistance * 1.85;
+        const travelMinutes = distanceKm / 55 * 60;
+        return {
+          distance_km: Number(distanceKm.toFixed(1)),
+          travel_minutes: Math.max(1, Math.round(travelMinutes)),
+          source: "estimated"
+        };
+      }
+
+      function getSegmentMetric(origin, destination) {
+        return routeMetrics[buildRouteKey(origin, destination)] || estimateMetric(origin, destination);
       }
 
       function getSelectedDirection() {
         return data.directions.find((direction) => direction.id === state.directionId) || data.directions[0];
       }
 
-      function getCurrentDay(direction) {
-        return direction.days[state.dayIndex] || direction.days[0];
+      function buildFixedTrackNodes(direction, trackIndex) {
+        return direction.days.map((day, dayIndex) => {
+          const track = day.tracks[trackIndex];
+          const firstStop = track.stops[0];
+          const total = track.stops.reduce((sum, stop) => sum + Number(stop.total || 0), 0);
+          const sessionSummary = track.stops.map((stop) => `${stop.session}: ${formatNumber(stop.total)} TNLS`).join(" · ");
+          const areaSummary = track.stops.flatMap((stop) => (
+            (stop.areas || []).map((area) => ({
+              label: `${stop.session} · ${area.name}`,
+              value: `${formatNumber(area.count)} TNLS`
+            }))
+          ));
+          return {
+            id: `${direction.id}-${trackIndex}-${dayIndex}`,
+            trackIndex,
+            dayIndex,
+            trackLabel: track.label,
+            trackTitle: track.title,
+            dayLabel: day.dayLabel,
+            dateLabel: day.dateLabel,
+            isoDate: toIsoDate(day.dateLabel),
+            name: firstStop.name,
+            lat: firstStop.lat,
+            lng: firstStop.lng,
+            total,
+            meta: sessionSummary,
+            detailItems: areaSummary
+          };
+        });
       }
 
-      function buildDisplayEvents(direction, day) {
-        const events = [];
-        day.tracks.forEach((track, trackIndex) => {
-          if (direction.id === "co-dinh") {
-            track.stops.forEach((stop, stopIndex) => {
-              events.push({
-                id: `${direction.id}-${state.dayIndex}-${trackIndex}-${stopIndex}`,
-                directionId: direction.id,
-                dayLabel: day.dayLabel,
-                dateLabel: day.dateLabel,
-                trackIndex,
-                trackLabel: track.label,
-                trackTitle: track.title,
-                name: stop.name,
-                total: stop.total,
-                session: stop.session,
-                areas: stop.areas || [],
-                type: "stop"
-              });
-            });
-            return;
-          }
-
-          track.visits
-            .filter((visit) => visit.name)
-            .forEach((visit, visitIndex) => {
-              events.push({
-                id: `${direction.id}-${state.dayIndex}-${trackIndex}-${visitIndex}`,
-                directionId: direction.id,
-                dayLabel: day.dayLabel,
-                dateLabel: day.dateLabel,
-                trackIndex,
-                trackLabel: track.label,
-                trackTitle: track.title,
-                name: visit.name,
-                total: visit.count,
-                session: visit.session || "Cả ngày",
-                type: "visit"
-              });
+      function buildMobileTrackNodes(direction, trackIndex) {
+        const nodes = [];
+        direction.days.forEach((day, dayIndex) => {
+          const track = day.tracks[trackIndex];
+          track.visits.forEach((visit, visitIndex) => {
+            if (!visit.name) {
+              return;
+            }
+            nodes.push({
+              id: `${direction.id}-${trackIndex}-${dayIndex}-${visitIndex}`,
+              trackIndex,
+              dayIndex,
+              trackLabel: track.label,
+              trackTitle: track.title,
+              dayLabel: day.dayLabel,
+              dateLabel: day.dateLabel,
+              isoDate: toIsoDate(day.dateLabel),
+              name: visit.name,
+              lat: visit.lat,
+              lng: visit.lng,
+              total: Number(visit.count || 0),
+              meta: visit.session || "Cả ngày",
+              detailItems: []
             });
           });
-        return events;
+        });
+        return nodes;
       }
 
-      function getTrackTotal(direction, track) {
-        if (direction.id === "co-dinh") {
-          return track.stops.reduce((sum, stop) => sum + Number(stop.total || 0), 0);
-        }
-        return track.visits.filter((visit) => visit.name).reduce((sum, visit) => sum + Number(visit.count || 0), 0);
+      function buildDirectionTracks(direction) {
+        return direction.days[0].tracks.map((track, trackIndex) => {
+          const nodes = direction.id === "co-dinh"
+            ? buildFixedTrackNodes(direction, trackIndex)
+            : buildMobileTrackNodes(direction, trackIndex);
+          return {
+            trackIndex,
+            label: track.label,
+            title: direction.id === "co-dinh" ? direction.days[0].tracks[trackIndex].title : track.title,
+            total: nodes.reduce((sum, node) => sum + Number(node.total || 0), 0),
+            nodes
+          };
+        });
       }
 
-      function getActiveEvent(events) {
-        const preferred = events.find((event) => event.id === state.activeEventId);
-        return preferred || events[0] || null;
+      function getActiveNode(tracks) {
+        const allNodes = tracks.flatMap((track) => track.nodes);
+        return allNodes.find((node) => node.id === state.activeNodeId) || allNodes[0] || null;
       }
 
       function renderDirectionTabs(direction) {
@@ -756,168 +890,224 @@
           const button = document.createElement("button");
           button.type = "button";
           button.className = "segmented-button" + (item.id === direction.id ? " is-active" : "");
-          button.innerHTML = `<strong>${item.label}</strong>`;
+          button.innerHTML = `<strong>${item.label}</strong><span>${item.shortLabel || ""}</span>`;
           button.addEventListener("click", () => {
             if (state.directionId === item.id) {
               return;
             }
             state.directionId = item.id;
-            state.dayIndex = 0;
-            state.activeEventId = null;
+            state.activeNodeId = null;
             render();
           });
           directionTabsEl.appendChild(button);
         });
       }
 
-      function renderDayTabs(direction) {
-        dayTabsEl.innerHTML = "";
-        direction.days.forEach((day, dayIndex) => {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = "day-button" + (dayIndex === state.dayIndex ? " is-active" : "");
-          button.textContent = `${day.dayLabel} · ${day.dateLabel}`;
-          button.addEventListener("click", () => {
-            if (state.dayIndex === dayIndex) {
-              return;
-            }
-            state.dayIndex = dayIndex;
-            state.activeEventId = null;
-            render();
-          });
-          dayTabsEl.appendChild(button);
-        });
-      }
-
-      function renderBoard(direction, events) {
-        const day = getCurrentDay(direction);
-        const activeEvent = getActiveEvent(events);
-
-        boardEl.innerHTML = `
-          <div class="schematic-board">
-            ${day.tracks.map((track, trackIndex) => {
-              const trackEvents = events.filter((event) => event.trackIndex === trackIndex);
-              const supportText = direction.id === "luu-dong"
-                ? (track.visits.find((visit) => visit.label && !visit.name) || {}).label
-                : "";
-              return `
-                <article class="schematic-track" style="--track-color:${TRACK_COLORS[trackIndex] || TRACK_COLORS[0]}">
-                  <div class="schematic-track-header">
-                    <div class="schematic-track-title">
-                      <strong>${track.label}</strong>
-                      <span>${track.title}</span>
-                    </div>
-                    <div class="schematic-track-total">${formatNumber(getTrackTotal(direction, track))} TNLS</div>
-                  </div>
-                  <div class="schematic-flow">
-                    ${trackEvents.map((event) => {
-                      const detail = direction.id === "co-dinh"
-                        ? event.areas.map((item) => `${item.name} ${formatNumber(item.count)}`).join(" · ")
-                        : "";
-                      return `
-                        <button type="button" class="schematic-node${activeEvent && activeEvent.id === event.id ? " is-active" : ""}" data-event-id="${event.id}">
-                          <strong>${event.name}</strong>
-                          <span>${event.session} · ${formatNumber(event.total)} TNLS</span>
-                          ${detail ? `<small>${detail}</small>` : ""}
-                        </button>
-                      `;
-                    }).join("")}
-                  </div>
-                  ${supportText ? `<div class="schematic-support">${supportText}</div>` : ""}
-                </article>
-              `;
-            }).join("")}
-          </div>
-        `;
-
-        boardEl.querySelectorAll("[data-event-id]").forEach((button) => {
-          button.addEventListener("click", () => {
-            state.activeEventId = button.getAttribute("data-event-id");
-            render();
-          });
-        });
-      }
-
-      function buildFocusCard(direction, activeEvent) {
-        if (!activeEvent) {
-          return "";
-        }
-        if (direction.id === "co-dinh") {
-          const areaMarkup = activeEvent.areas.length
-            ? `
-              <div class="focus-list">
-                ${activeEvent.areas.map((item) => `
-                  <div class="focus-list-item">
-                    <span>${item.name}</span>
-                    <strong>${formatNumber(item.count)} TNLS</strong>
-                  </div>
-                `).join("")}
-              </div>
-            `
-            : "";
+      function renderSegment(origin, destination) {
+        const metric = getSegmentMetric(origin, destination);
+        if (metric.source === "same-site") {
           return `
-            <div class="focus-card">
-              <strong>${activeEvent.name}</strong>
-              <span>${activeEvent.dayLabel} · ${activeEvent.trackLabel}</span>
-              <div class="focus-meta">${activeEvent.session} · ${formatNumber(activeEvent.total)} TNLS</div>
-              ${areaMarkup}
+            <div class="route-leg">
+              <div class="route-leg-card">
+                <strong>Giữ trạm tại ${destination.name}</strong>
+                <span>Không phát sinh quãng di chuyển giữa hai ngày liên tiếp.</span>
+              </div>
             </div>
           `;
         }
         return `
-            <div class="focus-card">
-              <strong>${activeEvent.name}</strong>
-              <span>${activeEvent.dayLabel} · ${activeEvent.trackLabel}</span>
-              <div class="focus-meta">${activeEvent.session} · ${formatNumber(activeEvent.total)} TNLS</div>
-              <small>Điểm lưu động này xử lý theo đúng lịch trong hồ sơ lưu động.</small>
+          <div class="route-leg">
+            <div class="route-leg-card">
+              <strong>${formatNumber(metric.distance_km)} km · ${formatNumber(metric.travel_minutes)} phút</strong>
+              <span>${origin.name} → ${destination.name}</span>
             </div>
+          </div>
         `;
       }
 
-      function renderSummary(direction, events) {
-        const day = direction.days[state.dayIndex];
-        const activeEvent = getActiveEvent(events);
-        const trackMarkup = day.tracks.map((track) => `
-          <div class="summary-strip-item">
-            <div>
-              <strong>${track.label}</strong>
-              <span>${track.title}</span>
-            </div>
-            <div class="summary-strip-total">${formatNumber(getTrackTotal(direction, track))} TNLS</div>
+      function renderBoard(direction, tracks) {
+        const activeNode = getActiveNode(tracks);
+        boardEl.innerHTML = `
+          <div class="route-grid">
+            ${tracks.map((track) => `
+              <article class="track-card" style="--track-color:${TRACK_COLORS[track.trackIndex] || TRACK_COLORS[0]}">
+                <div class="track-header">
+                  <div class="track-title">
+                    <strong>${track.label}</strong>
+                    <span>${track.title}</span>
+                  </div>
+                  <div class="track-total">${formatNumber(track.total)} TNLS</div>
+                </div>
+                <div class="route-chain">
+                  ${track.nodes.map((node, index) => `
+                    <button type="button" class="route-node${activeNode && activeNode.id === node.id ? " is-active" : ""}" style="--track-color:${TRACK_COLORS[track.trackIndex] || TRACK_COLORS[0]}" data-node-id="${node.id}">
+                      <div class="route-date">${node.dayLabel} · ${node.dateLabel}</div>
+                      <strong>${node.name}</strong>
+                      <span>${formatNumber(node.total)} TNLS</span>
+                      <small>${node.meta}</small>
+                      <div class="weather-chip is-pending" data-weather-id="${node.id}">Đang tải thời tiết</div>
+                    </button>
+                    ${index < track.nodes.length - 1 ? renderSegment(node, track.nodes[index + 1]) : ""}
+                  `).join("")}
+                </div>
+              </article>
+            `).join("")}
           </div>
-        `).join("");
+        `;
+
+        boardEl.querySelectorAll("[data-node-id]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.activeNodeId = button.getAttribute("data-node-id");
+            render();
+          });
+        });
+      }
+
+      function renderSummary(direction, tracks) {
+        const activeNode = getActiveNode(tracks);
+        if (!activeNode) {
+          summaryPanelEl.innerHTML = "";
+          return;
+        }
+
+        const activeTrack = tracks[activeNode.trackIndex];
+        const nodeIndex = activeTrack.nodes.findIndex((node) => node.id === activeNode.id);
+        const previousNode = nodeIndex > 0 ? activeTrack.nodes[nodeIndex - 1] : null;
+        const nextNode = nodeIndex >= 0 && nodeIndex < activeTrack.nodes.length - 1 ? activeTrack.nodes[nodeIndex + 1] : null;
+        const segmentOrigin = previousNode || activeNode;
+        const segmentDestination = previousNode ? activeNode : nextNode;
+        const segmentMetric = segmentDestination ? getSegmentMetric(segmentOrigin, segmentDestination) : null;
+        const directionTotal = tracks.reduce((sum, track) => sum + Number(track.total || 0), 0);
+        const detailMarkup = activeNode.detailItems.length
+          ? `
+            <div class="focus-list">
+              ${activeNode.detailItems.map((item) => `
+                <div class="focus-list-item">
+                  <span>${item.label}</span>
+                  <strong>${item.value}</strong>
+                </div>
+              `).join("")}
+            </div>
+          `
+          : "";
+        const routeLabel = segmentDestination
+          ? `${segmentOrigin.name} → ${segmentDestination.name}`
+          : "Kết thúc tuyến";
+        const segmentMeta = segmentMetric
+          ? (
+            segmentMetric.source === "same-site"
+              ? "Không phát sinh quãng di chuyển."
+              : `${formatNumber(segmentMetric.distance_km)} km · ${formatNumber(segmentMetric.travel_minutes)} phút`
+          )
+          : "Không còn chặng kế tiếp.";
+        const sourceNote = !segmentMetric ? ""
+          : segmentMetric.source === "estimated"
+            ? "Số liệu chặng này đang dùng ước tính vì chưa có dữ liệu tuyến chi tiết."
+            : segmentMetric.source === "osrm-cache"
+              ? "Số liệu chặng này lấy từ cache tuyến hiện có trong dự án."
+              : "";
 
         summaryPanelEl.innerHTML = `
           <div class="summary-head">
             <div class="hero-kicker">${direction.label}</div>
-            <h2>${day.dayLabel}</h2>
-            <div class="session-pill" style="margin-top:8px;">${day.dateLabel} · ${formatNumber(day.total)} TNLS</div>
+            <h2>${formatNumber(directionTotal)} TNLS</h2>
+            <p>${direction.description || ""}</p>
           </div>
 
-          <div class="summary-strip">${trackMarkup}</div>
-          ${buildFocusCard(direction, activeEvent)}
+          <div class="summary-strip">
+            ${tracks.map((track) => `
+              <div class="summary-strip-item">
+                <div>
+                  <strong>${track.label}</strong>
+                  <span>${track.title}</span>
+                </div>
+                <div class="summary-strip-total">${formatNumber(track.total)} TNLS</div>
+              </div>
+            `).join("")}
+          </div>
+
+          <div class="focus-card">
+            <strong>${activeNode.name}</strong>
+            <span>${activeNode.dayLabel} · ${activeNode.dateLabel} · ${activeNode.trackLabel}</span>
+            <span>${formatNumber(activeNode.total)} TNLS · ${activeNode.meta}</span>
+            <div class="weather-chip is-pending" data-weather-id="${activeNode.id}">Đang tải thời tiết</div>
+            ${detailMarkup}
+          </div>
+
+          <div class="segment-card">
+            <strong>${routeLabel}</strong>
+            <span>${segmentMeta}</span>
+            ${sourceNote ? `<small>${sourceNote}</small>` : ""}
+            ${segmentDestination ? `<a class="maps-link" href="${buildGoogleMapsUrl(segmentOrigin, segmentDestination)}" target="_blank" rel="noopener noreferrer">Mở trên Google Maps</a>` : ""}
+          </div>
         `;
+      }
+
+      async function fetchForecastForNode(node) {
+        const coordKey = buildCoordKey(node.lat, node.lng);
+        if (!forecastCache.has(coordKey)) {
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(node.lat)}&longitude=${encodeURIComponent(node.lng)}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FBangkok&forecast_days=16`;
+          forecastCache.set(coordKey, fetch(url).then((response) => response.json()).catch(() => null));
+        }
+        const payload = await forecastCache.get(coordKey);
+        if (!payload || !payload.daily || !Array.isArray(payload.daily.time)) {
+          return {
+            status: "error",
+            text: "Không lấy được thời tiết"
+          };
+        }
+        const dayIndex = payload.daily.time.indexOf(node.isoDate);
+        if (dayIndex < 0) {
+          return {
+            status: "unavailable",
+            text: `Chưa có dự báo cho ${node.dateLabel}`
+          };
+        }
+        const weatherCode = payload.daily.weather_code[dayIndex];
+        const minTemp = Math.round(payload.daily.temperature_2m_min[dayIndex]);
+        const maxTemp = Math.round(payload.daily.temperature_2m_max[dayIndex]);
+        return {
+          status: "ready",
+          text: `${describeWeatherCode(weatherCode)} · ${minTemp}-${maxTemp}°C`
+        };
+      }
+
+      function applyWeatherState(nodeId, weatherState) {
+        document.querySelectorAll(`[data-weather-id="${nodeId}"]`).forEach((element) => {
+          element.textContent = weatherState.text;
+          element.classList.remove("is-pending", "is-unavailable");
+          if (weatherState.status === "unavailable" || weatherState.status === "error") {
+            element.classList.add("is-unavailable");
+          }
+        });
+      }
+
+      async function hydrateWeather(tracks) {
+        const nodes = tracks.flatMap((track) => track.nodes);
+        await Promise.all(nodes.map(async (node) => {
+          if (!weatherByNodeId.has(node.id)) {
+            const weatherState = await fetchForecastForNode(node);
+            weatherByNodeId.set(node.id, weatherState);
+          }
+          applyWeatherState(node.id, weatherByNodeId.get(node.id));
+        }));
       }
 
       function render() {
         const direction = getSelectedDirection();
-        const day = getCurrentDay(direction);
-        const events = buildDisplayEvents(direction, day);
+        const tracks = buildDirectionTracks(direction);
         renderDirectionTabs(direction);
-        renderDayTabs(direction);
-        renderBoard(direction, events);
-        renderSummary(direction, events);
+        renderBoard(direction, tracks);
+        renderSummary(direction, tracks);
+        hydrateWeather(tracks);
       }
 
-      let resizeFrame = null;
-      window.addEventListener("resize", () => {
-        if (resizeFrame) {
-          window.cancelAnimationFrame(resizeFrame);
-        }
-        resizeFrame = window.requestAnimationFrame(render);
-      });
-
       render();
+      window.setInterval(() => {
+        forecastCache.clear();
+        weatherByNodeId.clear();
+        render();
+      }, 600000);
     })();
   </script>
 </body>
