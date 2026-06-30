@@ -33,7 +33,7 @@
     }
 
     body {
-      font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+      font-family: "IBM Plex Sans", "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
       color: var(--ink-900);
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(244, 239, 228, 0.95)),
@@ -96,7 +96,18 @@
     }
 
     .page-shell.is-reference-mode .hero-card {
-      display: none;
+      padding: 14px 18px;
+      margin-bottom: 12px;
+    }
+
+    .page-shell.is-reference-mode .hero-kicker {
+      margin-bottom: 8px;
+      padding: 6px 10px;
+      font-size: 11px;
+    }
+
+    .page-shell.is-reference-mode h1 {
+      font-size: clamp(22px, 3vw, 28px);
     }
 
     .page-shell.is-reference-mode .toolbar {
@@ -155,6 +166,7 @@
       font-size: clamp(24px, 3.6vw, 34px);
       line-height: 1.05;
       letter-spacing: -0.03em;
+      font-family: "Avenir Next", "IBM Plex Sans", "Segoe UI", sans-serif;
     }
 
     .toolbar {
@@ -591,20 +603,38 @@
 
     .summary-head h2 {
       margin: 0;
-      font-size: 32px;
+      font-size: 26px;
       line-height: 1.02;
       letter-spacing: -0.03em;
+      font-family: "Avenir Next", "IBM Plex Sans", "Segoe UI", sans-serif;
     }
 
-    .route-summary {
+    .summary-blocks {
       display: grid;
-      gap: 12px;
+      gap: 14px;
       margin-top: 18px;
     }
 
-    .route-day-group {
+    .summary-block {
       display: grid;
-      gap: 8px;
+      gap: 10px;
+      padding: 14px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 244, 236, 0.92));
+      border: 1px solid rgba(226, 232, 240, 0.92);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+    }
+
+    .summary-block-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-500);
     }
 
     .route-day-title {
@@ -612,7 +642,7 @@
       align-items: center;
       gap: 10px;
       color: var(--ink-900);
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 900;
       letter-spacing: 0.02em;
       text-transform: uppercase;
@@ -629,10 +659,10 @@
     .route-item {
       width: 100%;
       border: 0;
-      padding: 12px 14px;
-      border-radius: 18px;
-      background: rgba(248, 250, 252, 0.94);
-      border: 1px solid rgba(226, 232, 240, 0.88);
+      padding: 12px 13px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(226, 232, 240, 0.84);
       text-align: left;
       cursor: pointer;
       transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
@@ -659,30 +689,30 @@
     .route-item strong {
       font-size: 14px;
       line-height: 1.3;
+      font-family: "Avenir Next", "IBM Plex Sans", "Segoe UI", sans-serif;
     }
 
     .route-item span {
       margin-top: 4px;
       color: var(--ink-700);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 800;
       line-height: 1.45;
     }
 
     .route-item small {
-      margin-top: 6px;
+      margin-top: 4px;
       color: var(--ink-500);
       font-size: 11px;
       line-height: 1.45;
     }
 
     .detail-card {
-      margin-top: 16px;
-      padding: 16px;
-      border-radius: 24px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 246, 239, 0.92));
-      border: 1px solid rgba(226, 232, 240, 0.92);
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid rgba(226, 232, 240, 0.84);
+      box-shadow: none;
     }
 
     .detail-card strong,
@@ -692,29 +722,30 @@
     }
 
     .detail-card strong {
-      font-size: 18px;
+      font-size: 16px;
       line-height: 1.2;
+      font-family: "Avenir Next", "IBM Plex Sans", "Segoe UI", sans-serif;
     }
 
     .detail-card span {
       margin-top: 5px;
       color: var(--ink-700);
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
-      line-height: 1.55;
+      line-height: 1.5;
     }
 
     .detail-card small {
-      margin-top: 8px;
+      margin-top: 6px;
       color: var(--ink-500);
-      font-size: 12px;
-      line-height: 1.55;
+      font-size: 11px;
+      line-height: 1.45;
     }
 
     .detail-list {
       display: grid;
-      gap: 8px;
-      margin-top: 12px;
+      gap: 7px;
+      margin-top: 10px;
     }
 
     .detail-row {
@@ -722,10 +753,10 @@
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      padding: 9px 11px;
-      border-radius: 14px;
-      background: rgba(248, 250, 252, 0.92);
-      border: 1px solid rgba(226, 232, 240, 0.82);
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(248, 250, 252, 0.78);
+      border: 1px solid rgba(226, 232, 240, 0.72);
     }
 
     .detail-row span,
@@ -744,50 +775,24 @@
       font-size: 13px;
     }
 
-    .weather-chip {
+    .summary-metric {
       display: inline-flex;
       align-items: center;
       width: fit-content;
-      margin-top: 8px;
-      padding: 5px 9px;
+      padding: 6px 10px;
       border-radius: 999px;
-      background: rgba(37, 99, 235, 0.08);
-      color: #1d4ed8;
-      font-size: 11px;
-      font-weight: 700;
-      line-height: 1.3;
-    }
-
-    .weather-chip.is-pending {
-      color: var(--ink-500);
       background: rgba(148, 163, 184, 0.12);
-    }
-
-    .weather-chip.is-unavailable {
-      color: #92400e;
-      background: rgba(245, 158, 11, 0.14);
-    }
-
-    .maps-link {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      margin-top: 12px;
-      padding: 10px 14px;
-      border-radius: 999px;
-      text-decoration: none;
-      background: rgba(15, 23, 42, 0.92);
-      color: #fff;
-      font-size: 12px;
+      color: var(--ink-700);
+      font-size: 11px;
       font-weight: 800;
       letter-spacing: 0.02em;
-      transition: transform 0.16s ease, background 0.16s ease;
     }
 
-    .maps-link:hover,
-    .maps-link:focus-visible {
-      background: rgba(15, 23, 42, 1);
-      transform: translateY(-1px);
+    .summary-empty {
+      color: var(--ink-500);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.45;
     }
 
     @media (max-width: 1080px) {
@@ -1635,10 +1640,8 @@
         const referenceMode = isReferenceBoardMode(direction);
         pageShellEl.classList.toggle("is-reference-mode", referenceMode);
         mapStageEl.classList.toggle("is-reference-mode", referenceMode);
-        mapNoteEl.style.display = referenceMode ? "block" : "none";
-        mapNoteEl.innerHTML = referenceMode
-          ? `<strong>Chú thích thời gian:</strong> mọi thời gian được ghi theo thứ tự <strong>10 phút / 15 phút / 20 phút</strong> cho mỗi trường hợp.`
-          : "";
+        mapNoteEl.style.display = "none";
+        mapNoteEl.innerHTML = "";
 
         const routeNodes = referenceMode ? nodes : new Map();
         if (!referenceMode) {
@@ -1768,19 +1771,23 @@
 
       function buildNodeDetail(node) {
         if (!node) {
-          return "";
+          return `
+            <div class="detail-card">
+              <strong>Điểm đang chọn</strong>
+              <span class="summary-empty">Chọn một điểm trên bản đồ để xem thông tin gọn.</span>
+            </div>
+          `;
         }
-        const occurrenceRows = node.occurrences.map((occurrence, index) => `
+        const occurrenceRows = node.occurrences.map((occurrence) => `
           <div class="detail-row">
-            <span>${occurrence.routeLabel} · ${occurrence.dayLabel} · ${occurrence.session}</span>
+            <span>${occurrence.dayLabel} · ${occurrence.routeLabel}</span>
             <strong>${formatNumber(occurrence.total)} TNLS</strong>
           </div>
-          <div class="weather-chip is-pending" data-weather-key="${buildWeatherKey(occurrence.lat, occurrence.lng, occurrence.isoDate)}">${index === 0 ? "Đang tải thời tiết" : "Đang tải thời tiết"}</div>
         `).join("");
         return `
           <div class="detail-card">
-            <strong>${node.name}</strong>
-            <span>${formatNumber(node.total)} TNLS trên các tuyến đang hiển thị</span>
+            <strong>Điểm đang chọn</strong>
+            <span>${node.name} · ${formatNumber(node.total)} TNLS</span>
             <div class="detail-list">${occurrenceRows}</div>
           </div>
         `;
@@ -1788,45 +1795,34 @@
 
       function buildRouteDetail(route) {
         if (!route) {
-          return "";
+          return `
+            <div class="detail-card">
+              <strong>Tuyến đang xem</strong>
+              <span class="summary-empty">Chọn một tuyến ở danh sách phía trên.</span>
+            </div>
+          `;
         }
-        const segmentRows = route.segments.length
-          ? route.segments.map((segment) => {
-            if (segment.metric.source === "same-site") {
-              return "";
-            }
-            const metricText = `${formatNumber(segment.metric.distance_km)} km · ${formatNumber(segment.metric.travel_minutes)} phút`;
-            return `
-              <div class="detail-row">
-                <span>${segment.dayLabel} · ${segment.fromName} → ${segment.toName}</span>
-                <strong>${metricText}</strong>
-              </div>
-            `;
-          }).join("")
-          : `<div class="detail-row"><span>Trong ngày không phát sinh chặng di chuyển</span><strong>0 km</strong></div>`;
         const dayRows = route.dayDetails.map((detail) => `
           <div class="detail-row">
-            <span>${detail.dayLabel} · ${detail.summary}</span>
+            <span>${detail.dayLabel}</span>
             <strong>${formatNumber(detail.total)} TNLS</strong>
           </div>
         `).join("");
-        const weatherRows = route.points.map((point) => `
+        const segmentRows = route.segments
+          .filter((segment) => segment.metric.source !== "same-site")
+          .map((segment) => `
           <div class="detail-row">
-            <span>${point.dayLabel} · ${point.name} · ${point.session || "Di chuyển"}</span>
-            <strong>${point.total ? `${formatNumber(point.total)} TNLS` : "Điểm trung gian"}</strong>
+            <span>${segment.fromName} → ${segment.toName}</span>
+            <strong>${formatNumber(segment.metric.distance_km)} km</strong>
           </div>
-          <div class="weather-chip is-pending" data-weather-key="${buildWeatherKey(point.lat, point.lng, point.isoDate)}">Đang tải thời tiết</div>
         `).join("");
-        const mapsUrl = buildGoogleMapsUrl(route);
         return `
           <div class="detail-card">
-            <strong>${route.label}</strong>
+            <strong>Tuyến đang xem</strong>
             <span>${route.summary}</span>
             <small>${route.dateLabel} · ${formatNumber(route.total)} TNLS</small>
             <div class="detail-list">${dayRows}</div>
-            <div class="detail-list">${segmentRows}</div>
-            <div class="detail-list" style="margin-top:14px;">${weatherRows}</div>
-            ${mapsUrl ? `<a class="maps-link" href="${mapsUrl}" target="_blank" rel="noopener noreferrer">Mở trên Google Maps</a>` : ""}
+            ${segmentRows ? `<div class="detail-list">${segmentRows}</div>` : ""}
           </div>
         `;
       }
@@ -1845,30 +1841,36 @@
             <div class="summary-head">
               <div class="hero-kicker">${direction.label}</div>
               <h2>Tuyến 5 ngày</h2>
-              <div class="weather-chip is-pending" data-meta="direction-total">${formatNumber(directionTotal)} TNLS</div>
+              <div class="summary-metric">${formatNumber(directionTotal)} TNLS</div>
             </div>
 
-            <div class="detail-card">
-              <strong>Bản đồ mô phỏng 5 tuyến ngày</strong>
-              <span>Các điểm được nối thẳng theo đúng chuỗi tuyến trong phương án 5 ngày, ưu tiên điểm đông trước rồi giảm dần về điểm ít.</span>
-            </div>
+            <div class="summary-blocks">
+              <section class="summary-block">
+                <div class="summary-block-title">Danh sách tuyến</div>
+                <div class="route-summary">
+                  ${routes.map((route) => `
+                    <section class="route-day-group">
+                      <div class="route-day-title" style="--day-color:${route.color}">
+                        <span class="route-day-swatch"></span>
+                        ${route.label}
+                      </div>
+                      <button type="button" class="route-item${activeRoute && activeRoute.id === route.id ? " is-active" : ""}" style="--route-color:${route.color}" data-route-id="${route.id}">
+                        <strong>${route.label}</strong>
+                        <small>${route.dateLabel} · ${formatNumber(route.total)} TNLS</small>
+                      </button>
+                    </section>
+                  `).join("")}
+                </div>
+              </section>
 
-            <div class="route-summary">
-              ${routes.map((route) => `
-                <section class="route-day-group">
-                  <div class="route-day-title" style="--day-color:${route.color}">
-                    <span class="route-day-swatch"></span>
-                    ${route.label}
-                  </div>
-                  <button type="button" class="route-item${activeRoute && activeRoute.id === route.id ? " is-active" : ""}" style="--route-color:${route.color}" data-route-id="${route.id}">
-                    <strong>${route.summary}</strong>
-                    <small>${route.dateLabel} · ${formatNumber(route.total)} TNLS</small>
-                  </button>
-                </section>
-              `).join("")}
-            </div>
+              <section class="summary-block">
+                ${buildRouteDetail(activeRoute)}
+              </section>
 
-            ${buildNodeDetail(activeNode)}
+              <section class="summary-block">
+                ${buildNodeDetail(activeNode)}
+              </section>
+            </div>
           `;
 
           summaryPanelEl.querySelectorAll("[data-route-id]").forEach((button) => {
@@ -1887,27 +1889,36 @@
           <div class="summary-head">
             <div class="hero-kicker">${direction.label}</div>
             <h2>Tuyến 5 ngày</h2>
-            <div class="weather-chip is-pending" data-meta="direction-total">${formatNumber(directionTotal)} TNLS</div>
+            <div class="summary-metric">${formatNumber(directionTotal)} TNLS</div>
           </div>
 
-          <div class="route-summary">
-            ${routes.map((route) => `
-              <section class="route-day-group">
-                <div class="route-day-title" style="--day-color:${route.color}">
-                  <span class="route-day-swatch"></span>
-                  ${route.label}
-                </div>
-                <button type="button" class="route-item${activeRoute && activeRoute.id === route.id ? " is-active" : ""}" style="--route-color:${route.color}" data-route-id="${route.id}">
-                  <strong>${route.title}</strong>
-                  <span>${route.summary}</span>
-                  <small>${route.meta}</small>
-                </button>
-              </section>
-            `).join("")}
-          </div>
+          <div class="summary-blocks">
+            <section class="summary-block">
+              <div class="summary-block-title">Danh sách tuyến</div>
+              <div class="route-summary">
+                ${routes.map((route) => `
+                  <section class="route-day-group">
+                    <div class="route-day-title" style="--day-color:${route.color}">
+                      <span class="route-day-swatch"></span>
+                      ${route.label}
+                    </div>
+                    <button type="button" class="route-item${activeRoute && activeRoute.id === route.id ? " is-active" : ""}" style="--route-color:${route.color}" data-route-id="${route.id}">
+                      <strong>${route.label}</strong>
+                      <small>${route.meta}</small>
+                    </button>
+                  </section>
+                `).join("")}
+              </div>
+            </section>
 
-          ${buildRouteDetail(activeRoute)}
-          ${buildNodeDetail(activeNode)}
+            <section class="summary-block">
+              ${buildRouteDetail(activeRoute)}
+            </section>
+
+            <section class="summary-block">
+              ${buildNodeDetail(activeNode)}
+            </section>
+          </div>
         `;
 
         summaryPanelEl.querySelectorAll("[data-route-id]").forEach((button) => {
