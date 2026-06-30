@@ -248,5 +248,45 @@ window.ADN_ROUTE_METRICS = {
     "distance_km": 52.2,
     "travel_minutes": 46,
     "source": "osrm-live-2026-06-30"
+  },
+  "21.820937|105.205244|21.820937|105.205244": {
+    "distance_km": 0.0,
+    "travel_minutes": 0,
+    "source": "same-site"
+  },
+  "22.039411|105.034705|22.039411|105.034705": {
+    "distance_km": 0.0,
+    "travel_minutes": 0,
+    "source": "same-site"
+  },
+  "21.799811|105.204959|21.799811|105.204959": {
+    "distance_km": 0.0,
+    "travel_minutes": 0,
+    "source": "same-site"
+  },
+  "22.416992|104.824867|22.416992|104.824867": {
+    "distance_km": 0.0,
+    "travel_minutes": 0,
+    "source": "same-site"
+  },
+  "22.604775|105.027835|22.662661|104.426901": {
+    "distance_km": 147.5,
+    "travel_minutes": 146,
+    "source": "osrm-live-updated"
+  },
+  "22.832852|104.987838|22.832852|104.987838": {
+    "distance_km": 0.0,
+    "travel_minutes": 0,
+    "source": "same-site"
+  },
+  "22.511240|105.479993|22.738259|105.310738": {
+    "distance_km": 55.9,
+    "travel_minutes": 51,
+    "source": "osrm-live-updated"
+  },
+  "23.277318|105.360263|23.152500|105.405833": {
+    "distance_km": 23.8,
+    "travel_minutes": 17,
+    "source": "osrm-live-updated"
   }
 };
