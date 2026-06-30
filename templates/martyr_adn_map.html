@@ -8,18 +8,18 @@
     :root {
       color-scheme: light;
       --bg-cream: #f4efe4;
-      --bg-warm: #faf8f2;
       --surface: rgba(255, 255, 255, 0.9);
       --surface-strong: rgba(255, 255, 255, 0.97);
       --ink-900: #1f2937;
       --ink-700: #475569;
       --ink-500: #64748b;
-      --line-soft: rgba(148, 163, 184, 0.2);
       --shadow-soft: 0 24px 70px rgba(63, 46, 18, 0.12);
       --shadow-card: 0 16px 40px rgba(15, 23, 42, 0.12);
-      --track-1: #c4661f;
-      --track-2: #325fd8;
-      --track-3: #167b73;
+      --day-1: #c4661f;
+      --day-2: #325fd8;
+      --day-3: #167b73;
+      --day-4: #7c3aed;
+      --day-5: #dc2626;
     }
 
     * {
@@ -40,7 +40,6 @@
         radial-gradient(circle at top left, rgba(113, 148, 122, 0.18), transparent 35%),
         radial-gradient(circle at top right, rgba(196, 102, 31, 0.11), transparent 28%),
         var(--bg-cream);
-      position: relative;
       overflow-x: hidden;
     }
 
@@ -53,7 +52,7 @@
         linear-gradient(rgba(122, 106, 70, 0.08) 1px, transparent 1px),
         linear-gradient(90deg, rgba(122, 106, 70, 0.08) 1px, transparent 1px);
       background-size: 76px 76px;
-      opacity: 0.4;
+      opacity: 0.42;
     }
 
     .pc06-home-link {
@@ -85,14 +84,14 @@
     .page-shell {
       position: relative;
       z-index: 1;
-      width: min(1680px, calc(100% - 40px));
+      width: min(1780px, calc(100% - 40px));
       margin: 28px auto 32px;
       padding-top: 24px;
     }
 
     .hero-card,
-    .control-card,
-    .board-card,
+    .toolbar-card,
+    .map-card,
     .summary-card {
       background: var(--surface);
       backdrop-filter: blur(18px);
@@ -102,7 +101,7 @@
     }
 
     .hero-card {
-      padding: 26px 28px;
+      padding: 24px 28px;
       margin-bottom: 18px;
     }
 
@@ -135,24 +134,28 @@
       margin-bottom: 18px;
     }
 
-    .control-card {
+    .toolbar-card {
       display: inline-flex;
       align-items: center;
       gap: 8px;
       padding: 8px;
     }
 
-    .segmented-button {
+    .segmented-button,
+    .day-chip {
       border: 0;
-      min-width: 174px;
-      padding: 12px 14px;
       border-radius: 18px;
       font: inherit;
       cursor: pointer;
+      transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, color 0.16s ease;
+    }
+
+    .segmented-button {
+      min-width: 176px;
+      padding: 12px 14px;
       background: transparent;
       color: var(--ink-700);
       text-align: left;
-      transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
     }
 
     .segmented-button strong,
@@ -178,14 +181,37 @@
       transform: translateY(-1px);
     }
 
+    .day-filter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .day-chip {
+      padding: 11px 14px;
+      background: rgba(255, 255, 255, 0.78);
+      color: var(--ink-700);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      box-shadow: var(--shadow-card);
+    }
+
+    .day-chip.is-active {
+      color: #fff;
+      background: linear-gradient(135deg, rgba(196, 102, 31, 0.98), rgba(154, 95, 29, 0.96));
+      box-shadow: 0 18px 30px rgba(196, 102, 31, 0.24);
+    }
+
     .workspace {
       display: grid;
-      grid-template-columns: minmax(0, 1.85fr) minmax(320px, 0.85fr);
+      grid-template-columns: minmax(0, 1.95fr) minmax(360px, 0.62fr);
       gap: 18px;
       align-items: start;
     }
 
-    .board-card {
+    .map-card {
       padding: 18px;
       position: sticky;
       top: 22px;
@@ -199,12 +225,11 @@
       overflow: auto;
     }
 
-    .route-board {
+    .map-stage {
       position: relative;
-      min-height: 760px;
+      min-height: 920px;
       border-radius: 28px;
       overflow: hidden;
-      padding: 20px;
       background:
         radial-gradient(circle at 18% 20%, rgba(28, 120, 97, 0.08), transparent 18%),
         radial-gradient(circle at 75% 16%, rgba(99, 102, 241, 0.09), transparent 16%),
@@ -215,7 +240,7 @@
       isolation: isolate;
     }
 
-    .route-board::before {
+    .map-stage::before {
       content: "";
       position: absolute;
       inset: 0;
@@ -223,150 +248,251 @@
       background-image:
         linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
         linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
-      background-size: 90px 90px;
+      background-size: 86px 86px;
       opacity: 0.82;
     }
 
-    .route-grid {
-      position: relative;
+    .map-svg,
+    .node-layer,
+    .segment-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .map-svg {
       z-index: 1;
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 16px;
-      align-items: start;
+      overflow: visible;
     }
 
-    .track-card {
-      position: relative;
-      padding: 18px 18px 18px 54px;
-      border-radius: 24px;
-      background: rgba(255, 255, 255, 0.92);
-      border: 1px solid rgba(226, 232, 240, 0.88);
-      box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
+    .segment-layer {
+      z-index: 2;
+      pointer-events: none;
     }
 
-    .track-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 14px;
+    .node-layer {
+      z-index: 3;
+      pointer-events: none;
     }
 
-    .track-title strong,
-    .track-title span {
+    .route-path {
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      opacity: 0.22;
+      transition: opacity 0.18s ease, stroke-width 0.18s ease;
+    }
+
+    .route-path.is-active {
+      opacity: 0.98;
+      filter: drop-shadow(0 12px 22px rgba(15, 23, 42, 0.16));
+    }
+
+    .map-node {
+      position: absolute;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+      pointer-events: auto;
+      color: inherit;
+      transform: translate(-50%, -50%);
+      transition: transform 0.16s ease, opacity 0.16s ease;
+    }
+
+    .map-node.is-dimmed {
+      opacity: 0.48;
+    }
+
+    .map-node:hover,
+    .map-node:focus-visible {
+      transform: translate(-50%, -50%) scale(1.03);
+      outline: none;
+      z-index: 5;
+    }
+
+    .map-node.is-active {
+      z-index: 6;
+    }
+
+    .map-node-dot {
+      width: var(--node-size);
+      height: var(--node-size);
+      border-radius: 50%;
+      background: var(--node-color);
+      border: 4px solid rgba(255, 255, 255, 0.96);
+      box-shadow:
+        0 0 0 6px rgba(255, 255, 255, 0.24),
+        0 18px 34px rgba(15, 23, 42, 0.2);
+    }
+
+    .map-node.is-active .map-node-dot {
+      box-shadow:
+        0 0 0 7px rgba(255, 255, 255, 0.34),
+        0 0 0 15px rgba(196, 102, 31, 0.16),
+        0 22px 42px rgba(15, 23, 42, 0.28);
+    }
+
+    .map-node-label {
+      position: absolute;
+      min-width: max-content;
+      max-width: 220px;
+      color: var(--ink-900);
+      text-align: left;
+      pointer-events: none;
+    }
+
+    .map-node-label strong,
+    .map-node-label span,
+    .map-node-label small {
       display: block;
     }
 
-    .track-title strong {
+    .map-node-label strong {
       font-size: 17px;
-      line-height: 1.2;
+      line-height: 1.14;
+      letter-spacing: -0.02em;
     }
 
-    .track-title span {
-      margin-top: 3px;
+    .map-node-label span {
+      margin-top: 4px;
       color: var(--ink-700);
-      font-size: 13px;
-      line-height: 1.45;
-    }
-
-    .track-total {
-      flex: 0 0 auto;
-      padding: 7px 10px;
-      border-radius: 999px;
-      background: rgba(248, 250, 252, 0.96);
-      border: 1px solid rgba(226, 232, 240, 0.9);
-      color: var(--ink-900);
       font-size: 12px;
-      font-weight: 800;
+      font-weight: 900;
     }
 
-    .route-chain {
-      position: relative;
-      display: grid;
-      gap: 10px;
+    .map-node-label small {
+      margin-top: 6px;
+      color: var(--ink-500);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.35;
     }
 
-    .route-chain::before {
-      content: "";
+    .anchor-right .map-node-label {
+      left: calc(100% + 14px);
+      top: 50%;
+      transform: translateY(-58%);
+    }
+
+    .anchor-left .map-node-label {
+      right: calc(100% + 14px);
+      top: 50%;
+      transform: translateY(-58%);
+      text-align: right;
+    }
+
+    .anchor-bottom .map-node-label {
+      top: calc(100% + 14px);
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+    }
+
+    .anchor-top .map-node-label {
+      bottom: calc(100% + 14px);
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+    }
+
+    .segment-badge {
       position: absolute;
-      left: -28px;
-      top: 14px;
-      bottom: 14px;
-      width: 4px;
-      border-radius: 999px;
-      background: linear-gradient(180deg, var(--track-color), rgba(148, 163, 184, 0.28));
-      opacity: 0.95;
+      transform: translate(-50%, -50%);
+      padding: 8px 10px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(226, 232, 240, 0.94);
+      box-shadow: 0 14px 28px rgba(15, 23, 42, 0.1);
+      color: var(--ink-900);
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1.35;
+      white-space: nowrap;
     }
 
-    .route-node {
-      position: relative;
+    .segment-badge span {
+      display: block;
+      color: var(--ink-500);
+      font-size: 10px;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    .summary-head h2 {
+      margin: 0;
+      font-size: 32px;
+      line-height: 1.02;
+      letter-spacing: -0.03em;
+    }
+
+    .route-summary {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .route-day-group {
+      display: grid;
+      gap: 8px;
+    }
+
+    .route-day-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--ink-900);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .route-day-swatch {
+      width: 24px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--day-color);
+      flex: 0 0 auto;
+    }
+
+    .route-item {
       width: 100%;
       border: 0;
-      padding: 13px 14px;
+      padding: 12px 14px;
       border-radius: 18px;
-      background: rgba(248, 250, 252, 0.92);
-      border: 1px solid rgba(226, 232, 240, 0.92);
+      background: rgba(248, 250, 252, 0.94);
+      border: 1px solid rgba(226, 232, 240, 0.88);
       text-align: left;
       cursor: pointer;
       transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
     }
 
-    .route-node::before {
-      content: "";
-      position: absolute;
-      left: -35px;
-      top: 19px;
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      background: var(--track-color);
-      border: 3px solid rgba(255, 255, 255, 0.96);
-      box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.64);
-    }
-
-    .route-node::after {
-      content: "";
-      position: absolute;
-      left: -19px;
-      top: 18px;
-      width: 19px;
-      height: 14px;
-      border-left: 4px solid var(--track-color);
-      border-bottom: 4px solid var(--track-color);
-      border-bottom-left-radius: 14px;
-      opacity: 0.92;
-    }
-
-    .route-node:hover,
-    .route-node:focus-visible {
+    .route-item:hover,
+    .route-item:focus-visible {
       transform: translateY(-1px);
-      box-shadow: 0 14px 28px rgba(15, 23, 42, 0.1);
+      box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
       outline: none;
     }
 
-    .route-node.is-active {
+    .route-item.is-active {
       background: rgba(255, 255, 255, 0.98);
-      border-color: rgba(148, 163, 184, 0.44);
-      box-shadow: inset 0 0 0 2px var(--track-color), 0 18px 34px rgba(15, 23, 42, 0.12);
+      box-shadow: inset 0 0 0 2px var(--route-color), 0 18px 34px rgba(15, 23, 42, 0.1);
     }
 
-    .route-node.is-active::before {
-      box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.72), 0 0 0 10px rgba(196, 102, 31, 0.14);
-    }
-
-    .route-node strong,
-    .route-node span,
-    .route-node small {
+    .route-item strong,
+    .route-item span,
+    .route-item small {
       display: block;
     }
 
-    .route-node strong {
-      font-size: 15px;
-      line-height: 1.25;
+    .route-item strong {
+      font-size: 14px;
+      line-height: 1.3;
     }
 
-    .route-node span {
+    .route-item span {
       margin-top: 4px;
       color: var(--ink-700);
       font-size: 12px;
@@ -374,26 +500,79 @@
       line-height: 1.45;
     }
 
-    .route-node small {
-      margin-top: 5px;
+    .route-item small {
+      margin-top: 6px;
       color: var(--ink-500);
-      font-size: 12px;
-      line-height: 1.5;
+      font-size: 11px;
+      line-height: 1.45;
     }
 
-    .route-date {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 8px;
-      padding: 4px 8px;
-      border-radius: 999px;
-      background: rgba(15, 23, 42, 0.06);
+    .detail-card {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 246, 239, 0.92));
+      border: 1px solid rgba(226, 232, 240, 0.92);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+    }
+
+    .detail-card strong,
+    .detail-card span,
+    .detail-card small {
+      display: block;
+    }
+
+    .detail-card strong {
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .detail-card span {
+      margin-top: 5px;
       color: var(--ink-700);
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.55;
+    }
+
+    .detail-card small {
+      margin-top: 8px;
+      color: var(--ink-500);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .detail-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .detail-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 11px;
+      border-radius: 14px;
+      background: rgba(248, 250, 252, 0.92);
+      border: 1px solid rgba(226, 232, 240, 0.82);
+    }
+
+    .detail-row span,
+    .detail-row strong {
+      margin: 0;
+    }
+
+    .detail-row span {
+      color: var(--ink-700);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .detail-row strong {
+      font-size: 13px;
     }
 
     .weather-chip {
@@ -420,176 +599,6 @@
       background: rgba(245, 158, 11, 0.14);
     }
 
-    .route-leg {
-      position: relative;
-      margin: -2px 0 2px;
-      padding-left: 18px;
-    }
-
-    .route-leg::before {
-      content: "";
-      position: absolute;
-      left: -28px;
-      top: -4px;
-      width: 4px;
-      height: calc(100% + 8px);
-      border-radius: 999px;
-      background: linear-gradient(180deg, rgba(148, 163, 184, 0.18), rgba(148, 163, 184, 0.05));
-    }
-
-    .route-leg-card {
-      position: relative;
-      padding: 10px 12px;
-      border-radius: 16px;
-      background: rgba(255, 255, 255, 0.82);
-      border: 1px dashed rgba(148, 163, 184, 0.35);
-      color: var(--ink-700);
-      font-size: 12px;
-      font-weight: 700;
-      line-height: 1.45;
-    }
-
-    .route-leg-card strong,
-    .route-leg-card span {
-      display: block;
-    }
-
-    .route-leg-card strong {
-      color: var(--ink-900);
-      font-size: 12px;
-    }
-
-    .summary-head {
-      margin-bottom: 16px;
-    }
-
-    .summary-head h2 {
-      margin: 0;
-      font-size: 30px;
-      line-height: 1.05;
-      letter-spacing: -0.03em;
-    }
-
-    .summary-head p {
-      margin: 10px 0 0;
-      color: var(--ink-700);
-      font-size: 13px;
-      line-height: 1.6;
-    }
-
-    .summary-strip {
-      display: grid;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-
-    .summary-strip-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 12px 14px;
-      border-radius: 18px;
-      background: rgba(248, 250, 252, 0.92);
-      border: 1px solid rgba(226, 232, 240, 0.85);
-    }
-
-    .summary-strip-item strong,
-    .summary-strip-item span {
-      display: block;
-    }
-
-    .summary-strip-item strong {
-      font-size: 14px;
-      line-height: 1.2;
-    }
-
-    .summary-strip-item span {
-      margin-top: 4px;
-      color: var(--ink-500);
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .summary-strip-total {
-      flex: 0 0 auto;
-      color: var(--ink-900);
-      font-size: 15px;
-      font-weight: 900;
-      letter-spacing: -0.02em;
-    }
-
-    .focus-card,
-    .segment-card {
-      margin-bottom: 16px;
-      padding: 16px;
-      border-radius: 22px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 246, 239, 0.92));
-      border: 1px solid rgba(226, 232, 240, 0.92);
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
-    }
-
-    .focus-card strong,
-    .focus-card span,
-    .focus-card small,
-    .segment-card strong,
-    .segment-card span,
-    .segment-card small {
-      display: block;
-    }
-
-    .focus-card strong,
-    .segment-card strong {
-      font-size: 19px;
-      line-height: 1.2;
-    }
-
-    .focus-card span,
-    .segment-card span {
-      margin-top: 5px;
-      color: var(--ink-700);
-      font-size: 13px;
-      font-weight: 700;
-      line-height: 1.55;
-    }
-
-    .focus-card small,
-    .segment-card small {
-      margin-top: 8px;
-      color: var(--ink-500);
-      font-size: 12px;
-      line-height: 1.55;
-    }
-
-    .focus-list {
-      display: grid;
-      gap: 8px;
-      margin-top: 12px;
-    }
-
-    .focus-list-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 9px 11px;
-      border-radius: 14px;
-      background: rgba(248, 250, 252, 0.92);
-      border: 1px solid rgba(226, 232, 240, 0.82);
-    }
-
-    .focus-list-item span {
-      margin: 0;
-      color: var(--ink-700);
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .focus-list-item strong {
-      margin: 0;
-      font-size: 13px;
-    }
-
     .maps-link {
       display: inline-flex;
       align-items: center;
@@ -613,17 +622,11 @@
     }
 
     @media (max-width: 1280px) {
-      .route-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 1180px) {
       .workspace {
         grid-template-columns: 1fr;
       }
 
-      .board-card,
+      .map-card,
       .summary-card {
         position: static;
       }
@@ -643,9 +646,9 @@
       }
 
       .hero-card,
-      .board-card,
-      .summary-card,
-      .control-card {
+      .toolbar-card,
+      .map-card,
+      .summary-card {
         border-radius: 24px;
       }
 
@@ -654,16 +657,8 @@
         padding: 18px;
       }
 
-      .route-board {
-        min-height: auto;
-      }
-
-      .route-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .summary-head h2 {
-        font-size: 24px;
+      .map-stage {
+        min-height: 700px;
       }
     }
   </style>
@@ -676,16 +671,21 @@
   <main class="page-shell">
     <section class="hero-card">
       <div class="hero-kicker">{{ pc06_shell_label or 'PhanMemPC06_Pro' }}</div>
-      <h1>15 điểm tập kết ADN và tuyến thu nhận 5 ngày</h1>
+      <h1>15 điểm tập kết ADN theo mô phỏng tuyến di chuyển 5 ngày</h1>
     </section>
 
     <section class="toolbar">
-      <div class="control-card" id="direction-tabs"></div>
+      <div class="toolbar-card" id="direction-tabs"></div>
+      <div class="day-filter" id="day-filter"></div>
     </section>
 
     <section class="workspace">
-      <div class="board-card">
-        <div class="route-board" id="route-board"></div>
+      <div class="map-card">
+        <div class="map-stage" id="map-stage">
+          <svg class="map-svg" id="map-svg" viewBox="0 0 1400 900" aria-hidden="true"></svg>
+          <div class="segment-layer" id="segment-layer"></div>
+          <div class="node-layer" id="node-layer"></div>
+        </div>
       </div>
       <aside class="summary-card" id="summary-panel"></aside>
     </section>
@@ -697,18 +697,25 @@
     (() => {
       const data = window.ADN_SCHEDULE_DATA;
       const routeMetrics = window.ADN_ROUTE_METRICS || {};
-      const TRACK_COLORS = ["#c4661f", "#325fd8", "#167b73"];
+      const DAY_COLORS = ["#c4661f", "#325fd8", "#167b73", "#7c3aed", "#dc2626"];
+      const STAGE_WIDTH = 1400;
+      const STAGE_HEIGHT = 900;
       const directionTabsEl = document.getElementById("direction-tabs");
-      const boardEl = document.getElementById("route-board");
+      const dayFilterEl = document.getElementById("day-filter");
+      const mapSvgEl = document.getElementById("map-svg");
+      const nodeLayerEl = document.getElementById("node-layer");
+      const segmentLayerEl = document.getElementById("segment-layer");
       const summaryPanelEl = document.getElementById("summary-panel");
 
       const state = {
         directionId: data.directions[0].id,
-        activeNodeId: null
+        dayIndex: null,
+        activeRouteId: null,
+        activeNodeKey: null
       };
 
       const forecastCache = new Map();
-      const weatherByNodeId = new Map();
+      const weatherCache = new Map();
 
       function formatNumber(value) {
         return new Intl.NumberFormat("vi-VN").format(Number(value || 0));
@@ -723,12 +730,20 @@
         return `${year}-${String(Number(month)).padStart(2, "0")}-${String(Number(day)).padStart(2, "0")}`;
       }
 
+      function buildNodeKey(name, lat, lng) {
+        return `${name}|${Number(lat).toFixed(6)}|${Number(lng).toFixed(6)}`;
+      }
+
+      function buildRouteMetricKey(origin, destination) {
+        return `${Number(origin.lat).toFixed(6)}|${Number(origin.lng).toFixed(6)}|${Number(destination.lat).toFixed(6)}|${Number(destination.lng).toFixed(6)}`;
+      }
+
       function buildCoordKey(lat, lng) {
         return `${Number(lat).toFixed(6)}|${Number(lng).toFixed(6)}`;
       }
 
-      function buildRouteKey(origin, destination) {
-        return `${Number(origin.lat).toFixed(6)}|${Number(origin.lng).toFixed(6)}|${Number(destination.lat).toFixed(6)}|${Number(destination.lng).toFixed(6)}`;
+      function buildWeatherKey(lat, lng, isoDate) {
+        return `${buildCoordKey(lat, lng)}|${isoDate}`;
       }
 
       function describeWeatherCode(code) {
@@ -756,16 +771,82 @@
         return "Thời tiết thay đổi";
       }
 
-      function buildGoogleMapsUrl(origin, destination) {
-        if (!origin || !destination) {
-          return "";
-        }
-        const originText = `${origin.lat},${origin.lng}`;
-        const destinationText = `${destination.lat},${destination.lng}`;
-        return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originText)}&destination=${encodeURIComponent(destinationText)}&travelmode=driving`;
+      function getSelectedDirection() {
+        return data.directions.find((direction) => direction.id === state.directionId) || data.directions[0];
       }
 
-      function estimateMetric(origin, destination) {
+      function getVisibleDays(direction) {
+        if (state.dayIndex === null) {
+          return direction.days.map((day, index) => ({ day, dayIndex: index }));
+        }
+        return direction.days[state.dayIndex] ? [{ day: direction.days[state.dayIndex], dayIndex: state.dayIndex }] : [];
+      }
+
+      function renderDirectionTabs(direction) {
+        directionTabsEl.innerHTML = "";
+        data.directions.forEach((item) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "segmented-button" + (item.id === direction.id ? " is-active" : "");
+          button.innerHTML = `<strong>${item.label}</strong><span>${item.shortLabel || ""}</span>`;
+          button.addEventListener("click", () => {
+            if (state.directionId === item.id) {
+              return;
+            }
+            state.directionId = item.id;
+            state.dayIndex = null;
+            state.activeRouteId = null;
+            state.activeNodeKey = null;
+            render();
+          });
+          directionTabsEl.appendChild(button);
+        });
+      }
+
+      function renderDayFilter(direction) {
+        dayFilterEl.innerHTML = "";
+        const allButton = document.createElement("button");
+        allButton.type = "button";
+        allButton.className = "day-chip" + (state.dayIndex === null ? " is-active" : "");
+        allButton.textContent = "Tất cả 5 ngày";
+        allButton.addEventListener("click", () => {
+          if (state.dayIndex === null) {
+            return;
+          }
+          state.dayIndex = null;
+          state.activeRouteId = null;
+          state.activeNodeKey = null;
+          render();
+        });
+        dayFilterEl.appendChild(allButton);
+
+        direction.days.forEach((day, dayIndex) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "day-chip" + (state.dayIndex === dayIndex ? " is-active" : "");
+          button.textContent = `${day.dayLabel} · ${day.dateLabel}`;
+          button.addEventListener("click", () => {
+            if (state.dayIndex === dayIndex) {
+              return;
+            }
+            state.dayIndex = dayIndex;
+            state.activeRouteId = null;
+            state.activeNodeKey = null;
+            render();
+          });
+          dayFilterEl.appendChild(button);
+        });
+      }
+
+      function getMetric(origin, destination) {
+        const cached = routeMetrics[buildRouteMetricKey(origin, destination)];
+        if (cached) {
+          return cached;
+        }
+        const reversed = routeMetrics[buildRouteMetricKey(destination, origin)];
+        if (reversed) {
+          return reversed;
+        }
         if (origin.lat === destination.lat && origin.lng === destination.lng) {
           return {
             distance_km: 0,
@@ -787,325 +868,593 @@
           Math.sqrt(haversineValue),
           Math.sqrt(Math.max(0, 1 - haversineValue))
         );
-        const distanceKm = crowDistance * 1.85;
-        const travelMinutes = distanceKm / 55 * 60;
+        const distanceKm = crowdDistanceFix(crowDistance * 1.85);
         return {
           distance_km: Number(distanceKm.toFixed(1)),
-          travel_minutes: Math.max(1, Math.round(travelMinutes)),
+          travel_minutes: Math.max(1, Math.round(distanceKm / 55 * 60)),
           source: "estimated"
         };
       }
 
-      function getSegmentMetric(origin, destination) {
-        return routeMetrics[buildRouteKey(origin, destination)] || estimateMetric(origin, destination);
+      function crowdDistanceFix(value) {
+        return Number(value || 0);
       }
 
-      function getSelectedDirection() {
-        return data.directions.find((direction) => direction.id === state.directionId) || data.directions[0];
-      }
-
-      function buildFixedTrackNodes(direction, trackIndex) {
-        return direction.days.map((day, dayIndex) => {
-          const track = day.tracks[trackIndex];
-          const firstStop = track.stops[0];
-          const total = track.stops.reduce((sum, stop) => sum + Number(stop.total || 0), 0);
-          const sessionSummary = track.stops.map((stop) => `${stop.session}: ${formatNumber(stop.total)} TNLS`).join(" · ");
-          const areaSummary = track.stops.flatMap((stop) => (
-            (stop.areas || []).map((area) => ({
-              label: `${stop.session} · ${area.name}`,
-              value: `${formatNumber(area.count)} TNLS`
-            }))
-          ));
-          return {
-            id: `${direction.id}-${trackIndex}-${dayIndex}`,
-            trackIndex,
-            dayIndex,
-            trackLabel: track.label,
-            trackTitle: track.title,
-            dayLabel: day.dayLabel,
-            dateLabel: day.dateLabel,
-            isoDate: toIsoDate(day.dateLabel),
-            name: firstStop.name,
-            lat: firstStop.lat,
-            lng: firstStop.lng,
-            total,
-            meta: sessionSummary,
-            detailItems: areaSummary
-          };
-        });
-      }
-
-      function buildMobileTrackNodes(direction, trackIndex) {
-        const nodes = [];
-        direction.days.forEach((day, dayIndex) => {
-          const track = day.tracks[trackIndex];
-          track.visits.forEach((visit, visitIndex) => {
-            if (!visit.name) {
-              return;
-            }
-            nodes.push({
-              id: `${direction.id}-${trackIndex}-${dayIndex}-${visitIndex}`,
-              trackIndex,
-              dayIndex,
-              trackLabel: track.label,
-              trackTitle: track.title,
-              dayLabel: day.dayLabel,
-              dateLabel: day.dateLabel,
-              isoDate: toIsoDate(day.dateLabel),
-              name: visit.name,
-              lat: visit.lat,
-              lng: visit.lng,
-              total: Number(visit.count || 0),
-              meta: visit.session || "Cả ngày",
-              detailItems: []
+      function buildLocationLookup(direction) {
+        const lookup = new Map();
+        direction.days.forEach((day) => {
+          day.tracks.forEach((track) => {
+            const items = direction.id === "co-dinh" ? track.stops : track.visits.filter((visit) => visit.name);
+            items.forEach((item) => {
+              if (!item.name) {
+                return;
+              }
+              const key = buildNodeKey(item.name, item.lat, item.lng);
+              lookup.set(item.name, {
+                key,
+                name: item.name,
+                lat: item.lat,
+                lng: item.lng
+              });
             });
           });
         });
-        return nodes;
+        return lookup;
       }
 
-      function buildDirectionTracks(direction) {
-        return direction.days[0].tracks.map((track, trackIndex) => {
-          const nodes = direction.id === "co-dinh"
-            ? buildFixedTrackNodes(direction, trackIndex)
-            : buildMobileTrackNodes(direction, trackIndex);
-          return {
-            trackIndex,
-            label: track.label,
-            title: direction.id === "co-dinh" ? direction.days[0].tracks[trackIndex].title : track.title,
-            total: nodes.reduce((sum, node) => sum + Number(node.total || 0), 0),
-            nodes
-          };
+      function extractFixedOrigin(title) {
+        const text = String(title || "").trim();
+        if (!text) {
+          return "";
+        }
+        if (text.startsWith("Bắt đầu tại ")) {
+          return text.replace("Bắt đầu tại ", "").split(",")[0].trim();
+        }
+        const moveMatch = text.match(/^(.+?)\s+di chuyển đến\s+/i);
+        if (moveMatch) {
+          return moveMatch[1].trim();
+        }
+        const toMatch = text.match(/^(.+?)\s+đến\s+/i);
+        if (toMatch) {
+          return toMatch[1].trim();
+        }
+        const sangMatch = text.match(/^(.+?)\s+sang\s+/i);
+        if (sangMatch) {
+          return sangMatch[1].trim();
+        }
+        return "";
+      }
+
+      function dedupeConsecutivePoints(points) {
+        const deduped = [];
+        points.forEach((point) => {
+          if (!deduped.length || deduped[deduped.length - 1].key !== point.key) {
+            deduped.push(point);
+          }
         });
+        return deduped;
       }
 
-      function getActiveNode(tracks) {
-        const allNodes = tracks.flatMap((track) => track.nodes);
-        return allNodes.find((node) => node.id === state.activeNodeId) || allNodes[0] || null;
-      }
+      function buildRoutes(direction) {
+        const locationLookup = buildLocationLookup(direction);
+        const visibleDays = getVisibleDays(direction);
+        const routes = [];
 
-      function renderDirectionTabs(direction) {
-        directionTabsEl.innerHTML = "";
-        data.directions.forEach((item) => {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = "segmented-button" + (item.id === direction.id ? " is-active" : "");
-          button.innerHTML = `<strong>${item.label}</strong><span>${item.shortLabel || ""}</span>`;
-          button.addEventListener("click", () => {
-            if (state.directionId === item.id) {
+        visibleDays.forEach(({ day, dayIndex }) => {
+          day.tracks.forEach((track, trackIndex) => {
+            let points = [];
+            let total = 0;
+            let meta = "";
+            if (direction.id === "co-dinh") {
+              const originName = extractFixedOrigin(track.title);
+              if (originName && locationLookup.has(originName)) {
+                points.push({
+                  ...locationLookup.get(originName),
+                  total: 0,
+                  session: "Di chuyển"
+                });
+              }
+              track.stops.forEach((stop) => {
+                total += Number(stop.total || 0);
+                points.push({
+                  key: buildNodeKey(stop.name, stop.lat, stop.lng),
+                  name: stop.name,
+                  lat: stop.lat,
+                  lng: stop.lng,
+                  total: Number(stop.total || 0),
+                  session: stop.session,
+                  areas: stop.areas || []
+                });
+              });
+              meta = track.stops.map((stop) => `${stop.session}: ${formatNumber(stop.total)} TNLS`).join(" · ");
+            } else {
+              track.visits.filter((visit) => visit.name).forEach((visit) => {
+                total += Number(visit.count || 0);
+                points.push({
+                  key: buildNodeKey(visit.name, visit.lat, visit.lng),
+                  name: visit.name,
+                  lat: visit.lat,
+                  lng: visit.lng,
+                  total: Number(visit.count || 0),
+                  session: visit.session || "Cả ngày",
+                  areas: []
+                });
+              });
+              meta = points.map((point) => `${point.name} ${formatNumber(point.total)}`).join(" · ");
+            }
+
+            points = dedupeConsecutivePoints(points);
+            if (!points.length) {
               return;
             }
-            state.directionId = item.id;
-            state.activeNodeId = null;
-            render();
+
+            const segments = [];
+            for (let index = 0; index < points.length - 1; index += 1) {
+              const origin = points[index];
+              const destination = points[index + 1];
+              segments.push({
+                id: `${dayIndex}-${trackIndex}-${index}`,
+                fromKey: origin.key,
+                toKey: destination.key,
+                fromName: origin.name,
+                toName: destination.name,
+                metric: getMetric(origin, destination)
+              });
+            }
+
+            routes.push({
+              id: `${direction.id}-${dayIndex}-${trackIndex}`,
+              dayIndex,
+              trackIndex,
+              color: DAY_COLORS[dayIndex] || DAY_COLORS[0],
+              dayLabel: day.dayLabel,
+              dateLabel: day.dateLabel,
+              isoDate: toIsoDate(day.dateLabel),
+              label: `${day.dayLabel} · ${track.label}`,
+              title: track.title,
+              summary: points.map((point) => point.name).join(" -> "),
+              total,
+              meta,
+              points,
+              segments
+            });
           });
-          directionTabsEl.appendChild(button);
         });
+        return routes;
       }
 
-      function renderSegment(origin, destination) {
-        const metric = getSegmentMetric(origin, destination);
-        if (metric.source === "same-site") {
+      function resolveActiveRoute(routes) {
+        return routes.find((route) => route.id === state.activeRouteId) || routes[0] || null;
+      }
+
+      function getPreferredRouteNodeKey(route) {
+        if (!route || !route.points.length) {
+          return null;
+        }
+        const preferredPoint = route.points.find((point) => Number(point.total || 0) > 0) || route.points[0];
+        return preferredPoint ? preferredPoint.key : null;
+      }
+
+      function buildVisibleNodes(routes) {
+        const map = new Map();
+        routes.forEach((route) => {
+          route.points.forEach((point) => {
+            if (!map.has(point.key)) {
+              map.set(point.key, {
+                key: point.key,
+                name: point.name,
+                lat: point.lat,
+                lng: point.lng,
+                total: 0,
+                occurrences: []
+              });
+            }
+            const node = map.get(point.key);
+            node.total += Number(point.total || 0);
+            node.occurrences.push({
+              routeId: route.id,
+              routeLabel: route.label,
+              dayLabel: route.dayLabel,
+              dateLabel: route.dateLabel,
+              isoDate: route.isoDate,
+              total: Number(point.total || 0),
+              session: point.session,
+              color: route.color,
+              areas: point.areas || [],
+              lat: point.lat,
+              lng: point.lng
+            });
+          });
+        });
+        return map;
+      }
+
+      function projectNodes(nodes) {
+        const list = Array.from(nodes.values());
+        const latitudes = list.map((node) => Number(node.lat));
+        const longitudes = list.map((node) => Number(node.lng));
+        const minLat = Math.min(...latitudes);
+        const maxLat = Math.max(...latitudes);
+        const minLng = Math.min(...longitudes);
+        const maxLng = Math.max(...longitudes);
+        const latRange = Math.max(0.01, maxLat - minLat);
+        const lngRange = Math.max(0.01, maxLng - minLng);
+        const paddingX = 120;
+        const paddingY = 78;
+        const projected = list.map((node) => ({
+          ...node,
+          x: paddingX + ((Number(node.lng) - minLng) / lngRange) * (STAGE_WIDTH - paddingX * 2),
+          y: paddingY + ((maxLat - Number(node.lat)) / latRange) * (STAGE_HEIGHT - paddingY * 2)
+        }));
+
+        for (let outer = 0; outer < projected.length; outer += 1) {
+          for (let inner = 0; inner < outer; inner += 1) {
+            const left = projected[inner];
+            const right = projected[outer];
+            const deltaX = right.x - left.x;
+            const deltaY = right.y - left.y;
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            if (distance < 68) {
+              const angle = Math.atan2(deltaY || 1, deltaX || 1);
+              const push = (68 - distance) / 2;
+              right.x += Math.cos(angle) * push;
+              right.y += Math.sin(angle) * push;
+              left.x -= Math.cos(angle) * push * 0.22;
+              left.y -= Math.sin(angle) * push * 0.22;
+            }
+          }
+        }
+
+        return new Map(projected.map((node) => [node.key, {
+          ...node,
+          x: Math.min(STAGE_WIDTH - 80, Math.max(80, node.x)),
+          y: Math.min(STAGE_HEIGHT - 80, Math.max(80, node.y))
+        }]));
+      }
+
+      function buildSmoothPath(points) {
+        if (points.length < 2) {
+          return "";
+        }
+        if (points.length === 2) {
+          const [start, end] = points;
+          const cx = (start.x + end.x) / 2;
+          const cy = (start.y + end.y) / 2;
+          return `M ${start.x} ${start.y} Q ${cx} ${cy} ${end.x} ${end.y}`;
+        }
+        let path = `M ${points[0].x} ${points[0].y}`;
+        for (let index = 0; index < points.length - 1; index += 1) {
+          const current = points[index];
+          const next = points[index + 1];
+          const previous = points[index - 1] || current;
+          const afterNext = points[index + 2] || next;
+          const control1X = current.x + (next.x - previous.x) / 6;
+          const control1Y = current.y + (next.y - previous.y) / 6;
+          const control2X = next.x - (afterNext.x - current.x) / 6;
+          const control2Y = next.y - (afterNext.y - current.y) / 6;
+          path += ` C ${control1X} ${control1Y}, ${control2X} ${control2Y}, ${next.x} ${next.y}`;
+        }
+        return path;
+      }
+
+      function nodeSize(total, maxTotal) {
+        if (!maxTotal) {
+          return 24;
+        }
+        return 22 + Math.sqrt(Math.max(0, total) / maxTotal) * 30;
+      }
+
+      function nodeColor(node, activeRoute) {
+        if (activeRoute && activeRoute.points.some((point) => point.key === node.key)) {
+          return activeRoute.color;
+        }
+        const dominant = node.occurrences.reduce((best, occurrence) => (
+          !best || occurrence.total > best.total ? occurrence : best
+        ), null);
+        return dominant ? dominant.color : DAY_COLORS[0];
+      }
+
+      function labelAnchor(node) {
+        if (node.x > STAGE_WIDTH - 260) {
+          return "anchor-left";
+        }
+        if (node.x < 180) {
+          return "anchor-right";
+        }
+        if (node.y > STAGE_HEIGHT - 160) {
+          return "anchor-top";
+        }
+        if (node.y < 140) {
+          return "anchor-bottom";
+        }
+        return node.y > STAGE_HEIGHT * 0.64 ? "anchor-top" : "anchor-right";
+      }
+
+      function renderBoard(routes, nodes) {
+        const activeRoute = resolveActiveRoute(routes);
+        const activeNodeKey = state.activeNodeKey || getPreferredRouteNodeKey(activeRoute);
+        const positions = projectNodes(nodes);
+        const maxTotal = Math.max(...Array.from(nodes.values()).map((node) => node.total), 0);
+
+        mapSvgEl.innerHTML = routes.map((route) => {
+          const routePoints = route.points.map((point) => positions.get(point.key)).filter(Boolean);
+          if (routePoints.length < 2) {
+            return "";
+          }
           return `
-            <div class="route-leg">
-              <div class="route-leg-card">
-                <strong>Giữ trạm tại ${destination.name}</strong>
-                <span>Không phát sinh quãng di chuyển giữa hai ngày liên tiếp.</span>
-              </div>
-            </div>
+            <path
+              class="route-path${activeRoute && activeRoute.id === route.id ? " is-active" : ""}"
+              d="${buildSmoothPath(routePoints)}"
+              stroke="${route.color}"
+              stroke-width="${activeRoute && activeRoute.id === route.id ? 7 : 5}"
+            ></path>
           `;
+        }).join("");
+
+        if (activeRoute) {
+          segmentLayerEl.innerHTML = activeRoute.segments.map((segment) => {
+            const fromNode = positions.get(segment.fromKey);
+            const toNode = positions.get(segment.toKey);
+            if (!fromNode || !toNode) {
+              return "";
+            }
+            const midX = (fromNode.x + toNode.x) / 2;
+            const midY = (fromNode.y + toNode.y) / 2 - 18;
+            const metricText = segment.metric.source === "same-site"
+              ? "Giữ nguyên điểm"
+              : `${formatNumber(segment.metric.distance_km)} km · ${formatNumber(segment.metric.travel_minutes)} phút`;
+            return `
+              <div class="segment-badge" style="left:${midX}px; top:${midY}px;">
+                ${metricText}
+                <span>${segment.fromName} → ${segment.toName}</span>
+              </div>
+            `;
+          }).join("");
+        } else {
+          segmentLayerEl.innerHTML = "";
         }
-        return `
-          <div class="route-leg">
-            <div class="route-leg-card">
-              <strong>${formatNumber(metric.distance_km)} km · ${formatNumber(metric.travel_minutes)} phút</strong>
-              <span>${origin.name} → ${destination.name}</span>
-            </div>
-          </div>
-        `;
-      }
 
-      function renderBoard(direction, tracks) {
-        const activeNode = getActiveNode(tracks);
-        boardEl.innerHTML = `
-          <div class="route-grid">
-            ${tracks.map((track) => `
-              <article class="track-card" style="--track-color:${TRACK_COLORS[track.trackIndex] || TRACK_COLORS[0]}">
-                <div class="track-header">
-                  <div class="track-title">
-                    <strong>${track.label}</strong>
-                    <span>${track.title}</span>
-                  </div>
-                  <div class="track-total">${formatNumber(track.total)} TNLS</div>
-                </div>
-                <div class="route-chain">
-                  ${track.nodes.map((node, index) => `
-                    <button type="button" class="route-node${activeNode && activeNode.id === node.id ? " is-active" : ""}" style="--track-color:${TRACK_COLORS[track.trackIndex] || TRACK_COLORS[0]}" data-node-id="${node.id}">
-                      <div class="route-date">${node.dayLabel} · ${node.dateLabel}</div>
-                      <strong>${node.name}</strong>
-                      <span>${formatNumber(node.total)} TNLS</span>
-                      <small>${node.meta}</small>
-                      <div class="weather-chip is-pending" data-weather-id="${node.id}">Đang tải thời tiết</div>
-                    </button>
-                    ${index < track.nodes.length - 1 ? renderSegment(node, track.nodes[index + 1]) : ""}
-                  `).join("")}
-                </div>
-              </article>
-            `).join("")}
-          </div>
-        `;
+        nodeLayerEl.innerHTML = Array.from(positions.values()).map((node) => {
+          const anchor = labelAnchor(node);
+          const color = nodeColor(node, activeRoute);
+          const size = nodeSize(node.total, maxTotal);
+          const isActive = activeNodeKey === node.key;
+          const isDimmed = activeRoute && !activeRoute.points.some((point) => point.key === node.key);
+          const occurrenceCount = node.occurrences.length;
+          return `
+            <button
+              type="button"
+              class="map-node ${anchor}${isActive ? " is-active" : ""}${isDimmed ? " is-dimmed" : ""}"
+              style="left:${node.x}px; top:${node.y}px; --node-color:${color}; --node-size:${size}px;"
+              data-node-key="${node.key}"
+            >
+              <div class="map-node-dot"></div>
+              <div class="map-node-label">
+                <strong>${node.name}</strong>
+                <span>${formatNumber(node.total)} TNLS</span>
+                <small>${occurrenceCount} lượt tuyến</small>
+              </div>
+            </button>
+          `;
+        }).join("");
 
-        boardEl.querySelectorAll("[data-node-id]").forEach((button) => {
+        nodeLayerEl.querySelectorAll("[data-node-key]").forEach((button) => {
           button.addEventListener("click", () => {
-            state.activeNodeId = button.getAttribute("data-node-id");
+            state.activeNodeKey = button.getAttribute("data-node-key");
             render();
           });
         });
       }
 
-      function renderSummary(direction, tracks) {
-        const activeNode = getActiveNode(tracks);
-        if (!activeNode) {
-          summaryPanelEl.innerHTML = "";
-          return;
+      function buildGoogleMapsUrl(route) {
+        if (!route || route.points.length < 2) {
+          return "";
         }
+        const origin = `${route.points[0].lat},${route.points[0].lng}`;
+        const destination = `${route.points[route.points.length - 1].lat},${route.points[route.points.length - 1].lng}`;
+        const waypointPoints = route.points.slice(1, -1).map((point) => `${point.lat},${point.lng}`);
+        const params = new URLSearchParams({
+          api: "1",
+          origin,
+          destination,
+          travelmode: "driving"
+        });
+        if (waypointPoints.length) {
+          params.set("waypoints", waypointPoints.join("|"));
+        }
+        return `https://www.google.com/maps/dir/?${params.toString()}`;
+      }
 
-        const activeTrack = tracks[activeNode.trackIndex];
-        const nodeIndex = activeTrack.nodes.findIndex((node) => node.id === activeNode.id);
-        const previousNode = nodeIndex > 0 ? activeTrack.nodes[nodeIndex - 1] : null;
-        const nextNode = nodeIndex >= 0 && nodeIndex < activeTrack.nodes.length - 1 ? activeTrack.nodes[nodeIndex + 1] : null;
-        const segmentOrigin = previousNode || activeNode;
-        const segmentDestination = previousNode ? activeNode : nextNode;
-        const segmentMetric = segmentDestination ? getSegmentMetric(segmentOrigin, segmentDestination) : null;
-        const directionTotal = tracks.reduce((sum, track) => sum + Number(track.total || 0), 0);
-        const detailMarkup = activeNode.detailItems.length
-          ? `
-            <div class="focus-list">
-              ${activeNode.detailItems.map((item) => `
-                <div class="focus-list-item">
-                  <span>${item.label}</span>
-                  <strong>${item.value}</strong>
-                </div>
-              `).join("")}
-            </div>
-          `
-          : "";
-        const routeLabel = segmentDestination
-          ? `${segmentOrigin.name} → ${segmentDestination.name}`
-          : "Kết thúc tuyến";
-        const segmentMeta = segmentMetric
-          ? (
-            segmentMetric.source === "same-site"
-              ? "Không phát sinh quãng di chuyển."
-              : `${formatNumber(segmentMetric.distance_km)} km · ${formatNumber(segmentMetric.travel_minutes)} phút`
-          )
-          : "Không còn chặng kế tiếp.";
-        const sourceNote = !segmentMetric ? ""
-          : segmentMetric.source === "estimated"
-            ? "Số liệu chặng này đang dùng ước tính vì chưa có dữ liệu tuyến chi tiết."
-            : segmentMetric.source === "osrm-cache"
-              ? "Số liệu chặng này lấy từ cache tuyến hiện có trong dự án."
-              : "";
+      function buildNodeDetail(node) {
+        if (!node) {
+          return "";
+        }
+        const occurrenceRows = node.occurrences.map((occurrence, index) => `
+          <div class="detail-row">
+            <span>${occurrence.dayLabel} · ${occurrence.session}</span>
+            <strong>${formatNumber(occurrence.total)} TNLS</strong>
+          </div>
+          <div class="weather-chip is-pending" data-weather-key="${buildWeatherKey(occurrence.lat, occurrence.lng, occurrence.isoDate)}">${index === 0 ? "Đang tải thời tiết" : "Đang tải thời tiết"}</div>
+        `).join("");
+        return `
+          <div class="detail-card">
+            <strong>${node.name}</strong>
+            <span>${formatNumber(node.total)} TNLS trên các tuyến đang hiển thị</span>
+            <div class="detail-list">${occurrenceRows}</div>
+          </div>
+        `;
+      }
+
+      function buildRouteDetail(route) {
+        if (!route) {
+          return "";
+        }
+        const segmentRows = route.segments.length
+          ? route.segments.map((segment) => {
+            const metricText = segment.metric.source === "same-site"
+              ? "Giữ nguyên điểm"
+              : `${formatNumber(segment.metric.distance_km)} km · ${formatNumber(segment.metric.travel_minutes)} phút`;
+            return `
+              <div class="detail-row">
+                <span>${segment.fromName} → ${segment.toName}</span>
+                <strong>${metricText}</strong>
+              </div>
+            `;
+          }).join("")
+          : `<div class="detail-row"><span>Trong ngày không phát sinh chặng di chuyển</span><strong>0 km</strong></div>`;
+        const weatherRows = route.points.map((point) => `
+          <div class="detail-row">
+            <span>${point.name} · ${point.session || "Di chuyển"}</span>
+            <strong>${point.total ? `${formatNumber(point.total)} TNLS` : "Điểm trung gian"}</strong>
+          </div>
+          <div class="weather-chip is-pending" data-weather-key="${buildWeatherKey(point.lat, point.lng, route.isoDate)}">Đang tải thời tiết</div>
+        `).join("");
+        const mapsUrl = buildGoogleMapsUrl(route);
+        return `
+          <div class="detail-card">
+            <strong>${route.label}</strong>
+            <span>${route.summary}</span>
+            <small>${route.dateLabel} · ${formatNumber(route.total)} TNLS</small>
+            <div class="detail-list">${segmentRows}</div>
+            <div class="detail-list" style="margin-top:14px;">${weatherRows}</div>
+            ${mapsUrl ? `<a class="maps-link" href="${mapsUrl}" target="_blank" rel="noopener noreferrer">Mở trên Google Maps</a>` : ""}
+          </div>
+        `;
+      }
+
+      function renderSummary(direction, routes, nodes) {
+        const activeRoute = resolveActiveRoute(routes);
+        if (activeRoute && !state.activeNodeKey) {
+          state.activeNodeKey = getPreferredRouteNodeKey(activeRoute);
+        }
+        const activeNode = nodes.get(state.activeNodeKey) || (activeRoute ? nodes.get(getPreferredRouteNodeKey(activeRoute)) : null);
+        const routeGroups = new Map();
+        routes.forEach((route) => {
+          if (!routeGroups.has(route.dayIndex)) {
+            routeGroups.set(route.dayIndex, {
+              color: route.color,
+              label: `${route.dayLabel} · ${route.dateLabel}`,
+              routes: []
+            });
+          }
+          routeGroups.get(route.dayIndex).routes.push(route);
+        });
+        const directionTotal = Array.from(nodes.values()).reduce((sum, node) => sum + Number(node.total || 0), 0);
 
         summaryPanelEl.innerHTML = `
           <div class="summary-head">
             <div class="hero-kicker">${direction.label}</div>
-            <h2>${formatNumber(directionTotal)} TNLS</h2>
-            <p>${direction.description || ""}</p>
+            <h2>Tuyến 5 ngày</h2>
+            <div class="weather-chip is-pending" data-meta="direction-total">${formatNumber(directionTotal)} TNLS</div>
           </div>
 
-          <div class="summary-strip">
-            ${tracks.map((track) => `
-              <div class="summary-strip-item">
-                <div>
-                  <strong>${track.label}</strong>
-                  <span>${track.title}</span>
+          <div class="route-summary">
+            ${Array.from(routeGroups.entries()).map(([, group]) => `
+              <section class="route-day-group">
+                <div class="route-day-title" style="--day-color:${group.color}">
+                  <span class="route-day-swatch"></span>
+                  ${group.label}
                 </div>
-                <div class="summary-strip-total">${formatNumber(track.total)} TNLS</div>
-              </div>
+                ${group.routes.map((route) => `
+                  <button type="button" class="route-item${activeRoute && activeRoute.id === route.id ? " is-active" : ""}" style="--route-color:${route.color}" data-route-id="${route.id}">
+                    <strong>${route.title}</strong>
+                    <span>${route.summary}</span>
+                    <small>${formatNumber(route.total)} TNLS</small>
+                  </button>
+                `).join("")}
+              </section>
             `).join("")}
           </div>
 
-          <div class="focus-card">
-            <strong>${activeNode.name}</strong>
-            <span>${activeNode.dayLabel} · ${activeNode.dateLabel} · ${activeNode.trackLabel}</span>
-            <span>${formatNumber(activeNode.total)} TNLS · ${activeNode.meta}</span>
-            <div class="weather-chip is-pending" data-weather-id="${activeNode.id}">Đang tải thời tiết</div>
-            ${detailMarkup}
-          </div>
-
-          <div class="segment-card">
-            <strong>${routeLabel}</strong>
-            <span>${segmentMeta}</span>
-            ${sourceNote ? `<small>${sourceNote}</small>` : ""}
-            ${segmentDestination ? `<a class="maps-link" href="${buildGoogleMapsUrl(segmentOrigin, segmentDestination)}" target="_blank" rel="noopener noreferrer">Mở trên Google Maps</a>` : ""}
-          </div>
+          ${buildRouteDetail(activeRoute)}
+          ${buildNodeDetail(activeNode)}
         `;
+
+        summaryPanelEl.querySelectorAll("[data-route-id]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.activeRouteId = button.getAttribute("data-route-id");
+            render();
+          });
+        });
       }
 
-      async function fetchForecastForNode(node) {
-        const coordKey = buildCoordKey(node.lat, node.lng);
+      async function fetchForecast(lat, lng) {
+        const coordKey = buildCoordKey(lat, lng);
         if (!forecastCache.has(coordKey)) {
-          const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(node.lat)}&longitude=${encodeURIComponent(node.lng)}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FBangkok&forecast_days=16`;
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lng)}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FBangkok&forecast_days=16`;
           forecastCache.set(coordKey, fetch(url).then((response) => response.json()).catch(() => null));
         }
-        const payload = await forecastCache.get(coordKey);
-        if (!payload || !payload.daily || !Array.isArray(payload.daily.time)) {
-          return {
-            status: "error",
-            text: "Không lấy được thời tiết"
-          };
-        }
-        const dayIndex = payload.daily.time.indexOf(node.isoDate);
-        if (dayIndex < 0) {
-          return {
-            status: "unavailable",
-            text: `Chưa có dự báo cho ${node.dateLabel}`
-          };
-        }
-        const weatherCode = payload.daily.weather_code[dayIndex];
-        const minTemp = Math.round(payload.daily.temperature_2m_min[dayIndex]);
-        const maxTemp = Math.round(payload.daily.temperature_2m_max[dayIndex]);
-        return {
-          status: "ready",
-          text: `${describeWeatherCode(weatherCode)} · ${minTemp}-${maxTemp}°C`
-        };
+        return forecastCache.get(coordKey);
       }
 
-      function applyWeatherState(nodeId, weatherState) {
-        document.querySelectorAll(`[data-weather-id="${nodeId}"]`).forEach((element) => {
-          element.textContent = weatherState.text;
+      async function resolveWeather(lat, lng, isoDate, dateLabel) {
+        const key = buildWeatherKey(lat, lng, isoDate);
+        if (weatherCache.has(key)) {
+          return weatherCache.get(key);
+        }
+        const payload = await fetchForecast(lat, lng);
+        if (!payload || !payload.daily || !Array.isArray(payload.daily.time)) {
+          const value = { status: "unavailable", text: "Không lấy được thời tiết" };
+          weatherCache.set(key, value);
+          return value;
+        }
+        const dayIndex = payload.daily.time.indexOf(isoDate);
+        if (dayIndex < 0) {
+          const value = { status: "unavailable", text: `Chưa có dự báo cho ${dateLabel}` };
+          weatherCache.set(key, value);
+          return value;
+        }
+        const code = payload.daily.weather_code[dayIndex];
+        const minTemp = Math.round(payload.daily.temperature_2m_min[dayIndex]);
+        const maxTemp = Math.round(payload.daily.temperature_2m_max[dayIndex]);
+        const value = { status: "ready", text: `${describeWeatherCode(code)} · ${minTemp}-${maxTemp}°C` };
+        weatherCache.set(key, value);
+        return value;
+      }
+
+      function updateWeatherElement(key, weather) {
+        document.querySelectorAll(`[data-weather-key="${key}"]`).forEach((element) => {
+          element.textContent = weather.text;
           element.classList.remove("is-pending", "is-unavailable");
-          if (weatherState.status === "unavailable" || weatherState.status === "error") {
+          if (weather.status !== "ready") {
             element.classList.add("is-unavailable");
           }
         });
       }
 
-      async function hydrateWeather(tracks) {
-        const nodes = tracks.flatMap((track) => track.nodes);
-        await Promise.all(nodes.map(async (node) => {
-          if (!weatherByNodeId.has(node.id)) {
-            const weatherState = await fetchForecastForNode(node);
-            weatherByNodeId.set(node.id, weatherState);
-          }
-          applyWeatherState(node.id, weatherByNodeId.get(node.id));
-        }));
+      async function hydrateWeather(routes) {
+        const tasks = [];
+        routes.forEach((route) => {
+          route.points.forEach((point) => {
+            const key = buildWeatherKey(point.lat, point.lng, route.isoDate);
+            tasks.push((async () => {
+              const weather = await resolveWeather(point.lat, point.lng, route.isoDate, route.dateLabel);
+              updateWeatherElement(key, weather);
+            })());
+          });
+        });
+        await Promise.all(tasks);
       }
 
       function render() {
         const direction = getSelectedDirection();
-        const tracks = buildDirectionTracks(direction);
+        const routes = buildRoutes(direction);
+        const activeRoute = resolveActiveRoute(routes);
+        if (activeRoute) {
+          state.activeRouteId = activeRoute.id;
+        }
+        const nodes = buildVisibleNodes(routes);
         renderDirectionTabs(direction);
-        renderBoard(direction, tracks);
-        renderSummary(direction, tracks);
-        hydrateWeather(tracks);
+        renderDayFilter(direction);
+        renderBoard(routes, nodes);
+        renderSummary(direction, routes, nodes);
+        hydrateWeather(routes);
       }
 
       render();
       window.setInterval(() => {
         forecastCache.clear();
-        weatherByNodeId.clear();
+        weatherCache.clear();
         render();
       }, 600000);
     })();
