@@ -1068,6 +1068,75 @@
       color: #b45309;
     }
 
+    /* ── Weather / Terrain Panel ─────────────────────── */
+    .enviro-panel {
+      background: linear-gradient(135deg, #0f1729 0%, #1e293b 100%);
+      border-radius: 14px;
+      padding: 16px 16px 12px;
+      margin-bottom: 18px;
+      color: #f8fafc;
+      border: 1px solid rgba(148,163,184,0.15);
+    }
+    .enviro-panel-title {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: #94a3b8;
+      margin-bottom: 12px;
+    }
+    .enviro-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .enviro-card {
+      background: rgba(255,255,255,0.06);
+      border-radius: 10px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .enviro-card-label {
+      font-size: 10px;
+      color: #94a3b8;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 5px;
+    }
+    .enviro-card-value {
+      font-size: 17px;
+      font-weight: 800;
+      color: #f1f5f9;
+      line-height: 1.1;
+    }
+    .enviro-card-sub {
+      font-size: 10.5px;
+      color: #64748b;
+      margin-top: 3px;
+    }
+    .enviro-alert {
+      margin-top: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .enviro-alert.level-safe { background: rgba(22,163,74,0.15); color: #4ade80; border: 1px solid rgba(22,163,74,0.3); }
+    .enviro-alert.level-watch { background: rgba(234,179,8,0.15); color: #fde047; border: 1px solid rgba(234,179,8,0.3); }
+    .enviro-alert.level-warning { background: rgba(249,115,22,0.15); color: #fb923c; border: 1px solid rgba(249,115,22,0.3); }
+    .enviro-alert.level-danger { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .enviro-pending {
+      text-align: center;
+      color: #475569;
+      font-size: 12px;
+      padding: 10px 0;
+      font-style: italic;
+    }
+
     .detail-row strong {
       font-size: 13px;
     }
@@ -1379,7 +1448,7 @@
                 <div class="map-status" id="map-status">100%</div>
                 <button type="button" class="map-control" id="zoom-in-button" aria-label="Phóng to">+</button>
                 <button type="button" class="map-control" id="reset-view-button" aria-label="Đặt lại góc nhìn">↺</button>
-                <span style="font-size: 11px; opacity: 0.6; margin-left: 8px; font-weight: 600; font-family: var(--font-display);">v3.8.9</span>
+                <span style="font-size: 11px; opacity: 0.6; margin-left: 8px; font-weight: 600; font-family: var(--font-display);">v3.9.0</span>
 
               </div>
               <button type="button" class="summary-toggle" id="summary-toggle" aria-label="Mở thông tin">☰</button>
@@ -1451,6 +1520,8 @@
 
       const forecastCache = new Map();
       const weatherCache = new Map();
+      const elevationCache = new Map();
+      const enviroDetailCache = new Map();
       const interactionState = {
         isDragging: false,
         startX: 0,
@@ -1516,28 +1587,47 @@
 
 
       function describeWeatherCode(code) {
-        if (code === 0) {
-          return "Trời quang";
+        if (code === 0) return "☀️ Trời quang";
+        if (code >= 1 && code <= 2) return "🌤️ Ít mây";
+        if (code === 3) return "☁️ Nhiều mây";
+        if (code >= 45 && code <= 48) return "🌫️ Sương mù";
+        if (code >= 51 && code <= 55) return "🌦️ Mưa phùn";
+        if (code >= 61 && code <= 65) return "🌧️ Mưa vừa";
+        if (code === 66 || code === 67) return "🌧️ Mưa đóng băng";
+        if (code >= 71 && code <= 77) return "❄️ Mưa tuyết";
+        if (code >= 80 && code <= 82) return "🌧️ Mưa rào";
+        if (code === 85 || code === 86) return "❄️ Mưa tuyết rào";
+        if (code === 95) return "⛈️ Dông";
+        if (code >= 96) return "⛈️ Dông đá";
+        return "🌥️ Thời tiết thay đổi";
+      }
+
+      function weatherDisasterLevel(rain_mm, wind_kmh, code) {
+        // Returns { level: 'safe'|'watch'|'warning'|'danger', label, icon }
+        const isThunder = code >= 95;
+        const isHeavyRain = rain_mm >= 50;
+        const isModerateRain = rain_mm >= 15;
+        const isStrongWind = wind_kmh >= 50;
+        const isModerateWind = wind_kmh >= 30;
+
+        if (isThunder || isHeavyRain || isStrongWind) {
+          return { level: 'danger', icon: '🚨', label: `Cảnh báo cao — ${isThunder ? 'Dông sét' : ''}${isHeavyRain ? ' Mưa lớn' : ''}${isStrongWind ? ' Gió mạnh' : ''}`.trim() };
         }
-        if (code >= 1 && code <= 3) {
-          return "Nhiều mây";
+        if (isModerateRain || isModerateWind) {
+          return { level: 'warning', icon: '⚠️', label: `Chú ý — ${isModerateRain ? 'Mưa vừa' : ''}${isModerateWind ? ' Gió mạnh vừa' : ''}`.trim() };
         }
-        if (code >= 45 && code <= 48) {
-          return "Sương mù";
+        if (rain_mm >= 5) {
+          return { level: 'watch', icon: '🔶', label: 'Theo dõi — Có mưa nhẹ' };
         }
-        if (code >= 51 && code <= 67) {
-          return "Có mưa";
-        }
-        if (code >= 71 && code <= 77) {
-          return "Mưa tuyết";
-        }
-        if (code >= 80 && code <= 86) {
-          return "Mưa rào";
-        }
-        if (code >= 95) {
-          return "Có dông";
-        }
-        return "Thời tiết thay đổi";
+        return { level: 'safe', icon: '✅', label: 'Thuận lợi — Thời tiết tốt' };
+      }
+
+      function terrainDescription(elevation_m) {
+        if (elevation_m == null) return { label: '—', type: 'Không rõ' };
+        if (elevation_m < 100) return { label: `${Math.round(elevation_m)}m`, type: '🏙️ Đồng bằng/ven đô' };
+        if (elevation_m < 500) return { label: `${Math.round(elevation_m)}m`, type: '🌄 Trung du' };
+        if (elevation_m < 1000) return { label: `${Math.round(elevation_m)}m`, type: '⛰️ Miền núi' };
+        return { label: `${Math.round(elevation_m)}m`, type: '🏔️ Núi cao' };
       }
 
       function getSelectedDirection() {
@@ -3378,6 +3468,8 @@
               
               <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
               
+              ${buildEnviroPanel(node.lat || firstOccurrence.lat, node.lng || firstOccurrence.lng, firstOccurrence.isoDate)}
+
               <div style="margin-bottom: 20px;">
                 <h3 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">🚗 Tuyến Di Chuyển</h3>
                 <div style="font-size: 13px; color: #334155; line-height: 1.6;">
@@ -3430,6 +3522,8 @@
             ${isLuuDong ? `
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
 
+            ${buildEnviroPanel(node.lat || firstOccurrence.lat, node.lng || firstOccurrence.lng, firstOccurrence.isoDate)}
+
             <div style="margin-bottom: 20px;">
               <h3 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">📝 Lịch Trình Địa Bàn</h3>
               ${formatToBulletPoints(firstOccurrence.scheduleText)}
@@ -3461,6 +3555,8 @@
             ` : `
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
             
+            ${buildEnviroPanel(node.lat || firstOccurrence.lat, node.lng || firstOccurrence.lng, firstOccurrence.isoDate)}
+
             <div style="margin-bottom: 20px;">
               <h3 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">📍 Địa Điểm Tập Kết</h3>
               <div style="font-size: 13px; color: #0f172a; font-weight: 600; background: #f8fafc; padding: 10px 14px; border-radius: 8px; border-left: 4px solid #3b82f6;">
@@ -3703,10 +3799,143 @@
       async function fetchForecast(lat, lng) {
         const coordKey = buildCoordKey(lat, lng);
         if (!forecastCache.has(coordKey)) {
-          const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lng)}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FBangkok&forecast_days=16`;
-          forecastCache.set(coordKey, fetch(url).then((response) => response.json()).catch(() => null));
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lng)}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,et0_fao_evapotranspiration&hourly=relative_humidity_2m&timezone=Asia%2FBangkok&forecast_days=16`;
+          forecastCache.set(coordKey, fetch(url).then((r) => r.json()).catch(() => null));
         }
         return forecastCache.get(coordKey);
+      }
+
+      async function fetchElevation(lat, lng) {
+        const key = `${Number(lat).toFixed(4)}|${Number(lng).toFixed(4)}`;
+        if (!elevationCache.has(key)) {
+          const url = `https://api.open-meteo.com/v1/elevation?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lng)}`;
+          elevationCache.set(key, fetch(url).then((r) => r.json()).catch(() => null));
+        }
+        return elevationCache.get(key);
+      }
+
+      // Returns rich enviro object for a specific lat/lng/date
+      async function resolveEnviroDetail(lat, lng, isoDate) {
+        const key = `${buildCoordKey(lat, lng)}|${isoDate}`;
+        if (enviroDetailCache.has(key)) return enviroDetailCache.get(key);
+
+        const [forecastPayload, elevationPayload] = await Promise.all([
+          fetchForecast(lat, lng),
+          fetchElevation(lat, lng)
+        ]);
+
+        const elevation_m = elevationPayload && Array.isArray(elevationPayload.elevation)
+          ? elevationPayload.elevation[0] : null;
+
+        let result = { elevation_m, weather: null };
+
+        if (forecastPayload && forecastPayload.daily && Array.isArray(forecastPayload.daily.time)) {
+          const di = forecastPayload.daily.time.indexOf(isoDate);
+          if (di >= 0) {
+            const d = forecastPayload.daily;
+            const code = d.weather_code[di];
+            const minTemp = Math.round(d.temperature_2m_min[di]);
+            const maxTemp = Math.round(d.temperature_2m_max[di]);
+            const rain_mm = Math.round((d.precipitation_sum[di] || 0) * 10) / 10;
+            const wind_kmh = Math.round(d.wind_speed_10m_max[di] || 0);
+            // Avg humidity from hourly (0-23h of that day index)
+            let humidity = null;
+            if (forecastPayload.hourly && Array.isArray(forecastPayload.hourly.relative_humidity_2m)) {
+              const startH = di * 24;
+              const slice = forecastPayload.hourly.relative_humidity_2m.slice(startH, startH + 24).filter(v => v != null);
+              if (slice.length) humidity = Math.round(slice.reduce((a, b) => a + b, 0) / slice.length);
+            }
+            result.weather = { code, minTemp, maxTemp, rain_mm, wind_kmh, humidity };
+          }
+        }
+
+        enviroDetailCache.set(key, result);
+        return result;
+      }
+
+      function buildEnviroPanel(lat, lng, isoDate) {
+        const key = `enviro|${buildCoordKey(lat, lng)}|${isoDate}`;
+        // Return a placeholder div — hydrateEnviro will fill it
+        return `<div class="enviro-panel" data-enviro-key="${key}">
+          <div class="enviro-panel-title">🌍 Địa hình · Thời tiết · Cảnh báo</div>
+          <div class="enviro-pending">⏳ Đang tải dữ liệu môi trường...</div>
+        </div>`;
+      }
+
+      async function hydrateEnviro(routes) {
+        // Collect all unique points (lat/lng/isoDate)
+        const seen = new Set();
+        const tasks = [];
+        routes.forEach(route => {
+          route.points.forEach(point => {
+            const key = `enviro|${buildCoordKey(point.lat, point.lng)}|${point.isoDate}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            tasks.push((async () => {
+              const data = await resolveEnviroDetail(point.lat, point.lng, point.isoDate);
+              // Update all matching placeholder divs in the DOM
+              document.querySelectorAll(`[data-enviro-key="${key}"]`).forEach(el => {
+                if (!data) { el.innerHTML = `<div class="enviro-panel-title">🌍 Địa hình · Thời tiết · Cảnh báo</div><div class="enviro-pending">Không lấy được dữ liệu</div>`; return; }
+                const terrain = terrainDescription(data.elevation_m);
+                const w = data.weather;
+                let alertHtml = '';
+                let gridHtml = '';
+                if (w) {
+                  const alert = weatherDisasterLevel(w.rain_mm, w.wind_kmh, w.code);
+                  alertHtml = `<div class="enviro-alert level-${alert.level}">${alert.icon} ${alert.label}</div>`;
+                  gridHtml = `
+                    <div class="enviro-grid">
+                      <div class="enviro-card">
+                        <div class="enviro-card-label">🌡 Nhiệt độ</div>
+                        <div class="enviro-card-value">${w.minTemp}–${w.maxTemp}°C</div>
+                        <div class="enviro-card-sub">${describeWeatherCode(w.code)}</div>
+                      </div>
+                      <div class="enviro-card">
+                        <div class="enviro-card-label">🌧 Lượng mưa</div>
+                        <div class="enviro-card-value">${w.rain_mm} mm</div>
+                        <div class="enviro-card-sub">Tổng trong ngày</div>
+                      </div>
+                      <div class="enviro-card">
+                        <div class="enviro-card-label">💨 Gió mạnh nhất</div>
+                        <div class="enviro-card-value">${w.wind_kmh} km/h</div>
+                        <div class="enviro-card-sub">Cấp ${w.wind_kmh < 20 ? '1–2' : w.wind_kmh < 40 ? '3–4' : w.wind_kmh < 60 ? '5–6' : '≥7'}</div>
+                      </div>
+                      <div class="enviro-card">
+                        <div class="enviro-card-label">💧 Độ ẩm TB</div>
+                        <div class="enviro-card-value">${w.humidity != null ? w.humidity + '%' : '—'}</div>
+                        <div class="enviro-card-sub">Trung bình cả ngày</div>
+                      </div>
+                      <div class="enviro-card">
+                        <div class="enviro-card-label">⛰ Độ cao</div>
+                        <div class="enviro-card-value">${terrain.label}</div>
+                        <div class="enviro-card-sub">${terrain.type}</div>
+                      </div>
+                      <div class="enviro-card">
+                        <div class="enviro-card-label">🛣 Địa hình</div>
+                        <div class="enviro-card-value" style="font-size:12px; margin-top:2px;">${terrain.type}</div>
+                        <div class="enviro-card-sub">${data.elevation_m != null ? 'So mực nước biển' : 'Không rõ'}</div>
+                      </div>
+                    </div>
+                    ${alertHtml}
+                  `;
+                } else {
+                  gridHtml = `
+                    <div class="enviro-grid">
+                      <div class="enviro-card">
+                        <div class="enviro-card-label">⛰ Độ cao</div>
+                        <div class="enviro-card-value">${terrain.label}</div>
+                        <div class="enviro-card-sub">${terrain.type}</div>
+                      </div>
+                    </div>
+                    <div class="enviro-alert level-watch" style="margin-top:8px;">🔶 Chưa có dự báo thời tiết cho ngày này</div>
+                  `;
+                }
+                el.innerHTML = `<div class="enviro-panel-title">🌍 Địa hình · Thời tiết · Cảnh báo</div>${gridHtml}`;
+              });
+            })());
+          });
+        });
+        await Promise.all(tasks);
       }
 
       async function resolveWeather(lat, lng, isoDate, dateLabel) {
@@ -3774,6 +4003,7 @@
         renderBoard(routes, nodes);
         renderSummary(direction, routes, nodes);
         hydrateWeather(routes);
+        hydrateEnviro(routes);
       }
 
       initializeViewportControls();
@@ -3783,6 +4013,8 @@
       window.setInterval(() => {
         forecastCache.clear();
         weatherCache.clear();
+        elevationCache.clear();
+        enviroDetailCache.clear();
         render();
       }, 600000);
     })();
