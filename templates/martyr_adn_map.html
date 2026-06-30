@@ -405,6 +405,10 @@
       transition: opacity 0.18s ease, stroke-width 0.18s ease;
     }
 
+    .route-path.route-path-catchment {
+      opacity: 0.5;
+    }
+
     .route-path.is-active {
       opacity: 1;
       filter: drop-shadow(0 10px 20px rgba(15, 23, 42, 0.14));
@@ -438,6 +442,10 @@
 
     .map-node.is-active {
       z-index: 6;
+    }
+
+    .map-node.is-area-node {
+      opacity: 0.95;
     }
 
     .map-node-dot {
@@ -1556,7 +1564,145 @@
         return preferredPoint ? preferredPoint.key : null;
       }
 
-      function buildVisibleNodes(routes) {
+      function normalizePlaceName(value) {
+        return String(value || "")
+          .replace(/^(phường|xã|thị trấn|thị xã|thành phố|tp\.?)\s+/i, "")
+          .trim();
+      }
+
+      function buildGlobalPointLookup() {
+        const lookup = new Map();
+        data.directions.forEach((direction) => {
+          direction.days.forEach((day) => {
+            day.tracks.forEach((track) => {
+              const items = direction.id === "co-dinh" ? track.stops : track.visits;
+              items.forEach((item) => {
+                if (!item || !item.name) {
+                  return;
+                }
+                const normalizedName = normalizePlaceName(item.name);
+                const entry = {
+                  name: normalizedName,
+                  lat: Number(item.lat),
+                  lng: Number(item.lng)
+                };
+                if (!lookup.has(normalizedName)) {
+                  lookup.set(normalizedName, entry);
+                }
+                if (!lookup.has(item.name)) {
+                  lookup.set(item.name, entry);
+                }
+              });
+            });
+          });
+        });
+        return lookup;
+      }
+
+      function buildFixedCatchmentNodes(routes) {
+        const map = new Map();
+        const pointLookup = buildGlobalPointLookup();
+
+        routes.forEach((route) => {
+          const detail = route.dayDetails[0];
+          const hubs = new Map();
+          (detail?.points || []).forEach((point) => {
+            if (!hubs.has(point.key)) {
+              hubs.set(point.key, {
+                ...point,
+                total: 0,
+                sessions: [],
+                areaNodes: new Map()
+              });
+            }
+            const hub = hubs.get(point.key);
+            hub.total += Number(point.total || 0);
+            hub.sessions.push(point);
+
+            (point.areas || []).forEach((area) => {
+              const rawAreaName = String(area.name || "").trim();
+              const areaName = normalizePlaceName(rawAreaName);
+              if (!areaName || areaName.toLowerCase() === normalizePlaceName(point.name).toLowerCase()) {
+                return;
+              }
+              const areaKey = `area|${route.id}|${point.key}|${areaName.toLowerCase()}`;
+              if (!hub.areaNodes.has(areaKey)) {
+                const lookup = pointLookup.get(areaName) || pointLookup.get(rawAreaName) || null;
+                hub.areaNodes.set(areaKey, {
+                  key: areaKey,
+                  name: areaName,
+                  total: 0,
+                  lat: lookup ? lookup.lat : point.lat,
+                  lng: lookup ? lookup.lng : point.lng,
+                  kind: "area",
+                  sourceHubKey: point.key,
+                  occurrences: []
+                });
+              }
+              const areaNode = hub.areaNodes.get(areaKey);
+              areaNode.total += Number(area.count || 0);
+              areaNode.occurrences.push({
+                routeId: route.id,
+                routeLabel: route.label,
+                trackIndex: route.trackIndex,
+                dayIndex: point.dayIndex,
+                dayLabel: point.dayLabel,
+                dateLabel: point.dateLabel,
+                isoDate: point.isoDate,
+                total: Number(area.count || 0),
+                session: point.session,
+                color: route.color,
+                hubName: point.name,
+                kind: "area"
+              });
+            });
+          });
+
+          hubs.forEach((hub) => {
+            if (!map.has(hub.key)) {
+              map.set(hub.key, {
+                key: hub.key,
+                name: hub.name,
+                lat: hub.lat,
+                lng: hub.lng,
+                total: 0,
+                kind: "hub",
+                occurrences: []
+              });
+            }
+            const hubNode = map.get(hub.key);
+            hubNode.total += hub.total;
+            hub.sessions.forEach((point) => {
+              hubNode.occurrences.push({
+                routeId: route.id,
+                routeLabel: route.label,
+                trackIndex: route.trackIndex,
+                dayIndex: point.dayIndex,
+                dayLabel: point.dayLabel,
+                dateLabel: point.dateLabel,
+                isoDate: point.isoDate,
+                total: Number(point.total || 0),
+                session: point.session,
+                color: route.color,
+                areas: point.areas || [],
+                lat: point.lat,
+                lng: point.lng,
+                kind: "hub"
+              });
+            });
+            hub.areaNodes.forEach((areaNode) => {
+              map.set(areaNode.key, areaNode);
+            });
+          });
+        });
+
+        return map;
+      }
+
+      function buildVisibleNodes(routes, direction) {
+        if (direction.id === "co-dinh" && state.dayIndex !== null) {
+          return buildFixedCatchmentNodes(routes);
+        }
         const map = new Map();
         routes.forEach((route) => {
           const sourcePoints = route.allPoints || route.points;
@@ -1772,6 +1918,111 @@
         });
 
         return positions;
+      }
+
+      function buildFixedCatchmentPositions(routes, routeNodes) {
+        const positions = new Map();
+        const laneYs = routes.length === 1
+          ? [STAGE_HEIGHT / 2]
+          : routes.length === 2
+            ? [290, 610]
+            : [190, 450, 710];
+
+        routes.forEach((route, routeIndex) => {
+          const hubs = [];
+          const seen = new Set();
+          route.points.forEach((point) => {
+            if (seen.has(point.key) || !routeNodes.has(point.key)) {
+              return;
+            }
+            const hubNode = routeNodes.get(point.key);
+            if (!hubNode || hubNode.kind !== "hub") {
+              return;
+            }
+            seen.add(point.key);
+            hubs.push(hubNode);
+          });
+          if (!hubs.length) {
+            return;
+          }
+
+          const laneY = laneYs[routeIndex] || (200 + routeIndex * 250);
+          const hubXs = hubs.length === 1
+            ? [STAGE_WIDTH / 2]
+            : [STAGE_WIDTH * 0.34, STAGE_WIDTH * 0.7];
+
+          hubs.forEach((hubNode, hubIndex) => {
+            const hubX = hubXs[hubIndex] || (STAGE_WIDTH / 2);
+            positions.set(hubNode.key, {
+              ...hubNode,
+              x: hubX,
+              y: laneY
+            });
+
+            const areaNodes = Array.from(routeNodes.values())
+              .filter((node) => node.kind === "area" && node.sourceHubKey === hubNode.key)
+              .sort((left, right) => Number(right.total || 0) - Number(left.total || 0));
+
+            const topCount = Math.ceil(areaNodes.length / 2);
+            const topNodes = areaNodes.slice(0, topCount);
+            const bottomNodes = areaNodes.slice(topCount);
+
+            const positionBand = (nodes, y, maxSpan) => {
+              if (!nodes.length) {
+                return;
+              }
+              const step = nodes.length === 1 ? 0 : Math.min(84, Math.max(56, maxSpan / Math.max(1, nodes.length - 1)));
+              const startX = hubX - (step * (nodes.length - 1)) / 2;
+              nodes.forEach((node, index) => {
+                positions.set(node.key, {
+                  ...node,
+                  x: startX + index * step,
+                  y
+                });
+              });
+            };
+
+            positionBand(topNodes, laneY - 118, hubs.length === 1 ? 360 : 280);
+            positionBand(bottomNodes, laneY + 118, hubs.length === 1 ? 360 : 280);
+          });
+        });
+
+        return positions;
+      }
+
+      function buildFixedCatchmentSegments(routes, routeNodes) {
+        const segments = [];
+
+        routes.forEach((route) => {
+          route.segments.forEach((segment) => {
+            if (!routeNodes.has(segment.fromKey) || !routeNodes.has(segment.toKey) || segment.metric.source === "same-site") {
+              return;
+            }
+            segments.push({
+              ...segment,
+              routeId: route.id,
+              color: route.color,
+              kind: "route"
+            });
+          });
+        });
+
+        Array.from(routeNodes.values())
+          .filter((node) => node.kind === "area" && node.sourceHubKey && routeNodes.has(node.sourceHubKey))
+          .forEach((node) => {
+            const occurrence = node.occurrences[0] || {};
+            segments.push({
+              id: `catchment-${node.key}`,
+              fromKey: node.key,
+              toKey: node.sourceHubKey,
+              color: occurrence.color || TRACK_COLORS[0],
+              routeId: occurrence.routeId || "",
+              kind: "catchment",
+              metric: { source: "catchment" }
+            });
+          });
+
+        return segments;
       }
 
       function buildBoardPositions(direction, routeNodes, activeRoute, referenceMode, routes) {
@@ -2045,43 +2296,54 @@
         if (activeNodeKey && state.activeNodeKey !== activeNodeKey) {
           state.activeNodeKey = activeNodeKey;
         }
-        const positions = buildBoardPositions(direction, routeNodes, activeRoute, referenceMode, routes);
+        const fixedCatchmentMode = direction.id === "co-dinh" && state.dayIndex !== null;
+        const positions = fixedCatchmentMode
+          ? buildFixedCatchmentPositions(routes, routeNodes)
+          : buildBoardPositions(direction, routeNodes, activeRoute, referenceMode, routes);
         const maxTotal = Math.max(...Array.from(routeNodes.values()).map((node) => node.total), 0);
 
-        const visibleRoutes = showAllRoutes ? routes : [activeRoute];
-        mapSvgEl.innerHTML = visibleRoutes.map((route) => {
-          return route.segments.map((segment) => {
-            const fromNode = positions.get(segment.fromKey);
-            const toNode = positions.get(segment.toKey);
-            if (!fromNode || !toNode || segment.metric.source === "same-site") {
-              return "";
-            }
-            const path = buildStraightPath([fromNode, toNode]);
-            const isActiveRoute = activeRoute && activeRoute.id === route.id;
-            const baseColor = referenceMode ? route.color : activeRoute.color;
-            return `
-              <path
-                class="route-path${isActiveRoute ? " is-active" : ""}"
-                d="${path}"
-                stroke="rgba(255, 255, 255, 0.9)"
-                stroke-width="${referenceMode ? 10 : 12}"
-                opacity="${referenceMode ? 0.48 : 0.96}"
-              ></path>
-              <path
-                class="route-path${isActiveRoute ? " is-active" : ""}"
-                d="${path}"
-                stroke="${baseColor}"
-                stroke-width="${referenceMode ? 5 : 6}"
-                opacity="${referenceMode ? (isActiveRoute ? 1 : 0.9) : 1}"
-              ></path>
-            `;
-          }).join("");
-        }).join("");
+        const renderedSegments = fixedCatchmentMode
+          ? buildFixedCatchmentSegments(routes, routeNodes)
+          : (showAllRoutes
+            ? routes.flatMap((route) => route.segments.map((segment) => ({ ...segment, routeId: route.id, color: route.color, kind: "route" })))
+            : activeRoute.segments.map((segment) => ({ ...segment, routeId: activeRoute.id, color: activeRoute.color, kind: "route" })));
 
-        segmentLayerEl.innerHTML = activeRoute.segments.map((segment, segmentIndex) => {
+        mapSvgEl.innerHTML = renderedSegments.map((segment) => {
           const fromNode = positions.get(segment.fromKey);
           const toNode = positions.get(segment.toKey);
           if (!fromNode || !toNode || segment.metric.source === "same-site") {
+            return "";
+          }
+          const path = buildStraightPath([fromNode, toNode]);
+          const isActiveRoute = activeRoute && activeRoute.id === segment.routeId;
+          const isCatchment = segment.kind === "catchment";
+          const baseColor = segment.color || activeRoute.color;
+          return `
+            <path
+              class="route-path${isCatchment ? " route-path-catchment" : ""}${isActiveRoute ? " is-active" : ""}"
+              d="${path}"
+              stroke="rgba(255, 255, 255, 0.9)"
+              stroke-width="${isCatchment ? 6 : 12}"
+              opacity="${showAllRoutes ? (isCatchment ? 0.34 : 0.88) : 0.96}"
+            ></path>
+            <path
+              class="route-path${isCatchment ? " route-path-catchment" : ""}${isActiveRoute ? " is-active" : ""}"
+              d="${path}"
+              stroke="${baseColor}"
+              stroke-width="${isCatchment ? 3 : 6}"
+              opacity="${isCatchment ? 0.72 : 1}"
+            ></path>
+          `;
+        }).join("");
+
+        const badgeSegments = (fixedCatchmentMode ? renderedSegments : activeRoute.segments)
+          .filter((segment) => segment.kind !== "catchment" && segment.metric.source !== "same-site")
+          .filter((segment) => !fixedCatchmentMode || segment.routeId === activeRoute.id);
+
+        segmentLayerEl.innerHTML = badgeSegments.map((segment, segmentIndex) => {
+          const fromNode = positions.get(segment.fromKey);
+          const toNode = positions.get(segment.toKey);
+          if (!fromNode || !toNode) {
             return "";
           }
           const badgePosition = buildSegmentBadgePosition(fromNode, toNode, segmentIndex);
@@ -2096,16 +2358,18 @@
         nodeLayerEl.innerHTML = Array.from(positions.values()).map((node) => {
           const anchor = labelAnchor(node);
           const primaryOccurrence = node.occurrences[0];
-          const color = referenceMode
-            ? (primaryOccurrence.color || activeRoute.color)
-            : activeRoute.color;
-          const size = nodeSize(node.total, maxTotal);
+          const color = (showAllRoutes || fixedCatchmentMode)
+            ? nodeColor(node, activeRoute)
+            : (referenceMode ? (primaryOccurrence.color || activeRoute.color) : activeRoute.color);
+          const size = node.kind === "area"
+            ? Math.max(16, nodeSize(node.total, maxTotal) - 10)
+            : nodeSize(node.total, maxTotal);
           const isActive = activeNodeKey === node.key;
           const occurrenceCount = node.occurrences.length;
           return `
             <button
               type="button"
-              class="map-node ${anchor}${isActive ? " is-active" : ""}"
+              class="map-node ${node.kind === "area" ? "is-area-node " : ""}${anchor}${isActive ? " is-active" : ""}"
               style="left:${node.x}px; top:${node.y}px; --node-color:${color}; --node-size:${size}px;"
               data-node-key="${node.key}"
             >
@@ -2113,7 +2377,7 @@
               <div class="map-node-label">
                 <strong>${node.name}</strong>
                 <span>${formatNumber(node.total)} người</span>
-                <small>${occurrenceCount} lượt tuyến</small>
+                <small>${node.kind === "area" ? "địa bàn về điểm cố định" : `${occurrenceCount} lượt tuyến`}</small>
               </div>
             </button>
           `;
@@ -2347,7 +2611,7 @@
         }
         const occurrenceRows = node.occurrences.map((occurrence) => `
           <div class="detail-row">
-            <span>${occurrence.dayLabel} · ${occurrence.routeLabel} · ${occurrence.session || "Cả ngày"}</span>
+            <span>${occurrence.dayLabel} · ${occurrence.routeLabel} · ${occurrence.session || "Cả ngày"}${occurrence.hubName ? ` · về ${occurrence.hubName}` : ""}</span>
             <strong>${formatNumber(occurrence.total)} TNLS</strong>
           </div>
         `).join("");
@@ -2586,7 +2850,7 @@
             state.activeNodeKey = getPreferredRouteNodeKey(activeRoute);
           }
         }
-        const nodes = buildVisibleNodes(routes);
+        const nodes = buildVisibleNodes(routes, direction);
         renderDirectionTabs(direction);
         renderDayFilter(direction);
         renderBoard(routes, nodes);
