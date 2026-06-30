@@ -40,14 +40,16 @@ class MartyrAdnMapRouteTests(unittest.TestCase):
     def test_route_is_public(self):
         response = self.client.get('/ban-do-adn-liet-si', follow_redirects=False)
         self.assertEqual(response.status_code, 200)
-        self.assertIn('Kế hoạch thu nhận ADN 5 ngày'.encode('utf-8'), response.data)
+        self.assertIn('summary-toggle'.encode('utf-8'), response.data)
+        self.assertIn('direction-tabs'.encode('utf-8'), response.data)
         self.assertNotIn('Lăn chuột để zoom, kéo nền để di chuyển'.encode('utf-8'), response.data)
 
     def test_logged_in_user_can_open_map(self):
         self._login_session()
         response = self.client.get('/ban-do-adn-liet-si', headers={'User-Agent': self.TEST_USER_AGENT})
         self.assertEqual(response.status_code, 200)
-        self.assertIn('Kế hoạch thu nhận ADN 5 ngày'.encode('utf-8'), response.data)
+        self.assertIn('summary-toggle'.encode('utf-8'), response.data)
+        self.assertIn('direction-tabs'.encode('utf-8'), response.data)
         self.assertNotIn('Lăn chuột để zoom, kéo nền để di chuyển'.encode('utf-8'), response.data)
 
 

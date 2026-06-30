@@ -93,47 +93,11 @@
     }
 
     .page-shell.is-reference-mode {
-      width: min(1840px, calc(100% - 28px));
+      width: min(1880px, calc(100% - 28px));
       margin: 16px auto 24px;
-      padding-top: 8px;
+      padding-top: 0;
     }
 
-    .page-shell.is-reference-mode .hero-card {
-      padding: 16px 20px;
-      margin-bottom: 12px;
-    }
-
-    .page-shell.is-reference-mode .hero-kicker {
-      margin-bottom: 8px;
-      padding: 6px 10px;
-      font-size: 11px;
-    }
-
-    .page-shell.is-reference-mode h1 {
-      font-size: clamp(22px, 3vw, 28px);
-    }
-
-    .page-shell.is-reference-mode .toolbar {
-      margin-bottom: 12px;
-    }
-
-    .page-shell.is-reference-mode .workspace {
-      grid-template-columns: minmax(0, 1fr) 320px;
-      gap: 16px;
-    }
-
-    .page-shell.is-reference-mode .map-card {
-      padding: 14px;
-      top: 12px;
-    }
-
-    .page-shell.is-reference-mode .summary-card {
-      padding: 18px;
-      top: 12px;
-      max-height: calc(100vh - 28px);
-    }
-
-    .hero-card,
     .toolbar-card,
     .map-card,
     .summary-card {
@@ -142,31 +106,6 @@
       border: 1px solid rgba(255, 255, 255, 0.76);
       border-radius: 32px;
       box-shadow: var(--shadow-soft);
-    }
-
-    .hero-card {
-      position: relative;
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 18px;
-      padding: 22px 26px;
-      margin-bottom: 18px;
-      overflow: hidden;
-      background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(250, 246, 238, 0.94)),
-        var(--surface);
-    }
-
-    .hero-card::before {
-      content: "";
-      position: absolute;
-      inset: auto -80px -80px auto;
-      width: 220px;
-      height: 220px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(196, 102, 31, 0.12), transparent 68%);
-      pointer-events: none;
     }
 
     .hero-kicker {
@@ -186,31 +125,20 @@
       margin-bottom: 14px;
     }
 
-    h1 {
-      position: relative;
-      z-index: 1;
-      margin: 0;
-      font-size: clamp(26px, 3.8vw, 36px);
-      line-height: 1.05;
-      letter-spacing: -0.03em;
-      font-family: "SF Pro Display", "Avenir Next", "IBM Plex Sans", sans-serif;
-      font-weight: 800;
-    }
-
-    .toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 14px;
-      align-items: center;
-      margin-bottom: 18px;
-    }
-
     .toolbar-card {
       display: inline-flex;
       align-items: center;
       gap: 8px;
       padding: 9px;
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 244, 236, 0.9));
+    }
+
+    #direction-tabs,
+    #day-filter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
     }
 
     .segmented-button,
@@ -223,8 +151,8 @@
     }
 
     .segmented-button {
-      min-width: 176px;
-      padding: 12px 14px;
+      min-width: 148px;
+      padding: 10px 14px;
       background: transparent;
       color: var(--ink-700);
       text-align: left;
@@ -237,15 +165,12 @@
     }
 
     .segmented-button strong {
-      font-size: 15px;
+      font-size: 14px;
       font-family: "SF Pro Display", "Avenir Next", "IBM Plex Sans", sans-serif;
     }
 
     .segmented-button span {
-      margin-top: 3px;
-      color: var(--ink-500);
-      font-size: 12px;
-      line-height: 1.4;
+      display: none;
     }
 
     .segmented-button.is-active {
@@ -263,10 +188,10 @@
     }
 
     .day-chip {
-      padding: 11px 16px;
+      padding: 10px 14px;
       background: rgba(255, 255, 255, 0.84);
       color: var(--ink-700);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 800;
       letter-spacing: 0.02em;
       box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
@@ -279,29 +204,17 @@
     }
 
     .workspace {
-      display: grid;
-      grid-template-columns: minmax(0, 1.95fr) minmax(360px, 0.62fr);
-      gap: 18px;
-      align-items: start;
+      position: relative;
+      display: block;
     }
 
     .map-card {
       padding: 18px;
-      position: sticky;
-      top: 22px;
-    }
-
-    .summary-card {
-      padding: 20px;
-      position: sticky;
-      top: 22px;
-      max-height: calc(100vh - 54px);
-      overflow: auto;
     }
 
     .map-stage {
       position: relative;
-      min-height: 920px;
+      min-height: 980px;
       border-radius: 28px;
       overflow: hidden;
       user-select: none;
@@ -316,7 +229,7 @@
     }
 
     .map-stage.is-reference-mode {
-      min-height: 560px;
+      min-height: 980px;
     }
 
     .map-stage::before {
@@ -335,12 +248,27 @@
       cursor: grabbing;
     }
 
-    .map-toolbar {
+    .map-hud {
       position: absolute;
       top: 16px;
       left: 16px;
+      right: 16px;
       z-index: 6;
       display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .map-switch-stack {
+      display: grid;
+      gap: 8px;
+      width: fit-content;
+      max-width: min(760px, calc(100% - 80px));
+    }
+
+    .map-toolbar {
+      display: inline-flex;
       align-items: center;
       gap: 10px;
       padding: 10px 10px;
@@ -351,15 +279,21 @@
       backdrop-filter: blur(14px);
     }
 
-    .map-stage.is-reference-mode .map-toolbar {
-      opacity: 0;
-      pointer-events: none;
-    }
-
     .map-toolbar-group {
       display: inline-flex;
       align-items: center;
       gap: 8px;
+    }
+
+    .map-overlay-card {
+      width: fit-content;
+      max-width: 100%;
+      padding: 8px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(226, 232, 240, 0.88);
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+      backdrop-filter: blur(14px);
     }
 
     .map-control {
@@ -393,6 +327,30 @@
       font-weight: 800;
       letter-spacing: 0.02em;
       text-align: center;
+    }
+
+    .summary-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      border: 0;
+      border-radius: 16px;
+      background: rgba(15, 23, 42, 0.92);
+      color: #fff;
+      font-size: 24px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 14px 28px rgba(15, 23, 42, 0.18);
+      transition: transform 0.16s ease, background 0.16s ease;
+    }
+
+    .summary-toggle:hover,
+    .summary-toggle:focus-visible {
+      background: rgba(15, 23, 42, 0.98);
+      transform: translateY(-1px);
+      outline: none;
     }
 
     .map-viewport {
@@ -628,6 +586,53 @@
       color: var(--ink-900);
     }
 
+    .summary-drawer {
+      position: fixed;
+      top: 86px;
+      right: 20px;
+      z-index: 22;
+      width: min(380px, calc(100vw - 28px));
+      max-height: calc(100vh - 108px);
+      transform: translateX(calc(100% + 24px));
+      transition: transform 0.22s ease;
+      pointer-events: none;
+    }
+
+    .summary-drawer.is-open {
+      transform: translateX(0);
+      pointer-events: auto;
+    }
+
+    .summary-drawer-shell {
+      display: grid;
+      gap: 10px;
+      height: 100%;
+    }
+
+    .summary-drawer-head {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .summary-close {
+      width: 42px;
+      height: 42px;
+      border: 0;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.96);
+      color: var(--ink-900);
+      font-size: 22px;
+      cursor: pointer;
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.1);
+    }
+
+    .summary-card {
+      padding: 18px;
+      max-height: calc(100vh - 162px);
+      overflow: auto;
+      background: rgba(255, 255, 255, 0.97);
+    }
+
     .summary-head {
       display: grid;
       gap: 10px;
@@ -835,13 +840,10 @@
     }
 
     @media (max-width: 1080px) {
-      .workspace {
-        grid-template-columns: 1fr;
-      }
-
-      .map-card,
-      .summary-card {
-        position: static;
+      .summary-drawer {
+        top: 78px;
+        right: 14px;
+        width: min(360px, calc(100vw - 20px));
       }
     }
 
@@ -855,32 +857,48 @@
       .page-shell {
         width: min(100% - 20px, 100%);
         margin: 16px auto 20px;
-        padding-top: 42px;
+        padding-top: 54px;
       }
 
-      .hero-card,
       .toolbar-card,
       .map-card,
       .summary-card {
         border-radius: 24px;
       }
 
-      .hero-card,
       .summary-card {
         padding: 18px;
       }
 
       .map-stage {
-        min-height: 700px;
+        min-height: 820px;
+      }
+
+      .map-hud {
+        right: 12px;
+        left: 12px;
+        gap: 12px;
+      }
+
+      .map-switch-stack {
+        max-width: calc(100% - 62px);
       }
 
       .map-toolbar {
         top: 12px;
-        left: 12px;
-        right: 12px;
         width: auto;
-        justify-content: space-between;
         flex-wrap: wrap;
+      }
+
+      .summary-drawer {
+        top: 74px;
+        right: 10px;
+        width: calc(100vw - 20px);
+        max-height: calc(100vh - 92px);
+      }
+
+      .summary-card {
+        max-height: calc(100vh - 146px);
       }
     }
   </style>
@@ -891,25 +909,26 @@
   </a>
 
   <main class="page-shell">
-    <section class="hero-card">
-      <div class="hero-kicker">{{ pc06_shell_label or 'PhanMemPC06_Pro' }}</div>
-      <h1>Kế hoạch thu nhận ADN 5 ngày</h1>
-    </section>
-
-    <section class="toolbar">
-      <div class="toolbar-card" id="direction-tabs"></div>
-      <div class="day-filter" id="day-filter"></div>
-    </section>
-
     <section class="workspace">
       <div class="map-card">
         <div class="map-stage" id="map-stage">
-          <div class="map-toolbar">
-            <div class="map-toolbar-group">
-              <button type="button" class="map-control" id="zoom-out-button" aria-label="Thu nhỏ">-</button>
-              <div class="map-status" id="map-status">100%</div>
-              <button type="button" class="map-control" id="zoom-in-button" aria-label="Phóng to">+</button>
-              <button type="button" class="map-control" id="reset-view-button" aria-label="Đặt lại góc nhìn">↺</button>
+          <div class="map-hud">
+            <div class="map-switch-stack">
+              <div class="map-overlay-card">
+                <div id="direction-tabs"></div>
+              </div>
+              <div class="map-overlay-card">
+                <div class="day-filter" id="day-filter"></div>
+              </div>
+            </div>
+            <div class="map-toolbar">
+              <div class="map-toolbar-group">
+                <button type="button" class="map-control" id="zoom-out-button" aria-label="Thu nhỏ">-</button>
+                <div class="map-status" id="map-status">100%</div>
+                <button type="button" class="map-control" id="zoom-in-button" aria-label="Phóng to">+</button>
+                <button type="button" class="map-control" id="reset-view-button" aria-label="Đặt lại góc nhìn">↺</button>
+              </div>
+              <button type="button" class="summary-toggle" id="summary-toggle" aria-label="Mở thông tin">☰</button>
             </div>
           </div>
           <div class="map-viewport" id="map-viewport">
@@ -920,8 +939,15 @@
           <div class="map-note" id="map-note"></div>
         </div>
       </div>
-      <aside class="summary-card" id="summary-panel"></aside>
     </section>
+    <aside class="summary-drawer" id="summary-drawer">
+      <div class="summary-drawer-shell">
+        <div class="summary-drawer-head">
+          <button type="button" class="summary-close" id="summary-close" aria-label="Đóng thông tin">×</button>
+        </div>
+        <section class="summary-card" id="summary-panel"></section>
+      </div>
+    </aside>
   </main>
 
   <script src="{{ url_for('static', filename='js/martyr-adn-schedule-data.js') }}"></script>
@@ -956,6 +982,23 @@
         "Hoàng Su Phì": 60,
         "Pà Vầy Sủ": 64
       };
+      const FIXED_REFERENCE_POSITIONS = {
+        "Pà Vầy Sủ": { x: 150, y: 360 },
+        "Hoàng Su Phì": { x: 360, y: 344 },
+        "Quang Bình": { x: 470, y: 620 },
+        "Hà Giang 2": { x: 770, y: 425 },
+        "Bắc Mê": { x: 1205, y: 470 },
+        "Quản Bạ": { x: 820, y: 145 },
+        "Yên Minh": { x: 1090, y: 145 },
+        "Đồng Văn": { x: 1195, y: 52 },
+        "Mèo Vạc": { x: 1330, y: 82 },
+        "Bắc Quang": { x: 760, y: 660 },
+        "Lâm Bình": { x: 1185, y: 605 },
+        "Chiêm Hóa": { x: 1260, y: 805 },
+        "Minh Xuân": { x: 1080, y: 804 },
+        "Xuân Vân": { x: 1200, y: 720 },
+        "Sơn Dương": { x: 1360, y: 850 }
+      };
       const STAGE_WIDTH = 1400;
       const STAGE_HEIGHT = 900;
       const directionTabsEl = document.getElementById("direction-tabs");
@@ -972,6 +1015,9 @@
       const zoomInButtonEl = document.getElementById("zoom-in-button");
       const zoomOutButtonEl = document.getElementById("zoom-out-button");
       const resetViewButtonEl = document.getElementById("reset-view-button");
+      const summaryDrawerEl = document.getElementById("summary-drawer");
+      const summaryToggleEl = document.getElementById("summary-toggle");
+      const summaryCloseEl = document.getElementById("summary-close");
 
       const state = {
         directionId: data.directions[0].id,
@@ -983,6 +1029,7 @@
           translateX: 0,
           translateY: 0
         },
+        summaryOpen: false,
         shouldAutoFit: true
       };
 
@@ -1091,7 +1138,8 @@
           const button = document.createElement("button");
           button.type = "button";
           button.className = "segmented-button" + (item.id === direction.id ? " is-active" : "");
-          button.innerHTML = `<strong>${item.label}</strong><span>${item.shortLabel || ""}</span>`;
+          button.title = item.shortLabel || item.label;
+          button.innerHTML = `<strong>${item.label}</strong>`;
           button.addEventListener("click", () => {
             if (state.directionId === item.id) {
               return;
@@ -1476,6 +1524,83 @@
         }]));
       }
 
+      function buildReferencePositions(nodes) {
+        const fallback = [];
+        const positions = new Map();
+        Array.from(nodes.values()).forEach((node) => {
+          const preset = FIXED_REFERENCE_POSITIONS[node.name];
+          if (!preset) {
+            fallback.push(node);
+            return;
+          }
+          positions.set(node.key, {
+            ...node,
+            x: preset.x,
+            y: preset.y
+          });
+        });
+
+        fallback.forEach((node, index) => {
+          positions.set(node.key, {
+            ...node,
+            x: 180 + (index % 4) * 180,
+            y: 180 + Math.floor(index / 4) * 140
+          });
+        });
+        return positions;
+      }
+
+      function buildSchematicRoutePositions(route, routeNodes) {
+        const uniqueNodes = [];
+        const seen = new Set();
+        route.points.forEach((point) => {
+          if (seen.has(point.key) || !routeNodes.has(point.key)) {
+            return;
+          }
+          seen.add(point.key);
+          uniqueNodes.push(routeNodes.get(point.key));
+        });
+
+        if (!uniqueNodes.length) {
+          return new Map();
+        }
+
+        const positions = new Map();
+        const total = uniqueNodes.length;
+        const cols = total <= 4 ? total : total <= 8 ? 4 : total <= 12 ? 4 : 5;
+        const rows = Math.max(1, Math.ceil(total / cols));
+        const startX = 150;
+        const endX = STAGE_WIDTH - 170;
+        const usableWidth = Math.max(260, endX - startX);
+        const colGap = cols === 1 ? 0 : usableWidth / (cols - 1);
+        const rowGap = rows === 1 ? 0 : Math.min(205, Math.max(140, (STAGE_HEIGHT - 300) / Math.max(1, rows - 1)));
+        const startY = rows === 1 ? STAGE_HEIGHT / 2 : 190;
+
+        uniqueNodes.forEach((node, index) => {
+          const row = Math.floor(index / cols);
+          const col = index % cols;
+          const visualCol = row % 2 === 0 ? col : cols - 1 - col;
+          const wave = ((visualCol % 2 === 0) ? -1 : 1) * 18;
+          positions.set(node.key, {
+            ...node,
+            x: startX + visualCol * colGap,
+            y: startY + row * rowGap + wave
+          });
+        });
+
+        return positions;
+      }
+
+      function buildBoardPositions(direction, routeNodes, activeRoute, referenceMode) {
+        if (referenceMode || direction.id === "co-dinh") {
+          if (referenceMode) {
+            return buildReferencePositions(routeNodes);
+          }
+          return buildSchematicRoutePositions(activeRoute, routeNodes);
+        }
+        return buildSchematicRoutePositions(activeRoute, routeNodes);
+      }
+
       function buildStraightPath(points) {
         if (points.length < 2) {
           return "";
@@ -1487,7 +1612,7 @@
         return path;
       }
 
-      function buildSegmentBadgePosition(fromNode, toNode) {
+      function buildSegmentBadgePosition(fromNode, toNode, segmentIndex = 0) {
         const midX = (fromNode.x + toNode.x) / 2;
         const midY = (fromNode.y + toNode.y) / 2;
         const deltaX = toNode.x - fromNode.x;
@@ -1495,7 +1620,7 @@
         const distance = Math.hypot(deltaX, deltaY) || 1;
         const normalX = -deltaY / distance;
         const normalY = deltaX / distance;
-        const offset = 24;
+        const offset = segmentIndex % 2 === 0 ? 28 : -28;
         return {
           x: midX + normalX * offset,
           y: midY + normalY * offset
@@ -1645,6 +1770,23 @@
         });
       }
 
+      function initializeSummaryDrawer() {
+        if (summaryDrawerEl.dataset.drawerReady === "true") {
+          return;
+        }
+        summaryDrawerEl.dataset.drawerReady = "true";
+
+        summaryToggleEl.addEventListener("click", () => {
+          state.summaryOpen = !state.summaryOpen;
+          summaryDrawerEl.classList.toggle("is-open", state.summaryOpen);
+        });
+
+        summaryCloseEl.addEventListener("click", () => {
+          state.summaryOpen = false;
+          summaryDrawerEl.classList.remove("is-open");
+        });
+      }
+
       function labelAnchor(node) {
         if (node.x > STAGE_WIDTH - 260) {
           return "anchor-left";
@@ -1690,11 +1832,7 @@
         if (activeNodeKey && state.activeNodeKey !== activeNodeKey) {
           state.activeNodeKey = activeNodeKey;
         }
-        const positions = projectNodes(routeNodes, referenceMode ? {
-          avoidCollisions: false,
-          paddingX: 135,
-          paddingY: 92
-        } : {});
+        const positions = buildBoardPositions(direction, routeNodes, activeRoute, referenceMode);
         const maxTotal = Math.max(...Array.from(routeNodes.values()).map((node) => node.total), 0);
 
         const visibleRoutes = referenceMode ? routes : [activeRoute];
@@ -1727,13 +1865,13 @@
           }).join("");
         }).join("");
 
-        segmentLayerEl.innerHTML = referenceMode ? "" : activeRoute.segments.map((segment) => {
+        segmentLayerEl.innerHTML = activeRoute.segments.map((segment, segmentIndex) => {
           const fromNode = positions.get(segment.fromKey);
           const toNode = positions.get(segment.toKey);
           if (!fromNode || !toNode || segment.metric.source === "same-site") {
             return "";
           }
-          const badgePosition = buildSegmentBadgePosition(fromNode, toNode);
+          const badgePosition = buildSegmentBadgePosition(fromNode, toNode, segmentIndex);
           const metricText = `${formatNumber(segment.metric.distance_km)} km · ${formatNumber(segment.metric.travel_minutes)} phút`;
           return `
             <div class="segment-badge" style="left:${badgePosition.x}px; top:${badgePosition.y}px; border-color:${activeRoute.color}; box-shadow:0 14px 28px rgba(15, 23, 42, 0.12), inset 0 0 0 1px ${activeRoute.color};">
@@ -1772,6 +1910,8 @@
         nodeLayerEl.querySelectorAll("[data-node-key]").forEach((button) => {
           button.addEventListener("click", () => {
             state.activeNodeKey = button.getAttribute("data-node-key");
+            state.summaryOpen = true;
+            summaryDrawerEl.classList.add("is-open");
             render();
           });
         });
@@ -1889,6 +2029,7 @@
         }
         const activeNode = nodes.get(state.activeNodeKey) || (activeRoute ? nodes.get(getPreferredRouteNodeKey(activeRoute)) : null);
         const directionTotal = Array.from(nodes.values()).reduce((sum, node) => sum + Number(node.total || 0), 0);
+        summaryDrawerEl.classList.toggle("is-open", state.summaryOpen);
 
         if (referenceMode) {
           summaryPanelEl.innerHTML = `
@@ -1932,6 +2073,7 @@
               state.activeRouteId = button.getAttribute("data-route-id");
               const nextRoute = routes.find((route) => route.id === state.activeRouteId);
               state.activeNodeKey = getPreferredRouteNodeKey(nextRoute);
+              state.summaryOpen = true;
               state.shouldAutoFit = true;
               render();
             });
@@ -1980,6 +2122,7 @@
             state.activeRouteId = button.getAttribute("data-route-id");
             const nextRoute = routes.find((route) => route.id === state.activeRouteId);
             state.activeNodeKey = getPreferredRouteNodeKey(nextRoute);
+            state.summaryOpen = true;
             state.shouldAutoFit = true;
             render();
           });
@@ -2063,6 +2206,7 @@
       }
 
       initializeViewportControls();
+      initializeSummaryDrawer();
       updateViewport();
       render();
       window.setInterval(() => {
