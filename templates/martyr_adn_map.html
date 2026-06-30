@@ -1068,70 +1068,87 @@
       color: #b45309;
     }
 
-    /* ── Weather / Terrain Panel ─────────────────────── */
+    /* ── Weather / Traffic Panel ─────────────────────── */
     .enviro-panel {
-      background: linear-gradient(135deg, #0f1729 0%, #1e293b 100%);
-      border-radius: 14px;
-      padding: 16px 16px 12px;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 14px 16px 12px;
       margin-bottom: 18px;
-      color: #f8fafc;
-      border: 1px solid rgba(148,163,184,0.15);
+      border: 1.5px solid #e2e8f0;
+      box-shadow: 0 1px 6px rgba(15,23,42,0.06);
     }
     .enviro-panel-title {
       font-size: 11px;
       font-weight: 800;
-      letter-spacing: 1.2px;
+      letter-spacing: 1px;
       text-transform: uppercase;
-      color: #94a3b8;
+      color: #64748b;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .enviro-weather-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
       margin-bottom: 12px;
     }
-    .enviro-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
     .enviro-card {
-      background: rgba(255,255,255,0.06);
-      border-radius: 10px;
-      padding: 10px 12px;
-      border: 1px solid rgba(255,255,255,0.08);
+      background: #f8fafc;
+      border-radius: 9px;
+      padding: 9px 10px;
+      border: 1px solid #e8edf3;
+      text-align: center;
     }
     .enviro-card-label {
-      font-size: 10px;
+      font-size: 9.5px;
       color: #94a3b8;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.8px;
-      margin-bottom: 5px;
+      letter-spacing: 0.6px;
+      margin-bottom: 4px;
     }
     .enviro-card-value {
-      font-size: 17px;
+      font-size: 15px;
       font-weight: 800;
-      color: #f1f5f9;
+      color: #1e293b;
       line-height: 1.1;
     }
     .enviro-card-sub {
-      font-size: 10.5px;
-      color: #64748b;
-      margin-top: 3px;
+      font-size: 9.5px;
+      color: #94a3b8;
+      margin-top: 2px;
     }
+    /* Traffic alert row */
     .enviro-alert {
-      margin-top: 10px;
       padding: 8px 12px;
       border-radius: 8px;
       font-size: 12px;
       font-weight: 700;
       display: flex;
-      align-items: center;
-      gap: 8px;
+      align-items: flex-start;
+      gap: 7px;
+      margin-bottom: 6px;
+      line-height: 1.45;
     }
-    .enviro-alert.level-safe { background: rgba(22,163,74,0.15); color: #4ade80; border: 1px solid rgba(22,163,74,0.3); }
-    .enviro-alert.level-watch { background: rgba(234,179,8,0.15); color: #fde047; border: 1px solid rgba(234,179,8,0.3); }
-    .enviro-alert.level-warning { background: rgba(249,115,22,0.15); color: #fb923c; border: 1px solid rgba(249,115,22,0.3); }
-    .enviro-alert.level-danger { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .enviro-alert-icon { flex-shrink: 0; font-size: 14px; margin-top: 1px; }
+    .enviro-alert-text { flex: 1; }
+    .enviro-alert.level-safe    { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .enviro-alert.level-watch   { background: #fefce8; color: #854d0e; border: 1px solid #fde68a; }
+    .enviro-alert.level-warning { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
+    .enviro-alert.level-danger  { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .enviro-section-label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.7px;
+      text-transform: uppercase;
+      color: #94a3b8;
+      margin: 10px 0 6px;
+    }
     .enviro-pending {
       text-align: center;
-      color: #475569;
+      color: #94a3b8;
       font-size: 12px;
       padding: 10px 0;
       font-style: italic;
@@ -1448,7 +1465,7 @@
                 <div class="map-status" id="map-status">100%</div>
                 <button type="button" class="map-control" id="zoom-in-button" aria-label="Phóng to">+</button>
                 <button type="button" class="map-control" id="reset-view-button" aria-label="Đặt lại góc nhìn">↺</button>
-                <span style="font-size: 11px; opacity: 0.6; margin-left: 8px; font-weight: 600; font-family: var(--font-display);">v3.9.0</span>
+                <span style="font-size: 11px; opacity: 0.6; margin-left: 8px; font-weight: 600; font-family: var(--font-display);">v3.9.1</span>
 
               </div>
               <button type="button" class="summary-toggle" id="summary-toggle" aria-label="Mở thông tin">☰</button>
@@ -3862,6 +3879,57 @@
         </div>`;
       }
 
+      function buildTrafficAdvisories(w, elevation_m) {
+        // Generate traffic advisories based on weather + terrain
+        const advisories = [];
+        if (!w) {
+          advisories.push({ level: 'watch', icon: '🔶', text: 'Chưa có dữ liệu dự báo — Theo dõi thông tin trước khi xuất phát.' });
+          return advisories;
+        }
+        const isMountain = elevation_m != null && elevation_m >= 500;
+        const isHighMountain = elevation_m != null && elevation_m >= 1000;
+
+        // Thunder & lightning
+        if (w.code >= 95) {
+          advisories.push({ level: 'danger', icon: '⚡', text: 'Dông sét — Nguy hiểm cao. Tránh các tuyến đèo, khu vực trống trải. Hạn chế di chuyển khi có sấm sét.' });
+        }
+        // Heavy rain
+        if (w.rain_mm >= 50) {
+          advisories.push({ level: 'danger', icon: '🌊', text: `Mưa rất lớn (${w.rain_mm}mm) — Nguy cơ ngập đường, lũ quét, sạt lở đất cao. Kiểm tra cảnh báo lũ lụt tại nchmf.gov.vn trước khi đi.` });
+        } else if (w.rain_mm >= 25) {
+          advisories.push({ level: 'warning', icon: '🌧', text: `Mưa lớn (${w.rain_mm}mm) — Đường trơn, tầm nhìn hạn chế. Giảm tốc độ, bật đèn. Chú ý biển báo sạt lở ven đường.` });
+        } else if (w.rain_mm >= 10) {
+          advisories.push({ level: 'watch', icon: '🌦', text: `Mưa vừa (${w.rain_mm}mm) — Mặt đường ẩm ướt, trơn trượt. Giữ khoảng cách an toàn, giảm tốc độ 20–30%.` });
+        } else if (w.rain_mm >= 2) {
+          advisories.push({ level: 'watch', icon: '🌂', text: `Mưa nhẹ (${w.rain_mm}mm) — Chú ý mặt đường ướt, đặc biệt các đoạn cua tay áo vùng núi.` });
+        }
+        // Strong wind
+        if (w.wind_kmh >= 50) {
+          advisories.push({ level: 'danger', icon: '💨', text: `Gió rất mạnh (${w.wind_kmh}km/h, cấp ${w.wind_kmh < 62 ? '7' : '≥8'}) — Nguy hiểm với xe tải, xe máy trên đèo. Dừng lại nơi an toàn khi gió giật mạnh.` });
+        } else if (w.wind_kmh >= 30) {
+          advisories.push({ level: 'warning', icon: '🌬', text: `Gió mạnh (${w.wind_kmh}km/h, cấp ${w.wind_kmh < 40 ? '4–5' : '5–6'}) — Chú ý xe máy, xe tải nhẹ dễ bị ảnh hưởng, đặc biệt trên các đèo cao.` });
+        }
+        // Fog
+        if (w.code >= 45 && w.code <= 48) {
+          advisories.push({ level: 'warning', icon: '🌫', text: 'Sương mù dày — Tầm nhìn dưới 200m. Bật đèn sương mù, giảm tốc độ tối thiểu. Đặc biệt nguy hiểm trên đèo Bắc Sum, đèo Gió (Bắc Mê, Hà Giang).' });
+        }
+        // Humidity risk (slippery roads)
+        if (w.humidity != null && w.humidity >= 90 && isMountain) {
+          advisories.push({ level: 'watch', icon: '💧', text: `Độ ẩm rất cao (${w.humidity}%) — Mặt đường đèo núi dễ đọng ẩm, trơn trượt. Chú ý đoạn bóng cây, cua khuất.` });
+        }
+        // Mountain-specific general advisory
+        if (isMountain && advisories.length === 0) {
+          advisories.push({ level: 'safe', icon: '✅', text: 'Thời tiết thuận lợi — Đường đèo núi thông thoáng. Vẫn chú ý an toàn trên các đoạn cua tay áo và dốc dài.' });
+        } else if (!isMountain && advisories.length === 0) {
+          advisories.push({ level: 'safe', icon: '✅', text: 'Thời tiết tốt — Điều kiện giao thông thuận lợi. Tuân thủ tốc độ quy định.' });
+        }
+        // Landslide risk for mountain areas with rain
+        if (isMountain && w.rain_mm >= 15) {
+          advisories.push({ level: isHighMountain ? 'danger' : 'warning', icon: '🪨', text: `Nguy cơ sạt lở đường núi — Chú ý biển cảnh báo. Tham khảo cảnh báo PCTT tại phongchongthientai.vn.` });
+        }
+        return advisories;
+      }
+
       async function hydrateEnviro(routes) {
         // Collect all unique points (lat/lng/isoDate)
         const seen = new Set();
@@ -3873,64 +3941,60 @@
             seen.add(key);
             tasks.push((async () => {
               const data = await resolveEnviroDetail(point.lat, point.lng, point.isoDate);
-              // Update all matching placeholder divs in the DOM
               document.querySelectorAll(`[data-enviro-key="${key}"]`).forEach(el => {
-                if (!data) { el.innerHTML = `<div class="enviro-panel-title">🌍 Địa hình · Thời tiết · Cảnh báo</div><div class="enviro-pending">Không lấy được dữ liệu</div>`; return; }
-                const terrain = terrainDescription(data.elevation_m);
+                if (!data) {
+                  el.innerHTML = `<div class="enviro-panel-title">🚦 Thời tiết &amp; Giao thông</div><div class="enviro-pending">Không lấy được dữ liệu</div>`;
+                  return;
+                }
                 const w = data.weather;
-                let alertHtml = '';
-                let gridHtml = '';
+
+                // Weather summary row
+                let weatherRowHtml = '';
                 if (w) {
-                  const alert = weatherDisasterLevel(w.rain_mm, w.wind_kmh, w.code);
-                  alertHtml = `<div class="enviro-alert level-${alert.level}">${alert.icon} ${alert.label}</div>`;
-                  gridHtml = `
-                    <div class="enviro-grid">
+                  weatherRowHtml = `
+                    <div class="enviro-weather-row">
                       <div class="enviro-card">
                         <div class="enviro-card-label">🌡 Nhiệt độ</div>
-                        <div class="enviro-card-value">${w.minTemp}–${w.maxTemp}°C</div>
-                        <div class="enviro-card-sub">${describeWeatherCode(w.code)}</div>
+                        <div class="enviro-card-value">${w.minTemp}–${w.maxTemp}°</div>
+                        <div class="enviro-card-sub">°C</div>
                       </div>
                       <div class="enviro-card">
-                        <div class="enviro-card-label">🌧 Lượng mưa</div>
-                        <div class="enviro-card-value">${w.rain_mm} mm</div>
-                        <div class="enviro-card-sub">Tổng trong ngày</div>
+                        <div class="enviro-card-label">🌧 Mưa</div>
+                        <div class="enviro-card-value">${w.rain_mm}</div>
+                        <div class="enviro-card-sub">mm/ngày</div>
                       </div>
                       <div class="enviro-card">
-                        <div class="enviro-card-label">💨 Gió mạnh nhất</div>
-                        <div class="enviro-card-value">${w.wind_kmh} km/h</div>
-                        <div class="enviro-card-sub">Cấp ${w.wind_kmh < 20 ? '1–2' : w.wind_kmh < 40 ? '3–4' : w.wind_kmh < 60 ? '5–6' : '≥7'}</div>
+                        <div class="enviro-card-label">💨 Gió</div>
+                        <div class="enviro-card-value">${w.wind_kmh}</div>
+                        <div class="enviro-card-sub">km/h</div>
                       </div>
                       <div class="enviro-card">
-                        <div class="enviro-card-label">💧 Độ ẩm TB</div>
-                        <div class="enviro-card-value">${w.humidity != null ? w.humidity + '%' : '—'}</div>
-                        <div class="enviro-card-sub">Trung bình cả ngày</div>
-                      </div>
-                      <div class="enviro-card">
-                        <div class="enviro-card-label">⛰ Độ cao</div>
-                        <div class="enviro-card-value">${terrain.label}</div>
-                        <div class="enviro-card-sub">${terrain.type}</div>
-                      </div>
-                      <div class="enviro-card">
-                        <div class="enviro-card-label">🛣 Địa hình</div>
-                        <div class="enviro-card-value" style="font-size:12px; margin-top:2px;">${terrain.type}</div>
-                        <div class="enviro-card-sub">${data.elevation_m != null ? 'So mực nước biển' : 'Không rõ'}</div>
+                        <div class="enviro-card-label">💧 Độ ẩm</div>
+                        <div class="enviro-card-value">${w.humidity != null ? w.humidity : '—'}</div>
+                        <div class="enviro-card-sub">${w.humidity != null ? '%' : ''}</div>
                       </div>
                     </div>
-                    ${alertHtml}
+                    <div class="enviro-card-sub" style="margin-bottom:8px; color:#64748b;">${describeWeatherCode(w.code)}</div>
                   `;
                 } else {
-                  gridHtml = `
-                    <div class="enviro-grid">
-                      <div class="enviro-card">
-                        <div class="enviro-card-label">⛰ Độ cao</div>
-                        <div class="enviro-card-value">${terrain.label}</div>
-                        <div class="enviro-card-sub">${terrain.type}</div>
-                      </div>
-                    </div>
-                    <div class="enviro-alert level-watch" style="margin-top:8px;">🔶 Chưa có dự báo thời tiết cho ngày này</div>
-                  `;
+                  weatherRowHtml = `<div class="enviro-pending">⏳ Ngoài cửa sổ dự báo 16 ngày</div>`;
                 }
-                el.innerHTML = `<div class="enviro-panel-title">🌍 Địa hình · Thời tiết · Cảnh báo</div>${gridHtml}`;
+
+                // Traffic advisories
+                const advisories = buildTrafficAdvisories(w, data.elevation_m);
+                const advisoriesHtml = advisories.map(a => `
+                  <div class="enviro-alert level-${a.level}">
+                    <span class="enviro-alert-icon">${a.icon}</span>
+                    <span class="enviro-alert-text">${a.text}</span>
+                  </div>
+                `).join('');
+
+                el.innerHTML = `
+                  <div class="enviro-panel-title">🚦 Thời tiết &amp; Cảnh báo giao thông</div>
+                  ${weatherRowHtml}
+                  <div class="enviro-section-label">🛣 Khuyến cáo an toàn giao thông</div>
+                  ${advisoriesHtml}
+                `;
               });
             })());
           });
