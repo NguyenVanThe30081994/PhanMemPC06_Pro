@@ -270,10 +270,25 @@
     }
 
     .map-switch-stack {
-      display: grid;
-      gap: 8px;
       width: fit-content;
-      max-width: min(760px, calc(100% - 80px));
+      max-width: min(1180px, calc(100% - 80px));
+    }
+
+    .map-filter-card {
+      padding: 10px;
+    }
+
+    .map-filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .filter-divider {
+      width: 1px;
+      align-self: stretch;
+      background: rgba(226, 232, 240, 0.92);
     }
 
     .map-toolbar {
@@ -474,14 +489,15 @@
       position: absolute;
       min-width: max-content;
       max-width: 210px;
-      padding: 0;
-      border-radius: 0;
-      background: transparent;
-      border: 0;
-      box-shadow: none;
+      padding: 7px 10px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(226, 232, 240, 0.78);
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.07);
       color: var(--ink-900);
       text-align: left;
       pointer-events: none;
+      backdrop-filter: blur(10px);
     }
 
     .map-node-label strong,
@@ -491,32 +507,42 @@
     }
 
     .map-node-label strong {
-      font-size: 15px;
+      font-size: 14px;
       line-height: 1.14;
       letter-spacing: -0.02em;
       font-family: var(--font-display);
-      text-shadow: 0 2px 8px rgba(255, 255, 255, 0.98);
     }
 
     .map-node-label span {
-      margin-top: 4px;
+      margin-top: 3px;
       color: var(--ink-700);
       font-size: 11px;
       font-weight: 900;
-      text-shadow: 0 2px 8px rgba(255, 255, 255, 0.98);
     }
 
     .map-node-label small {
-      margin-top: 6px;
+      margin-top: 5px;
       color: var(--ink-500);
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       line-height: 1.35;
-      text-shadow: 0 2px 8px rgba(255, 255, 255, 0.98);
     }
 
     .map-node:not(.is-active) .map-node-label small {
       display: none;
+    }
+
+    .map-node.is-area-node .map-node-label {
+      padding: 5px 8px;
+      max-width: 160px;
+    }
+
+    .map-node.is-area-node .map-node-label strong {
+      font-size: 12px;
+    }
+
+    .map-node.is-area-node .map-node-label span {
+      font-size: 10px;
     }
 
     .map-node.is-active .map-node-label {
@@ -645,16 +671,22 @@
 
     .summary-head {
       display: grid;
-      gap: 10px;
+      gap: 8px;
     }
 
     .summary-head h2 {
       margin: 0;
-      font-size: 26px;
+      font-size: 24px;
       line-height: 1.02;
       letter-spacing: -0.03em;
       font-family: var(--font-display);
       font-weight: 800;
+    }
+
+    .summary-context {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
     }
 
     .summary-blocks {
@@ -982,6 +1014,10 @@
       gap: 8px;
     }
 
+    .detail-copy-grid.is-two-col {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .detail-copy-block {
       display: grid;
       gap: 4px;
@@ -1027,6 +1063,34 @@
       font-size: 12px;
       font-weight: 700;
       line-height: 1.45;
+    }
+
+    .metric-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      width: fit-content;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(196, 102, 31, 0.1);
+      color: #9a5f1d;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .detail-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .detail-emphasis {
+      padding: 14px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 244, 236, 0.92));
+      border: 1px solid rgba(226, 232, 240, 0.82);
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
     }
 
     @media (max-width: 1080px) {
@@ -1080,6 +1144,14 @@
         flex-wrap: wrap;
       }
 
+      .filter-divider {
+        display: none;
+      }
+
+      .detail-copy-grid.is-two-col {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
       .summary-drawer {
         top: 74px;
         right: 10px;
@@ -1104,11 +1176,12 @@
         <div class="map-stage" id="map-stage">
           <div class="map-hud">
             <div class="map-switch-stack">
-              <div class="map-overlay-card">
-                <div id="direction-tabs"></div>
-              </div>
-              <div class="map-overlay-card">
-                <div class="day-filter" id="day-filter"></div>
+              <div class="map-overlay-card map-filter-card">
+                <div class="map-filter-bar">
+                  <div id="direction-tabs"></div>
+                  <div class="filter-divider"></div>
+                  <div class="day-filter" id="day-filter"></div>
+                </div>
               </div>
             </div>
             <div class="map-toolbar">
@@ -1142,10 +1215,12 @@
 
   <script src="{{ url_for('static', filename='js/martyr-adn-schedule-data.js') }}"></script>
   <script src="{{ url_for('static', filename='js/martyr-adn-route-metrics.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/martyr-adn-catchment-metrics.js') }}"></script>
   <script>
     (() => {
       const data = window.ADN_SCHEDULE_DATA;
       const routeMetrics = window.ADN_ROUTE_METRICS || {};
+      const catchmentMetrics = window.ADN_CATCHMENT_METRICS || {};
       const TRACK_COLORS = ["#c4661f", "#325fd8", "#167b73"];
       const DAY_COLORS = ["#c4661f", "#325fd8", "#167b73", "#7c3aed", "#dc2626"];
       const STAGE_WIDTH = 1400;
@@ -1209,6 +1284,10 @@
         return `${name}|${Number(lat).toFixed(6)}|${Number(lng).toFixed(6)}`;
       }
 
+      function buildCatchmentMetricKey(areaName, hubName) {
+        return `${normalizePlaceName(areaName)}=>${normalizePlaceName(hubName)}`.toLowerCase();
+      }
+
       function buildRouteMetricKey(origin, destination) {
         return `${Number(origin.lat).toFixed(6)}|${Number(origin.lng).toFixed(6)}|${Number(destination.lat).toFixed(6)}|${Number(destination.lng).toFixed(6)}`;
       }
@@ -1219,6 +1298,28 @@
 
       function buildWeatherKey(lat, lng, isoDate) {
         return `${buildCoordKey(lat, lng)}|${isoDate}`;
+      }
+
+      function getCatchmentMetric(areaName, hubName) {
+        return catchmentMetrics[buildCatchmentMetricKey(areaName, hubName)] || null;
+      }
+
+      function hasNumericMetric(metric) {
+        return metric && Number.isFinite(Number(metric.distance_km)) && Number.isFinite(Number(metric.travel_minutes));
+      }
+
+      function formatMetricText(metric) {
+        if (!metric) {
+          return "";
+        }
+        const parts = [];
+        if (Number.isFinite(Number(metric.distance_km))) {
+          parts.push(`${formatNumber(metric.distance_km)} km`);
+        }
+        if (Number.isFinite(Number(metric.travel_minutes))) {
+          parts.push(`${formatNumber(metric.travel_minutes)} phút`);
+        }
+        return parts.join(" · ");
       }
 
       function describeWeatherCode(code) {
@@ -1326,7 +1427,7 @@
           const button = document.createElement("button");
           button.type = "button";
           button.className = "day-chip" + (state.dayIndex === dayIndex ? " is-active" : "");
-          button.textContent = `${day.dayLabel} · ${day.dateLabel}`;
+          button.textContent = day.dateLabel;
           button.addEventListener("click", () => {
             if (state.dayIndex === dayIndex) {
               return;
@@ -1622,6 +1723,7 @@
             (point.areas || []).forEach((area) => {
               const rawAreaName = String(area.name || "").trim();
               const areaName = normalizePlaceName(rawAreaName);
+              const metric = getCatchmentMetric(areaName, point.name);
               if (!areaName || areaName.toLowerCase() === normalizePlaceName(point.name).toLowerCase()) {
                 return;
               }
@@ -1632,10 +1734,11 @@
                   key: areaKey,
                   name: areaName,
                   total: 0,
-                  lat: lookup ? lookup.lat : point.lat,
-                  lng: lookup ? lookup.lng : point.lng,
+                  lat: metric && Number.isFinite(Number(metric.area_lat)) ? Number(metric.area_lat) : (lookup ? lookup.lat : point.lat),
+                  lng: metric && Number.isFinite(Number(metric.area_lng)) ? Number(metric.area_lng) : (lookup ? lookup.lng : point.lng),
                   kind: "area",
                   sourceHubKey: point.key,
+                  metric,
                   occurrences: []
                 });
               }
@@ -1653,6 +1756,11 @@
                 session: point.session,
                 color: route.color,
                 hubName: point.name,
+                hubVenue: detail?.venue || "",
+                scheduleText: detail?.scheduleText || "",
+                plannedText: detail?.plannedText || "",
+                noteText: detail?.staffSite || "",
+                metric,
                 kind: "area"
               });
             });
@@ -1687,6 +1795,10 @@
                 areas: point.areas || [],
                 lat: point.lat,
                 lng: point.lng,
+                venue: detail?.venue || "",
+                plannedText: detail?.plannedText || "",
+                scheduleText: detail?.scheduleText || "",
+                noteText: detail?.staffSite || "",
                 kind: "hub"
               });
             });
@@ -1922,11 +2034,18 @@
 
       function buildFixedCatchmentPositions(routes, routeNodes) {
         const positions = new Map();
-        const laneYs = routes.length === 1
-          ? [STAGE_HEIGHT / 2]
+        const hubAnchors = routes.length === 1
+          ? [{ x: STAGE_WIDTH / 2, y: STAGE_HEIGHT / 2 }]
           : routes.length === 2
-            ? [290, 610]
-            : [190, 450, 710];
+            ? [
+              { x: STAGE_WIDTH * 0.34, y: STAGE_HEIGHT * 0.5 },
+              { x: STAGE_WIDTH * 0.7, y: STAGE_HEIGHT * 0.5 }
+            ]
+            : [
+              { x: STAGE_WIDTH * 0.2, y: STAGE_HEIGHT * 0.5 },
+              { x: STAGE_WIDTH * 0.5, y: STAGE_HEIGHT * 0.5 },
+              { x: STAGE_WIDTH * 0.8, y: STAGE_HEIGHT * 0.5 }
+            ];
 
         routes.forEach((route, routeIndex) => {
           const hubs = [];
@@ -1946,44 +2065,43 @@
             return;
           }
 
-          const laneY = laneYs[routeIndex] || (200 + routeIndex * 250);
+          const anchor = hubAnchors[routeIndex] || { x: STAGE_WIDTH / 2, y: STAGE_HEIGHT / 2 };
           const hubXs = hubs.length === 1
-            ? [STAGE_WIDTH / 2]
-            : [STAGE_WIDTH * 0.34, STAGE_WIDTH * 0.7];
+            ? [anchor.x]
+            : [anchor.x - 110, anchor.x + 110];
 
           hubs.forEach((hubNode, hubIndex) => {
-            const hubX = hubXs[hubIndex] || (STAGE_WIDTH / 2);
+            const hubX = hubXs[hubIndex] || anchor.x;
+            const hubY = anchor.y + (hubIndex % 2 === 0 ? -12 : 12);
             positions.set(hubNode.key, {
               ...hubNode,
               x: hubX,
-              y: laneY
+              y: hubY
             });
 
             const areaNodes = Array.from(routeNodes.values())
               .filter((node) => node.kind === "area" && node.sourceHubKey === hubNode.key)
               .sort((left, right) => Number(right.total || 0) - Number(left.total || 0));
+            const morningNodes = areaNodes.filter((node) => node.occurrences.some((occurrence) => /sáng/i.test(occurrence.session || "")));
+            const afternoonNodes = areaNodes.filter((node) => !morningNodes.includes(node));
 
-            const topCount = Math.ceil(areaNodes.length / 2);
-            const topNodes = areaNodes.slice(0, topCount);
-            const bottomNodes = areaNodes.slice(topCount);
-
-            const positionBand = (nodes, y, maxSpan) => {
+            const positionArc = (nodes, startAngle, endAngle, radius) => {
               if (!nodes.length) {
                 return;
               }
-              const step = nodes.length === 1 ? 0 : Math.min(84, Math.max(56, maxSpan / Math.max(1, nodes.length - 1)));
-              const startX = hubX - (step * (nodes.length - 1)) / 2;
+              const span = nodes.length === 1 ? 0 : (endAngle - startAngle) / (nodes.length - 1);
               nodes.forEach((node, index) => {
+                const angle = startAngle + span * index;
                 positions.set(node.key, {
                   ...node,
-                  x: startX + index * step,
-                  y
+                  x: hubX + Math.cos(angle) * radius,
+                  y: hubY + Math.sin(angle) * radius
                 });
               });
             };
 
-            positionBand(topNodes, laneY - 118, hubs.length === 1 ? 360 : 280);
-            positionBand(bottomNodes, laneY + 118, hubs.length === 1 ? 360 : 280);
+            positionArc(morningNodes, Math.PI * 1.08, Math.PI * 1.92, 160);
+            positionArc(afternoonNodes, Math.PI * 0.08, Math.PI * 0.92, 160);
           });
         });
 
@@ -2018,7 +2136,7 @@
               color: occurrence.color || TRACK_COLORS[0],
               routeId: occurrence.routeId || "",
               kind: "catchment",
-              metric: { source: "catchment" }
+              metric: node.metric || occurrence.metric || { source: "catchment" }
             });
           });
 
@@ -2337,8 +2455,8 @@
         }).join("");
 
         const badgeSegments = (fixedCatchmentMode ? renderedSegments : activeRoute.segments)
-          .filter((segment) => segment.kind !== "catchment" && segment.metric.source !== "same-site")
-          .filter((segment) => !fixedCatchmentMode || segment.routeId === activeRoute.id);
+          .filter((segment) => segment.metric && segment.metric.source !== "same-site" && hasNumericMetric(segment.metric))
+          .filter(Boolean);
 
         segmentLayerEl.innerHTML = badgeSegments.map((segment, segmentIndex) => {
           const fromNode = positions.get(segment.fromKey);
@@ -2347,7 +2465,7 @@
             return "";
           }
           const badgePosition = buildSegmentBadgePosition(fromNode, toNode, segmentIndex);
-          const metricText = `${formatNumber(segment.metric.distance_km)} km · ${formatNumber(segment.metric.travel_minutes)} phút`;
+          const metricText = formatMetricText(segment.metric);
           return `
             <div class="segment-badge" style="left:${badgePosition.x}px; top:${badgePosition.y}px; border-color:${activeRoute.color}; box-shadow:0 14px 28px rgba(15, 23, 42, 0.12), inset 0 0 0 1px ${activeRoute.color};">
               ${metricText}
@@ -2376,8 +2494,8 @@
               <div class="map-node-dot"></div>
               <div class="map-node-label">
                 <strong>${node.name}</strong>
-                <span>${formatNumber(node.total)} người</span>
-                <small>${node.kind === "area" ? "địa bàn về điểm cố định" : `${occurrenceCount} lượt tuyến`}</small>
+                <span>${formatNumber(node.total)} ${direction.id === "co-dinh" ? "TNLS" : "người"}</span>
+                <small>${node.kind === "area" ? `về ${primaryOccurrence?.hubName || ""}` : `${occurrenceCount} lượt`}</small>
               </div>
             </button>
           `;
@@ -2385,7 +2503,12 @@
 
         nodeLayerEl.querySelectorAll("[data-node-key]").forEach((button) => {
           button.addEventListener("click", () => {
-            state.activeNodeKey = button.getAttribute("data-node-key");
+            const nextNodeKey = button.getAttribute("data-node-key");
+            const nextNode = routeNodes.get(nextNodeKey);
+            state.activeNodeKey = nextNodeKey;
+            if (nextNode && nextNode.occurrences[0]?.routeId) {
+              state.activeRouteId = nextNode.occurrences[0].routeId;
+            }
             state.summaryOpen = true;
             summaryDrawerEl.classList.add("is-open");
             render();
@@ -2600,6 +2723,52 @@
         `;
       }
 
+      function buildOccurrenceSessionRows(node) {
+        return node.occurrences.map((occurrence) => {
+          const metricText = occurrence.metric ? formatMetricText(occurrence.metric) : "";
+          return `
+            <div class="detail-row">
+              <div class="detail-row-copy">
+                <span>${occurrence.session || "Cả ngày"} · ${occurrence.dayLabel}${occurrence.hubName ? ` · về ${occurrence.hubName}` : ""}</span>
+                ${metricText ? `<small>${metricText}</small>` : ""}
+              </div>
+              <strong>${formatNumber(occurrence.total)} TNLS</strong>
+            </div>
+          `;
+        }).join("");
+      }
+
+      function buildHubAreaRows(node) {
+        const grouped = new Map();
+        node.occurrences.forEach((occurrence) => {
+          (occurrence.areas || []).forEach((area) => {
+            const areaName = normalizePlaceName(area.name || "");
+            if (!areaName || areaName.toLowerCase() === normalizePlaceName(node.name).toLowerCase()) {
+              return;
+            }
+            if (!grouped.has(areaName)) {
+              grouped.set(areaName, {
+                name: areaName,
+                total: 0,
+                metric: getCatchmentMetric(areaName, node.name)
+              });
+            }
+            grouped.get(areaName).total += Number(area.count || 0);
+          });
+        });
+        return Array.from(grouped.values())
+          .sort((left, right) => Number(right.total || 0) - Number(left.total || 0))
+          .map((area) => `
+            <div class="detail-row">
+              <div class="detail-row-copy">
+                <span>${area.name}</span>
+                <small>${area.metric ? formatMetricText(area.metric) : "Chưa xác minh khoảng cách và thời gian"}</small>
+              </div>
+              <strong>${formatNumber(area.total)} TNLS</strong>
+            </div>
+          `).join("");
+      }
+
       function buildNodeDetail(node) {
         if (!node) {
           return `
@@ -2609,17 +2778,44 @@
             </div>
           `;
         }
-        const occurrenceRows = node.occurrences.map((occurrence) => `
-          <div class="detail-row">
-            <span>${occurrence.dayLabel} · ${occurrence.routeLabel} · ${occurrence.session || "Cả ngày"}${occurrence.hubName ? ` · về ${occurrence.hubName}` : ""}</span>
-            <strong>${formatNumber(occurrence.total)} TNLS</strong>
-          </div>
-        `).join("");
+        const firstOccurrence = node.occurrences[0] || {};
+        const metric = node.metric || firstOccurrence.metric || null;
+        if (node.kind === "area") {
+          return `
+            <div class="detail-card">
+              <div class="detail-emphasis">
+                <strong>${node.name}</strong>
+                <span>Địa bàn đưa thân nhân về ${firstOccurrence.hubName || "điểm cố định"} · ${formatNumber(node.total)} TNLS</span>
+                <div class="detail-chip-row">
+                  ${metric ? `<div class="metric-inline">${formatMetricText(metric)}</div>` : `<div class="summary-metric">Chưa xác minh tuyến di chuyển</div>`}
+                  <div class="summary-metric">${firstOccurrence.dayLabel || ""} ${firstOccurrence.dateLabel || ""}</div>
+                </div>
+              </div>
+              <div class="detail-copy-grid is-two-col" style="margin-top:10px;">
+                ${buildDetailCopyBlock("Điểm thu mẫu", firstOccurrence.hubVenue || firstOccurrence.hubName || "")}
+                ${buildDetailCopyBlock("Khung giờ trong Word", firstOccurrence.scheduleText || "")}
+              </div>
+              <div class="detail-list">${buildOccurrenceSessionRows(node)}</div>
+            </div>
+          `;
+        }
+        const hubAreaRows = buildHubAreaRows(node);
         return `
           <div class="detail-card">
-            <strong>Điểm đang chọn</strong>
-            <span>${node.name} · ${formatNumber(node.total)} TNLS</span>
-            <div class="detail-list">${occurrenceRows}</div>
+            <div class="detail-emphasis">
+              <strong>${node.name}</strong>
+              <span>Điểm cố định · ${formatNumber(node.total)} TNLS</span>
+              <div class="detail-chip-row">
+                <div class="summary-metric">${firstOccurrence.dayLabel || ""} ${firstOccurrence.dateLabel || ""}</div>
+                ${firstOccurrence.venue ? `<div class="metric-inline">${escapeHtml(firstOccurrence.venue)}</div>` : ""}
+              </div>
+            </div>
+            <div class="detail-copy-grid is-two-col" style="margin-top:10px;">
+              ${buildDetailCopyBlock("Chỉ tiêu dự kiến", firstOccurrence.plannedText || "")}
+              ${buildDetailCopyBlock("Khung giờ trong Word", firstOccurrence.scheduleText || "")}
+            </div>
+            ${hubAreaRows ? `<div class="detail-list">${hubAreaRows}</div>` : ""}
+            <div class="detail-list">${buildOccurrenceSessionRows(node)}</div>
           </div>
         `;
       }
@@ -2702,17 +2898,26 @@
         const directionTotal = state.dayIndex === null
           ? direction.days.reduce((sum, day) => sum + Number(day.total || 0), 0)
           : Number(direction.days[state.dayIndex]?.total || 0);
+        const selectedDateLabel = state.dayIndex === null
+          ? "Tất cả 5 ngày"
+          : (direction.days[state.dayIndex]?.dateLabel || "");
         summaryDrawerEl.classList.toggle("is-open", state.summaryOpen);
 
         if (referenceMode) {
           summaryPanelEl.innerHTML = `
             <div class="summary-head">
-              <div class="hero-kicker">${direction.label}</div>
-              <h2>Tuyến 5 ngày</h2>
-              <div class="summary-metric">${formatNumber(directionTotal)} TNLS</div>
+              <h2>${direction.label}</h2>
+              <div class="summary-context">
+                <div class="summary-metric">${selectedDateLabel}</div>
+                <div class="summary-metric">${formatNumber(directionTotal)} TNLS</div>
+              </div>
             </div>
 
             <div class="summary-blocks">
+              <section class="summary-block">
+                ${buildNodeDetail(activeNode)}
+              </section>
+
               <section class="summary-block">
                 <div class="summary-block-title">Danh sách tuyến</div>
                 <div class="route-summary">
@@ -2734,10 +2939,6 @@
               <section class="summary-block">
                 ${buildRouteDetail(activeRoute)}
               </section>
-
-              <section class="summary-block">
-                ${buildNodeDetail(activeNode)}
-              </section>
             </div>
           `;
           attachSummaryPanelInteractions(routes);
@@ -2746,12 +2947,18 @@
 
         summaryPanelEl.innerHTML = `
           <div class="summary-head">
-            <div class="hero-kicker">${direction.label}</div>
-            <h2>Tuyến 5 ngày</h2>
-            <div class="summary-metric">${formatNumber(directionTotal)} TNLS</div>
+            <h2>${direction.label}</h2>
+            <div class="summary-context">
+              <div class="summary-metric">${selectedDateLabel}</div>
+              <div class="summary-metric">${formatNumber(directionTotal)} TNLS</div>
+            </div>
           </div>
 
           <div class="summary-blocks">
+            <section class="summary-block">
+              ${buildNodeDetail(activeNode)}
+            </section>
+
             <section class="summary-block">
               <div class="summary-block-title">Danh sách tuyến</div>
               <div class="route-summary">
@@ -2772,10 +2979,6 @@
 
             <section class="summary-block">
               ${buildRouteDetail(activeRoute)}
-            </section>
-
-            <section class="summary-block">
-              ${buildNodeDetail(activeNode)}
             </section>
           </div>
         `;
