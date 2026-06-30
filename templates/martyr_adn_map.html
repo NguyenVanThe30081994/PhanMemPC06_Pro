@@ -230,6 +230,7 @@
       min-height: 920px;
       border-radius: 28px;
       overflow: hidden;
+      user-select: none;
       background:
         radial-gradient(circle at 18% 20%, rgba(28, 120, 97, 0.08), transparent 18%),
         radial-gradient(circle at 75% 16%, rgba(99, 102, 241, 0.09), transparent 16%),
@@ -250,6 +251,79 @@
         linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
       background-size: 86px 86px;
       opacity: 0.82;
+    }
+
+    .map-stage.is-grabbing {
+      cursor: grabbing;
+    }
+
+    .map-toolbar {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 6;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(226, 232, 240, 0.92);
+      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.1);
+      backdrop-filter: blur(14px);
+    }
+
+    .map-toolbar-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .map-control {
+      border: 0;
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      background: rgba(248, 250, 252, 0.96);
+      color: var(--ink-900);
+      font: inherit;
+      font-size: 18px;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.92);
+      transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+    }
+
+    .map-control:hover,
+    .map-control:focus-visible {
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.98);
+      box-shadow: inset 0 0 0 1px rgba(196, 102, 31, 0.28), 0 10px 20px rgba(15, 23, 42, 0.08);
+      outline: none;
+    }
+
+    .map-status {
+      min-width: 84px;
+      color: var(--ink-700);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-align: center;
+    }
+
+    .map-hint {
+      color: var(--ink-500);
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .map-viewport {
+      position: absolute;
+      inset: 0;
+      transform-origin: 0 0;
+      z-index: 1;
+      will-change: transform;
     }
 
     .map-svg,
@@ -280,7 +354,7 @@
       fill: none;
       stroke-linecap: round;
       stroke-linejoin: round;
-      opacity: 0.22;
+      opacity: 0.56;
       transition: opacity 0.18s ease, stroke-width 0.18s ease;
     }
 
@@ -302,7 +376,7 @@
     }
 
     .map-node.is-dimmed {
-      opacity: 0.48;
+      opacity: 0.82;
     }
 
     .map-node:hover,
@@ -338,6 +412,11 @@
       position: absolute;
       min-width: max-content;
       max-width: 220px;
+      padding: 8px 10px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(226, 232, 240, 0.88);
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
       color: var(--ink-900);
       text-align: left;
       pointer-events: none;
@@ -368,6 +447,25 @@
       font-size: 11px;
       font-weight: 700;
       line-height: 1.35;
+    }
+
+    .map-node.is-dimmed .map-node-label {
+      opacity: 0.9;
+    }
+
+    .map-node.is-compact .map-node-label {
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+    }
+
+    .map-node.is-compact .map-node-label span,
+    .map-node.is-compact .map-node-label small {
+      display: none;
+    }
+
+    .map-node.is-compact .map-node-label strong {
+      font-size: 14px;
+      line-height: 1.2;
     }
 
     .anchor-right .map-node-label {
@@ -410,6 +508,7 @@
       font-weight: 800;
       line-height: 1.35;
       white-space: nowrap;
+      pointer-events: none;
     }
 
     .segment-badge span {
@@ -660,6 +759,19 @@
       .map-stage {
         min-height: 700px;
       }
+
+      .map-toolbar {
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        width: auto;
+        justify-content: space-between;
+        flex-wrap: wrap;
+      }
+
+      .map-hint {
+        white-space: normal;
+      }
     }
   </style>
 </head>
@@ -682,9 +794,20 @@
     <section class="workspace">
       <div class="map-card">
         <div class="map-stage" id="map-stage">
-          <svg class="map-svg" id="map-svg" viewBox="0 0 1400 900" aria-hidden="true"></svg>
-          <div class="segment-layer" id="segment-layer"></div>
-          <div class="node-layer" id="node-layer"></div>
+          <div class="map-toolbar">
+            <div class="map-toolbar-group">
+              <button type="button" class="map-control" id="zoom-out-button" aria-label="Thu nhỏ">-</button>
+              <div class="map-status" id="map-status">100%</div>
+              <button type="button" class="map-control" id="zoom-in-button" aria-label="Phóng to">+</button>
+              <button type="button" class="map-control" id="reset-view-button" aria-label="Đặt lại góc nhìn">↺</button>
+            </div>
+            <div class="map-hint">Lăn chuột để zoom, kéo nền để di chuyển</div>
+          </div>
+          <div class="map-viewport" id="map-viewport">
+            <svg class="map-svg" id="map-svg" viewBox="0 0 1400 900" aria-hidden="true"></svg>
+            <div class="segment-layer" id="segment-layer"></div>
+            <div class="node-layer" id="node-layer"></div>
+          </div>
         </div>
       </div>
       <aside class="summary-card" id="summary-panel"></aside>
@@ -702,20 +825,39 @@
       const STAGE_HEIGHT = 900;
       const directionTabsEl = document.getElementById("direction-tabs");
       const dayFilterEl = document.getElementById("day-filter");
+      const mapStageEl = document.getElementById("map-stage");
+      const mapViewportEl = document.getElementById("map-viewport");
       const mapSvgEl = document.getElementById("map-svg");
       const nodeLayerEl = document.getElementById("node-layer");
       const segmentLayerEl = document.getElementById("segment-layer");
       const summaryPanelEl = document.getElementById("summary-panel");
+      const mapStatusEl = document.getElementById("map-status");
+      const zoomInButtonEl = document.getElementById("zoom-in-button");
+      const zoomOutButtonEl = document.getElementById("zoom-out-button");
+      const resetViewButtonEl = document.getElementById("reset-view-button");
 
       const state = {
         directionId: data.directions[0].id,
         dayIndex: null,
         activeRouteId: null,
-        activeNodeKey: null
+        activeNodeKey: null,
+        viewport: {
+          scale: 1,
+          translateX: 0,
+          translateY: 0
+        },
+        shouldAutoFit: true
       };
 
       const forecastCache = new Map();
       const weatherCache = new Map();
+      const interactionState = {
+        isDragging: false,
+        startX: 0,
+        startY: 0,
+        translateX: 0,
+        translateY: 0
+      };
 
       function formatNumber(value) {
         return new Intl.NumberFormat("vi-VN").format(Number(value || 0));
@@ -797,6 +939,7 @@
             state.dayIndex = null;
             state.activeRouteId = null;
             state.activeNodeKey = null;
+            state.shouldAutoFit = true;
             render();
           });
           directionTabsEl.appendChild(button);
@@ -816,6 +959,7 @@
           state.dayIndex = null;
           state.activeRouteId = null;
           state.activeNodeKey = null;
+          state.shouldAutoFit = true;
           render();
         });
         dayFilterEl.appendChild(allButton);
@@ -832,6 +976,7 @@
             state.dayIndex = dayIndex;
             state.activeRouteId = null;
             state.activeNodeKey = null;
+            state.shouldAutoFit = true;
             render();
           });
           dayFilterEl.appendChild(button);
@@ -1086,6 +1231,131 @@
         return dominant ? dominant.color : DAY_COLORS[0];
       }
 
+      function clampScale(value) {
+        return Math.min(2.8, Math.max(0.75, value));
+      }
+
+      function updateViewport() {
+        mapViewportEl.style.transform = `translate(${state.viewport.translateX}px, ${state.viewport.translateY}px) scale(${state.viewport.scale})`;
+        mapStatusEl.textContent = `${Math.round(state.viewport.scale * 100)}%`;
+      }
+
+      function setViewport(scale, translateX, translateY) {
+        state.viewport.scale = clampScale(scale);
+        state.viewport.translateX = translateX;
+        state.viewport.translateY = translateY;
+        updateViewport();
+      }
+
+      function zoomAt(clientX, clientY, scaleFactor) {
+        const rect = mapStageEl.getBoundingClientRect();
+        const offsetX = clientX - rect.left;
+        const offsetY = clientY - rect.top;
+        const previousScale = state.viewport.scale;
+        const nextScale = clampScale(previousScale * scaleFactor);
+        if (nextScale === previousScale) {
+          return;
+        }
+        const worldX = (offsetX - state.viewport.translateX) / previousScale;
+        const worldY = (offsetY - state.viewport.translateY) / previousScale;
+        state.viewport.scale = nextScale;
+        state.viewport.translateX = offsetX - worldX * nextScale;
+        state.viewport.translateY = offsetY - worldY * nextScale;
+        updateViewport();
+      }
+
+      function fitViewportToPositions(routePoints, positions) {
+        if (!routePoints.length) {
+          setViewport(1, 0, 0);
+          return;
+        }
+        const projected = routePoints.map((point) => positions.get(point.key)).filter(Boolean);
+        if (!projected.length) {
+          setViewport(1, 0, 0);
+          return;
+        }
+        const bounds = projected.reduce((acc, point) => ({
+          minX: Math.min(acc.minX, point.x),
+          maxX: Math.max(acc.maxX, point.x),
+          minY: Math.min(acc.minY, point.y),
+          maxY: Math.max(acc.maxY, point.y)
+        }), {
+          minX: projected[0].x,
+          maxX: projected[0].x,
+          minY: projected[0].y,
+          maxY: projected[0].y
+        });
+        const rect = mapStageEl.getBoundingClientRect();
+        const viewWidth = rect.width || STAGE_WIDTH;
+        const viewHeight = rect.height || STAGE_HEIGHT;
+        const padding = 140;
+        const contentWidth = Math.max(220, bounds.maxX - bounds.minX);
+        const contentHeight = Math.max(180, bounds.maxY - bounds.minY);
+        const scale = clampScale(Math.min(
+          (viewWidth - padding) / contentWidth,
+          (viewHeight - padding) / contentHeight
+        ));
+        const centerX = (bounds.minX + bounds.maxX) / 2;
+        const centerY = (bounds.minY + bounds.maxY) / 2;
+        const translateX = viewWidth / 2 - centerX * scale;
+        const translateY = viewHeight / 2 - centerY * scale;
+        setViewport(scale, translateX, translateY);
+      }
+
+      function initializeViewportControls() {
+        if (mapStageEl.dataset.viewportReady === "true") {
+          return;
+        }
+        mapStageEl.dataset.viewportReady = "true";
+
+        zoomInButtonEl.addEventListener("click", () => {
+          const rect = mapStageEl.getBoundingClientRect();
+          zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, 1.18);
+        });
+
+        zoomOutButtonEl.addEventListener("click", () => {
+          const rect = mapStageEl.getBoundingClientRect();
+          zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, 1 / 1.18);
+        });
+
+        resetViewButtonEl.addEventListener("click", () => {
+          state.shouldAutoFit = true;
+          render();
+        });
+
+        mapStageEl.addEventListener("wheel", (event) => {
+          event.preventDefault();
+          const scaleFactor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
+          zoomAt(event.clientX, event.clientY, scaleFactor);
+        }, { passive: false });
+
+        mapStageEl.addEventListener("pointerdown", (event) => {
+          if (event.target.closest(".map-node") || event.target.closest(".map-toolbar")) {
+            return;
+          }
+          interactionState.isDragging = true;
+          interactionState.startX = event.clientX;
+          interactionState.startY = event.clientY;
+          interactionState.translateX = state.viewport.translateX;
+          interactionState.translateY = state.viewport.translateY;
+          mapStageEl.classList.add("is-grabbing");
+        });
+
+        window.addEventListener("pointermove", (event) => {
+          if (!interactionState.isDragging) {
+            return;
+          }
+          state.viewport.translateX = interactionState.translateX + (event.clientX - interactionState.startX);
+          state.viewport.translateY = interactionState.translateY + (event.clientY - interactionState.startY);
+          updateViewport();
+        });
+
+        window.addEventListener("pointerup", () => {
+          interactionState.isDragging = false;
+          mapStageEl.classList.remove("is-grabbing");
+        });
+      }
+
       function labelAnchor(node) {
         if (node.x > STAGE_WIDTH - 260) {
           return "anchor-left";
@@ -1152,12 +1422,14 @@
           const color = nodeColor(node, activeRoute);
           const size = nodeSize(node.total, maxTotal);
           const isActive = activeNodeKey === node.key;
-          const isDimmed = activeRoute && !activeRoute.points.some((point) => point.key === node.key);
+          const isOnActiveRoute = !activeRoute || activeRoute.points.some((point) => point.key === node.key);
+          const isDimmed = activeRoute && !isOnActiveRoute;
+          const isCompact = !isActive && !isOnActiveRoute;
           const occurrenceCount = node.occurrences.length;
           return `
             <button
               type="button"
-              class="map-node ${anchor}${isActive ? " is-active" : ""}${isDimmed ? " is-dimmed" : ""}"
+              class="map-node ${anchor}${isActive ? " is-active" : ""}${isDimmed ? " is-dimmed" : ""}${isCompact ? " is-compact" : ""}"
               style="left:${node.x}px; top:${node.y}px; --node-color:${color}; --node-size:${size}px;"
               data-node-key="${node.key}"
             >
@@ -1177,6 +1449,13 @@
             render();
           });
         });
+
+        if (activeRoute && state.shouldAutoFit) {
+          fitViewportToPositions(activeRoute.points, positions);
+          state.shouldAutoFit = false;
+        } else {
+          updateViewport();
+        }
       }
 
       function buildGoogleMapsUrl(route) {
@@ -1306,6 +1585,7 @@
         summaryPanelEl.querySelectorAll("[data-route-id]").forEach((button) => {
           button.addEventListener("click", () => {
             state.activeRouteId = button.getAttribute("data-route-id");
+            state.shouldAutoFit = true;
             render();
           });
         });
@@ -1384,6 +1664,8 @@
         hydrateWeather(routes);
       }
 
+      initializeViewportControls();
+      updateViewport();
       render();
       window.setInterval(() => {
         forecastCache.clear();
