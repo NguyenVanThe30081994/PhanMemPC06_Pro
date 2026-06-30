@@ -1410,68 +1410,70 @@
 
       function renderBoard(routes, nodes) {
         const activeRoute = resolveActiveRoute(routes);
-        const activeNodeKey = state.activeNodeKey || getPreferredRouteNodeKey(activeRoute);
-        const positions = projectNodes(nodes);
-        const maxTotal = Math.max(...Array.from(nodes.values()).map((node) => node.total), 0);
+        if (!activeRoute) {
+          mapSvgEl.innerHTML = "";
+          segmentLayerEl.innerHTML = "";
+          nodeLayerEl.innerHTML = "";
+          return;
+        }
 
-        mapSvgEl.innerHTML = routes.map((route) => {
-          return route.segments.map((segment) => {
-            const fromNode = positions.get(segment.fromKey);
-            const toNode = positions.get(segment.toKey);
-            if (!fromNode || !toNode || segment.metric.source === "same-site") {
-              return "";
-            }
-            return `
-              <path
-                class="route-path${activeRoute && activeRoute.id === route.id ? " is-active" : ""}"
-                d="${buildStraightPath([fromNode, toNode])}"
-                stroke="${segment.color}"
-                stroke-width="${activeRoute && activeRoute.id === route.id ? 7 : 5}"
-              ></path>
-            `;
-          }).join("");
+        const routeNodes = new Map();
+        activeRoute.points.forEach((point) => {
+          if (nodes.has(point.key)) {
+            routeNodes.set(point.key, nodes.get(point.key));
+          }
+        });
+        const preferredNodeKey = getPreferredRouteNodeKey(activeRoute);
+        const activeNodeKey = routeNodes.has(state.activeNodeKey) ? state.activeNodeKey : preferredNodeKey;
+        if (activeNodeKey && state.activeNodeKey !== activeNodeKey) {
+          state.activeNodeKey = activeNodeKey;
+        }
+        const positions = projectNodes(routeNodes);
+        const maxTotal = Math.max(...Array.from(routeNodes.values()).map((node) => node.total), 0);
+
+        mapSvgEl.innerHTML = activeRoute.segments.map((segment) => {
+          const fromNode = positions.get(segment.fromKey);
+          const toNode = positions.get(segment.toKey);
+          if (!fromNode || !toNode || segment.metric.source === "same-site") {
+            return "";
+          }
+          return `
+            <path
+              class="route-path is-active"
+              d="${buildStraightPath([fromNode, toNode])}"
+              stroke="${activeRoute.color}"
+              stroke-width="7"
+            ></path>
+          `;
         }).join("");
 
-        const totalSegmentCount = routes.reduce((sum, route) => sum + route.segments.filter((segment) => segment.metric.source !== "same-site").length, 0);
-        const visibleSegments = totalSegmentCount <= 14 ? routes.flatMap((route) => route.segments.map((segment) => ({ routeId: route.id, segment }))) : (activeRoute ? activeRoute.segments.map((segment) => ({ routeId: activeRoute.id, segment })) : []);
-
-        if (visibleSegments.length) {
-          segmentLayerEl.innerHTML = visibleSegments.map(({ routeId, segment }) => {
-            const fromNode = positions.get(segment.fromKey);
-            const toNode = positions.get(segment.toKey);
-            if (!fromNode || !toNode) {
-              return "";
-            }
-            if (segment.metric.source === "same-site") {
-              return "";
-            }
-            const midX = (fromNode.x + toNode.x) / 2;
-            const midY = (fromNode.y + toNode.y) / 2 - 18;
-            const metricText = `${formatNumber(segment.metric.distance_km)} km · ${formatNumber(segment.metric.travel_minutes)} phút`;
-            return `
-              <div class="segment-badge" style="left:${midX}px; top:${midY}px; border-color:${segment.color}; box-shadow:${activeRoute && activeRoute.id === routeId ? `0 14px 28px rgba(15, 23, 42, 0.12), inset 0 0 0 1px ${segment.color}` : "0 14px 28px rgba(15, 23, 42, 0.08)"};">
-                ${metricText}
-                <span>${segment.fromName} → ${segment.toName}</span>
-              </div>
-            `;
-          }).join("");
-        } else {
-          segmentLayerEl.innerHTML = "";
-        }
+        segmentLayerEl.innerHTML = activeRoute.segments.map((segment) => {
+          const fromNode = positions.get(segment.fromKey);
+          const toNode = positions.get(segment.toKey);
+          if (!fromNode || !toNode || segment.metric.source === "same-site") {
+            return "";
+          }
+          const midX = (fromNode.x + toNode.x) / 2;
+          const midY = (fromNode.y + toNode.y) / 2 - 18;
+          const metricText = `${formatNumber(segment.metric.distance_km)} km · ${formatNumber(segment.metric.travel_minutes)} phút`;
+          return `
+            <div class="segment-badge" style="left:${midX}px; top:${midY}px; border-color:${activeRoute.color}; box-shadow:0 14px 28px rgba(15, 23, 42, 0.12), inset 0 0 0 1px ${activeRoute.color};">
+              ${metricText}
+              <span>${segment.fromName} → ${segment.toName}</span>
+            </div>
+          `;
+        }).join("");
 
         nodeLayerEl.innerHTML = Array.from(positions.values()).map((node) => {
           const anchor = labelAnchor(node);
-          const color = nodeColor(node, activeRoute);
+          const color = activeRoute.color;
           const size = nodeSize(node.total, maxTotal);
           const isActive = activeNodeKey === node.key;
-          const isOnActiveRoute = !activeRoute || activeRoute.points.some((point) => point.key === node.key);
-          const isDimmed = activeRoute && !isOnActiveRoute;
-          const isCompact = !isActive && !isOnActiveRoute;
           const occurrenceCount = node.occurrences.length;
           return `
             <button
               type="button"
-              class="map-node ${anchor}${isActive ? " is-active" : ""}${isDimmed ? " is-dimmed" : ""}${isCompact ? " is-compact" : ""}"
+              class="map-node ${anchor}${isActive ? " is-active" : ""}"
               style="left:${node.x}px; top:${node.y}px; --node-color:${color}; --node-size:${size}px;"
               data-node-key="${node.key}"
             >
@@ -1492,7 +1494,7 @@
           });
         });
 
-        if (activeRoute && state.shouldAutoFit) {
+        if (state.shouldAutoFit) {
           fitViewportToPositions(activeRoute.points, positions);
           state.shouldAutoFit = false;
         } else {
@@ -1622,6 +1624,8 @@
         summaryPanelEl.querySelectorAll("[data-route-id]").forEach((button) => {
           button.addEventListener("click", () => {
             state.activeRouteId = button.getAttribute("data-route-id");
+            const nextRoute = routes.find((route) => route.id === state.activeRouteId);
+            state.activeNodeKey = getPreferredRouteNodeKey(nextRoute);
             state.shouldAutoFit = true;
             render();
           });
@@ -1692,6 +1696,9 @@
         const activeRoute = resolveActiveRoute(routes);
         if (activeRoute) {
           state.activeRouteId = activeRoute.id;
+          if (!activeRoute.points.some((point) => point.key === state.activeNodeKey)) {
+            state.activeNodeKey = getPreferredRouteNodeKey(activeRoute);
+          }
         }
         const nodes = buildVisibleNodes(routes);
         renderDirectionTabs(direction);
