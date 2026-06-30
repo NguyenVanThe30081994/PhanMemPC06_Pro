@@ -810,11 +810,36 @@
       margin: 0;
     }
 
+    .detail-row-copy {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
     .detail-row span {
       color: var(--ink-700);
       font-size: 12px;
       font-weight: 700;
       line-height: 1.45;
+    }
+
+    .detail-row-copy span,
+    .detail-row-copy small {
+      display: block;
+    }
+
+    .detail-row-copy small {
+      margin-top: 3px;
+      color: var(--ink-500);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .detail-weather.is-pending {
+      color: var(--ink-500);
+    }
+
+    .detail-weather.is-unavailable {
+      color: #b45309;
     }
 
     .detail-row strong {
@@ -1435,6 +1460,9 @@
             const reportedTotal = direction.id === "luu-dong"
               ? (parsePlannedTotal(track.planned) ?? explicitTotal)
               : explicitTotal;
+            if (direction.id === "luu-dong" && reportedTotal > explicitTotal) {
+              dayNotes.push(`Word gốc ghi ${formatNumber(reportedTotal)} TNLS, nhưng chỉ nêu rõ ${formatNumber(explicitTotal)} TNLS theo từng điểm; còn ${formatNumber(reportedTotal - explicitTotal)} TNLS chưa tách địa điểm cụ thể.`);
+            }
             const detailSummary = dayPoints.length
               ? dayPoints.map((point) => point.name).join(" -> ")
               : (dayNotes.join(" · ") || track.title || track.label);
@@ -1687,8 +1715,70 @@
         return positions;
       }
 
+      function buildFixedDayRoutePositions(routes, routeNodes) {
+        const positions = new Map();
+        const rowCount = Math.max(1, routes.length);
+        const laneYs = rowCount === 1
+          ? [STAGE_HEIGHT / 2]
+          : rowCount === 2
+            ? [330, 610]
+            : [235, 470, 705];
+        const centerX = STAGE_WIDTH / 2;
+        const singlePointOffsets = rowCount === 1
+          ? [0]
+          : rowCount === 2
+            ? [-120, 120]
+            : [-170, 0, 170];
+
+        routes.forEach((route, routeIndex) => {
+          const orderedNodes = [];
+          const seen = new Set();
+          route.points.forEach((point) => {
+            if (seen.has(point.key) || !routeNodes.has(point.key)) {
+              return;
+            }
+            seen.add(point.key);
+            orderedNodes.push(routeNodes.get(point.key));
+          });
+          if (!orderedNodes.length) {
+            return;
+          }
+
+          const anchorX = centerX + (singlePointOffsets[routeIndex] || 0);
+          const y = laneYs[routeIndex] || laneYs[laneYs.length - 1] || (240 + routeIndex * 220);
+          if (orderedNodes.length === 1) {
+            positions.set(orderedNodes[0].key, {
+              ...orderedNodes[0],
+              x: anchorX,
+              y
+            });
+            return;
+          }
+
+          const usableWidth = orderedNodes.length === 2
+            ? 320
+            : Math.min(620, Math.max(360, 220 + orderedNodes.length * 140));
+          const startX = Math.max(180, anchorX - usableWidth / 2);
+          const endX = Math.min(STAGE_WIDTH - 180, anchorX + usableWidth / 2);
+          const gap = orderedNodes.length === 1 ? 0 : (endX - startX) / (orderedNodes.length - 1);
+
+          orderedNodes.forEach((node, nodeIndex) => {
+            positions.set(node.key, {
+              ...node,
+              x: startX + nodeIndex * gap,
+              y: y + ((nodeIndex % 2 === 0) ? -12 : 12)
+            });
+          });
+        });
+
+        return positions;
+      }
+
       function buildBoardPositions(direction, routeNodes, activeRoute, referenceMode, routes) {
         if (direction.id === "co-dinh") {
+          if (state.dayIndex !== null) {
+            return buildFixedDayRoutePositions(routes, routeNodes);
+          }
           return buildMultiRouteTimelinePositions(routes, routeNodes);
         }
         return buildSchematicRoutePositions(activeRoute, routeNodes);
@@ -1795,17 +1885,46 @@
         const rect = mapStageEl.getBoundingClientRect();
         const viewWidth = rect.width || STAGE_WIDTH;
         const viewHeight = rect.height || STAGE_HEIGHT;
-        const padding = 140;
-        const contentWidth = Math.max(220, bounds.maxX - bounds.minX);
-        const contentHeight = Math.max(180, bounds.maxY - bounds.minY);
-        const scale = clampScale(Math.min(
-          (viewWidth - padding) / contentWidth,
-          (viewHeight - padding) / contentHeight
+        const horizontalPadding = 180;
+        const topSafe = 180;
+        const bottomSafe = 90;
+        if (projected.length === 1) {
+          bounds.minX -= 420;
+          bounds.maxX += 420;
+          bounds.minY -= 260;
+          bounds.maxY += 260;
+        } else if (projected.length === 2) {
+          bounds.minX -= 260;
+          bounds.maxX += 260;
+          bounds.minY -= 180;
+          bounds.maxY += 180;
+        } else if (projected.length === 3) {
+          bounds.minX -= 180;
+          bounds.maxX += 180;
+          bounds.minY -= 120;
+          bounds.maxY += 120;
+        }
+        const contentWidth = Math.max(320, bounds.maxX - bounds.minX);
+        const contentHeight = Math.max(260, bounds.maxY - bounds.minY);
+        let scale = clampScale(Math.min(
+          (viewWidth - horizontalPadding) / contentWidth,
+          (viewHeight - topSafe - bottomSafe) / contentHeight
         ));
+        if (projected.length === 1) {
+          scale = Math.min(scale, 0.76);
+        } else if (projected.length === 2) {
+          scale = Math.min(scale, 0.86);
+        } else if (projected.length === 3) {
+          scale = Math.min(scale, 0.96);
+        } else if (projected.length <= 5) {
+          scale = Math.min(scale, 1.08);
+        }
         const centerX = (bounds.minX + bounds.maxX) / 2;
         const centerY = (bounds.minY + bounds.maxY) / 2;
         const translateX = viewWidth / 2 - centerX * scale;
-        const translateY = viewHeight / 2 - centerY * scale;
+        const visibleHeight = viewHeight - topSafe - bottomSafe;
+        const targetCenterY = topSafe + visibleHeight / 2;
+        const translateY = targetCenterY - centerY * scale;
         setViewport(scale, translateX, translateY);
       }
 
@@ -2120,7 +2239,10 @@
           <div class="detail-list">
             ${detail.points.map((point) => `
               <div class="detail-row">
-                <span>${point.session || "Cả ngày"} · ${point.name}</span>
+                <div class="detail-row-copy">
+                  <span>${point.session || "Cả ngày"} · ${point.name}</span>
+                  <small class="detail-weather is-pending" data-weather-key="${buildWeatherKey(point.lat, point.lng, point.isoDate)}">Đang kiểm tra thời tiết</small>
+                </div>
                 <strong>${formatNumber(point.total)} TNLS</strong>
               </div>
             `).join("")}
@@ -2418,7 +2540,7 @@
         }
         const dayIndex = payload.daily.time.indexOf(isoDate);
         if (dayIndex < 0) {
-          const value = { status: "unavailable", text: `Chưa có dự báo cho ${dateLabel}` };
+          const value = { status: "unavailable", text: `Ngoài cửa sổ dự báo 16 ngày cho ${dateLabel}` };
           weatherCache.set(key, value);
           return value;
         }

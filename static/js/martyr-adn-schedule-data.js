@@ -1376,7 +1376,7 @@ window.ADN_SCHEDULE_DATA = {
                   "lng": 105.027835
                 },
                 {
-                  "name": "Băng Lang",
+                  "name": "Bằng Lang",
                   "session": "Cả ngày",
                   "count": 1,
                   "lat": 22.36389,
