@@ -2346,8 +2346,11 @@
           });
         });
 
+        const activeHubNode = routeNodes.get(activeHubKey);
+        const activeName = activeHubNode ? activeHubNode.name : "";
+
         sidebarEl.innerHTML = `
-          <div class="hub-sidebar-head">Trạm thu nhận <span id="sidebar-debug" style="font-size:10px;color:#ef4444;margin-left:5px;font-weight:normal;"></span></div>
+          <div class="hub-sidebar-head">Trạm thu nhận${activeName ? `: <strong style="color: #dc2626; font-weight: 800; margin-left: 4px;">${activeName}</strong>` : ""}</div>
           ${allHubs.map((hub) => {
             const isActive = hub.key === activeHubKey;
             const color = hub.occurrences?.[0]?.color || "#c4661f";
@@ -2376,24 +2379,9 @@
             event.preventDefault();
             const hubKey = btn.getAttribute("data-hub-key");
             const hubNode = routeNodes.get(hubKey);
-            const dbg = document.getElementById("sidebar-debug");
-            if (dbg) {
-              dbg.innerText = `Click: ${hubKey.split('|')[0]} (${hubNode ? "OK" : "ERR"})`;
-            }
-            console.log("Sidebar Clicked:", hubKey, "Node found:", !!hubNode);
-            
-            // Dynamic title change for absolute visual verification
-            const titleEl = document.querySelector(".map-header-title");
-            if (titleEl) {
-              titleEl.innerHTML = `PHƯƠNG ÁN THU NHẬN - ĐÃ CHỌN: <span style="color:#f97316;">${hubNode ? hubNode.name : "ERR"}</span>`;
-            }
-
             state.activeNodeKey = hubKey;
             if (hubNode && hubNode.occurrences && hubNode.occurrences[0]) {
               state.activeRouteId = hubNode.occurrences[0].routeId;
-              console.log("Setting activeRouteId:", state.activeRouteId);
-            } else {
-              console.warn("No occurrences found for hub node:", hubKey);
             }
             state.summaryOpen = true;
             summaryDrawerEl.classList.add("is-open");
