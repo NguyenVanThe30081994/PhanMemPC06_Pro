@@ -703,7 +703,7 @@ def martyr_adn_map():
         'adn_collection_points_20260625',
         'ban_do_diem_tap_ket_adn_3_to.html',
     )
-    if os.path.exists(generated_map):
+    if request.args.get('view') == 'generated' and os.path.exists(generated_map):
         return send_file(generated_map, mimetype='text/html')
     return render_template('martyr_adn_map.html', title='Bản đồ ADN liệt sĩ - PhanMemPC06_Pro')
 
