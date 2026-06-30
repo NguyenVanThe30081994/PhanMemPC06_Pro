@@ -697,6 +697,14 @@ def user_guide():
 
 @portal_bp.route('/ban-do-adn-liet-si')
 def martyr_adn_map():
+    generated_map = os.path.join(
+        current_app.root_path,
+        'outputs',
+        'adn_collection_points_20260625',
+        'ban_do_diem_tap_ket_adn_3_to.html',
+    )
+    if os.path.exists(generated_map):
+        return send_file(generated_map, mimetype='text/html')
     return render_template('martyr_adn_map.html', title='Bản đồ ADN liệt sĩ - PhanMemPC06_Pro')
 
 

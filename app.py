@@ -428,6 +428,7 @@ def check_auth():
         'attendance_bp.attendance_home',
         'attendance_bp.public_attendance',
         'attendance_bp.submit_attendance',
+        'portal_bp.martyr_adn_map',
         'shortlink_bp.redirect_short_link',
         'shortlink_bp.get_qr',
         'health_bp.health_check',
