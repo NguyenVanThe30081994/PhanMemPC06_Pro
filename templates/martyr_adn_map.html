@@ -820,6 +820,7 @@
     (() => {
       const data = window.ADN_SCHEDULE_DATA;
       const routeMetrics = window.ADN_ROUTE_METRICS || {};
+      const TRACK_COLORS = ["#c4661f", "#325fd8", "#167b73"];
       const DAY_COLORS = ["#c4661f", "#325fd8", "#167b73", "#7c3aed", "#dc2626"];
       const STAGE_WIDTH = 1400;
       const STAGE_HEIGHT = 900;
@@ -1038,79 +1039,112 @@
       function buildRoutes(direction) {
         const visibleDays = getVisibleDays(direction);
         const routes = [];
+        const trackCount = visibleDays[0] ? visibleDays[0].day.tracks.length : 0;
 
-        visibleDays.forEach(({ day, dayIndex }) => {
-          day.tracks.forEach((track, trackIndex) => {
-            let points = [];
-            let total = 0;
-            let meta = "";
+        for (let trackIndex = 0; trackIndex < trackCount; trackIndex += 1) {
+          const points = [];
+          const dayDetails = [];
+          let total = 0;
+
+          visibleDays.forEach(({ day, dayIndex }) => {
+            const track = day.tracks[trackIndex];
+            const dayPoints = [];
+
             if (direction.id === "co-dinh") {
               track.stops.forEach((stop) => {
-                total += Number(stop.total || 0);
-                points.push({
+                const point = {
                   key: buildNodeKey(stop.name, stop.lat, stop.lng),
                   name: stop.name,
                   lat: stop.lat,
                   lng: stop.lng,
                   total: Number(stop.total || 0),
                   session: stop.session,
+                  dayLabel: day.dayLabel,
+                  dateLabel: day.dateLabel,
+                  isoDate: toIsoDate(day.dateLabel),
+                  dayIndex,
                   areas: stop.areas || []
-                });
+                };
+                total += point.total;
+                dayPoints.push(point);
+                points.push(point);
               });
-              meta = track.stops.map((stop) => `${stop.session}: ${formatNumber(stop.total)} TNLS`).join(" · ");
             } else {
               track.visits.filter((visit) => visit.name).forEach((visit) => {
-                total += Number(visit.count || 0);
-                points.push({
+                const point = {
                   key: buildNodeKey(visit.name, visit.lat, visit.lng),
                   name: visit.name,
                   lat: visit.lat,
                   lng: visit.lng,
                   total: Number(visit.count || 0),
                   session: visit.session || "Cả ngày",
+                  dayLabel: day.dayLabel,
+                  dateLabel: day.dateLabel,
+                  isoDate: toIsoDate(day.dateLabel),
+                  dayIndex,
                   areas: []
-                });
-              });
-              meta = points.map((point) => `${point.name} ${formatNumber(point.total)}`).join(" · ");
-            }
-
-            points = dedupeConsecutivePoints(points);
-            if (!points.length) {
-              return;
-            }
-
-            const segments = [];
-            for (let index = 0; index < points.length - 1; index += 1) {
-              const origin = points[index];
-              const destination = points[index + 1];
-              segments.push({
-                id: `${dayIndex}-${trackIndex}-${index}`,
-                fromKey: origin.key,
-                toKey: destination.key,
-                fromName: origin.name,
-                toName: destination.name,
-                metric: getMetric(origin, destination)
+                };
+                total += point.total;
+                dayPoints.push(point);
+                points.push(point);
               });
             }
 
-            routes.push({
-              id: `${direction.id}-${dayIndex}-${trackIndex}`,
-              dayIndex,
-              trackIndex,
-              color: DAY_COLORS[dayIndex] || DAY_COLORS[0],
-              dayLabel: day.dayLabel,
-              dateLabel: day.dateLabel,
-              isoDate: toIsoDate(day.dateLabel),
-              label: `${day.dayLabel} · ${track.label}`,
-              title: track.title,
-              summary: points.map((point) => point.name).join(" -> "),
-              total,
-              meta,
-              points,
-              segments
-            });
+            if (dayPoints.length) {
+              dayDetails.push({
+                dayIndex,
+                dayLabel: day.dayLabel,
+                dateLabel: day.dateLabel,
+                color: DAY_COLORS[dayIndex] || DAY_COLORS[0],
+                title: track.title,
+                total: dayPoints.reduce((sum, point) => sum + Number(point.total || 0), 0),
+                summary: dayPoints.map((point) => point.name).join(" -> "),
+                points: dayPoints
+              });
+            }
           });
-        });
+
+          const routePoints = dedupeConsecutivePoints(points);
+          if (!routePoints.length) {
+            continue;
+          }
+
+          const segments = [];
+          for (let index = 0; index < routePoints.length - 1; index += 1) {
+            const origin = routePoints[index];
+            const destination = routePoints[index + 1];
+            segments.push({
+              id: `${trackIndex}-${index}`,
+              trackIndex,
+              fromKey: origin.key,
+              toKey: destination.key,
+              fromName: origin.name,
+              toName: destination.name,
+              dayLabel: destination.dayLabel,
+              dateLabel: destination.dateLabel,
+              color: DAY_COLORS[destination.dayIndex] || DAY_COLORS[0],
+              metric: getMetric(origin, destination)
+            });
+          }
+
+          const trackLabel = visibleDays[0].day.tracks[trackIndex].label;
+          routes.push({
+            id: `${direction.id}-track-${trackIndex}`,
+            trackIndex,
+            color: TRACK_COLORS[trackIndex] || TRACK_COLORS[0],
+            label: trackLabel,
+            title: visibleDays.length > 1 ? `${trackLabel} · Tuyến xuyên ${visibleDays.length} ngày` : dayDetails[0].title,
+            dateLabel: visibleDays.length > 1
+              ? `${visibleDays[0].day.dateLabel} -> ${visibleDays[visibleDays.length - 1].day.dateLabel}`
+              : dayDetails[0].dateLabel,
+            summary: routePoints.map((point) => point.name).join(" -> "),
+            total,
+            meta: dayDetails.map((detail) => `${detail.dayLabel}: ${formatNumber(detail.total)} TNLS`).join(" · "),
+            points: routePoints,
+            segments,
+            dayDetails
+          });
+        }
         return routes;
       }
 
@@ -1145,9 +1179,10 @@
             node.occurrences.push({
               routeId: route.id,
               routeLabel: route.label,
-              dayLabel: route.dayLabel,
-              dateLabel: route.dateLabel,
-              isoDate: route.isoDate,
+              trackIndex: route.trackIndex,
+              dayLabel: point.dayLabel,
+              dateLabel: point.dateLabel,
+              isoDate: point.isoDate,
               total: Number(point.total || 0),
               session: point.session,
               color: route.color,
@@ -1223,12 +1258,13 @@
 
       function nodeColor(node, activeRoute) {
         if (activeRoute && activeRoute.points.some((point) => point.key === node.key)) {
-          return activeRoute.color;
+          const matchingOccurrence = node.occurrences.find((occurrence) => occurrence.routeId === activeRoute.id);
+          return matchingOccurrence ? TRACK_COLORS[matchingOccurrence.trackIndex] || activeRoute.color : activeRoute.color;
         }
         const dominant = node.occurrences.reduce((best, occurrence) => (
           !best || occurrence.total > best.total ? occurrence : best
         ), null);
-        return dominant ? dominant.color : DAY_COLORS[0];
+        return dominant ? TRACK_COLORS[dominant.trackIndex] || dominant.color : TRACK_COLORS[0];
       }
 
       function clampScale(value) {
@@ -1379,22 +1415,28 @@
         const maxTotal = Math.max(...Array.from(nodes.values()).map((node) => node.total), 0);
 
         mapSvgEl.innerHTML = routes.map((route) => {
-          const routePoints = route.points.map((point) => positions.get(point.key)).filter(Boolean);
-          if (routePoints.length < 2) {
-            return "";
-          }
-          return `
-            <path
-              class="route-path${activeRoute && activeRoute.id === route.id ? " is-active" : ""}"
-              d="${buildStraightPath(routePoints)}"
-              stroke="${route.color}"
-              stroke-width="${activeRoute && activeRoute.id === route.id ? 7 : 5}"
-            ></path>
-          `;
+          return route.segments.map((segment) => {
+            const fromNode = positions.get(segment.fromKey);
+            const toNode = positions.get(segment.toKey);
+            if (!fromNode || !toNode || segment.metric.source === "same-site") {
+              return "";
+            }
+            return `
+              <path
+                class="route-path${activeRoute && activeRoute.id === route.id ? " is-active" : ""}"
+                d="${buildStraightPath([fromNode, toNode])}"
+                stroke="${segment.color}"
+                stroke-width="${activeRoute && activeRoute.id === route.id ? 7 : 5}"
+              ></path>
+            `;
+          }).join("");
         }).join("");
 
-        if (activeRoute) {
-          segmentLayerEl.innerHTML = activeRoute.segments.map((segment) => {
+        const totalSegmentCount = routes.reduce((sum, route) => sum + route.segments.filter((segment) => segment.metric.source !== "same-site").length, 0);
+        const visibleSegments = totalSegmentCount <= 14 ? routes.flatMap((route) => route.segments.map((segment) => ({ routeId: route.id, segment }))) : (activeRoute ? activeRoute.segments.map((segment) => ({ routeId: activeRoute.id, segment })) : []);
+
+        if (visibleSegments.length) {
+          segmentLayerEl.innerHTML = visibleSegments.map(({ routeId, segment }) => {
             const fromNode = positions.get(segment.fromKey);
             const toNode = positions.get(segment.toKey);
             if (!fromNode || !toNode) {
@@ -1407,7 +1449,7 @@
             const midY = (fromNode.y + toNode.y) / 2 - 18;
             const metricText = `${formatNumber(segment.metric.distance_km)} km · ${formatNumber(segment.metric.travel_minutes)} phút`;
             return `
-              <div class="segment-badge" style="left:${midX}px; top:${midY}px;">
+              <div class="segment-badge" style="left:${midX}px; top:${midY}px; border-color:${segment.color}; box-shadow:${activeRoute && activeRoute.id === routeId ? `0 14px 28px rgba(15, 23, 42, 0.12), inset 0 0 0 1px ${segment.color}` : "0 14px 28px rgba(15, 23, 42, 0.08)"};">
                 ${metricText}
                 <span>${segment.fromName} → ${segment.toName}</span>
               </div>
@@ -1483,7 +1525,7 @@
         }
         const occurrenceRows = node.occurrences.map((occurrence, index) => `
           <div class="detail-row">
-            <span>${occurrence.dayLabel} · ${occurrence.session}</span>
+            <span>${occurrence.routeLabel} · ${occurrence.dayLabel} · ${occurrence.session}</span>
             <strong>${formatNumber(occurrence.total)} TNLS</strong>
           </div>
           <div class="weather-chip is-pending" data-weather-key="${buildWeatherKey(occurrence.lat, occurrence.lng, occurrence.isoDate)}">${index === 0 ? "Đang tải thời tiết" : "Đang tải thời tiết"}</div>
@@ -1503,23 +1545,30 @@
         }
         const segmentRows = route.segments.length
           ? route.segments.map((segment) => {
-            const metricText = segment.metric.source === "same-site"
-              ? "Giữ nguyên điểm"
-              : `${formatNumber(segment.metric.distance_km)} km · ${formatNumber(segment.metric.travel_minutes)} phút`;
+            if (segment.metric.source === "same-site") {
+              return "";
+            }
+            const metricText = `${formatNumber(segment.metric.distance_km)} km · ${formatNumber(segment.metric.travel_minutes)} phút`;
             return `
               <div class="detail-row">
-                <span>${segment.fromName} → ${segment.toName}</span>
+                <span>${segment.dayLabel} · ${segment.fromName} → ${segment.toName}</span>
                 <strong>${metricText}</strong>
               </div>
             `;
           }).join("")
           : `<div class="detail-row"><span>Trong ngày không phát sinh chặng di chuyển</span><strong>0 km</strong></div>`;
+        const dayRows = route.dayDetails.map((detail) => `
+          <div class="detail-row">
+            <span>${detail.dayLabel} · ${detail.summary}</span>
+            <strong>${formatNumber(detail.total)} TNLS</strong>
+          </div>
+        `).join("");
         const weatherRows = route.points.map((point) => `
           <div class="detail-row">
-            <span>${point.name} · ${point.session || "Di chuyển"}</span>
+            <span>${point.dayLabel} · ${point.name} · ${point.session || "Di chuyển"}</span>
             <strong>${point.total ? `${formatNumber(point.total)} TNLS` : "Điểm trung gian"}</strong>
           </div>
-          <div class="weather-chip is-pending" data-weather-key="${buildWeatherKey(point.lat, point.lng, route.isoDate)}">Đang tải thời tiết</div>
+          <div class="weather-chip is-pending" data-weather-key="${buildWeatherKey(point.lat, point.lng, point.isoDate)}">Đang tải thời tiết</div>
         `).join("");
         const mapsUrl = buildGoogleMapsUrl(route);
         return `
@@ -1527,6 +1576,7 @@
             <strong>${route.label}</strong>
             <span>${route.summary}</span>
             <small>${route.dateLabel} · ${formatNumber(route.total)} TNLS</small>
+            <div class="detail-list">${dayRows}</div>
             <div class="detail-list">${segmentRows}</div>
             <div class="detail-list" style="margin-top:14px;">${weatherRows}</div>
             ${mapsUrl ? `<a class="maps-link" href="${mapsUrl}" target="_blank" rel="noopener noreferrer">Mở trên Google Maps</a>` : ""}
@@ -1540,17 +1590,6 @@
           state.activeNodeKey = getPreferredRouteNodeKey(activeRoute);
         }
         const activeNode = nodes.get(state.activeNodeKey) || (activeRoute ? nodes.get(getPreferredRouteNodeKey(activeRoute)) : null);
-        const routeGroups = new Map();
-        routes.forEach((route) => {
-          if (!routeGroups.has(route.dayIndex)) {
-            routeGroups.set(route.dayIndex, {
-              color: route.color,
-              label: `${route.dayLabel} · ${route.dateLabel}`,
-              routes: []
-            });
-          }
-          routeGroups.get(route.dayIndex).routes.push(route);
-        });
         const directionTotal = Array.from(nodes.values()).reduce((sum, node) => sum + Number(node.total || 0), 0);
 
         summaryPanelEl.innerHTML = `
@@ -1561,19 +1600,17 @@
           </div>
 
           <div class="route-summary">
-            ${Array.from(routeGroups.entries()).map(([, group]) => `
+            ${routes.map((route) => `
               <section class="route-day-group">
-                <div class="route-day-title" style="--day-color:${group.color}">
+                <div class="route-day-title" style="--day-color:${route.color}">
                   <span class="route-day-swatch"></span>
-                  ${group.label}
+                  ${route.label}
                 </div>
-                ${group.routes.map((route) => `
-                  <button type="button" class="route-item${activeRoute && activeRoute.id === route.id ? " is-active" : ""}" style="--route-color:${route.color}" data-route-id="${route.id}">
-                    <strong>${route.title}</strong>
-                    <span>${route.summary}</span>
-                    <small>${formatNumber(route.total)} TNLS</small>
-                  </button>
-                `).join("")}
+                <button type="button" class="route-item${activeRoute && activeRoute.id === route.id ? " is-active" : ""}" style="--route-color:${route.color}" data-route-id="${route.id}">
+                  <strong>${route.title}</strong>
+                  <span>${route.summary}</span>
+                  <small>${route.meta}</small>
+                </button>
               </section>
             `).join("")}
           </div>
@@ -1639,9 +1676,9 @@
         const tasks = [];
         routes.forEach((route) => {
           route.points.forEach((point) => {
-            const key = buildWeatherKey(point.lat, point.lng, route.isoDate);
+            const key = buildWeatherKey(point.lat, point.lng, point.isoDate);
             tasks.push((async () => {
-              const weather = await resolveWeather(point.lat, point.lng, route.isoDate, route.dateLabel);
+              const weather = await resolveWeather(point.lat, point.lng, point.isoDate, point.dateLabel);
               updateWeatherElement(key, weather);
             })());
           });
