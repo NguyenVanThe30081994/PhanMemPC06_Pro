@@ -89,6 +89,36 @@
       padding-top: 24px;
     }
 
+    .page-shell.is-reference-mode {
+      width: min(1840px, calc(100% - 28px));
+      margin: 16px auto 24px;
+      padding-top: 8px;
+    }
+
+    .page-shell.is-reference-mode .hero-card {
+      display: none;
+    }
+
+    .page-shell.is-reference-mode .toolbar {
+      margin-bottom: 12px;
+    }
+
+    .page-shell.is-reference-mode .workspace {
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 16px;
+    }
+
+    .page-shell.is-reference-mode .map-card {
+      padding: 14px;
+      top: 12px;
+    }
+
+    .page-shell.is-reference-mode .summary-card {
+      padding: 18px;
+      top: 12px;
+      max-height: calc(100vh - 28px);
+    }
+
     .hero-card,
     .toolbar-card,
     .map-card,
@@ -101,7 +131,7 @@
     }
 
     .hero-card {
-      padding: 24px 28px;
+      padding: 20px 24px;
       margin-bottom: 18px;
     }
 
@@ -122,7 +152,7 @@
 
     h1 {
       margin: 0;
-      font-size: clamp(28px, 4.8vw, 46px);
+      font-size: clamp(24px, 3.6vw, 34px);
       line-height: 1.05;
       letter-spacing: -0.03em;
     }
@@ -241,6 +271,10 @@
       isolation: isolate;
     }
 
+    .map-stage.is-reference-mode {
+      min-height: 640px;
+    }
+
     .map-stage::before {
       content: "";
       position: absolute;
@@ -271,6 +305,11 @@
       border: 1px solid rgba(226, 232, 240, 0.92);
       box-shadow: 0 14px 30px rgba(15, 23, 42, 0.1);
       backdrop-filter: blur(14px);
+    }
+
+    .map-stage.is-reference-mode .map-toolbar {
+      opacity: 0;
+      pointer-events: none;
     }
 
     .map-toolbar-group {
@@ -320,7 +359,10 @@
 
     .map-viewport {
       position: absolute;
-      inset: 0;
+      top: 0;
+      left: 0;
+      width: 1400px;
+      height: 900px;
       transform-origin: 0 0;
       z-index: 1;
       will-change: transform;
@@ -331,8 +373,8 @@
     .segment-layer {
       position: absolute;
       inset: 0;
-      width: 100%;
-      height: 100%;
+      width: 1400px;
+      height: 900px;
     }
 
     .map-svg {
@@ -365,14 +407,17 @@
 
     .map-node {
       position: absolute;
+      width: 0;
+      height: 0;
       border: 0;
       padding: 0;
       background: transparent;
       cursor: pointer;
       pointer-events: auto;
       color: inherit;
-      transform: translate(-50%, -50%);
+      transform: none;
       transition: transform 0.16s ease, opacity 0.16s ease;
+      overflow: visible;
     }
 
     .map-node.is-dimmed {
@@ -381,7 +426,7 @@
 
     .map-node:hover,
     .map-node:focus-visible {
-      transform: translate(-50%, -50%) scale(1.03);
+      transform: scale(1.03);
       outline: none;
       z-index: 5;
     }
@@ -391,6 +436,10 @@
     }
 
     .map-node-dot {
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, -50%);
       width: var(--node-size);
       height: var(--node-size);
       border-radius: 50%;
@@ -465,28 +514,28 @@
     }
 
     .anchor-right .map-node-label {
-      left: calc(100% + 14px);
-      top: 50%;
+      left: 16px;
+      top: 0;
       transform: translateY(-58%);
     }
 
     .anchor-left .map-node-label {
-      right: calc(100% + 14px);
-      top: 50%;
+      right: 16px;
+      top: 0;
       transform: translateY(-58%);
       text-align: right;
     }
 
     .anchor-bottom .map-node-label {
-      top: calc(100% + 14px);
-      left: 50%;
+      top: 16px;
+      left: 0;
       transform: translateX(-50%);
       text-align: center;
     }
 
     .anchor-top .map-node-label {
-      bottom: calc(100% + 14px);
-      left: 50%;
+      bottom: 16px;
+      left: 0;
       transform: translateX(-50%);
       text-align: center;
     }
@@ -515,6 +564,29 @@
       font-size: 10px;
       font-weight: 700;
       margin-top: 2px;
+    }
+
+    .map-note {
+      position: absolute;
+      left: 50%;
+      bottom: 18px;
+      z-index: 6;
+      transform: translateX(-50%);
+      width: min(760px, calc(100% - 48px));
+      padding: 12px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      box-shadow: 0 18px 34px rgba(15, 23, 42, 0.08);
+      color: var(--ink-700);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.45;
+      text-align: left;
+    }
+
+    .map-note strong {
+      color: var(--ink-900);
     }
 
     .summary-head h2 {
@@ -718,7 +790,7 @@
       transform: translateY(-1px);
     }
 
-    @media (max-width: 1280px) {
+    @media (max-width: 1080px) {
       .workspace {
         grid-template-columns: 1fr;
       }
@@ -781,7 +853,7 @@
   <main class="page-shell">
     <section class="hero-card">
       <div class="hero-kicker">{{ pc06_shell_label or 'PhanMemPC06_Pro' }}</div>
-      <h1>15 điểm tập kết ADN theo mô phỏng tuyến di chuyển 5 ngày</h1>
+      <h1>15 điểm tập kết ADN</h1>
     </section>
 
     <section class="toolbar">
@@ -806,6 +878,7 @@
             <div class="segment-layer" id="segment-layer"></div>
             <div class="node-layer" id="node-layer"></div>
           </div>
+          <div class="map-note" id="map-note"></div>
         </div>
       </div>
       <aside class="summary-card" id="summary-panel"></aside>
@@ -820,10 +893,35 @@
       const routeMetrics = window.ADN_ROUTE_METRICS || {};
       const TRACK_COLORS = ["#c4661f", "#325fd8", "#167b73"];
       const DAY_COLORS = ["#c4661f", "#325fd8", "#167b73", "#7c3aed", "#dc2626"];
+      const FIXED_DAY_ROUTE_PLAN = [
+        ["Sơn Dương", "Minh Xuân", "Xuân Vân"],
+        ["Chiêm Hóa", "Lâm Bình", "Bắc Quang"],
+        ["Quang Bình", "Hà Giang 2", "Bắc Mê"],
+        ["Quản Bạ", "Yên Minh", "Đồng Văn", "Mèo Vạc"],
+        ["Hoàng Su Phì", "Pà Vầy Sủ"]
+      ];
+      const FIXED_POINT_TOTALS = {
+        "Sơn Dương": 675,
+        "Minh Xuân": 662,
+        "Xuân Vân": 509,
+        "Chiêm Hóa": 529,
+        "Lâm Bình": 291,
+        "Bắc Quang": 365,
+        "Quang Bình": 246,
+        "Hà Giang 2": 265,
+        "Bắc Mê": 105,
+        "Quản Bạ": 62,
+        "Yên Minh": 48,
+        "Đồng Văn": 17,
+        "Mèo Vạc": 11,
+        "Hoàng Su Phì": 60,
+        "Pà Vầy Sủ": 64
+      };
       const STAGE_WIDTH = 1400;
       const STAGE_HEIGHT = 900;
       const directionTabsEl = document.getElementById("direction-tabs");
       const dayFilterEl = document.getElementById("day-filter");
+      const pageShellEl = document.querySelector(".page-shell");
       const mapStageEl = document.getElementById("map-stage");
       const mapViewportEl = document.getElementById("map-viewport");
       const mapSvgEl = document.getElementById("map-svg");
@@ -831,6 +929,7 @@
       const segmentLayerEl = document.getElementById("segment-layer");
       const summaryPanelEl = document.getElementById("summary-panel");
       const mapStatusEl = document.getElementById("map-status");
+      const mapNoteEl = document.getElementById("map-note");
       const zoomInButtonEl = document.getElementById("zoom-in-button");
       const zoomOutButtonEl = document.getElementById("zoom-out-button");
       const resetViewButtonEl = document.getElementById("reset-view-button");
@@ -921,6 +1020,30 @@
           return direction.days.map((day, index) => ({ day, dayIndex: index }));
         }
         return direction.days[state.dayIndex] ? [{ day: direction.days[state.dayIndex], dayIndex: state.dayIndex }] : [];
+      }
+
+      function isReferenceBoardMode(direction) {
+        return direction && direction.id === "co-dinh" && state.dayIndex === null;
+      }
+
+      function buildDirectionPointLookup(direction) {
+        const lookup = new Map();
+        direction.days.forEach((day) => {
+          day.tracks.forEach((track) => {
+            const stops = direction.id === "co-dinh" ? track.stops : track.visits;
+            stops.forEach((stop) => {
+              if (!stop || !stop.name || lookup.has(stop.name)) {
+                return;
+              }
+              lookup.set(stop.name, {
+                name: stop.name,
+                lat: Number(stop.lat),
+                lng: Number(stop.lng)
+              });
+            });
+          });
+        });
+        return lookup;
       }
 
       function renderDirectionTabs(direction) {
@@ -1035,6 +1158,78 @@
       }
 
       function buildRoutes(direction) {
+        if (direction.id === "co-dinh") {
+          const pointLookup = buildDirectionPointLookup(direction);
+          const routePlans = state.dayIndex === null
+            ? FIXED_DAY_ROUTE_PLAN.map((points, dayIndex) => ({ dayIndex, points }))
+            : (FIXED_DAY_ROUTE_PLAN[state.dayIndex] ? [{ dayIndex: state.dayIndex, points: FIXED_DAY_ROUTE_PLAN[state.dayIndex] }] : []);
+
+          return routePlans.map(({ dayIndex, points }) => {
+            const day = direction.days[dayIndex];
+            const routePoints = points.map((name) => {
+              const coords = pointLookup.get(name);
+              if (!coords) {
+                return null;
+              }
+              return {
+                key: buildNodeKey(name, coords.lat, coords.lng),
+                name,
+                lat: coords.lat,
+                lng: coords.lng,
+                total: Number(FIXED_POINT_TOTALS[name] || 0),
+                session: "Cả ngày",
+                dayLabel: day.dayLabel,
+                dateLabel: day.dateLabel,
+                isoDate: toIsoDate(day.dateLabel),
+                dayIndex,
+                areas: []
+              };
+            }).filter(Boolean);
+
+            const segments = [];
+            for (let index = 0; index < routePoints.length - 1; index += 1) {
+              const origin = routePoints[index];
+              const destination = routePoints[index + 1];
+              segments.push({
+                id: `${dayIndex}-${index}`,
+                trackIndex: dayIndex,
+                fromKey: origin.key,
+                toKey: destination.key,
+                fromName: origin.name,
+                toName: destination.name,
+                dayLabel: day.dayLabel,
+                dateLabel: day.dateLabel,
+                color: DAY_COLORS[dayIndex] || DAY_COLORS[0],
+                metric: getMetric(origin, destination)
+              });
+            }
+
+            return {
+              id: `${direction.id}-day-${dayIndex}`,
+              trackIndex: dayIndex,
+              color: DAY_COLORS[dayIndex] || DAY_COLORS[0],
+              label: day.dayLabel,
+              title: points.join(" -> "),
+              dateLabel: day.dateLabel,
+              summary: points.join(" -> "),
+              total: routePoints.reduce((sum, point) => sum + Number(point.total || 0), 0),
+              meta: `${day.dateLabel} · ${routePoints.reduce((sum, point) => sum + Number(point.total || 0), 0).toLocaleString("vi-VN")} TNLS`,
+              points: routePoints,
+              segments,
+              dayDetails: [{
+                dayIndex,
+                dayLabel: day.dayLabel,
+                dateLabel: day.dateLabel,
+                color: DAY_COLORS[dayIndex] || DAY_COLORS[0],
+                title: points.join(" -> "),
+                total: routePoints.reduce((sum, point) => sum + Number(point.total || 0), 0),
+                summary: points.join(" -> "),
+                points: routePoints
+              }]
+            };
+          }).filter((route) => route.points.length);
+        }
+
         const visibleDays = getVisibleDays(direction);
         const routes = [];
         const trackCount = visibleDays[0] ? visibleDays[0].day.tracks.length : 0;
@@ -1178,6 +1373,7 @@
               routeId: route.id,
               routeLabel: route.label,
               trackIndex: route.trackIndex,
+              dayIndex: point.dayIndex,
               dayLabel: point.dayLabel,
               dateLabel: point.dateLabel,
               isoDate: point.isoDate,
@@ -1193,7 +1389,12 @@
         return map;
       }
 
-      function projectNodes(nodes) {
+      function projectNodes(nodes, options = {}) {
+        const {
+          avoidCollisions = true,
+          paddingX = 120,
+          paddingY = 78
+        } = options;
         const list = Array.from(nodes.values());
         const latitudes = list.map((node) => Number(node.lat));
         const longitudes = list.map((node) => Number(node.lng));
@@ -1203,28 +1404,28 @@
         const maxLng = Math.max(...longitudes);
         const latRange = Math.max(0.01, maxLat - minLat);
         const lngRange = Math.max(0.01, maxLng - minLng);
-        const paddingX = 120;
-        const paddingY = 78;
         const projected = list.map((node) => ({
           ...node,
           x: paddingX + ((Number(node.lng) - minLng) / lngRange) * (STAGE_WIDTH - paddingX * 2),
           y: paddingY + ((maxLat - Number(node.lat)) / latRange) * (STAGE_HEIGHT - paddingY * 2)
         }));
 
-        for (let outer = 0; outer < projected.length; outer += 1) {
-          for (let inner = 0; inner < outer; inner += 1) {
-            const left = projected[inner];
-            const right = projected[outer];
-            const deltaX = right.x - left.x;
-            const deltaY = right.y - left.y;
-            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-            if (distance < 68) {
-              const angle = Math.atan2(deltaY || 1, deltaX || 1);
-              const push = (68 - distance) / 2;
-              right.x += Math.cos(angle) * push;
-              right.y += Math.sin(angle) * push;
-              left.x -= Math.cos(angle) * push * 0.22;
-              left.y -= Math.sin(angle) * push * 0.22;
+        if (avoidCollisions) {
+          for (let outer = 0; outer < projected.length; outer += 1) {
+            for (let inner = 0; inner < outer; inner += 1) {
+              const left = projected[inner];
+              const right = projected[outer];
+              const deltaX = right.x - left.x;
+              const deltaY = right.y - left.y;
+              const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+              if (distance < 68) {
+                const angle = Math.atan2(deltaY || 1, deltaX || 1);
+                const push = (68 - distance) / 2;
+                right.x += Math.cos(angle) * push;
+                right.y += Math.sin(angle) * push;
+                left.x -= Math.cos(angle) * push * 0.22;
+                left.y -= Math.sin(angle) * push * 0.22;
+              }
             }
           }
         }
@@ -1422,6 +1623,7 @@
       }
 
       function renderBoard(routes, nodes) {
+        const direction = getSelectedDirection();
         const activeRoute = resolveActiveRoute(routes);
         if (!activeRoute) {
           mapSvgEl.innerHTML = "";
@@ -1430,44 +1632,65 @@
           return;
         }
 
-        const routeNodes = new Map();
-        activeRoute.points.forEach((point) => {
-          if (nodes.has(point.key)) {
-            routeNodes.set(point.key, nodes.get(point.key));
-          }
-        });
+        const referenceMode = isReferenceBoardMode(direction);
+        pageShellEl.classList.toggle("is-reference-mode", referenceMode);
+        mapStageEl.classList.toggle("is-reference-mode", referenceMode);
+        mapNoteEl.style.display = referenceMode ? "block" : "none";
+        mapNoteEl.innerHTML = referenceMode
+          ? `<strong>Chú thích thời gian:</strong> mọi thời gian được ghi theo thứ tự <strong>10 phút / 15 phút / 20 phút</strong> cho mỗi trường hợp.`
+          : "";
+
+        const routeNodes = referenceMode ? nodes : new Map();
+        if (!referenceMode) {
+          activeRoute.points.forEach((point) => {
+            if (nodes.has(point.key)) {
+              routeNodes.set(point.key, nodes.get(point.key));
+            }
+          });
+        }
         const preferredNodeKey = getPreferredRouteNodeKey(activeRoute);
         const activeNodeKey = routeNodes.has(state.activeNodeKey) ? state.activeNodeKey : preferredNodeKey;
         if (activeNodeKey && state.activeNodeKey !== activeNodeKey) {
           state.activeNodeKey = activeNodeKey;
         }
-        const positions = projectNodes(routeNodes);
+        const positions = projectNodes(routeNodes, referenceMode ? {
+          avoidCollisions: false,
+          paddingX: 135,
+          paddingY: 92
+        } : {});
         const maxTotal = Math.max(...Array.from(routeNodes.values()).map((node) => node.total), 0);
 
-        mapSvgEl.innerHTML = activeRoute.segments.map((segment) => {
-          const fromNode = positions.get(segment.fromKey);
-          const toNode = positions.get(segment.toKey);
-          if (!fromNode || !toNode || segment.metric.source === "same-site") {
-            return "";
-          }
-          const path = buildStraightPath([fromNode, toNode]);
-          return `
-            <path
-              class="route-path is-active"
-              d="${path}"
-              stroke="rgba(255, 255, 255, 0.92)"
-              stroke-width="12"
-            ></path>
-            <path
-              class="route-path is-active"
-              d="${path}"
-              stroke="${activeRoute.color}"
-              stroke-width="6"
-            ></path>
-          `;
+        const visibleRoutes = referenceMode ? routes : [activeRoute];
+        mapSvgEl.innerHTML = visibleRoutes.map((route) => {
+          return route.segments.map((segment) => {
+            const fromNode = positions.get(segment.fromKey);
+            const toNode = positions.get(segment.toKey);
+            if (!fromNode || !toNode || segment.metric.source === "same-site") {
+              return "";
+            }
+            const path = buildStraightPath([fromNode, toNode]);
+            const isActiveRoute = activeRoute && activeRoute.id === route.id;
+            const baseColor = referenceMode ? route.color : activeRoute.color;
+            return `
+              <path
+                class="route-path${isActiveRoute ? " is-active" : ""}"
+                d="${path}"
+                stroke="rgba(255, 255, 255, 0.9)"
+                stroke-width="${referenceMode ? 10 : 12}"
+                opacity="${referenceMode ? 0.48 : 0.96}"
+              ></path>
+              <path
+                class="route-path${isActiveRoute ? " is-active" : ""}"
+                d="${path}"
+                stroke="${baseColor}"
+                stroke-width="${referenceMode ? 5 : 6}"
+                opacity="${referenceMode ? (isActiveRoute ? 1 : 0.9) : 1}"
+              ></path>
+            `;
+          }).join("");
         }).join("");
 
-        segmentLayerEl.innerHTML = activeRoute.segments.map((segment) => {
+        segmentLayerEl.innerHTML = referenceMode ? "" : activeRoute.segments.map((segment) => {
           const fromNode = positions.get(segment.fromKey);
           const toNode = positions.get(segment.toKey);
           if (!fromNode || !toNode || segment.metric.source === "same-site") {
@@ -1485,7 +1708,10 @@
 
         nodeLayerEl.innerHTML = Array.from(positions.values()).map((node) => {
           const anchor = labelAnchor(node);
-          const color = activeRoute.color;
+          const primaryOccurrence = node.occurrences[0];
+          const color = referenceMode
+            ? (DAY_COLORS[primaryOccurrence.dayIndex] || activeRoute.color)
+            : activeRoute.color;
           const size = nodeSize(node.total, maxTotal);
           const isActive = activeNodeKey === node.key;
           const occurrenceCount = node.occurrences.length;
@@ -1499,7 +1725,7 @@
               <div class="map-node-dot"></div>
               <div class="map-node-label">
                 <strong>${node.name}</strong>
-                <span>${formatNumber(node.total)} TNLS</span>
+                <span>${formatNumber(node.total)} người</span>
                 <small>${occurrenceCount} lượt tuyến</small>
               </div>
             </button>
@@ -1514,7 +1740,7 @@
         });
 
         if (state.shouldAutoFit) {
-          fitViewportToPositions(activeRoute.points, positions);
+          fitViewportToPositions(referenceMode ? Array.from(routeNodes.values()) : activeRoute.points, positions);
           state.shouldAutoFit = false;
         } else {
           updateViewport();
@@ -1607,11 +1833,55 @@
 
       function renderSummary(direction, routes, nodes) {
         const activeRoute = resolveActiveRoute(routes);
+        const referenceMode = isReferenceBoardMode(direction);
         if (activeRoute && !state.activeNodeKey) {
           state.activeNodeKey = getPreferredRouteNodeKey(activeRoute);
         }
         const activeNode = nodes.get(state.activeNodeKey) || (activeRoute ? nodes.get(getPreferredRouteNodeKey(activeRoute)) : null);
         const directionTotal = Array.from(nodes.values()).reduce((sum, node) => sum + Number(node.total || 0), 0);
+
+        if (referenceMode) {
+          summaryPanelEl.innerHTML = `
+            <div class="summary-head">
+              <div class="hero-kicker">${direction.label}</div>
+              <h2>Tuyến 5 ngày</h2>
+              <div class="weather-chip is-pending" data-meta="direction-total">${formatNumber(directionTotal)} TNLS</div>
+            </div>
+
+            <div class="detail-card">
+              <strong>Bản đồ mô phỏng 5 tuyến ngày</strong>
+              <span>Các điểm được nối thẳng theo đúng chuỗi tuyến trong phương án 5 ngày, ưu tiên điểm đông trước rồi giảm dần về điểm ít.</span>
+            </div>
+
+            <div class="route-summary">
+              ${routes.map((route) => `
+                <section class="route-day-group">
+                  <div class="route-day-title" style="--day-color:${route.color}">
+                    <span class="route-day-swatch"></span>
+                    ${route.label}
+                  </div>
+                  <button type="button" class="route-item${activeRoute && activeRoute.id === route.id ? " is-active" : ""}" style="--route-color:${route.color}" data-route-id="${route.id}">
+                    <strong>${route.summary}</strong>
+                    <small>${route.dateLabel} · ${formatNumber(route.total)} TNLS</small>
+                  </button>
+                </section>
+              `).join("")}
+            </div>
+
+            ${buildNodeDetail(activeNode)}
+          `;
+
+          summaryPanelEl.querySelectorAll("[data-route-id]").forEach((button) => {
+            button.addEventListener("click", () => {
+              state.activeRouteId = button.getAttribute("data-route-id");
+              const nextRoute = routes.find((route) => route.id === state.activeRouteId);
+              state.activeNodeKey = getPreferredRouteNodeKey(nextRoute);
+              state.shouldAutoFit = true;
+              render();
+            });
+          });
+          return;
+        }
 
         summaryPanelEl.innerHTML = `
           <div class="summary-head">
