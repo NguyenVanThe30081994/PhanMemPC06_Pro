@@ -94,10 +94,7 @@
     }
 
     .hero {
-      display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
-      gap: 18px;
-      align-items: end;
+      display: block;
       margin-bottom: 20px;
     }
 
@@ -112,14 +109,6 @@
 
     .hero-card {
       padding: 26px 28px;
-    }
-
-    .hero-note {
-      padding: 22px 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      justify-content: center;
     }
 
     .hero-kicker {
@@ -740,7 +729,6 @@
     }
 
     @media (max-width: 1180px) {
-      .hero,
       .workspace {
         grid-template-columns: 1fr;
       }
@@ -765,14 +753,12 @@
       }
 
       .hero-card,
-      .hero-note,
       .board-card,
       .summary-card {
         border-radius: 24px;
       }
 
       .hero-card,
-      .hero-note,
       .summary-card {
         padding: 18px;
       }
@@ -805,18 +791,6 @@
       <div class="hero-card">
         <div class="hero-kicker">{{ pc06_shell_label or 'PhanMemPC06_Pro' }}</div>
         <h1>15 điểm tập kết ADN theo lịch cố định và lưu động</h1>
-        <p>
-          Trang này dựng lại kế hoạch thu nhận ADN 5 ngày theo hai hướng <strong>cố định</strong> và
-          <strong>lưu động</strong>, giữ kiểu trực quan node-line giống bản phác thảo để dễ nhìn tuyến
-          di chuyển và tải thu nhận từng ngày mà không cần nền bản đồ thật.
-        </p>
-        <p class="muted">Nguyên tắc trình bày vẫn bám hướng xử lý điểm đông làm trước, điểm ít làm sau.</p>
-      </div>
-      <div class="hero-note">
-        <strong>02 nguồn đầu vào</strong>
-        <p>Dữ liệu được tóm lược từ bộ kế hoạch ngày 22/7/2026 đến 26/7/2026 cho cả hai hướng.</p>
-        <p>Khung triển khai được trình bày lại từ phương án 9 tổ, 45 máy, 5 ngày cố định kết hợp các tổ lưu động hỗ trợ điểm lẻ.</p>
-        <p class="muted">Trục vị trí chỉ dùng để giữ tương quan không gian của dữ liệu cũ, không phải hiển thị hành chính chính xác.</p>
       </div>
     </section>
 
