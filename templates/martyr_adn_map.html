@@ -1465,7 +1465,7 @@
                 <div class="map-status" id="map-status">100%</div>
                 <button type="button" class="map-control" id="zoom-in-button" aria-label="Phóng to">+</button>
                 <button type="button" class="map-control" id="reset-view-button" aria-label="Đặt lại góc nhìn">↺</button>
-                <span style="font-size: 11px; opacity: 0.6; margin-left: 8px; font-weight: 600; font-family: var(--font-display);">v3.9.1</span>
+                <span style="font-size: 11px; opacity: 0.6; margin-left: 8px; font-weight: 600; font-family: var(--font-display);">v3.9.2</span>
 
               </div>
               <button type="button" class="summary-toggle" id="summary-toggle" aria-label="Mở thông tin">☰</button>
@@ -3587,6 +3587,18 @@
               <h3 style="margin: 0 0 12px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">🕒 Chi Tiết Các Ca & Nhân Sự</h3>
               <div>${buildOccurrenceSessionRows(node)}</div>
             </div>
+
+            ${(firstOccurrence.equipmentProvince || firstOccurrence.equipmentTeam) ? `
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+
+            <div style="margin-bottom: 20px;">
+              <h3 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">📷 Trang Thiết Bị</h3>
+              <div style="font-size: 13px; color: #334155; line-height: 1.7;">
+                ${firstOccurrence.equipmentProvince ? `<div style="margin-bottom: 4px;"><strong>Thiết bị cấp tỉnh:</strong> ${escapeHtml(firstOccurrence.equipmentProvince)}</div>` : ""}
+                ${firstOccurrence.equipmentTeam ? `<div><strong>Thiết bị đơn vị/tổ:</strong> ${escapeHtml(firstOccurrence.equipmentTeam)}</div>` : ""}
+              </div>
+            </div>
+            ` : ""}
             
             ${hubAreaRows ? `
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
