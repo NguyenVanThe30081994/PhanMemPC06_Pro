@@ -1,0 +1,939 @@
+{% extends "base.html" %}
+
+{% block title %}Nháp Import {{ config.title or draft.source_name or draft.id }}{% endblock %}
+
+{% block content %}
+{% set is_locked = draft.status == 'published' %}
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">{{ config.title or draft.source_name or 'Nháp import' }}</h1>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="badge {% if draft.status == 'published' %}bg-success-subtle text-success{% elif draft.status == 'failed' %}bg-danger-subtle text-danger{% else %}bg-warning-subtle text-warning{% endif %}">
+                    {{ status_label }}
+                </span>
+                <span class="badge bg-light text-dark">{{ source_label }}</span>
+                <span class="badge bg-light text-dark">{{ preview.task_mode if preview else config.task_mode }}</span>
+            </div>
+            <p class="text-muted mt-2 mb-0">{{ config.summary or 'Chưa có tóm tắt.' }}</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a class="btn btn-outline-secondary" href="{{ url_for('tasks_bp.task_import_drafts') }}">Quay lại nháp import</a>
+            {% if draft.published_task_id %}
+            <a class="btn btn-outline-primary" href="{{ url_for('tasks_bp.task_detail', tid=draft.published_task_id) }}">Mở nhiệm vụ đã phát hành</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if is_locked %}
+    <div class="alert alert-success">
+        Nháp này đã phát hành thành nhiệm vụ. Các trường bên dưới được khóa để tránh thay đổi ngoài ý muốn.
+    </div>
+    {% elif draft.status == 'failed' %}
+    <div class="alert alert-danger">
+        Lần phát hành gần nhất gặp lỗi. Bạn có thể chỉnh lại cấu hình rồi phát hành lại.
+    </div>
+    {% endif %}
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-8">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-4">
+                    <h2 class="h5 mb-3">Thông tin nguồn</h2>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="small text-muted">Nguồn</div>
+                            <div class="fw-semibold">{{ source_label }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="small text-muted">Tên nguồn</div>
+                            <div class="fw-semibold">{{ draft.source_name or 'Chưa có' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="small text-muted">Tham chiếu</div>
+                            <div class="fw-semibold text-break">{{ draft.source_ref or 'Chưa có' }}</div>
+                        </div>
+                    </div>
+                    {% if preview %}
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-3">
+                            <div class="border rounded p-3 h-100">
+                                <div class="small text-muted">Chế độ</div>
+                                <div class="fw-bold">{{ preview.task_mode }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-3 h-100">
+                                <div class="small text-muted">Đầu mục</div>
+                                <div class="fw-bold">{{ draft_stats.item_count }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-3 h-100">
+                                <div class="small text-muted">Trường biểu mẫu</div>
+                                <div class="fw-bold">{{ draft_stats.field_count }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border rounded p-3 h-100">
+                                <div class="small text-muted">Chưa gán</div>
+                                <div class="fw-bold">{{ draft_stats.unassigned_count }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-4">
+                    <h2 class="h5 mb-3">Tiến độ nháp</h2>
+                    <div class="small text-muted mb-2">Tạo lúc {{ draft.created_at.strftime('%d/%m/%Y %H:%M') if draft.created_at else '' }}</div>
+                    <div class="small text-muted mb-2">Cập nhật lúc {{ draft.updated_at.strftime('%d/%m/%Y %H:%M') if draft.updated_at else '' }}</div>
+                    {% if draft.published_at %}
+                    <div class="small text-muted">Phát hành lúc {{ draft.published_at.strftime('%d/%m/%Y %H:%M') }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form action="{{ url_for('tasks_bp.save_task_import_draft', draft_id=draft.id) }}" method="POST" id="taskImportDraftEditForm">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h2 class="h5 mb-3">Bước 2: Duyệt và chỉnh cấu hình</h2>
+                <div class="row g-3">
+                    <div class="col-lg-6">
+                        <label class="form-label fw-bold">Tiêu đề nhiệm vụ</label>
+                        <input class="form-control" type="text" name="title" value="{{ config.title or '' }}" {% if is_locked %}disabled{% endif %} required>
+                    </div>
+                    <div class="col-lg-3">
+                        <label class="form-label fw-bold">Lĩnh vực</label>
+                        <select class="form-select" name="category" {% if is_locked %}disabled{% endif %}>
+                            <option value="">Chọn lĩnh vực</option>
+                            {% for item in task_fields %}
+                            <option value="{{ item.value }}" {% if config.category == item.value %}selected{% endif %}>{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-3">
+                        <label class="form-label fw-bold">Đội nghiệp vụ</label>
+                        <select class="form-select" name="domain" {% if is_locked %}disabled{% endif %}>
+                            <option value="">Chọn đội nghiệp vụ</option>
+                            {% for item in pro_units %}
+                            <option value="{{ item.value }}" {% if config.domain == item.value %}selected{% endif %}>{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-4">
+                        <label class="form-label fw-bold">Loại công việc</label>
+                        <select class="form-select" name="task_type" {% if is_locked %}disabled{% endif %}>
+                            <option value="">Công việc thường xuyên</option>
+                            {% for item in task_types %}
+                            <option value="{{ item.value }}" {% if config.task_type == item.value %}selected{% endif %}>{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-4">
+                        <label class="form-label fw-bold">Mức độ ưu tiên</label>
+                        <select class="form-select" name="priority" {% if is_locked %}disabled{% endif %}>
+                            <option value="">Trung bình</option>
+                            {% for item in priority_items %}
+                            <option value="{{ item.value }}" {% if config.priority == item.value %}selected{% endif %}>{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-4">
+                        <label class="form-label fw-bold">Hạn xử lý</label>
+                        <input class="form-control" type="date" name="deadline" value="{{ config.deadline or '' }}" {% if is_locked %}disabled{% endif %}>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-bold">Mô tả / tóm tắt</label>
+                        <textarea class="form-control" name="summary" rows="4" {% if is_locked %}disabled{% endif %}>{{ config.summary or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if config.collection_mode == 'outline' %}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                    <div>
+                        <h2 class="h5 mb-1">Đầu mục và phân công theo dòng</h2>
+                        <div class="text-muted small">Mỗi dòng là một nhiệm vụ sẽ phát hành cho đơn vị, vai trò hoặc cá nhân riêng.</div>
+                    </div>
+                    {% if not is_locked %}
+                    <button class="btn btn-outline-primary btn-sm" type="button" id="addOutlineDraftRowBtn">Thêm dòng</button>
+                    {% endif %}
+                </div>
+
+                <div class="border rounded-3 p-3 bg-light-subtle mb-3">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-lg-3">
+                            <label class="form-label fw-bold">Gán cho dòng tích theo</label>
+                            <select class="form-select" id="outlineBulkAssignType" {% if is_locked %}disabled{% endif %}>
+                                <option value="unit">Đơn vị</option>
+                                <option value="role">Vai trò</option>
+                                <option value="user">Cá nhân</option>
+                            </select>
+                        </div>
+                        <div class="col-lg-3" data-bulk-box="unit">
+                            <label class="form-label fw-bold">Đơn vị</label>
+                            <select class="form-select" id="outlineBulkUnitDomains" multiple size="4" {% if is_locked %}disabled{% endif %}>
+                                {% for item in pro_units %}
+                                <option value="{{ item.value }}">{{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-lg-3 d-none" data-bulk-box="role">
+                            <label class="form-label fw-bold">Vai trò</label>
+                            <select class="form-select" id="outlineBulkRoleIds" multiple size="4" {% if is_locked %}disabled{% endif %}>
+                                {% for role in roles %}
+                                <option value="{{ role.id }}">{{ role.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-lg-3 d-none" data-bulk-box="user">
+                            <label class="form-label fw-bold">Cá nhân</label>
+                            <select class="form-select" id="outlineBulkUserIds" multiple size="4" {% if is_locked %}disabled{% endif %}>
+                                {% for user in users %}
+                                <option value="{{ user.id }}">{{ user.fullname }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-lg-3">
+                            <button class="btn btn-outline-primary w-100" type="button" id="applyOutlineBulkAssignBtn" {% if is_locked %}disabled{% endif %}>Áp dụng cho dòng tích</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="outlineDraftRows" class="d-grid gap-3">
+                    {% for item in config.items %}
+                    <div class="border rounded-3 p-3 outline-draft-row">
+                        <div class="row g-3">
+                            <div class="col-lg-1 d-flex align-items-start justify-content-center pt-4">
+                                <input class="form-check-input outline-draft-check" type="checkbox" {% if is_locked %}disabled{% endif %}>
+                            </div>
+                            <div class="col-lg-4">
+                                <label class="form-label fw-bold">Nội dung</label>
+                                <input class="form-control" type="text" name="item_title" value="{{ item.title or '' }}" {% if is_locked %}disabled{% endif %}>
+                            </div>
+                            <div class="col-lg-3">
+                                <label class="form-label fw-bold">Ghi chú hướng dẫn</label>
+                                <input class="form-control" type="text" name="item_guide_text" value="{{ item.guide_text or '' }}" {% if is_locked %}disabled{% endif %}>
+                            </div>
+                            <div class="col-lg-2">
+                                <label class="form-label fw-bold">Hình thức</label>
+                                <select class="form-select" name="item_report_kind" {% if is_locked %}disabled{% endif %}>
+                                    <option value="narrative" {% if item.report_kind != 'number' %}selected{% endif %}>Báo cáo lời</option>
+                                    <option value="number" {% if item.report_kind == 'number' %}selected{% endif %}>Báo cáo số</option>
+                                </select>
+                            </div>
+                            <div class="col-lg-2">
+                                <label class="form-label fw-bold">Bắt buộc file</label>
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input outline-attachment-toggle" type="checkbox" {% if item.attachment_required %}checked{% endif %} {% if is_locked %}disabled{% endif %}>
+                                    <label class="form-check-label">Có</label>
+                                </div>
+                                <input type="hidden" name="item_attachment_required" class="outline-attachment-hidden">
+                            </div>
+                            <div class="col-lg-3">
+                                <label class="form-label fw-bold">Kiểu giao việc</label>
+                                <select class="form-select outline-assign-type" name="item_assign_type" {% if is_locked %}disabled{% endif %}>
+                                    <option value="">Chọn kiểu</option>
+                                    <option value="unit" {% if item.assign_type == 'unit' %}selected{% endif %}>Đơn vị</option>
+                                    <option value="role" {% if item.assign_type == 'role' %}selected{% endif %}>Vai trò</option>
+                                    <option value="user" {% if item.assign_type == 'user' %}selected{% endif %}>Cá nhân</option>
+                                </select>
+                            </div>
+                            <div class="col-lg-3 outline-assign-box" data-assign-box="unit">
+                                <label class="form-label fw-bold">Đơn vị thực hiện</label>
+                                <select class="form-select outline-unit-select" multiple size="4" {% if is_locked %}disabled{% endif %}>
+                                    {% for unit in pro_units %}
+                                    <option value="{{ unit.value }}" {% if unit.value in (item.unit_domains or []) %}selected{% endif %}>{{ unit.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <input type="hidden" name="item_unit_domains" class="outline-unit-hidden">
+                            </div>
+                            <div class="col-lg-3 outline-assign-box d-none" data-assign-box="role">
+                                <label class="form-label fw-bold">Vai trò thực hiện</label>
+                                <select class="form-select outline-role-select" multiple size="4" {% if is_locked %}disabled{% endif %}>
+                                    {% for role in roles %}
+                                    <option value="{{ role.id }}" {% if role.id in (item.role_ids or []) %}selected{% endif %}>{{ role.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <input type="hidden" name="item_role_ids" class="outline-role-hidden">
+                            </div>
+                            <div class="col-lg-3 outline-assign-box d-none" data-assign-box="user">
+                                <label class="form-label fw-bold">Cá nhân thực hiện</label>
+                                <select class="form-select outline-user-select" multiple size="4" {% if is_locked %}disabled{% endif %}>
+                                    {% for user in users %}
+                                    <option value="{{ user.id }}" {% if user.id in (item.user_ids or []) %}selected{% endif %}>{{ user.fullname }}</option>
+                                    {% endfor %}
+                                </select>
+                                <input type="hidden" name="item_user_ids" class="outline-user-hidden">
+                            </div>
+                            <div class="col-lg-3 d-flex align-items-end justify-content-end gap-2">
+                                {% if not is_locked %}
+                                <button class="btn btn-outline-secondary btn-sm move-outline-up" type="button">Lên</button>
+                                <button class="btn btn-outline-secondary btn-sm move-outline-down" type="button">Xuống</button>
+                                <button class="btn btn-outline-danger btn-sm remove-outline-row" type="button">Xóa</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% elif config.collection_mode == 'form' %}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h2 class="h5 mb-3">Phân công toàn nhiệm vụ</h2>
+                <div class="row g-3">
+                    <div class="col-lg-3">
+                        <label class="form-label fw-bold">Kiểu giao việc</label>
+                        <select class="form-select" name="draft_assign_type" id="globalAssignTypeSelect" {% if is_locked %}disabled{% endif %}>
+                            <option value="unit" {% if config.assign_type == 'unit' %}selected{% endif %}>Đơn vị</option>
+                            <option value="role" {% if config.assign_type == 'role' %}selected{% endif %}>Vai trò</option>
+                            <option value="user" {% if config.assign_type == 'user' %}selected{% endif %}>Cá nhân</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-3" data-global-assign="unit">
+                        <label class="form-label fw-bold">Đơn vị thực hiện</label>
+                        <select class="form-select" name="draft_unit_domains" multiple size="5" {% if is_locked %}disabled{% endif %}>
+                            {% for item in pro_units %}
+                            <option value="{{ item.value }}" {% if item.value in (config.unit_domains or []) %}selected{% endif %}>{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-3 d-none" data-global-assign="role">
+                        <label class="form-label fw-bold">Vai trò thực hiện</label>
+                        <select class="form-select" name="draft_role_ids" multiple size="5" {% if is_locked %}disabled{% endif %}>
+                            {% for role in roles %}
+                            <option value="{{ role.id }}" {% if role.id in (config.role_ids or []) %}selected{% endif %}>{{ role.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-3 d-none" data-global-assign="user">
+                        <label class="form-label fw-bold">Cá nhân thực hiện</label>
+                        <select class="form-select" name="draft_user_ids" multiple size="5" {% if is_locked %}disabled{% endif %}>
+                            {% for user in users %}
+                            <option value="{{ user.id }}" {% if user.id in (config.user_ids or []) %}selected{% endif %}>{{ user.fullname }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                    <div>
+                        <h2 class="h5 mb-1">Trường biểu mẫu</h2>
+                        <div class="text-muted small">Chỉnh nhãn, kiểu dữ liệu, tùy chọn và thứ tự các trường trước khi phát hành.</div>
+                    </div>
+                    {% if not is_locked %}
+                    <button class="btn btn-outline-primary btn-sm" type="button" id="addFormDraftFieldBtn">Thêm trường</button>
+                    {% endif %}
+                </div>
+                <div id="formDraftFields" class="d-grid gap-3">
+                    {% for field in config.form_fields %}
+                    <div class="border rounded-3 p-3 form-draft-field-row">
+                        <div class="row g-3">
+                            <div class="col-lg-3">
+                                <label class="form-label fw-bold">Nhãn trường</label>
+                                <input class="form-control" type="text" name="form_field_label" value="{{ field.field_label or '' }}" {% if is_locked %}disabled{% endif %}>
+                                <input type="hidden" name="form_field_key" value="{{ field.field_key or '' }}">
+                            </div>
+                            <div class="col-lg-2">
+                                <label class="form-label fw-bold">Kiểu</label>
+                                <select class="form-select form-field-type" name="form_field_type" {% if is_locked %}disabled{% endif %}>
+                                    <option value="text" {% if field.field_type == 'text' %}selected{% endif %}>Văn bản</option>
+                                    <option value="number" {% if field.field_type == 'number' %}selected{% endif %}>Số</option>
+                                    <option value="textarea" {% if field.field_type == 'textarea' %}selected{% endif %}>Đoạn văn</option>
+                                    <option value="radio" {% if field.field_type == 'radio' %}selected{% endif %}>Một lựa chọn</option>
+                                    <option value="checkbox" {% if field.field_type == 'checkbox' %}selected{% endif %}>Nhiều lựa chọn</option>
+                                    <option value="table" {% if field.field_type == 'table' %}selected{% endif %}>Bảng</option>
+                                </select>
+                            </div>
+                            <div class="col-lg-4">
+                                <label class="form-label fw-bold">Tùy chọn / cột</label>
+                                <textarea class="form-control" name="form_field_options" rows="3" {% if is_locked %}disabled{% endif %}>{{ field.field_options_text or '' }}</textarea>
+                            </div>
+                            <div class="col-lg-1">
+                                <label class="form-label fw-bold">Bắt buộc</label>
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input form-required-toggle" type="checkbox" {% if field.is_required %}checked{% endif %} {% if is_locked %}disabled{% endif %}>
+                                    <label class="form-check-label">Có</label>
+                                </div>
+                                <input type="hidden" name="form_field_required" class="form-required-hidden">
+                            </div>
+                            <div class="col-lg-2 d-flex align-items-end justify-content-end gap-2">
+                                {% if not is_locked %}
+                                <button class="btn btn-outline-secondary btn-sm move-form-up" type="button">Lên</button>
+                                <button class="btn btn-outline-secondary btn-sm move-form-down" type="button">Xuống</button>
+                                <button class="btn btn-outline-danger btn-sm remove-form-field" type="button">Xóa</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h2 class="h5 mb-3">Phân công toàn nhiệm vụ</h2>
+                <div class="row g-3">
+                    <div class="col-lg-3">
+                        <label class="form-label fw-bold">Kiểu giao việc</label>
+                        <select class="form-select" name="draft_assign_type" id="globalAssignTypeSelect" {% if is_locked %}disabled{% endif %}>
+                            <option value="unit" {% if config.assign_type == 'unit' %}selected{% endif %}>Đơn vị</option>
+                            <option value="role" {% if config.assign_type == 'role' %}selected{% endif %}>Vai trò</option>
+                            <option value="user" {% if config.assign_type == 'user' %}selected{% endif %}>Cá nhân</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-3" data-global-assign="unit">
+                        <label class="form-label fw-bold">Đơn vị thực hiện</label>
+                        <select class="form-select" name="draft_unit_domains" multiple size="5" {% if is_locked %}disabled{% endif %}>
+                            {% for item in pro_units %}
+                            <option value="{{ item.value }}" {% if item.value in (config.unit_domains or []) %}selected{% endif %}>{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-3 d-none" data-global-assign="role">
+                        <label class="form-label fw-bold">Vai trò thực hiện</label>
+                        <select class="form-select" name="draft_role_ids" multiple size="5" {% if is_locked %}disabled{% endif %}>
+                            {% for role in roles %}
+                            <option value="{{ role.id }}" {% if role.id in (config.role_ids or []) %}selected{% endif %}>{{ role.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-3 d-none" data-global-assign="user">
+                        <label class="form-label fw-bold">Cá nhân thực hiện</label>
+                        <select class="form-select" name="draft_user_ids" multiple size="5" {% if is_locked %}disabled{% endif %}>
+                            {% for user in users %}
+                            <option value="{{ user.id }}" {% if user.id in (config.user_ids or []) %}selected{% endif %}>{{ user.fullname }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h2 class="h5 mb-3">Schema báo cáo tổng hợp</h2>
+                <div class="row g-3 mb-4">
+                    <div class="col-lg-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="report_narrative_enabled" value="1" id="reportNarrativeEnabled" {% if config.report_narrative_enabled %}checked{% endif %} {% if is_locked %}disabled{% endif %}>
+                            <label class="form-check-label fw-bold" for="reportNarrativeEnabled">Bật báo cáo lời</label>
+                        </div>
+                        <input class="form-control mt-2" type="text" name="report_narrative_label" value="{{ config.report_narrative_label or '' }}" placeholder="Nhãn phần báo cáo lời" {% if is_locked %}disabled{% endif %}>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" name="report_narrative_required" value="1" id="reportNarrativeRequired" {% if config.report_narrative_required %}checked{% endif %} {% if is_locked %}disabled{% endif %}>
+                            <label class="form-check-label" for="reportNarrativeRequired">Bắt buộc</label>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="report_attachment_enabled" value="1" id="reportAttachmentEnabled" {% if config.report_attachment_enabled %}checked{% endif %} {% if is_locked %}disabled{% endif %}>
+                            <label class="form-check-label fw-bold" for="reportAttachmentEnabled">Bật phụ lục minh chứng</label>
+                        </div>
+                        <input class="form-control mt-2" type="text" name="report_attachment_label" value="{{ config.report_attachment_label or '' }}" placeholder="Nhãn phần tệp minh chứng" {% if is_locked %}disabled{% endif %}>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" name="report_attachment_required" value="1" id="reportAttachmentRequired" {% if config.report_attachment_required %}checked{% endif %} {% if is_locked %}disabled{% endif %}>
+                            <label class="form-check-label" for="reportAttachmentRequired">Bắt buộc</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                    <div>
+                        <h3 class="h6 mb-1">Trường số liệu / nội dung có cấu trúc</h3>
+                        <div class="text-muted small">Dùng khi báo cáo không chỉ là nộp file mà còn cần nhập các chỉ tiêu chuẩn hóa.</div>
+                    </div>
+                    {% if not is_locked %}
+                    <button class="btn btn-outline-primary btn-sm" type="button" id="addReportFieldBtn">Thêm trường</button>
+                    {% endif %}
+                </div>
+                <div id="reportDraftFields" class="d-grid gap-3">
+                    {% for field in config.report_fields %}
+                    <div class="border rounded-3 p-3 report-field-row">
+                        <div class="row g-3">
+                            <div class="col-lg-3">
+                                <label class="form-label fw-bold">Nhãn trường</label>
+                                <input class="form-control" type="text" name="report_field_label" value="{{ field.label or '' }}" {% if is_locked %}disabled{% endif %}>
+                                <input type="hidden" name="report_field_key" value="{{ field.key or '' }}">
+                            </div>
+                            <div class="col-lg-2">
+                                <label class="form-label fw-bold">Kiểu</label>
+                                <select class="form-select" name="report_field_type" {% if is_locked %}disabled{% endif %}>
+                                    <option value="text" {% if field.type == 'text' %}selected{% endif %}>Văn bản</option>
+                                    <option value="number" {% if field.type == 'number' %}selected{% endif %}>Số</option>
+                                    <option value="textarea" {% if field.type == 'textarea' %}selected{% endif %}>Đoạn văn</option>
+                                </select>
+                            </div>
+                            <div class="col-lg-2">
+                                <label class="form-label fw-bold">Placeholder</label>
+                                <input class="form-control" type="text" name="report_field_placeholder" value="{{ field.placeholder or '' }}" {% if is_locked %}disabled{% endif %}>
+                            </div>
+                            <div class="col-lg-3">
+                                <label class="form-label fw-bold">Gợi ý</label>
+                                <input class="form-control" type="text" name="report_field_help_text" value="{{ field.help_text or '' }}" {% if is_locked %}disabled{% endif %}>
+                            </div>
+                            <div class="col-lg-1">
+                                <label class="form-label fw-bold">Bắt buộc</label>
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input report-required-toggle" type="checkbox" {% if field.required %}checked{% endif %} {% if is_locked %}disabled{% endif %}>
+                                    <label class="form-check-label">Có</label>
+                                </div>
+                                <input type="hidden" name="report_field_required" class="report-required-hidden">
+                            </div>
+                            <div class="col-lg-1 d-flex align-items-end justify-content-end gap-2">
+                                {% if not is_locked %}
+                                <button class="btn btn-outline-secondary btn-sm move-report-up" type="button">Lên</button>
+                                <button class="btn btn-outline-danger btn-sm remove-report-field" type="button">Xóa</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h2 class="h5 mb-3">Phạm vi xử lý và theo dõi</h2>
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <label class="form-label fw-bold">Người xử lý / quản lý</label>
+                        <select class="form-select mb-2 scope-mode-select" name="manager_scope_mode" data-scope-prefix="manager" {% if is_locked %}disabled{% endif %}>
+                            <option value="none" {% if config.manager_scope_mode == 'none' %}selected{% endif %}>Không cấu hình riêng</option>
+                            <option value="role" {% if config.manager_scope_mode == 'role' %}selected{% endif %}>Theo vai trò</option>
+                            <option value="user" {% if config.manager_scope_mode == 'user' %}selected{% endif %}>Theo cá nhân</option>
+                        </select>
+                        <div data-scope-box="manager-role" class="{% if config.manager_scope_mode != 'role' %}d-none{% endif %}">
+                            <select class="form-select" name="manager_role_ids" multiple size="5" {% if is_locked %}disabled{% endif %}>
+                                {% for role in roles %}
+                                <option value="{{ role.id }}" {% if role.id in (config.manager_role_ids or []) %}selected{% endif %}>{{ role.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div data-scope-box="manager-user" class="{% if config.manager_scope_mode != 'user' %}d-none{% endif %}">
+                            <select class="form-select" name="manager_user_ids" multiple size="5" {% if is_locked %}disabled{% endif %}>
+                                {% for user in users %}
+                                <option value="{{ user.id }}" {% if user.id in (config.manager_user_ids or []) %}selected{% endif %}>{{ user.fullname }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <label class="form-label fw-bold">Người xem / tra cứu</label>
+                        <select class="form-select mb-2 scope-mode-select" name="viewer_scope_mode" data-scope-prefix="viewer" {% if is_locked %}disabled{% endif %}>
+                            <option value="none" {% if config.viewer_scope_mode == 'none' %}selected{% endif %}>Không cấu hình riêng</option>
+                            <option value="role" {% if config.viewer_scope_mode == 'role' %}selected{% endif %}>Theo vai trò</option>
+                            <option value="user" {% if config.viewer_scope_mode == 'user' %}selected{% endif %}>Theo cá nhân</option>
+                        </select>
+                        <div data-scope-box="viewer-role" class="{% if config.viewer_scope_mode != 'role' %}d-none{% endif %}">
+                            <select class="form-select" name="viewer_role_ids" multiple size="5" {% if is_locked %}disabled{% endif %}>
+                                {% for role in roles %}
+                                <option value="{{ role.id }}" {% if role.id in (config.viewer_role_ids or []) %}selected{% endif %}>{{ role.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div data-scope-box="viewer-user" class="{% if config.viewer_scope_mode != 'user' %}d-none{% endif %}">
+                            <select class="form-select" name="viewer_user_ids" multiple size="5" {% if is_locked %}disabled{% endif %}>
+                                {% for user in users %}
+                                <option value="{{ user.id }}" {% if user.id in (config.viewer_user_ids or []) %}selected{% endif %}>{{ user.fullname }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 justify-content-end mb-5">
+            {% if not is_locked %}
+            <button class="btn btn-primary" type="submit">Lưu nháp</button>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if not is_locked %}
+    <form action="{{ url_for('tasks_bp.publish_task_import_draft', draft_id=draft.id) }}" method="POST" class="d-flex justify-content-end">
+        <button class="btn btn-success btn-lg" type="submit">Bước 3: Phát hành thành nhiệm vụ</button>
+    </form>
+    {% endif %}
+</div>
+
+<template id="outlineDraftRowTemplate">
+    <div class="border rounded-3 p-3 outline-draft-row">
+        <div class="row g-3">
+            <div class="col-lg-1 d-flex align-items-start justify-content-center pt-4">
+                <input class="form-check-input outline-draft-check" type="checkbox">
+            </div>
+            <div class="col-lg-4">
+                <label class="form-label fw-bold">Nội dung</label>
+                <input class="form-control" type="text" name="item_title">
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label fw-bold">Ghi chú hướng dẫn</label>
+                <input class="form-control" type="text" name="item_guide_text">
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">Hình thức</label>
+                <select class="form-select" name="item_report_kind">
+                    <option value="narrative">Báo cáo lời</option>
+                    <option value="number">Báo cáo số</option>
+                </select>
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">Bắt buộc file</label>
+                <div class="form-check mt-2">
+                    <input class="form-check-input outline-attachment-toggle" type="checkbox">
+                    <label class="form-check-label">Có</label>
+                </div>
+                <input type="hidden" name="item_attachment_required" class="outline-attachment-hidden">
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label fw-bold">Kiểu giao việc</label>
+                <select class="form-select outline-assign-type" name="item_assign_type">
+                    <option value="">Chọn kiểu</option>
+                    <option value="unit">Đơn vị</option>
+                    <option value="role">Vai trò</option>
+                    <option value="user">Cá nhân</option>
+                </select>
+            </div>
+            <div class="col-lg-3 outline-assign-box" data-assign-box="unit">
+                <label class="form-label fw-bold">Đơn vị thực hiện</label>
+                <select class="form-select outline-unit-select" multiple size="4">
+                    {% for unit in pro_units %}
+                    <option value="{{ unit.value }}">{{ unit.name }}</option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" name="item_unit_domains" class="outline-unit-hidden">
+            </div>
+            <div class="col-lg-3 outline-assign-box d-none" data-assign-box="role">
+                <label class="form-label fw-bold">Vai trò thực hiện</label>
+                <select class="form-select outline-role-select" multiple size="4">
+                    {% for role in roles %}
+                    <option value="{{ role.id }}">{{ role.name }}</option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" name="item_role_ids" class="outline-role-hidden">
+            </div>
+            <div class="col-lg-3 outline-assign-box d-none" data-assign-box="user">
+                <label class="form-label fw-bold">Cá nhân thực hiện</label>
+                <select class="form-select outline-user-select" multiple size="4">
+                    {% for user in users %}
+                    <option value="{{ user.id }}">{{ user.fullname }}</option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" name="item_user_ids" class="outline-user-hidden">
+            </div>
+            <div class="col-lg-3 d-flex align-items-end justify-content-end gap-2">
+                <button class="btn btn-outline-secondary btn-sm move-outline-up" type="button">Lên</button>
+                <button class="btn btn-outline-secondary btn-sm move-outline-down" type="button">Xuống</button>
+                <button class="btn btn-outline-danger btn-sm remove-outline-row" type="button">Xóa</button>
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="formDraftFieldTemplate">
+    <div class="border rounded-3 p-3 form-draft-field-row">
+        <div class="row g-3">
+            <div class="col-lg-3">
+                <label class="form-label fw-bold">Nhãn trường</label>
+                <input class="form-control" type="text" name="form_field_label">
+                <input type="hidden" name="form_field_key" value="">
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">Kiểu</label>
+                <select class="form-select form-field-type" name="form_field_type">
+                    <option value="text">Văn bản</option>
+                    <option value="number">Số</option>
+                    <option value="textarea">Đoạn văn</option>
+                    <option value="radio">Một lựa chọn</option>
+                    <option value="checkbox">Nhiều lựa chọn</option>
+                    <option value="table">Bảng</option>
+                </select>
+            </div>
+            <div class="col-lg-4">
+                <label class="form-label fw-bold">Tùy chọn / cột</label>
+                <textarea class="form-control" name="form_field_options" rows="3"></textarea>
+            </div>
+            <div class="col-lg-1">
+                <label class="form-label fw-bold">Bắt buộc</label>
+                <div class="form-check mt-2">
+                    <input class="form-check-input form-required-toggle" type="checkbox">
+                    <label class="form-check-label">Có</label>
+                </div>
+                <input type="hidden" name="form_field_required" class="form-required-hidden">
+            </div>
+            <div class="col-lg-2 d-flex align-items-end justify-content-end gap-2">
+                <button class="btn btn-outline-secondary btn-sm move-form-up" type="button">Lên</button>
+                <button class="btn btn-outline-secondary btn-sm move-form-down" type="button">Xuống</button>
+                <button class="btn btn-outline-danger btn-sm remove-form-field" type="button">Xóa</button>
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="reportDraftFieldTemplate">
+    <div class="border rounded-3 p-3 report-field-row">
+        <div class="row g-3">
+            <div class="col-lg-3">
+                <label class="form-label fw-bold">Nhãn trường</label>
+                <input class="form-control" type="text" name="report_field_label">
+                <input type="hidden" name="report_field_key" value="">
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">Kiểu</label>
+                <select class="form-select" name="report_field_type">
+                    <option value="text">Văn bản</option>
+                    <option value="number">Số</option>
+                    <option value="textarea">Đoạn văn</option>
+                </select>
+            </div>
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">Placeholder</label>
+                <input class="form-control" type="text" name="report_field_placeholder">
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label fw-bold">Gợi ý</label>
+                <input class="form-control" type="text" name="report_field_help_text">
+            </div>
+            <div class="col-lg-1">
+                <label class="form-label fw-bold">Bắt buộc</label>
+                <div class="form-check mt-2">
+                    <input class="form-check-input report-required-toggle" type="checkbox">
+                    <label class="form-check-label">Có</label>
+                </div>
+                <input type="hidden" name="report_field_required" class="report-required-hidden">
+            </div>
+            <div class="col-lg-1 d-flex align-items-end justify-content-end gap-2">
+                <button class="btn btn-outline-secondary btn-sm move-report-up" type="button">Lên</button>
+                <button class="btn btn-outline-danger btn-sm remove-report-field" type="button">Xóa</button>
+            </div>
+        </div>
+    </div>
+</template>
+
+<script>
+(() => {
+    const outlineRows = document.getElementById('outlineDraftRows');
+    const outlineRowTemplate = document.getElementById('outlineDraftRowTemplate');
+    const addOutlineRowBtn = document.getElementById('addOutlineDraftRowBtn');
+    const outlineBulkAssignType = document.getElementById('outlineBulkAssignType');
+    const applyOutlineBulkAssignBtn = document.getElementById('applyOutlineBulkAssignBtn');
+    const addFormDraftFieldBtn = document.getElementById('addFormDraftFieldBtn');
+    const formDraftFields = document.getElementById('formDraftFields');
+    const formDraftFieldTemplate = document.getElementById('formDraftFieldTemplate');
+    const addReportFieldBtn = document.getElementById('addReportFieldBtn');
+    const reportDraftFields = document.getElementById('reportDraftFields');
+    const reportDraftFieldTemplate = document.getElementById('reportDraftFieldTemplate');
+    const globalAssignTypeSelect = document.getElementById('globalAssignTypeSelect');
+    const isLocked = {{ 'true' if is_locked else 'false' }};
+
+    function selectedValues(select) {
+        return Array.from(select?.selectedOptions || []).map((option) => option.value).filter(Boolean);
+    }
+
+    function syncGlobalAssignMode() {
+        const mode = globalAssignTypeSelect?.value || 'unit';
+        document.querySelectorAll('[data-global-assign]').forEach((node) => {
+            node.classList.toggle('d-none', node.dataset.globalAssign !== mode);
+        });
+    }
+
+    function syncScopeModeSelect(select) {
+        const prefix = select?.dataset.scopePrefix || '';
+        const mode = select?.value || 'none';
+        document.querySelectorAll(`[data-scope-box^="${prefix}-"]`).forEach((node) => {
+            node.classList.add('d-none');
+        });
+        document.querySelector(`[data-scope-box="${prefix}-${mode}"]`)?.classList.remove('d-none');
+    }
+
+    function syncOutlineBulkMode() {
+        const mode = outlineBulkAssignType?.value || 'unit';
+        document.querySelectorAll('[data-bulk-box]').forEach((node) => {
+            node.classList.toggle('d-none', node.dataset.bulkBox !== mode);
+        });
+    }
+
+    function syncOutlineRow(row) {
+        const assignType = row.querySelector('.outline-assign-type')?.value || '';
+        row.querySelectorAll('.outline-assign-box').forEach((node) => {
+            node.classList.toggle('d-none', node.dataset.assignBox !== assignType);
+        });
+        const unitValues = selectedValues(row.querySelector('.outline-unit-select'));
+        const roleValues = selectedValues(row.querySelector('.outline-role-select'));
+        const userValues = selectedValues(row.querySelector('.outline-user-select'));
+        row.querySelector('.outline-unit-hidden').value = unitValues.join(',');
+        row.querySelector('.outline-role-hidden').value = roleValues.join(',');
+        row.querySelector('.outline-user-hidden').value = userValues.join(',');
+    }
+
+    function syncOutlineAttachmentIndexes() {
+        document.querySelectorAll('.outline-draft-row').forEach((row, index) => {
+            const toggle = row.querySelector('.outline-attachment-toggle');
+            const hidden = row.querySelector('.outline-attachment-hidden');
+            if (toggle && hidden) hidden.value = toggle.checked ? String(index) : '';
+        });
+    }
+
+    function bindOutlineRow(row) {
+        row.querySelector('.outline-assign-type')?.addEventListener('change', () => syncOutlineRow(row));
+        row.querySelector('.outline-unit-select')?.addEventListener('change', () => syncOutlineRow(row));
+        row.querySelector('.outline-role-select')?.addEventListener('change', () => syncOutlineRow(row));
+        row.querySelector('.outline-user-select')?.addEventListener('change', () => syncOutlineRow(row));
+        row.querySelector('.outline-attachment-toggle')?.addEventListener('change', syncOutlineAttachmentIndexes);
+        row.querySelector('.remove-outline-row')?.addEventListener('click', () => {
+            row.remove();
+            syncOutlineAttachmentIndexes();
+        });
+        row.querySelector('.move-outline-up')?.addEventListener('click', () => {
+            const prev = row.previousElementSibling;
+            if (prev) row.parentNode.insertBefore(row, prev);
+            syncOutlineAttachmentIndexes();
+        });
+        row.querySelector('.move-outline-down')?.addEventListener('click', () => {
+            const next = row.nextElementSibling;
+            if (next) row.parentNode.insertBefore(next, row);
+            syncOutlineAttachmentIndexes();
+        });
+        syncOutlineRow(row);
+    }
+
+    function addOutlineRow() {
+        if (!outlineRows || !outlineRowTemplate || isLocked) return;
+        const clone = outlineRowTemplate.content.firstElementChild.cloneNode(true);
+        outlineRows.appendChild(clone);
+        bindOutlineRow(clone);
+        syncOutlineAttachmentIndexes();
+    }
+
+    function applyBulkOutlineAssignment() {
+        const mode = outlineBulkAssignType?.value || 'unit';
+        const unitValues = selectedValues(document.getElementById('outlineBulkUnitDomains'));
+        const roleValues = selectedValues(document.getElementById('outlineBulkRoleIds'));
+        const userValues = selectedValues(document.getElementById('outlineBulkUserIds'));
+        document.querySelectorAll('.outline-draft-row').forEach((row) => {
+            if (!row.querySelector('.outline-draft-check')?.checked) return;
+            const assignSelect = row.querySelector('.outline-assign-type');
+            if (assignSelect) assignSelect.value = mode;
+            if (mode === 'unit') {
+                Array.from(row.querySelector('.outline-unit-select')?.options || []).forEach((option) => {
+                    option.selected = unitValues.includes(option.value);
+                });
+            } else if (mode === 'role') {
+                Array.from(row.querySelector('.outline-role-select')?.options || []).forEach((option) => {
+                    option.selected = roleValues.includes(option.value);
+                });
+            } else {
+                Array.from(row.querySelector('.outline-user-select')?.options || []).forEach((option) => {
+                    option.selected = userValues.includes(option.value);
+                });
+            }
+            syncOutlineRow(row);
+        });
+    }
+
+    function syncFormRequiredIndexes() {
+        document.querySelectorAll('.form-draft-field-row').forEach((row, index) => {
+            const checkbox = row.querySelector('.form-required-toggle');
+            const hidden = row.querySelector('.form-required-hidden');
+            if (checkbox && hidden) hidden.value = checkbox.checked ? String(index) : '';
+        });
+    }
+
+    function bindFormFieldRow(row) {
+        row.querySelector('.form-required-toggle')?.addEventListener('change', syncFormRequiredIndexes);
+        row.querySelector('.remove-form-field')?.addEventListener('click', () => {
+            row.remove();
+            syncFormRequiredIndexes();
+        });
+        row.querySelector('.move-form-up')?.addEventListener('click', () => {
+            const prev = row.previousElementSibling;
+            if (prev) row.parentNode.insertBefore(row, prev);
+            syncFormRequiredIndexes();
+        });
+        row.querySelector('.move-form-down')?.addEventListener('click', () => {
+            const next = row.nextElementSibling;
+            if (next) row.parentNode.insertBefore(next, row);
+            syncFormRequiredIndexes();
+        });
+    }
+
+    function addFormFieldRow() {
+        if (!formDraftFields || !formDraftFieldTemplate || isLocked) return;
+        const clone = formDraftFieldTemplate.content.firstElementChild.cloneNode(true);
+        formDraftFields.appendChild(clone);
+        bindFormFieldRow(clone);
+        syncFormRequiredIndexes();
+    }
+
+    function syncReportRequiredIndexes() {
+        document.querySelectorAll('.report-field-row').forEach((row, index) => {
+            const checkbox = row.querySelector('.report-required-toggle');
+            const hidden = row.querySelector('.report-required-hidden');
+            if (checkbox && hidden) hidden.value = checkbox.checked ? String(index) : '';
+        });
+    }
+
+    function bindReportFieldRow(row) {
+        row.querySelector('.report-required-toggle')?.addEventListener('change', syncReportRequiredIndexes);
+        row.querySelector('.remove-report-field')?.addEventListener('click', () => {
+            row.remove();
+            syncReportRequiredIndexes();
+        });
+        row.querySelector('.move-report-up')?.addEventListener('click', () => {
+            const prev = row.previousElementSibling;
+            if (prev) row.parentNode.insertBefore(row, prev);
+            syncReportRequiredIndexes();
+        });
+    }
+
+    function addReportFieldRow() {
+        if (!reportDraftFields || !reportDraftFieldTemplate || isLocked) return;
+        const clone = reportDraftFieldTemplate.content.firstElementChild.cloneNode(true);
+        reportDraftFields.appendChild(clone);
+        bindReportFieldRow(clone);
+        syncReportRequiredIndexes();
+    }
+
+    document.querySelectorAll('.scope-mode-select').forEach((select) => {
+        select.addEventListener('change', () => syncScopeModeSelect(select));
+        syncScopeModeSelect(select);
+    });
+    document.querySelectorAll('.outline-draft-row').forEach(bindOutlineRow);
+    document.querySelectorAll('.form-draft-field-row').forEach(bindFormFieldRow);
+    document.querySelectorAll('.report-field-row').forEach(bindReportFieldRow);
+
+    addOutlineRowBtn?.addEventListener('click', addOutlineRow);
+    applyOutlineBulkAssignBtn?.addEventListener('click', applyBulkOutlineAssignment);
+    outlineBulkAssignType?.addEventListener('change', syncOutlineBulkMode);
+    addFormDraftFieldBtn?.addEventListener('click', addFormFieldRow);
+    addReportFieldBtn?.addEventListener('click', addReportFieldRow);
+    globalAssignTypeSelect?.addEventListener('change', syncGlobalAssignMode);
+
+    syncGlobalAssignMode();
+    syncOutlineBulkMode();
+    syncOutlineAttachmentIndexes();
+    syncFormRequiredIndexes();
+    syncReportRequiredIndexes();
+})();
+</script>
+{% endblock %}

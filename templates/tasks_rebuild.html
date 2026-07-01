@@ -50,10 +50,16 @@
         </article>
         {% if is_lead or is_admin %}
         <article class="task-metric-card task-metric-card-action">
-            <button class="btn btn-bdhvs primary task-create-btn" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
-                <i class="fa-solid fa-plus"></i>
-                Tạo công việc
-            </button>
+            <div class="d-grid gap-2">
+                <button class="btn btn-bdhvs primary task-create-btn" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+                    <i class="fa-solid fa-plus"></i>
+                    Tạo công việc
+                </button>
+                <a class="btn btn-outline-primary task-create-btn" href="{{ url_for('tasks_bp.task_import_drafts') }}">
+                    <i class="fa-solid fa-file-import"></i>
+                    Nhập tài liệu
+                </a>
+            </div>
         </article>
         {% endif %}
     </section>
@@ -528,6 +534,105 @@
                     <div class="row g-4">
                         <div class="col-lg-7">
                             <div class="mb-3">
+                                <label class="form-label fw-bold">Phương thức khởi tạo</label>
+                                <div class="border rounded p-3 bg-light-subtle">
+                                    <div class="d-flex flex-wrap gap-3">
+                                        <label class="d-flex align-items-center gap-2">
+                                            <input type="radio" name="create_source_mode" value="manual" checked>
+                                            <span>Nhập thủ công</span>
+                                        </label>
+                                        <label class="d-flex align-items-center gap-2">
+                                            <input type="radio" name="create_source_mode" value="blueprint">
+                                            <span>Blueprint hợp nhất</span>
+                                        </label>
+                                    </div>
+                                    <div class="form-text mt-2">
+                                        Dùng khi muốn lấy một đề cương hoặc mẫu báo cáo làm khung điều hành chung. Tài liệu tham chiếu chỉ để mô hình hóa cấu trúc, không phải dữ liệu đầu vào cố định.
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3 d-none" id="workflowBlueprintBox">
+                                <div class="border rounded p-3 bg-light-subtle">
+                                    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                                        <div>
+                                            <h6 class="fw-bold mb-1">Blueprint điều hành</h6>
+                                            <p class="text-muted mb-0">Nhập JSON cấu hình nguồn để hệ thống suy ra kiểu giao việc hoặc thu báo cáo trước khi phát hành.</p>
+                                        </div>
+                                        <div class="d-flex gap-2 flex-wrap">
+                                            <select class="form-select form-select-sm" id="workflowBlueprintPresetSelect" style="min-width: 220px;">
+                                                <option value="">Chọn mẫu tham chiếu</option>
+                                                {% for example in workflow_blueprint_examples %}
+                                                <option value="{{ example.key }}">{{ example.label }}</option>
+                                                {% endfor %}
+                                            </select>
+                                            <button class="btn btn-outline-primary btn-sm" type="button" id="loadWorkflowBlueprintPresetBtn">Nạp mẫu</button>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3">
+                                        <label class="form-label fw-bold">JSON blueprint</label>
+                                        <textarea class="form-control font-monospace" name="workflow_blueprint_json" id="workflowBlueprintInput" rows="12" placeholder='{"title":"Công tác tuần","source_kind":"directive","items":[{"title":"Đầu mục 1"}]}'></textarea>
+                                    </div>
+                                    <div class="row g-3 mt-1">
+                                        <div class="col-md-7">
+                                            <label class="form-label fw-bold">Phân tích từ tài liệu tham chiếu</label>
+                                            <input class="form-control" type="file" id="workflowBlueprintSourceFile" accept=".docx,.txt,.xlsx,.xls">
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label class="form-label fw-bold">Kiểu tài liệu</label>
+                                            <select class="form-select" id="workflowBlueprintImportMode">
+                                                <option value="docx_outline">Word/TXT -> đề cương công tác</option>
+                                                <option value="docx_report_outline">Word/TXT -> đề cương báo cáo theo mục</option>
+                                                <option value="xlsx_form">Excel (.xlsx) -> biểu mẫu số liệu</option>
+                                                <option value="google_form_remote">Google Form URL/ID -> biểu mẫu</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 d-none" id="workflowBlueprintGoogleFormBox">
+                                        <label class="form-label fw-bold">Google Form URL hoặc form ID</label>
+                                        <input class="form-control" type="text" id="workflowBlueprintFormReference" placeholder="https://docs.google.com/forms/d/... hoặc formId">
+                                    </div>
+                                    <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                                        <button class="btn btn-primary btn-sm" type="button" id="previewWorkflowBlueprintBtn">Phân tích blueprint</button>
+                                        <button class="btn btn-outline-primary btn-sm" type="button" id="importWorkflowBlueprintFileBtn">Nạp từ tài liệu</button>
+                                        <button class="btn btn-outline-secondary btn-sm" type="button" id="applyWorkflowBlueprintBtn">Áp dụng sang tiêu đề và mô tả</button>
+                                        <span class="small text-muted" id="workflowBlueprintStatus">Chưa phân tích.</span>
+                                    </div>
+                                    <div class="border rounded bg-white p-3 mt-3 d-none" id="workflowBlueprintPreviewBox">
+                                        <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                                            <div>
+                                                <div class="fw-bold" id="workflowBlueprintPreviewTitle">Chưa có dữ liệu</div>
+                                                <div class="small text-muted" id="workflowBlueprintPreviewMeta"></div>
+                                            </div>
+                                            <span class="badge text-bg-primary" id="workflowBlueprintPreviewMode">-</span>
+                                        </div>
+                                        <p class="small text-muted mt-2 mb-3" id="workflowBlueprintPreviewSummary"></p>
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <div class="border rounded p-2 h-100">
+                                                    <div class="small text-muted">Đầu mục giao việc</div>
+                                                    <div class="fw-bold" id="workflowBlueprintPreviewItemCount">0</div>
+                                                    <div class="small text-muted mt-2" id="workflowBlueprintPreviewItems">Chưa có.</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="border rounded p-2 h-100">
+                                                    <div class="small text-muted">Trường biểu mẫu</div>
+                                                    <div class="fw-bold" id="workflowBlueprintPreviewFieldCount">0</div>
+                                                    <div class="small text-muted mt-2" id="workflowBlueprintPreviewFields">Chưa có.</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="border rounded p-2 h-100">
+                                                    <div class="small text-muted">Schema báo cáo</div>
+                                                    <div class="fw-bold" id="workflowBlueprintPreviewReportCount">0</div>
+                                                    <div class="small text-muted mt-2" id="workflowBlueprintPreviewReport">Chưa có.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
                                 <label class="form-label fw-bold">Chế độ công việc</label>
                                 <select class="form-select" name="task_mode" id="taskModeSelect">
                                     <option value="OUTLINE">Theo đề cương</option>
@@ -673,20 +778,61 @@
 
 <script>
 (() => {
+    const createForm = document.querySelector('#createTaskModal form');
+    const sourceModeInputs = Array.from(document.querySelectorAll('input[name="create_source_mode"]'));
+    const workflowBlueprintBox = document.getElementById('workflowBlueprintBox');
+    const workflowBlueprintInput = document.getElementById('workflowBlueprintInput');
+    const workflowBlueprintPresetSelect = document.getElementById('workflowBlueprintPresetSelect');
+    const loadWorkflowBlueprintPresetBtn = document.getElementById('loadWorkflowBlueprintPresetBtn');
+    const previewWorkflowBlueprintBtn = document.getElementById('previewWorkflowBlueprintBtn');
+    const importWorkflowBlueprintFileBtn = document.getElementById('importWorkflowBlueprintFileBtn');
+    const applyWorkflowBlueprintBtn = document.getElementById('applyWorkflowBlueprintBtn');
+    const workflowBlueprintStatus = document.getElementById('workflowBlueprintStatus');
+    const workflowBlueprintPreviewBox = document.getElementById('workflowBlueprintPreviewBox');
+    const workflowBlueprintPreviewTitle = document.getElementById('workflowBlueprintPreviewTitle');
+    const workflowBlueprintPreviewMeta = document.getElementById('workflowBlueprintPreviewMeta');
+    const workflowBlueprintPreviewMode = document.getElementById('workflowBlueprintPreviewMode');
+    const workflowBlueprintPreviewSummary = document.getElementById('workflowBlueprintPreviewSummary');
+    const workflowBlueprintPreviewItemCount = document.getElementById('workflowBlueprintPreviewItemCount');
+    const workflowBlueprintPreviewItems = document.getElementById('workflowBlueprintPreviewItems');
+    const workflowBlueprintPreviewFieldCount = document.getElementById('workflowBlueprintPreviewFieldCount');
+    const workflowBlueprintPreviewFields = document.getElementById('workflowBlueprintPreviewFields');
+    const workflowBlueprintPreviewReportCount = document.getElementById('workflowBlueprintPreviewReportCount');
+    const workflowBlueprintPreviewReport = document.getElementById('workflowBlueprintPreviewReport');
+    const workflowBlueprintSourceFile = document.getElementById('workflowBlueprintSourceFile');
+    const workflowBlueprintImportMode = document.getElementById('workflowBlueprintImportMode');
+    const workflowBlueprintGoogleFormBox = document.getElementById('workflowBlueprintGoogleFormBox');
+    const workflowBlueprintFormReference = document.getElementById('workflowBlueprintFormReference');
     const modeSelect = document.getElementById('taskModeSelect');
+    const titleInput = document.querySelector('#createTaskModal input[name="title"]');
+    const descriptionInput = document.querySelector('#createTaskModal textarea[name="description"]');
     const fileAssignmentBox = document.getElementById('fileAssignmentBox');
     const formBuilderBox = document.getElementById('formBuilderBox');
     const assignType = document.getElementById('createAssignType');
     const formFieldList = document.getElementById('formFieldList');
     const formFieldTemplate = document.getElementById('formFieldTemplate');
     const addFormFieldBtn = document.getElementById('addFormFieldBtn');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const workflowBlueprintExamples = {{ workflow_blueprint_examples|tojson }};
+    let lastManualMode = modeSelect?.value || 'OUTLINE';
+    let lastBlueprintPreview = null;
+    let previewTimer = null;
+
+    function activeCreateSourceMode() {
+        return sourceModeInputs.find((input) => input.checked)?.value || 'manual';
+    }
+
+    function blueprintModeActive() {
+        return activeCreateSourceMode() === 'blueprint';
+    }
 
     function syncTaskMode() {
         const mode = modeSelect?.value || 'OUTLINE';
+        const blueprintActive = blueprintModeActive();
         if (fileAssignmentBox) {
-            fileAssignmentBox.classList.toggle('opacity-50', !(mode === 'FILE' || mode === 'FORM'));
+            fileAssignmentBox.classList.toggle('opacity-50', !(mode === 'FILE' || mode === 'FORM' || (blueprintActive && mode === 'OUTLINE')));
         }
-        formBuilderBox?.classList.toggle('d-none', mode !== 'FORM');
+        formBuilderBox?.classList.toggle('d-none', mode !== 'FORM' || blueprintActive);
     }
 
     function syncAssignType() {
@@ -694,6 +840,209 @@
         document.querySelectorAll('[data-assign-box]').forEach((node) => {
             node.classList.toggle('d-none', node.dataset.assignBox !== mode);
         });
+    }
+
+    function setWorkflowBlueprintStatus(message, tone = 'muted') {
+        if (!workflowBlueprintStatus) return;
+        workflowBlueprintStatus.textContent = message;
+        workflowBlueprintStatus.className = 'small';
+        if (tone === 'danger') {
+            workflowBlueprintStatus.classList.add('text-danger');
+        } else if (tone === 'success') {
+            workflowBlueprintStatus.classList.add('text-success');
+        } else {
+            workflowBlueprintStatus.classList.add('text-muted');
+        }
+    }
+
+    function summarizePreviewList(values, emptyText = 'Chưa có.') {
+        if (!Array.isArray(values) || !values.length) return emptyText;
+        return values.join(', ');
+    }
+
+    function renderWorkflowBlueprintPreview(preview) {
+        if (!preview || !workflowBlueprintPreviewBox) return;
+        workflowBlueprintPreviewBox.classList.remove('d-none');
+        workflowBlueprintPreviewTitle.textContent = preview.title || 'Blueprint điều hành';
+        workflowBlueprintPreviewMeta.textContent = [preview.source_kind, preview.cadence, preview.collection_mode]
+            .filter(Boolean)
+            .join(' | ');
+        workflowBlueprintPreviewMode.textContent = preview.task_mode || '-';
+        workflowBlueprintPreviewSummary.textContent = preview.summary || 'Chưa có tóm tắt tự động.';
+        workflowBlueprintPreviewItemCount.textContent = String(preview.item_count || 0);
+        workflowBlueprintPreviewItems.textContent = summarizePreviewList(preview.item_titles);
+        workflowBlueprintPreviewFieldCount.textContent = String(preview.form_field_count || 0);
+        workflowBlueprintPreviewFields.textContent = summarizePreviewList(preview.form_field_labels);
+        workflowBlueprintPreviewReportCount.textContent = String(preview.report_field_count || 0);
+        const reportParts = [];
+        if (preview.report_field_labels?.length) {
+            reportParts.push(preview.report_field_labels.join(', '));
+        }
+        if (preview.narrative_enabled) {
+            reportParts.push('Có báo cáo lời');
+        }
+        if (preview.attachment_enabled) {
+            reportParts.push('Có tệp minh chứng');
+        }
+        workflowBlueprintPreviewReport.textContent = reportParts.join(' | ') || 'Chưa có.';
+    }
+
+    function clearWorkflowBlueprintPreview() {
+        lastBlueprintPreview = null;
+        workflowBlueprintPreviewBox?.classList.add('d-none');
+        setWorkflowBlueprintStatus('Chưa phân tích.');
+    }
+
+    function syncWorkflowBlueprintImportMode() {
+        const importMode = workflowBlueprintImportMode?.value || 'docx_outline';
+        const isGoogleFormMode = importMode === 'google_form_remote';
+        workflowBlueprintGoogleFormBox?.classList.toggle('d-none', !isGoogleFormMode);
+        if (workflowBlueprintSourceFile) {
+            workflowBlueprintSourceFile.disabled = isGoogleFormMode;
+        }
+    }
+
+    function syncCreateSourceMode() {
+        const blueprintActive = blueprintModeActive();
+        workflowBlueprintBox?.classList.toggle('d-none', !blueprintActive);
+        if (modeSelect) {
+            if (!blueprintActive) {
+                modeSelect.disabled = false;
+                modeSelect.value = lastManualMode;
+            } else {
+                modeSelect.disabled = true;
+            }
+        }
+        if (titleInput) {
+            titleInput.required = !blueprintActive;
+        }
+        if (workflowBlueprintInput) {
+            workflowBlueprintInput.disabled = !blueprintActive;
+        }
+        if (!blueprintActive) {
+            syncTaskMode();
+            return;
+        }
+        if (lastBlueprintPreview?.task_mode && modeSelect) {
+            modeSelect.value = lastBlueprintPreview.task_mode;
+        }
+        syncTaskMode();
+    }
+
+    async function analyzeWorkflowBlueprint(showErrors = false) {
+        if (!blueprintModeActive() || !workflowBlueprintInput) return null;
+        const rawValue = workflowBlueprintInput.value.trim();
+        if (!rawValue) {
+            clearWorkflowBlueprintPreview();
+            return null;
+        }
+
+        setWorkflowBlueprintStatus('Đang phân tích blueprint...');
+        try {
+            const parsed = JSON.parse(rawValue);
+            const response = await fetch('{{ url_for("tasks_bp.preview_workflow_blueprint") }}', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken,
+                },
+                body: JSON.stringify({ workflow_blueprint: parsed }),
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload?.ok || !payload?.preview) {
+                throw new Error(payload?.error || 'Không thể phân tích blueprint.');
+            }
+            lastBlueprintPreview = payload.preview;
+            if (modeSelect && payload.preview.task_mode) {
+                modeSelect.value = payload.preview.task_mode;
+            }
+            renderWorkflowBlueprintPreview(payload.preview);
+            syncTaskMode();
+            setWorkflowBlueprintStatus('Đã phân tích thành công.', 'success');
+            return payload.preview;
+        } catch (error) {
+            lastBlueprintPreview = null;
+            workflowBlueprintPreviewBox?.classList.add('d-none');
+            if (showErrors) {
+                setWorkflowBlueprintStatus(error.message || 'Blueprint điều hành không hợp lệ.', 'danger');
+            } else {
+                setWorkflowBlueprintStatus('Blueprint chưa hợp lệ.', 'danger');
+            }
+            return null;
+        }
+    }
+
+    async function importWorkflowBlueprintFromFile() {
+        const formData = new FormData();
+        const importMode = workflowBlueprintImportMode?.value || 'docx_outline';
+        const isGoogleFormMode = importMode === 'google_form_remote';
+        if (!blueprintModeActive()) {
+            return null;
+        }
+        if (!isGoogleFormMode && !workflowBlueprintSourceFile?.files?.length) {
+            setWorkflowBlueprintStatus('Cần chọn tài liệu tham chiếu trước khi nạp.', 'danger');
+            return null;
+        }
+        if (isGoogleFormMode && !workflowBlueprintFormReference?.value.trim()) {
+            setWorkflowBlueprintStatus('Cần nhập Google Form URL hoặc form ID trước khi nạp.', 'danger');
+            return null;
+        }
+
+        formData.append('csrf_token', csrfToken);
+        formData.append('blueprint_import_mode', importMode);
+        if (isGoogleFormMode) {
+            formData.append('blueprint_form_reference', workflowBlueprintFormReference.value.trim());
+        } else {
+            formData.append('blueprint_source_file', workflowBlueprintSourceFile.files[0]);
+        }
+
+        setWorkflowBlueprintStatus('Đang phân tích tài liệu tham chiếu...');
+        try {
+            const response = await fetch('{{ url_for("tasks_bp.import_workflow_blueprint") }}', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'X-CSRF-Token': csrfToken,
+                },
+                body: formData,
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload?.ok || !payload?.workflow_blueprint || !payload?.preview) {
+                throw new Error(payload?.error || 'Không thể nạp blueprint từ tài liệu.');
+            }
+            workflowBlueprintInput.value = JSON.stringify(payload.workflow_blueprint, null, 2);
+            lastBlueprintPreview = payload.preview;
+            if (modeSelect && payload.preview.task_mode) {
+                modeSelect.value = payload.preview.task_mode;
+            }
+            renderWorkflowBlueprintPreview(payload.preview);
+            syncTaskMode();
+            setWorkflowBlueprintStatus('Đã tạo blueprint từ tài liệu tham chiếu.', 'success');
+            return payload.preview;
+        } catch (error) {
+            setWorkflowBlueprintStatus(error.message || 'Không thể nạp blueprint từ tài liệu.', 'danger');
+            return null;
+        }
+    }
+
+    function scheduleWorkflowBlueprintAnalysis() {
+        if (previewTimer) {
+            window.clearTimeout(previewTimer);
+        }
+        previewTimer = window.setTimeout(() => {
+            analyzeWorkflowBlueprint(false);
+        }, 500);
+    }
+
+    function applyWorkflowBlueprintToForm() {
+        if (!lastBlueprintPreview) return;
+        if (titleInput && !titleInput.value.trim()) {
+            titleInput.value = lastBlueprintPreview.title || '';
+        }
+        if (descriptionInput && !descriptionInput.value.trim()) {
+            descriptionInput.value = lastBlueprintPreview.summary || '';
+        }
     }
 
     function addFormField() {
@@ -731,11 +1080,42 @@
         });
     }
 
-    modeSelect?.addEventListener('change', syncTaskMode);
+    modeSelect?.addEventListener('change', () => {
+        if (!blueprintModeActive()) {
+            lastManualMode = modeSelect.value || 'OUTLINE';
+        }
+        syncTaskMode();
+    });
+    sourceModeInputs.forEach((input) => {
+        input.addEventListener('change', syncCreateSourceMode);
+    });
     assignType?.addEventListener('change', syncAssignType);
     addFormFieldBtn?.addEventListener('click', addFormField);
+    workflowBlueprintImportMode?.addEventListener('change', syncWorkflowBlueprintImportMode);
+    workflowBlueprintInput?.addEventListener('input', scheduleWorkflowBlueprintAnalysis);
+    previewWorkflowBlueprintBtn?.addEventListener('click', () => {
+        analyzeWorkflowBlueprint(true);
+    });
+    importWorkflowBlueprintFileBtn?.addEventListener('click', importWorkflowBlueprintFromFile);
+    applyWorkflowBlueprintBtn?.addEventListener('click', applyWorkflowBlueprintToForm);
+    loadWorkflowBlueprintPresetBtn?.addEventListener('click', () => {
+        const key = workflowBlueprintPresetSelect?.value || '';
+        const match = workflowBlueprintExamples.find((item) => item.key === key);
+        if (!match || !workflowBlueprintInput) return;
+        workflowBlueprintInput.value = JSON.stringify(match.payload, null, 2);
+        analyzeWorkflowBlueprint(true);
+    });
+    createForm?.addEventListener('submit', () => {
+        if (!blueprintModeActive()) return;
+        if (lastBlueprintPreview?.task_mode && modeSelect) {
+            modeSelect.value = lastBlueprintPreview.task_mode;
+        }
+        applyWorkflowBlueprintToForm();
+    });
     syncTaskMode();
     syncAssignType();
+    syncCreateSourceMode();
+    syncWorkflowBlueprintImportMode();
     addFormField();
 })();
 </script>

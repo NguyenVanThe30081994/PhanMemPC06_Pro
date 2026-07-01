@@ -221,6 +221,26 @@ class Task(db.Model):
     child_tasks = db.relationship('Task', backref=db.backref('parent_task', remote_side=[id]))
 
 
+class TaskImportDraft(db.Model):
+    __tablename__ = 'task_import_draft'
+
+    id = db.Column(db.Integer, primary_key=True)
+    source_type = db.Column(db.String(50), index=True)
+    source_name = db.Column(db.String(255))
+    source_ref = db.Column(db.String(500))
+    workflow_blueprint_json = db.Column(db.Text)
+    working_config_json = db.Column(db.Text)
+    status = db.Column(db.String(30), default='draft', index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    published_task_id = db.Column(db.Integer, db.ForeignKey('task.id'), index=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    published_at = db.Column(db.DateTime)
+
+    creator = db.relationship('User', backref='task_import_drafts')
+    published_task = db.relationship('Task', backref='import_drafts', foreign_keys=[published_task_id])
+
+
 class TaskItem(db.Model):
     __tablename__ = 'task_item'
 

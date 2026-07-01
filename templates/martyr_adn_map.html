@@ -1499,6 +1499,8 @@
       const data = window.ADN_SCHEDULE_DATA;
       const routeMetrics = window.ADN_ROUTE_METRICS || {};
       const catchmentMetrics = window.ADN_CATCHMENT_METRICS || {};
+      const TEMP_LEADER_NAME = "Nguyễn Văn A";
+      const TEMP_LEADER_PHONE = "0912.xxx.xxx";
       const TRACK_COLORS = ["#c4661f", "#325fd8", "#167b73"];
       const DAY_COLORS = ["#c4661f", "#325fd8", "#167b73", "#7c3aed", "#dc2626"];
       const STAGE_WIDTH = 1400;
@@ -3180,12 +3182,16 @@
         if (!lines.length) {
           return `<div style="opacity: 0.6; font-style: italic;">Không có thông tin chi tiết</div>`;
         }
-        const listItems = lines.map(line => {
-          // Strip leading bullet chars before displaying
+        const bulletRows = lines.map(line => {
           const cleanLine = line.replace(/^[\s\-\•\*\+\u2022]+/, "").trim();
-          return `<li style="margin-bottom: 6px; list-style-type: disc; margin-left: 14px; line-height: 1.6; text-align: justify;">${escapeHtml(cleanLine)}</li>`;
+          return `
+            <div style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; line-height: 1.6; text-align: justify;">
+              <span style="font-weight: 700; color: #475569; flex: 0 0 auto;">-</span>
+              <span style="color: #334155;">${escapeHtml(cleanLine)}</span>
+            </div>
+          `;
         }).join("");
-        return `<ul style="margin: 0; padding: 0; list-style-position: outside;">${listItems}</ul>`;
+        return `<div style="margin: 0;">${bulletRows}</div>`;
       }
 
       function filterSessionText(text, sessionName) {
@@ -3479,7 +3485,7 @@
                   📊 ${formatNumber(node.total)} TNLS
                 </span>
                 <span style="background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;">
-                  📅 ${firstOccurrence.dayLabel || ""} · ${firstOccurrence.dateLabel || ""}
+                  👤 Tổ trưởng: ${TEMP_LEADER_NAME}, điện thoại: ${TEMP_LEADER_PHONE}
                 </span>
               </div>
               
@@ -3532,7 +3538,7 @@
                 📊 Tổng: ${formatNumber(node.total)} TNLS dự kiến
               </span>
               <span style="background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;">
-                📅 ${firstOccurrence.dayLabel || ""} · ${firstOccurrence.dateLabel || ""}
+                👤 Tổ trưởng: ${TEMP_LEADER_NAME}, điện thoại: ${TEMP_LEADER_PHONE}
               </span>
             </div>
 

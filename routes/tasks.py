@@ -11,9 +11,10 @@ from sqlalchemy.orm import joinedload
 from werkzeug.datastructures import MultiDict
 from werkzeug.utils import secure_filename
 try:
-    from openpyxl import Workbook
+    from openpyxl import Workbook, load_workbook
 except ImportError:
     Workbook = None
+    load_workbook = None
 try:
     from docx import Document as DocxDocument
 except ImportError:
@@ -37,6 +38,7 @@ from models import (
     ReportType,
     ReportTemplateVersion,
     Task,
+    TaskImportDraft,
     TaskAssignment,
     TaskComment,
     TaskItem,
@@ -100,6 +102,23 @@ from task_page_builders import (
     prepare_task_workspace_record,
     task_visible_for_user,
 )
+from task_blueprints import (
+    workflow_blueprint_example_catalog,
+    normalize_task_workflow_blueprint,
+    workflow_blueprint_preview_data,
+    workflow_blueprint_form_field_defs,
+    workflow_blueprint_item_configs,
+    workflow_blueprint_report_schema,
+    workflow_blueprint_summary_text,
+    workflow_blueprint_task_mode,
+    workflow_blueprint_workflow_mode,
+)
+from google_forms import (
+    build_google_forms_service,
+    extract_google_form_id,
+    load_google_form_into_builder,
+    parse_google_form_definition,
+)
 
 tasks_bp = Blueprint("tasks_bp", __name__)
 
@@ -138,6 +157,31 @@ TASK_ASSIGNMENT_STATUS_LABELS = {
     "overdue": "Quá hạn",
 }
 TASK_FORM_ALLOWED_FIELD_TYPES = {"text", "number", "textarea", "radio", "checkbox", "table"}
+TASK_BLUEPRINT_IMPORT_ALLOWED_EXTENSIONS = {".docx", ".txt", ".xlsx"}
+TASK_BLUEPRINT_IMPORT_MODES = {
+    "docx_outline": {
+        "source_kind": "directive",
+        "collection_mode": "outline",
+        "default_title": "Đề cương công tác",
+    },
+    "docx_report_outline": {
+        "source_kind": "sectioned_report",
+        "collection_mode": "outline",
+        "default_title": "Đề cương báo cáo",
+    },
+    "xlsx_form": {
+        "source_kind": "excel_template",
+        "collection_mode": "form",
+        "default_title": "Biểu mẫu số liệu",
+    },
+    "google_form_remote": {
+        "source_kind": "google_form",
+        "collection_mode": "form",
+        "default_title": "Biểu mẫu Google Form",
+    },
+}
+TASK_IMPORT_DRAFT_ALLOWED_STATUSES = {"draft", "published", "failed"}
+TASK_IMPORT_SOURCE_TYPES = {"docx_outline", "docx_report_outline", "xlsx_form", "google_form_remote", "blueprint_json"}
 DEFAULT_TASK_REPORT_SCHEMA = {
     "enabled": False,
     "narrative": {
@@ -1089,6 +1133,1069 @@ def _parse_outline_upload_titles(file_storage):
     if extension == ".docx":
         return _parse_outline_docx_titles(file_storage)
     return _parse_outline_text_titles(file_storage)
+
+
+def _blueprint_title_from_filename(filename, fallback):
+    stem = os.path.splitext(os.path.basename(str(filename or "").strip()))[0]
+    stem = stem.replace("_", " ").replace("-", " ")
+    stem = re.sub(r"\s+", " ", stem).strip()
+    return (stem or fallback or "Điều hành và thu báo cáo")[:255]
+
+
+def _coerce_excel_sample_text(value):
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "Có" if value else "Không"
+    return str(value).strip()
+
+
+def _looks_like_number(value):
+    text = _coerce_excel_sample_text(value).replace(",", "").strip()
+    if not text:
+        return False
+    try:
+        Decimal(text)
+        return True
+    except (InvalidOperation, ValueError):
+        return False
+
+
+def _infer_excel_blueprint_field_type(label, samples):
+    compact_label = remove_accents(str(label or "")).strip().lower()
+    if any(token in compact_label for token in ("so ", "số ", "tong", "tổng", "ty le", "tỷ lệ", "%", "chi tieu", "chỉ tiêu")):
+        return "number"
+
+    non_empty_samples = [_coerce_excel_sample_text(value) for value in (samples or []) if _coerce_excel_sample_text(value)]
+    if not non_empty_samples:
+        return "text"
+
+    numeric_ratio = sum(1 for value in non_empty_samples if _looks_like_number(value)) / max(len(non_empty_samples), 1)
+    if numeric_ratio >= 0.7:
+        return "number"
+
+    if max(len(value) for value in non_empty_samples) >= 80:
+        return "textarea"
+    return "text"
+
+
+def _pick_excel_header_row(rows):
+    best_index = None
+    best_score = -1
+    for index, row in enumerate(rows[:10]):
+        non_empty = [cell for cell in row if cell]
+        if len(non_empty) < 2:
+            continue
+        unique_count = len({cell.lower() for cell in non_empty})
+        score = unique_count * 10 - index
+        if score > best_score:
+            best_score = score
+            best_index = index
+    return 0 if best_index is None and rows else best_index
+
+
+def _parse_excel_template_blueprint(file_storage):
+    if load_workbook is None:
+        raise ValueError("Máy chủ chưa cài thư viện đọc file Excel (.xlsx).")
+
+    extension = os.path.splitext(file_storage.filename or "")[1].lower()
+    if extension == ".xls":
+        raise ValueError("Hiện mới hỗ trợ file Excel .xlsx. Hãy chuyển file .xls sang .xlsx trước khi nạp.")
+
+    try:
+        file_storage.stream.seek(0)
+        workbook = load_workbook(io.BytesIO(file_storage.stream.read()), data_only=True)
+    except Exception:
+        raise ValueError("Không đọc được file Excel. Hãy kiểm tra lại định dạng .xlsx.")
+
+    worksheet = None
+    for candidate in workbook.worksheets:
+        if candidate.max_row <= 0 or candidate.max_column <= 0:
+            continue
+        worksheet = candidate
+        break
+    if worksheet is None:
+        raise ValueError("Không tìm thấy sheet dữ liệu hợp lệ trong file Excel.")
+
+    rows = []
+    for row in worksheet.iter_rows(values_only=True):
+        normalized_row = [_coerce_excel_sample_text(value) for value in row]
+        if any(normalized_row):
+            rows.append(normalized_row)
+    if not rows:
+        raise ValueError("File Excel chưa có dữ liệu để suy luận biểu mẫu.")
+
+    header_index = _pick_excel_header_row(rows)
+    if header_index is None:
+        raise ValueError("Không xác định được dòng tiêu đề trong file Excel.")
+
+    header_row = rows[header_index]
+    header_cells = [
+        (column_index, label.strip())
+        for column_index, label in enumerate(header_row)
+        if str(label or "").strip()
+    ]
+    if not header_cells:
+        raise ValueError("Không tìm thấy cột hợp lệ trong dòng tiêu đề Excel.")
+
+    sample_rows = rows[header_index + 1 : header_index + 16]
+    form_fields = []
+    for column_index, label in header_cells:
+        samples = [
+            sample_row[column_index]
+            for sample_row in sample_rows
+            if column_index < len(sample_row) and _coerce_excel_sample_text(sample_row[column_index])
+        ]
+        form_fields.append(
+            {
+                "label": label[:255],
+                "type": _infer_excel_blueprint_field_type(label, samples),
+                "required": False,
+            }
+        )
+
+    blueprint = normalize_task_workflow_blueprint(
+        {
+            "title": _blueprint_title_from_filename(file_storage.filename, worksheet.title or "Biểu mẫu số liệu"),
+            "source_kind": "excel_template",
+            "collection_mode": "form",
+            "form_fields": form_fields,
+            "meta": {
+                "sheet_name": worksheet.title,
+                "header_row_index": header_index + 1,
+            },
+        }
+    )
+    if not blueprint:
+        raise ValueError("Không thể chuyển file Excel thành blueprint hợp lệ.")
+    return blueprint
+
+
+def _blueprint_form_fields_from_google_form_payload(form_payload):
+    raw_fields = []
+    field_defs, _question_map = parse_google_form_definition(form_payload)
+    for field_def in field_defs:
+        options_payload = {}
+        raw_options = field_def.get("field_options_json")
+        if raw_options:
+            try:
+                options_payload = json.loads(raw_options)
+            except Exception:
+                options_payload = {}
+
+        raw_field = {
+            "label": field_def.get("field_label", ""),
+            "type": field_def.get("field_type") or "text",
+            "required": bool(field_def.get("is_required")),
+        }
+        if raw_field["type"] in {"radio", "checkbox"}:
+            raw_field["choices"] = list(options_payload.get("choices") or [])
+        elif raw_field["type"] == "table":
+            raw_field["columns"] = list(options_payload.get("columns") or [])
+        raw_fields.append(raw_field)
+    return raw_fields
+
+
+def _parse_google_form_reference_to_blueprint(form_reference):
+    form_id = extract_google_form_id(form_reference)
+    if not form_id:
+        raise ValueError("Không nhận diện được Google Form URL hoặc form ID.")
+
+    try:
+        service = build_google_forms_service(current_app.config)
+        imported = load_google_form_into_builder(service, form_id)
+    except Exception as exc:
+        raise ValueError(str(exc) or "Không thể đọc cấu trúc Google Form.") from exc
+
+    form_payload = imported.get("form_payload") if isinstance(imported, dict) else {}
+    info = form_payload.get("info") if isinstance(form_payload, dict) else {}
+    title = str((info or {}).get("title") or "").strip()[:255]
+    if not title:
+        title = TASK_BLUEPRINT_IMPORT_MODES["google_form_remote"]["default_title"]
+
+    blueprint = normalize_task_workflow_blueprint(
+        {
+            "title": title,
+            "source_kind": "google_form",
+            "collection_mode": "form",
+            "form_fields": _blueprint_form_fields_from_google_form_payload(form_payload),
+            "meta": {
+                "google_form_id": form_id,
+                "google_form_url": form_reference,
+            },
+        }
+    )
+    if not blueprint:
+        raise ValueError("Không thể chuyển Google Form thành blueprint hợp lệ.")
+    return blueprint
+
+
+def _parse_reference_file_to_blueprint(file_storage, import_mode, form_reference=""):
+    import_config = TASK_BLUEPRINT_IMPORT_MODES.get(str(import_mode or "").strip())
+    if not import_config:
+        raise ValueError("Chưa chọn kiểu phân tích tài liệu tham chiếu.")
+
+    if import_mode == "google_form_remote":
+        return _parse_google_form_reference_to_blueprint(form_reference)
+
+    if not file_storage or not getattr(file_storage, "filename", ""):
+        raise ValueError("Cần chọn tài liệu tham chiếu trước khi phân tích.")
+
+    extension = os.path.splitext(file_storage.filename or "")[1].lower()
+    if extension == ".doc":
+        raise ValueError("File .doc chưa được hỗ trợ. Hãy chuyển sang .docx trước khi nạp.")
+    if extension == ".xls":
+        raise ValueError("Hiện mới hỗ trợ file Excel .xlsx. Hãy chuyển file .xls sang .xlsx trước khi nạp.")
+    if extension not in TASK_BLUEPRINT_IMPORT_ALLOWED_EXTENSIONS:
+        raise ValueError("Chỉ hỗ trợ tài liệu .docx, .txt hoặc .xlsx.")
+
+    if import_mode == "xlsx_form":
+        return _parse_excel_template_blueprint(file_storage)
+
+    titles = _parse_outline_upload_titles(file_storage)
+    if not titles:
+        raise ValueError("Không tìm thấy đầu mục hợp lệ trong tài liệu tham chiếu.")
+
+    blueprint = normalize_task_workflow_blueprint(
+        {
+            "title": _blueprint_title_from_filename(file_storage.filename, import_config["default_title"]),
+            "source_kind": import_config["source_kind"],
+            "collection_mode": import_config["collection_mode"],
+            "items": [
+                {
+                    "title": title,
+                    "report_kind": "narrative",
+                    "attachment_required": False,
+                }
+                for title in titles
+            ],
+        }
+    )
+    if not blueprint:
+        raise ValueError("Không thể chuyển tài liệu tham chiếu thành blueprint hợp lệ.")
+    return blueprint
+
+
+def _task_import_status_label(status):
+    normalized = str(status or "").strip().lower()
+    if normalized == "published":
+        return "Đã phát hành"
+    if normalized == "failed":
+        return "Lỗi phát hành"
+    return "Đang soạn"
+
+
+def _task_import_source_label(source_type):
+    normalized = str(source_type or "").strip().lower()
+    labels = {
+        "docx_outline": "Word/TXT -> đề cương công tác",
+        "docx_report_outline": "Word/TXT -> đề cương báo cáo theo mục",
+        "xlsx_form": "Excel -> biểu mẫu số liệu",
+        "google_form_remote": "Google Form -> biểu mẫu",
+        "blueprint_json": "Blueprint JSON nâng cao",
+    }
+    return labels.get(normalized, normalized or "Không xác định")
+
+
+def _json_loads_safe(raw_value, default):
+    try:
+        parsed = json.loads(raw_value or "")
+    except Exception:
+        return default
+    return parsed if isinstance(parsed, type(default)) else default
+
+
+def _json_dump(raw_value):
+    return json.dumps(raw_value, ensure_ascii=False)
+
+
+def _draft_field_options_text(field_options_json):
+    payload = _json_loads_safe(field_options_json, {})
+    if payload.get("choices"):
+        return "\n".join(str(item).strip() for item in payload.get("choices", []) if str(item).strip())
+    if payload.get("columns"):
+        return ", ".join(str(item).strip() for item in payload.get("columns", []) if str(item).strip())
+    return ""
+
+
+def _draft_field_options_json(field_type, raw_value):
+    text = str(raw_value or "").strip()
+    if not text:
+        return None
+    payload = {}
+    if field_type in {"radio", "checkbox"}:
+        payload["choices"] = [item.strip() for item in text.splitlines() if item.strip()]
+    elif field_type == "table":
+        payload["columns"] = [item.strip() for item in text.split(",") if item.strip()]
+    return _json_dump(payload) if payload else None
+
+
+def _task_import_field_key(label, index, used_keys, fallback_prefix):
+    base = secure_filename(remove_accents(label).replace(" ", "_")) or f"{fallback_prefix}_{index + 1}"
+    candidate = base[:100]
+    if candidate not in used_keys:
+        used_keys.add(candidate)
+        return candidate
+    suffix = 2
+    while True:
+        deduped = f"{candidate[:95]}_{suffix}"
+        if deduped not in used_keys:
+            used_keys.add(deduped)
+            return deduped
+        suffix += 1
+
+
+def _task_import_working_config_from_blueprint(blueprint, source_type="", source_name="", source_ref=""):
+    normalized = normalize_task_workflow_blueprint(blueprint)
+    if not normalized:
+        raise ValueError("Blueprint điều hành chưa có nội dung hợp lệ.")
+
+    config = {
+        "version": 1,
+        "source_type": str(source_type or "").strip(),
+        "source_name": str(source_name or normalized.get("title") or "").strip()[:255],
+        "source_ref": str(source_ref or "").strip()[:500],
+        "source_kind": normalized.get("source_kind") or "custom",
+        "collection_mode": normalized.get("collection_mode") or "file",
+        "task_mode": workflow_blueprint_task_mode(normalized),
+        "workflow_mode": workflow_blueprint_workflow_mode(normalized),
+        "title": str(normalized.get("title") or "").strip()[:255],
+        "summary": str(workflow_blueprint_summary_text(normalized) or "").strip()[:4000],
+        "category": "",
+        "domain": "",
+        "priority": "Trung bình",
+        "task_type": "Công việc thường xuyên",
+        "deadline": "",
+        "assign_type": "unit",
+        "unit_domains": [],
+        "role_ids": [],
+        "user_ids": [],
+        "manager_scope_mode": "none",
+        "manager_role_ids": [],
+        "manager_user_ids": [],
+        "viewer_scope_mode": "none",
+        "viewer_role_ids": [],
+        "viewer_user_ids": [],
+        "items": [],
+        "form_fields": [],
+        "report_narrative_enabled": True,
+        "report_narrative_required": True,
+        "report_narrative_label": "Báo cáo lời tổng hợp",
+        "report_attachment_enabled": False,
+        "report_attachment_required": False,
+        "report_attachment_label": "Tệp minh chứng",
+        "report_fields": [],
+    }
+
+    if config["collection_mode"] == "outline":
+        for item in workflow_blueprint_item_configs(normalized):
+            config["items"].append(
+                {
+                    "title": item.get("title", ""),
+                    "guide_text": item.get("guide_text", ""),
+                    "report_kind": item.get("report_kind") or "narrative",
+                    "attachment_required": bool(item.get("attachment_required")),
+                    "assign_type": "",
+                    "unit_domains": [],
+                    "role_ids": [],
+                    "user_ids": [],
+                    "sort_order": item.get("sort_order", len(config["items"])),
+                }
+            )
+    elif config["collection_mode"] == "form":
+        used_keys = set()
+        for index, field in enumerate(workflow_blueprint_form_field_defs(normalized)):
+            field_key = str(field.get("field_key") or "").strip() or _task_import_field_key(
+                field.get("field_label") or "",
+                index,
+                used_keys,
+                "field",
+            )
+            used_keys.add(field_key)
+            config["form_fields"].append(
+                {
+                    "field_key": field_key,
+                    "field_label": str(field.get("field_label") or "").strip()[:255],
+                    "field_type": _normalize_task_form_field_type(field.get("field_type") or "text"),
+                    "field_options_text": _draft_field_options_text(field.get("field_options_json")),
+                    "is_required": bool(field.get("is_required")),
+                    "sort_order": field.get("sort_order", len(config["form_fields"])),
+                }
+            )
+    else:
+        schema = workflow_blueprint_report_schema(normalized) or DEFAULT_TASK_REPORT_SCHEMA
+        narrative = schema.get("narrative") or {}
+        attachment = schema.get("attachment") or {}
+        config["report_narrative_enabled"] = bool(narrative.get("enabled", True))
+        config["report_narrative_required"] = bool(narrative.get("required", True))
+        config["report_narrative_label"] = str(narrative.get("label") or "Báo cáo lời tổng hợp").strip()[:255]
+        config["report_attachment_enabled"] = bool(attachment.get("enabled"))
+        config["report_attachment_required"] = bool(attachment.get("required"))
+        config["report_attachment_label"] = str(attachment.get("label") or "Tệp minh chứng").strip()[:255]
+        used_keys = set()
+        for index, field in enumerate(schema.get("fields") or []):
+            field_key = str(field.get("key") or "").strip() or _task_import_field_key(
+                field.get("label") or "",
+                index,
+                used_keys,
+                "report",
+            )
+            used_keys.add(field_key)
+            config["report_fields"].append(
+                {
+                    "key": field_key,
+                    "label": str(field.get("label") or "").strip()[:255],
+                    "type": str(field.get("type") or "text").strip().lower(),
+                    "required": bool(field.get("required")),
+                    "placeholder": str(field.get("placeholder") or "").strip()[:255],
+                    "help_text": str(field.get("help_text") or "").strip()[:255],
+                    "sort_order": index,
+                }
+            )
+    return config
+
+
+def _task_import_draft_blueprint(draft):
+    return _json_loads_safe(getattr(draft, "workflow_blueprint_json", None), {})
+
+
+def _task_import_draft_working_config(draft):
+    config = _json_loads_safe(getattr(draft, "working_config_json", None), {})
+    if config:
+        return config
+    blueprint = _task_import_draft_blueprint(draft)
+    if not blueprint:
+        return {}
+    return _task_import_working_config_from_blueprint(
+        blueprint,
+        source_type=getattr(draft, "source_type", ""),
+        source_name=getattr(draft, "source_name", ""),
+        source_ref=getattr(draft, "source_ref", ""),
+    )
+
+
+def _task_import_parse_id_csv(raw_value):
+    return sorted({int(value) for value in str(raw_value or "").split(",") if value.strip().isdigit()})
+
+
+def _task_import_working_assign_type(value, default=""):
+    normalized = str(value or "").strip().lower()
+    if normalized in {"unit", "role", "user"}:
+        return normalized
+    return default
+
+
+def _task_import_assignment_has_targets(assign_type, unit_domains=None, role_ids=None, user_ids=None, fallback_domain=""):
+    normalized = _task_import_working_assign_type(assign_type)
+    if normalized == "role":
+        return bool([int(role_id) for role_id in (role_ids or []) if str(role_id).isdigit()])
+    if normalized == "user":
+        return bool([int(user_id) for user_id in (user_ids or []) if str(user_id).isdigit()])
+    if normalized == "unit":
+        domains = [str(value or "").strip() for value in (unit_domains or []) if str(value or "").strip()]
+        return bool(domains or str(fallback_domain or "").strip())
+    return False
+
+
+def _task_import_scope_from_form(form, prefix):
+    assign_type = _task_import_working_assign_type(form.get(f"{prefix}_assign_type"), "unit")
+    unit_domains = _requested_unit_domains(form, field_name=f"{prefix}_unit_domains", fallback_field=f"{prefix}_unit_domain")
+    role_ids = sorted({int(role_id) for role_id in form.getlist(f"{prefix}_role_ids") if str(role_id).isdigit()})
+    user_ids = sorted({int(uid) for uid in form.getlist(f"{prefix}_user_ids") if str(uid).isdigit()})
+    return {
+        "assign_type": assign_type,
+        "unit_domains": unit_domains,
+        "role_ids": role_ids,
+        "user_ids": user_ids,
+    }
+
+
+def _task_import_summary_text(config):
+    title = str(config.get("title") or "").strip()
+    summary = str(config.get("summary") or "").strip()
+    collection_mode = str(config.get("collection_mode") or "").strip()
+    if summary:
+        return summary
+    if collection_mode == "outline":
+        titles = [item.get("title") for item in config.get("items", []) if str(item.get("title") or "").strip()]
+        if titles:
+            preview = ", ".join(titles[:3])
+            remainder = max(len(titles) - 3, 0)
+            text = f"Đợt điều hành gồm {len(titles)} đầu mục. Trọng tâm: {preview}"
+            if remainder:
+                text += f" và {remainder} đầu mục khác."
+            return text
+    if collection_mode == "form":
+        labels = [field.get("field_label") for field in config.get("form_fields", []) if str(field.get("field_label") or "").strip()]
+        if labels:
+            return "Biểu mẫu thu thập: " + ", ".join(labels[:5])
+    if collection_mode == "file":
+        labels = [field.get("label") for field in config.get("report_fields", []) if str(field.get("label") or "").strip()]
+        if labels:
+            return "Chỉ tiêu báo cáo: " + ", ".join(labels[:5])
+    return title
+
+
+def _parse_task_import_outline_items_from_form(form):
+    titles = form.getlist("item_title")
+    guide_texts = form.getlist("item_guide_text")
+    report_kinds = form.getlist("item_report_kind")
+    attachment_indexes = {value for value in form.getlist("item_attachment_required")}
+    assign_types = form.getlist("item_assign_type")
+    unit_domains_values = form.getlist("item_unit_domains")
+    role_ids_values = form.getlist("item_role_ids")
+    user_ids_values = form.getlist("item_user_ids")
+    items = []
+    seen = set()
+
+    for index, raw_title in enumerate(titles):
+        title = _clean_outline_title(raw_title)
+        if not title:
+            continue
+        dedupe_key = title.lower()
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        report_kind = str(report_kinds[index] if index < len(report_kinds) else "narrative").strip().lower()
+        if report_kind not in CHILD_TASK_ALLOWED_REPORT_KINDS:
+            report_kind = "narrative"
+        raw_unit_domains = str(unit_domains_values[index] if index < len(unit_domains_values) else "").strip()
+        unit_domains = _requested_unit_domains(
+            MultiDict([("child_domains", value.strip()) for value in raw_unit_domains.split(",") if value.strip()])
+        )
+        items.append(
+            {
+                "title": title[:255],
+                "guide_text": str(guide_texts[index] if index < len(guide_texts) else "").strip()[:2000],
+                "report_kind": report_kind,
+                "attachment_required": str(index) in attachment_indexes,
+                "assign_type": _task_import_working_assign_type(assign_types[index] if index < len(assign_types) else ""),
+                "unit_domains": unit_domains,
+                "role_ids": _task_import_parse_id_csv(role_ids_values[index] if index < len(role_ids_values) else ""),
+                "user_ids": _task_import_parse_id_csv(user_ids_values[index] if index < len(user_ids_values) else ""),
+                "sort_order": len(items),
+            }
+        )
+    return items
+
+
+def _parse_task_import_form_fields_from_form(form):
+    labels = form.getlist("form_field_label")
+    keys = form.getlist("form_field_key")
+    field_types = form.getlist("form_field_type")
+    option_texts = form.getlist("form_field_options")
+    required_indexes = {value for value in form.getlist("form_field_required")}
+    fields = []
+    used_keys = set()
+    for index, raw_label in enumerate(labels):
+        label = str(raw_label or "").strip()
+        if not label:
+            continue
+        field_type = _normalize_task_form_field_type(field_types[index] if index < len(field_types) else "text")
+        raw_key = str(keys[index] if index < len(keys) else "").strip()
+        field_key = raw_key or _task_import_field_key(label, index, used_keys, "field")
+        if field_key in used_keys:
+            field_key = _task_import_field_key(label, index, used_keys, "field")
+        used_keys.add(field_key)
+        option_text = str(option_texts[index] if index < len(option_texts) else "").strip()
+        fields.append(
+            {
+                "field_key": field_key[:100],
+                "field_label": label[:255],
+                "field_type": field_type,
+                "field_options_text": option_text,
+                "is_required": str(index) in required_indexes,
+                "sort_order": len(fields),
+            }
+        )
+    return fields
+
+
+def _parse_task_import_report_fields_from_form(form):
+    labels = form.getlist("report_field_label")
+    keys = form.getlist("report_field_key")
+    field_types = form.getlist("report_field_type")
+    placeholders = form.getlist("report_field_placeholder")
+    help_texts = form.getlist("report_field_help_text")
+    required_indexes = {value for value in form.getlist("report_field_required")}
+    fields = []
+    used_keys = set()
+    for index, raw_label in enumerate(labels):
+        label = str(raw_label or "").strip()
+        if not label:
+            continue
+        field_type = str(field_types[index] if index < len(field_types) else "text").strip().lower()
+        if field_type not in TASK_REPORT_ALLOWED_FIELD_TYPES:
+            field_type = "text"
+        raw_key = str(keys[index] if index < len(keys) else "").strip()
+        field_key = raw_key or _task_import_field_key(label, index, used_keys, "report")
+        if field_key in used_keys:
+            field_key = _task_import_field_key(label, index, used_keys, "report")
+        used_keys.add(field_key)
+        fields.append(
+            {
+                "key": field_key[:100],
+                "label": label[:255],
+                "type": field_type,
+                "required": str(index) in required_indexes,
+                "placeholder": str(placeholders[index] if index < len(placeholders) else "").strip()[:255],
+                "help_text": str(help_texts[index] if index < len(help_texts) else "").strip()[:255],
+                "sort_order": len(fields),
+            }
+        )
+    return fields
+
+
+def _parse_task_import_working_config_from_form(draft, form):
+    current_config = _task_import_draft_working_config(draft)
+    config = dict(current_config or {})
+    collection_mode = str(config.get("collection_mode") or "").strip().lower() or "outline"
+    task_fields = _task_field_options()
+    pro_units = _task_domain_options()
+    task_types = _task_type_options()
+    priority_items = _task_priority_options()
+
+    config["title"] = str(form.get("title") or "").strip()[:255]
+    config["summary"] = str(form.get("summary") or "").strip()[:4000]
+    config["category"] = canonicalize_category_value(form.get("category") or "", task_fields, prefer_stable=True)
+    config["domain"] = canonicalize_category_value(form.get("domain") or "", pro_units, prefer_stable=True)
+    config["task_type"] = canonicalize_category_value(form.get("task_type") or "Công việc thường xuyên", task_types, prefer_stable=True)
+    config["priority"] = canonicalize_category_value(form.get("priority") or "Trung bình", priority_items, prefer_stable=True)
+    config["deadline"] = str(form.get("deadline") or "").strip()[:20]
+
+    scope = _task_import_scope_from_form(form, "draft")
+    config.update(scope)
+
+    config["manager_scope_mode"] = str(form.get("manager_scope_mode") or "none").strip().lower()
+    config["manager_role_ids"] = sorted({int(role_id) for role_id in form.getlist("manager_role_ids") if str(role_id).isdigit()})
+    config["manager_user_ids"] = sorted({int(uid) for uid in form.getlist("manager_user_ids") if str(uid).isdigit()})
+    config["viewer_scope_mode"] = str(form.get("viewer_scope_mode") or "none").strip().lower()
+    config["viewer_role_ids"] = sorted({int(role_id) for role_id in form.getlist("viewer_role_ids") if str(role_id).isdigit()})
+    config["viewer_user_ids"] = sorted({int(uid) for uid in form.getlist("viewer_user_ids") if str(uid).isdigit()})
+
+    if collection_mode == "outline":
+        config["items"] = _parse_task_import_outline_items_from_form(form)
+    elif collection_mode == "form":
+        config["form_fields"] = _parse_task_import_form_fields_from_form(form)
+    else:
+        config["report_narrative_enabled"] = _report_checkbox_value(form.get("report_narrative_enabled"))
+        config["report_narrative_required"] = _report_checkbox_value(form.get("report_narrative_required"))
+        config["report_narrative_label"] = str(form.get("report_narrative_label") or "Báo cáo lời tổng hợp").strip()[:255]
+        config["report_attachment_enabled"] = _report_checkbox_value(form.get("report_attachment_enabled"))
+        config["report_attachment_required"] = _report_checkbox_value(form.get("report_attachment_required"))
+        config["report_attachment_label"] = str(form.get("report_attachment_label") or "Tệp minh chứng").strip()[:255]
+        config["report_fields"] = _parse_task_import_report_fields_from_form(form)
+
+    if not config.get("summary"):
+        config["summary"] = _task_import_summary_text(config)
+    return config
+
+
+def _task_import_report_schema_from_config(config):
+    if str(config.get("collection_mode") or "").strip().lower() != "file":
+        return None
+    raw_schema = {
+        "enabled": True,
+        "narrative": {
+            "enabled": bool(config.get("report_narrative_enabled", True)),
+            "required": bool(config.get("report_narrative_required", True)),
+            "label": str(config.get("report_narrative_label") or "Báo cáo lời tổng hợp").strip(),
+        },
+        "attachment": {
+            "enabled": bool(config.get("report_attachment_enabled")),
+            "required": bool(config.get("report_attachment_required")),
+            "label": str(config.get("report_attachment_label") or "Tệp minh chứng").strip(),
+        },
+        "fields": [
+            {
+                "key": field.get("key"),
+                "label": field.get("label"),
+                "type": field.get("type"),
+                "required": bool(field.get("required")),
+                "placeholder": field.get("placeholder"),
+                "help_text": field.get("help_text"),
+            }
+            for field in (config.get("report_fields") or [])
+            if str(field.get("label") or "").strip()
+        ],
+    }
+    return _normalize_task_report_schema(raw_schema)
+
+
+def _task_import_form_field_defs_from_config(config):
+    field_defs = []
+    used_keys = set()
+    for index, field in enumerate(config.get("form_fields") or []):
+        label = str(field.get("field_label") or "").strip()
+        if not label:
+            continue
+        field_key = str(field.get("field_key") or "").strip()
+        if not field_key or field_key in used_keys:
+            field_key = _task_import_field_key(label, index, used_keys, "field")
+        used_keys.add(field_key)
+        field_type = _normalize_task_form_field_type(field.get("field_type") or "text")
+        field_defs.append(
+            {
+                "field_key": field_key[:100],
+                "field_label": label[:255],
+                "field_type": field_type,
+                "field_options_json": _draft_field_options_json(field_type, field.get("field_options_text")),
+                "sort_order": len(field_defs),
+                "is_required": bool(field.get("is_required")),
+            }
+        )
+    return field_defs
+
+
+def _task_import_blueprint_from_config(config):
+    collection_mode = str(config.get("collection_mode") or "").strip().lower()
+    raw_blueprint = {
+        "title": str(config.get("title") or "").strip(),
+        "summary": str(config.get("summary") or "").strip(),
+        "source_kind": str(config.get("source_kind") or "custom").strip().lower(),
+        "collection_mode": collection_mode,
+    }
+    if collection_mode == "outline":
+        raw_blueprint["items"] = [
+            {
+                "title": item.get("title"),
+                "guide_text": item.get("guide_text"),
+                "report_kind": item.get("report_kind"),
+                "attachment_required": bool(item.get("attachment_required")),
+            }
+            for item in (config.get("items") or [])
+            if str(item.get("title") or "").strip()
+        ]
+    elif collection_mode == "form":
+        raw_blueprint["form_fields"] = [
+            {
+                "label": field.get("field_label"),
+                "type": field.get("field_type"),
+                "required": bool(field.get("is_required")),
+                "options": (
+                    [item.strip() for item in str(field.get("field_options_text") or "").splitlines() if item.strip()]
+                    if str(field.get("field_type") or "").strip().lower() in {"radio", "checkbox"}
+                    else [item.strip() for item in str(field.get("field_options_text") or "").split(",") if item.strip()]
+                ),
+            }
+            for field in (config.get("form_fields") or [])
+            if str(field.get("field_label") or "").strip()
+        ]
+    elif collection_mode == "file":
+        raw_blueprint["report_schema"] = {
+            "enabled": True,
+            "narrative": {
+                "enabled": bool(config.get("report_narrative_enabled", True)),
+                "required": bool(config.get("report_narrative_required", True)),
+                "label": config.get("report_narrative_label"),
+            },
+            "attachment": {
+                "enabled": bool(config.get("report_attachment_enabled")),
+                "required": bool(config.get("report_attachment_required")),
+                "label": config.get("report_attachment_label"),
+            },
+            "fields": [
+                {
+                    "key": field.get("key"),
+                    "label": field.get("label"),
+                    "type": field.get("type"),
+                    "required": bool(field.get("required")),
+                    "placeholder": field.get("placeholder"),
+                    "help_text": field.get("help_text"),
+                }
+                for field in (config.get("report_fields") or [])
+                if str(field.get("label") or "").strip()
+            ],
+        }
+    return normalize_task_workflow_blueprint(raw_blueprint)
+
+
+def _task_import_config_stats(config):
+    mode = str(config.get("collection_mode") or "").strip().lower()
+    fallback_domain = canonicalize_category_value(config.get("domain") or "", _task_domain_options(), prefer_stable=True)
+    stats = {
+        "mode": mode,
+        "item_count": 0,
+        "field_count": 0,
+        "report_field_count": 0,
+        "unassigned_count": 0,
+    }
+    if mode == "outline":
+        items = [item for item in (config.get("items") or []) if str(item.get("title") or "").strip()]
+        stats["item_count"] = len(items)
+        stats["unassigned_count"] = sum(
+            1
+            for item in items
+            if not _task_import_assignment_has_targets(
+                item.get("assign_type"),
+                unit_domains=item.get("unit_domains"),
+                role_ids=item.get("role_ids"),
+                user_ids=item.get("user_ids"),
+                fallback_domain=fallback_domain,
+            )
+        )
+    elif mode == "form":
+        fields = [field for field in (config.get("form_fields") or []) if str(field.get("field_label") or "").strip()]
+        stats["field_count"] = len(fields)
+        stats["unassigned_count"] = 0 if _task_import_assignment_has_targets(
+            config.get("assign_type"),
+            unit_domains=config.get("unit_domains"),
+            role_ids=config.get("role_ids"),
+            user_ids=config.get("user_ids"),
+            fallback_domain=fallback_domain,
+        ) else 1
+    else:
+        report_fields = [field for field in (config.get("report_fields") or []) if str(field.get("label") or "").strip()]
+        stats["report_field_count"] = len(report_fields)
+        stats["unassigned_count"] = 0 if _task_import_assignment_has_targets(
+            config.get("assign_type"),
+            unit_domains=config.get("unit_domains"),
+            role_ids=config.get("role_ids"),
+            user_ids=config.get("user_ids"),
+            fallback_domain=fallback_domain,
+        ) else 1
+    return stats
+
+
+def _task_import_publish_payload(config):
+    collection_mode = str(config.get("collection_mode") or "").strip().lower()
+    title = str(config.get("title") or "").strip()
+    if not title:
+        raise ValueError("Tiêu đề nhiệm vụ không được để trống.")
+
+    domain = canonicalize_category_value(config.get("domain") or "", _task_domain_options(), prefer_stable=True)
+    payload = {
+        "title": title[:255],
+        "content": _task_import_summary_text(config)[:4000],
+        "category": canonicalize_category_value(config.get("category") or "", _task_field_options(), prefer_stable=True),
+        "domain": domain,
+        "priority": canonicalize_category_value(config.get("priority") or "Trung bình", _task_priority_options(), prefer_stable=True),
+        "task_type": canonicalize_category_value(config.get("task_type") or "Công việc thường xuyên", _task_type_options(), prefer_stable=True),
+        "deadline": _parse_deadline(MultiDict([("deadline", config.get("deadline") or "")])),
+        "assign_type": _task_import_working_assign_type(config.get("assign_type"), "unit"),
+        "unit_domains": _requested_unit_domains(
+            MultiDict([("child_domains", value) for value in (config.get("unit_domains") or [])] + ([("child_domain", domain)] if domain else []))
+        ),
+        "role_ids": sorted({int(role_id) for role_id in (config.get("role_ids") or []) if str(role_id).isdigit()}),
+        "user_ids": sorted({int(user_id) for user_id in (config.get("user_ids") or []) if str(user_id).isdigit()}),
+        "manager_scope_mode": str(config.get("manager_scope_mode") or "none").strip().lower(),
+        "manager_role_ids": sorted({int(role_id) for role_id in (config.get("manager_role_ids") or []) if str(role_id).isdigit()}),
+        "manager_user_ids": sorted({int(user_id) for user_id in (config.get("manager_user_ids") or []) if str(user_id).isdigit()}),
+        "viewer_scope_mode": str(config.get("viewer_scope_mode") or "none").strip().lower(),
+        "viewer_role_ids": sorted({int(role_id) for role_id in (config.get("viewer_role_ids") or []) if str(role_id).isdigit()}),
+        "viewer_user_ids": sorted({int(user_id) for user_id in (config.get("viewer_user_ids") or []) if str(user_id).isdigit()}),
+        "collection_mode": collection_mode,
+        "task_mode": workflow_blueprint_task_mode({"version": 1, "collection_mode": collection_mode, "items": [], "form_fields": [], "report_schema": None}),
+        "outline_items": [],
+        "form_fields": [],
+        "report_schema": None,
+        "assignees": [],
+    }
+
+    manager_form = MultiDict(
+        [("manager_scope_mode", payload["manager_scope_mode"])]
+        + [("manager_role_ids", str(role_id)) for role_id in payload["manager_role_ids"]]
+        + [("manager_user_ids", str(user_id)) for user_id in payload["manager_user_ids"]]
+    )
+    viewers_form = MultiDict(
+        [("viewer_scope_mode", payload["viewer_scope_mode"])]
+        + [("viewer_role_ids", str(role_id)) for role_id in payload["viewer_role_ids"]]
+        + [("viewer_user_ids", str(user_id)) for user_id in payload["viewer_user_ids"]]
+    )
+    managers, manager_error = _resolve_managers(manager_form)
+    if manager_error:
+        raise ValueError(manager_error)
+    viewers, viewer_error = _resolve_viewers(viewers_form)
+    if viewer_error:
+        raise ValueError(viewer_error)
+    payload["managers"] = managers
+    payload["viewers"] = viewers
+
+    if collection_mode == "outline":
+        payload["task_mode"] = "OUTLINE"
+        items = []
+        raw_items = config.get("items") or []
+        if not raw_items:
+            raise ValueError("Cần ít nhất một đầu mục trước khi phát hành.")
+        all_assignees = []
+        for index, item in enumerate(raw_items, start=1):
+            title_item = _clean_outline_title(item.get("title"))
+            if not title_item:
+                continue
+            assign_type = _task_import_working_assign_type(item.get("assign_type"))
+            if assign_type not in {"unit", "role", "user"}:
+                raise ValueError(f'Nội dung "{title_item}" chưa chọn kiểu giao việc.')
+            unit_domains = _requested_unit_domains(
+                MultiDict([("child_domains", value) for value in (item.get("unit_domains") or [])] + ([("child_domain", domain)] if domain else []))
+            )
+            role_ids = sorted({int(role_id) for role_id in (item.get("role_ids") or []) if str(role_id).isdigit()})
+            user_ids = sorted({int(user_id) for user_id in (item.get("user_ids") or []) if str(user_id).isdigit()})
+            if assign_type == "unit" and not unit_domains and domain:
+                unit_domains = [domain]
+            assignees, error_message = _resolve_assignees_by_mode(
+                assign_type,
+                domain=domain,
+                unit_domains=unit_domains,
+                target_ids=user_ids,
+                assignee_role_ids=role_ids,
+            )
+            if error_message:
+                raise ValueError(f'Nội dung "{title_item}": {error_message}')
+            if not assignees:
+                raise ValueError(f'Nội dung "{title_item}" chưa có người thực hiện.')
+            report_kind = str(item.get("report_kind") or "narrative").strip().lower()
+            if report_kind not in CHILD_TASK_ALLOWED_REPORT_KINDS:
+                report_kind = "narrative"
+            items.append(
+                {
+                    "title": title_item[:255],
+                    "guide_text": str(item.get("guide_text") or "").strip()[:2000],
+                    "report_kind": report_kind,
+                    "attachment_required": bool(item.get("attachment_required")),
+                    "assign_type": assign_type,
+                    "unit_domains": unit_domains,
+                    "role_ids": role_ids,
+                    "user_ids": user_ids,
+                    "assignees": assignees,
+                    "sort_order": len(items),
+                }
+            )
+            all_assignees.extend(assignees)
+        if not items:
+            raise ValueError("Cần ít nhất một đầu mục hợp lệ trước khi phát hành.")
+        payload["outline_items"] = items
+        payload["assignees"] = _dedupe_users(all_assignees)
+        return payload
+
+    if collection_mode == "form":
+        payload["task_mode"] = "FORM"
+        assignees, error_message = _resolve_assignees_by_mode(
+            payload["assign_type"],
+            domain=domain,
+            unit_domains=payload["unit_domains"],
+            target_ids=payload["user_ids"],
+            assignee_role_ids=payload["role_ids"],
+        )
+        if error_message:
+            raise ValueError(error_message)
+        field_defs = _task_import_form_field_defs_from_config(config)
+        if not field_defs:
+            raise ValueError("Cần ít nhất một trường biểu mẫu trước khi phát hành.")
+        payload["assignees"] = assignees
+        payload["form_fields"] = field_defs
+        return payload
+
+    payload["task_mode"] = "FILE"
+    assignees, error_message = _resolve_assignees_by_mode(
+        payload["assign_type"],
+        domain=domain,
+        unit_domains=payload["unit_domains"],
+        target_ids=payload["user_ids"],
+        assignee_role_ids=payload["role_ids"],
+    )
+    if error_message:
+        raise ValueError(error_message)
+    report_schema = _task_import_report_schema_from_config(config)
+    if not report_schema:
+        raise ValueError("Biểu mẫu báo cáo chưa có nội dung hợp lệ.")
+    payload["assignees"] = assignees
+    payload["report_schema"] = report_schema
+    return payload
+
+
+def _publish_task_import_draft(draft):
+    config = _task_import_draft_working_config(draft)
+    payload = _task_import_publish_payload(config)
+
+    new_task = Task(
+        category=payload["category"],
+        domain=payload["domain"],
+        title=payload["title"],
+        content=payload["content"],
+        deadline=payload["deadline"],
+        file_path="",
+        author_id=session["uid"],
+        author_name=session.get("fullname", "Quản trị"),
+        priority=payload["priority"],
+        task_type=payload["task_type"],
+        initial_status="Chưa tiếp nhận",
+        task_mode=payload["task_mode"],
+        workflow_mode=(
+            "child_tasks" if payload["task_mode"] == "OUTLINE" else "summary_report"
+        ),
+    )
+    if payload["report_schema"]:
+        new_task.report_schema_json = _json_dump(payload["report_schema"])
+
+    _store_assignment_scope(
+        new_task,
+        payload["assign_type"],
+        domain=payload["domain"],
+        role_ids=payload["role_ids"],
+        user_ids=payload["user_ids"],
+    )
+    _store_viewer_scope(
+        new_task,
+        payload["viewer_scope_mode"],
+        role_ids=payload["viewer_role_ids"],
+        user_ids=payload["viewer_user_ids"],
+    )
+    _store_manager_scope(
+        new_task,
+        payload["manager_scope_mode"],
+        role_ids=payload["manager_role_ids"],
+        user_ids=payload["manager_user_ids"],
+    )
+    db.session.add(new_task)
+    db.session.flush()
+
+    if payload["task_mode"] == "OUTLINE":
+        for index, item in enumerate(payload["outline_items"], start=1):
+            task_item = TaskItem(
+                task_id=new_task.id,
+                item_code=str(index),
+                title=item["title"],
+                content=None,
+                guide_text=item.get("guide_text"),
+                is_required=True,
+                output_type="OUTLINE",
+                report_kind=item["report_kind"],
+                attachment_required=bool(item["attachment_required"]),
+                deadline=new_task.deadline,
+                sort_order=item.get("sort_order", index - 1),
+            )
+            db.session.add(task_item)
+            db.session.flush()
+            _create_assignment_records(
+                new_task,
+                item["assignees"],
+                assign_type=item["assign_type"],
+                task_item=task_item,
+                title_snapshot=task_item.title,
+                role_id=item["role_ids"][0] if len(item["role_ids"]) == 1 else None,
+            )
+    else:
+        _create_assignment_records(
+            new_task,
+            payload["assignees"],
+            assign_type=payload["assign_type"],
+            title_snapshot=new_task.title,
+            role_id=payload["role_ids"][0] if len(payload["role_ids"]) == 1 else None,
+        )
+        if payload["task_mode"] == "FORM":
+            for field_def in payload["form_fields"]:
+                db.session.add(TaskFormField(task_id=new_task.id, **field_def))
+
+    draft.status = "published"
+    draft.published_task_id = new_task.id
+    draft.published_at = datetime.now()
+    draft.updated_at = datetime.now()
+    db.session.add(draft)
+    db.session.commit()
+
+    for user in _dedupe_users(payload["assignees"]):
+        push_notif(user.id, "Công việc mới", f"Bạn vừa được giao: {new_task.title}", f"/tasks/{new_task.id}")
+    return new_task
 
 
 def _load_linked_report_template_ids_legacy(task):
@@ -2286,6 +3393,35 @@ def _parse_task_report_schema_from_request(form):
     normalized = _normalize_task_report_schema(parsed)
     if not normalized:
         raise ValueError("Biểu mẫu báo cáo chưa có nội dung hợp lệ.")
+    return normalized
+
+
+def _parse_task_workflow_blueprint_from_request(form):
+    raw_blueprint = (form.get("workflow_blueprint_json") or "").strip()
+    if not raw_blueprint:
+        return None
+
+    try:
+        parsed = json.loads(raw_blueprint)
+    except Exception as exc:
+        raise ValueError("Blueprint điều hành không hợp lệ.") from exc
+
+    normalized = normalize_task_workflow_blueprint(parsed)
+    if not normalized:
+        raise ValueError("Blueprint điều hành chưa có nội dung hợp lệ.")
+    return normalized
+
+
+def _parse_task_workflow_blueprint_payload(payload):
+    if isinstance(payload, dict) and isinstance(payload.get("workflow_blueprint"), dict):
+        payload = payload.get("workflow_blueprint")
+
+    if not isinstance(payload, dict):
+        raise ValueError("Blueprint điều hành không hợp lệ.")
+
+    normalized = normalize_task_workflow_blueprint(payload)
+    if not normalized:
+        raise ValueError("Blueprint điều hành chưa có nội dung hợp lệ.")
     return normalized
 
 
@@ -4046,10 +5182,29 @@ def _tasks_page_v2():
         content = (request.form.get("description") or request.form.get("content") or "").strip()
         priority = canonicalize_category_value(request.form.get("priority") or "Trung bình", priority_items, prefer_stable=True)
         task_type = canonicalize_category_value(request.form.get("task_type") or "Công việc thường xuyên", task_types, prefer_stable=True)
+        try:
+            workflow_blueprint = _parse_task_workflow_blueprint_from_request(request.form)
+        except ValueError as blueprint_error:
+            flash(str(blueprint_error), "danger")
+            return redirect(url_for("tasks_bp.tasks"))
+
+        if workflow_blueprint:
+            task_mode = workflow_blueprint_task_mode(workflow_blueprint)
+            title = title or workflow_blueprint.get("title", "")
+            if not content:
+                content = workflow_blueprint_summary_text(workflow_blueprint)
 
         if not title:
             flash("Tiêu đề công việc không được để trống.", "danger")
             return redirect(url_for("tasks_bp.tasks"))
+
+        try:
+            report_schema = _parse_task_report_schema_from_request(request.form)
+        except ValueError as report_schema_error:
+            flash(str(report_schema_error), "danger")
+            return redirect(url_for("tasks_bp.tasks"))
+        if not report_schema and workflow_blueprint:
+            report_schema = workflow_blueprint_report_schema(workflow_blueprint)
 
         managers, manager_error_message = _resolve_managers(request.form)
         if manager_error_message:
@@ -4061,7 +5216,8 @@ def _tasks_page_v2():
             return redirect(url_for("tasks_bp.tasks"))
 
         assignees = []
-        if task_mode in {"FILE", "FORM"}:
+        blueprint_items = workflow_blueprint_item_configs(workflow_blueprint) if workflow_blueprint else []
+        if task_mode in {"FILE", "FORM"} or blueprint_items:
             assignees, error_message = _resolve_assignees(request.form, domain)
             if error_message:
                 flash(error_message, "danger")
@@ -4086,8 +5242,14 @@ def _tasks_page_v2():
             task_type=task_type,
             initial_status="Chưa tiếp nhận",
             task_mode=task_mode,
-            workflow_mode=_workflow_mode_from_task_mode(task_mode),
+            workflow_mode=(
+                workflow_blueprint_workflow_mode(workflow_blueprint)
+                if workflow_blueprint
+                else _workflow_mode_from_task_mode(task_mode)
+            ),
         )
+        if report_schema:
+            new_task.report_schema_json = json.dumps(report_schema, ensure_ascii=False)
         _store_assignment_scope(
             new_task,
             request.form.get("assign_type", "unit"),
@@ -4118,8 +5280,35 @@ def _tasks_page_v2():
                 title_snapshot=new_task.title,
             )
 
+        if task_mode == "OUTLINE" and blueprint_items:
+            for index, item_config in enumerate(blueprint_items, start=1):
+                task_item = TaskItem(
+                    task_id=new_task.id,
+                    item_code=str(index),
+                    title=item_config["title"],
+                    content=item_config.get("description"),
+                    guide_text=item_config.get("guide_text"),
+                    is_required=bool(item_config.get("is_required", True)),
+                    output_type="OUTLINE",
+                    report_kind=item_config.get("report_kind") or "narrative",
+                    attachment_required=bool(item_config.get("attachment_required")),
+                    deadline=new_task.deadline,
+                    sort_order=item_config.get("sort_order", index - 1),
+                )
+                db.session.add(task_item)
+                db.session.flush()
+                _create_assignment_records(
+                    new_task,
+                    assignees,
+                    assign_type=request.form.get("assign_type", "unit"),
+                    task_item=task_item,
+                    title_snapshot=task_item.title,
+                )
+
         if task_mode == "FORM":
             field_defs = _parse_task_form_fields_from_request(request.form)
+            if not field_defs and workflow_blueprint:
+                field_defs = workflow_blueprint_form_field_defs(workflow_blueprint)
             if not field_defs:
                 flash("Cần cấu hình ít nhất một trường dữ liệu cho biểu mẫu.", "danger")
                 db.session.rollback()
@@ -4231,6 +5420,7 @@ def _tasks_page_v2():
         is_lead=is_lead,
         is_admin=is_admin,
         stats=list_context["stats"],
+        workflow_blueprint_examples=workflow_blueprint_example_catalog(),
         sidebar_submenu_parent="tasks",
         sidebar_submenu_title="Công việc",
         sidebar_submenu_items=sidebar_submenu_items,
@@ -4912,6 +6102,227 @@ def _build_unit_report_summary(assigns, comments, deadline, report_snapshots=Non
     return rows, stats
 
 
+def _task_import_submenu_items(active_key="drafts"):
+    return [
+        {
+            "label": "Danh sách công việc",
+            "href": url_for("tasks_bp.tasks"),
+            "count": None,
+            "active": active_key == "tasks",
+        },
+        {
+            "label": "Nháp import",
+            "href": url_for("tasks_bp.task_import_drafts"),
+            "count": None,
+            "active": active_key == "drafts",
+        },
+    ]
+
+
+def _can_manage_task_imports(perms=None):
+    return bool(session.get("is_admin") or _can_process_task_module(perms))
+
+
+def _task_import_drafts_query():
+    return TaskImportDraft.query.order_by(TaskImportDraft.updated_at.desc(), TaskImportDraft.id.desc())
+
+
+def _task_import_draft_or_404(draft_id):
+    return TaskImportDraft.query.filter_by(id=draft_id).first()
+
+
+def _task_import_draft_render_context(draft, active_key="drafts"):
+    task_fields = _task_field_options()
+    pro_units = _task_domain_options()
+    task_types = _task_type_options()
+    priority_items = _task_priority_options()
+    active_users = User.query.filter_by(is_active=True).order_by(User.fullname.asc()).all()
+    roles = AppRole.query.order_by(AppRole.name.asc()).all()
+    config = _task_import_draft_working_config(draft)
+    blueprint = _task_import_blueprint_from_config(config) or _task_import_draft_blueprint(draft)
+    preview = workflow_blueprint_preview_data(blueprint) if blueprint else None
+    stats = _task_import_config_stats(config)
+    return {
+        "draft": draft,
+        "config": config,
+        "preview": preview,
+        "draft_stats": stats,
+        "users": active_users,
+        "roles": roles,
+        "pro_units": stable_form_category_options(pro_units),
+        "task_fields": task_fields,
+        "task_types": stable_form_category_options(task_types),
+        "priority_items": stable_form_category_options(priority_items),
+        "workflow_blueprint_examples": workflow_blueprint_example_catalog(),
+        "status_label": _task_import_status_label(getattr(draft, "status", "")),
+        "source_label": _task_import_source_label(getattr(draft, "source_type", "")),
+        "sidebar_submenu_parent": "tasks",
+        "sidebar_submenu_title": "Công việc",
+        "sidebar_submenu_items": _task_import_submenu_items(active_key=active_key),
+    }
+
+
+def _task_import_drafts_page():
+    perms = _current_perms()
+    if not _can_manage_task_imports(perms):
+        flash("Bạn không có quyền quản trị nháp import.", "danger")
+        return redirect(url_for("tasks_bp.tasks"))
+
+    draft_rows = []
+    for draft in _task_import_drafts_query().all():
+        config = _task_import_draft_working_config(draft)
+        draft_rows.append(
+            {
+                "draft": draft,
+                "config": config,
+                "stats": _task_import_config_stats(config),
+                "status_label": _task_import_status_label(draft.status),
+                "source_label": _task_import_source_label(draft.source_type),
+            }
+        )
+
+    return render_template(
+        "task_import_drafts.html",
+        draft_rows=draft_rows,
+        workflow_blueprint_examples=workflow_blueprint_example_catalog(),
+        sidebar_submenu_parent="tasks",
+        sidebar_submenu_title="Công việc",
+        sidebar_submenu_items=_task_import_submenu_items(active_key="drafts"),
+    )
+
+
+def _create_task_import_draft_v2():
+    perms = _current_perms()
+    if not _can_manage_task_imports(perms):
+        flash("Bạn không có quyền tạo nháp import.", "danger")
+        return redirect(url_for("tasks_bp.tasks"))
+
+    source_type = str(request.form.get("source_type") or "").strip().lower()
+    if source_type not in TASK_IMPORT_SOURCE_TYPES:
+        flash("Chưa chọn nguồn import hợp lệ.", "danger")
+        return redirect(url_for("tasks_bp.task_import_drafts"))
+
+    source_name = ""
+    source_ref = ""
+    try:
+        if source_type == "google_form_remote":
+            source_ref = str(request.form.get("blueprint_form_reference") or "").strip()
+            blueprint = _parse_reference_file_to_blueprint(None, source_type, form_reference=source_ref)
+            source_name = str((blueprint or {}).get("title") or "Google Form").strip()[:255]
+        elif source_type == "blueprint_json":
+            raw_blueprint = (request.form.get("workflow_blueprint_json") or "").strip()
+            if not raw_blueprint:
+                raise ValueError("Cần nhập blueprint JSON trước khi tạo nháp.")
+            blueprint = _parse_task_workflow_blueprint_payload(json.loads(raw_blueprint))
+            source_name = str((blueprint or {}).get("title") or "Blueprint điều hành").strip()[:255]
+            source_ref = "manual_blueprint"
+        else:
+            source_file = request.files.get("source_file")
+            blueprint = _parse_reference_file_to_blueprint(source_file, source_type)
+            source_name = str(getattr(source_file, "filename", "") or (blueprint or {}).get("title") or "").strip()[:255]
+            source_ref = source_name
+    except ValueError as exc:
+        flash(str(exc), "danger")
+        return redirect(url_for("tasks_bp.task_import_drafts"))
+    except Exception as exc:
+        flash(str(exc) or "Không thể tạo nháp import từ nguồn đã chọn.", "danger")
+        return redirect(url_for("tasks_bp.task_import_drafts"))
+
+    draft = TaskImportDraft(
+        source_type=source_type,
+        source_name=source_name,
+        source_ref=source_ref,
+        workflow_blueprint_json=_json_dump(blueprint),
+        working_config_json=_json_dump(
+            _task_import_working_config_from_blueprint(
+                blueprint,
+                source_type=source_type,
+                source_name=source_name,
+                source_ref=source_ref,
+            )
+        ),
+        status="draft",
+        created_by=session["uid"],
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    db.session.add(draft)
+    db.session.commit()
+    flash("Đã tạo nháp import mới.", "success")
+    return redirect(url_for("tasks_bp.task_import_draft_detail", draft_id=draft.id))
+
+
+def _task_import_draft_detail_page(draft_id):
+    perms = _current_perms()
+    if not _can_manage_task_imports(perms):
+        flash("Bạn không có quyền xem nháp import.", "danger")
+        return redirect(url_for("tasks_bp.tasks"))
+
+    draft = _task_import_draft_or_404(draft_id)
+    if not draft:
+        return "Not Found", 404
+
+    return render_template("task_import_draft_detail.html", **_task_import_draft_render_context(draft))
+
+
+def _save_task_import_draft_v2(draft_id):
+    perms = _current_perms()
+    if not _can_manage_task_imports(perms):
+        flash("Bạn không có quyền cập nhật nháp import.", "danger")
+        return redirect(url_for("tasks_bp.tasks"))
+
+    draft = _task_import_draft_or_404(draft_id)
+    if not draft:
+        return "Not Found", 404
+    if str(draft.status or "").strip().lower() == "published":
+        flash("Nháp đã phát hành không thể chỉnh sửa nghiệp vụ.", "warning")
+        return redirect(url_for("tasks_bp.task_import_draft_detail", draft_id=draft.id))
+
+    try:
+        config = _parse_task_import_working_config_from_form(draft, request.form)
+    except Exception as exc:
+        flash(str(exc) or "Không thể lưu cấu hình nháp.", "danger")
+        return redirect(url_for("tasks_bp.task_import_draft_detail", draft_id=draft.id))
+
+    draft.working_config_json = _json_dump(config)
+    draft.status = "draft"
+    draft.updated_at = datetime.now()
+    db.session.add(draft)
+    db.session.commit()
+    flash("Đã lưu nháp import.", "success")
+    return redirect(url_for("tasks_bp.task_import_draft_detail", draft_id=draft.id))
+
+
+def _publish_task_import_draft_v2(draft_id):
+    perms = _current_perms()
+    if not _can_manage_task_imports(perms):
+        flash("Bạn không có quyền phát hành nháp import.", "danger")
+        return redirect(url_for("tasks_bp.tasks"))
+
+    draft = _task_import_draft_or_404(draft_id)
+    if not draft:
+        return "Not Found", 404
+    if str(draft.status or "").strip().lower() == "published" and draft.published_task_id:
+        flash("Nháp này đã phát hành trước đó.", "warning")
+        return redirect(url_for("tasks_bp.task_detail", tid=draft.published_task_id))
+
+    try:
+        new_task = _publish_task_import_draft(draft)
+    except Exception as exc:
+        db.session.rollback()
+        draft = _task_import_draft_or_404(draft_id)
+        if draft:
+            draft.status = "failed"
+            draft.updated_at = datetime.now()
+            db.session.add(draft)
+            db.session.commit()
+        flash(str(exc) or "Không thể phát hành nháp import.", "danger")
+        return redirect(url_for("tasks_bp.task_import_draft_detail", draft_id=draft_id))
+
+    flash("Đã phát hành nháp import thành nhiệm vụ.", "success")
+    return redirect(url_for("tasks_bp.task_detail", tid=new_task.id))
+
+
 @tasks_bp.route("/tasks", methods=["GET", "POST"])
 def tasks():
     if not session.get("uid"):
@@ -4919,6 +6330,108 @@ def tasks():
 
     _ensure_task_schema()
     return _tasks_page_v2()
+
+
+@tasks_bp.route("/tasks/import-drafts", methods=["GET"])
+def task_import_drafts():
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    return _task_import_drafts_page()
+
+
+@tasks_bp.route("/tasks/import-drafts/create", methods=["POST"])
+def create_task_import_draft():
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    return _create_task_import_draft_v2()
+
+
+@tasks_bp.route("/tasks/import-drafts/<int:draft_id>", methods=["GET"])
+def task_import_draft_detail(draft_id):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    return _task_import_draft_detail_page(draft_id)
+
+
+@tasks_bp.route("/tasks/import-drafts/<int:draft_id>/save", methods=["POST"])
+def save_task_import_draft(draft_id):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    return _save_task_import_draft_v2(draft_id)
+
+
+@tasks_bp.route("/tasks/import-drafts/<int:draft_id>/publish", methods=["POST"])
+def publish_task_import_draft(draft_id):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    return _publish_task_import_draft_v2(draft_id)
+
+
+@tasks_bp.route("/tasks/workflow-blueprint-preview", methods=["POST"])
+def preview_workflow_blueprint():
+    if not session.get("uid"):
+        return jsonify({"ok": False, "error": "Phiên làm việc đã hết hạn."}), 401
+
+    _ensure_task_schema()
+
+    perms = _current_perms()
+    is_admin = bool(session.get("is_admin"))
+    if not (is_admin or _can_process_task_module(perms)):
+        return jsonify({"ok": False, "error": "Bạn không có quyền phân tích blueprint."}), 403
+
+    try:
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            payload = request.form.to_dict(flat=True)
+            raw_blueprint = (payload.get("workflow_blueprint_json") or "").strip()
+            if raw_blueprint:
+                payload = json.loads(raw_blueprint)
+        blueprint = _parse_task_workflow_blueprint_payload(payload)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception:
+        return jsonify({"ok": False, "error": "Blueprint điều hành không hợp lệ."}), 400
+
+    return jsonify({"ok": True, "preview": workflow_blueprint_preview_data(blueprint)})
+
+
+@tasks_bp.route("/tasks/workflow-blueprint-import", methods=["POST"])
+def import_workflow_blueprint():
+    if not session.get("uid"):
+        return jsonify({"ok": False, "error": "Phiên làm việc đã hết hạn."}), 401
+
+    _ensure_task_schema()
+
+    perms = _current_perms()
+    is_admin = bool(session.get("is_admin"))
+    if not (is_admin or _can_process_task_module(perms)):
+        return jsonify({"ok": False, "error": "Bạn không có quyền phân tích tài liệu tham chiếu."}), 403
+
+    file_storage = request.files.get("blueprint_source_file")
+    import_mode = (request.form.get("blueprint_import_mode") or "").strip()
+    form_reference = (request.form.get("blueprint_form_reference") or "").strip()
+    try:
+        blueprint = _parse_reference_file_to_blueprint(file_storage, import_mode, form_reference=form_reference)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+    return jsonify(
+        {
+            "ok": True,
+            "workflow_blueprint": blueprint,
+            "preview": workflow_blueprint_preview_data(blueprint),
+        }
+    )
 
 
 @tasks_bp.route("/tasks/<int:tid>", methods=["GET", "POST"])

@@ -342,6 +342,17 @@ def apply_migrations(app):
         ("task", "report_schema_json", "TEXT"),
         ("task", "linked_report_templates_json", "TEXT"),
         ("task", "created_at", "DATETIME"),
+        ("task_import_draft", "source_type", "VARCHAR(50)"),
+        ("task_import_draft", "source_name", "VARCHAR(255)"),
+        ("task_import_draft", "source_ref", "VARCHAR(500)"),
+        ("task_import_draft", "workflow_blueprint_json", "TEXT"),
+        ("task_import_draft", "working_config_json", "TEXT"),
+        ("task_import_draft", "status", "VARCHAR(30) DEFAULT 'draft'"),
+        ("task_import_draft", "created_by", "INTEGER"),
+        ("task_import_draft", "published_task_id", "INTEGER"),
+        ("task_import_draft", "created_at", "DATETIME"),
+        ("task_import_draft", "updated_at", "DATETIME"),
+        ("task_import_draft", "published_at", "DATETIME"),
         ("task_item", "parent_item_id", "INTEGER"),
         ("task_item", "item_code", "VARCHAR(50)"),
         ("task_item", "guide_text", "TEXT"),
@@ -723,6 +734,22 @@ def apply_migrations(app):
             field_options_json TEXT,
             sort_order INTEGER DEFAULT 0,
             is_required BOOLEAN DEFAULT 0
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS task_import_draft (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_type VARCHAR(50),
+            source_name VARCHAR(255),
+            source_ref VARCHAR(500),
+            workflow_blueprint_json TEXT,
+            working_config_json TEXT,
+            status VARCHAR(30) DEFAULT 'draft',
+            created_by INTEGER NOT NULL,
+            published_task_id INTEGER,
+            created_at DATETIME,
+            updated_at DATETIME,
+            published_at DATETIME
         )
         """
     ]
