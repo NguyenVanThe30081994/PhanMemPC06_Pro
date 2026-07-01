@@ -270,33 +270,33 @@
     /* ── Hub Sidebar (left panel, fixed catchment mode) ─────────────── */
     #hub-sidebar {
       position: absolute;
-      top: 50%;
+      top: 118px;
       left: 18px;
-      transform: translateY(-50%);
+      transform: none;
       z-index: 12;
-      width: 220px;
-      max-height: calc(100% - 180px);
+      width: 248px;
+      max-height: calc(100% - 148px);
       overflow-y: auto;
       background: rgba(255, 255, 255, 0.97);
       backdrop-filter: blur(14px);
       border: 1px solid rgba(226, 232, 240, 0.9);
       border-radius: 20px;
-      box-shadow: 0 8px 32px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.06);
-      padding: 10px 8px;
+      box-shadow: 0 10px 36px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.06);
+      padding: 12px 10px;
       display: none;
       flex-direction: column;
-      gap: 4px;
+      gap: 6px;
     }
     #hub-sidebar.is-visible {
       display: flex;
     }
     .hub-sidebar-head {
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 800;
       letter-spacing: 0.1em;
       text-transform: uppercase;
       color: #94a3b8;
-      padding: 4px 10px 6px;
+      padding: 6px 12px 8px;
       border-bottom: 1px solid rgba(226, 232, 240, 0.6);
       margin-bottom: 4px;
       font-family: var(--font-display);
@@ -305,8 +305,8 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 9px 10px;
-      border-radius: 12px;
+      padding: 11px 12px;
+      border-radius: 14px;
       border: none;
       background: transparent;
       cursor: pointer;
@@ -324,8 +324,8 @@
     }
     .hub-sidebar-dot {
       flex-shrink: 0;
-      width: 12px;
-      height: 12px;
+      width: 13px;
+      height: 13px;
       border-radius: 50%;
       border: 2px solid #fff;
       box-shadow: 0 0 0 2px var(--item-color, #c4661f);
@@ -336,7 +336,7 @@
     }
     .hub-sidebar-name {
       display: block;
-      font-size: 12.5px;
+      font-size: 14px;
       font-weight: 700;
       color: #1e293b;
       white-space: nowrap;
@@ -346,9 +346,9 @@
     }
     .hub-sidebar-sub {
       display: block;
-      font-size: 11px;
+      font-size: 12px;
       color: #64748b;
-      margin-top: 1px;
+      margin-top: 2px;
     }
 
     .map-stage::before {
@@ -813,7 +813,7 @@
       top: 86px;
       right: 20px;
       z-index: 22;
-      width: min(380px, calc(100vw - 28px));
+      width: min(432px, calc(100vw - 28px));
       max-height: calc(100vh - 108px);
       transform: translateX(calc(100% + 24px));
       transition: transform 0.22s ease;
@@ -849,7 +849,7 @@
     }
 
     .summary-card {
-      padding: 18px;
+      padding: 20px;
       max-height: calc(100vh - 162px);
       overflow: auto;
       background: rgba(255, 255, 255, 0.97);
@@ -959,7 +959,7 @@
     }
 
     .route-item strong {
-      font-size: 13px;
+      font-size: 14px;
       line-height: 1.3;
       font-family: var(--font-display);
     }
@@ -967,7 +967,7 @@
     .route-item span {
       margin-top: 4px;
       color: var(--ink-700);
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 800;
       line-height: 1.45;
     }
@@ -975,7 +975,7 @@
     .route-item small {
       margin-top: 4px;
       color: var(--ink-500);
-      font-size: 11px;
+      font-size: 12px;
       line-height: 1.45;
     }
 
@@ -994,7 +994,7 @@
     }
 
     .detail-card strong {
-      font-size: 16px;
+      font-size: 17px;
       line-height: 1.2;
       font-family: var(--font-display);
     }
@@ -1002,7 +1002,7 @@
     .detail-card span {
       margin-top: 5px;
       color: var(--ink-700);
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
       line-height: 1.5;
     }
@@ -1010,7 +1010,7 @@
     .detail-card small {
       margin-top: 6px;
       color: var(--ink-500);
-      font-size: 11px;
+      font-size: 12px;
       line-height: 1.45;
     }
 
@@ -1025,7 +1025,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      padding: 8px 10px;
+      padding: 10px 12px;
       border-radius: 12px;
       background: rgba(248, 250, 252, 0.88);
       border: 1px solid rgba(226, 232, 240, 0.74);
@@ -1043,7 +1043,7 @@
 
     .detail-row span {
       color: var(--ink-700);
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
       line-height: 1.45;
     }
@@ -1056,7 +1056,7 @@
     .detail-row-copy small {
       margin-top: 3px;
       color: var(--ink-500);
-      font-size: 11px;
+      font-size: 12px;
       line-height: 1.4;
     }
 
@@ -1155,7 +1155,7 @@
     }
 
     .detail-row strong {
-      font-size: 13px;
+      font-size: 14px;
     }
 
     .detail-row-note {
@@ -1165,7 +1165,7 @@
     .detail-row-note strong {
       max-width: 68%;
       color: var(--ink-700);
-      font-size: 12px;
+      font-size: 13px;
       line-height: 1.45;
       text-align: right;
     }
@@ -1211,14 +1211,14 @@
     }
 
     .detail-day-head strong {
-      font-size: 13px;
+      font-size: 14px;
       line-height: 1.35;
     }
 
     .detail-day-head small {
       margin-top: 4px;
       color: var(--ink-500);
-      font-size: 11px;
+      font-size: 12px;
       line-height: 1.5;
     }
 
@@ -1228,7 +1228,7 @@
       border-radius: 999px;
       background: rgba(196, 102, 31, 0.12);
       color: #9a5f1d;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 900;
       white-space: nowrap;
     }
@@ -1254,12 +1254,12 @@
 
     .detail-tab-chip {
       border: 0;
-      padding: 7px 11px;
+      padding: 8px 12px;
       border-radius: 999px;
       background: rgba(241, 245, 249, 0.92);
       color: var(--ink-600, #475569);
       font: inherit;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 900;
       letter-spacing: 0.02em;
       cursor: pointer;
@@ -1293,7 +1293,7 @@
     .detail-copy-block {
       display: grid;
       gap: 4px;
-      padding: 9px 10px;
+      padding: 11px 12px;
       border-radius: 12px;
       background: rgba(255, 255, 255, 0.86);
       border: 1px solid rgba(226, 232, 240, 0.72);
@@ -1301,7 +1301,7 @@
 
     .detail-copy-label {
       color: var(--ink-500);
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 900;
       letter-spacing: 0.06em;
       text-transform: uppercase;
@@ -1310,9 +1310,9 @@
     .detail-copy-value {
       margin: 0;
       color: var(--ink-800, #334155);
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
-      line-height: 1.55;
+      line-height: 1.65;
       white-space: pre-line;
       word-break: break-word;
     }
@@ -1369,7 +1369,7 @@
       .summary-drawer {
         top: 78px;
         right: 14px;
-        width: min(360px, calc(100vw - 20px));
+        width: min(388px, calc(100vw - 20px));
       }
     }
 
@@ -2388,7 +2388,7 @@
         if (!activeHubNode) return positions;
 
         // Active hub: placed at left-center (anchor point for connecting lines to satellites)
-        const HUB_X = STAGE_WIDTH * 0.32;
+        const HUB_X = STAGE_WIDTH * 0.26;
         const HUB_Y = STAGE_HEIGHT * 0.5;
         positions.set(activeHubKey, { ...activeHubNode, x: HUB_X, y: HUB_Y });
 
@@ -2403,7 +2403,7 @@
         if (count > 7) {
           // Two columns: one left, one right of hub center
           // Hub shifts right so left column clears the sidebar panel (~238px)
-          const HUB_X_WIDE = STAGE_WIDTH * 0.46;  // ~644px
+          const HUB_X_WIDE = STAGE_WIDTH * 0.39;
           const HUB_Y_WIDE = STAGE_HEIGHT * 0.5;
           // Update hub position for this wide layout
           positions.set(activeHubKey, { ...activeHubNode, x: HUB_X_WIDE, y: HUB_Y_WIDE });
@@ -2418,14 +2418,14 @@
             });
           };
           // Left column: at least 260px from left (sidebar ends ~238px), so 260px is safe
-          placeCol(col1, HUB_X_WIDE - 260, HUB_Y_WIDE);
-          placeCol(col2, HUB_X_WIDE + 260, HUB_Y_WIDE);
+          placeCol(col1, HUB_X_WIDE - 210, HUB_Y_WIDE);
+          placeCol(col2, HUB_X_WIDE + 210, HUB_Y_WIDE);
         } else {
           // Single column to the right
           const h = (count - 1) * verticalGap;
           const sy = HUB_Y - h / 2;
           areaNodes.forEach((node, index) => {
-            positions.set(node.key, { ...node, x: HUB_X + 300, y: sy + index * verticalGap });
+            positions.set(node.key, { ...node, x: HUB_X + 245, y: sy + index * verticalGap });
           });
         }
 
@@ -3269,14 +3269,28 @@
         return escapeHtml(normalized);
       }
 
+      function enrichProvinceEquipment(value) {
+        if (!value) {
+          return "";
+        }
+        const normalized = String(value).trim();
+        if (/03\s*máy\s*in/i.test(normalized)) {
+          return normalized;
+        }
+        return `${normalized} - Bổ sung 03 máy in`;
+      }
+
       function buildDetailCopyBlock(label, value) {
         if (!value) {
           return "";
         }
+        const displayValue = /Thiết bị cấp/i.test(String(label || ""))
+          ? enrichProvinceEquipment(value)
+          : value;
         return `
           <div class="detail-copy-block">
             <div class="detail-copy-label">${escapeHtml(label)}</div>
-            <p class="detail-copy-value">${formatDetailValue(value)}</p>
+            <p class="detail-copy-value">${formatDetailValue(displayValue)}</p>
           </div>
         `;
       }
@@ -3581,7 +3595,7 @@
             <div style="margin-bottom: 20px;">
               <h3 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">📷 Thiết Bị</h3>
               <div style="font-size: 13px; color: #334155; line-height: 1.6;">
-                ${firstOccurrence.equipmentProvince ? `<div style="margin-bottom: 4px;"><strong>Thiết bị cấp:</strong> ${escapeHtml(firstOccurrence.equipmentProvince)}</div>` : ""}
+                ${firstOccurrence.equipmentProvince ? `<div style="margin-bottom: 4px;"><strong>Thiết bị cấp:</strong> ${escapeHtml(enrichProvinceEquipment(firstOccurrence.equipmentProvince))}</div>` : ""}
                 ${firstOccurrence.equipmentTeam ? `<div><strong>Thiết bị tổ:</strong> ${escapeHtml(firstOccurrence.equipmentTeam)}</div>` : ""}
               </div>
             </div>
@@ -3610,7 +3624,7 @@
             <div style="margin-bottom: 20px;">
               <h3 style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">📷 Trang Thiết Bị</h3>
               <div style="font-size: 13px; color: #334155; line-height: 1.7;">
-                ${firstOccurrence.equipmentProvince ? `<div style="margin-bottom: 4px;"><strong>Thiết bị cấp tỉnh:</strong> ${escapeHtml(firstOccurrence.equipmentProvince)}</div>` : ""}
+                ${firstOccurrence.equipmentProvince ? `<div style="margin-bottom: 4px;"><strong>Thiết bị cấp tỉnh:</strong> ${escapeHtml(enrichProvinceEquipment(firstOccurrence.equipmentProvince))}</div>` : ""}
                 ${firstOccurrence.equipmentTeam ? `<div><strong>Thiết bị đơn vị/tổ:</strong> ${escapeHtml(firstOccurrence.equipmentTeam)}</div>` : ""}
               </div>
             </div>
