@@ -1559,7 +1559,8 @@
           translateY: 0
         },
         summaryOpen: false,
-        shouldAutoFit: true
+        shouldAutoFit: true,
+        customRoutePoints: new Map()
       };
 
       const forecastCache = new Map();
@@ -1948,6 +1949,27 @@
               });
             }
           });
+
+          // Retrieve custom points for this route
+          const routeId = `${direction.id}-track-${trackIndex}`;
+          if (state.customRoutePoints && state.customRoutePoints.has(routeId)) {
+            const customPoints = state.customRoutePoints.get(routeId) || [];
+            customPoints.forEach((point) => {
+              const lastDayIndex = visibleDays.length ? visibleDays[visibleDays.length - 1].dayIndex : 0;
+              const updatedPoint = {
+                ...point,
+                dayIndex: lastDayIndex,
+                dayLabel: visibleDays.length ? visibleDays[visibleDays.length - 1].day.dayLabel : "",
+                dateLabel: visibleDays.length ? visibleDays[visibleDays.length - 1].day.dateLabel : "",
+                isoDate: visibleDays.length ? toIsoDate(visibleDays[visibleDays.length - 1].day.dateLabel) : ""
+              };
+              points.push(updatedPoint);
+              
+              if (dayDetails.length) {
+                dayDetails[dayDetails.length - 1].points.push(updatedPoint);
+              }
+            });
+          }
 
           const routePoints = dedupeConsecutivePoints(points);
           if (!routePoints.length && !dayDetails.length) {
@@ -3530,10 +3552,10 @@
           .map((area) => {
             const metricText = area.metric ? formatMetricText(area.metric) : "Chưa xác minh di chuyển";
             return `
-              <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,255,255,0.7); border: 1px solid rgba(226,232,240,0.6); border-radius: 8px; margin-bottom: 6px; font-size: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,255,255,0.7); border: 1px solid rgba(226,232,240,0.6); border-radius: 8px; margin-bottom: 6px; font-size: calc(12.5px * var(--drawer-scale));">
                 <div>
                   <span style="color: #334155; font-weight: 700; display: block;">Xã ${area.name}</span>
-                  <small style="color: #64748b; font-size: 11px; font-weight: 600;">🚗 ${metricText}</small>
+                  <small style="color: #64748b; font-size: calc(11px * var(--drawer-scale)); font-weight: 600;">🚗 ${metricText}</small>
                 </div>
                 <strong style="color: #0f172a;">${formatNumber(area.total)} TNLS</strong>
               </div>
@@ -3748,6 +3770,27 @@
           buildDayDetailCard(detail, detail.dayIndex === expandedDayIndex)
         )).join("");
 
+        const isLuuDongRoute = route.id.startsWith("luu-dong");
+        const addCustomPointFormHtml = isLuuDongRoute ? `
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+          <div style="margin-top: 24px; padding: 16px; background: rgba(37, 99, 235, 0.04); border: 1px solid rgba(37, 99, 235, 0.15); border-radius: 16px;">
+            <h3 style="margin: 0 0 12px 0; font-size: calc(14px * var(--drawer-scale)); font-weight: 800; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px;">
+              ➕ Bổ Sung Điểm Thu Lưu Động
+            </h3>
+            <div style="margin-bottom: 10px;">
+              <label style="display: block; font-weight: 700; color: #475569; margin-bottom: 4px; font-size: calc(12px * var(--drawer-scale));">Tên vị trí:</label>
+              <input type="text" id="custom-point-name" placeholder="Ví dụ: Thôn 4 - Xã Yên Lâm" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); outline: none; background: #fff;" />
+            </div>
+            <div style="margin-bottom: 12px;">
+              <label style="display: block; font-weight: 700; color: #475569; margin-bottom: 4px; font-size: calc(12px * var(--drawer-scale));">Tọa độ Google Maps:</label>
+              <input type="text" id="custom-point-coords" placeholder="Ví dụ: 21.7824, 105.2135" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); outline: none; background: #fff;" />
+            </div>
+            <button id="add-custom-point-btn" style="width: 100%; padding: 10px; background: #2563eb; color: #fff; font-weight: 800; border: none; border-radius: 8px; cursor: pointer; font-size: calc(13px * var(--drawer-scale)); transition: background 0.15s ease; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);">
+              Thêm & Tính Toán Lộ Trình
+            </button>
+          </div>
+        ` : "";
+
         return `
           <div style="padding: 4px;">
             <div style="margin-bottom: 16px;">
@@ -3787,6 +3830,7 @@
               <div class="detail-day-stack">${dayCards}</div>
             </div>
             ` : ""}
+            ${addCustomPointFormHtml}
           </div>
         `;
       }
@@ -3823,6 +3867,48 @@
             });
           });
         });
+
+        // Dynamic Custom Locations addition handler for Mobile Routes
+        const addBtn = document.getElementById("add-custom-point-btn");
+        if (addBtn) {
+          addBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            const nameEl = document.getElementById("custom-point-name");
+            const coordsEl = document.getElementById("custom-point-coords");
+            const nameStr = nameEl ? nameEl.value.trim() : "";
+            const coordStr = coordsEl ? coordsEl.value.trim() : "";
+            if (!nameStr) {
+              alert("Vui lòng nhập tên vị trí!");
+              return;
+            }
+            const match = coordStr.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+            if (!match) {
+              alert("Vui lòng nhập tọa độ Google Maps hợp lệ (Ví dụ: 21.7824, 105.2135)!");
+              return;
+            }
+            const lat = parseFloat(match[1]);
+            const lng = parseFloat(match[2]);
+
+            const routeId = state.activeRouteId;
+            if (!state.customRoutePoints.has(routeId)) {
+              state.customRoutePoints.set(routeId, []);
+            }
+            
+            const customPoint = {
+              key: `custom-${Date.now()}`,
+              name: nameStr,
+              lat: lat,
+              lng: lng,
+              total: 0,
+              session: "Cả ngày",
+              areas: []
+            };
+            
+            state.customRoutePoints.get(routeId).push(customPoint);
+            state.shouldAutoFit = true;
+            render();
+          });
+        }
       }
 
       function buildRouteTabs(routes, activeRoute) {
