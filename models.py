@@ -825,3 +825,17 @@ class AIAssistantConfig(db.Model):
     def clear_api_key(self):
         self.api_key = None
         self.api_key_encrypted = None
+
+
+class CustomSatellitePoint(db.Model):
+    __tablename__ = 'custom_satellite_point'
+
+    id = db.Column(db.Integer, primary_key=True)
+    route_id = db.Column(db.String(100), nullable=False)
+    key = db.Column(db.String(255), unique=True, index=True, nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    phone = db.Column(db.String(50))
+    lat = db.Column(db.Float, nullable=False)
+    lng = db.Column(db.Float, nullable=False)
+    parent_key = db.Column(db.String(255), nullable=False)
+
