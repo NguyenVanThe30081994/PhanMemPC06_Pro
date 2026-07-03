@@ -2247,6 +2247,7 @@
               equipmentProvince: detail.equipmentProvince || "",
               trackTitle: detail.titleShort || detail.title || route.label || ""
             });
+          });
           // Also add custom points to the nodes map!
           if (state.customRoutePoints && state.customRoutePoints[route.id]) {
             const customPoints = state.customRoutePoints[route.id] || [];
