@@ -1950,27 +1950,6 @@
             }
           });
 
-          // Retrieve custom points for this route
-          const routeId = `${direction.id}-track-${trackIndex}`;
-          if (state.customRoutePoints && state.customRoutePoints[routeId]) {
-            const customPoints = state.customRoutePoints[routeId] || [];
-            customPoints.forEach((point) => {
-              const lastDayIndex = visibleDays.length ? visibleDays[visibleDays.length - 1].dayIndex : 0;
-              const updatedPoint = {
-                ...point,
-                dayIndex: lastDayIndex,
-                dayLabel: visibleDays.length ? visibleDays[visibleDays.length - 1].day.dayLabel : "",
-                dateLabel: visibleDays.length ? visibleDays[visibleDays.length - 1].day.dateLabel : "",
-                isoDate: visibleDays.length ? toIsoDate(visibleDays[visibleDays.length - 1].day.dateLabel) : ""
-              };
-              points.push(updatedPoint);
-              
-              if (dayDetails.length) {
-                dayDetails[dayDetails.length - 1].points.push(updatedPoint);
-              }
-            });
-          }
-
           const routePoints = dedupeConsecutivePoints(points);
           if (!routePoints.length && !dayDetails.length) {
             continue;
@@ -1991,6 +1970,31 @@
               dateLabel: destination.dateLabel,
               color: DAY_COLORS[destination.dayIndex] || DAY_COLORS[0],
               metric: getMetric(origin, destination)
+            });
+          }
+
+          // Build custom satellite segments and add them to route segments
+          const routeId = `${direction.id}-track-${trackIndex}`;
+          if (state.customRoutePoints && state.customRoutePoints[routeId]) {
+            const customPoints = state.customRoutePoints[routeId] || [];
+            customPoints.forEach((cp, cpIdx) => {
+              const parentPoint = routePoints.find(p => p.key === cp.parentKey) || routePoints[routePoints.length - 1];
+              if (parentPoint) {
+                segments.push({
+                  id: `custom-segment-${trackIndex}-${cpIdx}`,
+                  trackIndex,
+                  fromKey: parentPoint.key,
+                  toKey: cp.key,
+                  fromName: parentPoint.name,
+                  toName: cp.name,
+                  dayLabel: cp.dayLabel || parentPoint.dayLabel,
+                  dateLabel: cp.dateLabel || parentPoint.dateLabel,
+                  color: cp.color || parentPoint.color || DAY_COLORS[0],
+                  metric: getMetric(parentPoint, cp),
+                  kind: "catchment",
+                  routeId: routeId
+                });
+              }
             });
           }
 
@@ -2243,7 +2247,47 @@
               equipmentProvince: detail.equipmentProvince || "",
               trackTitle: detail.titleShort || detail.title || route.label || ""
             });
-          });
+          // Also add custom points to the nodes map!
+          if (state.customRoutePoints && state.customRoutePoints[route.id]) {
+            const customPoints = state.customRoutePoints[route.id] || [];
+            customPoints.forEach((cp) => {
+              if (!map.has(cp.key)) {
+                map.set(cp.key, {
+                  key: cp.key,
+                  name: cp.name,
+                  lat: cp.lat,
+                  lng: cp.lng,
+                  total: cp.total || 0,
+                  kind: "area",
+                  isCustom: true,
+                  parentKey: cp.parentKey,
+                  occurrences: [{
+                    routeId: route.id,
+                    routeLabel: route.label,
+                    trackIndex: route.trackIndex,
+                    dayIndex: 0,
+                    dayLabel: route.dayDetails[0]?.dayLabel || "Ngày 1",
+                    dateLabel: route.dayDetails[0]?.dateLabel || "",
+                    isoDate: route.dayDetails[0]?.isoDate || "",
+                    total: cp.total || 0,
+                    session: cp.session || "Cả ngày",
+                    color: route.color,
+                    areas: [],
+                    lat: cp.lat,
+                    lng: cp.lng,
+                    venue: "",
+                    scheduleText: "",
+                    noteText: "",
+                    staffCore: "",
+                    plannedText: "",
+                    equipmentTeam: "",
+                    equipmentProvince: "",
+                    trackTitle: route.label || ""
+                  }]
+                });
+              }
+            });
+          }
         });
         return map;
       }
@@ -3598,6 +3642,63 @@
         const isLuuDongMode = state.activeRouteId && state.activeRouteId.startsWith("luu-dong");
         const addCustomPointFormHtml = isLuuDongMode ? buildCustomPointFormHtml() : "";
 
+        let satellitesHtml = "";
+        const routeIdForSats = state.activeRouteId || firstOccurrence.routeId;
+        const customPointsList = state.customRoutePoints[routeIdForSats] || [];
+        const satellites = customPointsList.filter(p => p.parentKey === node.key);
+        if (satellites.length > 0) {
+          satellitesHtml = `
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+            <div style="margin-bottom: 20px;">
+              <h3 style="margin: 0 0 10px 0; font-size: calc(14px * var(--drawer-scale)); font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">🛰️ Các Vệ Tinh Lưu Động</h3>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                ${satellites.map(sat => {
+                  const cpMetric = getMetric(node, sat);
+                  const cpMetricText = cpMetric ? `${formatNumber(cpMetric.distance_km)}km - ${formatNumber(cpMetric.travel_minutes)}p` : "";
+                  return `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(37,99,235,0.03); border: 1px solid rgba(37,99,235,0.1); border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale));">
+                      <div>
+                        <strong style="color: #1e3a8a;">Xã ${escapeHtml(sat.name)}</strong>
+                        <small style="color: #64748b; font-size: calc(11px * var(--drawer-scale)); display: block; margin-top: 2px;">🚗 ${cpMetricText}</small>
+                      </div>
+                      <button class="goto-satellite-btn" data-sat-key="${sat.key}" style="padding: 4px 8px; font-size: 11px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-weight: 700; color: #475569; transition: background 0.15s ease;">
+                        Xem bản đồ
+                      </button>
+                    </div>
+                  `;
+                }).join("")}
+              </div>
+            </div>
+          `;
+        }
+
+        if (node.isCustom) {
+          const parentKey = node.parentKey;
+          const parentName = parentKey ? parentKey.split("|")[0] : "Trạm chính";
+          return `
+            <div style="padding: 4px;">
+              <div style="margin-bottom: 20px;">
+                <h2 style="margin: 0 0 4px 0; font-size: calc(20px * var(--drawer-scale)); font-weight: 800; color: #0f172a;">🛰️ Vệ Tinh: ${node.name}</h2>
+                <div style="font-size: calc(13.5px * var(--drawer-scale)); color: #64748b; margin-top: 4px;">
+                  Vệ tinh lưu động của trạm: <strong>${parentName}</strong>
+                </div>
+                <div style="font-size: calc(12.5px * var(--drawer-scale)); color: #64748b; margin-top: 4px;">
+                  Tọa độ: ${node.lat}, ${node.lng}
+                </div>
+              </div>
+              
+              <div style="padding: 16px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 12px; margin-bottom: 20px;">
+                <div style="font-size: calc(13px * var(--drawer-scale)); color: #be123c; margin-bottom: 12px; font-weight: 600; line-height: 1.5;">
+                  ⚠️ Điểm lưu động này được tạo thủ công. Bạn có thể xóa điểm này khỏi lộ trình di chuyển.
+                </div>
+                <button id="delete-custom-point-btn" data-custom-key="${node.key}" style="width: 100%; padding: 10px; background: #e11d48; color: #fff; font-weight: 800; border: none; border-radius: 8px; cursor: pointer; font-size: calc(13px * var(--drawer-scale)); transition: background 0.15s ease; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.2);">
+                  🗑️ Xóa vị trí này
+                </button>
+              </div>
+            </div>
+          `;
+        }
+
         if (node.kind === "area") {
           return `
             <div style="padding: 4px;">
@@ -3743,6 +3844,7 @@
             </div>
             ` : ""}
             `}
+            ${satellitesHtml}
             ${addCustomPointFormHtml}
           </div>
         `;
@@ -3945,7 +4047,8 @@
               lng: lng,
               total: 0,
               session: "Cả ngày",
-              areas: []
+              areas: [],
+              parentKey: state.activeNodeKey
             };
             
             state.customRoutePoints[routeId].push(customPoint);
@@ -3958,6 +4061,48 @@
             
             alert(`Đã thêm vị trí "${nameStr}" thành công và tính lại lộ trình!`);
             render();
+          });
+        }
+
+        // Dynamic Satellite node navigation handler
+        summaryPanelEl.querySelectorAll(".goto-satellite-btn").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            const satKey = btn.getAttribute("data-sat-key");
+            state.activeNodeKey = satKey;
+            render();
+          });
+        });
+
+        // Dynamic Custom Location deletion handler
+        const deleteBtn = document.getElementById("delete-custom-point-btn");
+        if (deleteBtn) {
+          deleteBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            const customKey = deleteBtn.getAttribute("data-custom-key");
+            
+            let found = false;
+            for (const rId in state.customRoutePoints) {
+              const list = state.customRoutePoints[rId] || [];
+              const idx = list.findIndex(p => p.key === customKey);
+              if (idx !== -1) {
+                const parentKey = list[idx].parentKey;
+                list.splice(idx, 1);
+                found = true;
+                if (parentKey) {
+                  state.activeNodeKey = parentKey;
+                } else {
+                  state.activeNodeKey = null;
+                }
+                break;
+              }
+            }
+            
+            if (found) {
+              alert("Đã xóa điểm vệ tinh lưu động khỏi lộ trình!");
+              state.shouldAutoFit = true;
+              render();
+            }
           });
         }
       }
