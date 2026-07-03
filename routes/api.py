@@ -212,3 +212,106 @@ def get_category_picker_bundle():
             for item in items
         ]
     })
+
+
+# ==================== CUSTOM SATELLITE POINTS API ====================
+import os
+import sqlite3
+
+def get_db_connection():
+    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'pc06_system.db')
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_custom_satellite_table():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS custom_satellite_points (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            route_id TEXT NOT NULL,
+            key TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            phone TEXT,
+            lat REAL NOT NULL,
+            lng REAL NOT NULL,
+            parent_key TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+@api_bp.route('/api/custom-satellite-points')
+def get_custom_satellite_points():
+    try:
+        init_custom_satellite_table()
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT route_id, key, name, phone, lat, lng, parent_key FROM custom_satellite_points')
+        rows = cursor.fetchall()
+        conn.close()
+        
+        res = {}
+        for row in rows:
+            r_id = row['route_id']
+            if r_id not in res:
+                res[r_id] = []
+            res[r_id].append({
+                'key': row['key'],
+                'name': row['name'],
+                'phone': row['phone'],
+                'lat': row['lat'],
+                'lng': row['lng'],
+                'parentKey': row['parent_key']
+            })
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/api/custom-satellite-points', methods=['POST'])
+def save_custom_satellite_point():
+    try:
+        init_custom_satellite_table()
+        data = request.get_json() or {}
+        route_id = data.get('route_id')
+        key = data.get('key')
+        name = data.get('name')
+        phone = data.get('phone')
+        lat = data.get('lat')
+        lng = data.get('lng')
+        parent_key = data.get('parentKey')
+        
+        if not route_id or not key or not name or lat is None or lng is None or not parent_key:
+            return jsonify({'error': 'Missing required fields'}), 400
+            
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO custom_satellite_points (route_id, key, name, phone, lat, lng, parent_key)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (route_id, key, name, phone, lat, lng, parent_key))
+        conn.commit()
+        conn.close()
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/api/custom-satellite-points/delete', methods=['POST'])
+def delete_custom_satellite_point():
+    try:
+        init_custom_satellite_table()
+        data = request.get_json() or {}
+        key = data.get('key')
+        if not key:
+            return jsonify({'error': 'Missing key'}), 400
+            
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM custom_satellite_points WHERE key = ?', (key,))
+        conn.commit()
+        conn.close()
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+

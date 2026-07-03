@@ -3626,11 +3626,11 @@
           <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
           <div style="margin-top: 24px; padding: 16px; background: rgba(37, 99, 235, 0.04); border: 1px solid rgba(37, 99, 235, 0.15); border-radius: 16px;">
             <h3 style="margin: 0 0 12px 0; font-size: calc(14px * var(--drawer-scale)); font-weight: 800; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px;">
-              ➕ Bổ Sung Điểm Thu Lưu Động
+              ➕ Bổ Sung Vị Trí Thân Nhân
             </h3>
             <div style="margin-bottom: 10px;">
-              <label style="display: block; font-weight: 700; color: #475569; margin-bottom: 4px; font-size: calc(12px * var(--drawer-scale));">Tên thân nhân / Vị trí:</label>
-              <input type="text" id="custom-point-name" placeholder="Ví dụ: Bà Dương Thị Bậu (hoặc Thôn 4)" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); outline: none; background: #fff;" />
+              <label style="display: block; font-weight: 700; color: #475569; margin-bottom: 4px; font-size: calc(12px * var(--drawer-scale));">Tên thân nhân:</label>
+              <input type="text" id="custom-point-name" placeholder="Ví dụ: Nguyễn Văn A" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); outline: none; background: #fff;" />
             </div>
             <div style="margin-bottom: 10px;">
               <label style="display: block; font-weight: 700; color: #475569; margin-bottom: 4px; font-size: calc(12px * var(--drawer-scale));">Số điện thoại (Không bắt buộc):</label>
@@ -4013,7 +4013,7 @@
             const phoneStr = phoneEl ? phoneEl.value.trim() : "";
             const coordStr = coordsEl ? coordsEl.value.trim() : "";
             if (!nameStr) {
-              alert("Vui lòng nhập tên thân nhân / vị trí!");
+              alert("Vui lòng nhập tên thân nhân!");
               return;
             }
             
@@ -4061,6 +4061,21 @@
             state.customRoutePoints[routeId].push(customPoint);
             state.shouldAutoFit = true;
             
+            // Persist to server database
+            fetch('/api/custom-satellite-points', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                route_id: routeId,
+                key: customKey,
+                name: nameStr,
+                phone: phoneStr,
+                lat: lat,
+                lng: lng,
+                parentKey: state.activeNodeKey
+              })
+            }).catch(err => console.error("Failed to persist custom point on server:", err));
+            
             // Clear inputs
             if (nameEl) nameEl.value = "";
             if (phoneEl) phoneEl.value = "";
@@ -4096,6 +4111,13 @@
               }
               
               if (found) {
+                // Delete from server database
+                fetch('/api/custom-satellite-points/delete', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ key: satKey })
+                }).catch(err => console.error("Failed to delete custom point on server:", err));
+
                 state.shouldAutoFit = true;
                 render();
               }
@@ -4485,10 +4507,24 @@
         hydrateEnviro(routes);
       }
 
+      async function loadCustomPoints() {
+        try {
+          const resp = await fetch('/api/custom-satellite-points');
+          if (resp.ok) {
+            const data = await resp.json();
+            state.customRoutePoints = data || {};
+          }
+        } catch (err) {
+          console.error("Failed to load custom satellite points:", err);
+        }
+      }
+
       initializeViewportControls();
       initializeSummaryDrawer();
       updateViewport();
-      render();
+      loadCustomPoints().then(() => {
+        render();
+      });
       window.setInterval(() => {
         forecastCache.clear();
         weatherCache.clear();
