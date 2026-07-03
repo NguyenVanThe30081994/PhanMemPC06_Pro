@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from flask import Blueprint, jsonify, session, request
+from flask import Blueprint, jsonify, session, request, current_app
 from models import db, Notification, User
 from utils import infer_notification_source, normalize_notification_text, sanitize_notification_link
 
@@ -305,5 +305,70 @@ def delete_custom_satellite_point():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/api/diagnose-db')
+def diagnose_db():
+    try:
+        from models import CustomSatellitePoint
+        
+        # 1. Get database URI (mask password)
+        db_uri = current_app.config.get('SQLALCHEMY_DATABASE_URI', '')
+        masked_uri = db_uri
+        if '@' in db_uri:
+            parts = db_uri.split('@')
+            credentials = parts[0]
+            host_db = parts[1]
+            if ':' in credentials:
+                cred_parts = credentials.split(':')
+                masked_uri = f"{cred_parts[0]}:{cred_parts[1]}:***@{host_db}"
+        
+        # 2. Try to run create_all
+        db.create_all()
+        
+        # 3. Test writing to CustomSatellitePoint
+        test_key = "test_diagnose_key"
+        CustomSatellitePoint.query.filter_by(key=test_key).delete()
+        db.session.commit()
+        
+        test_point = CustomSatellitePoint(
+            route_id="test-route",
+            key=test_key,
+            name="Test Name",
+            phone="0912",
+            lat=21.0,
+            lng=105.0,
+            parent_key="test-parent"
+        )
+        db.session.add(test_point)
+        db.session.commit()
+        
+        # Query it back
+        retrieved = CustomSatellitePoint.query.filter_by(key=test_key).first()
+        retrieved_name = retrieved.name if retrieved else None
+        
+        # Delete it
+        if retrieved:
+            db.session.delete(retrieved)
+            db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'database_uri': masked_uri,
+            'connection_test': 'passed',
+            'retrieved_test_value': retrieved_name,
+            'message': 'Database connection and write test passed successfully!'
+        })
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        return jsonify({
+            'status': 'error',
+            'database_uri': locals().get('masked_uri', 'unknown'),
+            'connection_test': 'failed',
+            'error_message': str(e),
+            'traceback': error_details
+        }), 500
+
 
 
