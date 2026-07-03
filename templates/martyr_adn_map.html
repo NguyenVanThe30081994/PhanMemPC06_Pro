@@ -3663,14 +3663,19 @@
                   const cpMetric = getMetric(node, sat);
                   const cpMetricText = cpMetric ? `${formatNumber(cpMetric.distance_km)}km - ${formatNumber(cpMetric.travel_minutes)}p` : "";
                   return `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(37,99,235,0.03); border: 1px solid rgba(37,99,235,0.1); border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale));">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(37,99,235,0.03); border: 1px solid rgba(37,99,235,0.1); border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); margin-bottom: 6px;">
                       <div>
                         <strong style="color: #1e3a8a;">Xã ${escapeHtml(sat.name)}</strong>
                         <small style="color: #64748b; font-size: calc(11px * var(--drawer-scale)); display: block; margin-top: 2px;">🚗 ${cpMetricText}</small>
                       </div>
-                      <button class="goto-satellite-btn" data-sat-key="${sat.key}" style="padding: 4px 8px; font-size: 11px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-weight: 700; color: #475569; transition: background 0.15s ease;">
-                        Xem bản đồ
-                      </button>
+                      <div style="display: flex; gap: 6px; align-items: center;">
+                        <a href="https://www.google.com/maps/search/?api=1&query=${sat.lat},${sat.lng}" target="_blank" style="padding: 4px 8px; font-size: 11px; background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 6px; text-decoration: none; font-weight: 700; color: #475569; transition: background 0.15s; display: inline-flex; align-items: center;">
+                          Xem bản đồ
+                        </a>
+                        <button class="delete-satellite-btn" data-sat-key="${sat.key}" data-sat-name="${escapeHtml(sat.name)}" style="padding: 4px 8px; font-size: 13px; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 6px; cursor: pointer; color: #dc2626; transition: background 0.15s; display: inline-flex; align-items: center; justify-content: center;" title="Xóa điểm này">
+                          🗑️
+                        </button>
+                      </div>
                     </div>
                   `;
                 }).join("")}
@@ -4071,44 +4076,68 @@
           });
         }
 
-        // Dynamic Satellite node navigation handler
-        summaryPanelEl.querySelectorAll(".goto-satellite-btn").forEach((btn) => {
+        // Dynamic Satellite node deletion handler from list
+        summaryPanelEl.querySelectorAll(".delete-satellite-btn").forEach((btn) => {
           btn.addEventListener("click", (e) => {
             e.preventDefault();
+            e.stopPropagation();
             const satKey = btn.getAttribute("data-sat-key");
-            state.activeNodeKey = satKey;
-            render();
+            const satName = btn.getAttribute("data-sat-name");
+            
+            if (confirm(`Bạn có chắc chắn muốn xóa điểm vệ tinh "${satName}" khỏi lộ trình?`)) {
+              let found = false;
+              for (const rId in state.customRoutePoints) {
+                const list = state.customRoutePoints[rId] || [];
+                const idx = list.findIndex(p => p.key === satKey);
+                if (idx !== -1) {
+                  const parentKey = list[idx].parentKey;
+                  list.splice(idx, 1);
+                  found = true;
+                  if (state.activeNodeKey === satKey) {
+                    state.activeNodeKey = parentKey || null;
+                  }
+                  break;
+                }
+              }
+              
+              if (found) {
+                state.shouldAutoFit = true;
+                render();
+              }
+            }
           });
         });
 
-        // Dynamic Custom Location deletion handler
+        // Dynamic Custom Location deletion handler from detail panel
         const deleteBtn = document.getElementById("delete-custom-point-btn");
         if (deleteBtn) {
           deleteBtn.addEventListener("click", (e) => {
             e.preventDefault();
             const customKey = deleteBtn.getAttribute("data-custom-key");
+            const satNameStr = document.querySelector("#summary-panel h2")?.textContent?.replace("🛰️ Vệ Tinh: ", "") || "vị trí";
             
-            let found = false;
-            for (const rId in state.customRoutePoints) {
-              const list = state.customRoutePoints[rId] || [];
-              const idx = list.findIndex(p => p.key === customKey);
-              if (idx !== -1) {
-                const parentKey = list[idx].parentKey;
-                list.splice(idx, 1);
-                found = true;
-                if (parentKey) {
-                  state.activeNodeKey = parentKey;
-                } else {
-                  state.activeNodeKey = null;
+            if (confirm(`Bạn có chắc chắn muốn xóa điểm vệ tinh "${satNameStr}" khỏi lộ trình?`)) {
+              let found = false;
+              for (const rId in state.customRoutePoints) {
+                const list = state.customRoutePoints[rId] || [];
+                const idx = list.findIndex(p => p.key === customKey);
+                if (idx !== -1) {
+                  const parentKey = list[idx].parentKey;
+                  list.splice(idx, 1);
+                  found = true;
+                  if (parentKey) {
+                    state.activeNodeKey = parentKey;
+                  } else {
+                    state.activeNodeKey = null;
+                  }
+                  break;
                 }
-                break;
               }
-            }
-            
-            if (found) {
-              alert("Đã xóa điểm vệ tinh lưu động khỏi lộ trình!");
-              state.shouldAutoFit = true;
-              render();
+              
+              if (found) {
+                state.shouldAutoFit = true;
+                render();
+              }
             }
           });
         }
