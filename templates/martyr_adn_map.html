@@ -3629,8 +3629,12 @@
               ➕ Bổ Sung Điểm Thu Lưu Động
             </h3>
             <div style="margin-bottom: 10px;">
-              <label style="display: block; font-weight: 700; color: #475569; margin-bottom: 4px; font-size: calc(12px * var(--drawer-scale));">Tên vị trí:</label>
-              <input type="text" id="custom-point-name" placeholder="Ví dụ: Thôn 4 - Xã Yên Lâm" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); outline: none; background: #fff;" />
+              <label style="display: block; font-weight: 700; color: #475569; margin-bottom: 4px; font-size: calc(12px * var(--drawer-scale));">Tên thân nhân / Vị trí:</label>
+              <input type="text" id="custom-point-name" placeholder="Ví dụ: Bà Dương Thị Bậu (hoặc Thôn 4)" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); outline: none; background: #fff;" />
+            </div>
+            <div style="margin-bottom: 10px;">
+              <label style="display: block; font-weight: 700; color: #475569; margin-bottom: 4px; font-size: calc(12px * var(--drawer-scale));">Số điện thoại (Không bắt buộc):</label>
+              <input type="text" id="custom-point-phone" placeholder="Ví dụ: 0912.xxx.xxx" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); outline: none; background: #fff;" />
             </div>
             <div style="margin-bottom: 12px;">
               <label style="display: block; font-weight: 700; color: #475569; margin-bottom: 4px; font-size: calc(12px * var(--drawer-scale));">Tọa độ Google Maps:</label>
@@ -3674,11 +3678,12 @@
                 ${satellites.map(sat => {
                   const cpMetric = getMetric(node, sat);
                   const cpMetricText = cpMetric ? `${formatNumber(cpMetric.distance_km)}km - ${formatNumber(cpMetric.travel_minutes)}p` : "";
+                  const phoneText = sat.phone ? ` - 📞 SĐT: ${escapeHtml(sat.phone)}` : "";
                   return `
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #ffffff; border: 1px solid rgba(226,232,240,0.8); border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); margin-bottom: 6px;">
                       <div>
-                        <strong style="color: #1e3a8a;">Xã ${escapeHtml(sat.name)}</strong>
-                        <small style="color: #64748b; font-size: calc(11px * var(--drawer-scale)); display: block; margin-top: 2px;">🚗 ${cpMetricText}</small>
+                        <strong style="color: #1e3a8a;">${escapeHtml(sat.name)}</strong>
+                        <small style="color: #64748b; font-size: calc(11px * var(--drawer-scale)); display: block; margin-top: 2px;">🚗 ${cpMetricText}${phoneText}</small>
                       </div>
                       <div style="display: flex; gap: 6px; align-items: center;">
                         <a href="https://www.google.com/maps/dir/?api=1&origin=${node.lat},${node.lng}&destination=${sat.lat},${sat.lng}" target="_blank" style="padding: 4px 8px; font-size: 11px; background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 6px; text-decoration: none; font-weight: 700; color: #475569; transition: background 0.15s; display: inline-flex; align-items: center;">
@@ -4002,11 +4007,13 @@
           addBtn.addEventListener("click", (e) => {
             e.preventDefault();
             const nameEl = document.getElementById("custom-point-name");
+            const phoneEl = document.getElementById("custom-point-phone");
             const coordsEl = document.getElementById("custom-point-coords");
             const nameStr = nameEl ? nameEl.value.trim() : "";
+            const phoneStr = phoneEl ? phoneEl.value.trim() : "";
             const coordStr = coordsEl ? coordsEl.value.trim() : "";
             if (!nameStr) {
-              alert("Vui lòng nhập tên vị trí!");
+              alert("Vui lòng nhập tên thân nhân / vị trí!");
               return;
             }
             
@@ -4042,6 +4049,7 @@
             const customPoint = {
               key: customKey,
               name: nameStr,
+              phone: phoneStr,
               lat: lat,
               lng: lng,
               total: 0,
@@ -4055,6 +4063,7 @@
             
             // Clear inputs
             if (nameEl) nameEl.value = "";
+            if (phoneEl) phoneEl.value = "";
             if (coordsEl) coordsEl.value = "";
             
             alert(`Đã thêm vị trí "${nameStr}" thành công và tính lại lộ trình!`);
