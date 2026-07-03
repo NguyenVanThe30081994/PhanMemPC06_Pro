@@ -1103,15 +1103,17 @@
       box-shadow: 0 1px 6px rgba(15,23,42,0.06);
     }
     .enviro-panel-title {
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 1px;
+      font-size: calc(13px * var(--drawer-scale));
+      font-weight: 850;
+      letter-spacing: 0.5px;
       text-transform: uppercase;
-      color: #64748b;
+      color: #1e3a8a;
       margin-bottom: 12px;
       display: flex;
       align-items: center;
       gap: 6px;
+      border-left: 3px solid #2563eb;
+      padding-left: 8px;
     }
     .enviro-weather-row {
       display: grid;
@@ -1127,21 +1129,21 @@
       text-align: center;
     }
     .enviro-card-label {
-      font-size: 9.5px;
-      color: #94a3b8;
+      font-size: calc(11px * var(--drawer-scale));
+      color: #64748b;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.6px;
       margin-bottom: 4px;
     }
     .enviro-card-value {
-      font-size: 15px;
+      font-size: calc(16px * var(--drawer-scale));
       font-weight: 800;
       color: #1e293b;
       line-height: 1.1;
     }
     .enviro-card-sub {
-      font-size: 9.5px;
+      font-size: calc(11px * var(--drawer-scale));
       color: #94a3b8;
       margin-top: 2px;
     }
@@ -1149,32 +1151,32 @@
     .enviro-alert {
       padding: 8px 12px;
       border-radius: 8px;
-      font-size: 12px;
-      font-weight: 700;
+      font-size: calc(13px * var(--drawer-scale));
+      font-weight: 650;
       display: flex;
       align-items: flex-start;
       gap: 7px;
       margin-bottom: 6px;
       line-height: 1.45;
     }
-    .enviro-alert-icon { flex-shrink: 0; font-size: 14px; margin-top: 1px; }
+    .enviro-alert-icon { flex-shrink: 0; font-size: calc(14px * var(--drawer-scale)); margin-top: 1px; }
     .enviro-alert-text { flex: 1; }
     .enviro-alert.level-safe    { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
     .enviro-alert.level-watch   { background: #fefce8; color: #854d0e; border: 1px solid #fde68a; }
     .enviro-alert.level-warning { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
     .enviro-alert.level-danger  { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
     .enviro-section-label {
-      font-size: 10px;
+      font-size: calc(11.5px * var(--drawer-scale));
       font-weight: 800;
       letter-spacing: 0.7px;
       text-transform: uppercase;
-      color: #94a3b8;
+      color: #64748b;
       margin: 10px 0 6px;
     }
     .enviro-pending {
       text-align: center;
       color: #94a3b8;
-      font-size: 12px;
+      font-size: calc(13px * var(--drawer-scale));
       padding: 10px 0;
       font-style: italic;
     }
@@ -3408,23 +3410,26 @@
         return escapeHtml(normalized);
       }
 
-      function enrichProvinceEquipment(value) {
+      function enrichProvinceEquipment(value, isMobile = false) {
         if (!value) {
           return "";
         }
         const normalized = String(value).trim();
-        if (/03\s*máy\s*in/i.test(normalized)) {
+        if (isMobile) {
           return normalized;
         }
-        return `${normalized} - Bổ sung 03 máy in`;
+        if (/03\s*máy\s*in/i.test(normalized) || /3\s*máy\s*in/i.test(normalized)) {
+          return normalized;
+        }
+        return `${normalized} - 3 máy in`;
       }
 
-      function buildDetailCopyBlock(label, value) {
+      function buildDetailCopyBlock(label, value, isMobile = false) {
         if (!value) {
           return "";
         }
         const displayValue = /Thiết bị cấp/i.test(String(label || ""))
-          ? enrichProvinceEquipment(value)
+          ? enrichProvinceEquipment(value, isMobile)
           : value;
         return `
           <div class="detail-copy-block">
@@ -3470,11 +3475,13 @@
       }
 
       function buildDayDetailTabs(detail) {
+        const isMobile = (detail.venue || "").includes("u động") ||
+                         (detail.venue || "").toLowerCase() === "lưu động";
         const overviewPanel = `
           <section class="detail-tab-panel is-active" data-detail-panel="overview">
             <div class="detail-copy-grid">
-              ${buildDetailCopyBlock("Chỉ tiêu dự kiến", detail.plannedText || (detail.total ? `${formatNumber(detail.total)} TNLS` : ""))}
-              ${buildDetailCopyBlock("Địa điểm thu mẫu", detail.venue)}
+              ${buildDetailCopyBlock("Chỉ tiêu dự kiến", detail.plannedText || (detail.total ? `${formatNumber(detail.total)} TNLS` : ""), isMobile)}
+              ${buildDetailCopyBlock("Địa điểm thu mẫu", detail.venue, isMobile)}
             </div>
             ${buildPointListRows(detail)}
             ${buildNoteListRows(detail)}
@@ -3483,8 +3490,8 @@
         const equipmentPanel = `
           <section class="detail-tab-panel" data-detail-panel="equipment">
             <div class="detail-copy-grid">
-              ${buildDetailCopyBlock("Thiết bị cấp căn cước", detail.equipmentProvince)}
-              ${buildDetailCopyBlock("Thiết bị thuộc đơn vị lấy mẫu/tổ", detail.equipmentTeam)}
+              ${buildDetailCopyBlock("Thiết bị cấp căn cước", detail.equipmentProvince, isMobile)}
+              ${buildDetailCopyBlock("Thiết bị thuộc đơn vị lấy mẫu/tổ", detail.equipmentTeam, isMobile)}
             </div>
           </section>
         `;
@@ -3550,13 +3557,13 @@
           return `
             <div style="border-left: 4px solid ${color}; padding-left: 14px; margin-bottom: 20px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <strong style="font-size: calc(14px * var(--drawer-scale)); color: #1e293b;">📌 Ca ${escapeHtml(occurrence.session || "Cả ngày")} · ${escapeHtml(occurrence.dayLabel || "")}</strong>
+                <strong style="font-size: calc(14px * var(--drawer-scale)); color: #1e293b;">Ca ${escapeHtml(occurrence.session || "Cả ngày")} · ${escapeHtml(occurrence.dayLabel || "")}</strong>
                 <span style="font-size: calc(13px * var(--drawer-scale)); font-weight: 700; color: ${color};">${formatNumber(occurrence.total)} TNLS</span>
               </div>
 
               <details style="margin-bottom: 6px;">
                 <summary style="font-size: calc(12.5px * var(--drawer-scale)); font-weight: 700; color: #475569; cursor: pointer; display: flex; align-items: center; gap: 4px; user-select: none; outline: none; list-style: none;">
-                  <span>🕒 Thời gian</span>
+                  <span>Thời gian</span>
                   <span style="font-size: calc(11px * var(--drawer-scale)); color: #2563eb; font-weight: 700; margin-left: auto;">Xem chi tiết ▾</span>
                 </summary>
                 <div style="padding: 6px 0 6px 12px; font-size: calc(12px * var(--drawer-scale)); color: #334155;">
@@ -3567,7 +3574,7 @@
               ${sessionNote ? `
               <details style="margin-bottom: 6px;">
                 <summary style="font-size: calc(12.5px * var(--drawer-scale)); font-weight: 700; color: #475569; cursor: pointer; display: flex; align-items: center; gap: 4px; user-select: none; outline: none; list-style: none;">
-                  <span>👥 Nhân sự</span>
+                  <span>Nhân sự</span>
                   <span style="font-size: calc(11px * var(--drawer-scale)); color: #2563eb; font-weight: 700; margin-left: auto;">Xem chi tiết ▾</span>
                 </summary>
                 <div style="padding: 6px 0 6px 12px; font-size: calc(12px * var(--drawer-scale)); color: #334155;">
@@ -3577,7 +3584,7 @@
               ` : ""}
 
               ${metricText ? `
-              <div style="margin-top: 4px; font-size: calc(11px * var(--drawer-scale)); color: #64748b; font-weight: 600;">🚗 Di chuyển: ${metricText}</div>
+              <div style="margin-top: 4px; font-size: calc(11px * var(--drawer-scale)); color: #64748b; font-weight: 600;">Di chuyển: ${metricText}</div>
               ` : ""}
             </div>
           `;
@@ -3615,7 +3622,7 @@
               <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,255,255,0.7); border: 1px solid rgba(226,232,240,0.6); border-radius: 8px; margin-bottom: 6px; font-size: calc(12.5px * var(--drawer-scale));">
                 <div>
                   <span style="color: #334155; font-weight: 700; display: block;">Xã ${area.name}</span>
-                  <small style="color: #64748b; font-size: calc(11px * var(--drawer-scale)); font-weight: 600;">🚗 ${metricText}</small>
+                  <small style="color: #64748b; font-size: calc(11px * var(--drawer-scale)); font-weight: 600;">${metricText}</small>
                 </div>
                 <strong style="color: #0f172a;">${formatNumber(area.total)} TNLS</strong>
               </div>
@@ -3701,7 +3708,7 @@
             <details class="collapsible-satellites" open style="border: 1px solid rgba(37, 99, 235, 0.15); border-radius: 12px; background: rgba(37, 99, 235, 0.02); overflow: hidden; margin-bottom: 20px;">
               <summary style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; font-weight: 900; color: #1e3a8a; cursor: pointer; user-select: none; outline: none; font-size: calc(13.5px * var(--drawer-scale)); background: rgba(37, 99, 235, 0.05); list-style: none;">
                 <span style="display: flex; align-items: center; gap: 6px; border-left: 3px solid #2563eb; padding-left: 8px;">
-                  VỆ TINH LƯU ĐỘNG (${satellites.length})
+                  THÂN NHÂN LƯU ĐỘNG (${satellites.length})
                 </span>
                 <span class="chevron" style="font-size: 11px; transition: transform 0.2s ease;">▼</span>
               </summary>
@@ -3790,9 +3797,23 @@
         const hubTitle = isLuuDong
           ? `Lưu động ${routeLabel}`
           : `Trạm ${node.name}`;
-        const hubSubtitle = isLuuDong
-          ? `Tổ ${firstOccurrence.trackTitle || routeLabel} – Di chuyển lưu động thu mẫu ADN`
-          : `Điểm tập kết cố định thu mẫu ADN`;
+        let hubSubtitle = `Điểm tập kết cố định thu mẫu ADN`;
+        if (isLuuDong) {
+          const direction = getSelectedDirection();
+          const routes = buildRoutes(direction);
+          const route = routes.find(r => r.id === (state.activeRouteId || firstOccurrence.routeId));
+          if (route && route.points) {
+            const uniqueNames = [];
+            route.points.forEach(p => {
+              if (p.name && !uniqueNames.includes(p.name)) {
+                uniqueNames.push(p.name);
+              }
+            });
+            hubSubtitle = uniqueNames.join(", ");
+          } else {
+            hubSubtitle = `Tổ ${firstOccurrence.trackTitle || routeLabel} – Di chuyển lưu động thu mẫu ADN`;
+          }
+        }
 
         return `
           <div style="padding: 4px;">
@@ -3839,7 +3860,7 @@
             <div style="margin-bottom: 20px;">
               <h3 style="margin: 0 0 10px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Thiết Bị</h3>
               <div style="font-size: calc(13px * var(--drawer-scale)); color: #334155; line-height: 1.6;">
-                ${firstOccurrence.equipmentProvince ? `<div style="margin-bottom: 4px;"><strong>Thiết bị cấp:</strong> ${escapeHtml(enrichProvinceEquipment(firstOccurrence.equipmentProvince))}</div>` : ""}
+                ${firstOccurrence.equipmentProvince ? `<div style="margin-bottom: 4px;"><strong>Thiết bị cấp:</strong> ${escapeHtml(enrichProvinceEquipment(firstOccurrence.equipmentProvince, true))}</div>` : ""}
                 ${firstOccurrence.equipmentTeam ? `<div><strong>Thiết bị tổ:</strong> ${escapeHtml(firstOccurrence.equipmentTeam)}</div>` : ""}
               </div>
             </div>
@@ -3847,7 +3868,7 @@
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
             
             ${buildEnviroPanel(node.lat || firstOccurrence.lat, node.lng || firstOccurrence.lng, firstOccurrence.isoDate)}
-
+ 
             <div style="margin-bottom: 20px;">
               <h3 style="margin: 0 0 10px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Địa Điểm Tập Kết</h3>
               <div style="font-size: calc(13.5px * var(--drawer-scale)); color: #0f172a; font-weight: 600; background: #f8fafc; padding: 10px 14px; border-radius: 8px; border-left: 4px solid #3b82f6; margin-top: 10px;">
@@ -3861,14 +3882,14 @@
               <h3 style="margin: 0 0 12px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Chi Tiết Các Ca & Nhân Sự</h3>
               <div>${buildOccurrenceSessionRows(node)}</div>
             </div>
-
+ 
             ${(firstOccurrence.equipmentProvince || firstOccurrence.equipmentTeam) ? `
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
-
+ 
             <div style="margin-bottom: 20px;">
               <h3 style="margin: 0 0 10px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Trang Thiết Bị</h3>
               <div style="font-size: calc(13px * var(--drawer-scale)); color: #334155; line-height: 1.7; margin-top: 10px;">
-                ${firstOccurrence.equipmentProvince ? `<div style="margin-bottom: 4px;"><strong>Thiết bị cấp tỉnh:</strong> ${escapeHtml(enrichProvinceEquipment(firstOccurrence.equipmentProvince))}</div>` : ""}
+                ${firstOccurrence.equipmentProvince ? `<div style="margin-bottom: 4px;"><strong>Thiết bị cấp tỉnh:</strong> ${escapeHtml(enrichProvinceEquipment(firstOccurrence.equipmentProvince, false))}</div>` : ""}
                 ${firstOccurrence.equipmentTeam ? `<div><strong>Thiết bị đơn vị/tổ:</strong> ${escapeHtml(firstOccurrence.equipmentTeam)}</div>` : ""}
               </div>
             </div>
