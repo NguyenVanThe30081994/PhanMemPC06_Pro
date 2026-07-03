@@ -3681,7 +3681,7 @@
                         <small style="color: #64748b; font-size: calc(11px * var(--drawer-scale)); display: block; margin-top: 2px;">🚗 ${cpMetricText}</small>
                       </div>
                       <div style="display: flex; gap: 6px; align-items: center;">
-                        <a href="https://www.google.com/maps/search/?api=1&query=${sat.lat},${sat.lng}" target="_blank" style="padding: 4px 8px; font-size: 11px; background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 6px; text-decoration: none; font-weight: 700; color: #475569; transition: background 0.15s; display: inline-flex; align-items: center;">
+                        <a href="https://www.google.com/maps/dir/?api=1&origin=${node.lat},${node.lng}&destination=${sat.lat},${sat.lng}" target="_blank" style="padding: 4px 8px; font-size: 11px; background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 6px; text-decoration: none; font-weight: 700; color: #475569; transition: background 0.15s; display: inline-flex; align-items: center;">
                           Xem bản đồ
                         </a>
                         <button class="delete-satellite-btn" data-sat-key="${sat.key}" data-sat-name="${escapeHtml(sat.name)}" style="padding: 4px 8px; font-size: 13px; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 6px; cursor: pointer; color: #dc2626; transition: background 0.15s; display: inline-flex; align-items: center; justify-content: center;" title="Xóa điểm này">
@@ -3696,32 +3696,7 @@
           `;
         }
 
-        if (node.isCustom) {
-          const parentKey = node.parentKey;
-          const parentName = parentKey ? parentKey.split("|")[0] : "Trạm chính";
-          return `
-            <div style="padding: 4px;">
-              <div style="margin-bottom: 20px;">
-                <h2 style="margin: 0 0 4px 0; font-size: calc(20px * var(--drawer-scale)); font-weight: 800; color: #0f172a;">🛰️ Vệ Tinh: ${node.name}</h2>
-                <div style="font-size: calc(13.5px * var(--drawer-scale)); color: #64748b; margin-top: 4px;">
-                  Vệ tinh lưu động của trạm: <strong>${parentName}</strong>
-                </div>
-                <div style="font-size: calc(12.5px * var(--drawer-scale)); color: #64748b; margin-top: 4px;">
-                  Tọa độ: ${node.lat}, ${node.lng}
-                </div>
-              </div>
-              
-              <div style="padding: 16px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 12px; margin-bottom: 20px;">
-                <div style="font-size: calc(13px * var(--drawer-scale)); color: #be123c; margin-bottom: 12px; font-weight: 600; line-height: 1.5;">
-                  ⚠️ Điểm lưu động này được tạo thủ công. Bạn có thể xóa điểm này khỏi lộ trình di chuyển.
-                </div>
-                <button id="delete-custom-point-btn" data-custom-key="${node.key}" style="width: 100%; padding: 10px; background: #e11d48; color: #fff; font-weight: 800; border: none; border-radius: 8px; cursor: pointer; font-size: calc(13px * var(--drawer-scale)); transition: background 0.15s ease; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.2);">
-                  🗑️ Xóa vị trí này
-                </button>
-              </div>
-            </div>
-          `;
-        }
+
 
         if (node.kind === "area") {
           return `
