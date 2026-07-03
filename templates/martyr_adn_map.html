@@ -1560,7 +1560,7 @@
         },
         summaryOpen: false,
         shouldAutoFit: true,
-        customRoutePoints: new Map()
+        customRoutePoints: {}
       };
 
       const forecastCache = new Map();
@@ -1952,8 +1952,8 @@
 
           // Retrieve custom points for this route
           const routeId = `${direction.id}-track-${trackIndex}`;
-          if (state.customRoutePoints && state.customRoutePoints.has(routeId)) {
-            const customPoints = state.customRoutePoints.get(routeId) || [];
+          if (state.customRoutePoints && state.customRoutePoints[routeId]) {
+            const customPoints = state.customRoutePoints[routeId] || [];
             customPoints.forEach((point) => {
               const lastDayIndex = visibleDays.length ? visibleDays[visibleDays.length - 1].dayIndex : 0;
               const updatedPoint = {
@@ -3908,21 +3908,38 @@
               alert("Vui lòng nhập tên vị trí!");
               return;
             }
-            const match = coordStr.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+            
+            const cleanCoords = coordStr.trim().replace(/\s+/g, " ");
+            const match = cleanCoords.match(/(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)/) || cleanCoords.match(/(-?\d+)[,\s]+(-?\d+)/);
             if (!match) {
-              alert("Vui lòng nhập tọa độ Google Maps hợp lệ (Ví dụ: 21.7824, 105.2135)!");
+              alert("Tọa độ không hợp lệ. Vui lòng nhập dạng vĩ độ, kinh độ (Ví dụ: 21.790047, 105.172722).");
               return;
             }
             const lat = parseFloat(match[1]);
             const lng = parseFloat(match[2]);
 
-            const routeId = state.activeRouteId;
-            if (!state.customRoutePoints.has(routeId)) {
-              state.customRoutePoints.set(routeId, []);
+            // Resolve route ID
+            let routeId = state.activeRouteId;
+            if (!routeId) {
+              const direction = getSelectedDirection();
+              const routes = buildRoutes(direction);
+              const activeRoute = resolveActiveRoute(routes);
+              if (activeRoute) {
+                routeId = activeRoute.id;
+              }
+            }
+            if (!routeId) {
+              alert("Không xác định được tuyến hiện tại để thêm vị trí.");
+              return;
+            }
+
+            if (!state.customRoutePoints[routeId]) {
+              state.customRoutePoints[routeId] = [];
             }
             
+            const customKey = buildNodeKey(nameStr, lat, lng);
             const customPoint = {
-              key: `custom-${Date.now()}`,
+              key: customKey,
               name: nameStr,
               lat: lat,
               lng: lng,
@@ -3931,8 +3948,15 @@
               areas: []
             };
             
-            state.customRoutePoints.get(routeId).push(customPoint);
+            state.customRoutePoints[routeId].push(customPoint);
+            state.activeNodeKey = customKey;
             state.shouldAutoFit = true;
+            
+            // Clear inputs
+            if (nameEl) nameEl.value = "";
+            if (coordsEl) coordsEl.value = "";
+            
+            alert(`Đã thêm vị trí "${nameStr}" thành công và tính lại lộ trình!`);
             render();
           });
         }
