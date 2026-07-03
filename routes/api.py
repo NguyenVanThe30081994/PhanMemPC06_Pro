@@ -371,4 +371,50 @@ def diagnose_db():
         }), 500
 
 
+@api_bp.route('/api/resolve-maps-url', methods=['POST'])
+def resolve_maps_url():
+    import requests
+    import re
+    
+    data = request.get_json() or {}
+    url = data.get('url', '').strip()
+    if not url:
+        return jsonify({'status': 'error', 'message': 'Vui lòng cung cấp URL'}), 400
+        
+    if not url.startswith('http'):
+        return jsonify({'status': 'error', 'message': 'URL không hợp lệ'}), 400
+        
+    try:
+        session = requests.Session()
+        # DO NOT set a browser User-Agent to make sure Google redirects us to a full maps URL
+        current_url = url
+        for _ in range(5):
+            resp = session.get(current_url, allow_redirects=False, timeout=8)
+            loc = resp.headers.get("Location")
+            if not loc:
+                break
+                
+            match = re.search(r"@(-?\d+\.\d+),(-?\d+\.\d+)", loc)
+            if match:
+                return jsonify({
+                    'status': 'success',
+                    'lat': float(match.group(1)),
+                    'lng': float(match.group(2))
+                })
+                
+            match_query = re.search(r"[?&](?:query|q)=(-?\d+\.\d+),(-?\d+\.\d+)", loc)
+            if match_query:
+                return jsonify({
+                    'status': 'success',
+                    'lat': float(match_query.group(1)),
+                    'lng': float(match_query.group(2))
+                })
+                
+            current_url = loc
+            
+        return jsonify({'status': 'error', 'message': 'Không tìm thấy tọa độ từ link Google Maps này'}), 400
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Lỗi khi xử lý link: {str(e)}'}), 500
+
+
 

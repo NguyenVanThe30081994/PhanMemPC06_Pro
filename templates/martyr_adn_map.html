@@ -4046,7 +4046,7 @@
         // Dynamic Custom Locations addition handler for Mobile Routes
         const addBtn = document.getElementById("add-custom-point-btn");
         if (addBtn) {
-          addBtn.addEventListener("click", (e) => {
+          addBtn.addEventListener("click", async (e) => {
             e.preventDefault();
             const nameEl = document.getElementById("custom-point-name");
             const phoneEl = document.getElementById("custom-point-phone");
@@ -4059,14 +4059,66 @@
               return;
             }
             
-            const cleanCoords = coordStr.trim().replace(/\s+/g, " ");
-            const match = cleanCoords.match(/(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)/) || cleanCoords.match(/(-?\d+)[,\s]+(-?\d+)/);
-            if (!match) {
-              alert("Tọa độ không hợp lệ. Vui lòng nhập dạng vĩ độ, kinh độ (Ví dụ: 21.790047, 105.172722).");
+            // Helper to resolve raw coordinate or decode Google Maps link
+            let lat = null, lng = null;
+            const cleanVal = coordStr.trim();
+            if (cleanVal.startsWith("http")) {
+              // 1. Try direct regex matches on URL
+              let match = cleanVal.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+              if (!match) match = cleanVal.match(/[?&](?:query|q)=(-?\d+\.\d+),(-?\d+\.\d+)/);
+              if (!match) match = cleanVal.match(/\/place\/(-?\d+\.\d+),(-?\d+\.\d+)/);
+              
+              if (match) {
+                lat = parseFloat(match[1]);
+                lng = parseFloat(match[2]);
+              } else {
+                // 2. Resolve short Google Maps link on backend
+                try {
+                  const oldText = addBtn.innerText;
+                  addBtn.innerText = "⏳ Đang giải mã Link...";
+                  addBtn.disabled = true;
+                  
+                  const resp = await fetch("/api/resolve-maps-url", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "X-CSRF-Token": CSRF_TOKEN
+                    },
+                    body: JSON.stringify({ url: cleanVal })
+                  });
+                  const data = await resp.json();
+                  
+                  addBtn.innerText = oldText;
+                  addBtn.disabled = false;
+                  
+                  if (data.status === "success" && data.lat && data.lng) {
+                    lat = data.lat;
+                    lng = data.lng;
+                  } else {
+                    alert(data.message || "Không giải mã được link Google Maps này.");
+                    return;
+                  }
+                } catch (err) {
+                  addBtn.innerText = "Thêm & Tính Toán Lộ Trình";
+                  addBtn.disabled = false;
+                  alert("Lỗi kết nối khi giải mã link Google Maps: " + err.message);
+                  return;
+                }
+              }
+            } else {
+              // 3. Parse as raw lat, lng coordinates
+              const cleanCoords = cleanVal.replace(/\s+/g, " ");
+              const match = cleanCoords.match(/(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)/) || cleanCoords.match(/(-?\d+)[,\s]+(-?\d+)/);
+              if (match) {
+                lat = parseFloat(match[1]);
+                lng = parseFloat(match[2]);
+              }
+            }
+
+            if (lat === null || lng === null) {
+              alert("Tọa độ hoặc link Google Maps không hợp lệ. Vui lòng nhập link hoặc tọa độ dạng: 21.790047, 105.172722");
               return;
             }
-            const lat = parseFloat(match[1]);
-            const lng = parseFloat(match[2]);
 
             // Resolve route ID
             let routeId = state.activeRouteId;
