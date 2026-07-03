@@ -3032,6 +3032,12 @@
               routeNodes.set(point.key, nodes.get(point.key));
             }
           });
+          const customPoints = state.customRoutePoints[activeRoute.id] || [];
+          customPoints.forEach((cp) => {
+            if (nodes.has(cp.key)) {
+              routeNodes.set(cp.key, nodes.get(cp.key));
+            }
+          });
         }
         const preferredNodeKey = getPreferredRouteNodeKey(activeRoute);
         const activeNodeKey = routeNodes.has(state.activeNodeKey) ? state.activeNodeKey : preferredNodeKey;
@@ -4439,7 +4445,10 @@
         const activeRoute = resolveActiveRoute(routes);
         if (activeRoute) {
           state.activeRouteId = activeRoute.id;
-          if (!activeRoute.points.some((point) => point.key === state.activeNodeKey)) {
+          const customPoints = state.customRoutePoints[activeRoute.id] || [];
+          const isValidKey = activeRoute.points.some((point) => point.key === state.activeNodeKey) ||
+                            customPoints.some((cp) => cp.key === state.activeNodeKey);
+          if (!isValidKey) {
             state.activeNodeKey = getPreferredRouteNodeKey(activeRoute);
           }
         }
