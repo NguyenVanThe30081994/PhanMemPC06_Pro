@@ -6,22 +6,22 @@
   <title>{{ page_title or 'Bản đồ ADN liệt sĩ - PhanMemPC06_Pro' }}</title>
   <style>
     :root {
-      color-scheme: dark;
-      --bg-cream: #090d16;
-      --surface: rgba(22, 30, 49, 0.75);
-      --surface-strong: rgba(15, 23, 42, 0.95);
-      --ink-900: #f8fafc;
-      --ink-700: #cbd5e1;
-      --ink-500: #94a3b8;
+      color-scheme: light;
+      --bg-cream: #f4efe4;
+      --surface: rgba(255, 255, 255, 0.92);
+      --surface-strong: rgba(255, 255, 255, 0.98);
+      --ink-900: #0f172a;
+      --ink-700: #334155;
+      --ink-500: #64748b;
       --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
       --font-display: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-      --shadow-soft: 0 20px 40px rgba(0, 0, 0, 0.5);
-      --shadow-card: 0 10px 20px rgba(0, 0, 0, 0.4);
-      --day-1: #ff7a00;
-      --day-2: #38bdf8;
-      --day-3: #2dd4bf;
-      --day-4: #c084fc;
-      --day-5: #f87171;
+      --shadow-soft: 0 22px 54px rgba(63, 46, 18, 0.08);
+      --shadow-card: 0 14px 32px rgba(15, 23, 42, 0.06);
+      --day-1: #c2410c;
+      --day-2: #1d4ed8;
+      --day-3: #0f766e;
+      --day-4: #6d28d9;
+      --day-5: #b91c1c;
     }
 
     * {
@@ -37,7 +37,11 @@
     body {
       font-family: var(--font-sans);
       color: var(--ink-900);
-      background: linear-gradient(135deg, #090d16 0%, #030712 100%);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(244, 239, 228, 0.95)),
+        radial-gradient(circle at top left, rgba(113, 148, 122, 0.18), transparent 35%),
+        radial-gradient(circle at top right, rgba(196, 102, 31, 0.11), transparent 28%),
+        var(--bg-cream);
       overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
@@ -57,10 +61,10 @@
       inset: 0;
       pointer-events: none;
       background-image:
-        linear-gradient(rgba(56, 189, 248, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(56, 189, 248, 0.03) 1px, transparent 1px);
-      background-size: 80px 80px;
-      opacity: 1;
+        linear-gradient(rgba(122, 106, 70, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(122, 106, 70, 0.08) 1px, transparent 1px);
+      background-size: 76px 76px;
+      opacity: 0.22;
     }
 
     .pc06-home-link {
@@ -102,7 +106,7 @@
     .summary-card {
       background: var(--surface);
       backdrop-filter: blur(18px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(15, 23, 42, 0.08);
       border-radius: 32px;
       box-shadow: var(--shadow-soft);
     }
@@ -115,8 +119,8 @@
       gap: 8px;
       padding: 7px 12px;
       border-radius: 999px;
-      background: rgba(249, 115, 22, 0.15);
-      color: #ff7a00;
+      background: rgba(154, 95, 29, 0.1);
+      color: #9a5f1d;
       font-size: 14px;
       font-weight: 800;
       letter-spacing: 0.09em;
@@ -129,7 +133,7 @@
       align-items: center;
       gap: 8px;
       padding: 9px;
-      background: linear-gradient(180deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 244, 236, 0.9));
     }
 
     #direction-tabs,
@@ -150,37 +154,37 @@
     }
 
     .day-chip {
-      padding: 12px 20px;
-      background: rgba(30, 41, 59, 0.6);
+      padding: 10px 16px;
+      background: rgba(15, 23, 42, 0.05);
       color: var(--ink-700);
-      font-size: 14pt;
+      font-size: 13pt;
       font-weight: 800;
       letter-spacing: 0.02em;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
     }
 
     .day-chip.is-active {
       color: #fff;
-      background: linear-gradient(135deg, #ff7a00, #ea580c);
-      border: 1px solid rgba(255, 122, 0, 0.5);
-      box-shadow: 0 0 15px rgba(255, 122, 0, 0.4);
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      border: 1px solid rgba(234, 88, 12, 0.3);
+      box-shadow: 0 6px 12px rgba(234, 88, 12, 0.2);
     }
 
     .segmented-button {
       min-width: auto;
-      padding: 12px 24px;
+      padding: 10px 20px;
       background: transparent;
       color: var(--ink-700);
       text-align: center;
       border-radius: 20px;
-      font-size: 14pt;
+      font-size: 13pt;
       font-weight: 800;
       border: 1px solid transparent;
     }
 
     .segmented-button strong {
-      font-size: 14pt;
+      font-size: 13pt;
       font-family: var(--font-display);
     }
 
@@ -189,10 +193,10 @@
     }
 
     .segmented-button.is-active {
-      background: rgba(56, 189, 248, 0.15);
+      background: rgba(15, 23, 42, 0.08);
       color: var(--ink-900);
-      border: 1px solid rgba(56, 189, 248, 0.4);
-      box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
       transform: translateY(-1px);
     }
 
@@ -218,22 +222,22 @@
       border-radius: 28px;
       overflow: hidden;
       user-select: none;
-      background: #060913;
-      border: 1px solid rgba(56, 189, 248, 0.15);
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+      background: #fdfbf7;
+      border: 1px solid rgba(122, 106, 70, 0.16);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.8);
       isolation: isolate;
     }
 
     .map-header-title {
       font-size: 14pt;
       font-weight: 800;
-      color: #38bdf8; /* Cyan */
+      color: #b91c1c; /* Official Dark Red */
       letter-spacing: 0.05em;
-      background: rgba(15, 23, 42, 0.85);
+      background: rgba(255, 255, 255, 0.94);
       padding: 12px 20px;
       border-radius: 14px;
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(185, 28, 28, 0.25);
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
       font-family: var(--font-display);
       text-transform: uppercase;
       width: fit-content;
@@ -262,11 +266,11 @@
       width: 248px;
       max-height: calc(100% - 148px);
       overflow-y: auto;
-      background: rgba(22, 30, 49, 0.85);
+      background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(14px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(122, 106, 70, 0.15);
       border-radius: 20px;
-      box-shadow: 0 10px 36px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 10px 36px rgba(15, 23, 42, 0.08);
       padding: 12px 10px;
       display: none;
       flex-direction: column;
@@ -282,7 +286,7 @@
       text-transform: uppercase;
       color: #94a3b8;
       padding: 6px 12px 8px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 1px solid rgba(122, 106, 70, 0.1);
       margin-bottom: 4px;
       font-family: var(--font-display);
     }
@@ -301,11 +305,11 @@
       font-family: var(--font-body, inherit);
     }
     .hub-sidebar-item:hover {
-      background: rgba(255, 122, 0, 0.15);
+      background: rgba(196, 102, 31, 0.07);
     }
     .hub-sidebar-item.is-active {
-      background: linear-gradient(135deg, rgba(255, 122, 0, 0.25), rgba(234, 179, 8, 0.15));
-      border: 1px solid rgba(255, 122, 0, 0.45);
+      background: linear-gradient(135deg, rgba(196, 102, 31, 0.12), rgba(234, 179, 8, 0.08));
+      border: 1px solid rgba(196, 102, 31, 0.2);
     }
     .hub-sidebar-dot {
       flex-shrink: 0;
@@ -323,7 +327,7 @@
       display: block;
       font-size: 16px;
       font-weight: 700;
-      color: #f8fafc;
+      color: var(--ink-900);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -332,7 +336,7 @@
     .hub-sidebar-sub {
       display: block;
       font-size: 14px;
-      color: #cbd5e1;
+      color: var(--ink-500);
       margin-top: 2px;
     }
 
@@ -342,10 +346,10 @@
       inset: 0;
       pointer-events: none;
       background-image:
-        linear-gradient(rgba(56, 189, 248, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
+        linear-gradient(rgba(122, 106, 70, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(122, 106, 70, 0.05) 1px, transparent 1px);
       background-size: 80px 80px;
-      opacity: 1;
+      opacity: 0.46;
     }
 
     .map-stage.is-grabbing {
@@ -369,6 +373,7 @@
       max-width: min(1180px, calc(100% - 80px));
       display: flex;
       flex-direction: column;
+      align-items: flex-start;
       gap: 10px;
     }
 
@@ -643,16 +648,15 @@
       background: var(--node-color);
       border: 3px solid #fff;
       box-shadow:
-        0 0 0 4px rgba(255, 255, 255, 0.2),
-        0 0 12px var(--node-color),
-        0 10px 20px rgba(0, 0, 0, 0.4);
+        0 0 0 4px rgba(255, 255, 255, 0.8),
+        0 6px 16px rgba(15, 23, 42, 0.15);
     }
 
     .map-node.is-active .map-node-dot {
       box-shadow:
-        0 0 0 5px rgba(255, 255, 255, 0.4),
-        0 0 20px var(--node-color),
-        0 0 40px var(--node-color);
+        0 0 0 5px rgba(255, 255, 255, 0.9),
+        0 0 0 10px rgba(15, 23, 42, 0.05),
+        0 10px 22px rgba(15, 23, 42, 0.25);
     }
 
     .map-node-label {
@@ -661,9 +665,9 @@
       max-width: 250px;
       padding: 10px 14px;
       border-radius: 16px;
-      background: rgba(15, 23, 42, 0.85);
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.4);
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(122, 106, 70, 0.18);
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
       color: var(--ink-900);
       text-align: left;
       pointer-events: none;
@@ -719,9 +723,9 @@
     .map-node.is-active .map-node-label {
       padding: 12px 16px;
       border-radius: 18px;
-      background: rgba(22, 30, 49, 0.95);
-      border: 1px solid #38bdf8;
-      box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+      background: rgba(255, 255, 255, 0.98);
+      border: 1px solid rgba(122, 106, 70, 0.35);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.15);
     }
 
     .anchor-right .map-node-label {
@@ -754,19 +758,19 @@
     .segment-badge {
       position: absolute;
       transform: translate(-50%, -50%);
-      padding: 0;
-      background: transparent;
-      border: none;
-      box-shadow: none;
-      color: #fff;
-      font-size: 12pt;
-      font-weight: 800;
+      padding: 4px 8px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(122, 106, 70, 0.2);
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      color: #0f172a;
+      font-size: 11px;
+      font-weight: 700;
       line-height: 1.2;
       white-space: nowrap;
       pointer-events: none;
       text-align: center;
       font-family: var(--font-display);
-      text-shadow: 0 0 5px #000, 0 0 5px #000, 0 0 5px #000, 0 0 5px #000;
       transition: transform 0.15s ease;
     }
 
@@ -853,21 +857,19 @@
       height: 42px;
       border: 0;
       border-radius: 14px;
-      background: rgba(30, 41, 59, 0.8);
+      background: rgba(255, 255, 255, 0.96);
       color: var(--ink-900);
       font-size: 22px;
       cursor: pointer;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.1);
     }
 
     .summary-card {
       padding: 20px;
       max-height: calc(100vh - 162px);
       overflow: auto;
-      background: var(--surface);
-      backdrop-filter: blur(18px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.97);
+      border: 1px solid rgba(15, 23, 42, 0.08);
       border-radius: 32px;
     }
 
@@ -902,9 +904,9 @@
       gap: 10px;
       padding: 13px;
       border-radius: 20px;
-      background: linear-gradient(180deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.75));
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05), 0 6px 16px rgba(0, 0, 0, 0.2);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 244, 236, 0.9));
+      border: 1px solid rgba(226, 232, 240, 0.84);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72), 0 6px 16px rgba(15, 23, 42, 0.04);
     }
 
     .summary-block-title {
@@ -1522,8 +1524,8 @@
       const catchmentMetrics = window.ADN_CATCHMENT_METRICS || {};
       const TEMP_LEADER_NAME = "Nguyễn Văn A";
       const TEMP_LEADER_PHONE = "0912.xxx.xxx";
-      const TRACK_COLORS = ["#ff7a00", "#38bdf8", "#2dd4bf"];
-      const DAY_COLORS = ["#ff7a00", "#38bdf8", "#2dd4bf", "#c084fc", "#f87171"];
+      const TRACK_COLORS = ["#c2410c", "#1d4ed8", "#0f766e"];
+      const DAY_COLORS = ["#c2410c", "#1d4ed8", "#0f766e", "#6d28d9", "#b91c1c"];
       const STAGE_WIDTH = 1400;
       const STAGE_HEIGHT = 900;
       const directionTabsEl = document.getElementById("direction-tabs");
@@ -2625,7 +2627,13 @@
       }
 
       function buildSegmentBadgePosition(fromNode, toNode, segmentIndex = 0, isCatchment = false) {
-        const angleRad = Math.atan2(toNode.y - fromNode.y, toNode.x - fromNode.x);
+        const dx = toNode.x - fromNode.x;
+        const dy = toNode.y - fromNode.y;
+        const L = Math.sqrt(dx * dx + dy * dy) || 1;
+        const px = -dy / L;
+        const py = dx / L;
+
+        const angleRad = Math.atan2(dy, dx);
         let angleDeg = angleRad * (180 / Math.PI);
         if (angleDeg > 90 || angleDeg < -90) {
           angleDeg += 180;
@@ -2648,10 +2656,10 @@
           const w1 = 3 * mt * mt * t; // 0.238875
           const w2 = 3 * mt * t * t; // 0.443625
           const w3 = t * t * t; // 0.274625
- 
+  
           const bx = w0 * startX + w1 * controlX1 + w2 * controlX2 + w3 * endX;
           const by = w0 * startY + w1 * controlY1 + w2 * controlY2 + w3 * endY;
- 
+  
           // Compute exact Bezier tangent vector at t = 0.65
           const tangentX = 0.3675 * (controlX1 - startX) + 1.365 * (controlX2 - controlX1) + 1.2675 * (endX - controlX2);
           const tangentY = 0.3675 * (controlY1 - startY) + 1.365 * (controlY2 - controlY1) + 1.2675 * (endY - controlY2);
@@ -2661,15 +2669,22 @@
             tangentAngleDeg += 180;
           }
 
+          // Perpendicular offset for catchment Bezier curves
+          const tangentL = Math.sqrt(tangentX * tangentX + tangentY * tangentY) || 1;
+          const cpx = -tangentY / tangentL;
+          const cpy = tangentX / tangentL;
+          const offset = -18;
+
           return {
-            x: bx,
-            y: by,
+            x: bx + offset * cpx,
+            y: by + offset * cpy,
             angle: tangentAngleDeg
           };
         }
 
-        const midX = (fromNode.x + toNode.x) / 2;
-        const midY = (fromNode.y + toNode.y) / 2;
+        const offset = -18;
+        const midX = (fromNode.x + toNode.x) / 2 + offset * px;
+        const midY = (fromNode.y + toNode.y) / 2 + offset * py;
         
         return {
           x: midX,
@@ -3022,7 +3037,7 @@
               stroke="${baseColor}"
               stroke-width="${isCatchment ? 3 : 6}"
               opacity="${isCatchment ? 0.72 : 1}"
-              ${isActiveRoute ? `style="filter: drop-shadow(0 0 5px ${baseColor}) drop-shadow(0 0 10px ${baseColor});"` : ""}
+              ${isActiveRoute ? 'style="filter: drop-shadow(0 4px 6px rgba(15, 23, 42, 0.12));"' : ""}
             ></path>
           `;
         }).join("");
