@@ -1567,7 +1567,8 @@
         },
         summaryOpen: false,
         shouldAutoFit: true,
-        customRoutePoints: {}
+        customRoutePoints: {},
+        editingCustomPointKey: null
       };
 
       const forecastCache = new Map();
@@ -3622,27 +3623,56 @@
       }
 
       function buildCustomPointFormHtml() {
+        const isEditing = !!state.editingCustomPointKey;
+        let editName = "";
+        let editPhone = "";
+        let editCoords = "";
+        
+        if (isEditing) {
+          let foundPoint = null;
+          for (const rId in state.customRoutePoints) {
+            const list = state.customRoutePoints[rId] || [];
+            const p = list.find(item => item.key === state.editingCustomPointKey);
+            if (p) {
+              foundPoint = p;
+              break;
+            }
+          }
+          if (foundPoint) {
+            editName = foundPoint.name;
+            editPhone = foundPoint.phone || "";
+            editCoords = `${foundPoint.lat}, ${foundPoint.lng}`;
+          }
+        }
+
         return `
           <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
           <div style="margin-top: 24px; padding: 16px; background: rgba(37, 99, 235, 0.04); border: 1px solid rgba(37, 99, 235, 0.15); border-radius: 16px;">
             <h3 style="margin: 0 0 12px 0; font-size: calc(14px * var(--drawer-scale)); font-weight: 800; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px;">
-              ➕ Bổ Sung Vị Trí Thân Nhân
+              ${isEditing ? "✏️ Cập Nhật Vị Trí Thân Nhân" : "➕ Bổ Sung Vị Trí Thân Nhân"}
             </h3>
             <div style="margin-bottom: 10px;">
               <label style="display: block; font-weight: 700; color: #475569; margin-bottom: 4px; font-size: calc(12px * var(--drawer-scale));">Tên thân nhân:</label>
-              <input type="text" id="custom-point-name" placeholder="Ví dụ: Nguyễn Văn A" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); outline: none; background: #fff;" />
+              <input type="text" id="custom-point-name" value="${escapeHtml(editName)}" placeholder="Ví dụ: Nguyễn Văn A" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); outline: none; background: #fff;" />
             </div>
             <div style="margin-bottom: 10px;">
               <label style="display: block; font-weight: 700; color: #475569; margin-bottom: 4px; font-size: calc(12px * var(--drawer-scale));">Số điện thoại (Không bắt buộc):</label>
-              <input type="text" id="custom-point-phone" placeholder="Ví dụ: 0912.xxx.xxx" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); outline: none; background: #fff;" />
+              <input type="text" id="custom-point-phone" value="${escapeHtml(editPhone)}" placeholder="Ví dụ: 0912.xxx.xxx" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); outline: none; background: #fff;" />
             </div>
             <div style="margin-bottom: 12px;">
               <label style="display: block; font-weight: 700; color: #475569; margin-bottom: 4px; font-size: calc(12px * var(--drawer-scale));">Tọa độ Google Maps:</label>
-              <input type="text" id="custom-point-coords" placeholder="Ví dụ: 21.7824, 105.2135" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); outline: none; background: #fff;" />
+              <input type="text" id="custom-point-coords" value="${escapeHtml(editCoords)}" placeholder="Ví dụ: 21.7824, 105.2135" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); outline: none; background: #fff;" />
             </div>
-            <button id="add-custom-point-btn" style="width: 100%; padding: 10px; background: #2563eb; color: #fff; font-weight: 800; border: none; border-radius: 8px; cursor: pointer; font-size: calc(13px * var(--drawer-scale)); transition: background 0.15s ease; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);">
-              Thêm & Tính Toán Lộ Trình
-            </button>
+            <div style="display: flex; gap: 8px;">
+              <button id="add-custom-point-btn" style="flex: 1; padding: 10px; background: ${isEditing ? '#d97706' : '#2563eb'}; color: #fff; font-weight: 800; border: none; border-radius: 8px; cursor: pointer; font-size: calc(13px * var(--drawer-scale)); transition: background 0.15s ease; box-shadow: 0 4px 12px ${isEditing ? 'rgba(217, 119, 6, 0.2)' : 'rgba(37, 99, 235, 0.2)'};">
+                ${isEditing ? "Cập Nhật Lộ Trình" : "Thêm & Tính Toán Lộ Trình"}
+              </button>
+              ${isEditing ? `
+              <button id="cancel-edit-btn" style="padding: 10px 14px; background: #64748b; color: #fff; font-weight: 800; border: none; border-radius: 8px; cursor: pointer; font-size: calc(13px * var(--drawer-scale)); transition: background 0.15s ease;">
+                Hủy
+              </button>
+              ` : ""}
+            </div>
           </div>
         `;
       }
@@ -3678,17 +3708,20 @@
                 ${satellites.map(sat => {
                   const cpMetric = getMetric(node, sat);
                   const cpMetricText = cpMetric ? `${formatNumber(cpMetric.distance_km)}km - ${formatNumber(cpMetric.travel_minutes)}p` : "";
-                  const phoneText = sat.phone ? ` - 📞 SĐT: ${escapeHtml(sat.phone)}` : "";
+                  const phoneText = sat.phone ? ` - SĐT: ${escapeHtml(sat.phone)}` : "";
                   return `
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #ffffff; border: 1px solid rgba(226,232,240,0.8); border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); margin-bottom: 6px;">
                       <div>
                         <strong style="color: #1e3a8a;">${escapeHtml(sat.name)}</strong>
-                        <small style="color: #64748b; font-size: calc(11px * var(--drawer-scale)); display: block; margin-top: 2px;">🚗 ${cpMetricText}${phoneText}</small>
+                        <small style="color: #64748b; font-size: calc(11px * var(--drawer-scale)); display: block; margin-top: 2px;">${cpMetricText}${phoneText}</small>
                       </div>
                       <div style="display: flex; gap: 6px; align-items: center;">
                         <a href="https://www.google.com/maps/dir/?api=1&origin=${node.lat},${node.lng}&destination=${sat.lat},${sat.lng}" target="_blank" style="padding: 4px 8px; font-size: 11px; background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 6px; text-decoration: none; font-weight: 700; color: #475569; transition: background 0.15s; display: inline-flex; align-items: center;">
-                          Xem bản đồ
+                          Chỉ đường
                         </a>
+                        <button class="edit-satellite-btn" data-sat-key="${sat.key}" data-sat-name="${escapeHtml(sat.name)}" data-sat-phone="${escapeHtml(sat.phone || '')}" data-sat-coords="${sat.lat}, ${sat.lng}" style="padding: 4px 8px; font-size: 13px; background: #fef3c7; border: 1px solid #fde68a; border-radius: 6px; cursor: pointer; color: #d97706; transition: background 0.15s; display: inline-flex; align-items: center; justify-content: center;" title="Sửa điểm này">
+                          ✏️
+                        </button>
                         <button class="delete-satellite-btn" data-sat-key="${sat.key}" data-sat-name="${escapeHtml(sat.name)}" style="padding: 4px 8px; font-size: 13px; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 6px; cursor: pointer; color: #dc2626; transition: background 0.15s; display: inline-flex; align-items: center; justify-content: center;" title="Xóa điểm này">
                           🗑️
                         </button>
@@ -4045,9 +4078,11 @@
               state.customRoutePoints[routeId] = [];
             }
             
-            const customKey = buildNodeKey(nameStr, lat, lng);
+            const isEditing = !!state.editingCustomPointKey;
+            const targetKey = isEditing ? state.editingCustomPointKey : buildNodeKey(nameStr, lat, lng);
+            
             const customPoint = {
-              key: customKey,
+              key: targetKey,
               name: nameStr,
               phone: phoneStr,
               lat: lat,
@@ -4058,7 +4093,20 @@
               parentKey: state.activeNodeKey
             };
             
-            state.customRoutePoints[routeId].push(customPoint);
+            if (isEditing) {
+              const list = state.customRoutePoints[routeId] || [];
+              const idx = list.findIndex(p => p.key === targetKey);
+              if (idx !== -1) {
+                list[idx] = customPoint;
+              }
+              state.editingCustomPointKey = null;
+            } else {
+              if (state.customRoutePoints[routeId].some(p => p.key === targetKey)) {
+                alert("Tên thân nhân và tọa độ này đã tồn tại!");
+                return;
+              }
+              state.customRoutePoints[routeId].push(customPoint);
+            }
             state.shouldAutoFit = true;
             
             // Persist to server database
@@ -4067,7 +4115,7 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 route_id: routeId,
-                key: customKey,
+                key: targetKey,
                 name: nameStr,
                 phone: phoneStr,
                 lat: lat,
@@ -4081,7 +4129,7 @@
             if (phoneEl) phoneEl.value = "";
             if (coordsEl) coordsEl.value = "";
             
-            alert(`Đã thêm vị trí "${nameStr}" thành công và tính lại lộ trình!`);
+            alert(isEditing ? `Đã cập nhật vị trí thân nhân "${nameStr}" thành công!` : `Đã thêm vị trí "${nameStr}" thành công và tính lại lộ trình!`);
             render();
           });
         }
@@ -4124,6 +4172,36 @@
             }
           });
         });
+
+        // Dynamic Satellite node edit handler from list
+        summaryPanelEl.querySelectorAll(".edit-satellite-btn").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const satKey = btn.getAttribute("data-sat-key");
+            
+            // Set editing state
+            state.editingCustomPointKey = satKey;
+            
+            // Re-render immediately to show populate form and updated header/buttons
+            render();
+            
+            // Scroll form into view
+            setTimeout(() => {
+              document.getElementById("custom-point-name")?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 50);
+          });
+        });
+
+        // Dynamic Edit Cancellation handler
+        const cancelBtn = document.getElementById("cancel-edit-btn");
+        if (cancelBtn) {
+          cancelBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            state.editingCustomPointKey = null;
+            render();
+          });
+        }
 
         // Dynamic Custom Location deletion handler from detail panel
         const deleteBtn = document.getElementById("delete-custom-point-btn");
