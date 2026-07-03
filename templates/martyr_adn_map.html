@@ -3799,20 +3799,7 @@
           : `Trạm ${node.name}`;
         let hubSubtitle = `Điểm tập kết cố định thu mẫu ADN`;
         if (isLuuDong) {
-          const direction = getSelectedDirection();
-          const routes = buildRoutes(direction);
-          const route = routes.find(r => r.id === (state.activeRouteId || firstOccurrence.routeId));
-          if (route && route.points) {
-            const uniqueNames = [];
-            route.points.forEach(p => {
-              if (p.name && !uniqueNames.includes(p.name)) {
-                uniqueNames.push(p.name);
-              }
-            });
-            hubSubtitle = uniqueNames.join(", ");
-          } else {
-            hubSubtitle = `Tổ ${firstOccurrence.trackTitle || routeLabel} – Di chuyển lưu động thu mẫu ADN`;
-          }
+          hubSubtitle = node.name;
         }
 
         return `
