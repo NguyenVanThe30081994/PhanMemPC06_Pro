@@ -542,6 +542,13 @@
       }
     }
 
+    .collapsible-satellites summary::-webkit-details-marker {
+      display: none;
+    }
+    .collapsible-satellites[open] summary .chevron {
+      transform: rotate(180deg);
+    }
+
 
     .route-path.is-active {
       opacity: 1;
@@ -3656,14 +3663,19 @@
         if (satellites.length > 0) {
           satellitesHtml = `
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
-            <div style="margin-bottom: 20px;">
-              <h3 style="margin: 0 0 10px 0; font-size: calc(14px * var(--drawer-scale)); font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">🛰️ Các Vệ Tinh Lưu Động</h3>
-              <div style="display: flex; flex-direction: column; gap: 8px;">
+            <details class="collapsible-satellites" open style="border: 1px solid rgba(37, 99, 235, 0.15); border-radius: 12px; background: rgba(37, 99, 235, 0.02); overflow: hidden; margin-bottom: 20px;">
+              <summary style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; font-weight: 800; color: #1e3a8a; cursor: pointer; user-select: none; outline: none; font-size: calc(13.5px * var(--drawer-scale)); background: rgba(37, 99, 235, 0.05); list-style: none;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                  🛰️ Vệ Tinh Lưu Động (${satellites.length})
+                </span>
+                <span class="chevron" style="font-size: 11px; transition: transform 0.2s ease;">▼</span>
+              </summary>
+              <div style="padding: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto;">
                 ${satellites.map(sat => {
                   const cpMetric = getMetric(node, sat);
                   const cpMetricText = cpMetric ? `${formatNumber(cpMetric.distance_km)}km - ${formatNumber(cpMetric.travel_minutes)}p` : "";
                   return `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(37,99,235,0.03); border: 1px solid rgba(37,99,235,0.1); border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); margin-bottom: 6px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #ffffff; border: 1px solid rgba(226,232,240,0.8); border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); margin-bottom: 6px;">
                       <div>
                         <strong style="color: #1e3a8a;">Xã ${escapeHtml(sat.name)}</strong>
                         <small style="color: #64748b; font-size: calc(11px * var(--drawer-scale)); display: block; margin-top: 2px;">🚗 ${cpMetricText}</small>
@@ -3680,7 +3692,7 @@
                   `;
                 }).join("")}
               </div>
-            </div>
+            </details>
           `;
         }
 
