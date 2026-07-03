@@ -6,22 +6,22 @@
   <title>{{ page_title or 'Bản đồ ADN liệt sĩ - PhanMemPC06_Pro' }}</title>
   <style>
     :root {
-      color-scheme: light;
-      --bg-cream: #f4efe4;
-      --surface: rgba(255, 255, 255, 0.92);
-      --surface-strong: rgba(255, 255, 255, 0.98);
-      --ink-900: #1f2937;
-      --ink-700: #475569;
-      --ink-500: #64748b;
+      color-scheme: dark;
+      --bg-cream: #090d16;
+      --surface: rgba(22, 30, 49, 0.75);
+      --surface-strong: rgba(15, 23, 42, 0.95);
+      --ink-900: #f8fafc;
+      --ink-700: #cbd5e1;
+      --ink-500: #94a3b8;
       --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
       --font-display: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-      --shadow-soft: 0 22px 54px rgba(63, 46, 18, 0.1);
-      --shadow-card: 0 14px 32px rgba(15, 23, 42, 0.1);
-      --day-1: #c4661f;
-      --day-2: #325fd8;
-      --day-3: #167b73;
-      --day-4: #7c3aed;
-      --day-5: #dc2626;
+      --shadow-soft: 0 20px 40px rgba(0, 0, 0, 0.5);
+      --shadow-card: 0 10px 20px rgba(0, 0, 0, 0.4);
+      --day-1: #ff7a00;
+      --day-2: #38bdf8;
+      --day-3: #2dd4bf;
+      --day-4: #c084fc;
+      --day-5: #f87171;
     }
 
     * {
@@ -37,11 +37,7 @@
     body {
       font-family: var(--font-sans);
       color: var(--ink-900);
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(244, 239, 228, 0.95)),
-        radial-gradient(circle at top left, rgba(113, 148, 122, 0.18), transparent 35%),
-        radial-gradient(circle at top right, rgba(196, 102, 31, 0.11), transparent 28%),
-        var(--bg-cream);
+      background: linear-gradient(135deg, #090d16 0%, #030712 100%);
       overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
@@ -61,10 +57,10 @@
       inset: 0;
       pointer-events: none;
       background-image:
-        linear-gradient(rgba(122, 106, 70, 0.08) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(122, 106, 70, 0.08) 1px, transparent 1px);
-      background-size: 76px 76px;
-      opacity: 0.22;
+        linear-gradient(rgba(56, 189, 248, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, 0.03) 1px, transparent 1px);
+      background-size: 80px 80px;
+      opacity: 1;
     }
 
     .pc06-home-link {
@@ -106,7 +102,7 @@
     .summary-card {
       background: var(--surface);
       backdrop-filter: blur(18px);
-      border: 1px solid rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 32px;
       box-shadow: var(--shadow-soft);
     }
@@ -119,9 +115,9 @@
       gap: 8px;
       padding: 7px 12px;
       border-radius: 999px;
-      background: rgba(154, 95, 29, 0.1);
-      color: #9a5f1d;
-      font-size: 12px;
+      background: rgba(249, 115, 22, 0.15);
+      color: #ff7a00;
+      font-size: 14px;
       font-weight: 800;
       letter-spacing: 0.09em;
       text-transform: uppercase;
@@ -133,7 +129,7 @@
       align-items: center;
       gap: 8px;
       padding: 9px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 244, 236, 0.9));
+      background: linear-gradient(180deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
     }
 
     #direction-tabs,
@@ -146,6 +142,8 @@
 
     .segmented-button,
     .day-chip {
+    .day-chip,
+    .segmented-button {
       border: 0;
       border-radius: 18px;
       font: inherit;
@@ -154,31 +152,37 @@
     }
 
     .day-chip {
-      padding: 10px 14px;
-      background: rgba(255, 255, 255, 0.84);
+      padding: 12px 20px;
+      background: rgba(30, 41, 59, 0.6);
       color: var(--ink-700);
-      font-size: 11px;
+      font-size: 14pt;
       font-weight: 800;
       letter-spacing: 0.02em;
-      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.2);
+    }
+
+    .day-chip.is-active {
+      color: #fff;
+      background: linear-gradient(135deg, #ff7a00, #ea580c);
+      border: 1px solid rgba(255, 122, 0, 0.5);
+      box-shadow: 0 0 15px rgba(255, 122, 0, 0.4);
     }
 
     .segmented-button {
       min-width: auto;
-      padding: 10px 20px;
+      padding: 12px 24px;
       background: transparent;
       color: var(--ink-700);
       text-align: center;
       border-radius: 20px;
-    }
-
-    .segmented-button strong,
-    .segmented-button span {
-      display: block;
+      font-size: 14pt;
+      font-weight: 800;
+      border: 1px solid transparent;
     }
 
     .segmented-button strong {
-      font-size: 14px;
+      font-size: 14pt;
       font-family: var(--font-display);
     }
 
@@ -187,33 +191,18 @@
     }
 
     .segmented-button.is-active {
-      background: rgba(255, 255, 255, 0.98);
+      background: rgba(56, 189, 248, 0.15);
       color: var(--ink-900);
-      box-shadow: inset 0 0 0 1px rgba(196, 102, 31, 0.18), 0 12px 24px rgba(148, 95, 43, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
       transform: translateY(-1px);
     }
 
     .day-filter {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 10px;
       align-items: center;
-    }
-
-    .day-chip {
-      padding: 10px 14px;
-      background: rgba(255, 255, 255, 0.84);
-      color: var(--ink-700);
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.02em;
-      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
-    }
-
-    .day-chip.is-active {
-      color: #fff;
-      background: linear-gradient(135deg, rgba(196, 102, 31, 0.98), rgba(154, 95, 29, 0.96));
-      box-shadow: 0 18px 30px rgba(196, 102, 31, 0.24);
     }
 
     .workspace {
@@ -231,24 +220,22 @@
       border-radius: 28px;
       overflow: hidden;
       user-select: none;
-      background:
-        linear-gradient(rgba(255, 255, 255, 0.91), rgba(253, 251, 247, 0.93)),
-        url("{{ url_for('static', filename='img/bg_le_phat_dong.jpg') }}") no-repeat center center / cover;
-      border: 1px solid rgba(226, 232, 240, 0.74);
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+      background: #060913;
+      border: 1px solid rgba(56, 189, 248, 0.15);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
       isolation: isolate;
     }
 
     .map-header-title {
-      font-size: 14.5px;
+      font-size: 14pt;
       font-weight: 800;
-      color: #b91c1c; /* Dark red */
+      color: #38bdf8; /* Cyan */
       letter-spacing: 0.05em;
-      background: rgba(255, 255, 255, 0.95);
-      padding: 10px 18px;
+      background: rgba(15, 23, 42, 0.85);
+      padding: 12px 20px;
       border-radius: 14px;
-      border: 1px solid rgba(239, 68, 68, 0.25);
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
       font-family: var(--font-display);
       text-transform: uppercase;
       width: fit-content;
@@ -260,7 +247,7 @@
     }
     .map-header-title::before {
       content: "🛡️";
-      font-size: 16px;
+      font-size: 18px;
     }
 
     .map-stage.is-reference-mode {
@@ -277,11 +264,11 @@
       width: 248px;
       max-height: calc(100% - 148px);
       overflow-y: auto;
-      background: rgba(255, 255, 255, 0.97);
+      background: rgba(22, 30, 49, 0.85);
       backdrop-filter: blur(14px);
-      border: 1px solid rgba(226, 232, 240, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 20px;
-      box-shadow: 0 10px 36px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.06);
+      box-shadow: 0 10px 36px rgba(0, 0, 0, 0.5);
       padding: 12px 10px;
       display: none;
       flex-direction: column;
@@ -291,13 +278,13 @@
       display: flex;
     }
     .hub-sidebar-head {
-      font-size: 11px;
+      font-size: 13px;
       font-weight: 800;
       letter-spacing: 0.1em;
       text-transform: uppercase;
       color: #94a3b8;
       padding: 6px 12px 8px;
-      border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       margin-bottom: 4px;
       font-family: var(--font-display);
     }
@@ -316,11 +303,11 @@
       font-family: var(--font-body, inherit);
     }
     .hub-sidebar-item:hover {
-      background: rgba(196, 102, 31, 0.07);
+      background: rgba(255, 122, 0, 0.15);
     }
     .hub-sidebar-item.is-active {
-      background: linear-gradient(135deg, rgba(196, 102, 31, 0.12), rgba(234, 179, 8, 0.08));
-      border: 1px solid rgba(196, 102, 31, 0.2);
+      background: linear-gradient(135deg, rgba(255, 122, 0, 0.25), rgba(234, 179, 8, 0.15));
+      border: 1px solid rgba(255, 122, 0, 0.45);
     }
     .hub-sidebar-dot {
       flex-shrink: 0;
@@ -336,9 +323,9 @@
     }
     .hub-sidebar-name {
       display: block;
-      font-size: 14px;
+      font-size: 16px;
       font-weight: 700;
-      color: #1e293b;
+      color: #f8fafc;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -346,8 +333,8 @@
     }
     .hub-sidebar-sub {
       display: block;
-      font-size: 12px;
-      color: #64748b;
+      font-size: 14px;
+      color: #cbd5e1;
       margin-top: 2px;
     }
 
@@ -357,10 +344,10 @@
       inset: 0;
       pointer-events: none;
       background-image:
-        linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
-      background-size: 86px 86px;
-      opacity: 0.46;
+        linear-gradient(rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
+      background-size: 80px 80px;
+      opacity: 1;
     }
 
     .map-stage.is-grabbing {
@@ -656,28 +643,29 @@
       height: var(--node-size);
       border-radius: 50%;
       background: var(--node-color);
-      border: 4px solid rgba(255, 255, 255, 0.96);
+      border: 3px solid #fff;
       box-shadow:
-        0 0 0 6px rgba(255, 255, 255, 0.24),
-        0 18px 34px rgba(15, 23, 42, 0.2);
+        0 0 0 4px rgba(255, 255, 255, 0.2),
+        0 0 12px var(--node-color),
+        0 10px 20px rgba(0, 0, 0, 0.4);
     }
 
     .map-node.is-active .map-node-dot {
       box-shadow:
-        0 0 0 7px rgba(255, 255, 255, 0.34),
-        0 0 0 15px rgba(196, 102, 31, 0.16),
-        0 22px 42px rgba(15, 23, 42, 0.28);
+        0 0 0 5px rgba(255, 255, 255, 0.4),
+        0 0 20px var(--node-color),
+        0 0 40px var(--node-color);
     }
 
     .map-node-label {
       position: absolute;
       min-width: max-content;
-      max-width: 210px;
-      padding: 7px 10px;
+      max-width: 250px;
+      padding: 10px 14px;
       border-radius: 16px;
-      background: rgba(255, 255, 255, 0.88);
-      border: 1px solid rgba(226, 232, 240, 0.78);
-      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.07);
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.4);
       color: var(--ink-900);
       text-align: left;
       pointer-events: none;
@@ -691,23 +679,24 @@
     }
 
     .map-node-label strong {
-      font-size: 14px;
+      font-size: 14pt;
       line-height: 1.14;
       letter-spacing: -0.02em;
       font-family: var(--font-display);
+      font-weight: 800;
     }
 
     .map-node-label span {
-      margin-top: 3px;
+      margin-top: 4px;
       color: var(--ink-700);
-      font-size: 11px;
+      font-size: 12pt;
       font-weight: 900;
     }
 
     .map-node-label small {
-      margin-top: 5px;
+      margin-top: 6px;
       color: var(--ink-500);
-      font-size: 10px;
+      font-size: 11pt;
       font-weight: 700;
       line-height: 1.35;
     }
@@ -717,24 +706,24 @@
     }
 
     .map-node.is-area-node .map-node-label {
-      padding: 5px 8px;
-      max-width: 160px;
+      padding: 6px 10px;
+      max-width: 220px;
     }
 
     .map-node.is-area-node .map-node-label strong {
-      font-size: 12px;
+      font-size: 12pt;
     }
 
     .map-node.is-area-node .map-node-label span {
-      font-size: 10px;
+      font-size: 11pt;
     }
 
     .map-node.is-active .map-node-label {
-      padding: 8px 11px;
+      padding: 12px 16px;
       border-radius: 18px;
-      background: rgba(255, 255, 255, 0.98);
-      border: 1px solid rgba(226, 232, 240, 0.84);
-      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+      background: rgba(22, 30, 49, 0.95);
+      border: 1px solid #38bdf8;
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
     }
 
     .anchor-right .map-node-label {
@@ -771,15 +760,15 @@
       background: transparent;
       border: none;
       box-shadow: none;
-      color: #0f172a;
-      font-size: 11px;
-      font-weight: 700;
+      color: #fff;
+      font-size: 12pt;
+      font-weight: 800;
       line-height: 1.2;
       white-space: nowrap;
       pointer-events: none;
       text-align: center;
       font-family: var(--font-display);
-      text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;
+      text-shadow: 0 0 5px #000, 0 0 5px #000, 0 0 5px #000, 0 0 5px #000;
       transition: transform 0.15s ease;
     }
 
@@ -813,16 +802,41 @@
       top: 86px;
       right: 20px;
       z-index: 22;
-      width: min(432px, calc(100vw - 28px));
+      width: min(var(--summary-width, 432px), calc(100vw - 28px));
       max-height: calc(100vh - 108px);
       transform: translateX(calc(100% + 24px));
       transition: transform 0.22s ease;
       pointer-events: none;
+      --drawer-scale: 1.1;
     }
 
     .summary-drawer.is-open {
       transform: translateX(0);
       pointer-events: auto;
+    }
+
+    .summary-resize-handle {
+      position: absolute;
+      top: 54px;
+      left: -10px;
+      bottom: 14px;
+      width: 18px;
+      cursor: ew-resize;
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .summary-resize-handle::before {
+      content: "";
+      width: 6px;
+      height: 68px;
+      border-radius: 999px;
+      background:
+        linear-gradient(180deg, rgba(196, 102, 31, 0.16), rgba(51, 95, 216, 0.18));
+      border: 1px solid rgba(226, 232, 240, 0.88);
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
     }
 
     .summary-drawer-shell {
@@ -841,18 +855,22 @@
       height: 42px;
       border: 0;
       border-radius: 14px;
-      background: rgba(255, 255, 255, 0.96);
+      background: rgba(30, 41, 59, 0.8);
       color: var(--ink-900);
       font-size: 22px;
       cursor: pointer;
-      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.3);
     }
 
     .summary-card {
       padding: 20px;
       max-height: calc(100vh - 162px);
       overflow: auto;
-      background: rgba(255, 255, 255, 0.97);
+      background: var(--surface);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 32px;
     }
 
     .summary-head {
@@ -886,9 +904,9 @@
       gap: 10px;
       padding: 13px;
       border-radius: 20px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 244, 236, 0.9));
-      border: 1px solid rgba(226, 232, 240, 0.84);
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72), 0 6px 16px rgba(15, 23, 42, 0.04);
+      background: linear-gradient(180deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.75));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05), 0 6px 16px rgba(0, 0, 0, 0.2);
     }
 
     .summary-block-title {
@@ -959,7 +977,7 @@
     }
 
     .route-item strong {
-      font-size: 14px;
+      font-size: calc(14px * var(--drawer-scale));
       line-height: 1.3;
       font-family: var(--font-display);
     }
@@ -967,7 +985,7 @@
     .route-item span {
       margin-top: 4px;
       color: var(--ink-700);
-      font-size: 12px;
+      font-size: calc(12px * var(--drawer-scale));
       font-weight: 800;
       line-height: 1.45;
     }
@@ -975,7 +993,7 @@
     .route-item small {
       margin-top: 4px;
       color: var(--ink-500);
-      font-size: 12px;
+      font-size: calc(11.5px * var(--drawer-scale));
       line-height: 1.45;
     }
 
@@ -994,7 +1012,7 @@
     }
 
     .detail-card strong {
-      font-size: 17px;
+      font-size: calc(17px * var(--drawer-scale));
       line-height: 1.2;
       font-family: var(--font-display);
     }
@@ -1002,7 +1020,7 @@
     .detail-card span {
       margin-top: 5px;
       color: var(--ink-700);
-      font-size: 13px;
+      font-size: calc(13px * var(--drawer-scale));
       font-weight: 700;
       line-height: 1.5;
     }
@@ -1010,7 +1028,7 @@
     .detail-card small {
       margin-top: 6px;
       color: var(--ink-500);
-      font-size: 12px;
+      font-size: calc(12px * var(--drawer-scale));
       line-height: 1.45;
     }
 
@@ -1043,7 +1061,7 @@
 
     .detail-row span {
       color: var(--ink-700);
-      font-size: 13px;
+      font-size: calc(13.5px * var(--drawer-scale));
       font-weight: 700;
       line-height: 1.45;
     }
@@ -1056,7 +1074,7 @@
     .detail-row-copy small {
       margin-top: 3px;
       color: var(--ink-500);
-      font-size: 12px;
+      font-size: calc(12.5px * var(--drawer-scale));
       line-height: 1.4;
     }
 
@@ -1155,7 +1173,7 @@
     }
 
     .detail-row strong {
-      font-size: 14px;
+      font-size: calc(14.5px * var(--drawer-scale));
     }
 
     .detail-row-note {
@@ -1165,7 +1183,7 @@
     .detail-row-note strong {
       max-width: 68%;
       color: var(--ink-700);
-      font-size: 13px;
+      font-size: calc(13.5px * var(--drawer-scale));
       line-height: 1.45;
       text-align: right;
     }
@@ -1211,14 +1229,14 @@
     }
 
     .detail-day-head strong {
-      font-size: 14px;
+      font-size: calc(14.5px * var(--drawer-scale));
       line-height: 1.35;
     }
 
     .detail-day-head small {
       margin-top: 4px;
       color: var(--ink-500);
-      font-size: 12px;
+      font-size: calc(12.5px * var(--drawer-scale));
       line-height: 1.5;
     }
 
@@ -1228,7 +1246,7 @@
       border-radius: 999px;
       background: rgba(196, 102, 31, 0.12);
       color: #9a5f1d;
-      font-size: 12px;
+      font-size: calc(12.5px * var(--drawer-scale));
       font-weight: 900;
       white-space: nowrap;
     }
@@ -1259,7 +1277,7 @@
       background: rgba(241, 245, 249, 0.92);
       color: var(--ink-600, #475569);
       font: inherit;
-      font-size: 12px;
+      font-size: calc(12.5px * var(--drawer-scale));
       font-weight: 900;
       letter-spacing: 0.02em;
       cursor: pointer;
@@ -1301,7 +1319,7 @@
 
     .detail-copy-label {
       color: var(--ink-500);
-      font-size: 11px;
+      font-size: calc(11px * var(--drawer-scale));
       font-weight: 900;
       letter-spacing: 0.06em;
       text-transform: uppercase;
@@ -1310,7 +1328,7 @@
     .detail-copy-value {
       margin: 0;
       color: var(--ink-800, #334155);
-      font-size: 13px;
+      font-size: calc(13.5px * var(--drawer-scale));
       font-weight: 700;
       line-height: 1.65;
       white-space: pre-line;
@@ -1370,6 +1388,10 @@
         top: 78px;
         right: 14px;
         width: min(388px, calc(100vw - 20px));
+      }
+
+      .summary-resize-handle {
+        display: none;
       }
     }
 
@@ -1482,6 +1504,7 @@
       </div>
     </section>
     <aside class="summary-drawer" id="summary-drawer">
+      <div class="summary-resize-handle" id="summary-resize-handle" aria-hidden="true"></div>
       <div class="summary-drawer-shell">
         <div class="summary-drawer-head">
           <button type="button" class="summary-close" id="summary-close" aria-label="Đóng thông tin">×</button>
@@ -1501,8 +1524,8 @@
       const catchmentMetrics = window.ADN_CATCHMENT_METRICS || {};
       const TEMP_LEADER_NAME = "Nguyễn Văn A";
       const TEMP_LEADER_PHONE = "0912.xxx.xxx";
-      const TRACK_COLORS = ["#c4661f", "#325fd8", "#167b73"];
-      const DAY_COLORS = ["#c4661f", "#325fd8", "#167b73", "#7c3aed", "#dc2626"];
+      const TRACK_COLORS = ["#ff7a00", "#38bdf8", "#2dd4bf"];
+      const DAY_COLORS = ["#ff7a00", "#38bdf8", "#2dd4bf", "#c084fc", "#f87171"];
       const STAGE_WIDTH = 1400;
       const STAGE_HEIGHT = 900;
       const directionTabsEl = document.getElementById("direction-tabs");
@@ -1522,12 +1545,14 @@
       const summaryDrawerEl = document.getElementById("summary-drawer");
       const summaryToggleEl = document.getElementById("summary-toggle");
       const summaryCloseEl = document.getElementById("summary-close");
+      const summaryResizeHandleEl = document.getElementById("summary-resize-handle");
 
       const state = {
         directionId: data.directions[0].id,
         dayIndex: null,
         activeRouteId: null,
         activeNodeKey: null,
+        summaryWidth: 432,
         viewport: {
           scale: 1,
           translateX: 0,
@@ -1543,14 +1568,32 @@
       const enviroDetailCache = new Map();
       const interactionState = {
         isDragging: false,
+        isResizingSummary: false,
         startX: 0,
         startY: 0,
+        summaryStartWidth: 432,
         translateX: 0,
         translateY: 0
       };
 
+      function clampValue(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
       function formatNumber(value) {
         return new Intl.NumberFormat("vi-VN").format(Number(value || 0));
+      }
+
+      function updateSummaryDrawerMetrics(widthOverride) {
+        const width = clampValue(
+          Number(widthOverride || state.summaryWidth || 432),
+          360,
+          Math.min(680, window.innerWidth - 28)
+        );
+        state.summaryWidth = width;
+        summaryDrawerEl.style.setProperty("--summary-width", `${width}px`);
+        const scale = clampValue((width / 392) * 1.35, 1.4, 1.7);
+        summaryDrawerEl.style.setProperty("--drawer-scale", scale.toFixed(3));
       }
 
       function toIsoDate(dateLabel) {
@@ -2809,7 +2852,7 @@
         }, { passive: false });
  
         mapStageEl.addEventListener("pointerdown", (event) => {
-          if (event.target.closest(".map-node") || event.target.closest(".map-toolbar")) {
+          if (event.target.closest(".map-node") || event.target.closest(".map-toolbar") || interactionState.isResizingSummary) {
             return;
           }
           interactionState.isDragging = true;
@@ -2822,6 +2865,11 @@
         });
  
         window.addEventListener("pointermove", (event) => {
+          if (interactionState.isResizingSummary) {
+            const delta = interactionState.startX - event.clientX;
+            updateSummaryDrawerMetrics(interactionState.summaryStartWidth + delta);
+            return;
+          }
           if (!interactionState.isDragging) {
             return;
           }
@@ -2836,6 +2884,7 @@
         });
  
         window.addEventListener("pointerup", () => {
+          interactionState.isResizingSummary = false;
           interactionState.isDragging = false;
           mapStageEl.classList.remove("is-grabbing");
         });
@@ -2857,6 +2906,22 @@
           state.summaryOpen = false;
           summaryDrawerEl.classList.remove("is-open");
         });
+
+        if (summaryResizeHandleEl) {
+          summaryResizeHandleEl.addEventListener("pointerdown", (event) => {
+            if (window.innerWidth <= 1080) {
+              return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            interactionState.isResizingSummary = true;
+            interactionState.startX = event.clientX;
+            interactionState.summaryStartWidth = state.summaryWidth;
+          });
+        }
+
+        updateSummaryDrawerMetrics(state.summaryWidth);
+        window.addEventListener("resize", () => updateSummaryDrawerMetrics(state.summaryWidth));
       }
 
       function labelAnchor(node, positions) {
@@ -2959,6 +3024,7 @@
               stroke="${baseColor}"
               stroke-width="${isCatchment ? 3 : 6}"
               opacity="${isCatchment ? 0.72 : 1}"
+              ${isActiveRoute ? `style="filter: drop-shadow(0 0 5px ${baseColor}) drop-shadow(0 0 10px ${baseColor});"` : ""}
             ></path>
           `;
         }).join("");
