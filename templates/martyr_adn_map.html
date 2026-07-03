@@ -1526,6 +1526,7 @@
   <script src="{{ url_for('static', filename='js/martyr-adn-catchment-metrics.js') }}"></script>
   <script>
     (() => {
+      const CSRF_TOKEN = "{{ csrf_token_value }}";
       const data = window.ADN_SCHEDULE_DATA;
       const routeMetrics = window.ADN_ROUTE_METRICS || {};
       const catchmentMetrics = window.ADN_CATCHMENT_METRICS || {};
@@ -4112,7 +4113,10 @@
             // Persist to server database
             fetch('/api/custom-satellite-points', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': CSRF_TOKEN
+              },
               body: JSON.stringify({
                 route_id: routeId,
                 key: targetKey,
@@ -4162,7 +4166,10 @@
                 // Delete from server database
                 fetch('/api/custom-satellite-points/delete', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': CSRF_TOKEN
+                  },
                   body: JSON.stringify({ key: satKey })
                 }).catch(err => console.error("Failed to delete custom point on server:", err));
 
