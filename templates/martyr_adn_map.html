@@ -3698,9 +3698,9 @@
           satellitesHtml = `
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
             <details class="collapsible-satellites" open style="border: 1px solid rgba(37, 99, 235, 0.15); border-radius: 12px; background: rgba(37, 99, 235, 0.02); overflow: hidden; margin-bottom: 20px;">
-              <summary style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; font-weight: 800; color: #1e3a8a; cursor: pointer; user-select: none; outline: none; font-size: calc(13.5px * var(--drawer-scale)); background: rgba(37, 99, 235, 0.05); list-style: none;">
-                <span style="display: flex; align-items: center; gap: 6px;">
-                  🛰️ Vệ Tinh Lưu Động (${satellites.length})
+              <summary style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; font-weight: 900; color: #1e3a8a; cursor: pointer; user-select: none; outline: none; font-size: calc(13.5px * var(--drawer-scale)); background: rgba(37, 99, 235, 0.05); list-style: none;">
+                <span style="display: flex; align-items: center; gap: 6px; border-left: 3px solid #2563eb; padding-left: 8px;">
+                  VỆ TINH LƯU ĐỘNG (${satellites.length})
                 </span>
                 <span class="chevron" style="font-size: 11px; transition: transform 0.2s ease;">▼</span>
               </summary>
@@ -3740,7 +3740,7 @@
           return `
             <div style="padding: 4px;">
               <div style="margin-bottom: 16px;">
-                <h2 style="margin: 0 0 4px 0; font-size: calc(20px * var(--drawer-scale)); font-weight: 800; color: #0f172a;">📍 Xã ${node.name}</h2>
+                <h2 style="margin: 0 0 4px 0; font-size: calc(20px * var(--drawer-scale)); font-weight: 900; color: #0f172a;">Xã ${node.name}</h2>
                 <div style="font-size: calc(13.5px * var(--drawer-scale)); color: #64748b; margin-top: 4px;">
                   Địa bàn thu gom đưa thân nhân về trạm: <strong>${firstOccurrence.hubName || "điểm cố định"}</strong>
                 </div>
@@ -3748,10 +3748,10 @@
               
               <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
                 <span style="background: rgba(22, 163, 74, 0.1); color: #16a34a; padding: 4px 10px; border-radius: 6px; font-size: calc(12.5px * var(--drawer-scale)); font-weight: 700;">
-                  📊 ${formatNumber(node.total)} TNLS
+                  ${formatNumber(node.total)} TNLS
                 </span>
                 <span style="background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 6px; font-size: calc(12.5px * var(--drawer-scale)); font-weight: 600;">
-                  👤 Tổ trưởng: ${TEMP_LEADER_NAME}, điện thoại: ${TEMP_LEADER_PHONE}
+                  Tổ trưởng: ${TEMP_LEADER_NAME}, điện thoại: ${TEMP_LEADER_PHONE}
                 </span>
               </div>
               
@@ -3760,8 +3760,8 @@
               ${buildEnviroPanel(node.lat || firstOccurrence.lat, node.lng || firstOccurrence.lng, firstOccurrence.isoDate)}
 
               <div style="margin-bottom: 20px;">
-                <h3 style="margin: 0 0 10px 0; font-size: calc(14px * var(--drawer-scale)); font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">🚗 Tuyến Di Chuyển</h3>
-                <div style="font-size: calc(13px * var(--drawer-scale)); color: #334155; line-height: 1.6;">
+                <h3 style="margin: 0 0 10px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Tuyến Di Chuyển</h3>
+                <div style="font-size: calc(13px * var(--drawer-scale)); color: #334155; line-height: 1.6; margin-top: 10px;">
                   <div style="margin-bottom: 4px;"><strong>Trạm tập kết:</strong> ${firstOccurrence.hubVenue || firstOccurrence.hubName || ""}</div>
                   ${metric ? `
                   <div><strong>Cự ly & Thời gian:</strong> ${formatMetricText(metric)}</div>
@@ -3772,7 +3772,7 @@
               <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
               
               <div>
-                <h3 style="margin: 0 0 12px 0; font-size: calc(14px * var(--drawer-scale)); font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">📋 Ca Thu Mẫu Tại Trạm</h3>
+                <h3 style="margin: 0 0 12px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Ca Thu Mẫu Tại Trạm</h3>
                 <div>${buildOccurrenceSessionRows(node)}</div>
               </div>
               ${addCustomPointFormHtml}
@@ -3787,8 +3787,8 @@
 
         const routeLabel = firstOccurrence.routeLabel || node.name;
         const hubTitle = isLuuDong
-          ? `🛵 Lưu động ${routeLabel}`
-          : `🏢 Trạm ${node.name}`;
+          ? `Lưu động ${routeLabel}`
+          : `Trạm ${node.name}`;
         const hubSubtitle = isLuuDong
           ? `Tổ ${firstOccurrence.trackTitle || routeLabel} – Di chuyển lưu động thu mẫu ADN`
           : `Điểm tập kết cố định thu mẫu ADN`;
@@ -3796,16 +3796,16 @@
         return `
           <div style="padding: 4px;">
             <div style="margin-bottom: 16px;">
-              <h2 style="margin: 0 0 4px 0; font-size: calc(20px * var(--drawer-scale)); font-weight: 800; color: #0f172a;">${hubTitle}</h2>
+              <h2 style="margin: 0 0 4px 0; font-size: calc(20px * var(--drawer-scale)); font-weight: 900; color: #0f172a;">${hubTitle}</h2>
               <div style="font-size: calc(13.5px * var(--drawer-scale)); color: #64748b; margin-top: 4px;">${hubSubtitle}</div>
             </div>
             
             <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
               <span style="background: rgba(29, 78, 216, 0.1); color: #1d4ed8; padding: 4px 10px; border-radius: 6px; font-size: calc(12.5px * var(--drawer-scale)); font-weight: 700;">
-                📊 Tổng: ${formatNumber(node.total)} TNLS dự kiến
+                Tổng: ${formatNumber(node.total)} TNLS dự kiến
               </span>
               <span style="background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 6px; font-size: calc(12.5px * var(--drawer-scale)); font-weight: 600;">
-                👤 Tổ trưởng: ${TEMP_LEADER_NAME}, điện thoại: ${TEMP_LEADER_PHONE}
+                Tổ trưởng: ${TEMP_LEADER_NAME}, điện thoại: ${TEMP_LEADER_PHONE}
               </span>
             </div>
 
@@ -3815,28 +3815,28 @@
             ${buildEnviroPanel(node.lat || firstOccurrence.lat, node.lng || firstOccurrence.lng, firstOccurrence.isoDate)}
 
             <div style="margin-bottom: 20px;">
-              <h3 style="margin: 0 0 10px 0; font-size: calc(14px * var(--drawer-scale)); font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">📝 Lịch Trình Địa Bàn</h3>
-              ${formatToBulletPoints(firstOccurrence.scheduleText)}
+              <h3 style="margin: 0 0 10px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Lịch Trình Địa Bàn</h3>
+              <div style="margin-top: 10px;">${formatToBulletPoints(firstOccurrence.scheduleText)}</div>
             </div>
 
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
 
             <div style="margin-bottom: 20px;">
-              <h3 style="margin: 0 0 10px 0; font-size: calc(14px * var(--drawer-scale)); font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">🧑‍🤝‍🧑 Nhân Lực Tổ</h3>
-              ${formatToBulletPoints(firstOccurrence.staffCore)}
+              <h3 style="margin: 0 0 10px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Nhân Lực Tổ</h3>
+              <div style="margin-top: 10px;">${formatToBulletPoints(firstOccurrence.staffCore)}</div>
             </div>
 
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
 
             <div style="margin-bottom: 20px;">
-              <h3 style="margin: 0 0 10px 0; font-size: calc(14px * var(--drawer-scale)); font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">👥 Nhân Lực Tại Điểm</h3>
-              ${formatToBulletPoints(firstOccurrence.noteText)}
+              <h3 style="margin: 0 0 10px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Nhân Lực Tại Điểm</h3>
+              <div style="margin-top: 10px;">${formatToBulletPoints(firstOccurrence.noteText)}</div>
             </div>
 
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
 
             <div style="margin-bottom: 20px;">
-              <h3 style="margin: 0 0 10px 0; font-size: calc(14px * var(--drawer-scale)); font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">🚗 Thiết Bị</h3>
+              <h3 style="margin: 0 0 10px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Thiết Bị</h3>
               <div style="font-size: calc(13px * var(--drawer-scale)); color: #334155; line-height: 1.6;">
                 ${firstOccurrence.equipmentProvince ? `<div style="margin-bottom: 4px;"><strong>Thiết bị cấp:</strong> ${escapeHtml(enrichProvinceEquipment(firstOccurrence.equipmentProvince))}</div>` : ""}
                 ${firstOccurrence.equipmentTeam ? `<div><strong>Thiết bị tổ:</strong> ${escapeHtml(firstOccurrence.equipmentTeam)}</div>` : ""}
@@ -3848,8 +3848,8 @@
             ${buildEnviroPanel(node.lat || firstOccurrence.lat, node.lng || firstOccurrence.lng, firstOccurrence.isoDate)}
 
             <div style="margin-bottom: 20px;">
-              <h3 style="margin: 0 0 10px 0; font-size: calc(14px * var(--drawer-scale)); font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">📍 Địa Điểm Tập Kết</h3>
-              <div style="font-size: calc(13.5px * var(--drawer-scale)); color: #0f172a; font-weight: 600; background: #f8fafc; padding: 10px 14px; border-radius: 8px; border-left: 4px solid #3b82f6;">
+              <h3 style="margin: 0 0 10px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Địa Điểm Tập Kết</h3>
+              <div style="font-size: calc(13.5px * var(--drawer-scale)); color: #0f172a; font-weight: 600; background: #f8fafc; padding: 10px 14px; border-radius: 8px; border-left: 4px solid #3b82f6; margin-top: 10px;">
                 ${escapeHtml(firstOccurrence.venue || "Theo kế hoạch")}
               </div>
             </div>
@@ -3857,7 +3857,7 @@
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
             
             <div style="margin-bottom: 20px;">
-              <h3 style="margin: 0 0 12px 0; font-size: calc(14px * var(--drawer-scale)); font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">🕒 Chi Tiết Các Ca & Nhân Sự</h3>
+              <h3 style="margin: 0 0 12px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Chi Tiết Các Ca & Nhân Sự</h3>
               <div>${buildOccurrenceSessionRows(node)}</div>
             </div>
 
@@ -3865,8 +3865,8 @@
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
 
             <div style="margin-bottom: 20px;">
-              <h3 style="margin: 0 0 10px 0; font-size: calc(14px * var(--drawer-scale)); font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">📷 Trang Thiết Bị</h3>
-              <div style="font-size: calc(13px * var(--drawer-scale)); color: #334155; line-height: 1.7;">
+              <h3 style="margin: 0 0 10px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Trang Thiết Bị</h3>
+              <div style="font-size: calc(13px * var(--drawer-scale)); color: #334155; line-height: 1.7; margin-top: 10px;">
                 ${firstOccurrence.equipmentProvince ? `<div style="margin-bottom: 4px;"><strong>Thiết bị cấp tỉnh:</strong> ${escapeHtml(enrichProvinceEquipment(firstOccurrence.equipmentProvince))}</div>` : ""}
                 ${firstOccurrence.equipmentTeam ? `<div><strong>Thiết bị đơn vị/tổ:</strong> ${escapeHtml(firstOccurrence.equipmentTeam)}</div>` : ""}
               </div>
@@ -3876,7 +3876,7 @@
             ${hubAreaRows ? `
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
             <div>
-              <h3 style="margin: 0 0 12px 0; font-size: calc(14px * var(--drawer-scale)); font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">🗺️ Địa Bàn Thu Gom Xã</h3>
+              <h3 style="margin: 0 0 12px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Địa Bàn Thu Gom Xã</h3>
               <div style="max-height: 240px; overflow-y: auto; padding-right: 4px;">${hubAreaRows}</div>
             </div>
             ` : ""}
