@@ -3563,6 +3563,28 @@
           }).join("");
       }
 
+      function buildCustomPointFormHtml() {
+        return `
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+          <div style="margin-top: 24px; padding: 16px; background: rgba(37, 99, 235, 0.04); border: 1px solid rgba(37, 99, 235, 0.15); border-radius: 16px;">
+            <h3 style="margin: 0 0 12px 0; font-size: calc(14px * var(--drawer-scale)); font-weight: 800; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px;">
+              ➕ Bổ Sung Điểm Thu Lưu Động
+            </h3>
+            <div style="margin-bottom: 10px;">
+              <label style="display: block; font-weight: 700; color: #475569; margin-bottom: 4px; font-size: calc(12px * var(--drawer-scale));">Tên vị trí:</label>
+              <input type="text" id="custom-point-name" placeholder="Ví dụ: Thôn 4 - Xã Yên Lâm" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); outline: none; background: #fff;" />
+            </div>
+            <div style="margin-bottom: 12px;">
+              <label style="display: block; font-weight: 700; color: #475569; margin-bottom: 4px; font-size: calc(12px * var(--drawer-scale));">Tọa độ Google Maps:</label>
+              <input type="text" id="custom-point-coords" placeholder="Ví dụ: 21.7824, 105.2135" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: calc(12.5px * var(--drawer-scale)); outline: none; background: #fff;" />
+            </div>
+            <button id="add-custom-point-btn" style="width: 100%; padding: 10px; background: #2563eb; color: #fff; font-weight: 800; border: none; border-radius: 8px; cursor: pointer; font-size: calc(13px * var(--drawer-scale)); transition: background 0.15s ease; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);">
+              Thêm & Tính Toán Lộ Trình
+            </button>
+          </div>
+        `;
+      }
+
       function buildNodeDetail(node) {
         if (!node) {
           return `
@@ -3573,6 +3595,9 @@
         }
         const firstOccurrence = node.occurrences[0] || {};
         const metric = node.metric || firstOccurrence.metric || null;
+        const isLuuDongMode = state.activeRouteId && state.activeRouteId.startsWith("luu-dong");
+        const addCustomPointFormHtml = isLuuDongMode ? buildCustomPointFormHtml() : "";
+
         if (node.kind === "area") {
           return `
             <div style="padding: 4px;">
@@ -3612,6 +3637,7 @@
                 <h3 style="margin: 0 0 12px 0; font-size: calc(14px * var(--drawer-scale)); font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">📋 Ca Thu Mẫu Tại Trạm</h3>
                 <div>${buildOccurrenceSessionRows(node)}</div>
               </div>
+              ${addCustomPointFormHtml}
             </div>
           `;
         }
@@ -3717,6 +3743,7 @@
             </div>
             ` : ""}
             `}
+            ${addCustomPointFormHtml}
           </div>
         `;
       }
