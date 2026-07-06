@@ -256,6 +256,270 @@
       min-height: 980px;
     }
 
+    .map-stage.is-plan-mode {
+      min-height: 980px;
+    }
+
+    #plan-overview-board {
+      position: absolute;
+      top: 122px;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      z-index: 6;
+      display: none;
+      overflow: auto;
+      padding-right: 6px;
+    }
+
+    #plan-overview-board.is-visible {
+      display: block;
+    }
+
+    .plan-board-shell {
+      display: grid;
+      gap: 18px;
+      color: var(--ink-900);
+    }
+
+    .plan-hero-card,
+    .plan-section-card {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 244, 236, 0.96));
+      border: 1px solid rgba(122, 106, 70, 0.12);
+      border-radius: 26px;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+    }
+
+    .plan-hero-card {
+      padding: 28px 30px;
+      display: grid;
+      gap: 22px;
+    }
+
+    .plan-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(185, 28, 28, 0.08);
+      color: #b91c1c;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .plan-hero-head {
+      display: grid;
+      gap: 10px;
+      max-width: 920px;
+    }
+
+    .plan-hero-head h2 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.08;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      font-family: var(--font-display);
+    }
+
+    .plan-hero-head p {
+      margin: 0;
+      color: var(--ink-700);
+      font-size: 15px;
+      line-height: 1.7;
+      max-width: 840px;
+    }
+
+    .plan-stat-grid,
+    .plan-lane-grid,
+    .plan-section-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .plan-stat-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .plan-stat-card {
+      padding: 18px 18px 16px;
+      border-radius: 20px;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      background: rgba(255, 255, 255, 0.86);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    }
+
+    .plan-stat-card[data-tone="amber"] {
+      background: linear-gradient(180deg, rgba(255, 247, 237, 0.96), rgba(255, 255, 255, 0.92));
+    }
+
+    .plan-stat-card[data-tone="blue"] {
+      background: linear-gradient(180deg, rgba(239, 246, 255, 0.96), rgba(255, 255, 255, 0.92));
+    }
+
+    .plan-stat-card[data-tone="red"] {
+      background: linear-gradient(180deg, rgba(254, 242, 242, 0.96), rgba(255, 255, 255, 0.92));
+    }
+
+    .plan-stat-card[data-tone="slate"] {
+      background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(255, 255, 255, 0.92));
+    }
+
+    .plan-stat-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-500);
+      margin-bottom: 10px;
+    }
+
+    .plan-stat-value {
+      display: block;
+      font-size: clamp(24px, 3vw, 34px);
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+
+    .plan-lane-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .plan-lane-card {
+      padding: 22px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+      display: grid;
+      gap: 14px;
+    }
+
+    .plan-lane-card h3,
+    .plan-section-card h3 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 900;
+      font-family: var(--font-display);
+    }
+
+    .plan-lane-meta {
+      display: inline-flex;
+      width: fit-content;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      background: rgba(15, 23, 42, 0.06);
+      color: var(--ink-700);
+    }
+
+    .plan-lane-list,
+    .plan-bullet-list,
+    .plan-resource-list {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 10px;
+      color: var(--ink-700);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .plan-section-grid {
+      grid-template-columns: 1.2fr 0.95fr;
+    }
+
+    .plan-section-card {
+      padding: 22px 24px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .plan-workflow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .plan-workflow-step {
+      position: relative;
+      padding: 16px 14px;
+      border-radius: 18px;
+      background: rgba(248, 250, 252, 0.95);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      min-height: 132px;
+    }
+
+    .plan-workflow-step:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      right: -11px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 20px;
+      font-weight: 900;
+    }
+
+    .plan-workflow-step strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: #0f172a;
+    }
+
+    .plan-workflow-step span {
+      color: var(--ink-700);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .plan-resource-list {
+      padding-left: 0;
+      list-style: none;
+    }
+
+    .plan-resource-item {
+      display: grid;
+      gap: 6px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(248, 250, 252, 0.92);
+      border: 1px solid rgba(15, 23, 42, 0.07);
+    }
+
+    .plan-resource-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+    }
+
+    .plan-resource-head strong {
+      font-size: 14px;
+      color: #0f172a;
+    }
+
+    .plan-resource-head span {
+      font-size: 18px;
+      font-weight: 900;
+      color: #1d4ed8;
+    }
+
+    .plan-resource-item small {
+      color: var(--ink-500);
+      font-size: 12.5px;
+      line-height: 1.55;
+    }
+
     /* ── Hub Sidebar (left panel, fixed catchment mode) ─────────────── */
     #hub-sidebar {
       position: absolute;
@@ -1451,6 +1715,30 @@
         display: none;
       }
 
+      #plan-overview-board {
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        top: 118px;
+        padding-right: 0;
+      }
+
+      .plan-stat-grid,
+      .plan-lane-grid,
+      .plan-section-grid,
+      .plan-workflow {
+        grid-template-columns: 1fr;
+      }
+
+      .plan-workflow-step:not(:last-child)::after {
+        content: "↓";
+        right: auto;
+        left: 50%;
+        top: auto;
+        bottom: -14px;
+        transform: translateX(-50%);
+      }
+
       .detail-copy-grid.is-two-col {
         grid-template-columns: minmax(0, 1fr);
       }
@@ -1464,6 +1752,16 @@
 
       .summary-card {
         max-height: calc(100vh - 146px);
+      }
+
+      .plan-hero-card,
+      .plan-section-card,
+      .plan-lane-card {
+        padding: 18px;
+      }
+
+      .plan-hero-head h2 {
+        font-size: 24px;
       }
     }
   </style>
@@ -1508,6 +1806,7 @@
             <div class="segment-layer" id="segment-layer"></div>
             <div class="node-layer" id="node-layer"></div>
           </div>
+          <div id="plan-overview-board" aria-live="polite"></div>
           <div class="map-note" id="map-note"></div>
         </div>
       </div>
@@ -1540,12 +1839,14 @@
       const STAGE_HEIGHT = 900;
       const directionTabsEl = document.getElementById("direction-tabs");
       const dayFilterEl = document.getElementById("day-filter");
+      const filterDividerEl = document.querySelector(".filter-divider");
       const pageShellEl = document.querySelector(".page-shell");
       const mapStageEl = document.getElementById("map-stage");
       const mapViewportEl = document.getElementById("map-viewport");
       const mapSvgEl = document.getElementById("map-svg");
       const nodeLayerEl = document.getElementById("node-layer");
       const segmentLayerEl = document.getElementById("segment-layer");
+      const planOverviewBoardEl = document.getElementById("plan-overview-board");
       const summaryPanelEl = document.getElementById("summary-panel");
       const mapStatusEl = document.getElementById("map-status");
       const mapNoteEl = document.getElementById("map-note");
@@ -1708,6 +2009,10 @@
         return data.directions.find((direction) => direction.id === state.directionId) || data.directions[0];
       }
 
+      function isPlanOverviewMode(direction) {
+        return direction && direction.id === "phuong-an";
+      }
+
       function getVisibleDays(direction) {
         if (state.dayIndex === null) {
           return direction.days.map((day, index) => ({ day, dayIndex: index }));
@@ -1766,6 +2071,17 @@
 
       function renderDayFilter(direction) {
         dayFilterEl.innerHTML = "";
+        if (isPlanOverviewMode(direction)) {
+          dayFilterEl.style.display = "none";
+          if (filterDividerEl) {
+            filterDividerEl.style.display = "none";
+          }
+          return;
+        }
+        dayFilterEl.style.display = "";
+        if (filterDividerEl) {
+          filterDividerEl.style.display = "";
+        }
         const allButton = document.createElement("button");
         allButton.type = "button";
         allButton.className = "day-chip" + (state.dayIndex === null ? " is-active" : "");
@@ -1811,6 +2127,14 @@
         const reversed = routeMetrics[buildRouteMetricKey(destination, origin)];
         if (reversed) {
           return reversed;
+        }
+        const catchmentForward = getCatchmentMetric(origin.name, destination.name);
+        if (hasNumericMetric(catchmentForward)) {
+          return catchmentForward;
+        }
+        const catchmentReverse = getCatchmentMetric(destination.name, origin.name);
+        if (hasNumericMetric(catchmentReverse)) {
+          return catchmentReverse;
         }
         if (origin.lat === destination.lat && origin.lng === destination.lng) {
           return {
@@ -3019,7 +3343,29 @@
 
       function renderBoard(routes, nodes) {
         const direction = getSelectedDirection();
+        const planMode = isPlanOverviewMode(direction);
         const activeRoute = resolveActiveRoute(routes);
+        pageShellEl.classList.toggle("is-plan-mode", planMode);
+        mapStageEl.classList.toggle("is-plan-mode", planMode);
+        planOverviewBoardEl.classList.toggle("is-visible", planMode);
+        mapViewportEl.style.display = planMode ? "none" : "";
+        if (planMode) {
+          pageShellEl.classList.remove("is-reference-mode");
+          mapStageEl.classList.remove("is-reference-mode");
+          mapSvgEl.innerHTML = "";
+          segmentLayerEl.innerHTML = "";
+          nodeLayerEl.innerHTML = "";
+          mapNoteEl.style.display = "none";
+          mapNoteEl.innerHTML = "";
+          planOverviewBoardEl.innerHTML = buildPlanOverviewBoardHtml();
+          const sb = document.getElementById("hub-sidebar");
+          if (sb) {
+            sb.classList.remove("is-visible");
+            sb.innerHTML = "";
+          }
+          return;
+        }
+        planOverviewBoardEl.innerHTML = "";
         if (!activeRoute) {
           mapSvgEl.innerHTML = "";
           segmentLayerEl.innerHTML = "";
@@ -4010,6 +4356,134 @@
         `;
       }
 
+      function buildPlanOverviewBoardHtml() {
+        const overview = data.planOverview || {};
+        const statsHtml = (overview.stats || []).map((item) => `
+          <article class="plan-stat-card" data-tone="${escapeHtml(item.tone || "slate")}">
+            <span class="plan-stat-label">${escapeHtml(item.label || "")}</span>
+            <span class="plan-stat-value">${escapeHtml(item.value || "")}</span>
+          </article>
+        `).join("");
+
+        const lanesHtml = (overview.lanes || []).map((lane) => `
+          <article class="plan-lane-card" style="border-top: 4px solid ${escapeHtml(lane.accent || "#1d4ed8")};">
+            <h3>${escapeHtml(lane.title || "")}</h3>
+            <span class="plan-lane-meta">${escapeHtml(lane.meta || "")}</span>
+            <ul class="plan-lane-list">
+              ${(lane.steps || []).map((step) => `<li>${escapeHtml(step)}</li>`).join("")}
+            </ul>
+          </article>
+        `).join("");
+
+        const workflowHtml = (overview.workflow || []).map((step) => {
+          const parts = String(step || "").split(/\\.\s+/, 2);
+          const stepNo = parts.length > 1 ? parts[0] : "";
+          const stepText = parts.length > 1 ? parts[1] : String(step || "");
+          return `
+            <div class="plan-workflow-step">
+              <strong>${escapeHtml(stepNo ? `Bước ${stepNo}` : "Quy trình")}</strong>
+              <span>${escapeHtml(stepText)}</span>
+            </div>
+          `;
+        }).join("");
+
+        const resourcesHtml = (overview.resources || []).map((item) => `
+          <li class="plan-resource-item">
+            <div class="plan-resource-head">
+              <strong>${escapeHtml(item.label || "")}</strong>
+              <span>${escapeHtml(item.value || "")}</span>
+            </div>
+            <small>${escapeHtml(item.note || "")}</small>
+          </li>
+        `).join("");
+
+        const strategyHtml = (overview.strategy || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+        const responsibilitiesHtml = (overview.responsibilities || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+
+        return `
+          <div class="plan-board-shell">
+            <section class="plan-hero-card">
+              <div class="plan-hero-head">
+                <span class="plan-eyebrow">Phương án tổng thể</span>
+                <h2>${escapeHtml(overview.title || "")}</h2>
+                <p>${escapeHtml(overview.subtitle || "")}</p>
+              </div>
+              <div class="plan-stat-grid">${statsHtml}</div>
+              <div class="plan-lane-grid">${lanesHtml}</div>
+            </section>
+            <div class="plan-section-grid">
+              <section class="plan-section-card">
+                <h3>Luồng triển khai 5 bước</h3>
+                <div class="plan-workflow">${workflowHtml}</div>
+                <ul class="plan-bullet-list">${strategyHtml}</ul>
+              </section>
+              <section class="plan-section-card">
+                <h3>Nguồn lực chủ đạo</h3>
+                <ul class="plan-resource-list">${resourcesHtml}</ul>
+              </section>
+            </div>
+            <div class="plan-section-grid">
+              <section class="plan-section-card">
+                <h3>Điểm nhấn điều hành</h3>
+                <ul class="plan-bullet-list">
+                  <li>03 trạm cố định và 03 tổ lưu động vận hành đồng thời để không gián đoạn dây chuyền thu mẫu.</li>
+                  <li>Khối lượng lớn được xử lý trước, tuyến xa khó được gom cuốn chiếu ở hai ngày cuối để giảm rủi ro ùn tắc.</li>
+                  <li>Dữ liệu tuyến, địa điểm và khung giờ trên bản đồ là lớp trực quan hoá của phương án tổng thể này.</li>
+                </ul>
+              </section>
+              <section class="plan-section-card">
+                <h3>Trách nhiệm chính</h3>
+                <ul class="plan-bullet-list">${responsibilitiesHtml}</ul>
+              </section>
+            </div>
+          </div>
+        `;
+      }
+
+      function buildPlanOverviewSummaryHtml() {
+        const overview = data.planOverview || {};
+        const statsHtml = (overview.stats || []).map((item) => `
+          <span style="background: rgba(15, 23, 42, 0.06); color: #0f172a; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 800;">
+            ${escapeHtml(item.label || "")}: ${escapeHtml(item.value || "")}
+          </span>
+        `).join("");
+        const resourcesHtml = (overview.resources || []).map((item) => `
+          <div style="padding: 12px 14px; border-radius: 14px; background: rgba(248, 250, 252, 0.92); border: 1px solid rgba(15, 23, 42, 0.07); margin-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between; gap: 12px; align-items: baseline;">
+              <strong style="font-size: 13px; color: #0f172a;">${escapeHtml(item.label || "")}</strong>
+              <span style="font-size: 16px; font-weight: 900; color: #1d4ed8;">${escapeHtml(item.value || "")}</span>
+            </div>
+            <div style="margin-top: 6px; font-size: 12px; line-height: 1.55; color: #64748b;">${escapeHtml(item.note || "")}</div>
+          </div>
+        `).join("");
+        const responsibilityHtml = (overview.responsibilities || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+        const workflowHtml = (overview.workflow || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+
+        return `
+          <div style="padding: 6px 4px 12px;">
+            <div style="margin-bottom: 16px;">
+              <h2 style="margin: 0 0 6px 0; font-size: calc(22px * var(--drawer-scale)); font-weight: 900; color: #0f172a;">${escapeHtml(overview.title || "")}</h2>
+              <div style="font-size: calc(13px * var(--drawer-scale)); color: #64748b; line-height: 1.65;">
+                ${escapeHtml(overview.subtitle || "")}
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px;">${statsHtml}</div>
+            <div style="margin-bottom: 18px;">
+              <h3 style="margin: 0 0 10px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Quy trình triển khai</h3>
+              <ol style="margin: 0; padding-left: 18px; color: #334155; font-size: calc(12.8px * var(--drawer-scale)); line-height: 1.7;">${workflowHtml}</ol>
+            </div>
+            <div style="margin-bottom: 18px;">
+              <h3 style="margin: 0 0 10px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Nguồn lực trọng tâm</h3>
+              ${resourcesHtml}
+            </div>
+            <div>
+              <h3 style="margin: 0 0 10px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Trách nhiệm điều hành</h3>
+              <ul style="margin: 0; padding-left: 18px; color: #334155; font-size: calc(12.8px * var(--drawer-scale)); line-height: 1.7;">${responsibilityHtml}</ul>
+            </div>
+          </div>
+        `;
+      }
+
 
 
       function attachSummaryPanelInteractions(routes) {
@@ -4332,6 +4806,15 @@
       }
 
       function renderSummary(direction, routes, nodes) {
+        if (isPlanOverviewMode(direction)) {
+          summaryDrawerEl.classList.toggle("is-open", state.summaryOpen);
+          summaryPanelEl.innerHTML = `
+            <div style="padding: 14px 14px 24px; overflow-y: auto; flex: 1;">
+              ${buildPlanOverviewSummaryHtml()}
+            </div>
+          `;
+          return;
+        }
         const activeRoute = resolveActiveRoute(routes);
         if (activeRoute && !state.activeNodeKey) {
           state.activeNodeKey = getPreferredRouteNodeKey(activeRoute);
