@@ -1,9 +1,56 @@
 # -*- coding: utf-8 -*-
+import os
+
 from flask import Blueprint, jsonify, session, request, current_app
 from models import db, Notification, User
 from utils import infer_notification_source, normalize_notification_text, sanitize_notification_link
 
 api_bp = Blueprint('api_bp', __name__)
+
+
+def _mask_database_uri(uri):
+    value = (uri or '').strip()
+    if not value or '@' not in value:
+        return value
+    scheme, rest = value.split('://', 1) if '://' in value else ('', value)
+    credentials, host_part = rest.split('@', 1)
+    if ':' in credentials:
+        username = credentials.split(':', 1)[0]
+        masked = f'{username}:***@{host_part}'
+    else:
+        masked = f'***@{host_part}'
+    return f'{scheme}://{masked}' if scheme else masked
+
+
+def _custom_satellite_storage_meta():
+    db_uri = (current_app.config.get('SQLALCHEMY_DATABASE_URI') or '').strip()
+    sqlite_path = (current_app.config.get('SQLITE_DB_PATH') or '').strip()
+    running_under_passenger = (
+        os.environ.get('PC06_PASSENGER') == '1'
+        or bool(os.environ.get('PASSENGER_APP_ENV'))
+        or bool(os.environ.get('PASSENGER_BASE_URI'))
+        or bool(os.environ.get('PASSENGER_SPAWN_METHOD'))
+    )
+    is_sqlite = db_uri.startswith('sqlite:///')
+    backend = 'sqlite' if is_sqlite else ('mysql' if db_uri.startswith(('mysql', 'mysql+pymysql', 'mariadb', 'mariadb+pymysql')) else 'other')
+    return {
+        'database_uri': db_uri,
+        'database_uri_masked': _mask_database_uri(db_uri),
+        'sqlite_path': sqlite_path,
+        'running_under_passenger': running_under_passenger,
+        'backend': backend,
+    }
+
+
+def _ensure_custom_satellite_storage_ready():
+    meta = _custom_satellite_storage_meta()
+    if meta['running_under_passenger'] and meta['backend'] == 'sqlite':
+        raise RuntimeError(
+            'Host đang lưu CustomSatellitePoint vào SQLite thay vì database bền vững. '
+            'Cần cấu hình DATABASE_URL=mysql://user:password@localhost/db_name, '
+            'PC06_DATA_DIR=/home/<cpanel_user>/pc06_data và restart Passenger.'
+        )
+    return meta
 
 @api_bp.route('/api/notifications')
 def get_notifications():
@@ -220,6 +267,7 @@ def get_category_picker_bundle():
 def get_custom_satellite_points():
     try:
         from models import CustomSatellitePoint
+        meta = _ensure_custom_satellite_storage_ready()
         db.create_all()
         
         points = CustomSatellitePoint.query.all()
@@ -236,7 +284,12 @@ def get_custom_satellite_points():
                 'lng': p.lng,
                 'parentKey': p.parent_key
             })
-        return jsonify(res)
+        return jsonify({
+            'pointsByRoute': res,
+            'storageBackend': meta['backend'],
+            'databaseUriMasked': meta['database_uri_masked'],
+            'sqlitePath': meta['sqlite_path'],
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -244,6 +297,7 @@ def get_custom_satellite_points():
 def save_custom_satellite_point():
     try:
         from models import CustomSatellitePoint
+        meta = _ensure_custom_satellite_storage_ready()
         db.create_all()
         
         data = request.get_json() or {}
@@ -279,7 +333,12 @@ def save_custom_satellite_point():
             db.session.add(new_point)
             
         db.session.commit()
-        return jsonify({'status': 'success'})
+        return jsonify({
+            'status': 'success',
+            'storageBackend': meta['backend'],
+            'databaseUriMasked': meta['database_uri_masked'],
+            'sqlitePath': meta['sqlite_path'],
+        })
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -288,6 +347,7 @@ def save_custom_satellite_point():
 def delete_custom_satellite_point():
     try:
         from models import CustomSatellitePoint
+        meta = _ensure_custom_satellite_storage_ready()
         db.create_all()
         
         data = request.get_json() or {}
@@ -299,7 +359,12 @@ def delete_custom_satellite_point():
         if existing:
             db.session.delete(existing)
             db.session.commit()
-            return jsonify({'status': 'success'})
+            return jsonify({
+                'status': 'success',
+                'storageBackend': meta['backend'],
+                'databaseUriMasked': meta['database_uri_masked'],
+                'sqlitePath': meta['sqlite_path'],
+            })
         else:
             return jsonify({'error': 'Point not found'}), 404
     except Exception as e:
@@ -311,17 +376,11 @@ def delete_custom_satellite_point():
 def diagnose_db():
     try:
         from models import CustomSatellitePoint
+        meta = _custom_satellite_storage_meta()
         
         # 1. Get database URI (mask password)
-        db_uri = current_app.config.get('SQLALCHEMY_DATABASE_URI', '')
-        masked_uri = db_uri
-        if '@' in db_uri:
-            parts = db_uri.split('@')
-            credentials = parts[0]
-            host_db = parts[1]
-            if ':' in credentials:
-                cred_parts = credentials.split(':')
-                masked_uri = f"{cred_parts[0]}:{cred_parts[1]}:***@{host_db}"
+        db_uri = meta['database_uri']
+        masked_uri = meta['database_uri_masked']
         
         # 2. Try to run create_all
         db.create_all()
@@ -355,6 +414,9 @@ def diagnose_db():
         return jsonify({
             'status': 'success',
             'database_uri': masked_uri,
+            'storage_backend': meta['backend'],
+            'sqlite_path': meta['sqlite_path'],
+            'running_under_passenger': meta['running_under_passenger'],
             'connection_test': 'passed',
             'retrieved_test_value': retrieved_name,
             'message': 'Database connection and write test passed successfully!'
@@ -415,6 +477,4 @@ def resolve_maps_url():
         return jsonify({'status': 'error', 'message': 'Không tìm thấy tọa độ từ link Google Maps này'}), 400
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Lỗi khi xử lý link: {str(e)}'}), 500
-
-
 

@@ -229,12 +229,13 @@
     }
 
     .map-header-title {
-      font-size: 13.5px;
-      font-weight: 800;
+      font-size: 18px;
+      font-weight: 900;
+      line-height: 1.04;
       color: #b91c1c; /* Official Dark Red */
-      letter-spacing: 0.05em;
+      letter-spacing: 0.02em;
       background: rgba(255, 255, 255, 0.94);
-      padding: 8px 14px;
+      padding: 10px 18px 9px;
       border-radius: 10px;
       border: 1px solid rgba(185, 28, 28, 0.25);
       box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
@@ -242,14 +243,8 @@
       text-transform: uppercase;
       width: fit-content;
       backdrop-filter: blur(8px);
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
+      display: inline-block;
       pointer-events: none;
-    }
-    .map-header-title::before {
-      content: "🛡️";
-      font-size: 15px;
     }
 
     .map-stage.is-reference-mode {
@@ -294,44 +289,6 @@
       padding: 28px 30px;
       display: grid;
       gap: 22px;
-    }
-
-    .plan-eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      width: fit-content;
-      padding: 7px 12px;
-      border-radius: 999px;
-      background: rgba(185, 28, 28, 0.08);
-      color: #b91c1c;
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .plan-hero-head {
-      display: grid;
-      gap: 10px;
-      max-width: 920px;
-    }
-
-    .plan-hero-head h2 {
-      margin: 0;
-      font-size: clamp(28px, 4vw, 42px);
-      line-height: 1.08;
-      font-weight: 900;
-      letter-spacing: -0.03em;
-      font-family: var(--font-display);
-    }
-
-    .plan-hero-head p {
-      margin: 0;
-      color: var(--ink-700);
-      font-size: 18px;
-      line-height: 1.78;
-      max-width: 840px;
     }
 
     .plan-stat-grid,
@@ -1760,9 +1717,6 @@
         padding: 18px;
       }
 
-      .plan-hero-head h2 {
-        font-size: 24px;
-      }
     }
   </style>
 </head>
@@ -1872,7 +1826,8 @@
         summaryOpen: false,
         shouldAutoFit: true,
         customRoutePoints: {},
-        editingCustomPointKey: null
+        editingCustomPointKey: null,
+        customPointStorageWarningShown: false
       };
 
       const forecastCache = new Map();
@@ -4406,11 +4361,6 @@
         return `
           <div class="plan-board-shell">
             <section class="plan-hero-card">
-              <div class="plan-hero-head">
-                <span class="plan-eyebrow">Phương án tổng thể</span>
-                <h2>${escapeHtml(overview.title || "")}</h2>
-                <p>${escapeHtml(overview.subtitle || "")}</p>
-              </div>
               <div class="plan-stat-grid">${statsHtml}</div>
               <div class="plan-lane-grid">${lanesHtml}</div>
             </section>
@@ -4464,12 +4414,6 @@
 
         return `
           <div style="padding: 6px 4px 12px;">
-            <div style="margin-bottom: 16px;">
-              <h2 style="margin: 0 0 6px 0; font-size: calc(22px * var(--drawer-scale)); font-weight: 900; color: #0f172a;">${escapeHtml(overview.title || "")}</h2>
-              <div style="font-size: calc(14.5px * var(--drawer-scale)); color: #64748b; line-height: 1.72;">
-                ${escapeHtml(overview.subtitle || "")}
-              </div>
-            </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px;">${statsHtml}</div>
             <div style="margin-bottom: 18px;">
               <h3 style="margin: 0 0 10px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Quy trình triển khai</h3>
@@ -5189,12 +5133,18 @@
       async function loadCustomPoints() {
         try {
           const resp = await fetch('/api/custom-satellite-points');
-          if (resp.ok) {
-            const data = await resp.json();
-            state.customRoutePoints = data || {};
+          if (!resp.ok) {
+            const payload = await resp.json().catch(() => ({}));
+            throw new Error(payload.error || payload.message || `HTTP ${resp.status}`);
           }
+          const payload = await resp.json();
+          state.customRoutePoints = payload.pointsByRoute || {};
         } catch (err) {
           console.error("Failed to load custom satellite points:", err);
+          if (!state.customPointStorageWarningShown) {
+            state.customPointStorageWarningShown = true;
+            alert(`Không đọc được dữ liệu điểm lưu động từ cơ sở dữ liệu: ${err.message}`);
+          }
         }
       }
 
