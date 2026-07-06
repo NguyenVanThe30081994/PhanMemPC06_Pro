@@ -329,8 +329,8 @@
     .plan-hero-head p {
       margin: 0;
       color: var(--ink-700);
-      font-size: 15px;
-      line-height: 1.7;
+      font-size: 18px;
+      line-height: 1.78;
       max-width: 840px;
     }
 
@@ -371,7 +371,7 @@
 
     .plan-stat-label {
       display: block;
-      font-size: 12px;
+      font-size: 14px;
       font-weight: 800;
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -414,7 +414,7 @@
       width: fit-content;
       padding: 6px 10px;
       border-radius: 999px;
-      font-size: 12px;
+      font-size: 14px;
       font-weight: 800;
       letter-spacing: 0.04em;
       background: rgba(15, 23, 42, 0.06);
@@ -429,8 +429,8 @@
       display: grid;
       gap: 10px;
       color: var(--ink-700);
-      font-size: 14px;
-      line-height: 1.65;
+      font-size: 17px;
+      line-height: 1.72;
     }
 
     .plan-section-grid {
@@ -472,14 +472,14 @@
     .plan-workflow-step strong {
       display: block;
       margin-bottom: 8px;
-      font-size: 13px;
+      font-size: 15px;
       color: #0f172a;
     }
 
     .plan-workflow-step span {
       color: var(--ink-700);
-      font-size: 13px;
-      line-height: 1.55;
+      font-size: 15px;
+      line-height: 1.68;
     }
 
     .plan-resource-list {
@@ -504,20 +504,20 @@
     }
 
     .plan-resource-head strong {
-      font-size: 14px;
+      font-size: 16px;
       color: #0f172a;
     }
 
     .plan-resource-head span {
-      font-size: 18px;
+      font-size: 22px;
       font-weight: 900;
       color: #1d4ed8;
     }
 
     .plan-resource-item small {
       color: var(--ink-500);
-      font-size: 12.5px;
-      line-height: 1.55;
+      font-size: 14px;
+      line-height: 1.68;
     }
 
     /* ── Hub Sidebar (left panel, fixed catchment mode) ─────────────── */
@@ -3238,7 +3238,7 @@
           if (dragMoved) {
             return;
           }
-          if (event.target.closest(".map-node") || event.target.closest(".map-toolbar") || event.target.closest("#summary-drawer") || event.target.closest("#summary-toggle") || event.target.closest("#hub-sidebar")) {
+          if (event.target.closest(".map-node") || event.target.closest(".map-toolbar") || event.target.closest("#summary-drawer") || event.target.closest("#summary-toggle") || event.target.closest("#hub-sidebar") || event.target.closest("#plan-overview-board")) {
             return;
           }
           state.activeNodeKey = null;
@@ -3249,15 +3249,18 @@
         });
  
  
- 
+
         mapStageEl.addEventListener("wheel", (event) => {
+          if (event.target.closest("#plan-overview-board") || event.target.closest("#summary-drawer")) {
+            return;
+          }
           event.preventDefault();
           const scaleFactor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
           zoomAt(event.clientX, event.clientY, scaleFactor);
         }, { passive: false });
- 
+
         mapStageEl.addEventListener("pointerdown", (event) => {
-          if (event.target.closest(".map-node") || event.target.closest(".map-toolbar") || interactionState.isResizingSummary) {
+          if (event.target.closest(".map-node") || event.target.closest(".map-toolbar") || event.target.closest("#summary-drawer") || event.target.closest("#plan-overview-board") || interactionState.isResizingSummary) {
             return;
           }
           interactionState.isDragging = true;
@@ -4463,14 +4466,14 @@
           <div style="padding: 6px 4px 12px;">
             <div style="margin-bottom: 16px;">
               <h2 style="margin: 0 0 6px 0; font-size: calc(22px * var(--drawer-scale)); font-weight: 900; color: #0f172a;">${escapeHtml(overview.title || "")}</h2>
-              <div style="font-size: calc(13px * var(--drawer-scale)); color: #64748b; line-height: 1.65;">
+              <div style="font-size: calc(14.5px * var(--drawer-scale)); color: #64748b; line-height: 1.72;">
                 ${escapeHtml(overview.subtitle || "")}
               </div>
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px;">${statsHtml}</div>
             <div style="margin-bottom: 18px;">
               <h3 style="margin: 0 0 10px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Quy trình triển khai</h3>
-              <ol style="margin: 0; padding-left: 18px; color: #334155; font-size: calc(12.8px * var(--drawer-scale)); line-height: 1.7;">${workflowHtml}</ol>
+              <ol style="margin: 0; padding-left: 18px; color: #334155; font-size: calc(14px * var(--drawer-scale)); line-height: 1.78;">${workflowHtml}</ol>
             </div>
             <div style="margin-bottom: 18px;">
               <h3 style="margin: 0 0 10px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Nguồn lực trọng tâm</h3>
@@ -4478,7 +4481,7 @@
             </div>
             <div>
               <h3 style="margin: 0 0 10px 0; font-size: calc(13.5px * var(--drawer-scale)); font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #2563eb; padding-left: 8px;">Trách nhiệm điều hành</h3>
-              <ul style="margin: 0; padding-left: 18px; color: #334155; font-size: calc(12.8px * var(--drawer-scale)); line-height: 1.7;">${responsibilityHtml}</ul>
+              <ul style="margin: 0; padding-left: 18px; color: #334155; font-size: calc(14px * var(--drawer-scale)); line-height: 1.78;">${responsibilityHtml}</ul>
             </div>
           </div>
         `;
@@ -4645,22 +4648,42 @@
             state.shouldAutoFit = true;
             
             // Persist to server database
-            fetch('/api/custom-satellite-points', {
-              method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': CSRF_TOKEN
-              },
-              body: JSON.stringify({
-                route_id: routeId,
-                key: targetKey,
-                name: nameStr,
-                phone: phoneStr,
-                lat: lat,
-                lng: lng,
-                parentKey: state.activeNodeKey
-              })
-            }).catch(err => console.error("Failed to persist custom point on server:", err));
+            try {
+              const persistResp = await fetch('/api/custom-satellite-points', {
+                method: 'POST',
+                headers: { 
+                  'Content-Type': 'application/json',
+                  'X-CSRF-Token': CSRF_TOKEN
+                },
+                body: JSON.stringify({
+                  route_id: routeId,
+                  key: targetKey,
+                  name: nameStr,
+                  phone: phoneStr,
+                  lat: lat,
+                  lng: lng,
+                  parentKey: state.activeNodeKey
+                })
+              });
+              if (!persistResp.ok) {
+                const payload = await persistResp.json().catch(() => ({}));
+                throw new Error(payload.error || payload.message || `HTTP ${persistResp.status}`);
+              }
+            } catch (err) {
+              const list = state.customRoutePoints[routeId] || [];
+              const idx = list.findIndex((point) => point.key === targetKey);
+              if (idx !== -1) {
+                if (isEditing) {
+                  // Fall back to a fresh render from server state instead of keeping a failed local edit.
+                  loadCustomPoints().then(() => render());
+                } else {
+                  list.splice(idx, 1);
+                }
+              }
+              alert(`Không lưu được điểm lưu động vào cơ sở dữ liệu: ${err.message}`);
+              render();
+              return;
+            }
             
             // Clear inputs
             if (nameEl) nameEl.value = "";
@@ -4705,10 +4728,20 @@
                     'X-CSRF-Token': CSRF_TOKEN
                   },
                   body: JSON.stringify({ key: satKey })
-                }).catch(err => console.error("Failed to delete custom point on server:", err));
-
-                state.shouldAutoFit = true;
-                render();
+                })
+                  .then(async (resp) => {
+                    if (!resp.ok) {
+                      const payload = await resp.json().catch(() => ({}));
+                      throw new Error(payload.error || payload.message || `HTTP ${resp.status}`);
+                    }
+                    state.shouldAutoFit = true;
+                    render();
+                  })
+                  .catch(async (err) => {
+                    alert(`Không xóa được điểm lưu động trong cơ sở dữ liệu: ${err.message}`);
+                    await loadCustomPoints();
+                    render();
+                  });
               }
             }
           });
@@ -4771,6 +4804,25 @@
               }
               
               if (found) {
+                fetch('/api/custom-satellite-points/delete', {
+                  method: 'POST',
+                  headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': CSRF_TOKEN
+                  },
+                  body: JSON.stringify({ key: customKey })
+                })
+                  .then(async (resp) => {
+                    if (!resp.ok) {
+                      const payload = await resp.json().catch(() => ({}));
+                      throw new Error(payload.error || payload.message || `HTTP ${resp.status}`);
+                    }
+                  })
+                  .catch(async (err) => {
+                    alert(`Không xóa được điểm lưu động trong cơ sở dữ liệu: ${err.message}`);
+                    await loadCustomPoints();
+                    render();
+                  });
                 state.shouldAutoFit = true;
                 render();
               }
