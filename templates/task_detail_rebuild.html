@@ -76,6 +76,47 @@
     </div>
     {% endif %}
 
+    {% if delivery_contract_groups %}
+    <div class="card border-0 shadow-sm mt-4">
+        <div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                    <h2 class="h5 mb-1">Phạm Vi Đã Phát Hành</h2>
+                    <div class="small text-muted">
+                        Khối này cho biết sau khi phát hành, nhóm nào sẽ nộp báo cáo chung và đang được giao những nội dung nào.
+                    </div>
+                </div>
+                <span class="badge bg-light text-dark">{{ delivery_contract_groups|length }} nhóm nộp</span>
+            </div>
+            <div class="row g-3">
+                {% for group in delivery_contract_groups %}
+                <div class="col-12 col-xl-4">
+                    <div class="border rounded-3 p-3 h-100 bg-light-subtle">
+                        <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+                            <div>
+                                <div class="fw-semibold">{{ group.group_label }}</div>
+                                <div class="small text-muted">{{ group.mode_label }}</div>
+                            </div>
+                            <div class="small text-muted text-end">
+                                {{ group.recipient_count }} người
+                                <br>
+                                {{ group.payload_count }} nội dung
+                            </div>
+                        </div>
+                        {% if group.member_names %}
+                        <div class="small text-muted mb-2">Thành viên: {{ group.member_names|join(', ') }}</div>
+                        {% endif %}
+                        {% if group.payload_labels %}
+                        <div class="small">Nội dung giao: {{ group.payload_labels|join(', ') }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="row g-4 align-items-start">
         <div class="col-xl-3">
             {% if (task.task_mode == 'FILE' and can_submit and my_file_assignment and (my_file_assignment.status or '') == 'assigned') or (task.task_mode == 'FORM' and can_submit and my_form_assignment and (my_form_assignment.status or '') == 'assigned') %}
@@ -496,6 +537,58 @@
                         <div class="card border-0 shadow-sm">
                             <div class="card-body">
                                 <h2 class="h4 mb-4">Tiến độ chung</h2>
+                                {% if file_assignment_role_groups %}
+                                <div class="border rounded-4 p-3 bg-light-subtle mb-4">
+                                    <div class="fw-semibold mb-3">Tổng quan theo vai trò</div>
+                                    <div class="d-grid gap-3">
+                                        {% for group in file_assignment_role_groups %}
+                                        <div class="border rounded-3 p-3 bg-white">
+                                            <div class="d-flex justify-content-between align-items-start gap-3">
+                                                <div>
+                                                    <div class="fw-semibold">{{ group.role_name }}</div>
+                                                    <div class="small text-muted">{{ group.unit_count }} đơn vị liên quan</div>
+                                                </div>
+                                                <span class="badge bg-light text-dark">{{ group.status }}</span>
+                                            </div>
+                                            <div class="row g-2 mt-2">
+                                                {% for unit in group.units %}
+                                                <div class="col-lg-6">
+                                                    <div class="border rounded-3 p-2 h-100">
+                                                        <div class="fw-semibold small">{{ unit.unit_name }}</div>
+                                                        <div class="small text-muted">{{ unit.progress_text }} người hoàn thành</div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if file_assignment_unit_cards %}
+                                <div class="border rounded-4 p-3 bg-light-subtle mb-4">
+                                    <div class="fw-semibold mb-3">Tổng quan theo đơn vị</div>
+                                    <div class="row g-3">
+                                        {% for card in file_assignment_unit_cards %}
+                                        <div class="col-lg-6">
+                                            <div class="border rounded-3 p-3 bg-white h-100">
+                                                <div class="d-flex justify-content-between align-items-start gap-3">
+                                                    <div>
+                                                        <div class="fw-semibold">{{ card.unit_name }}</div>
+                                                        <div class="small text-muted">{{ card.completed_count }}/{{ card.total_count }} người đã hoàn thành</div>
+                                                    </div>
+                                                    <span class="badge bg-light text-dark">{{ card.status }}</span>
+                                                </div>
+                                                <div class="small text-muted mt-2">{{ card.members|map(attribute='name')|join(', ') }}</div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if file_assignment_role_groups or file_assignment_unit_cards %}
+                                <div class="fw-semibold mb-3">Chi tiết theo cán bộ</div>
+                                {% endif %}
                                 <div class="d-grid gap-3">
                                     {% for row in file_rows %}
                                     <div class="border rounded p-3 {% if row.is_current_user %}border-primary bg-primary-subtle bg-opacity-10{% endif %}">
@@ -510,7 +603,13 @@
                                         <div class="small text-muted mt-2">
                                             Nộp lúc {{ row.submission.submitted_at.strftime('%d/%m/%Y %H:%M') if row.submission.submitted_at else row.submission.created_at.strftime('%d/%m/%Y %H:%M') }}
                                         </div>
-                                        {% if row.submission.narrative_content %}
+                                        {% if row.report_context and row.report_context.summary_lines %}
+                                        <div class="mt-2">
+                                            {% for line in row.report_context.summary_lines %}
+                                            <div class="small text-muted" style="white-space: pre-wrap;">{{ line }}</div>
+                                            {% endfor %}
+                                        </div>
+                                        {% elif row.submission.narrative_content %}
                                         <div class="mt-2" style="white-space: pre-wrap;">{{ row.submission.narrative_content }}</div>
                                         {% endif %}
                                         {% if row.submission.files %}
@@ -518,6 +617,10 @@
                                             {% for file in row.submission.files %}
                                             <a class="d-block small" href="{{ url_for('tasks_bp.download_task_submission_file_v2', tid=task.id, file_id=file.id) }}">{{ file.original_name or file.stored_name }}</a>
                                             {% endfor %}
+                                        </div>
+                                        {% elif row.report_context and row.report_context.result_file %}
+                                        <div class="mt-2 small text-muted">
+                                            {{ row.report_context.attachment_label }}: {{ row.report_context.result_file }}
                                         </div>
                                         {% endif %}
                                         {% endif %}
@@ -538,12 +641,61 @@
                                     <h2 class="h4 mb-0">Phần việc của tôi</h2>
                                     <span class="badge bg-info-subtle text-info">{{ detail_context.submit_status_text or status_labels.get((my_file_assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
                                 </div>
+                                {% if detail_context.submit_scope_hint %}
+                                <div class="alert alert-info border mb-3">
+                                    <div class="fw-semibold mb-1">{{ detail_context.submit_scope_label or 'Cách ghi nhận báo cáo' }}</div>
+                                    <div class="small">{{ detail_context.submit_scope_hint }}</div>
+                                </div>
+                                {% endif %}
                                 {% if my_file_assignment.status == 'assigned' %}
                                 <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST" class="mb-3">
                                     <button class="btn btn-outline-primary" type="submit">Tiếp nhận công việc</button>
                                 </form>
                                 {% endif %}
                                 <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data">
+                                    {% if my_file_report_form and my_file_report_form.has_visible_content %}
+                                        {% if my_file_report_form.summary_lines %}
+                                        <div class="alert alert-light border">
+                                            <div class="fw-semibold mb-2">Bản nộp gần nhất</div>
+                                            {% for line in my_file_report_form.summary_lines %}
+                                            <div class="small text-muted">{{ line }}</div>
+                                            {% endfor %}
+                                            {% if my_file_report_form.updated_at %}
+                                            <div class="small text-muted mt-2">Cập nhật lúc {{ my_file_report_form.updated_at }}</div>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                        {% if my_file_report_form.narrative.enabled %}
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">{{ my_file_report_form.narrative.label }}{% if my_file_report_form.narrative.required %} *{% endif %}</label>
+                                            <textarea class="form-control" name="report_narrative" rows="6" placeholder="{{ my_file_report_form.narrative.placeholder or '' }}">{{ my_file_report_form.narrative.value or '' }}</textarea>
+                                        </div>
+                                        {% endif %}
+                                        {% for field in my_file_report_form.fields %}
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">{{ field.label }}{% if field.required %} *{% endif %}</label>
+                                            {% if field.type == 'textarea' %}
+                                            <textarea class="form-control" name="report_field_{{ field.key }}" rows="4" placeholder="{{ field.placeholder or '' }}">{{ field.value or '' }}</textarea>
+                                            {% elif field.type == 'number' %}
+                                            <input class="form-control" type="number" step="any" name="report_field_{{ field.key }}" value="{{ field.value or '' }}" placeholder="{{ field.placeholder or '' }}">
+                                            {% else %}
+                                            <input class="form-control" type="text" name="report_field_{{ field.key }}" value="{{ field.value or '' }}" placeholder="{{ field.placeholder or '' }}">
+                                            {% endif %}
+                                            {% if field.help_text %}
+                                            <div class="form-text">{{ field.help_text }}</div>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                        {% if my_file_report_form.attachment.enabled %}
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">{{ my_file_report_form.attachment.label }}{% if my_file_report_form.attachment.required %} *{% endif %}</label>
+                                            <input class="form-control" type="file" name="report_file">
+                                            {% if my_file_report_form.attachment.value %}
+                                            <div class="form-text">Tệp gần nhất: {{ my_file_report_form.attachment.value }}</div>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                    {% else %}
                                     <div class="mb-3">
                                         <label class="form-label fw-bold">Nội dung tóm tắt</label>
                                         <textarea class="form-control" name="report_content" rows="6">{{ my_file_submission.narrative_content if my_file_submission else '' }}</textarea>
@@ -552,6 +704,7 @@
                                         <label class="form-label fw-bold">Tệp báo cáo</label>
                                         <input class="form-control" type="file" name="report_file">
                                     </div>
+                                    {% endif %}
                                     {% if my_file_submission and my_file_submission.files %}
                                     <div class="mb-3">
                                         <div class="small fw-semibold mb-2">Tệp đã nộp gần nhất</div>
@@ -589,6 +742,7 @@
                                         {% endif %}
                                         {% if task.form_provider == 'google' and (can_manage_task_view or can_submit) %}
                                         <form action="{{ url_for('tasks_bp.sync_google_form_task', tid=task.id) }}" method="POST">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button class="btn btn-outline-secondary btn-sm" type="submit">Đồng bộ phản hồi</button>
                                         </form>
                                         {% endif %}
@@ -608,6 +762,11 @@
                                     </div>
                                     {% if task.google_form_sync_state.unmatched_total %}
                                     <div class="small text-danger mt-2">Có {{ task.google_form_sync_state.unmatched_total }} phản hồi chưa ghép được với người nhận việc.</div>
+                                    {% endif %}
+                                    {% if task.google_form_sync_state.ignored_scoped_fields_total %}
+                                    <div class="small text-warning mt-2">
+                                        Đã bỏ qua {{ task.google_form_sync_state.ignored_scoped_fields_total }} giá trị nằm ngoài phạm vi field được giao khi đồng bộ từ Google Form.
+                                    </div>
                                     {% endif %}
                                 </div>
                                 {% if can_manage_task_view %}
@@ -648,28 +807,33 @@
                                             <div class="small fw-semibold text-break">{{ task.google_form_runtime.revision_id or 'Chưa có' }}</div>
                                         </div>
                                     </div>
-                                    <div class="d-flex flex-wrap gap-2 mb-3">
+                                        <div class="d-flex flex-wrap gap-2 mb-3">
                                         {% if not task.google_form_id %}
                                         <form action="{{ url_for('tasks_bp.create_task_google_form', tid=task.id) }}" method="POST">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button class="btn btn-primary btn-sm" type="submit">Tạo form thật trên Google</button>
                                         </form>
                                         {% else %}
                                         <form action="{{ url_for('tasks_bp.update_task_google_form', tid=task.id) }}" method="POST">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <input type="hidden" name="google_form_builder_json" value='{{ task.google_form_builder|tojson }}'>
                                             <button class="btn btn-primary btn-sm" type="submit">Cập nhật form thật</button>
                                         </form>
                                         <form action="{{ url_for('tasks_bp.publish_task_google_form', tid=task.id) }}" method="POST">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <input type="hidden" name="is_published" value="true">
                                             <input type="hidden" name="accept_responses" value="true">
                                             <button class="btn btn-outline-success btn-sm" type="submit">Phát hành</button>
                                         </form>
                                         <form action="{{ url_for('tasks_bp.publish_task_google_form', tid=task.id) }}" method="POST">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <input type="hidden" name="is_published" value="false">
                                             <input type="hidden" name="accept_responses" value="false">
                                             <button class="btn btn-outline-secondary btn-sm" type="submit">Chuyển về nháp</button>
                                         </form>
                                         {% endif %}
                                         <form action="{{ url_for('tasks_bp.import_task_google_form_structure', tid=task.id) }}" method="POST" class="d-flex flex-wrap gap-2">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <input class="form-control form-control-sm" style="min-width:320px;" type="url" name="google_form_url" value="{{ task.google_form_url or '' }}" placeholder="Link form cũ để nhập cấu trúc vào builder">
                                             <input type="hidden" name="google_form_match_mode" value="{{ task.google_form_match_mode or 'unit' }}">
                                             <input type="hidden" name="google_form_match_field" value="{{ task.google_form_match_field or '' }}">
@@ -680,6 +844,7 @@
                                     <details>
                                         <summary class="fw-semibold" style="cursor:pointer;">Chỉnh sửa schema builder nhanh</summary>
                                         <form action="{{ url_for('tasks_bp.update_task_google_form', tid=task.id) }}" method="POST" class="mt-3">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <textarea class="form-control font-monospace" name="google_form_builder_json" rows="18">{{ task.google_form_builder|tojson(indent=2) }}</textarea>
                                             <div class="small text-muted mt-2">Đây là chế độ chỉnh trực tiếp schema builder. Sau khi lưu, hệ thống sẽ cập nhật lại Google Form thật theo cùng `formId`.</div>
                                             <button class="btn btn-outline-primary btn-sm mt-3" type="submit">Lưu schema và cập nhật form</button>
@@ -688,6 +853,58 @@
                                     {% endif %}
                                 </div>
                                 {% endif %}
+                                {% endif %}
+                                {% if form_assignment_role_groups %}
+                                <div class="border rounded-4 p-3 bg-light-subtle mb-4">
+                                    <div class="fw-semibold mb-3">Tổng quan theo vai trò</div>
+                                    <div class="d-grid gap-3">
+                                        {% for group in form_assignment_role_groups %}
+                                        <div class="border rounded-3 p-3 bg-white">
+                                            <div class="d-flex justify-content-between align-items-start gap-3">
+                                                <div>
+                                                    <div class="fw-semibold">{{ group.role_name }}</div>
+                                                    <div class="small text-muted">{{ group.unit_count }} đơn vị liên quan</div>
+                                                </div>
+                                                <span class="badge bg-light text-dark">{{ group.status }}</span>
+                                            </div>
+                                            <div class="row g-2 mt-2">
+                                                {% for unit in group.units %}
+                                                <div class="col-lg-6">
+                                                    <div class="border rounded-3 p-2 h-100">
+                                                        <div class="fw-semibold small">{{ unit.unit_name }}</div>
+                                                        <div class="small text-muted">{{ unit.progress_text }} người hoàn thành</div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if form_assignment_unit_cards %}
+                                <div class="border rounded-4 p-3 bg-light-subtle mb-4">
+                                    <div class="fw-semibold mb-3">Tổng quan theo đơn vị</div>
+                                    <div class="row g-3">
+                                        {% for card in form_assignment_unit_cards %}
+                                        <div class="col-lg-6">
+                                            <div class="border rounded-3 p-3 bg-white h-100">
+                                                <div class="d-flex justify-content-between align-items-start gap-3">
+                                                    <div>
+                                                        <div class="fw-semibold">{{ card.unit_name }}</div>
+                                                        <div class="small text-muted">{{ card.completed_count }}/{{ card.total_count }} người đã hoàn thành</div>
+                                                    </div>
+                                                    <span class="badge bg-light text-dark">{{ card.status }}</span>
+                                                </div>
+                                                <div class="small text-muted mt-2">{{ card.members|map(attribute='name')|join(', ') }}</div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if form_assignment_role_groups or form_assignment_unit_cards %}
+                                <div class="fw-semibold mb-3">Chi tiết theo cán bộ</div>
                                 {% endif %}
                                 <div class="d-grid gap-3">
                                     {% for row in form_rows %}
@@ -701,6 +918,7 @@
                                         </div>
                                         {% if row.submission %}
                                         <div class="small text-muted mt-2">Nộp lúc {{ row.submission.submitted_at.strftime('%d/%m/%Y %H:%M') if row.submission.submitted_at else '' }}</div>
+                                        {% if can_manage_task_view %}
                                         <div class="mt-3">
                                             {% for field in form_field_views %}
                                             {% set value = row.payload.get(field.field_key, '') %}
@@ -723,6 +941,7 @@
                                             {% endfor %}
                                         </div>
                                         {% endif %}
+                                        {% endif %}
                                     </div>
                                     {% else %}
                                     <div class="text-muted">Chưa có dữ liệu biểu mẫu.</div>
@@ -740,6 +959,12 @@
                                     <h2 class="h4 mb-0">Phần việc của tôi</h2>
                                     <span class="badge bg-info-subtle text-info">{{ detail_context.submit_status_text or status_labels.get((my_form_assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
                                 </div>
+                                {% if detail_context.submit_scope_hint %}
+                                <div class="alert alert-info border mb-3">
+                                    <div class="fw-semibold mb-1">{{ detail_context.submit_scope_label or 'Cách ghi nhận báo cáo' }}</div>
+                                    <div class="small">{{ detail_context.submit_scope_hint }}</div>
+                                </div>
+                                {% endif %}
                                 {% if my_form_assignment.status == 'assigned' %}
                                 <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST" class="mb-3">
                                     <button class="btn btn-outline-primary" type="submit">Tiếp nhận công việc</button>
@@ -749,19 +974,28 @@
                                 <div class="alert alert-light border">
                                     <div class="fw-semibold mb-2">Biểu mẫu này dùng Google Form thật</div>
                                     <div class="small text-muted mb-3">Bạn điền biểu mẫu trên Google Form, sau đó quay lại đây để đồng bộ phản hồi vào hệ thống.</div>
+                                    {% if my_form_field_views %}
+                                    <div class="small text-muted mb-3">
+                                        Hệ thống chỉ ghi nhận {{ my_form_field_views|length }} trường đang được giao cho bạn. Nếu Google Form chung có nhiều câu hỏi hơn, bạn chỉ cần hoàn thành phần của đơn vị mình.
+                                    </div>
+                                    {% endif %}
                                     <div class="d-flex flex-wrap gap-2">
                                         {% if task.google_form_url %}
                                         <a class="btn btn-primary" href="{{ task.google_form_url }}" target="_blank" rel="noopener">Mở Google Form</a>
                                         {% endif %}
                                         <form action="{{ url_for('tasks_bp.sync_google_form_task', tid=task.id) }}" method="POST">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button class="btn btn-outline-secondary" type="submit">Tôi đã gửi, đồng bộ ngay</button>
                                         </form>
                                     </div>
                                 </div>
+                                {% if not my_form_field_views %}
+                                <div class="alert alert-warning">Hiện chưa có trường biểu mẫu nào được giao cho bạn trong nhiệm vụ này.</div>
+                                {% endif %}
                                 {% if my_form_submission %}
                                 <div class="mt-4">
                                     <h3 class="h6">Phản hồi đã đồng bộ gần nhất</h3>
-                                    {% for field in form_field_views %}
+                                    {% for field in my_form_field_views %}
                                     {% set payload_value = my_form_payload.get(field.field_key, '') %}
                                     <div class="mb-3">
                                         <div class="small fw-semibold">{{ field.field_label }}</div>
@@ -783,8 +1017,9 @@
                                 </div>
                                 {% endif %}
                                 {% else %}
+                                {% if my_form_field_views %}
                                 <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST">
-                                    {% for field in form_field_views %}
+                                    {% for field in my_form_field_views %}
                                     {% set payload_value = my_form_payload.get(field.field_key, '') %}
                                     <div class="mb-3">
                                         <label class="form-label fw-bold">{{ field.field_label }}{% if field.is_required %} *{% endif %}</label>
@@ -821,6 +1056,9 @@
                                     {% endfor %}
                                     <button class="btn btn-primary" type="submit">Gửi biểu mẫu</button>
                                 </form>
+                                {% else %}
+                                <div class="alert alert-warning mb-0">Hiện chưa có trường biểu mẫu nào được giao cho bạn trong nhiệm vụ này.</div>
+                                {% endif %}
                                 {% endif %}
                             </div>
                         </div>

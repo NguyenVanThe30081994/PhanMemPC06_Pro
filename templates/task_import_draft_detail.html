@@ -99,7 +99,39 @@
         </div>
     </div>
 
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                    <h2 class="h5 mb-1">AI điều hành báo cáo</h2>
+                    <div class="text-muted small">
+                        Phân tích dữ liệu đầu vào, đề xuất phương án giao việc, chỉ ra blocker trước khi phát hành.
+                        {% if ai_runtime.configured %}
+                        Có thể bổ sung nhận định từ {{ ai_runtime.label }}.
+                        {% else %}
+                        Hiện dùng lõi AI nội bộ theo quy tắc và dữ liệu hệ thống.
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    {% if not is_locked %}
+                    <button class="btn btn-outline-primary" type="button" id="analyzeDraftAiBtn">Phân tích hệ thống</button>
+                    {% if ai_runtime.configured %}
+                    <button class="btn btn-outline-secondary" type="button" id="analyzeDraftAiProviderBtn">Phân tích + AI ngoài</button>
+                    {% endif %}
+                    <button class="btn btn-success" type="button" id="applyDraftAiBtn">Áp dụng đề xuất an toàn</button>
+                    {% endif %}
+                </div>
+            </div>
+            <div id="taskImportAiStatus" class="small text-muted mb-3"></div>
+            <div id="taskImportAiPanel" class="border rounded-3 p-3 bg-light-subtle">
+                <div class="text-muted">Chưa có phân tích AI cho nháp này.</div>
+            </div>
+        </div>
+    </div>
+
     <form action="{{ url_for('tasks_bp.save_task_import_draft', draft_id=draft.id) }}" method="POST" id="taskImportDraftEditForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-body p-4">
                 <h2 class="h5 mb-3">Bước 2: Duyệt và chỉnh cấu hình</h2>
@@ -210,7 +242,7 @@
                 </div>
 
                 <div id="outlineDraftRows" class="d-grid gap-3">
-                    {% for item in config.items %}
+                    {% for item in config.get('items', []) %}
                     <div class="border rounded-3 p-3 outline-draft-row">
                         <div class="row g-3">
                             <div class="col-lg-1 d-flex align-items-start justify-content-center pt-4">
@@ -360,7 +392,7 @@
                                     <option value="table" {% if field.field_type == 'table' %}selected{% endif %}>Bảng</option>
                                 </select>
                             </div>
-                            <div class="col-lg-4">
+                            <div class="col-lg-3">
                                 <label class="form-label fw-bold">Tùy chọn / cột</label>
                                 <textarea class="form-control" name="form_field_options" rows="3" {% if is_locked %}disabled{% endif %}>{{ field.field_options_text or '' }}</textarea>
                             </div>
@@ -372,7 +404,40 @@
                                 </div>
                                 <input type="hidden" name="form_field_required" class="form-required-hidden">
                             </div>
-                            <div class="col-lg-2 d-flex align-items-end justify-content-end gap-2">
+                            <div class="col-lg-2">
+                                <label class="form-label fw-bold">Áp dụng cho</label>
+                                <select class="form-select form-field-target-type" name="form_field_target_type" {% if is_locked %}disabled{% endif %}>
+                                    <option value="all" {% if (field.target_type or 'all') == 'all' %}selected{% endif %}>Tất cả</option>
+                                    <option value="unit" {% if field.target_type == 'unit' %}selected{% endif %}>Đơn vị</option>
+                                    <option value="role" {% if field.target_type == 'role' %}selected{% endif %}>Vai trò</option>
+                                    <option value="user" {% if field.target_type == 'user' %}selected{% endif %}>Cá nhân</option>
+                                </select>
+                                <div class="mt-2 form-target-box {% if field.target_type != 'unit' %}d-none{% endif %}" data-form-target-box="unit">
+                                    <select class="form-select form-field-unit-select" multiple size="3" {% if is_locked %}disabled{% endif %}>
+                                        {% for item in pro_units %}
+                                        <option value="{{ item.value }}" {% if item.value in (field.target_unit_domains or []) %}selected{% endif %}>{{ item.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <input type="hidden" name="form_field_target_unit_domains" class="form-field-unit-hidden">
+                                </div>
+                                <div class="mt-2 form-target-box {% if field.target_type != 'role' %}d-none{% endif %}" data-form-target-box="role">
+                                    <select class="form-select form-field-role-select" multiple size="3" {% if is_locked %}disabled{% endif %}>
+                                        {% for role in roles %}
+                                        <option value="{{ role.id }}" {% if role.id in (field.target_role_ids or []) %}selected{% endif %}>{{ role.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <input type="hidden" name="form_field_target_role_ids" class="form-field-role-hidden">
+                                </div>
+                                <div class="mt-2 form-target-box {% if field.target_type != 'user' %}d-none{% endif %}" data-form-target-box="user">
+                                    <select class="form-select form-field-user-select" multiple size="3" {% if is_locked %}disabled{% endif %}>
+                                        {% for user in users %}
+                                        <option value="{{ user.id }}" {% if user.id in (field.target_user_ids or []) %}selected{% endif %}>{{ user.fullname }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <input type="hidden" name="form_field_target_user_ids" class="form-field-user-hidden">
+                                </div>
+                            </div>
+                            <div class="col-lg-1 d-flex align-items-end justify-content-end gap-2">
                                 {% if not is_locked %}
                                 <button class="btn btn-outline-secondary btn-sm move-form-up" type="button">Lên</button>
                                 <button class="btn btn-outline-secondary btn-sm move-form-down" type="button">Xuống</button>
@@ -440,6 +505,36 @@
                             <input class="form-check-input" type="checkbox" name="report_narrative_required" value="1" id="reportNarrativeRequired" {% if config.report_narrative_required %}checked{% endif %} {% if is_locked %}disabled{% endif %}>
                             <label class="form-check-label" for="reportNarrativeRequired">Bắt buộc</label>
                         </div>
+                        <div class="mt-3">
+                            <label class="form-label fw-bold">Áp dụng cho</label>
+                            <select class="form-select report-target-mode-select" name="report_narrative_target_type" data-target-prefix="reportNarrative" {% if is_locked %}disabled{% endif %}>
+                                <option value="all" {% if (config.report_narrative_target_type or 'all') == 'all' %}selected{% endif %}>Tất cả đơn vị nhận việc</option>
+                                <option value="unit" {% if config.report_narrative_target_type == 'unit' %}selected{% endif %}>Theo đơn vị</option>
+                                <option value="role" {% if config.report_narrative_target_type == 'role' %}selected{% endif %}>Theo vai trò</option>
+                                <option value="user" {% if config.report_narrative_target_type == 'user' %}selected{% endif %}>Theo cá nhân</option>
+                            </select>
+                            <div class="mt-2 {% if config.report_narrative_target_type != 'unit' %}d-none{% endif %}" data-target-box="reportNarrative-unit">
+                                <select class="form-select" name="report_narrative_unit_domains" multiple size="4" {% if is_locked %}disabled{% endif %}>
+                                    {% for item in pro_units %}
+                                    <option value="{{ item.value }}" {% if item.value in (config.report_narrative_unit_domains or []) %}selected{% endif %}>{{ item.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mt-2 {% if config.report_narrative_target_type != 'role' %}d-none{% endif %}" data-target-box="reportNarrative-role">
+                                <select class="form-select" name="report_narrative_role_ids" multiple size="4" {% if is_locked %}disabled{% endif %}>
+                                    {% for role in roles %}
+                                    <option value="{{ role.id }}" {% if role.id in (config.report_narrative_role_ids or []) %}selected{% endif %}>{{ role.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mt-2 {% if config.report_narrative_target_type != 'user' %}d-none{% endif %}" data-target-box="reportNarrative-user">
+                                <select class="form-select" name="report_narrative_user_ids" multiple size="4" {% if is_locked %}disabled{% endif %}>
+                                    {% for user in users %}
+                                    <option value="{{ user.id }}" {% if user.id in (config.report_narrative_user_ids or []) %}selected{% endif %}>{{ user.fullname }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
                     </div>
                     <div class="col-lg-4">
                         <div class="form-check">
@@ -450,6 +545,36 @@
                         <div class="form-check mt-2">
                             <input class="form-check-input" type="checkbox" name="report_attachment_required" value="1" id="reportAttachmentRequired" {% if config.report_attachment_required %}checked{% endif %} {% if is_locked %}disabled{% endif %}>
                             <label class="form-check-label" for="reportAttachmentRequired">Bắt buộc</label>
+                        </div>
+                        <div class="mt-3">
+                            <label class="form-label fw-bold">Áp dụng cho</label>
+                            <select class="form-select report-target-mode-select" name="report_attachment_target_type" data-target-prefix="reportAttachment" {% if is_locked %}disabled{% endif %}>
+                                <option value="all" {% if (config.report_attachment_target_type or 'all') == 'all' %}selected{% endif %}>Tất cả đơn vị nhận việc</option>
+                                <option value="unit" {% if config.report_attachment_target_type == 'unit' %}selected{% endif %}>Theo đơn vị</option>
+                                <option value="role" {% if config.report_attachment_target_type == 'role' %}selected{% endif %}>Theo vai trò</option>
+                                <option value="user" {% if config.report_attachment_target_type == 'user' %}selected{% endif %}>Theo cá nhân</option>
+                            </select>
+                            <div class="mt-2 {% if config.report_attachment_target_type != 'unit' %}d-none{% endif %}" data-target-box="reportAttachment-unit">
+                                <select class="form-select" name="report_attachment_unit_domains" multiple size="4" {% if is_locked %}disabled{% endif %}>
+                                    {% for item in pro_units %}
+                                    <option value="{{ item.value }}" {% if item.value in (config.report_attachment_unit_domains or []) %}selected{% endif %}>{{ item.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mt-2 {% if config.report_attachment_target_type != 'role' %}d-none{% endif %}" data-target-box="reportAttachment-role">
+                                <select class="form-select" name="report_attachment_role_ids" multiple size="4" {% if is_locked %}disabled{% endif %}>
+                                    {% for role in roles %}
+                                    <option value="{{ role.id }}" {% if role.id in (config.report_attachment_role_ids or []) %}selected{% endif %}>{{ role.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mt-2 {% if config.report_attachment_target_type != 'user' %}d-none{% endif %}" data-target-box="reportAttachment-user">
+                                <select class="form-select" name="report_attachment_user_ids" multiple size="4" {% if is_locked %}disabled{% endif %}>
+                                    {% for user in users %}
+                                    <option value="{{ user.id }}" {% if user.id in (config.report_attachment_user_ids or []) %}selected{% endif %}>{{ user.fullname }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -495,6 +620,39 @@
                                     <label class="form-check-label">Có</label>
                                 </div>
                                 <input type="hidden" name="report_field_required" class="report-required-hidden">
+                            </div>
+                            <div class="col-lg-2">
+                                <label class="form-label fw-bold">Áp dụng cho</label>
+                                <select class="form-select report-field-target-type" name="report_field_target_type" {% if is_locked %}disabled{% endif %}>
+                                    <option value="all" {% if (field.target_type or 'all') == 'all' %}selected{% endif %}>Tất cả</option>
+                                    <option value="unit" {% if field.target_type == 'unit' %}selected{% endif %}>Đơn vị</option>
+                                    <option value="role" {% if field.target_type == 'role' %}selected{% endif %}>Vai trò</option>
+                                    <option value="user" {% if field.target_type == 'user' %}selected{% endif %}>Cá nhân</option>
+                                </select>
+                                <div class="mt-2 report-target-box {% if field.target_type != 'unit' %}d-none{% endif %}" data-field-target-box="unit">
+                                    <select class="form-select report-field-unit-select" multiple size="3" {% if is_locked %}disabled{% endif %}>
+                                        {% for item in pro_units %}
+                                        <option value="{{ item.value }}" {% if item.value in (field.target_unit_domains or []) %}selected{% endif %}>{{ item.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <input type="hidden" name="report_field_target_unit_domains" class="report-field-unit-hidden">
+                                </div>
+                                <div class="mt-2 report-target-box {% if field.target_type != 'role' %}d-none{% endif %}" data-field-target-box="role">
+                                    <select class="form-select report-field-role-select" multiple size="3" {% if is_locked %}disabled{% endif %}>
+                                        {% for role in roles %}
+                                        <option value="{{ role.id }}" {% if role.id in (field.target_role_ids or []) %}selected{% endif %}>{{ role.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <input type="hidden" name="report_field_target_role_ids" class="report-field-role-hidden">
+                                </div>
+                                <div class="mt-2 report-target-box {% if field.target_type != 'user' %}d-none{% endif %}" data-field-target-box="user">
+                                    <select class="form-select report-field-user-select" multiple size="3" {% if is_locked %}disabled{% endif %}>
+                                        {% for user in users %}
+                                        <option value="{{ user.id }}" {% if user.id in (field.target_user_ids or []) %}selected{% endif %}>{{ user.fullname }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <input type="hidden" name="report_field_target_user_ids" class="report-field-user-hidden">
+                                </div>
                             </div>
                             <div class="col-lg-1 d-flex align-items-end justify-content-end gap-2">
                                 {% if not is_locked %}
@@ -569,9 +727,220 @@
         </div>
     </form>
 
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                    <h2 class="h5 mb-1">Bước 3: Xem trước đầu ra cho đơn vị</h2>
+                    <div class="text-muted small">
+                        Mỗi thẻ bên dưới mô phỏng chính xác phần việc hoặc biểu mẫu mà từng người nhận sẽ thấy sau khi phát hành.
+                    </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge bg-light text-dark">{{ recipient_preview.recipient_count }} người nhận</span>
+                    {% if recipient_preview.unit_groups %}
+                    <span class="badge bg-light text-dark">{{ recipient_preview.unit_groups|length }} đơn vị</span>
+                    {% endif %}
+                    {% if recipient_preview.submission_groups %}
+                    <span class="badge bg-light text-dark">{{ recipient_preview.submission_groups|length }} nhóm nộp</span>
+                    {% endif %}
+                    {% if recipient_preview.warnings %}
+                    <span class="badge bg-warning-subtle text-warning">{{ recipient_preview.warnings|length }} cảnh báo</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if recipient_preview.warnings %}
+            <div class="alert alert-warning">
+                <div class="fw-semibold mb-2">Các điểm cần xử lý trước khi phát hành</div>
+                <ul class="mb-0 ps-3">
+                    {% for warning in recipient_preview.warnings %}
+                    <li><strong>{{ warning.scope }}:</strong> {{ warning.message }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if recipient_preview.submission_groups %}
+            <div class="mb-3">
+                <div class="small text-muted mb-2">Nhóm nộp sau phát hành</div>
+                <div class="row g-3">
+                    {% for group in recipient_preview.submission_groups %}
+                    <div class="col-12 col-xl-4">
+                        <div class="border rounded-3 h-100 p-3 bg-white">
+                            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                <div>
+                                    <div class="fw-bold">{{ group.group_label }}</div>
+                                    <div class="small text-muted">{{ group.mode_label }}</div>
+                                </div>
+                                <div class="text-end small text-muted">
+                                    {{ group.recipient_count }} người
+                                    <br>
+                                    {{ group.payload_count }} nội dung
+                                </div>
+                            </div>
+                            {% if group.member_names %}
+                            <div class="small text-muted mb-2">Thành viên: {{ group.member_names|join(', ') }}</div>
+                            {% endif %}
+                            {% if group.payload_labels %}
+                            <div class="small">Nội dung tiêu biểu: {{ group.payload_labels|join(', ') }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if recipient_preview.unit_groups %}
+            <div class="row g-3 mb-3">
+                {% for group in recipient_preview.unit_groups %}
+                <div class="col-12 col-xl-4">
+                    <div class="border rounded-3 h-100 p-3 bg-light-subtle">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div>
+                                <div class="fw-bold">{{ group.unit_name }}</div>
+                                <div class="small text-muted">
+                                    {{ group.recipient_count }} người nhận
+                                    {% if recipient_preview.mode == 'outline' %}
+                                    • {{ group.item_count }} đầu mục
+                                    {% elif recipient_preview.mode == 'form' %}
+                                    • {{ group.field_count }} trường
+                                    {% else %}
+                                    • {{ group.section_count }} phần báo cáo
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if group.warning_count %}
+                            <span class="badge bg-warning-subtle text-warning">{{ group.warning_count }} cảnh báo</span>
+                            {% endif %}
+                        </div>
+                        {% if group.delivery_labels %}
+                        <div class="small text-muted mb-1">Cách giao</div>
+                        <div class="d-flex flex-wrap gap-2 mb-2">
+                            {% for label in group.delivery_labels %}
+                            <span class="badge bg-white text-dark border">{{ label }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if group.payload_labels %}
+                        <div class="small text-muted mb-1">Nội dung tiêu biểu</div>
+                        <div class="small">{{ group.payload_labels|join(', ') }}</div>
+                        {% endif %}
+                        {% if group.recipient_names %}
+                        <div class="small text-muted mt-2">Người nhận: {{ group.recipient_names|join(', ') }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if recipient_preview.cards %}
+            <div class="row g-3">
+                {% for card in recipient_preview.cards %}
+                <div class="col-12 col-xxl-6">
+                    <div class="border rounded-3 h-100 p-3">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                            <div>
+                                <div class="fw-bold">{{ card.user_name }}</div>
+                                <div class="small text-muted">
+                                    {{ card.unit_name }}
+                                    {% if card.role_name %}
+                                    • {{ card.role_name }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                {% if recipient_preview.mode == 'outline' %}
+                                <div class="small text-muted">Đầu mục nhận</div>
+                                <div class="fw-semibold">{{ card.item_count }}</div>
+                                {% elif recipient_preview.mode == 'form' %}
+                                <div class="small text-muted">Trường biểu mẫu</div>
+                                <div class="fw-semibold">{{ card.field_count }}</div>
+                                {% else %}
+                                <div class="small text-muted">Phần báo cáo</div>
+                                <div class="fw-semibold">{{ card.section_count }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% if card.delivery_labels %}
+                        <div class="small text-muted mb-2">Nhận việc qua</div>
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            {% for label in card.delivery_labels %}
+                            <span class="badge bg-light text-dark">{{ label }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        {% if card.submission_group_label %}
+                        <div class="small text-muted mb-2">Nộp kết quả theo</div>
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <span class="badge bg-white text-dark border">{{ card.submission_mode_label }}</span>
+                            <span class="badge bg-white text-dark border">{{ card.submission_group_label }}</span>
+                        </div>
+                        {% endif %}
+
+                        {% if card.warnings %}
+                        <div class="alert alert-warning py-2 px-3 small">
+                            {% for message in card.warnings %}
+                            <div>{{ message }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        {% if recipient_preview.mode == 'outline' %}
+                        <div class="d-grid gap-2">
+                            {% for item in card.outline_items %}
+                            <div class="border rounded-3 p-2 bg-light-subtle">
+                                <div class="fw-semibold">{{ item.title }}</div>
+                                <div class="small text-muted">{{ item.report_kind_label }}{% if item.attachment_required %} • Có file minh chứng{% endif %}</div>
+                                {% if item.guide_text %}
+                                <div class="small mt-1">{{ item.guide_text }}</div>
+                                {% endif %}
+                                <div class="small text-muted mt-1">{{ item.delivery_text }}</div>
+                                <div class="small text-muted mt-1">{{ item.submission_mode_label }} • {{ item.submission_group_label }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% elif recipient_preview.mode == 'form' %}
+                        <div class="d-grid gap-2">
+                            {% for field in card.form_fields %}
+                            <div class="border rounded-3 p-2 bg-light-subtle">
+                                <div class="fw-semibold">{{ field.label }}</div>
+                                <div class="small text-muted">{{ field.field_type_label }}{% if field.is_required %} • Bắt buộc{% endif %}</div>
+                                <div class="small text-muted mt-1">{{ field.target_text }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="d-grid gap-2">
+                            {% for section in card.file_sections %}
+                            <div class="border rounded-3 p-2 bg-light-subtle">
+                                <div class="fw-semibold">{{ section.label }}</div>
+                                <div class="small text-muted">{{ section.kind_label }} • {{ section.type_label }}{% if section.required %} • Bắt buộc{% endif %}</div>
+                                <div class="small text-muted mt-1">{{ section.target_text }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-secondary mb-0">
+                Chưa có đầu ra xem trước vì nháp chưa có người nhận hợp lệ hoặc chưa có nội dung phát hành.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
     {% if not is_locked %}
     <form action="{{ url_for('tasks_bp.publish_task_import_draft', draft_id=draft.id) }}" method="POST" class="d-flex justify-content-end">
-        <button class="btn btn-success btn-lg" type="submit">Bước 3: Phát hành thành nhiệm vụ</button>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-success btn-lg" type="submit">Phát hành thành nhiệm vụ</button>
     </form>
     {% endif %}
 </div>
@@ -669,7 +1038,7 @@
                     <option value="table">Bảng</option>
                 </select>
             </div>
-            <div class="col-lg-4">
+            <div class="col-lg-3">
                 <label class="form-label fw-bold">Tùy chọn / cột</label>
                 <textarea class="form-control" name="form_field_options" rows="3"></textarea>
             </div>
@@ -681,7 +1050,40 @@
                 </div>
                 <input type="hidden" name="form_field_required" class="form-required-hidden">
             </div>
-            <div class="col-lg-2 d-flex align-items-end justify-content-end gap-2">
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">Áp dụng cho</label>
+                <select class="form-select form-field-target-type" name="form_field_target_type">
+                    <option value="all">Tất cả</option>
+                    <option value="unit">Đơn vị</option>
+                    <option value="role">Vai trò</option>
+                    <option value="user">Cá nhân</option>
+                </select>
+                <div class="mt-2 form-target-box d-none" data-form-target-box="unit">
+                    <select class="form-select form-field-unit-select" multiple size="3">
+                        {% for item in pro_units %}
+                        <option value="{{ item.value }}">{{ item.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="form_field_target_unit_domains" class="form-field-unit-hidden">
+                </div>
+                <div class="mt-2 form-target-box d-none" data-form-target-box="role">
+                    <select class="form-select form-field-role-select" multiple size="3">
+                        {% for role in roles %}
+                        <option value="{{ role.id }}">{{ role.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="form_field_target_role_ids" class="form-field-role-hidden">
+                </div>
+                <div class="mt-2 form-target-box d-none" data-form-target-box="user">
+                    <select class="form-select form-field-user-select" multiple size="3">
+                        {% for user in users %}
+                        <option value="{{ user.id }}">{{ user.fullname }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="form_field_target_user_ids" class="form-field-user-hidden">
+                </div>
+            </div>
+            <div class="col-lg-1 d-flex align-items-end justify-content-end gap-2">
                 <button class="btn btn-outline-secondary btn-sm move-form-up" type="button">Lên</button>
                 <button class="btn btn-outline-secondary btn-sm move-form-down" type="button">Xuống</button>
                 <button class="btn btn-outline-danger btn-sm remove-form-field" type="button">Xóa</button>
@@ -722,6 +1124,39 @@
                 </div>
                 <input type="hidden" name="report_field_required" class="report-required-hidden">
             </div>
+            <div class="col-lg-2">
+                <label class="form-label fw-bold">Áp dụng cho</label>
+                <select class="form-select report-field-target-type" name="report_field_target_type">
+                    <option value="all">Tất cả</option>
+                    <option value="unit">Đơn vị</option>
+                    <option value="role">Vai trò</option>
+                    <option value="user">Cá nhân</option>
+                </select>
+                <div class="mt-2 report-target-box d-none" data-field-target-box="unit">
+                    <select class="form-select report-field-unit-select" multiple size="3">
+                        {% for item in pro_units %}
+                        <option value="{{ item.value }}">{{ item.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="report_field_target_unit_domains" class="report-field-unit-hidden">
+                </div>
+                <div class="mt-2 report-target-box d-none" data-field-target-box="role">
+                    <select class="form-select report-field-role-select" multiple size="3">
+                        {% for role in roles %}
+                        <option value="{{ role.id }}">{{ role.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="report_field_target_role_ids" class="report-field-role-hidden">
+                </div>
+                <div class="mt-2 report-target-box d-none" data-field-target-box="user">
+                    <select class="form-select report-field-user-select" multiple size="3">
+                        {% for user in users %}
+                        <option value="{{ user.id }}">{{ user.fullname }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="report_field_target_user_ids" class="report-field-user-hidden">
+                </div>
+            </div>
             <div class="col-lg-1 d-flex align-items-end justify-content-end gap-2">
                 <button class="btn btn-outline-secondary btn-sm move-report-up" type="button">Lên</button>
                 <button class="btn btn-outline-danger btn-sm remove-report-field" type="button">Xóa</button>
@@ -745,9 +1180,671 @@
     const reportDraftFieldTemplate = document.getElementById('reportDraftFieldTemplate');
     const globalAssignTypeSelect = document.getElementById('globalAssignTypeSelect');
     const isLocked = {{ 'true' if is_locked else 'false' }};
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const aiPanel = document.getElementById('taskImportAiPanel');
+    const aiStatus = document.getElementById('taskImportAiStatus');
+    const analyzeDraftAiBtn = document.getElementById('analyzeDraftAiBtn');
+    const analyzeDraftAiProviderBtn = document.getElementById('analyzeDraftAiProviderBtn');
+    const applyDraftAiBtn = document.getElementById('applyDraftAiBtn');
+    const aiAnalyzeUrl = {{ url_for('tasks_bp.analyze_task_import_draft_ai', draft_id=draft.id)|tojson }};
+    const aiApplyUrl = {{ url_for('tasks_bp.apply_task_import_draft_ai', draft_id=draft.id)|tojson }};
+    let currentAiAnalysis = {{ (config.get('ai_analysis') or {})|tojson }};
 
     function selectedValues(select) {
         return Array.from(select?.selectedOptions || []).map((option) => option.value).filter(Boolean);
+    }
+
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function renderSimpleList(items, emptyText) {
+        if (!Array.isArray(items) || !items.length) {
+            return `<div class="text-muted small">${escapeHtml(emptyText)}</div>`;
+        }
+        return `<ul class="mb-0 ps-3">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+    }
+
+    function renderFitSignals(signals) {
+        if (!Array.isArray(signals) || !signals.length) {
+            return '';
+        }
+        const toneClass = {
+            primary: 'text-primary border-primary-subtle bg-primary-subtle',
+            success: 'text-success border-success-subtle bg-success-subtle',
+            info: 'text-info border-info-subtle bg-info-subtle',
+            warning: 'text-warning border-warning-subtle bg-warning-subtle',
+            secondary: 'text-secondary border-secondary-subtle bg-light',
+        };
+        return `
+            <div class="d-flex flex-wrap gap-2 mt-2">
+                ${signals.map((signal) => `
+                    <span class="badge border ${toneClass[signal.tone] || toneClass.secondary}" title="${escapeHtml(signal.detail || '')}">
+                        ${escapeHtml(signal.label || '')}
+                    </span>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    function renderScoreBreakdown(scoreBreakdown) {
+        if (!scoreBreakdown || typeof scoreBreakdown !== 'object') {
+            return '';
+        }
+        const lines = [];
+        if (typeof scoreBreakdown.semantic_score === 'number') {
+            lines.push(`Ngữ nghĩa: ${scoreBreakdown.semantic_score.toFixed(2)}`);
+        }
+        if (typeof scoreBreakdown.history_quality_score === 'number' && scoreBreakdown.history_quality_score > 0) {
+            lines.push(`Lịch sử: ${scoreBreakdown.history_quality_score.toFixed(2)}`);
+        }
+        if (typeof scoreBreakdown.on_time_rate === 'number' && scoreBreakdown.on_time_rate > 0) {
+            lines.push(`Đúng hạn: ${Math.round(scoreBreakdown.on_time_rate * 100)}%`);
+        }
+        if (typeof scoreBreakdown.domain_match_bonus === 'number' && scoreBreakdown.domain_match_bonus > 0) {
+            lines.push('Trùng đội nghiệp vụ');
+        }
+        if (typeof scoreBreakdown.category_match_bonus === 'number' && scoreBreakdown.category_match_bonus > 0) {
+            lines.push('Trùng lĩnh vực');
+        }
+        if (!lines.length) return '';
+        return `<div class="small text-muted mt-1">${escapeHtml(lines.join(' | '))}</div>`;
+    }
+
+    function renderAlternativeBadges(alternatives, sectionName, selectionKind, rowIndex, baseLabel) {
+        if (isLocked || !Array.isArray(alternatives) || !alternatives.length) {
+            return '';
+        }
+        return `
+            <div class="mt-2 d-flex flex-column gap-2">
+                ${alternatives.map((alternative, altIndex) => {
+                    const targets = Array.isArray(alternative.display_targets) && alternative.display_targets.length
+                        ? alternative.display_targets.join(', ')
+                        : 'Chưa suy ra';
+                    const reason = Array.isArray(alternative.reasons) && alternative.reasons.length
+                        ? alternative.reasons.join(' ')
+                        : '';
+                    return `
+                        <div class="border rounded-3 p-2 bg-light-subtle">
+                            <div class="small fw-semibold">PA ${altIndex + 2}: ${escapeHtml((alternative.assign_type || alternative.target_type || 'N/A').toUpperCase())} <span class="badge bg-light text-dark">${escapeHtml(alternative.confidence_label || 'thấp')}</span></div>
+                            <div class="small text-muted">${escapeHtml(targets)}</div>
+                            ${renderFitSignals(alternative.fit_signals)}
+                            ${renderScoreBreakdown(alternative.score_breakdown)}
+                            ${reason ? `<div class="small text-muted mt-1">${escapeHtml(reason)}</div>` : ''}
+                            <div class="mt-2">
+                                <button class="btn btn-outline-secondary btn-sm" type="button"
+                                    data-ai-sections="${escapeHtml(sectionName)}"
+                                    data-ai-selection-kind="${escapeHtml(selectionKind)}"
+                                    data-ai-selection-index="${Number(rowIndex || 0)}"
+                                    data-ai-alternative-index="${Number(altIndex)}"
+                                    data-ai-label="${escapeHtml(baseLabel)} - phương án ${altIndex + 2}">
+                                    Dùng PA ${altIndex + 2}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
+
+    function renderAiAnalysis(analysis) {
+        if (!analysis || typeof analysis !== 'object' || !Object.keys(analysis).length) {
+            aiPanel.innerHTML = '<div class="text-muted">Chưa có phân tích AI cho nháp này.</div>';
+            aiStatus.textContent = '';
+            return;
+        }
+
+        const blockers = Array.isArray(analysis.blockers) ? analysis.blockers : [];
+        const warnings = Array.isArray(analysis.warnings) ? analysis.warnings : [];
+        const opportunities = Array.isArray(analysis.opportunities) ? analysis.opportunities : [];
+        const outlineItems = Array.isArray(analysis.outline_items) ? analysis.outline_items : [];
+        const formFields = Array.isArray(analysis.form_fields) ? analysis.form_fields : [];
+        const reportFields = Array.isArray(analysis.report_fields) ? analysis.report_fields : [];
+        const globalAssignment = analysis.global_assignment || null;
+        const assignmentStrategy = analysis.assignment_strategy || {};
+        const workflowStages = Array.isArray(analysis.workflow_stages) ? analysis.workflow_stages : [];
+        const recommendedActions = Array.isArray(analysis.recommended_actions) ? analysis.recommended_actions : [];
+        const templateSuggestions = Array.isArray(analysis.template_suggestions) ? analysis.template_suggestions : [];
+        const recipientInsights = analysis.recipient_insights || {};
+        const llmMeta = analysis.llm_meta || {};
+        const recommended = analysis.recommended_updates || {};
+        const specialistBrief = analysis.specialist_brief || {};
+        const decisionButtons = [];
+        const recipientRows = Array.isArray(recipientInsights.rows) ? recipientInsights.rows : [];
+        const emptyRecipients = Array.isArray(recipientInsights.empty_payload_recipients) ? recipientInsights.empty_payload_recipients : [];
+        const highWorkloadRecipients = Array.isArray(recipientInsights.high_workload_recipients) ? recipientInsights.high_workload_recipients : [];
+        const overloadedRecipients = Array.isArray(recipientInsights.overloaded_recipients) ? recipientInsights.overloaded_recipients : [];
+        const unitSummaries = Array.isArray(recipientInsights.unit_summaries) ? recipientInsights.unit_summaries : [];
+        const submissionGroups = Array.isArray(recipientInsights.submission_groups) ? recipientInsights.submission_groups : [];
+        const unitDeliveryMatrix = Array.isArray(recipientInsights.unit_delivery_matrix) ? recipientInsights.unit_delivery_matrix : [];
+        const fragmentedUnits = Array.isArray(recipientInsights.fragmented_units) ? recipientInsights.fragmented_units : [];
+        const coordinationHotspots = Array.isArray(recipientInsights.coordination_hotspots) ? recipientInsights.coordination_hotspots : [];
+        const singleOwnerGroups = Array.isArray(recipientInsights.single_owner_groups) ? recipientInsights.single_owner_groups : [];
+
+        if (!isLocked) {
+            if (recommended.title || recommended.summary || recommended.domain || recommended.category || recommended.priority) {
+                decisionButtons.push('<button class="btn btn-outline-primary btn-sm" type="button" data-ai-sections="metadata" data-ai-label="đề xuất metadata">Áp dụng tiêu đề, tóm tắt, ưu tiên</button>');
+            }
+            if (globalAssignment && globalAssignment.assign_type) {
+                decisionButtons.push('<button class="btn btn-outline-primary btn-sm" type="button" data-ai-sections="global_assignment" data-ai-label="giao việc toàn nhiệm vụ">Áp dụng gợi ý giao việc toàn task</button>');
+            }
+            if (outlineItems.length) {
+                decisionButtons.push('<button class="btn btn-outline-primary btn-sm" type="button" data-ai-sections="outline_items" data-ai-label="gợi ý theo đầu mục">Áp dụng gợi ý theo từng dòng</button>');
+            }
+            if (formFields.length) {
+                decisionButtons.push('<button class="btn btn-outline-primary btn-sm" type="button" data-ai-sections="form_fields" data-ai-label="phạm vi field biểu mẫu">Áp dụng phạm vi field biểu mẫu</button>');
+            }
+            if (reportFields.length) {
+                decisionButtons.push('<button class="btn btn-outline-primary btn-sm" type="button" data-ai-sections="report_fields" data-ai-label="phạm vi chỉ tiêu báo cáo">Áp dụng phạm vi chỉ tiêu</button>');
+            }
+        }
+
+        aiStatus.textContent = `${analysis.summary || ''} Điểm sẵn sàng: ${analysis.score || 0}/100.`;
+
+        let assignmentHtml = '';
+        if (outlineItems.length) {
+            assignmentHtml = `
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Đầu mục</th>
+                                <th>Gợi ý giao việc</th>
+                                <th>Chuẩn hóa đầu ra</th>
+                                ${!isLocked ? '<th>Thao tác</th>' : ''}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${outlineItems.map((item) => {
+                                const suggestion = item.suggestion || {};
+                                const targets = Array.isArray(suggestion.display_targets) && suggestion.display_targets.length
+                                    ? suggestion.display_targets.join(', ')
+                                    : 'Chưa suy ra';
+                                const reasons = Array.isArray(suggestion.reasons) && suggestion.reasons.length
+                                    ? suggestion.reasons.join(' ')
+                                    : '';
+                                const alternatives = Array.isArray(suggestion.alternatives) ? suggestion.alternatives : [];
+                                return `
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold">${escapeHtml(item.title || '')}</div>
+                                            <div class="small text-muted">${escapeHtml(reasons)}</div>
+                                        </td>
+                                        <td>
+                                            <div>${escapeHtml((suggestion.assign_type || '').toUpperCase() || 'N/A')} <span class="badge bg-light text-dark">${escapeHtml(suggestion.confidence_label || 'thấp')}</span></div>
+                                            <div class="small text-muted">${escapeHtml(targets)}</div>
+                                            ${renderFitSignals(suggestion.fit_signals)}
+                                            ${renderScoreBreakdown(suggestion.score_breakdown)}
+                                            ${renderAlternativeBadges(alternatives, 'outline_items', 'outline', Number(item.index || 0), `gợi ý cho đầu mục ${item.title || ''}`)}
+                                        </td>
+                                        <td>
+                                            <div class="small">Kiểu báo cáo: <strong>${escapeHtml(suggestion.report_kind || 'narrative')}</strong></div>
+                                            <div class="small text-muted">Minh chứng: ${suggestion.attachment_required ? 'Có' : 'Không'}</div>
+                                        </td>
+                                        ${!isLocked ? `
+                                            <td class="text-nowrap">
+                                                <button class="btn btn-outline-primary btn-sm" type="button"
+                                                    data-ai-sections="outline_items"
+                                                    data-ai-selection-kind="outline"
+                                                    data-ai-selection-index="${Number(item.index || 0)}"
+                                                    data-ai-label="gợi ý cho đầu mục ${escapeHtml(item.title || '')}">
+                                                    Áp dụng dòng này
+                                                </button>
+                                            </td>
+                                        ` : ''}
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } else if (formFields.length) {
+            assignmentHtml = `
+                <div class="border rounded-3 p-3 bg-white mb-3">
+                    <div class="fw-semibold mb-1">${escapeHtml(assignmentStrategy.label || 'Chiến lược giao việc')}</div>
+                    <div class="small text-muted">${escapeHtml(assignmentStrategy.summary || 'Chưa có tóm tắt chiến lược.')}</div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Field biểu mẫu</th>
+                                <th>Phạm vi hiện tại</th>
+                                <th>Gợi ý AI</th>
+                                ${!isLocked ? '<th>Thao tác</th>' : ''}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${formFields.map((item) => {
+                                const current = item.current || {};
+                                const suggestion = item.suggestion || {};
+                                const currentTargets = []
+                                    .concat(current.target_unit_domains || [])
+                                    .concat(current.target_role_ids || [])
+                                    .concat(current.target_user_ids || []);
+                                const suggestedTargets = Array.isArray(suggestion.display_targets) && suggestion.display_targets.length
+                                    ? suggestion.display_targets.join(', ')
+                                    : 'Toàn bộ người nhận';
+                                const reasons = Array.isArray(suggestion.reasons) && suggestion.reasons.length
+                                    ? suggestion.reasons.join(' ')
+                                    : '';
+                                const alternatives = Array.isArray(suggestion.alternatives) ? suggestion.alternatives : [];
+                                return `
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold">${escapeHtml(item.label || '')}</div>
+                                            <div class="small text-muted">${escapeHtml(reasons)}</div>
+                                        </td>
+                                        <td>
+                                            <div>${escapeHtml((current.target_type || 'all').toUpperCase())}</div>
+                                            <div class="small text-muted">${escapeHtml(currentTargets.join(', ') || 'Chưa cấu hình')}</div>
+                                        </td>
+                                        <td>
+                                            <div>${escapeHtml((suggestion.target_type || 'all').toUpperCase())} <span class="badge bg-light text-dark">${escapeHtml(suggestion.confidence_label || 'thấp')}</span></div>
+                                            <div class="small text-muted">${escapeHtml(suggestedTargets)}</div>
+                                            ${renderFitSignals(suggestion.fit_signals)}
+                                            ${renderScoreBreakdown(suggestion.score_breakdown)}
+                                            ${renderAlternativeBadges(alternatives, 'form_fields', 'form_field', Number(item.index || 0), `phạm vi field ${item.label || ''}`)}
+                                        </td>
+                                        ${!isLocked ? `
+                                            <td class="text-nowrap">
+                                                <button class="btn btn-outline-primary btn-sm" type="button"
+                                                    data-ai-sections="form_fields"
+                                                    data-ai-selection-kind="form_field"
+                                                    data-ai-selection-index="${Number(item.index || 0)}"
+                                                    data-ai-label="phạm vi field ${escapeHtml(item.label || '')}">
+                                                    Áp dụng field này
+                                                </button>
+                                            </td>
+                                        ` : ''}
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } else if (reportFields.length) {
+            assignmentHtml = `
+                <div class="border rounded-3 p-3 bg-white mb-3">
+                    <div class="fw-semibold mb-1">${escapeHtml(assignmentStrategy.label || 'Chiến lược giao việc')}</div>
+                    <div class="small text-muted">${escapeHtml(assignmentStrategy.summary || 'Chưa có tóm tắt chiến lược.')}</div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Chỉ tiêu</th>
+                                <th>Phạm vi hiện tại</th>
+                                <th>Gợi ý AI</th>
+                                ${!isLocked ? '<th>Thao tác</th>' : ''}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${reportFields.map((item) => {
+                                const current = item.current || {};
+                                const suggestion = item.suggestion || {};
+                                const currentTargets = []
+                                    .concat(current.target_unit_domains || [])
+                                    .concat(current.target_role_ids || [])
+                                    .concat(current.target_user_ids || []);
+                                const suggestedTargets = Array.isArray(suggestion.display_targets) && suggestion.display_targets.length
+                                    ? suggestion.display_targets.join(', ')
+                                    : 'Toàn bộ người nhận';
+                                const reasons = Array.isArray(suggestion.reasons) && suggestion.reasons.length
+                                    ? suggestion.reasons.join(' ')
+                                    : '';
+                                const alternatives = Array.isArray(suggestion.alternatives) ? suggestion.alternatives : [];
+                                return `
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold">${escapeHtml(item.label || '')}</div>
+                                            <div class="small text-muted">${escapeHtml(reasons)}</div>
+                                        </td>
+                                        <td>
+                                            <div>${escapeHtml((current.target_type || 'all').toUpperCase())}</div>
+                                            <div class="small text-muted">${escapeHtml(currentTargets.join(', ') || 'Chưa cấu hình')}</div>
+                                        </td>
+                                        <td>
+                                            <div>${escapeHtml((suggestion.target_type || 'all').toUpperCase())} <span class="badge bg-light text-dark">${escapeHtml(suggestion.confidence_label || 'thấp')}</span></div>
+                                            <div class="small text-muted">${escapeHtml(suggestedTargets)}</div>
+                                            ${renderFitSignals(suggestion.fit_signals)}
+                                            ${renderScoreBreakdown(suggestion.score_breakdown)}
+                                            ${renderAlternativeBadges(alternatives, 'report_fields', 'report_field', Number(item.index || 0), `phạm vi chỉ tiêu ${item.label || ''}`)}
+                                        </td>
+                                        ${!isLocked ? `
+                                            <td class="text-nowrap">
+                                                <button class="btn btn-outline-primary btn-sm" type="button"
+                                                    data-ai-sections="report_fields"
+                                                    data-ai-selection-kind="report_field"
+                                                    data-ai-selection-index="${Number(item.index || 0)}"
+                                                    data-ai-label="phạm vi chỉ tiêu ${escapeHtml(item.label || '')}">
+                                                    Áp dụng chỉ tiêu này
+                                                </button>
+                                            </td>
+                                        ` : ''}
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } else if (globalAssignment) {
+            const targets = Array.isArray(globalAssignment.display_targets) && globalAssignment.display_targets.length
+                ? globalAssignment.display_targets.join(', ')
+                : 'Chưa suy ra';
+            const alternatives = Array.isArray(globalAssignment.alternatives) ? globalAssignment.alternatives : [];
+            assignmentHtml = `
+                <div class="border rounded-3 p-3 bg-white">
+                    <div class="fw-semibold mb-1">Gợi ý giao việc toàn nhiệm vụ</div>
+                    <div class="small text-muted mb-2">${escapeHtml(assignmentStrategy.summary || '')}</div>
+                    <div>Kiểu giao việc: <strong>${escapeHtml((globalAssignment.assign_type || '').toUpperCase() || 'N/A')}</strong> <span class="badge bg-light text-dark">${escapeHtml(globalAssignment.confidence_label || 'thấp')}</span></div>
+                    <div class="small text-muted mt-1">${escapeHtml(targets)}</div>
+                    ${renderFitSignals(globalAssignment.fit_signals)}
+                    ${renderScoreBreakdown(globalAssignment.score_breakdown)}
+                    <div class="small text-muted mt-2">${escapeHtml((globalAssignment.reasons || []).join(' '))}</div>
+                    ${renderAlternativeBadges(alternatives, 'global_assignment', 'global_assignment', 0, 'giao việc toàn nhiệm vụ')}
+                    ${!isLocked && globalAssignment.assign_type ? `
+                        <div class="mt-3">
+                            <button class="btn btn-outline-primary btn-sm" type="button" data-ai-sections="global_assignment" data-ai-label="giao việc toàn nhiệm vụ">
+                                Áp dụng gợi ý giao toàn task
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        } else {
+            assignmentHtml = '<div class="text-muted small">Chưa có gợi ý giao việc cụ thể.</div>';
+        }
+
+        const providerInfo = llmMeta.provider
+            ? `<div class="small text-muted mt-2">Nhận định AI ngoài: ${escapeHtml(llmMeta.provider)} / ${escapeHtml(llmMeta.model || '')}${llmMeta.error ? ` - ${escapeHtml(llmMeta.error)}` : ''}</div>`
+            : (llmMeta.error ? `<div class="small text-muted mt-2">${escapeHtml(llmMeta.error)}</div>` : '');
+
+        const recipientInsightsHtml = recipientRows.length ? `
+            <div class="mt-3">
+                <div class="fw-semibold mb-2">Phân tích theo người nhận thực tế</div>
+                <div class="row g-3 mb-3">
+                    <div class="col-lg-3">
+                        <div class="border rounded-3 p-3 bg-white h-100">
+                            <div class="small text-muted">Người nhận suy ra</div>
+                            <div class="fw-bold">${escapeHtml(String(recipientInsights.recipient_count || 0))}</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3">
+                        <div class="border rounded-3 p-3 bg-white h-100">
+                            <div class="small text-muted">Đơn vị liên quan</div>
+                            <div class="fw-bold">${escapeHtml(String(recipientInsights.unit_count || 0))}</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3">
+                        <div class="border rounded-3 p-3 bg-white h-100">
+                            <div class="small text-muted">Người nhận rỗng nội dung</div>
+                            <div class="fw-bold ${emptyRecipients.length ? 'text-danger' : 'text-success'}">${escapeHtml(String(emptyRecipients.length))}</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3">
+                        <div class="border rounded-3 p-3 bg-white h-100">
+                            <div class="small text-muted">Người tải vận hành cao</div>
+                            <div class="fw-bold ${highWorkloadRecipients.length ? 'text-warning' : 'text-success'}">${escapeHtml(String(highWorkloadRecipients.length))}</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3">
+                        <div class="border rounded-3 p-3 bg-white h-100">
+                            <div class="small text-muted">Đơn vị chia nhiều nhóm nộp</div>
+                            <div class="fw-bold ${fragmentedUnits.length ? 'text-warning' : 'text-success'}">${escapeHtml(String(fragmentedUnits.length))}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-lg-4">
+                        <div class="border rounded-3 p-3 bg-white h-100">
+                            <div class="fw-semibold mb-2">Danh sách người nhận</div>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Người nhận</th>
+                                            <th>Đơn vị</th>
+                                            <th>Khối lượng</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${recipientRows.slice(0, 8).map((row) => `
+                                            <tr>
+                                                <td>
+                                                    <div class="fw-semibold">${escapeHtml(row.user_name || '')}</div>
+                                                    ${row.role_name ? `<div class="small text-muted">${escapeHtml(row.role_name)}</div>` : ''}
+                                                </td>
+                                                <td>${escapeHtml(row.unit_name || 'Chưa có đơn vị')}</td>
+                                                <td>
+                                                    <div>${escapeHtml(String(row.payload_count || 0))}</div>
+                                                    <div class="small text-muted">${escapeHtml((row.payload_labels || []).slice(0, 2).join(', ') || 'Chưa có nội dung')}</div>
+                                                    <div class="small text-muted">Mở: ${escapeHtml(String(row.active_assignments || 0))} | Quá hạn: ${escapeHtml(String(row.overdue_assignments || 0))}</div>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="border rounded-3 p-3 bg-white h-100">
+                            <div class="fw-semibold mb-2">Điểm điều phối cần rà soát</div>
+                            ${renderSimpleList(
+                                coordinationHotspots.length
+                                    ? coordinationHotspots.map((item) => `${item.scope}: ${item.detail}`)
+                                    : emptyRecipients.length
+                                    ? emptyRecipients.map((item) => `${item.user_name} (${item.unit_name || 'Chưa có đơn vị'})`)
+                                    : highWorkloadRecipients.length
+                                        ? highWorkloadRecipients.map((item) => `${item.user_name}: ${item.active_assignments} việc mở, ${item.overdue_assignments} quá hạn`)
+                                        : overloadedRecipients.map((item) => `${item.user_name}: ${item.payload_count} nội dung`)
+                                ,
+                                'Không có người nhận bất thường.'
+                            )}
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="border rounded-3 p-3 bg-white h-100">
+                            <div class="fw-semibold mb-2">Phân bố theo đơn vị</div>
+                            ${renderSimpleList(
+                                unitSummaries.map((item) => `${item.unit_name}: ${item.payload_count} nội dung / ${item.recipient_count} người / ${item.active_assignments || 0} việc mở`),
+                                'Chưa suy ra được phân bố theo đơn vị.'
+                            )}
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-3 mt-1">
+                    <div class="col-lg-6">
+                        <div class="border rounded-3 p-3 bg-white h-100">
+                            <div class="fw-semibold mb-2">Nhóm nộp sau phát hành</div>
+                            ${renderSimpleList(
+                                submissionGroups.slice(0, 8).map((group) => `${group.group_label}: ${group.recipient_count} người / ${group.payload_count} nội dung / ${group.mode_label}`),
+                                'Chưa suy ra nhóm nộp.'
+                            )}
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="border rounded-3 p-3 bg-white h-100">
+                            <div class="fw-semibold mb-2">Ma trận phối hợp theo đơn vị</div>
+                            ${renderSimpleList(
+                                unitDeliveryMatrix.slice(0, 8).map((item) => `${item.unit_name}: ${item.submission_group_count} nhóm nộp / ${item.payload_count} nội dung / ${item.recipient_count} người`),
+                                'Chưa suy ra được ma trận theo đơn vị.'
+                            )}
+                            ${singleOwnerGroups.length ? `
+                                <div class="small text-muted mt-3">Nhóm phụ thuộc cá nhân: ${escapeHtml(singleOwnerGroups.slice(0, 3).map((item) => `${item.group_label} (${item.payload_count} nội dung)`).join(', '))}</div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        ` : '';
+
+        const stageTone = {
+            done: 'text-success',
+            warning: 'text-warning',
+            todo: 'text-danger',
+        };
+        const stageLabel = {
+            done: 'Đã rõ',
+            warning: 'Cần rà soát',
+            todo: 'Chưa đạt',
+        };
+
+        aiPanel.innerHTML = `
+            <div class="row g-3 mb-3">
+                <div class="col-lg-3">
+                    <div class="border rounded-3 p-3 bg-white h-100">
+                        <div class="small text-muted">Sẵn sàng phát hành</div>
+                        <div class="fw-bold ${analysis.publish_ready ? 'text-success' : 'text-danger'}">${analysis.publish_ready ? 'Đạt' : 'Chưa đạt'}</div>
+                    </div>
+                </div>
+                <div class="col-lg-3">
+                    <div class="border rounded-3 p-3 bg-white h-100">
+                        <div class="small text-muted">Đơn vị nghiệp vụ gợi ý</div>
+                        <div class="fw-bold">${escapeHtml(recommended.domain_label || 'Chưa suy ra')}</div>
+                    </div>
+                </div>
+                <div class="col-lg-3">
+                    <div class="border rounded-3 p-3 bg-white h-100">
+                        <div class="small text-muted">Lĩnh vực gợi ý</div>
+                        <div class="fw-bold">${escapeHtml(recommended.category_label || 'Chưa suy ra')}</div>
+                    </div>
+                </div>
+                <div class="col-lg-3">
+                    <div class="border rounded-3 p-3 bg-white h-100">
+                        <div class="small text-muted">Ưu tiên gợi ý</div>
+                        <div class="fw-bold">${escapeHtml(recommended.priority || 'Trung bình')}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="row g-3 mb-3">
+                <div class="col-lg-3">
+                    <div class="border rounded-3 p-3 bg-white h-100">
+                        <div class="small text-muted">Kênh đầu vào</div>
+                        <div class="fw-bold">${escapeHtml(specialistBrief.input_channel_label || 'Nguồn tham chiếu')}</div>
+                        <div class="small text-muted mt-2">${escapeHtml(specialistBrief.input_summary || 'AI chưa tổng hợp được tóm tắt đầu vào.')}</div>
+                    </div>
+                </div>
+                <div class="col-lg-3">
+                    <div class="border rounded-3 p-3 bg-white h-100">
+                        <div class="small text-muted">Mô hình giao việc</div>
+                        <div class="fw-bold">${escapeHtml(specialistBrief.assignment_model_label || 'Chưa suy ra')}</div>
+                        <div class="small text-muted mt-2">${escapeHtml(specialistBrief.assignment_summary || 'Quản trị cần chốt cấu hình giao việc.')}</div>
+                    </div>
+                </div>
+                <div class="col-lg-3">
+                    <div class="border rounded-3 p-3 bg-white h-100">
+                        <div class="small text-muted">Đầu ra phát hành</div>
+                        <div class="fw-bold">${escapeHtml(specialistBrief.delivery_model_label || 'Nhiệm vụ nội bộ')}</div>
+                        <div class="small text-muted mt-2">${escapeHtml(specialistBrief.delivery_summary || 'Đơn vị sẽ nhận việc và thực hiện trong hệ thống.')}</div>
+                    </div>
+                </div>
+                <div class="col-lg-3">
+                    <div class="border rounded-3 p-3 bg-white h-100">
+                        <div class="small text-muted">${escapeHtml(specialistBrief.monitoring_label || 'Điểm quản trị cần theo dõi')}</div>
+                        <div class="fw-bold">AI điều hành</div>
+                        <div class="small text-muted mt-2">${escapeHtml(specialistBrief.monitoring_summary || 'Chưa có cảnh báo điều hành nổi bật.')}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="row g-3 mb-3">
+                ${workflowStages.map((stage) => `
+                    <div class="col-lg-3">
+                        <div class="border rounded-3 p-3 bg-white h-100">
+                            <div class="small text-muted">${escapeHtml(stage.label || '')}</div>
+                            <div class="fw-bold ${stageTone[stage.status] || ''}">${escapeHtml(stageLabel[stage.status] || 'Đang xử lý')}</div>
+                            <div class="small text-muted mt-2">${escapeHtml(stage.detail || '')}</div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="row g-3">
+                <div class="col-lg-4">
+                    <div class="border rounded-3 p-3 bg-white h-100">
+                        <div class="fw-semibold mb-2">Blocker</div>
+                        ${renderSimpleList(blockers, 'Không có blocker.')}
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="border rounded-3 p-3 bg-white h-100">
+                        <div class="fw-semibold mb-2">Cảnh báo</div>
+                        ${renderSimpleList(warnings, 'Không có cảnh báo đáng chú ý.')}
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="border rounded-3 p-3 bg-white h-100">
+                        <div class="fw-semibold mb-2">Cơ hội tối ưu</div>
+                        ${renderSimpleList(opportunities, 'Chưa có gợi ý bổ sung.')}
+                    </div>
+                </div>
+            </div>
+            ${recipientInsightsHtml}
+            ${decisionButtons.length ? `
+                <div class="mt-3 border rounded-3 p-3 bg-white">
+                    <div class="fw-semibold mb-2">Quyết định nhanh theo từng phần</div>
+                    <div class="small text-muted mb-3">Quản trị có thể chấp nhận từng nhóm đề xuất riêng, không cần áp dụng toàn bộ một lần.</div>
+                    <div class="d-flex flex-wrap gap-2">
+                        ${decisionButtons.join('')}
+                    </div>
+                </div>
+            ` : ''}
+            <div class="mt-3">
+                <div class="fw-semibold mb-2">Đề xuất phương án giao việc</div>
+                ${assignmentHtml}
+            </div>
+            <div class="mt-3">
+                <div class="fw-semibold mb-2">Việc nên làm tiếp theo</div>
+                ${renderSimpleList(recommendedActions, 'AI chưa thấy hạng mục hành động ưu tiên nào ngoài phần đã cấu hình.')}
+            </div>
+            <div class="mt-3">
+                <div class="fw-semibold mb-2">Mẫu báo cáo liên quan</div>
+                ${renderSimpleList(templateSuggestions.map((item) => `${item.name} (${item.professional_unit || 'Chưa phân đội'})`), 'Chưa thấy mẫu báo cáo phù hợp rõ ràng.')}
+            </div>
+            ${analysis.llm_commentary ? `<div class="mt-3"><div class="fw-semibold mb-2">Nhận định AI ngoài</div><div class="border rounded-3 p-3 bg-white" style="white-space: pre-line;">${escapeHtml(analysis.llm_commentary)}</div></div>` : ''}
+            ${providerInfo}
+        `;
+    }
+
+    async function callAiEndpoint(url, payload, pendingText) {
+        if (aiStatus) aiStatus.textContent = pendingText;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken,
+            },
+            body: JSON.stringify(payload || {}),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+            throw new Error(data.error || 'Không thể xử lý yêu cầu AI.');
+        }
+        return data;
+    }
+
+    async function applyAiSections(sections, pendingLabel, selection) {
+        const normalizedSections = Array.isArray(sections) ? sections : [sections];
+        const data = await callAiEndpoint(
+            aiApplyUrl,
+            { mode: 'safe', sections: normalizedSections, selection: selection || {} },
+            `Đang áp dụng ${pendingLabel || 'đề xuất AI'}...`,
+        );
+        currentAiAnalysis = data.analysis || currentAiAnalysis;
+        renderAiAnalysis(currentAiAnalysis);
+        if (aiStatus) {
+            aiStatus.textContent = `Đã áp dụng ${Array.isArray(data.applied) ? data.applied.length : 0} thay đổi cho ${pendingLabel || 'đề xuất AI'}. Đang tải lại trang...`;
+        }
+        window.location.reload();
     }
 
     function syncGlobalAssignMode() {
@@ -771,6 +1868,17 @@
         document.querySelectorAll('[data-bulk-box]').forEach((node) => {
             node.classList.toggle('d-none', node.dataset.bulkBox !== mode);
         });
+    }
+
+    function syncReportTargetModeSelect(select) {
+        const prefix = select?.dataset.targetPrefix || '';
+        const mode = select?.value || 'all';
+        document.querySelectorAll(`[data-target-box^="${prefix}-"]`).forEach((node) => {
+            node.classList.add('d-none');
+        });
+        if (mode !== 'all') {
+            document.querySelector(`[data-target-box="${prefix}-${mode}"]`)?.classList.remove('d-none');
+        }
     }
 
     function syncOutlineRow(row) {
@@ -859,8 +1967,28 @@
         });
     }
 
+    function syncFormFieldTargetRow(row) {
+        const mode = row.querySelector('.form-field-target-type')?.value || 'all';
+        row.querySelectorAll('.form-target-box').forEach((node) => {
+            node.classList.toggle('d-none', node.dataset.formTargetBox !== mode);
+        });
+        const unitValues = selectedValues(row.querySelector('.form-field-unit-select'));
+        const roleValues = selectedValues(row.querySelector('.form-field-role-select'));
+        const userValues = selectedValues(row.querySelector('.form-field-user-select'));
+        const unitHidden = row.querySelector('.form-field-unit-hidden');
+        const roleHidden = row.querySelector('.form-field-role-hidden');
+        const userHidden = row.querySelector('.form-field-user-hidden');
+        if (unitHidden) unitHidden.value = unitValues.join(',');
+        if (roleHidden) roleHidden.value = roleValues.join(',');
+        if (userHidden) userHidden.value = userValues.join(',');
+    }
+
     function bindFormFieldRow(row) {
         row.querySelector('.form-required-toggle')?.addEventListener('change', syncFormRequiredIndexes);
+        row.querySelector('.form-field-target-type')?.addEventListener('change', () => syncFormFieldTargetRow(row));
+        row.querySelector('.form-field-unit-select')?.addEventListener('change', () => syncFormFieldTargetRow(row));
+        row.querySelector('.form-field-role-select')?.addEventListener('change', () => syncFormFieldTargetRow(row));
+        row.querySelector('.form-field-user-select')?.addEventListener('change', () => syncFormFieldTargetRow(row));
         row.querySelector('.remove-form-field')?.addEventListener('click', () => {
             row.remove();
             syncFormRequiredIndexes();
@@ -875,6 +2003,7 @@
             if (next) row.parentNode.insertBefore(next, row);
             syncFormRequiredIndexes();
         });
+        syncFormFieldTargetRow(row);
     }
 
     function addFormFieldRow() {
@@ -895,6 +2024,10 @@
 
     function bindReportFieldRow(row) {
         row.querySelector('.report-required-toggle')?.addEventListener('change', syncReportRequiredIndexes);
+        row.querySelector('.report-field-target-type')?.addEventListener('change', () => syncReportFieldTargetRow(row));
+        row.querySelector('.report-field-unit-select')?.addEventListener('change', () => syncReportFieldTargetRow(row));
+        row.querySelector('.report-field-role-select')?.addEventListener('change', () => syncReportFieldTargetRow(row));
+        row.querySelector('.report-field-user-select')?.addEventListener('change', () => syncReportFieldTargetRow(row));
         row.querySelector('.remove-report-field')?.addEventListener('click', () => {
             row.remove();
             syncReportRequiredIndexes();
@@ -904,6 +2037,23 @@
             if (prev) row.parentNode.insertBefore(row, prev);
             syncReportRequiredIndexes();
         });
+        syncReportFieldTargetRow(row);
+    }
+
+    function syncReportFieldTargetRow(row) {
+        const mode = row.querySelector('.report-field-target-type')?.value || 'all';
+        row.querySelectorAll('.report-target-box').forEach((node) => {
+            node.classList.toggle('d-none', node.dataset.fieldTargetBox !== mode);
+        });
+        const unitValues = selectedValues(row.querySelector('.report-field-unit-select'));
+        const roleValues = selectedValues(row.querySelector('.report-field-role-select'));
+        const userValues = selectedValues(row.querySelector('.report-field-user-select'));
+        const unitHidden = row.querySelector('.report-field-unit-hidden');
+        const roleHidden = row.querySelector('.report-field-role-hidden');
+        const userHidden = row.querySelector('.report-field-user-hidden');
+        if (unitHidden) unitHidden.value = unitValues.join(',');
+        if (roleHidden) roleHidden.value = roleValues.join(',');
+        if (userHidden) userHidden.value = userValues.join(',');
     }
 
     function addReportFieldRow() {
@@ -918,6 +2068,10 @@
         select.addEventListener('change', () => syncScopeModeSelect(select));
         syncScopeModeSelect(select);
     });
+    document.querySelectorAll('.report-target-mode-select').forEach((select) => {
+        select.addEventListener('change', () => syncReportTargetModeSelect(select));
+        syncReportTargetModeSelect(select);
+    });
     document.querySelectorAll('.outline-draft-row').forEach(bindOutlineRow);
     document.querySelectorAll('.form-draft-field-row').forEach(bindFormFieldRow);
     document.querySelectorAll('.report-field-row').forEach(bindReportFieldRow);
@@ -928,12 +2082,68 @@
     addFormDraftFieldBtn?.addEventListener('click', addFormFieldRow);
     addReportFieldBtn?.addEventListener('click', addReportFieldRow);
     globalAssignTypeSelect?.addEventListener('change', syncGlobalAssignMode);
+    analyzeDraftAiBtn?.addEventListener('click', async () => {
+        try {
+            const data = await callAiEndpoint(aiAnalyzeUrl, { use_provider: false }, 'Đang phân tích nháp bằng AI nội bộ...');
+            currentAiAnalysis = data.analysis || {};
+            renderAiAnalysis(currentAiAnalysis);
+        } catch (error) {
+            if (aiStatus) aiStatus.textContent = error.message || 'Không thể phân tích nháp.';
+        }
+    });
+    analyzeDraftAiProviderBtn?.addEventListener('click', async () => {
+        try {
+            const data = await callAiEndpoint(aiAnalyzeUrl, { use_provider: true }, 'Đang phân tích nháp và lấy nhận định AI ngoài...');
+            currentAiAnalysis = data.analysis || {};
+            renderAiAnalysis(currentAiAnalysis);
+        } catch (error) {
+            if (aiStatus) aiStatus.textContent = error.message || 'Không thể phân tích nháp.';
+        }
+    });
+    applyDraftAiBtn?.addEventListener('click', async () => {
+        try {
+            await applyAiSections(['all'], 'đề xuất AI an toàn');
+        } catch (error) {
+            if (aiStatus) aiStatus.textContent = error.message || 'Không thể áp dụng đề xuất AI.';
+        }
+    });
+    aiPanel?.addEventListener('click', async (event) => {
+        const button = event.target.closest('[data-ai-sections]');
+        if (!button || isLocked) return;
+        const sections = String(button.dataset.aiSections || '')
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean);
+        if (!sections.length) return;
+        const selectionKind = String(button.dataset.aiSelectionKind || '').trim();
+        const selectionIndex = Number(button.dataset.aiSelectionIndex);
+        const alternativeIndex = String(button.dataset.aiAlternativeIndex || '').trim();
+        const selection = {};
+        if (selectionKind === 'outline' && Number.isFinite(selectionIndex)) {
+            selection.outline_indexes = [selectionIndex];
+            if (alternativeIndex !== '') selection.outline_alternative_indexes = { [selectionIndex]: Number(alternativeIndex) };
+        } else if (selectionKind === 'form_field' && Number.isFinite(selectionIndex)) {
+            selection.form_field_indexes = [selectionIndex];
+            if (alternativeIndex !== '') selection.form_field_alternative_indexes = { [selectionIndex]: Number(alternativeIndex) };
+        } else if (selectionKind === 'report_field' && Number.isFinite(selectionIndex)) {
+            selection.report_field_indexes = [selectionIndex];
+            if (alternativeIndex !== '') selection.report_field_alternative_indexes = { [selectionIndex]: Number(alternativeIndex) };
+        } else if (selectionKind === 'global_assignment' && alternativeIndex !== '') {
+            selection.global_assignment_alternative_index = Number(alternativeIndex);
+        }
+        try {
+            await applyAiSections(sections, button.dataset.aiLabel || 'đề xuất AI', selection);
+        } catch (error) {
+            if (aiStatus) aiStatus.textContent = error.message || 'Không thể áp dụng nhóm đề xuất AI này.';
+        }
+    });
 
     syncGlobalAssignMode();
     syncOutlineBulkMode();
     syncOutlineAttachmentIndexes();
     syncFormRequiredIndexes();
     syncReportRequiredIndexes();
+    renderAiAnalysis(currentAiAnalysis);
 })();
 </script>
 {% endblock %}

@@ -174,6 +174,10 @@ def task_form_field_views(fields, normalize_type_fn, field_options_loader):
                 "is_required": bool(field.is_required),
                 "choices": choices if isinstance(choices, list) else [],
                 "columns": columns if isinstance(columns, list) else [],
+                "target_type": str(options.get("target_type") or "all").strip().lower() or "all",
+                "target_unit_domains": list(options.get("target_unit_domains") or []),
+                "target_role_ids": list(options.get("target_role_ids") or []),
+                "target_user_ids": list(options.get("target_user_ids") or []),
             }
         )
     return views

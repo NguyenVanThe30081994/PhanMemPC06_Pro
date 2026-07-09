@@ -67,9 +67,15 @@ from task_workspace import (
     build_task_detail_context,
     build_task_workspace_attrs,
     summarize_task_assignments,
+    task_assignment_submit_scope,
     task_assignment_display_status,
     task_deadline_display,
     task_workspace_tone,
+)
+from task_import_ai import (
+    analyze_task_import_config,
+    apply_ai_analysis_to_config,
+    build_task_import_ai_prompt,
 )
 from task_policies import (
     build_scope_summary,
@@ -114,10 +120,19 @@ from task_blueprints import (
     workflow_blueprint_workflow_mode,
 )
 from google_forms import (
+    GOOGLE_FORMS_MANAGE_SCOPES,
     build_google_forms_service,
+    builder_schema_to_task_form_fields,
+    create_google_form,
     extract_google_form_id,
+    fetch_google_form_definition,
+    fetch_google_form_responses,
     load_google_form_into_builder,
+    normalize_google_form_builder_schema,
     parse_google_form_definition,
+    parse_google_form_responses,
+    publish_google_form,
+    update_google_form,
 )
 
 tasks_bp = Blueprint("tasks_bp", __name__)
@@ -128,7 +143,7 @@ COMPLETED_STATUS = "Hoàn thành"
 REPORT_PREFIX = "[BÁO CÁO]"
 REPORT_ATTACHMENT_RE = re.compile(r"\s*\(Đính kèm:\s*([^)]+)\)\s*$")
 TASK_REPORT_ALLOWED_FIELD_TYPES = {"number", "text", "textarea"}
-TASK_REPORT_ALLOWED_TARGET_TYPES = {"all", "role", "user"}
+TASK_REPORT_ALLOWED_TARGET_TYPES = {"all", "unit", "role", "user"}
 TASK_OUTLINE_ALLOWED_EXTENSIONS = {".docx", ".txt"}
 TASK_WORKFLOW_ALLOWED_MODES = {"child_tasks", "summary_report"}
 TASK_WORKFLOW_DEFAULT_MODE = "summary_report"
@@ -142,6 +157,29 @@ TASK_MODE_LABELS = {
     "OUTLINE": "Theo đề cương",
     "FILE": "Nộp file",
     "FORM": "Biểu mẫu",
+}
+TASK_IMPORT_ASSIGN_TYPE_LABELS = {
+    "unit": "Đơn vị",
+    "role": "Vai trò",
+    "user": "Cá nhân",
+}
+TASK_IMPORT_TARGET_TYPE_LABELS = {
+    "all": "Tất cả người nhận",
+    "unit": "Theo đơn vị",
+    "role": "Theo vai trò",
+    "user": "Theo cá nhân",
+}
+TASK_IMPORT_REPORT_KIND_LABELS = {
+    "narrative": "Báo cáo lời",
+    "number": "Báo cáo số",
+}
+TASK_IMPORT_FIELD_TYPE_LABELS = {
+    "text": "Văn bản",
+    "number": "Số",
+    "textarea": "Đoạn văn",
+    "radio": "Một lựa chọn",
+    "checkbox": "Nhiều lựa chọn",
+    "table": "Bảng",
 }
 TASK_MODE_DESCRIPTIONS = {
     "OUTLINE": "Tạo đợt giao việc theo đề cương, chia thành các đầu mục và giao từng mục cho đơn vị hoặc cá nhân.",
@@ -157,6 +195,10 @@ TASK_ASSIGNMENT_STATUS_LABELS = {
     "overdue": "Quá hạn",
 }
 TASK_FORM_ALLOWED_FIELD_TYPES = {"text", "number", "textarea", "radio", "checkbox", "table"}
+TASK_GOOGLE_FORM_MATCH_MODE_LABELS = {
+    "unit": "Đối sánh theo đơn vị báo cáo",
+    "respondent_email": "Đối sánh theo email người trả lời",
+}
 TASK_BLUEPRINT_IMPORT_ALLOWED_EXTENSIONS = {".docx", ".txt", ".xlsx"}
 TASK_BLUEPRINT_IMPORT_MODES = {
     "docx_outline": {
@@ -190,6 +232,7 @@ DEFAULT_TASK_REPORT_SCHEMA = {
         "required": True,
         "placeholder": "Nêu rõ kết quả, tồn tại và kiến nghị nếu có",
         "target_type": "all",
+        "target_unit_domains": [],
         "target_role_ids": [],
         "target_user_ids": [],
     },
@@ -198,6 +241,7 @@ DEFAULT_TASK_REPORT_SCHEMA = {
         "label": "Tệp minh chứng",
         "required": False,
         "target_type": "all",
+        "target_unit_domains": [],
         "target_role_ids": [],
         "target_user_ids": [],
     },
@@ -1430,6 +1474,345 @@ def _draft_field_options_json(field_type, raw_value):
     return _json_dump(payload) if payload else None
 
 
+def _task_import_form_field_target_config(raw_field):
+    option_payload = _json_loads_safe(raw_field.get("field_options_json"), {})
+    return _normalize_report_target_config(
+        {
+            "target_type": raw_field.get("target_type", option_payload.get("target_type", "all")),
+            "target_unit_domains": raw_field.get("target_unit_domains", option_payload.get("target_unit_domains", [])),
+            "target_role_ids": raw_field.get("target_role_ids", option_payload.get("target_role_ids", [])),
+            "target_user_ids": raw_field.get("target_user_ids", option_payload.get("target_user_ids", [])),
+        }
+    )
+
+
+def _task_import_form_field_options_json(field_type, raw_value, target_config=None):
+    payload = _json_loads_safe(_draft_field_options_json(field_type, raw_value), {})
+    normalized_target = _normalize_report_target_config(target_config or {})
+    if normalized_target.get("target_type") != "all":
+        payload["target_type"] = normalized_target.get("target_type")
+    if normalized_target.get("target_unit_domains"):
+        payload["target_unit_domains"] = normalized_target.get("target_unit_domains")
+    if normalized_target.get("target_role_ids"):
+        payload["target_role_ids"] = normalized_target.get("target_role_ids")
+    if normalized_target.get("target_user_ids"):
+        payload["target_user_ids"] = normalized_target.get("target_user_ids")
+    return _json_dump(payload) if payload else None
+
+
+def _normalize_google_form_match_mode(value):
+    normalized = str(value or "").strip().lower()
+    if normalized in TASK_GOOGLE_FORM_MATCH_MODE_LABELS:
+        return normalized
+    return "unit"
+
+
+def _normalize_google_form_builder_schema_with_targets(raw_schema, fallback_title="", fallback_description=""):
+    normalized = normalize_google_form_builder_schema(
+        raw_schema,
+        fallback_title=fallback_title,
+        fallback_description=fallback_description,
+    )
+    raw_items = raw_schema.get("items") if isinstance(raw_schema, dict) and isinstance(raw_schema.get("items"), list) else []
+    target_by_item_id = {}
+    target_by_label = {}
+    for index, raw_item in enumerate(raw_items):
+        if not isinstance(raw_item, dict):
+            continue
+        target_config = _normalize_report_target_config(raw_item)
+        item_id = str(raw_item.get("pc06_item_id") or f"index:{index}").strip()
+        label_key = str(raw_item.get("title") or "").strip().lower()
+        target_by_item_id[item_id] = target_config
+        if label_key and label_key not in target_by_label:
+            target_by_label[label_key] = target_config
+
+    for index, item in enumerate(normalized.get("items") or []):
+        item_id = str(item.get("pc06_item_id") or f"index:{index}").strip()
+        label_key = str(item.get("title") or "").strip().lower()
+        target_config = target_by_item_id.get(item_id) or target_by_label.get(label_key) or {}
+        item.update(target_config)
+    return normalized
+
+
+def _parse_google_form_builder_schema(raw_builder_json, fallback_title="", fallback_description=""):
+    text = str(raw_builder_json or "").strip()
+    if not text:
+        raise ValueError("Cần cấu hình schema builder cho Google Form.")
+    try:
+        parsed = json.loads(text)
+    except Exception as exc:
+        raise ValueError("Schema builder Google Form không phải JSON hợp lệ.") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("Schema builder Google Form phải là một JSON object.")
+    try:
+        return _normalize_google_form_builder_schema_with_targets(
+            parsed,
+            fallback_title=fallback_title,
+            fallback_description=fallback_description,
+        )
+    except Exception as exc:
+        raise ValueError(str(exc) or "Schema builder Google Form không hợp lệ.") from exc
+
+
+def _hydrate_google_form_fields(builder_schema):
+    normalized = _normalize_google_form_builder_schema_with_targets(builder_schema, fallback_title="Biểu mẫu")
+    target_by_item_id = {}
+    target_by_label = {}
+    for index, item in enumerate(normalized.get("items") or []):
+        item_id = str(item.get("pc06_item_id") or f"index:{index}").strip()
+        label_key = str(item.get("title") or "").strip().lower()
+        target_config = _normalize_report_target_config(item)
+        target_by_item_id[item_id] = target_config
+        if label_key and label_key not in target_by_label:
+            target_by_label[label_key] = target_config
+
+    field_defs = builder_schema_to_task_form_fields(normalized)
+    for field_def in field_defs:
+        options_payload = _json_loads_safe(field_def.get("field_options_json"), {})
+        item_id = str(options_payload.get("pc06_item_id") or "").strip()
+        label_key = str(field_def.get("field_label") or "").strip().lower()
+        target_config = target_by_item_id.get(item_id) or target_by_label.get(label_key) or {}
+        if target_config.get("target_type") != "all":
+            options_payload["target_type"] = target_config.get("target_type")
+        if target_config.get("target_unit_domains"):
+            options_payload["target_unit_domains"] = target_config.get("target_unit_domains")
+        if target_config.get("target_role_ids"):
+            options_payload["target_role_ids"] = target_config.get("target_role_ids")
+        if target_config.get("target_user_ids"):
+            options_payload["target_user_ids"] = target_config.get("target_user_ids")
+        field_def["field_options_json"] = _json_dump(options_payload) if options_payload else None
+    return field_defs
+
+
+def _task_google_form_runtime(task):
+    return _json_loads_safe(getattr(task, "google_form_runtime_json", None), {})
+
+
+def _task_google_form_sync_state(task):
+    return _json_loads_safe(getattr(task, "google_form_sync_state_json", None), {})
+
+
+def _task_google_form_builder(task):
+    return _json_loads_safe(getattr(task, "google_form_builder_json", None), {})
+
+
+def _task_google_form_runtime_payload(task, form_payload=None, base_runtime=None):
+    runtime = dict(base_runtime or {})
+    if not isinstance(form_payload, dict):
+        return runtime
+
+    info = form_payload.get("info") if isinstance(form_payload.get("info"), dict) else {}
+    form_id = str(form_payload.get("formId") or runtime.get("form_id") or getattr(task, "google_form_id", "") or "").strip()
+    form_url = str(
+        form_payload.get("responderUri")
+        or runtime.get("form_url")
+        or getattr(task, "google_form_url", "")
+        or (f"https://docs.google.com/forms/d/{form_id}/viewform" if form_id else "")
+    ).strip()
+    runtime.update(
+        {
+            "form_id": form_id,
+            "form_url": form_url,
+            "edit_url": str(runtime.get("edit_url") or (f"https://docs.google.com/forms/d/{form_id}/edit" if form_id else "")).strip(),
+            "revision_id": str(form_payload.get("revisionId") or runtime.get("revision_id") or "").strip(),
+            "publish_settings": form_payload.get("publishSettings") or runtime.get("publish_settings") or {},
+            "title": str(info.get("title") or runtime.get("title") or "").strip(),
+            "description": str(info.get("description") or runtime.get("description") or "").strip(),
+        }
+    )
+    return runtime
+
+
+def _task_google_form_target_lookup(task=None, builder_schema=None):
+    by_question_id = {}
+    by_label = {}
+
+    if task:
+        for field in _task_form_fields(task):
+            options_payload = _json_loads_safe(getattr(field, "field_options_json", None), {})
+            target_config = _normalize_report_target_config(options_payload)
+            question_id = str(options_payload.get("question_id") or options_payload.get("pc06_item_id") or "").strip()
+            label_key = str(getattr(field, "field_label", "") or "").strip().lower()
+            if question_id and question_id not in by_question_id:
+                by_question_id[question_id] = target_config
+            if label_key and label_key not in by_label:
+                by_label[label_key] = target_config
+
+    if isinstance(builder_schema, dict):
+        for item in builder_schema.get("items") or []:
+            if not isinstance(item, dict):
+                continue
+            target_config = _normalize_report_target_config(item)
+            question_id = str(item.get("pc06_item_id") or "").strip()
+            label_key = str(item.get("title") or "").strip().lower()
+            if question_id and question_id not in by_question_id:
+                by_question_id[question_id] = target_config
+            if label_key and label_key not in by_label:
+                by_label[label_key] = target_config
+
+    return by_question_id, by_label
+
+
+def _merge_google_form_field_targets(field_defs, task=None, builder_schema=None):
+    by_question_id, by_label = _task_google_form_target_lookup(task=task, builder_schema=builder_schema)
+    merged_defs = []
+    for field_def in field_defs or []:
+        options_payload = _json_loads_safe(field_def.get("field_options_json"), {})
+        question_id = str(options_payload.get("question_id") or options_payload.get("pc06_item_id") or "").strip()
+        label_key = str(field_def.get("field_label") or "").strip().lower()
+        target_config = by_question_id.get(question_id) or by_label.get(label_key) or {}
+        if target_config.get("target_type") != "all":
+            options_payload["target_type"] = target_config.get("target_type")
+        if target_config.get("target_unit_domains"):
+            options_payload["target_unit_domains"] = target_config.get("target_unit_domains")
+        if target_config.get("target_role_ids"):
+            options_payload["target_role_ids"] = target_config.get("target_role_ids")
+        if target_config.get("target_user_ids"):
+            options_payload["target_user_ids"] = target_config.get("target_user_ids")
+        updated_field = dict(field_def)
+        updated_field["field_options_json"] = _json_dump(options_payload) if options_payload else None
+        merged_defs.append(updated_field)
+    return merged_defs
+
+
+def _replace_task_form_fields(task, field_defs):
+    TaskFormField.query.filter_by(task_id=task.id).delete()
+    for field_def in field_defs or []:
+        db.session.add(TaskFormField(task_id=task.id, **_task_form_field_db_kwargs(field_def)))
+
+
+def _task_google_form_manage_service():
+    return build_google_forms_service(current_app.config, scopes=GOOGLE_FORMS_MANAGE_SCOPES)
+
+
+def _task_google_form_match_label(task):
+    return TASK_GOOGLE_FORM_MATCH_MODE_LABELS.get(
+        _normalize_google_form_match_mode(getattr(task, "google_form_match_mode", "")),
+        TASK_GOOGLE_FORM_MATCH_MODE_LABELS["unit"],
+    )
+
+
+def _apply_task_google_form_view_state(task):
+    if not task:
+        return
+
+    runtime = _task_google_form_runtime(task)
+    sync_state = _task_google_form_sync_state(task)
+    builder = _task_google_form_builder(task)
+
+    if getattr(task, "google_form_id", None) or getattr(task, "google_form_url", None):
+        runtime.setdefault("form_id", getattr(task, "google_form_id", None) or "")
+        runtime.setdefault("form_url", getattr(task, "google_form_url", None) or "")
+        if runtime.get("form_id") and not runtime.get("edit_url"):
+            runtime["edit_url"] = f"https://docs.google.com/forms/d/{runtime['form_id']}/edit"
+    if runtime.get("title") and not sync_state.get("form_title"):
+        sync_state["form_title"] = runtime.get("title")
+
+    setattr(task, "google_form_runtime", runtime)
+    setattr(task, "google_form_sync_state", sync_state)
+    setattr(task, "google_form_builder", builder)
+    setattr(task, "google_form_builder_managed", bool(builder))
+    setattr(task, "google_form_match_mode_label", _task_google_form_match_label(task))
+
+
+def _task_google_form_response_match_value(task, response_row):
+    mode = _normalize_google_form_match_mode(getattr(task, "google_form_match_mode", "unit"))
+    if mode == "respondent_email":
+        return str(response_row.get("respondent_email") or "").strip()
+
+    match_field = str(getattr(task, "google_form_match_field", "") or "").strip()
+    payload_by_label = response_row.get("payload_by_label") if isinstance(response_row.get("payload_by_label"), dict) else {}
+    if match_field:
+        return str(payload_by_label.get(match_field) or "").strip()
+    for value in payload_by_label.values():
+        text = str(value or "").strip()
+        if text:
+            return text
+    return ""
+
+
+def _google_form_assignment_matches_response(task, assignment, response_row):
+    user = getattr(assignment, "user", None)
+    if not user:
+        return False
+
+    match_value = _task_google_form_response_match_value(task, response_row)
+    if not match_value:
+        return False
+
+    mode = _normalize_google_form_match_mode(getattr(task, "google_form_match_mode", "unit"))
+    if mode == "respondent_email":
+        user_candidates = {
+            str(getattr(user, "username", "") or "").strip().lower(),
+            str(getattr(user, "fullname", "") or "").strip().lower(),
+        }
+        return match_value.strip().lower() in user_candidates
+
+    return any(
+        is_unit_match(candidate, match_value)
+        for candidate in [
+            getattr(user, "unit_area", None),
+            getattr(user, "unit_key", None),
+            getattr(user, "fullname", None),
+        ]
+        if str(candidate or "").strip()
+    )
+
+
+def _match_google_form_response_to_assignment(task, response_row):
+    assignments = (
+        TaskAssignment.query.options(joinedload(TaskAssignment.user))
+        .filter_by(task_id=task.id)
+        .order_by(TaskAssignment.id.asc())
+        .all()
+    )
+    for assignment in assignments:
+        if _google_form_assignment_matches_response(task, assignment, response_row):
+            return assignment
+    return None
+
+
+def _filter_google_form_response_for_assignment(task, assignment, response_row):
+    raw_payload = response_row.get("payload") if isinstance(response_row.get("payload"), dict) else {}
+    raw_payload_by_label = response_row.get("payload_by_label") if isinstance(response_row.get("payload_by_label"), dict) else {}
+    user = getattr(assignment, "user", None)
+    if not user and getattr(assignment, "user_id", None):
+        user = db.session.get(User, assignment.user_id)
+    if not user:
+        return {
+            "payload": dict(raw_payload),
+            "payload_by_label": dict(raw_payload_by_label),
+            "ignored_keys": [],
+            "visible_field_count": 0,
+        }
+
+    visible_fields = _task_form_fields_for_user(task, user)
+    visible_keys = {str(getattr(field, "field_key", "") or "").strip() for field in visible_fields if str(getattr(field, "field_key", "") or "").strip()}
+    visible_labels = {str(getattr(field, "field_label", "") or "").strip() for field in visible_fields if str(getattr(field, "field_label", "") or "").strip()}
+    filtered_payload = {
+        key: value
+        for key, value in raw_payload.items()
+        if str(key or "").strip() in visible_keys
+    }
+    filtered_payload_by_label = {}
+    for label, value in raw_payload_by_label.items():
+        normalized_label = str(label or "").strip()
+        root_label = normalized_label.split(" / ", 1)[0].strip()
+        if root_label in visible_labels:
+            filtered_payload_by_label[normalized_label] = value
+
+    ignored_keys = [
+        str(key or "").strip()
+        for key in raw_payload.keys()
+        if str(key or "").strip() and str(key or "").strip() not in filtered_payload
+    ]
+    return {
+        "payload": filtered_payload,
+        "payload_by_label": filtered_payload_by_label,
+        "ignored_keys": ignored_keys,
+        "visible_field_count": len(visible_keys),
+    }
+
 def _task_import_field_key(label, index, used_keys, fallback_prefix):
     base = secure_filename(remove_accents(label).replace(" ", "_")) or f"{fallback_prefix}_{index + 1}"
     candidate = base[:100]
@@ -1481,9 +1864,17 @@ def _task_import_working_config_from_blueprint(blueprint, source_type="", source
         "report_narrative_enabled": True,
         "report_narrative_required": True,
         "report_narrative_label": "Báo cáo lời tổng hợp",
+        "report_narrative_target_type": "all",
+        "report_narrative_unit_domains": [],
+        "report_narrative_role_ids": [],
+        "report_narrative_user_ids": [],
         "report_attachment_enabled": False,
         "report_attachment_required": False,
         "report_attachment_label": "Tệp minh chứng",
+        "report_attachment_target_type": "all",
+        "report_attachment_unit_domains": [],
+        "report_attachment_role_ids": [],
+        "report_attachment_user_ids": [],
         "report_fields": [],
     }
 
@@ -1505,6 +1896,7 @@ def _task_import_working_config_from_blueprint(blueprint, source_type="", source
     elif config["collection_mode"] == "form":
         used_keys = set()
         for index, field in enumerate(workflow_blueprint_form_field_defs(normalized)):
+            target_config = _task_import_form_field_target_config(field)
             field_key = str(field.get("field_key") or "").strip() or _task_import_field_key(
                 field.get("field_label") or "",
                 index,
@@ -1519,6 +1911,10 @@ def _task_import_working_config_from_blueprint(blueprint, source_type="", source
                     "field_type": _normalize_task_form_field_type(field.get("field_type") or "text"),
                     "field_options_text": _draft_field_options_text(field.get("field_options_json")),
                     "is_required": bool(field.get("is_required")),
+                    "target_type": target_config.get("target_type") or "all",
+                    "target_unit_domains": target_config.get("target_unit_domains") or [],
+                    "target_role_ids": target_config.get("target_role_ids") or [],
+                    "target_user_ids": target_config.get("target_user_ids") or [],
                     "sort_order": field.get("sort_order", len(config["form_fields"])),
                 }
             )
@@ -1529,9 +1925,17 @@ def _task_import_working_config_from_blueprint(blueprint, source_type="", source
         config["report_narrative_enabled"] = bool(narrative.get("enabled", True))
         config["report_narrative_required"] = bool(narrative.get("required", True))
         config["report_narrative_label"] = str(narrative.get("label") or "Báo cáo lời tổng hợp").strip()[:255]
+        config["report_narrative_target_type"] = str(narrative.get("target_type") or "all").strip().lower() or "all"
+        config["report_narrative_unit_domains"] = _normalize_report_target_domains(narrative.get("target_unit_domains") or [])
+        config["report_narrative_role_ids"] = _normalize_report_target_ids(narrative.get("target_role_ids") or [])
+        config["report_narrative_user_ids"] = _normalize_report_target_ids(narrative.get("target_user_ids") or [])
         config["report_attachment_enabled"] = bool(attachment.get("enabled"))
         config["report_attachment_required"] = bool(attachment.get("required"))
         config["report_attachment_label"] = str(attachment.get("label") or "Tệp minh chứng").strip()[:255]
+        config["report_attachment_target_type"] = str(attachment.get("target_type") or "all").strip().lower() or "all"
+        config["report_attachment_unit_domains"] = _normalize_report_target_domains(attachment.get("target_unit_domains") or [])
+        config["report_attachment_role_ids"] = _normalize_report_target_ids(attachment.get("target_role_ids") or [])
+        config["report_attachment_user_ids"] = _normalize_report_target_ids(attachment.get("target_user_ids") or [])
         used_keys = set()
         for index, field in enumerate(schema.get("fields") or []):
             field_key = str(field.get("key") or "").strip() or _task_import_field_key(
@@ -1549,6 +1953,10 @@ def _task_import_working_config_from_blueprint(blueprint, source_type="", source
                     "required": bool(field.get("required")),
                     "placeholder": str(field.get("placeholder") or "").strip()[:255],
                     "help_text": str(field.get("help_text") or "").strip()[:255],
+                    "target_type": str(field.get("target_type") or "all").strip().lower() or "all",
+                    "target_unit_domains": _normalize_report_target_domains(field.get("target_unit_domains") or []),
+                    "target_role_ids": _normalize_report_target_ids(field.get("target_role_ids") or []),
+                    "target_user_ids": _normalize_report_target_ids(field.get("target_user_ids") or []),
                     "sort_order": index,
                 }
             )
@@ -1685,6 +2093,10 @@ def _parse_task_import_form_fields_from_form(form):
     field_types = form.getlist("form_field_type")
     option_texts = form.getlist("form_field_options")
     required_indexes = {value for value in form.getlist("form_field_required")}
+    target_types = form.getlist("form_field_target_type")
+    unit_domains_values = form.getlist("form_field_target_unit_domains")
+    role_ids_values = form.getlist("form_field_target_role_ids")
+    user_ids_values = form.getlist("form_field_target_user_ids")
     fields = []
     used_keys = set()
     for index, raw_label in enumerate(labels):
@@ -1698,6 +2110,14 @@ def _parse_task_import_form_fields_from_form(form):
             field_key = _task_import_field_key(label, index, used_keys, "field")
         used_keys.add(field_key)
         option_text = str(option_texts[index] if index < len(option_texts) else "").strip()
+        target_config = _normalize_report_target_config(
+            {
+                "target_type": target_types[index] if index < len(target_types) else "all",
+                "target_unit_domains": unit_domains_values[index] if index < len(unit_domains_values) else "",
+                "target_role_ids": _task_import_parse_id_csv(role_ids_values[index] if index < len(role_ids_values) else ""),
+                "target_user_ids": _task_import_parse_id_csv(user_ids_values[index] if index < len(user_ids_values) else ""),
+            }
+        )
         fields.append(
             {
                 "field_key": field_key[:100],
@@ -1705,6 +2125,10 @@ def _parse_task_import_form_fields_from_form(form):
                 "field_type": field_type,
                 "field_options_text": option_text,
                 "is_required": str(index) in required_indexes,
+                "target_type": target_config.get("target_type") or "all",
+                "target_unit_domains": target_config.get("target_unit_domains") or [],
+                "target_role_ids": target_config.get("target_role_ids") or [],
+                "target_user_ids": target_config.get("target_user_ids") or [],
                 "sort_order": len(fields),
             }
         )
@@ -1718,6 +2142,10 @@ def _parse_task_import_report_fields_from_form(form):
     placeholders = form.getlist("report_field_placeholder")
     help_texts = form.getlist("report_field_help_text")
     required_indexes = {value for value in form.getlist("report_field_required")}
+    target_types = form.getlist("report_field_target_type")
+    unit_domains_values = form.getlist("report_field_target_unit_domains")
+    role_ids_values = form.getlist("report_field_target_role_ids")
+    user_ids_values = form.getlist("report_field_target_user_ids")
     fields = []
     used_keys = set()
     for index, raw_label in enumerate(labels):
@@ -1740,6 +2168,17 @@ def _parse_task_import_report_fields_from_form(form):
                 "required": str(index) in required_indexes,
                 "placeholder": str(placeholders[index] if index < len(placeholders) else "").strip()[:255],
                 "help_text": str(help_texts[index] if index < len(help_texts) else "").strip()[:255],
+                "target_type": _normalize_report_target_config(
+                    {
+                        "target_type": target_types[index] if index < len(target_types) else "all",
+                        "target_unit_domains": unit_domains_values[index] if index < len(unit_domains_values) else "",
+                        "target_role_ids": _task_import_parse_id_csv(role_ids_values[index] if index < len(role_ids_values) else ""),
+                        "target_user_ids": _task_import_parse_id_csv(user_ids_values[index] if index < len(user_ids_values) else ""),
+                    }
+                )["target_type"],
+                "target_unit_domains": _normalize_report_target_domains(unit_domains_values[index] if index < len(unit_domains_values) else ""),
+                "target_role_ids": _task_import_parse_id_csv(role_ids_values[index] if index < len(role_ids_values) else ""),
+                "target_user_ids": _task_import_parse_id_csv(user_ids_values[index] if index < len(user_ids_values) else ""),
                 "sort_order": len(fields),
             }
         )
@@ -1781,9 +2220,17 @@ def _parse_task_import_working_config_from_form(draft, form):
         config["report_narrative_enabled"] = _report_checkbox_value(form.get("report_narrative_enabled"))
         config["report_narrative_required"] = _report_checkbox_value(form.get("report_narrative_required"))
         config["report_narrative_label"] = str(form.get("report_narrative_label") or "Báo cáo lời tổng hợp").strip()[:255]
+        config["report_narrative_target_type"] = str(form.get("report_narrative_target_type") or "all").strip().lower()
+        config["report_narrative_unit_domains"] = _requested_unit_domains(form, field_name="report_narrative_unit_domains", fallback_field="")
+        config["report_narrative_role_ids"] = sorted({int(role_id) for role_id in form.getlist("report_narrative_role_ids") if str(role_id).isdigit()})
+        config["report_narrative_user_ids"] = sorted({int(uid) for uid in form.getlist("report_narrative_user_ids") if str(uid).isdigit()})
         config["report_attachment_enabled"] = _report_checkbox_value(form.get("report_attachment_enabled"))
         config["report_attachment_required"] = _report_checkbox_value(form.get("report_attachment_required"))
         config["report_attachment_label"] = str(form.get("report_attachment_label") or "Tệp minh chứng").strip()[:255]
+        config["report_attachment_target_type"] = str(form.get("report_attachment_target_type") or "all").strip().lower()
+        config["report_attachment_unit_domains"] = _requested_unit_domains(form, field_name="report_attachment_unit_domains", fallback_field="")
+        config["report_attachment_role_ids"] = sorted({int(role_id) for role_id in form.getlist("report_attachment_role_ids") if str(role_id).isdigit()})
+        config["report_attachment_user_ids"] = sorted({int(uid) for uid in form.getlist("report_attachment_user_ids") if str(uid).isdigit()})
         config["report_fields"] = _parse_task_import_report_fields_from_form(form)
 
     if not config.get("summary"):
@@ -1800,11 +2247,19 @@ def _task_import_report_schema_from_config(config):
             "enabled": bool(config.get("report_narrative_enabled", True)),
             "required": bool(config.get("report_narrative_required", True)),
             "label": str(config.get("report_narrative_label") or "Báo cáo lời tổng hợp").strip(),
+            "target_type": str(config.get("report_narrative_target_type") or "all").strip().lower(),
+            "target_unit_domains": _normalize_report_target_domains(config.get("report_narrative_unit_domains") or []),
+            "target_role_ids": _normalize_report_target_ids(config.get("report_narrative_role_ids") or []),
+            "target_user_ids": _normalize_report_target_ids(config.get("report_narrative_user_ids") or []),
         },
         "attachment": {
             "enabled": bool(config.get("report_attachment_enabled")),
             "required": bool(config.get("report_attachment_required")),
             "label": str(config.get("report_attachment_label") or "Tệp minh chứng").strip(),
+            "target_type": str(config.get("report_attachment_target_type") or "all").strip().lower(),
+            "target_unit_domains": _normalize_report_target_domains(config.get("report_attachment_unit_domains") or []),
+            "target_role_ids": _normalize_report_target_ids(config.get("report_attachment_role_ids") or []),
+            "target_user_ids": _normalize_report_target_ids(config.get("report_attachment_user_ids") or []),
         },
         "fields": [
             {
@@ -1814,6 +2269,10 @@ def _task_import_report_schema_from_config(config):
                 "required": bool(field.get("required")),
                 "placeholder": field.get("placeholder"),
                 "help_text": field.get("help_text"),
+                "target_type": str(field.get("target_type") or "all").strip().lower(),
+                "target_unit_domains": _normalize_report_target_domains(field.get("target_unit_domains") or []),
+                "target_role_ids": _normalize_report_target_ids(field.get("target_role_ids") or []),
+                "target_user_ids": _normalize_report_target_ids(field.get("target_user_ids") or []),
             }
             for field in (config.get("report_fields") or [])
             if str(field.get("label") or "").strip()
@@ -1839,12 +2298,32 @@ def _task_import_form_field_defs_from_config(config):
                 "field_key": field_key[:100],
                 "field_label": label[:255],
                 "field_type": field_type,
-                "field_options_json": _draft_field_options_json(field_type, field.get("field_options_text")),
+                "field_options_json": _task_import_form_field_options_json(
+                    field_type,
+                    field.get("field_options_text"),
+                    {
+                        "target_type": field.get("target_type") or "all",
+                        "target_unit_domains": field.get("target_unit_domains") or [],
+                        "target_role_ids": field.get("target_role_ids") or [],
+                        "target_user_ids": field.get("target_user_ids") or [],
+                    },
+                ),
                 "sort_order": len(field_defs),
                 "is_required": bool(field.get("is_required")),
             }
         )
     return field_defs
+
+
+def _task_form_field_db_kwargs(field_def):
+    return {
+        "field_key": str(field_def.get("field_key") or "").strip()[:100],
+        "field_label": str(field_def.get("field_label") or "").strip()[:255],
+        "field_type": _normalize_task_form_field_type(field_def.get("field_type") or "text"),
+        "field_options_json": field_def.get("field_options_json"),
+        "sort_order": int(field_def.get("sort_order") or 0),
+        "is_required": bool(field_def.get("is_required")),
+    }
 
 
 def _task_import_blueprint_from_config(config):
@@ -1872,6 +2351,10 @@ def _task_import_blueprint_from_config(config):
                 "label": field.get("field_label"),
                 "type": field.get("field_type"),
                 "required": bool(field.get("is_required")),
+                "target_type": field.get("target_type") or "all",
+                "target_unit_domains": field.get("target_unit_domains") or [],
+                "target_role_ids": field.get("target_role_ids") or [],
+                "target_user_ids": field.get("target_user_ids") or [],
                 "options": (
                     [item.strip() for item in str(field.get("field_options_text") or "").splitlines() if item.strip()]
                     if str(field.get("field_type") or "").strip().lower() in {"radio", "checkbox"}
@@ -1888,11 +2371,19 @@ def _task_import_blueprint_from_config(config):
                 "enabled": bool(config.get("report_narrative_enabled", True)),
                 "required": bool(config.get("report_narrative_required", True)),
                 "label": config.get("report_narrative_label"),
+                "target_type": config.get("report_narrative_target_type") or "all",
+                "target_unit_domains": config.get("report_narrative_unit_domains") or [],
+                "target_role_ids": config.get("report_narrative_role_ids") or [],
+                "target_user_ids": config.get("report_narrative_user_ids") or [],
             },
             "attachment": {
                 "enabled": bool(config.get("report_attachment_enabled")),
                 "required": bool(config.get("report_attachment_required")),
                 "label": config.get("report_attachment_label"),
+                "target_type": config.get("report_attachment_target_type") or "all",
+                "target_unit_domains": config.get("report_attachment_unit_domains") or [],
+                "target_role_ids": config.get("report_attachment_role_ids") or [],
+                "target_user_ids": config.get("report_attachment_user_ids") or [],
             },
             "fields": [
                 {
@@ -1902,6 +2393,10 @@ def _task_import_blueprint_from_config(config):
                     "required": bool(field.get("required")),
                     "placeholder": field.get("placeholder"),
                     "help_text": field.get("help_text"),
+                    "target_type": field.get("target_type") or "all",
+                    "target_unit_domains": field.get("target_unit_domains") or [],
+                    "target_role_ids": field.get("target_role_ids") or [],
+                    "target_user_ids": field.get("target_user_ids") or [],
                 }
                 for field in (config.get("report_fields") or [])
                 if str(field.get("label") or "").strip()
@@ -1955,6 +2450,813 @@ def _task_import_config_stats(config):
             fallback_domain=fallback_domain,
         ) else 1
     return stats
+
+
+def _task_import_user_unit_label(user, unit_lookup=None):
+    unit_lookup = unit_lookup or {}
+    raw_value = getattr(user, "unit_area", None) or getattr(user, "unit_key", None) or ""
+    canonical_value = canonicalize_category_value(raw_value or "", _task_domain_options(), prefer_stable=True)
+    if canonical_value and unit_lookup.get(canonical_value):
+        return unit_lookup.get(canonical_value)
+    if raw_value:
+        return str(raw_value).strip()
+    return "Chưa có đơn vị"
+
+
+def _task_import_scope_target_labels(assign_type, unit_domains=None, role_ids=None, user_ids=None, fallback_domain="", unit_lookup=None, role_lookup=None, user_lookup=None):
+    unit_lookup = unit_lookup or {}
+    role_lookup = role_lookup or {}
+    user_lookup = user_lookup or {}
+    normalized = _task_import_working_assign_type(assign_type)
+    if normalized == "unit":
+        raw_domains = list(unit_domains or [])
+        if not raw_domains and str(fallback_domain or "").strip():
+            raw_domains = [fallback_domain]
+        labels = [unit_lookup.get(domain) or domain for domain in raw_domains if str(domain or "").strip()]
+        return labels
+    if normalized == "role":
+        return [role_lookup.get(int(role_id), str(role_id)) for role_id in (role_ids or []) if str(role_id).isdigit()]
+    if normalized == "user":
+        return [user_lookup.get(int(user_id), str(user_id)) for user_id in (user_ids or []) if str(user_id).isdigit()]
+    return []
+
+
+def _task_import_scope_summary(assign_type, unit_domains=None, role_ids=None, user_ids=None, fallback_domain="", unit_lookup=None, role_lookup=None, user_lookup=None):
+    raw_type = str(assign_type or "").strip().lower()
+    if raw_type == "all":
+        return {
+            "assign_type": "all",
+            "mode_label": TASK_IMPORT_TARGET_TYPE_LABELS["all"],
+            "labels": [],
+            "text": TASK_IMPORT_TARGET_TYPE_LABELS["all"],
+        }
+    normalized = _task_import_working_assign_type(raw_type)
+    labels = _task_import_scope_target_labels(
+        normalized,
+        unit_domains=unit_domains,
+        role_ids=role_ids,
+        user_ids=user_ids,
+        fallback_domain=fallback_domain,
+        unit_lookup=unit_lookup,
+        role_lookup=role_lookup,
+        user_lookup=user_lookup,
+    )
+    mode_label = TASK_IMPORT_ASSIGN_TYPE_LABELS.get(normalized, "Chưa cấu hình")
+    if not normalized:
+        return {
+            "assign_type": "",
+            "mode_label": "Chưa cấu hình",
+            "labels": [],
+            "text": "Chưa gán người thực hiện",
+        }
+    if labels:
+        return {
+            "assign_type": normalized,
+            "mode_label": mode_label,
+            "labels": labels,
+            "text": f"{mode_label}: {', '.join(labels)}",
+        }
+    return {
+        "assign_type": normalized,
+        "mode_label": mode_label,
+        "labels": [],
+        "text": f"{mode_label}: chưa có người nhận hợp lệ",
+    }
+
+
+def _task_import_preview_recipient_entry(user, unit_lookup=None, role_lookup=None):
+    unit_lookup = unit_lookup or {}
+    role_lookup = role_lookup or {}
+    role_id = getattr(user, "role_id", None)
+    return {
+        "key": f"user:{user.id}",
+        "user_id": user.id,
+        "user_name": getattr(user, "fullname", None) or getattr(user, "username", None) or f"User {user.id}",
+        "username": getattr(user, "username", None) or "",
+        "unit_name": _task_import_user_unit_label(user, unit_lookup=unit_lookup),
+        "role_name": role_lookup.get(role_id, "") if role_id else "",
+        "outline_items": [],
+        "form_fields": [],
+        "file_sections": [],
+        "delivery_labels": [],
+        "warnings": [],
+        "item_count": 0,
+        "field_count": 0,
+        "section_count": 0,
+    }
+
+
+def _task_import_preview_warning_text(message):
+    text = str(message or "").strip()
+    return text[:400] if text else "Cấu hình người nhận chưa hợp lệ."
+
+
+def _task_import_preview_submission_group_info(assign_type, user, role_lookup=None, unit_lookup=None):
+    role_lookup = role_lookup or {}
+    unit_lookup = unit_lookup or {}
+    normalized = _task_import_working_assign_type(assign_type)
+    user_name = getattr(user, "fullname", None) or getattr(user, "username", None) or f"User {getattr(user, 'id', '')}"
+    unit_name = _task_import_user_unit_label(user, unit_lookup=unit_lookup)
+    unit_identity = _task_unit_identity(user)
+    unit_key = unit_identity.get("unit_key") or remove_accents(unit_name).strip().lower() or f"user:{getattr(user, 'id', 0)}"
+    role_id = int(getattr(user, "role_id", None) or 0)
+    role_name = role_lookup.get(role_id, "") if role_id else ""
+
+    if normalized == "unit":
+        return {
+            "mode": "unit",
+            "mode_label": "Nộp theo đơn vị",
+            "group_key": f"unit:{unit_key}",
+            "group_label": f"Đơn vị {unit_name}",
+            "member_label": user_name,
+        }
+    if normalized == "role":
+        role_key = role_id or 0
+        role_title = role_name or "Chưa phân vai trò"
+        return {
+            "mode": "role",
+            "mode_label": "Nộp theo vai trò",
+            "group_key": f"role:{role_key}:unit:{unit_key}",
+            "group_label": f"{role_title} - {unit_name}",
+            "member_label": user_name,
+        }
+    return {
+        "mode": "user",
+        "mode_label": "Nộp cá nhân",
+        "group_key": f"user:{int(getattr(user, 'id', 0) or 0)}",
+        "group_label": user_name,
+        "member_label": user_name,
+    }
+
+
+def _task_import_preview_unit_groups(mode, cards):
+    mode_key = str(mode or "").strip().lower()
+    unit_map = {}
+
+    def ensure_group(card):
+        unit_name = str(card.get("unit_name") or "Chưa có đơn vị").strip() or "Chưa có đơn vị"
+        return unit_map.setdefault(
+            unit_name,
+            {
+                "unit_name": unit_name,
+                "recipient_count": 0,
+                "item_count": 0,
+                "field_count": 0,
+                "section_count": 0,
+                "warning_count": 0,
+                "recipient_names": [],
+                "delivery_labels": [],
+                "payload_labels": [],
+            },
+        )
+
+    def push_unique(values, value, limit=5):
+        text = str(value or "").strip()
+        if not text or text in values:
+            return
+        values.append(text)
+        if len(values) > limit:
+            del values[limit:]
+
+    for card in cards or []:
+        group = ensure_group(card)
+        group["recipient_count"] += 1
+        group["item_count"] += int(card.get("item_count") or 0)
+        group["field_count"] += int(card.get("field_count") or 0)
+        group["section_count"] += int(card.get("section_count") or 0)
+        group["warning_count"] += len(card.get("warnings") or [])
+        push_unique(group["recipient_names"], card.get("user_name"), limit=4)
+        for label in (card.get("delivery_labels") or []):
+            push_unique(group["delivery_labels"], label, limit=4)
+        if mode_key == "outline":
+            for item in (card.get("outline_items") or []):
+                push_unique(group["payload_labels"], item.get("title"))
+        elif mode_key == "form":
+            for field in (card.get("form_fields") or []):
+                push_unique(group["payload_labels"], field.get("label"))
+        else:
+            for section in (card.get("file_sections") or []):
+                push_unique(group["payload_labels"], section.get("label"))
+
+    return sorted(
+        unit_map.values(),
+        key=lambda item: (-item["recipient_count"], -item["item_count"] - item["field_count"] - item["section_count"], remove_accents(item["unit_name"]).lower()),
+    )
+
+
+def _task_import_preview_submission_groups(mode, cards):
+    mode_key = str(mode or "").strip().lower()
+    group_map = {}
+
+    def ensure_group(group_key, group_label, mode_label):
+        return group_map.setdefault(
+            group_key,
+            {
+                "group_key": group_key,
+                "group_label": group_label,
+                "mode_label": mode_label,
+                "member_names": [],
+                "payload_labels": [],
+                "payload_count": 0,
+                "recipient_count": 0,
+            },
+        )
+
+    def push_unique(values, value, limit=6):
+        text = str(value or "").strip()
+        if not text or text in values:
+            return
+        values.append(text)
+        if len(values) > limit:
+            del values[limit:]
+
+    def add_payload(group, payload_label):
+        text = str(payload_label or "").strip()
+        if not text:
+            return
+        group["payload_count"] += 1
+        push_unique(group["payload_labels"], text)
+
+    for card in cards or []:
+        if mode_key == "outline":
+            for item in (card.get("outline_items") or []):
+                group_key = str(item.get("submission_group_key") or "").strip()
+                if not group_key:
+                    continue
+                group = ensure_group(
+                    group_key,
+                    item.get("submission_group_label") or card.get("user_name") or "Nhóm nộp",
+                    item.get("submission_mode_label") or "Nộp cá nhân",
+                )
+                push_unique(group["member_names"], card.get("user_name"))
+                group["recipient_count"] = len(group["member_names"])
+                add_payload(group, item.get("title"))
+        elif mode_key == "form":
+            group_key = str(card.get("submission_group_key") or "").strip()
+            if not group_key:
+                continue
+            group = ensure_group(
+                group_key,
+                card.get("submission_group_label") or card.get("user_name") or "Nhóm nộp",
+                card.get("submission_mode_label") or "Nộp cá nhân",
+            )
+            push_unique(group["member_names"], card.get("user_name"))
+            group["recipient_count"] = len(group["member_names"])
+            for field in (card.get("form_fields") or []):
+                add_payload(group, field.get("label"))
+        else:
+            group_key = str(card.get("submission_group_key") or "").strip()
+            if not group_key:
+                continue
+            group = ensure_group(
+                group_key,
+                card.get("submission_group_label") or card.get("user_name") or "Nhóm nộp",
+                card.get("submission_mode_label") or "Nộp cá nhân",
+            )
+            push_unique(group["member_names"], card.get("user_name"))
+            group["recipient_count"] = len(group["member_names"])
+            for section in (card.get("file_sections") or []):
+                add_payload(group, section.get("label"))
+
+    return sorted(
+        group_map.values(),
+        key=lambda item: (-int(item["recipient_count"] or 0), -int(item["payload_count"] or 0), remove_accents(item["group_label"]).lower()),
+    )
+
+
+def _task_import_outline_recipient_preview(config, unit_lookup=None, role_lookup=None, user_lookup=None):
+    unit_lookup = unit_lookup or {}
+    role_lookup = role_lookup or {}
+    user_lookup = user_lookup or {}
+    fallback_domain = canonicalize_category_value(config.get("domain") or "", _task_domain_options(), prefer_stable=True)
+    recipients = {}
+    warnings = []
+
+    for item in (config.get("items") or []):
+        title = _clean_outline_title(item.get("title"))
+        if not title:
+            continue
+        assign_type = _task_import_working_assign_type(item.get("assign_type"))
+        scope_summary = _task_import_scope_summary(
+            assign_type,
+            unit_domains=item.get("unit_domains") or [],
+            role_ids=item.get("role_ids") or [],
+            user_ids=item.get("user_ids") or [],
+            fallback_domain=fallback_domain,
+            unit_lookup=unit_lookup,
+            role_lookup=role_lookup,
+            user_lookup=user_lookup,
+        )
+        assignees, error_message = _resolve_assignees_by_mode(
+            assign_type,
+            domain=fallback_domain,
+            unit_domains=item.get("unit_domains") or [],
+            target_ids=item.get("user_ids") or [],
+            assignee_role_ids=item.get("role_ids") or [],
+        )
+        if error_message or not assignees:
+            warnings.append(
+                {
+                    "scope": title,
+                    "message": _task_import_preview_warning_text(
+                        error_message or "Đầu mục này chưa có người nhận hợp lệ."
+                    ),
+                }
+            )
+            continue
+        row_preview = {
+            "title": title,
+            "guide_text": str(item.get("guide_text") or "").strip(),
+            "report_kind": str(item.get("report_kind") or "narrative").strip().lower() or "narrative",
+            "report_kind_label": TASK_IMPORT_REPORT_KIND_LABELS.get(
+                str(item.get("report_kind") or "narrative").strip().lower(),
+                "Báo cáo lời",
+            ),
+            "attachment_required": bool(item.get("attachment_required")),
+            "delivery_text": scope_summary["text"],
+            "delivery_mode": scope_summary["mode_label"],
+            "sort_order": int(item.get("sort_order") or 0),
+        }
+        for assignee in assignees:
+            submission_group = _task_import_preview_submission_group_info(
+                assign_type,
+                assignee,
+                role_lookup=role_lookup,
+                unit_lookup=unit_lookup,
+            )
+            entry = recipients.setdefault(
+                assignee.id,
+                _task_import_preview_recipient_entry(assignee, unit_lookup=unit_lookup, role_lookup=role_lookup),
+            )
+            preview_payload = dict(
+                row_preview,
+                submission_group_key=submission_group["group_key"],
+                submission_group_label=submission_group["group_label"],
+                submission_mode_label=submission_group["mode_label"],
+            )
+            entry["outline_items"].append(preview_payload)
+            if scope_summary["text"] not in entry["delivery_labels"]:
+                entry["delivery_labels"].append(scope_summary["text"])
+
+    cards = sorted(
+        recipients.values(),
+        key=lambda item: (remove_accents(item["unit_name"]).lower(), remove_accents(item["user_name"]).lower()),
+    )
+    for card in cards:
+        card["outline_items"].sort(key=lambda item: (item["sort_order"], remove_accents(item["title"]).lower()))
+        card["item_count"] = len(card["outline_items"])
+    return {
+        "mode": "outline",
+        "recipient_count": len(cards),
+        "cards": cards,
+        "warnings": warnings,
+        "unit_groups": _task_import_preview_unit_groups("outline", cards),
+        "submission_groups": _task_import_preview_submission_groups("outline", cards),
+    }
+
+
+def _task_import_form_recipient_preview(config, unit_lookup=None, role_lookup=None, user_lookup=None):
+    unit_lookup = unit_lookup or {}
+    role_lookup = role_lookup or {}
+    user_lookup = user_lookup or {}
+    fallback_domain = canonicalize_category_value(config.get("domain") or "", _task_domain_options(), prefer_stable=True)
+    scope_summary = _task_import_scope_summary(
+        config.get("assign_type"),
+        unit_domains=config.get("unit_domains") or [],
+        role_ids=config.get("role_ids") or [],
+        user_ids=config.get("user_ids") or [],
+        fallback_domain=fallback_domain,
+        unit_lookup=unit_lookup,
+        role_lookup=role_lookup,
+        user_lookup=user_lookup,
+    )
+    assignees, error_message = _resolve_assignees_by_mode(
+        _task_import_working_assign_type(config.get("assign_type"), "unit"),
+        domain=fallback_domain,
+        unit_domains=config.get("unit_domains") or [],
+        target_ids=config.get("user_ids") or [],
+        assignee_role_ids=config.get("role_ids") or [],
+    )
+    warnings = []
+    if error_message:
+        warnings.append({"scope": "Phân công toàn nhiệm vụ", "message": _task_import_preview_warning_text(error_message)})
+    fields = [field for field in (config.get("form_fields") or []) if str(field.get("field_label") or "").strip()]
+    cards = []
+    for assignee in assignees:
+        entry = _task_import_preview_recipient_entry(assignee, unit_lookup=unit_lookup, role_lookup=role_lookup)
+        entry["delivery_labels"] = [scope_summary["text"]]
+        submission_group = _task_import_preview_submission_group_info(
+            config.get("assign_type"),
+            assignee,
+            role_lookup=role_lookup,
+            unit_lookup=unit_lookup,
+        )
+        entry["submission_group_key"] = submission_group["group_key"]
+        entry["submission_group_label"] = submission_group["group_label"]
+        entry["submission_mode_label"] = submission_group["mode_label"]
+        for field in fields:
+            field_config = {
+                "target_type": field.get("target_type") or "all",
+                "target_unit_domains": field.get("target_unit_domains") or [],
+                "target_role_ids": field.get("target_role_ids") or [],
+                "target_user_ids": field.get("target_user_ids") or [],
+            }
+            if not _task_report_item_visible_for_user(field_config, assignee):
+                continue
+            target_summary = _task_import_scope_summary(
+                field.get("target_type") or "all",
+                unit_domains=field.get("target_unit_domains") or [],
+                role_ids=field.get("target_role_ids") or [],
+                user_ids=field.get("target_user_ids") or [],
+                unit_lookup=unit_lookup,
+                role_lookup=role_lookup,
+                user_lookup=user_lookup,
+            )
+            entry["form_fields"].append(
+                {
+                    "label": str(field.get("field_label") or "").strip(),
+                    "field_type": str(field.get("field_type") or "text").strip().lower() or "text",
+                    "field_type_label": TASK_IMPORT_FIELD_TYPE_LABELS.get(
+                        str(field.get("field_type") or "text").strip().lower(),
+                        "Văn bản",
+                    ),
+                    "is_required": bool(field.get("is_required")),
+                    "target_text": target_summary["text"] if target_summary["assign_type"] else TASK_IMPORT_TARGET_TYPE_LABELS["all"],
+                    "sort_order": int(field.get("sort_order") or 0),
+                }
+            )
+        entry["form_fields"].sort(key=lambda item: (item["sort_order"], remove_accents(item["label"]).lower()))
+        entry["field_count"] = len(entry["form_fields"])
+        if not entry["field_count"]:
+            entry["warnings"].append("Người nhận này được giao nhiệm vụ nhưng hiện chưa thấy trường biểu mẫu nào.")
+        cards.append(entry)
+
+    cards.sort(key=lambda item: (remove_accents(item["unit_name"]).lower(), remove_accents(item["user_name"]).lower()))
+    if not fields:
+        warnings.append({"scope": "Biểu mẫu", "message": "Chưa có trường biểu mẫu hợp lệ để phát hành."})
+    return {
+        "mode": "form",
+        "recipient_count": len(cards),
+        "cards": cards,
+        "warnings": warnings,
+        "global_delivery_text": scope_summary["text"],
+        "unit_groups": _task_import_preview_unit_groups("form", cards),
+        "submission_groups": _task_import_preview_submission_groups("form", cards),
+    }
+
+
+def _task_import_file_recipient_preview(config, unit_lookup=None, role_lookup=None, user_lookup=None):
+    unit_lookup = unit_lookup or {}
+    role_lookup = role_lookup or {}
+    user_lookup = user_lookup or {}
+    fallback_domain = canonicalize_category_value(config.get("domain") or "", _task_domain_options(), prefer_stable=True)
+    scope_summary = _task_import_scope_summary(
+        config.get("assign_type"),
+        unit_domains=config.get("unit_domains") or [],
+        role_ids=config.get("role_ids") or [],
+        user_ids=config.get("user_ids") or [],
+        fallback_domain=fallback_domain,
+        unit_lookup=unit_lookup,
+        role_lookup=role_lookup,
+        user_lookup=user_lookup,
+    )
+    assignees, error_message = _resolve_assignees_by_mode(
+        _task_import_working_assign_type(config.get("assign_type"), "unit"),
+        domain=fallback_domain,
+        unit_domains=config.get("unit_domains") or [],
+        target_ids=config.get("user_ids") or [],
+        assignee_role_ids=config.get("role_ids") or [],
+    )
+    warnings = []
+    if error_message:
+        warnings.append({"scope": "Phân công toàn nhiệm vụ", "message": _task_import_preview_warning_text(error_message)})
+
+    narrative_cfg = {
+        "enabled": bool(config.get("report_narrative_enabled", True)),
+        "required": bool(config.get("report_narrative_required", True)),
+        "label": str(config.get("report_narrative_label") or "Báo cáo lời tổng hợp").strip(),
+        "target_type": config.get("report_narrative_target_type") or "all",
+        "target_unit_domains": config.get("report_narrative_unit_domains") or [],
+        "target_role_ids": config.get("report_narrative_role_ids") or [],
+        "target_user_ids": config.get("report_narrative_user_ids") or [],
+    }
+    attachment_cfg = {
+        "enabled": bool(config.get("report_attachment_enabled")),
+        "required": bool(config.get("report_attachment_required")),
+        "label": str(config.get("report_attachment_label") or "Tệp minh chứng").strip(),
+        "target_type": config.get("report_attachment_target_type") or "all",
+        "target_unit_domains": config.get("report_attachment_unit_domains") or [],
+        "target_role_ids": config.get("report_attachment_role_ids") or [],
+        "target_user_ids": config.get("report_attachment_user_ids") or [],
+    }
+    report_fields = [field for field in (config.get("report_fields") or []) if str(field.get("label") or "").strip()]
+    cards = []
+    for assignee in assignees:
+        entry = _task_import_preview_recipient_entry(assignee, unit_lookup=unit_lookup, role_lookup=role_lookup)
+        entry["delivery_labels"] = [scope_summary["text"]]
+        submission_group = _task_import_preview_submission_group_info(
+            config.get("assign_type"),
+            assignee,
+            role_lookup=role_lookup,
+            unit_lookup=unit_lookup,
+        )
+        entry["submission_group_key"] = submission_group["group_key"]
+        entry["submission_group_label"] = submission_group["group_label"]
+        entry["submission_mode_label"] = submission_group["mode_label"]
+        if narrative_cfg["enabled"] and _task_report_item_visible_for_user(narrative_cfg, assignee):
+            target_summary = _task_import_scope_summary(
+                narrative_cfg.get("target_type") or "all",
+                unit_domains=narrative_cfg.get("target_unit_domains") or [],
+                role_ids=narrative_cfg.get("target_role_ids") or [],
+                user_ids=narrative_cfg.get("target_user_ids") or [],
+                unit_lookup=unit_lookup,
+                role_lookup=role_lookup,
+                user_lookup=user_lookup,
+            )
+            entry["file_sections"].append(
+                {
+                    "label": narrative_cfg["label"] or "Báo cáo lời tổng hợp",
+                    "kind": "narrative",
+                    "kind_label": "Báo cáo lời",
+                    "type_label": "Đoạn văn",
+                    "required": bool(narrative_cfg["required"]),
+                    "target_text": target_summary["text"] if target_summary["assign_type"] else TASK_IMPORT_TARGET_TYPE_LABELS["all"],
+                    "sort_order": 0,
+                }
+            )
+        if attachment_cfg["enabled"] and _task_report_item_visible_for_user(attachment_cfg, assignee):
+            target_summary = _task_import_scope_summary(
+                attachment_cfg.get("target_type") or "all",
+                unit_domains=attachment_cfg.get("target_unit_domains") or [],
+                role_ids=attachment_cfg.get("target_role_ids") or [],
+                user_ids=attachment_cfg.get("target_user_ids") or [],
+                unit_lookup=unit_lookup,
+                role_lookup=role_lookup,
+                user_lookup=user_lookup,
+            )
+            entry["file_sections"].append(
+                {
+                    "label": attachment_cfg["label"] or "Tệp minh chứng",
+                    "kind": "attachment",
+                    "kind_label": "Minh chứng",
+                    "type_label": "Tệp đính kèm",
+                    "required": bool(attachment_cfg["required"]),
+                    "target_text": target_summary["text"] if target_summary["assign_type"] else TASK_IMPORT_TARGET_TYPE_LABELS["all"],
+                    "sort_order": 1,
+                }
+            )
+        for index, field in enumerate(report_fields, start=2):
+            field_config = {
+                "target_type": field.get("target_type") or "all",
+                "target_unit_domains": field.get("target_unit_domains") or [],
+                "target_role_ids": field.get("target_role_ids") or [],
+                "target_user_ids": field.get("target_user_ids") or [],
+            }
+            if not _task_report_item_visible_for_user(field_config, assignee):
+                continue
+            target_summary = _task_import_scope_summary(
+                field.get("target_type") or "all",
+                unit_domains=field.get("target_unit_domains") or [],
+                role_ids=field.get("target_role_ids") or [],
+                user_ids=field.get("target_user_ids") or [],
+                unit_lookup=unit_lookup,
+                role_lookup=role_lookup,
+                user_lookup=user_lookup,
+            )
+            entry["file_sections"].append(
+                {
+                    "label": str(field.get("label") or "").strip(),
+                    "kind": "field",
+                    "kind_label": "Chỉ tiêu",
+                    "type_label": TASK_IMPORT_FIELD_TYPE_LABELS.get(str(field.get("type") or "text").strip().lower(), "Văn bản"),
+                    "required": bool(field.get("required")),
+                    "target_text": target_summary["text"] if target_summary["assign_type"] else TASK_IMPORT_TARGET_TYPE_LABELS["all"],
+                    "sort_order": int(field.get("sort_order") or index),
+                }
+            )
+        entry["file_sections"].sort(key=lambda item: (item["sort_order"], remove_accents(item["label"]).lower()))
+        entry["section_count"] = len(entry["file_sections"])
+        if not entry["section_count"]:
+            entry["warnings"].append("Người nhận này được giao nhiệm vụ nhưng hiện chưa thấy phần báo cáo nào.")
+        cards.append(entry)
+
+    cards.sort(key=lambda item: (remove_accents(item["unit_name"]).lower(), remove_accents(item["user_name"]).lower()))
+    if not narrative_cfg["enabled"] and not attachment_cfg["enabled"] and not report_fields:
+        warnings.append({"scope": "Schema báo cáo", "message": "Chưa có nội dung báo cáo hợp lệ để phát hành."})
+    return {
+        "mode": "file",
+        "recipient_count": len(cards),
+        "cards": cards,
+        "warnings": warnings,
+        "global_delivery_text": scope_summary["text"],
+        "unit_groups": _task_import_preview_unit_groups("file", cards),
+        "submission_groups": _task_import_preview_submission_groups("file", cards),
+    }
+
+
+def _task_import_recipient_preview(config, users=None, roles=None):
+    config = config or {}
+    active_users = list(users or [])
+    role_rows = list(roles or [])
+    unit_lookup = {
+        str(item.get("value") or "").strip(): str(item.get("name") or item.get("label") or item.get("value") or "").strip()
+        for item in stable_form_category_options(_task_domain_options())
+        if str(item.get("value") or "").strip()
+    }
+    role_lookup = {
+        int(role.id): str(role.name or f"Vai trò {role.id}").strip()
+        for role in role_rows
+        if getattr(role, "id", None)
+    }
+    user_lookup = {
+        int(user.id): str(getattr(user, "fullname", None) or getattr(user, "username", None) or f"User {user.id}").strip()
+        for user in active_users
+        if getattr(user, "id", None)
+    }
+    mode = str(config.get("collection_mode") or "").strip().lower()
+    if mode == "outline":
+        return _task_import_outline_recipient_preview(config, unit_lookup=unit_lookup, role_lookup=role_lookup, user_lookup=user_lookup)
+    if mode == "form":
+        return _task_import_form_recipient_preview(config, unit_lookup=unit_lookup, role_lookup=role_lookup, user_lookup=user_lookup)
+    return _task_import_file_recipient_preview(config, unit_lookup=unit_lookup, role_lookup=role_lookup, user_lookup=user_lookup)
+
+
+def _task_import_form_visible_fields_for_user(config, user):
+    ignored_labels = {
+        remove_accents(str(label or "")).strip().lower()
+        for label in (config.get("validation_ignored_form_field_labels") or [])
+        if str(label or "").strip()
+    }
+    visible_fields = []
+    for field in (config.get("form_fields") or []):
+        label = str(field.get("field_label") or "").strip()
+        if not label:
+            continue
+        if remove_accents(label).strip().lower() in ignored_labels:
+            continue
+        field_config = {
+            "target_type": field.get("target_type") or "all",
+            "target_unit_domains": field.get("target_unit_domains") or [],
+            "target_role_ids": field.get("target_role_ids") or [],
+            "target_user_ids": field.get("target_user_ids") or [],
+        }
+        if _task_report_item_visible_for_user(field_config, user):
+            visible_fields.append(label)
+    return visible_fields
+
+
+def _task_import_file_visible_sections_for_user(config, user):
+    sections = []
+    if bool(config.get("report_narrative_enabled", True)):
+        narrative_config = {
+            "target_type": config.get("report_narrative_target_type") or "all",
+            "target_unit_domains": config.get("report_narrative_unit_domains") or [],
+            "target_role_ids": config.get("report_narrative_role_ids") or [],
+            "target_user_ids": config.get("report_narrative_user_ids") or [],
+        }
+        if _task_report_item_visible_for_user(narrative_config, user):
+            sections.append(str(config.get("report_narrative_label") or "Báo cáo lời tổng hợp").strip())
+    if bool(config.get("report_attachment_enabled")):
+        attachment_config = {
+            "target_type": config.get("report_attachment_target_type") or "all",
+            "target_unit_domains": config.get("report_attachment_unit_domains") or [],
+            "target_role_ids": config.get("report_attachment_role_ids") or [],
+            "target_user_ids": config.get("report_attachment_user_ids") or [],
+        }
+        if _task_report_item_visible_for_user(attachment_config, user):
+            sections.append(str(config.get("report_attachment_label") or "Tệp minh chứng").strip())
+    for field in (config.get("report_fields") or []):
+        label = str(field.get("label") or "").strip()
+        if not label:
+            continue
+        field_config = {
+            "target_type": field.get("target_type") or "all",
+            "target_unit_domains": field.get("target_unit_domains") or [],
+            "target_role_ids": field.get("target_role_ids") or [],
+            "target_user_ids": field.get("target_user_ids") or [],
+        }
+        if _task_report_item_visible_for_user(field_config, user):
+            sections.append(label)
+    return sections
+
+
+def _task_import_validate_publish_visibility(config, assignees):
+    mode = str(config.get("collection_mode") or "").strip().lower()
+    if mode not in {"form", "file"}:
+        return
+    empty_payload_users = []
+    for assignee in assignees or []:
+        if mode == "form":
+            visible_payload = _task_import_form_visible_fields_for_user(config, assignee)
+        else:
+            visible_payload = _task_import_file_visible_sections_for_user(config, assignee)
+        if not visible_payload:
+            empty_payload_users.append(getattr(assignee, "fullname", None) or getattr(assignee, "username", None) or f"UID {getattr(assignee, 'id', '')}")
+    if empty_payload_users:
+        label = "trường biểu mẫu" if mode == "form" else "phần báo cáo"
+        raise ValueError(
+            f"Có {len(empty_payload_users)} người nhận chưa thấy {label} nào: {', '.join(empty_payload_users[:3])}. Hãy rà lại phạm vi giao việc trước khi phát hành."
+        )
+
+
+def _task_visibility_validation_config(task_mode, assign_type, domain="", role_ids=None, user_ids=None, field_defs=None, report_schema=None, ignored_form_field_labels=None):
+    normalized_mode = str(task_mode or "").strip().upper()
+    config = {
+        "collection_mode": "form" if normalized_mode == "FORM" else "file",
+        "assign_type": str(assign_type or "").strip().lower(),
+        "domain": str(domain or "").strip(),
+        "role_ids": list(role_ids or []),
+        "user_ids": list(user_ids or []),
+    }
+    if normalized_mode == "FORM":
+        form_fields = []
+        for field_def in (field_defs or []):
+            options_payload = _json_loads_safe(field_def.get("field_options_json"), {})
+            target_config = _normalize_report_target_config(options_payload)
+            form_fields.append(
+                {
+                    "field_key": str(field_def.get("field_key") or "").strip(),
+                    "field_label": str(field_def.get("field_label") or "").strip(),
+                    "field_type": str(field_def.get("field_type") or "text").strip().lower(),
+                    "target_type": target_config.get("target_type") or "all",
+                    "target_unit_domains": target_config.get("target_unit_domains") or [],
+                    "target_role_ids": target_config.get("target_role_ids") or [],
+                    "target_user_ids": target_config.get("target_user_ids") or [],
+                }
+            )
+        config["form_fields"] = form_fields
+        config["validation_ignored_form_field_labels"] = [
+            str(label or "").strip()
+            for label in (ignored_form_field_labels or [])
+            if str(label or "").strip()
+        ]
+        return config
+
+    schema = report_schema if isinstance(report_schema, dict) else {}
+    narrative = schema.get("narrative") if isinstance(schema.get("narrative"), dict) else {}
+    attachment = schema.get("attachment") if isinstance(schema.get("attachment"), dict) else {}
+    config.update(
+        {
+            "report_narrative_enabled": bool(narrative.get("enabled", True)),
+            "report_narrative_required": bool(narrative.get("required", True)),
+            "report_narrative_label": str(narrative.get("label") or "Báo cáo lời tổng hợp").strip(),
+            "report_narrative_target_type": str(narrative.get("target_type") or "all").strip().lower() or "all",
+            "report_narrative_unit_domains": list(narrative.get("target_unit_domains") or []),
+            "report_narrative_role_ids": list(narrative.get("target_role_ids") or []),
+            "report_narrative_user_ids": list(narrative.get("target_user_ids") or []),
+            "report_attachment_enabled": bool(attachment.get("enabled")),
+            "report_attachment_required": bool(attachment.get("required")),
+            "report_attachment_label": str(attachment.get("label") or "Tệp minh chứng").strip(),
+            "report_attachment_target_type": str(attachment.get("target_type") or "all").strip().lower() or "all",
+            "report_attachment_unit_domains": list(attachment.get("target_unit_domains") or []),
+            "report_attachment_role_ids": list(attachment.get("target_role_ids") or []),
+            "report_attachment_user_ids": list(attachment.get("target_user_ids") or []),
+            "report_fields": [],
+        }
+    )
+    for field in (schema.get("fields") or []):
+        if not isinstance(field, dict):
+            continue
+        config["report_fields"].append(
+            {
+                "key": str(field.get("key") or "").strip(),
+                "label": str(field.get("label") or "").strip(),
+                "type": str(field.get("type") or "text").strip().lower(),
+                "required": bool(field.get("required")),
+                "target_type": str(field.get("target_type") or "all").strip().lower() or "all",
+                "target_unit_domains": list(field.get("target_unit_domains") or []),
+                "target_role_ids": list(field.get("target_role_ids") or []),
+                "target_user_ids": list(field.get("target_user_ids") or []),
+            }
+        )
+    return config
+
+
+def _validate_task_visibility_before_publish(task_mode, assignees, *, assign_type="", domain="", role_ids=None, user_ids=None, field_defs=None, report_schema=None, ignored_form_field_labels=None):
+    normalized_mode = str(task_mode or "").strip().upper()
+    if normalized_mode not in {"FORM", "FILE"}:
+        return
+    config = _task_visibility_validation_config(
+        normalized_mode,
+        assign_type,
+        domain=domain,
+        role_ids=role_ids,
+        user_ids=user_ids,
+        field_defs=field_defs,
+        report_schema=report_schema,
+        ignored_form_field_labels=ignored_form_field_labels,
+    )
+    _task_import_validate_publish_visibility(config, assignees)
+
+
+def _task_assignment_scope_lists(task):
+    scope = _load_assignment_scope(task)
+    return {
+        "assign_type": str(scope.get("mode") or getattr(task, "assign_type", None) or "").strip().lower(),
+        "domain": str(scope.get("domain") or getattr(task, "domain", "") or "").strip(),
+        "role_ids": list(scope.get("role_ids") or []),
+        "user_ids": list(scope.get("user_ids") or []),
+    }
 
 
 def _task_import_publish_payload(config):
@@ -2081,6 +3383,7 @@ def _task_import_publish_payload(config):
         field_defs = _task_import_form_field_defs_from_config(config)
         if not field_defs:
             raise ValueError("Cần ít nhất một trường biểu mẫu trước khi phát hành.")
+        _task_import_validate_publish_visibility(config, assignees)
         payload["assignees"] = assignees
         payload["form_fields"] = field_defs
         return payload
@@ -2098,6 +3401,7 @@ def _task_import_publish_payload(config):
     report_schema = _task_import_report_schema_from_config(config)
     if not report_schema:
         raise ValueError("Biểu mẫu báo cáo chưa có nội dung hợp lệ.")
+    _task_import_validate_publish_visibility(config, assignees)
     payload["assignees"] = assignees
     payload["report_schema"] = report_schema
     return payload
@@ -2184,7 +3488,7 @@ def _publish_task_import_draft(draft):
         )
         if payload["task_mode"] == "FORM":
             for field_def in payload["form_fields"]:
-                db.session.add(TaskFormField(task_id=new_task.id, **field_def))
+                db.session.add(TaskFormField(task_id=new_task.id, **_task_form_field_db_kwargs(field_def)))
 
     draft.status = "published"
     draft.published_task_id = new_task.id
@@ -3235,6 +4539,25 @@ def _normalize_report_target_ids(values):
     return normalized
 
 
+def _normalize_report_target_domains(values):
+    if isinstance(values, str):
+        values = [item.strip() for item in values.split(",") if item.strip()]
+    elif not isinstance(values, (list, tuple, set)):
+        values = []
+    normalized = []
+    seen = set()
+    for value in values:
+        text = str(value or "").strip()
+        if not text:
+            continue
+        key = remove_accents(text).strip().lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(text[:255])
+    return normalized
+
+
 def _normalize_report_target_config(raw_config, defaults=None):
     defaults = defaults or {}
     target_type = str(raw_config.get("target_type") or defaults.get("target_type") or "all").strip().lower()
@@ -3242,6 +4565,9 @@ def _normalize_report_target_config(raw_config, defaults=None):
         target_type = "all"
     return {
         "target_type": target_type,
+        "target_unit_domains": _normalize_report_target_domains(
+            raw_config.get("target_unit_domains", defaults.get("target_unit_domains", []))
+        ),
         "target_role_ids": _normalize_report_target_ids(
             raw_config.get("target_role_ids", defaults.get("target_role_ids", []))
         ),
@@ -3251,11 +4577,31 @@ def _normalize_report_target_config(raw_config, defaults=None):
     }
 
 
+def _task_report_user_matches_units(user, target_unit_domains):
+    if not user:
+        return False
+    target_domains = _normalize_report_target_domains(target_unit_domains)
+    if not target_domains:
+        return False
+    user_unit_candidates = [
+        getattr(user, "unit_area", None),
+        getattr(user, "unit_area_display", None),
+        getattr(user, "unit_key", None),
+        ]
+    return any(
+        is_unit_match(candidate, target_domain)
+        for candidate in user_unit_candidates if str(candidate or "").strip()
+        for target_domain in target_domains
+    )
+
+
 def _task_report_item_visible_for_user(item_config, user):
     if not item_config or not user:
         return False
 
     target_type = str(item_config.get("target_type") or "all").strip().lower()
+    if target_type == "unit":
+        return _task_report_user_matches_units(user, item_config.get("target_unit_domains") or [])
     if target_type == "role":
         role_id = getattr(user, "role_id", None)
         return bool(role_id and role_id in (item_config.get("target_role_ids") or []))
@@ -3458,6 +4804,7 @@ def _build_simple_child_task_schema(report_kind="narrative", attachment_required
             "required": normalized_kind == "narrative",
             "placeholder": "Nhập nội dung báo cáo",
             "target_type": "all",
+            "target_unit_domains": [],
             "target_role_ids": [],
             "target_user_ids": [],
         },
@@ -3466,6 +4813,7 @@ def _build_simple_child_task_schema(report_kind="narrative", attachment_required
             "label": "Tệp minh chứng",
             "required": bool(attachment_required),
             "target_type": "all",
+            "target_unit_domains": [],
             "target_role_ids": [],
             "target_user_ids": [],
         },
@@ -3485,6 +4833,7 @@ def _build_simple_child_task_schema(report_kind="narrative", attachment_required
                 "placeholder": "Nhập số cần báo cáo",
                 "help_text": "",
                 "target_type": "all",
+                "target_unit_domains": [],
                 "target_role_ids": [],
                 "target_user_ids": [],
             }
@@ -4154,6 +5503,7 @@ def _build_structured_task_report_form(task, user_assign, current_user):
                 "help_text": field.get("help_text") or "",
                 "value": str(values.get(field.get("key")) or ""),
                 "target_type": field.get("target_type") or "all",
+                "target_unit_domains": field.get("target_unit_domains") or [],
                 "target_role_ids": field.get("target_role_ids") or [],
                 "target_user_ids": field.get("target_user_ids") or [],
             }
@@ -4207,6 +5557,58 @@ def _build_assignment_report_context(user_assign, comments, task=None):
         "attachment_label": attachment_label,
         "summary_lines": summary_lines,
         "has_structured_payload": bool(structured_payload),
+    }
+
+
+def _parse_structured_file_report_submission(task, assignment, current_user, form, report_file):
+    report_form = _build_structured_task_report_form(task, assignment, current_user)
+    if not report_form or not report_form.get("has_visible_content"):
+        return None
+
+    missing_labels = []
+    values = {}
+    attachment_required = bool(report_form["attachment"].get("enabled") and report_form["attachment"].get("required"))
+    existing_attachment_name = str(report_form["attachment"].get("value") or "").strip()
+
+    if report_form["narrative"].get("enabled"):
+        narrative_value = str(form.get("report_narrative") or form.get("report_content") or "").strip()
+        if report_form["narrative"].get("required") and not narrative_value:
+            missing_labels.append(report_form["narrative"].get("label") or "Báo cáo lời")
+    else:
+        narrative_value = ""
+
+    for field in report_form.get("fields") or []:
+        field_key = str(field.get("key") or "").strip()
+        if not field_key:
+            continue
+        raw_value = str(form.get(f"report_field_{field_key}") or "").strip()
+        normalized_value = raw_value
+        if str(field.get("type") or "text").strip().lower() == "number" and raw_value:
+            normalized_value = _format_report_number(_parse_report_number(raw_value))
+        if field.get("required") and not normalized_value:
+            missing_labels.append(field.get("label") or field_key)
+        values[field_key] = normalized_value
+
+    if attachment_required and not ((report_file and report_file.filename) or existing_attachment_name):
+        missing_labels.append(report_form["attachment"].get("label") or "Tệp minh chứng")
+
+    if missing_labels:
+        raise ValueError("Cần điền các nội dung bắt buộc: " + ", ".join(missing_labels) + ".")
+
+    payload = {
+        "mode": "structured_task_report",
+        "narrative": narrative_value,
+        "values": values,
+        "updated_at": datetime.now().strftime("%d/%m/%Y %H:%M"),
+    }
+    if existing_attachment_name:
+        payload["attachment_name"] = existing_attachment_name
+    return {
+        "submission_type": "FILE",
+        "narrative": narrative_value,
+        "numeric_value": None,
+        "payload": payload,
+        "report_form": report_form,
     }
 
 
@@ -4558,6 +5960,158 @@ def _build_assignment_role_groups(assigns, child_task_counts_by_unit=None):
     return output
 
 
+def _task_assignment_progress_groups(rows):
+    assignment_pairs = []
+    report_snapshots = {}
+    assignee_types = set()
+
+    for row in rows or []:
+        assignment = row.get("assignment") if isinstance(row, dict) else None
+        if not assignment:
+            continue
+        user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
+        if not user:
+            continue
+        assignment_pairs.append((assignment, user))
+        report_snapshots[getattr(assignment, "id", None)] = _assignment_report_snapshot(assignment)
+        assignee_types.add(str(getattr(assignment, "assignee_type", "") or "user").strip().lower())
+
+    return {
+        "unit_cards": _build_assignment_unit_cards(assignment_pairs, report_snapshots=report_snapshots) if assignee_types & {"unit", "role"} else [],
+        "role_groups": _build_assignment_role_groups(assignment_pairs) if "role" in assignee_types else [],
+    }
+
+
+def _task_file_delivery_labels_for_user(task, user):
+    schema = _load_task_report_schema(task) or {}
+    labels = []
+    narrative = schema.get("narrative") if isinstance(schema.get("narrative"), dict) else {}
+    attachment = schema.get("attachment") if isinstance(schema.get("attachment"), dict) else {}
+    if bool(narrative.get("enabled", True)) and _task_report_item_visible_for_user(
+        {
+            "target_type": narrative.get("target_type") or "all",
+            "target_unit_domains": narrative.get("target_unit_domains") or [],
+            "target_role_ids": narrative.get("target_role_ids") or [],
+            "target_user_ids": narrative.get("target_user_ids") or [],
+        },
+        user,
+    ):
+        labels.append(str(narrative.get("label") or "Báo cáo lời tổng hợp").strip())
+    if bool(attachment.get("enabled")) and _task_report_item_visible_for_user(
+        {
+            "target_type": attachment.get("target_type") or "all",
+            "target_unit_domains": attachment.get("target_unit_domains") or [],
+            "target_role_ids": attachment.get("target_role_ids") or [],
+            "target_user_ids": attachment.get("target_user_ids") or [],
+        },
+        user,
+    ):
+        labels.append(str(attachment.get("label") or "Tệp minh chứng").strip())
+    for field in (schema.get("fields") or []):
+        if not isinstance(field, dict):
+            continue
+        label = str(field.get("label") or "").strip()
+        if not label:
+            continue
+        if _task_report_item_visible_for_user(
+            {
+                "target_type": field.get("target_type") or "all",
+                "target_unit_domains": field.get("target_unit_domains") or [],
+                "target_role_ids": field.get("target_role_ids") or [],
+                "target_user_ids": field.get("target_user_ids") or [],
+            },
+            user,
+        ):
+            labels.append(label)
+    return labels
+
+
+def _task_form_delivery_labels_for_user(task, user):
+    return [
+        str(getattr(field, "field_label", "") or "").strip()
+        for field in _task_form_fields_for_user(task, user)
+        if str(getattr(field, "field_label", "") or "").strip()
+    ]
+
+
+def _task_delivery_contract_groups(task, mode, rows):
+    normalized_mode = str(mode or "").strip().upper()
+    groups = {}
+
+    def ensure_group(group_key, group_label, mode_label):
+        return groups.setdefault(
+            group_key,
+            {
+                "group_key": group_key,
+                "group_label": group_label,
+                "mode_label": mode_label,
+                "member_names": [],
+                "payload_labels": [],
+                "recipient_count": 0,
+                "payload_count": 0,
+            },
+        )
+
+    def push_unique(values, value, limit=8):
+        text = str(value or "").strip()
+        if not text or text in values:
+            return
+        values.append(text)
+        if len(values) > limit:
+            del values[limit:]
+
+    for row in (rows or []):
+        assignment = row.get("assignment") if isinstance(row, dict) else None
+        user = getattr(assignment, "user", None) if assignment else None
+        if not assignment or not user:
+            continue
+        group_key = _task_assignment_submission_group_key(assignment)
+        submit_scope = task_assignment_submit_scope(assignment)
+        if submit_scope.get("mode") == "unit":
+            group_label = f"Đơn vị {_task_assignee_unit_name(user)}"
+        elif submit_scope.get("mode") == "role":
+            role_name = (
+                getattr(getattr(user, "role", None), "name", None)
+                or getattr(getattr(assignment, "role", None), "name", None)
+                or "Chưa phân vai trò"
+            )
+            group_label = f"{str(role_name).strip() or 'Chưa phân vai trò'} - {_task_assignee_unit_name(user)}"
+        else:
+            group_label = getattr(user, "fullname", None) or getattr(user, "username", None) or f"UID {user.id}"
+        group = ensure_group(group_key, group_label, submit_scope.get("label") or "Nộp cá nhân")
+        push_unique(group["member_names"], getattr(user, "fullname", None) or getattr(user, "username", None) or f"UID {user.id}")
+        if normalized_mode == "FILE":
+            visible_labels = _task_file_delivery_labels_for_user(task, user)
+        elif normalized_mode == "FORM":
+            visible_labels = _task_form_delivery_labels_for_user(task, user)
+        else:
+            visible_labels = []
+        for label in visible_labels:
+            group["payload_count"] += 1
+            push_unique(group["payload_labels"], label)
+        group["recipient_count"] = len(group["member_names"])
+
+    return sorted(
+        groups.values(),
+        key=lambda item: (-int(item["recipient_count"] or 0), -int(item["payload_count"] or 0), remove_accents(item["group_label"]).lower()),
+    )
+
+
+def _filter_assignment_rows_for_executor_scope(rows, current_assignment):
+    if not current_assignment:
+        return []
+    group_key = _task_assignment_submission_group_key(current_assignment)
+    return [
+        row
+        for row in (rows or [])
+        if _task_assignment_submission_group_key(row.get("assignment")) == group_key
+    ]
+
+
+def _filter_outline_groups_for_executor_scope(groups):
+    return [group for group in (groups or []) if int(group.get("my_items") or 0) > 0]
+
+
 def _is_da06_month_task(task):
     text = remove_accents(f"{getattr(task, 'title', '')} {getattr(task, 'content', '')}").strip().lower()
     return any(marker in text for marker in DA06_TASK_MARKERS)
@@ -4838,6 +6392,70 @@ def _create_assignment_records(task, assignees, assign_type="user", task_item=No
     return created
 
 
+def _task_assignment_submission_group_key(assignment):
+    if not assignment:
+        return ""
+    assignee_type = str(getattr(assignment, "assignee_type", "") or "user").strip().lower()
+    if assignee_type == "user":
+        return f"user:{int(getattr(assignment, 'user_id', 0) or 0)}"
+
+    user = getattr(assignment, "user", None)
+    if not user and getattr(assignment, "user_id", None):
+        user = db.session.get(User, assignment.user_id)
+    if not user:
+        return f"{assignee_type}:unknown"
+
+    unit_identity = _task_unit_identity(user)
+    unit_key = unit_identity["unit_key"] or unit_identity["unit_name"].lower()
+    if assignee_type == "role":
+        role_id = int(getattr(assignment, "role_id", None) or getattr(user, "role_id", None) or 0)
+        return f"role:{role_id}:unit:{unit_key}"
+    if assignee_type == "unit":
+        return f"unit:{unit_key}"
+    return f"user:{int(getattr(assignment, 'user_id', 0) or 0)}"
+
+
+def _task_assignment_group_members(task, assignment):
+    if not task or not assignment:
+        return []
+    assignee_type = str(getattr(assignment, "assignee_type", "") or "user").strip().lower()
+    if assignee_type not in {"unit", "role"}:
+        return [assignment]
+
+    query = TaskAssignment.query.options(joinedload(TaskAssignment.user)).filter_by(
+        task_id=task.id,
+        assignee_type=assignee_type,
+    )
+    if getattr(assignment, "task_item_id", None):
+        query = query.filter_by(task_item_id=assignment.task_item_id)
+    else:
+        query = query.filter(TaskAssignment.task_item_id.is_(None))
+    group_key = _task_assignment_submission_group_key(assignment)
+    return [candidate for candidate in query.all() if _task_assignment_submission_group_key(candidate) == group_key]
+
+
+def _sync_assignment_group_submission(task, assignment, submission, *, report_payload_json="", result_file="", submitted_at=None, updated_at=None, status="submitted"):
+    if not task or not assignment:
+        return []
+    peers = _task_assignment_group_members(task, assignment)
+    if len(peers) <= 1:
+        return peers
+    submitted_at = submitted_at or getattr(submission, "submitted_at", None) or datetime.now()
+    updated_at = updated_at or datetime.now()
+    for peer in peers:
+        if getattr(peer, "id", None) == getattr(assignment, "id", None):
+            continue
+        peer.status = status
+        peer.submitted_at = submitted_at
+        peer.last_submission_id = getattr(submission, "id", None)
+        if report_payload_json:
+            peer.report_payload_json = report_payload_json
+        if result_file:
+            peer.result_file = result_file
+        peer.updated_at = updated_at
+    return peers
+
+
 def _task_assignments_query(task, task_item_id=None):
     query = TaskAssignment.query.options(joinedload(TaskAssignment.user)).filter_by(task_id=task.id)
     if task_item_id is None:
@@ -5091,6 +6709,10 @@ def _parse_task_form_fields_from_request(form):
     field_types = form.getlist("form_field_type")
     required_indexes = {value for value in form.getlist("form_field_required")}
     options_values = form.getlist("form_field_options")
+    target_types = form.getlist("form_field_target_type")
+    unit_domains_values = form.getlist("form_field_target_unit_domains")
+    role_ids_values = form.getlist("form_field_target_role_ids")
+    user_ids_values = form.getlist("form_field_target_user_ids")
     fields = []
     for index, raw_label in enumerate(labels):
         label = (raw_label or "").strip()
@@ -5098,17 +6720,20 @@ def _parse_task_form_fields_from_request(form):
             continue
         field_type = _normalize_task_form_field_type(field_types[index] if index < len(field_types) else "text")
         raw_options = (options_values[index] if index < len(options_values) else "").strip()
-        options_payload = {}
-        if field_type in {"radio", "checkbox"} and raw_options:
-            options_payload["choices"] = [item.strip() for item in raw_options.splitlines() if item.strip()]
-        elif field_type == "table" and raw_options:
-            options_payload["columns"] = [item.strip() for item in raw_options.split(",") if item.strip()]
+        target_config = _normalize_report_target_config(
+            {
+                "target_type": target_types[index] if index < len(target_types) else "all",
+                "target_unit_domains": unit_domains_values[index] if index < len(unit_domains_values) else "",
+                "target_role_ids": _task_import_parse_id_csv(role_ids_values[index] if index < len(role_ids_values) else ""),
+                "target_user_ids": _task_import_parse_id_csv(user_ids_values[index] if index < len(user_ids_values) else ""),
+            }
+        )
         fields.append(
             {
                 "field_key": secure_filename(remove_accents(label).replace(" ", "_")) or f"field_{index+1}",
                 "field_label": label,
                 "field_type": field_type,
-                "field_options_json": json.dumps(options_payload, ensure_ascii=False) if options_payload else None,
+                "field_options_json": _task_import_form_field_options_json(field_type, raw_options, target_config),
                 "sort_order": len(fields),
                 "is_required": str(index) in required_indexes,
             }
@@ -5118,6 +6743,14 @@ def _parse_task_form_fields_from_request(form):
 
 def _form_field_options(field):
     return form_field_options(field)
+
+
+def _task_form_field_visible_for_user(field, user):
+    return _task_report_item_visible_for_user(_form_field_options(field), user)
+
+
+def _task_form_fields_for_user(task, user):
+    return [field for field in _task_form_fields(task) if _task_form_field_visible_for_user(field, user)]
 
 
 def _task_form_submission_payload(submission):
@@ -5138,6 +6771,10 @@ def _build_form_task_rows(task, current_uid):
 
 def _task_form_field_views(task):
     return task_form_field_views(_task_form_fields(task), _normalize_task_form_field_type, _form_field_options)
+
+
+def _task_form_field_views_for_user(task, user):
+    return task_form_field_views(_task_form_fields_for_user(task, user), _normalize_task_form_field_type, _form_field_options)
 
 
 def _tasks_page_v2():
@@ -5173,6 +6810,7 @@ def _tasks_page_v2():
     if request.method == "POST" and is_lead:
         title = (request.form.get("title") or "").strip()
         task_mode = _requested_task_mode(request.form)
+        form_provider = str(request.form.get("form_provider") or "internal").strip().lower()
         category = canonicalize_category_value(request.form.get("category") or "", task_fields, prefer_stable=True)
         domain = canonicalize_category_value(
             request.form.get("unit_name") or request.form.get("domain") or "",
@@ -5206,6 +6844,35 @@ def _tasks_page_v2():
         if not report_schema and workflow_blueprint:
             report_schema = workflow_blueprint_report_schema(workflow_blueprint)
 
+        google_form_builder = None
+        google_form_field_defs = []
+        google_form_url = ""
+        google_form_id = ""
+        google_form_match_mode = "unit"
+        google_form_match_field = ""
+        if task_mode == "FORM" and form_provider == "google":
+            google_form_url = str(request.form.get("google_form_url") or "").strip()[:500]
+            try:
+                google_form_builder = _parse_google_form_builder_schema(
+                    request.form.get("google_form_builder_json"),
+                    fallback_title=title,
+                    fallback_description=content,
+                )
+            except ValueError as builder_error:
+                flash(str(builder_error), "danger")
+                return redirect(url_for("tasks_bp.tasks"))
+            google_form_field_defs = _hydrate_google_form_fields(google_form_builder)
+            google_form_id = extract_google_form_id(google_form_url)
+            builder_matching = google_form_builder.get("matching") if isinstance(google_form_builder.get("matching"), dict) else {}
+            google_form_match_mode = _normalize_google_form_match_mode(
+                request.form.get("google_form_match_mode") or builder_matching.get("mode") or "unit"
+            )
+            google_form_match_field = str(
+                request.form.get("google_form_match_field")
+                or builder_matching.get("match_field")
+                or ""
+            ).strip()[:255]
+
         managers, manager_error_message = _resolve_managers(request.form)
         if manager_error_message:
             flash(manager_error_message, "danger")
@@ -5217,6 +6884,9 @@ def _tasks_page_v2():
 
         assignees = []
         blueprint_items = workflow_blueprint_item_configs(workflow_blueprint) if workflow_blueprint else []
+        assign_type = request.form.get("assign_type", "unit")
+        assign_role_ids = _requested_role_ids(request.form)
+        assign_user_ids = _requested_user_ids(request.form)
         if task_mode in {"FILE", "FORM"} or blueprint_items:
             assignees, error_message = _resolve_assignees(request.form, domain)
             if error_message:
@@ -5242,6 +6912,7 @@ def _tasks_page_v2():
             task_type=task_type,
             initial_status="Chưa tiếp nhận",
             task_mode=task_mode,
+            form_provider=form_provider if task_mode == "FORM" else "internal",
             workflow_mode=(
                 workflow_blueprint_workflow_mode(workflow_blueprint)
                 if workflow_blueprint
@@ -5250,6 +6921,12 @@ def _tasks_page_v2():
         )
         if report_schema:
             new_task.report_schema_json = json.dumps(report_schema, ensure_ascii=False)
+        if task_mode == "FORM" and form_provider == "google":
+            new_task.google_form_url = google_form_url or None
+            new_task.google_form_id = google_form_id or None
+            new_task.google_form_match_mode = google_form_match_mode
+            new_task.google_form_match_field = google_form_match_field or None
+            new_task.google_form_builder_json = _json_dump(google_form_builder)
         _store_assignment_scope(
             new_task,
             request.form.get("assign_type", "unit"),
@@ -5306,15 +6983,45 @@ def _tasks_page_v2():
                 )
 
         if task_mode == "FORM":
-            field_defs = _parse_task_form_fields_from_request(request.form)
+            field_defs = google_form_field_defs if form_provider == "google" else _parse_task_form_fields_from_request(request.form)
             if not field_defs and workflow_blueprint:
                 field_defs = workflow_blueprint_form_field_defs(workflow_blueprint)
-            if not field_defs:
+            if not field_defs and form_provider != "google":
                 flash("Cần cấu hình ít nhất một trường dữ liệu cho biểu mẫu.", "danger")
                 db.session.rollback()
                 return redirect(url_for("tasks_bp.tasks"))
+            try:
+                _validate_task_visibility_before_publish(
+                    "FORM",
+                    assignees,
+                    assign_type=assign_type,
+                    domain=domain,
+                    role_ids=assign_role_ids,
+                    user_ids=assign_user_ids,
+                    field_defs=field_defs,
+                    ignored_form_field_labels=[google_form_match_field] if form_provider == "google" and google_form_match_field else [],
+                )
+            except ValueError as visibility_error:
+                flash(str(visibility_error), "danger")
+                db.session.rollback()
+                return redirect(url_for("tasks_bp.tasks"))
             for field_def in field_defs:
-                db.session.add(TaskFormField(task_id=new_task.id, **field_def))
+                db.session.add(TaskFormField(task_id=new_task.id, **_task_form_field_db_kwargs(field_def)))
+        elif task_mode == "FILE":
+            try:
+                _validate_task_visibility_before_publish(
+                    "FILE",
+                    assignees,
+                    assign_type=assign_type,
+                    domain=domain,
+                    role_ids=assign_role_ids,
+                    user_ids=assign_user_ids,
+                    report_schema=report_schema,
+                )
+            except ValueError as visibility_error:
+                flash(str(visibility_error), "danger")
+                db.session.rollback()
+                return redirect(url_for("tasks_bp.tasks"))
 
         db.session.commit()
 
@@ -5461,6 +7168,8 @@ def _task_detail_v2(tid):
     setattr(task, "task_mode", mode)
     setattr(task, "task_mode_label", _task_mode_label(mode))
     setattr(task, "task_mode_description", _task_mode_description(mode))
+    if mode == "FORM" and str(getattr(task, "form_provider", "") or "").strip().lower() == "google":
+        _apply_task_google_form_view_state(task)
 
     detail_page_context = build_task_detail_page_context(
         task,
@@ -5476,6 +7185,51 @@ def _task_detail_v2(tid):
         _task_form_field_views,
         _task_detail_context,
     )
+    if mode == "OUTLINE" and not (can_manage_task_view or can_watch_task_view):
+        detail_page_context["outline_groups"] = _filter_outline_groups_for_executor_scope(detail_page_context["outline_groups"])
+        visible_item_ids = {
+            getattr(row.get("item"), "id", None)
+            for group in detail_page_context["outline_groups"]
+            for row in (group.get("rows") or [])
+        }
+        detail_page_context["outline_rows"] = [
+            row for row in (detail_page_context["outline_rows"] or [])
+            if getattr(row.get("item"), "id", None) in visible_item_ids
+        ]
+    elif mode == "FILE" and not (can_manage_task_view or can_watch_task_view):
+        detail_page_context["file_rows"] = _filter_assignment_rows_for_executor_scope(
+            detail_page_context["file_rows"],
+            detail_page_context["my_file_assignment"],
+        )
+    elif mode == "FORM" and not (can_manage_task_view or can_watch_task_view):
+        detail_page_context["form_rows"] = _filter_assignment_rows_for_executor_scope(
+            detail_page_context["form_rows"],
+            detail_page_context["my_form_assignment"],
+        )
+    file_report_comments = TaskComment.query.filter_by(task_id=task.id).order_by(TaskComment.created_at.asc(), TaskComment.id.asc()).all() if mode == "FILE" else []
+    my_file_report_form = _build_structured_task_report_form(task, detail_page_context["my_file_assignment"], current_user) if mode == "FILE" and detail_page_context["my_file_assignment"] else None
+    my_form_field_views = _task_form_field_views_for_user(task, current_user) if mode == "FORM" and detail_page_context["my_form_assignment"] else []
+    if mode == "FILE":
+        for row in detail_page_context["file_rows"]:
+            row["report_context"] = _build_assignment_report_context(row["assignment"], file_report_comments, task=task)
+    file_progress_groups = _task_assignment_progress_groups(detail_page_context["file_rows"]) if mode == "FILE" else {"unit_cards": [], "role_groups": []}
+    form_progress_groups = _task_assignment_progress_groups(detail_page_context["form_rows"]) if mode == "FORM" else {"unit_cards": [], "role_groups": []}
+    delivery_contract_rows = []
+    if mode == "FILE":
+        delivery_contract_rows = detail_page_context["file_rows"]
+        if is_executor and detail_page_context["my_file_assignment"]:
+            delivery_contract_rows = _filter_assignment_rows_for_executor_scope(
+                delivery_contract_rows,
+                detail_page_context["my_file_assignment"],
+            )
+    elif mode == "FORM":
+        delivery_contract_rows = detail_page_context["form_rows"]
+        if is_executor and detail_page_context["my_form_assignment"]:
+            delivery_contract_rows = _filter_assignment_rows_for_executor_scope(
+                delivery_contract_rows,
+                detail_page_context["my_form_assignment"],
+            )
+    delivery_contract_groups = _task_delivery_contract_groups(task, mode, delivery_contract_rows) if mode in {"FILE", "FORM"} else []
     active_users = []
     roles = []
     if can_manage_task_view:
@@ -5515,14 +7269,21 @@ def _task_detail_v2(tid):
         outline_groups=detail_page_context["outline_groups"],
         outline_import_preview_rows=outline_import_preview_rows,
         file_rows=detail_page_context["file_rows"],
+        file_assignment_unit_cards=file_progress_groups["unit_cards"],
+        file_assignment_role_groups=file_progress_groups["role_groups"],
+        delivery_contract_groups=delivery_contract_groups,
+        my_file_report_form=my_file_report_form,
         form_fields=detail_page_context["form_fields"],
         form_field_views=detail_page_context["form_field_views"],
         form_rows=detail_page_context["form_rows"],
+        form_assignment_unit_cards=form_progress_groups["unit_cards"],
+        form_assignment_role_groups=form_progress_groups["role_groups"],
         my_file_assignment=detail_page_context["my_file_assignment"],
         my_file_submission=detail_page_context["my_file_submission"],
         my_form_assignment=detail_page_context["my_form_assignment"],
         my_form_submission=detail_page_context["my_form_submission"],
         my_form_payload=detail_page_context["my_form_payload"],
+        my_form_field_views=my_form_field_views,
         summary=detail_page_context["summary"],
         detail_context=detail_page_context["detail_context"],
         status_labels=TASK_ASSIGNMENT_STATUS_LABELS,
@@ -5724,6 +7485,8 @@ def _submit_task_report_v2(tid):
     report_file = request.files.get("report_file")
     numeric_value = None
     payload = {}
+    structured_submission = None
+    current_user = db.session.get(User, session["uid"])
 
     if mode == "OUTLINE" and item and item.report_kind == "number":
         raw_value = (request.form.get("report_number") or "").strip()
@@ -5739,7 +7502,11 @@ def _submit_task_report_v2(tid):
 
     if mode == "FORM":
         missing_labels = []
-        for field in _task_form_fields(task):
+        visible_form_fields = _task_form_fields_for_user(task, current_user)
+        if not visible_form_fields:
+            flash("Bạn chưa được giao trường dữ liệu nào trong biểu mẫu này.", "warning")
+            return redirect(url_for("tasks_bp.task_detail", tid=tid))
+        for field in visible_form_fields:
             field_key = f"form_field_{field.field_key}"
             field_type = _normalize_task_form_field_type(field.field_type)
             if field_type == "checkbox":
@@ -5768,10 +7535,27 @@ def _submit_task_report_v2(tid):
             flash("Cần điền các trường bắt buộc: " + ", ".join(missing_labels) + ".", "danger")
             return redirect(url_for("tasks_bp.task_detail", tid=tid))
         narrative = ""
+    elif mode == "FILE":
+        try:
+            structured_submission = _parse_structured_file_report_submission(
+                task,
+                assignment,
+                current_user,
+                request.form,
+                report_file,
+            )
+        except ValueError as exc:
+            flash(str(exc), "danger")
+            return redirect(url_for("tasks_bp.task_detail", tid=tid))
+        if structured_submission:
+            narrative = structured_submission["narrative"]
+            numeric_value = structured_submission["numeric_value"]
+            payload = structured_submission["payload"]
 
     if mode != "FORM" and not narrative and not report_file and numeric_value is None:
-        flash("Cần nhập nội dung hoặc đính kèm tệp báo cáo.", "danger")
-        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+        if not structured_submission:
+            flash("Cần nhập nội dung hoặc đính kèm tệp báo cáo.", "danger")
+            return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
     submission = TaskSubmission(
         task_id=task.id,
@@ -5805,27 +7589,45 @@ def _submit_task_report_v2(tid):
             submission.attachment_name = file_meta["original_name"]
             submission.attachment_path = file_meta["stored_path"]
             assignment.result_file = file_meta["stored_name"]
+            if structured_submission:
+                payload["attachment_name"] = file_meta["original_name"]
 
     assignment.status = "submitted"
     assignment.submitted_at = datetime.now()
     assignment.last_submission_id = submission.id
     assignment.report_payload_json = json.dumps(
         {
+            "mode": payload.get("mode") if isinstance(payload, dict) else None,
             "narrative": narrative,
             "numeric_value": numeric_value,
             "payload": payload,
+            "values": payload.get("values", {}) if isinstance(payload, dict) else {},
+            "attachment_name": payload.get("attachment_name", "") if isinstance(payload, dict) else "",
             "submitted_at": submission.submitted_at.strftime("%d/%m/%Y %H:%M"),
         },
         ensure_ascii=False,
     )
     assignment.updated_at = datetime.now()
+    _sync_assignment_group_submission(
+        task,
+        assignment,
+        submission,
+        report_payload_json=assignment.report_payload_json or "",
+        result_file=assignment.result_file or "",
+        submitted_at=assignment.submitted_at,
+        updated_at=assignment.updated_at,
+        status="submitted",
+    )
 
+    comment_text = narrative or ('Đã cập nhật biểu mẫu báo cáo' if structured_submission else ('Đã nộp biểu mẫu' if mode == 'FORM' else 'Đã nộp báo cáo'))
+    if structured_submission:
+        comment_text = _build_structured_task_report_comment(_load_task_report_schema(task), payload)
     db.session.add(
         TaskComment(
             task_id=task.id,
             user_id=session["uid"],
             user_name=session.get("fullname", "Người dùng"),
-            content=f"[BÁO CÁO] {narrative or ('Đã nộp biểu mẫu' if mode == 'FORM' else 'Đã nộp báo cáo')}",
+            content=f"[BÁO CÁO] {comment_text}",
         )
     )
     db.session.commit()
@@ -5895,6 +7697,432 @@ def _export_form_task_v2(tid):
         download_name=f"du_lieu_bieu_mau_{safe_name}_{task.id}.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+def _create_task_google_form_v2(tid):
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    current_user = db.session.get(User, session["uid"])
+    perms = _current_perms()
+    can_manage_task_view = bool(
+        bool(session.get("is_admin"))
+        or _can_process_task_module(perms)
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+    )
+    if not can_manage_task_view:
+        flash("Bạn không có quyền tạo Google Form cho công việc này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+    if _task_mode(task) != "FORM":
+        flash("Công việc này không dùng chế độ biểu mẫu.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    try:
+        builder_schema = _parse_google_form_builder_schema(
+            getattr(task, "google_form_builder_json", None),
+            fallback_title=task.title or "Biểu mẫu",
+            fallback_description=task.content or "",
+        )
+        service = _task_google_form_manage_service()
+        runtime = create_google_form(
+            service,
+            builder_schema,
+            title=task.title or builder_schema.get("form_info", {}).get("title") or "Biểu mẫu",
+            description=task.content or builder_schema.get("form_info", {}).get("description") or "",
+        )
+    except Exception as exc:
+        flash(str(exc) or "Không thể tạo Google Form thật.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    task.form_provider = "google"
+    task.google_form_builder_json = _json_dump(builder_schema)
+    task.google_form_id = str(runtime.get("form_id") or "").strip() or None
+    task.google_form_url = str(runtime.get("form_url") or "").strip() or task.google_form_url
+    task.google_form_match_mode = _normalize_google_form_match_mode(
+        task.google_form_match_mode or builder_schema.get("matching", {}).get("mode") or "unit"
+    )
+    task.google_form_match_field = str(
+        task.google_form_match_field or builder_schema.get("matching", {}).get("match_field") or ""
+    ).strip()[:255] or None
+    task.google_form_runtime_json = _json_dump(_task_google_form_runtime_payload(task, runtime.get("raw"), runtime))
+    actual_fields, _question_map = parse_google_form_definition(runtime.get("raw") or {})
+    field_defs = _merge_google_form_field_targets(actual_fields, task=task, builder_schema=builder_schema) if actual_fields else _hydrate_google_form_fields(builder_schema)
+    assignment_scope = _task_assignment_scope_lists(task)
+    assignees = [assignment.user for assignment in _task_assignment_records(task) if getattr(assignment, "user", None)]
+    try:
+        _validate_task_visibility_before_publish(
+            "FORM",
+            _dedupe_users(assignees),
+            assign_type=assignment_scope["assign_type"],
+            domain=assignment_scope["domain"],
+            role_ids=assignment_scope["role_ids"],
+            user_ids=assignment_scope["user_ids"],
+            field_defs=field_defs,
+            ignored_form_field_labels=[task.google_form_match_field] if task.google_form_match_field else [],
+        )
+    except ValueError as visibility_error:
+        flash(str(visibility_error), "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+    if actual_fields:
+        _replace_task_form_fields(task, field_defs)
+    db.session.add(task)
+    db.session.commit()
+    flash("Đã tạo Google Form thật từ builder.", "success")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+def _update_task_google_form_v2(tid):
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    current_user = db.session.get(User, session["uid"])
+    perms = _current_perms()
+    can_manage_task_view = bool(
+        bool(session.get("is_admin"))
+        or _can_process_task_module(perms)
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+    )
+    if not can_manage_task_view:
+        flash("Bạn không có quyền cập nhật Google Form cho công việc này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+    if _task_mode(task) != "FORM":
+        flash("Công việc này không dùng chế độ biểu mẫu.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    try:
+        builder_schema = _parse_google_form_builder_schema(
+            request.form.get("google_form_builder_json") or getattr(task, "google_form_builder_json", None),
+            fallback_title=task.title or "Biểu mẫu",
+            fallback_description=task.content or "",
+        )
+    except ValueError as exc:
+        flash(str(exc), "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    task.form_provider = "google"
+    task.google_form_builder_json = _json_dump(builder_schema)
+    task.google_form_match_mode = _normalize_google_form_match_mode(
+        builder_schema.get("matching", {}).get("mode") or task.google_form_match_mode or "unit"
+    )
+    task.google_form_match_field = str(
+        builder_schema.get("matching", {}).get("match_field") or task.google_form_match_field or ""
+    ).strip()[:255] or None
+
+    assignment_scope = _task_assignment_scope_lists(task)
+    assignees = _dedupe_users([assignment.user for assignment in _task_assignment_records(task) if getattr(assignment, "user", None)])
+    if not getattr(task, "google_form_id", None):
+        hydrated_fields = _hydrate_google_form_fields(builder_schema)
+        try:
+            _validate_task_visibility_before_publish(
+                "FORM",
+                assignees,
+                assign_type=assignment_scope["assign_type"],
+                domain=assignment_scope["domain"],
+                role_ids=assignment_scope["role_ids"],
+                user_ids=assignment_scope["user_ids"],
+                field_defs=hydrated_fields,
+                ignored_form_field_labels=[task.google_form_match_field] if task.google_form_match_field else [],
+            )
+        except ValueError as visibility_error:
+            flash(str(visibility_error), "danger")
+            return redirect(url_for("tasks_bp.task_detail", tid=tid))
+        if hydrated_fields:
+            _replace_task_form_fields(task, hydrated_fields)
+        db.session.add(task)
+        db.session.commit()
+        flash("Đã lưu schema builder Google Form.", "success")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    try:
+        service = _task_google_form_manage_service()
+        runtime = update_google_form(
+            service,
+            task.google_form_id,
+            builder_schema,
+            revision_id=_task_google_form_runtime(task).get("revision_id"),
+        )
+    except Exception as exc:
+        flash(str(exc) or "Không thể cập nhật Google Form thật.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    task.google_form_url = str(runtime.get("form_url") or task.google_form_url or "").strip() or None
+    task.google_form_runtime_json = _json_dump(_task_google_form_runtime_payload(task, runtime.get("raw"), runtime))
+    actual_fields, _question_map = parse_google_form_definition(runtime.get("raw") or {})
+    field_defs = _merge_google_form_field_targets(actual_fields, task=task, builder_schema=builder_schema) if actual_fields else []
+    try:
+        _validate_task_visibility_before_publish(
+            "FORM",
+            assignees,
+            assign_type=assignment_scope["assign_type"],
+            domain=assignment_scope["domain"],
+            role_ids=assignment_scope["role_ids"],
+            user_ids=assignment_scope["user_ids"],
+            field_defs=field_defs,
+            ignored_form_field_labels=[task.google_form_match_field] if task.google_form_match_field else [],
+        )
+    except ValueError as visibility_error:
+        flash(str(visibility_error), "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+    if actual_fields:
+        _replace_task_form_fields(task, field_defs)
+    db.session.add(task)
+    db.session.commit()
+    flash("Đã cập nhật Google Form thật theo builder.", "success")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+def _publish_task_google_form_v2(tid):
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    current_user = db.session.get(User, session["uid"])
+    perms = _current_perms()
+    can_manage_task_view = bool(
+        bool(session.get("is_admin"))
+        or _can_process_task_module(perms)
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+    )
+    if not can_manage_task_view:
+        flash("Bạn không có quyền phát hành Google Form cho công việc này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+    if not getattr(task, "google_form_id", None):
+        flash("Công việc này chưa có Google Form thật để phát hành.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    is_published = str(request.form.get("is_published") or "true").strip().lower() in {"1", "true", "yes", "on"}
+    accept_responses = str(request.form.get("accept_responses") or "true").strip().lower() in {"1", "true", "yes", "on"}
+    try:
+        service = _task_google_form_manage_service()
+        publish_result = publish_google_form(
+            service,
+            task.google_form_id,
+            is_published=is_published,
+            accept_responses=accept_responses,
+        )
+    except Exception as exc:
+        flash(str(exc) or "Không thể đổi trạng thái phát hành Google Form.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    runtime = _task_google_form_runtime(task)
+    runtime["publish_settings"] = publish_result.get("publishSettings") or runtime.get("publish_settings") or {}
+    task.google_form_runtime_json = _json_dump(runtime)
+    db.session.add(task)
+    db.session.commit()
+    flash("Đã cập nhật trạng thái phát hành Google Form.", "success")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+def _import_task_google_form_structure_v2(tid):
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    current_user = db.session.get(User, session["uid"])
+    perms = _current_perms()
+    can_manage_task_view = bool(
+        bool(session.get("is_admin"))
+        or _can_process_task_module(perms)
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+    )
+    if not can_manage_task_view:
+        flash("Bạn không có quyền nhập cấu trúc Google Form cho công việc này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    form_reference = str(request.form.get("google_form_url") or getattr(task, "google_form_url", None) or getattr(task, "google_form_id", None) or "").strip()
+    form_id = extract_google_form_id(form_reference)
+    if not form_id:
+        flash("Không nhận diện được Google Form URL hoặc form ID.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    try:
+        service = build_google_forms_service(current_app.config)
+        imported = load_google_form_into_builder(service, form_id)
+    except Exception as exc:
+        flash(str(exc) or "Không thể nhập cấu trúc từ Google Form.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    builder_schema = imported.get("builder_schema") if isinstance(imported, dict) else {}
+    form_payload = imported.get("form_payload") if isinstance(imported, dict) else {}
+    if not isinstance(builder_schema, dict):
+        flash("Google Form không trả về schema builder hợp lệ.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    builder_schema.setdefault("matching", {})
+    builder_schema["matching"]["mode"] = _normalize_google_form_match_mode(
+        request.form.get("google_form_match_mode") or task.google_form_match_mode or builder_schema["matching"].get("mode") or "unit"
+    )
+    builder_schema["matching"]["match_field"] = str(
+        request.form.get("google_form_match_field") or task.google_form_match_field or builder_schema["matching"].get("match_field") or ""
+    ).strip()[:255]
+    builder_schema = _normalize_google_form_builder_schema_with_targets(
+        builder_schema,
+        fallback_title=task.title or "Biểu mẫu",
+        fallback_description=task.content or "",
+    )
+
+    task.form_provider = "google"
+    task.google_form_id = form_id
+    task.google_form_url = str(
+        (form_payload.get("responderUri") if isinstance(form_payload, dict) else "") or form_reference
+    ).strip()[:500] or None
+    task.google_form_match_mode = builder_schema.get("matching", {}).get("mode") or "unit"
+    task.google_form_match_field = builder_schema.get("matching", {}).get("match_field") or None
+    task.google_form_builder_json = _json_dump(builder_schema)
+    task.google_form_runtime_json = _json_dump(
+        _task_google_form_runtime_payload(task, form_payload, base_runtime=_task_google_form_runtime(task))
+    )
+    actual_fields, _question_map = parse_google_form_definition(form_payload or {})
+    if actual_fields:
+        _replace_task_form_fields(task, _merge_google_form_field_targets(actual_fields, task=task, builder_schema=builder_schema))
+    db.session.add(task)
+    db.session.commit()
+    flash("Đã nhập cấu trúc từ Google Form vào builder.", "success")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+
+def _sync_google_form_task_v2(tid):
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    current_user = db.session.get(User, session["uid"])
+    perms = _current_perms()
+    can_manage_task_view = bool(
+        bool(session.get("is_admin"))
+        or _can_process_task_module(perms)
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+    )
+    is_executor = TaskAssignment.query.filter_by(task_id=task.id, user_id=session["uid"]).first() is not None
+    if not (can_manage_task_view or is_executor):
+        flash("Bạn không có quyền đồng bộ phản hồi Google Form cho công việc này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+    if not getattr(task, "google_form_id", None):
+        flash("Công việc này chưa có Google Form thật để đồng bộ.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    try:
+        service = build_google_forms_service(current_app.config)
+        form_payload = fetch_google_form_definition(service, task.google_form_id)
+        responses_payload = fetch_google_form_responses(service, task.google_form_id)
+        actual_fields, parsed_responses = parse_google_form_responses(form_payload, responses_payload)
+    except Exception as exc:
+        flash(str(exc) or "Không thể đồng bộ phản hồi Google Form.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    if actual_fields:
+        builder_schema = _task_google_form_builder(task)
+        _replace_task_form_fields(task, _merge_google_form_field_targets(actual_fields, task=task, builder_schema=builder_schema))
+
+    matched_total = 0
+    unmatched_total = 0
+    ignored_scoped_fields_total = 0
+    ignored_scoped_response_ids = []
+    now = datetime.now()
+    for response_row in parsed_responses:
+        assignment = _match_google_form_response_to_assignment(task, response_row)
+        if not assignment:
+            unmatched_total += 1
+            continue
+        filtered_response = _filter_google_form_response_for_assignment(task, assignment, response_row)
+        filtered_payload = filtered_response.get("payload") or {}
+        filtered_payload_by_label = filtered_response.get("payload_by_label") or {}
+        ignored_keys = list(filtered_response.get("ignored_keys") or [])
+        if ignored_keys:
+            ignored_scoped_fields_total += len(ignored_keys)
+            ignored_scoped_response_ids.append(
+                {
+                    "response_id": response_row.get("response_id"),
+                    "user_id": getattr(assignment, "user_id", None),
+                    "ignored_keys": ignored_keys,
+                }
+            )
+
+        submission = (
+            TaskSubmission.query.filter_by(
+                task_id=task.id,
+                assignment_id=assignment.id,
+                external_source="google_form",
+                external_submission_id=response_row.get("response_id"),
+            )
+            .order_by(TaskSubmission.id.desc())
+            .first()
+        )
+        if not submission:
+            submission = TaskSubmission(
+                task_id=task.id,
+                assignment_id=assignment.id,
+                submitted_by=assignment.user_id,
+                external_source="google_form",
+                external_submission_id=response_row.get("response_id"),
+            )
+            db.session.add(submission)
+            db.session.flush()
+
+        submission.submission_type = "FORM"
+        submission.status = "submitted"
+        submission.payload_json = _json_dump(filtered_payload)
+        submission.submitted_at = response_row.get("submitted_at") or now
+        submission.synced_at = now
+
+        assignment.status = "submitted"
+        assignment.submitted_at = submission.submitted_at
+        assignment.last_submission_id = submission.id
+        assignment.report_payload_json = _json_dump(
+            {
+                "mode": "google_form_sync",
+                "payload": filtered_payload,
+                "payload_by_label": filtered_payload_by_label,
+                "external_submission_id": response_row.get("response_id"),
+                "ignored_scoped_keys": ignored_keys,
+                "submitted_at": submission.submitted_at.isoformat() if submission.submitted_at else "",
+            }
+        )
+        assignment.updated_at = now
+        _sync_assignment_group_submission(
+            task,
+            assignment,
+            submission,
+            report_payload_json=assignment.report_payload_json or "",
+            result_file=assignment.result_file or "",
+            submitted_at=assignment.submitted_at,
+            updated_at=assignment.updated_at,
+            status="submitted",
+        )
+        matched_total += 1
+
+    sync_state = _task_google_form_sync_state(task)
+    info = form_payload.get("info") if isinstance(form_payload.get("info"), dict) else {}
+    sync_state.update(
+        {
+            "form_id": str(form_payload.get("formId") or task.google_form_id or "").strip(),
+            "form_title": str(info.get("title") or sync_state.get("form_title") or task.title or "").strip(),
+            "matched_total": matched_total,
+            "unmatched_total": unmatched_total,
+            "ignored_scoped_fields_total": ignored_scoped_fields_total,
+            "ignored_scoped_response_ids": ignored_scoped_response_ids[:10],
+            "last_sync_at": now.isoformat(),
+        }
+    )
+    task.google_form_url = str(
+        form_payload.get("responderUri") or task.google_form_url or f"https://docs.google.com/forms/d/{task.google_form_id}/viewform"
+    ).strip()[:500] or None
+    task.google_form_runtime_json = _json_dump(
+        _task_google_form_runtime_payload(task, form_payload, base_runtime=_task_google_form_runtime(task))
+    )
+    task.google_form_sync_state_json = _json_dump(sync_state)
+    db.session.add(task)
+    db.session.commit()
+    flash("Đã đồng bộ phản hồi Google Form vào công việc.", "success")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
 
 def _task_assignee_unit_name(user):
     return _task_unit_identity(user).get("unit_name", "Chưa có đơn vị")
@@ -6119,6 +8347,311 @@ def _task_import_submenu_items(active_key="drafts"):
     ]
 
 
+def _task_import_ai_runtime():
+    try:
+        from routes.ai_assistant import _get_provider_runtime
+        return _get_provider_runtime()
+    except Exception:
+        return {
+            "provider": "internal",
+            "model": "",
+            "label": "AI nội bộ",
+            "configured": False,
+        }
+
+
+def _task_import_ai_catalog(item_type, items):
+    catalog = []
+    for item in items or []:
+        catalog.append(
+            {
+                "type": item_type,
+                "id": item.get("id"),
+                "value": item.get("value"),
+                "label": item.get("name") or item.get("label") or item.get("fullname") or item.get("username") or "",
+            }
+        )
+    return catalog
+
+
+def _task_import_history_entries(limit=80):
+    tasks = (
+        Task.query.options(joinedload(Task.assignments))
+        .filter(Task.parent_task_id.is_(None))
+        .order_by(Task.created_at.desc(), Task.id.desc())
+        .limit(limit)
+        .all()
+    )
+    history_entries = []
+    for task in tasks:
+        title = str(getattr(task, "title", "") or "").strip()
+        if not title:
+            continue
+        assignment_context = _infer_assignment_context(task)
+        unit_domains = []
+        if assignment_context.get("mode") == "unit":
+            domain_value = str(assignment_context.get("domain") or getattr(task, "domain", "") or "").strip()
+            if domain_value:
+                unit_domains = [domain_value]
+        assignment_rows = list(getattr(task, "assignments", None) or [])
+        total_assignments = len(assignment_rows)
+        submitted_assignments = sum(
+            1
+            for assignment in assignment_rows
+            if str(getattr(assignment, "status", "") or "").strip().lower() in {"submitted", "completed"}
+            or getattr(assignment, "submitted_at", None)
+        )
+        completed_assignments = sum(
+            1
+            for assignment in assignment_rows
+            if str(getattr(assignment, "status", "") or "").strip().lower() == "completed"
+            or getattr(assignment, "completed_at", None)
+        )
+        deadline = getattr(task, "deadline", None)
+        on_time_assignments = 0
+        late_assignments = 0
+        if deadline:
+            for assignment in assignment_rows:
+                report_time = (
+                    getattr(assignment, "completed_at", None)
+                    or getattr(assignment, "submitted_at", None)
+                )
+                if not report_time:
+                    continue
+                if report_time.date() <= deadline:
+                    on_time_assignments += 1
+                else:
+                    late_assignments += 1
+        history_entries.append(
+            {
+                "title": title[:255],
+                "category": str(getattr(task, "category", "") or "").strip()[:100],
+                "domain": str(getattr(task, "domain", "") or "").strip()[:100],
+                "assign_type": assignment_context.get("mode") or "",
+                "unit_domains": unit_domains,
+                "role_ids": list(assignment_context.get("role_ids") or []),
+                "user_ids": list(assignment_context.get("user_ids") or [])[:8],
+                "total_assignments": total_assignments,
+                "submitted_assignments": submitted_assignments,
+                "completed_assignments": completed_assignments,
+                "submitted_rate": round((submitted_assignments / total_assignments), 4) if total_assignments else 0.0,
+                "completed_rate": round((completed_assignments / total_assignments), 4) if total_assignments else 0.0,
+                "on_time_assignments": on_time_assignments,
+                "late_assignments": late_assignments,
+                "on_time_rate": round((on_time_assignments / total_assignments), 4) if total_assignments and deadline else 0.0,
+                "deadline_tracked": bool(deadline),
+            }
+        )
+    return history_entries
+
+
+def _task_import_active_workload_context():
+    assignments = (
+        TaskAssignment.query.options(
+            joinedload(TaskAssignment.user),
+            joinedload(TaskAssignment.task),
+            joinedload(TaskAssignment.task_item),
+        )
+        .join(Task, TaskAssignment.task_id == Task.id)
+        .filter(Task.parent_task_id.is_(None))
+        .filter(TaskAssignment.user_id.isnot(None))
+        .all()
+    )
+
+    today = datetime.now().date()
+    user_map = {}
+    role_map = {}
+    unit_map = {}
+    user_seen = set()
+    role_seen = set()
+    unit_seen = set()
+
+    def ensure_bucket(mapping, key):
+        return mapping.setdefault(
+            key,
+            {
+                "active_assignments": 0,
+                "overdue_assignments": 0,
+                "due_soon_assignments": 0,
+                "high_priority_assignments": 0,
+                "titles": [],
+            },
+        )
+
+    def push_title(bucket, title):
+        title_text = str(title or "").strip()
+        if not title_text or title_text in bucket["titles"]:
+            return
+        bucket["titles"].append(title_text)
+        if len(bucket["titles"]) > 5:
+            del bucket["titles"][5:]
+
+    def apply_bucket(bucket, unique_key, title, deadline, priority):
+        if unique_key in bucket_seen:
+            return
+        bucket_seen.add(unique_key)
+        bucket["active_assignments"] += 1
+        if deadline:
+            if deadline < today:
+                bucket["overdue_assignments"] += 1
+            elif (deadline - today).days <= 3:
+                bucket["due_soon_assignments"] += 1
+        if str(priority or "").strip().lower() == "cao":
+            bucket["high_priority_assignments"] += 1
+        push_title(bucket, title)
+
+    for assignment in assignments:
+        user = getattr(assignment, "user", None)
+        task = getattr(assignment, "task", None)
+        if not user or not task or not getattr(user, "is_active", False):
+            continue
+        if _normalize_status(getattr(assignment, "status", "")) == COMPLETED_STATUS or getattr(assignment, "completed_at", None):
+            continue
+
+        task_item = getattr(assignment, "task_item", None)
+        title_text = (
+            getattr(task_item, "title", None)
+            or getattr(assignment, "title_snapshot", None)
+            or getattr(task, "title", None)
+            or ""
+        )
+        deadline = getattr(task_item, "deadline", None) or getattr(task, "deadline", None)
+        priority = getattr(task, "priority", None)
+        task_key = (int(getattr(task, "id", 0) or 0), int(getattr(task_item, "id", 0) or 0))
+        user_key = (int(getattr(user, "id", 0) or 0),) + task_key
+        bucket_seen = user_seen
+        apply_bucket(ensure_bucket(user_map, int(user.id)), user_key, title_text, deadline, priority)
+
+        unit_identity = _task_unit_identity(user)
+        unit_key_value = str(unit_identity.get("unit_domain") or unit_identity.get("unit_key") or "").strip()
+        if unit_key_value:
+            unit_scope_key = (unit_key_value, str(getattr(assignment, "assignee_type", "") or "user").strip().lower(), int(getattr(assignment, "role_id", 0) or 0)) + task_key
+            bucket_seen = unit_seen
+            apply_bucket(ensure_bucket(unit_map, unit_key_value), unit_scope_key, title_text, deadline, priority)
+
+        role_id = int(getattr(user, "role_id", None) or getattr(assignment, "role_id", None) or 0)
+        if role_id:
+            role_scope_key = (role_id, unit_key_value) + task_key
+            bucket_seen = role_seen
+            apply_bucket(ensure_bucket(role_map, role_id), role_scope_key, title_text, deadline, priority)
+
+    return {
+        "user_workload_map": user_map,
+        "role_workload_map": role_map,
+        "unit_workload_map": unit_map,
+    }
+
+
+def _task_import_ai_context():
+    pro_units = stable_form_category_options(_task_domain_options())
+    task_fields = stable_form_category_options(_task_field_options())
+    active_users = User.query.filter_by(is_active=True).order_by(User.fullname.asc()).all()
+    roles = AppRole.query.order_by(AppRole.name.asc()).all()
+    unit_lookup = {item["value"]: item["name"] for item in pro_units if item.get("value")}
+    role_lookup = {role.id: role.name for role in roles}
+    user_lookup = {user.id: user.fullname or user.username or f"UID {user.id}" for user in active_users}
+    report_templates = []
+    for template in _task_report_templates():
+        report_templates.append(
+            {
+                "id": template.id,
+                "name": getattr(template, "name", "") or "",
+                "professional_unit": getattr(template, "professional_unit_display", "") or getattr(template, "professional_unit", "") or "",
+                "report_type_name": getattr(template, "report_type_display", "") or "",
+            }
+        )
+    return {
+        "unit_catalog": _task_import_ai_catalog("unit", pro_units),
+        "field_catalog": _task_import_ai_catalog("field", task_fields),
+        "role_catalog": [
+            {
+                "type": "role",
+                "id": role.id,
+                "label": role.name or "",
+            }
+            for role in roles
+        ],
+        "user_catalog": [
+            {
+                "type": "user",
+                "id": user.id,
+                "label": user.fullname or user.username or "",
+            }
+            for user in active_users
+        ],
+        "unit_lookup": unit_lookup,
+        "role_lookup": role_lookup,
+        "user_lookup": user_lookup,
+        "recipient_catalog": [
+            {
+                "id": user.id,
+                "label": user.fullname or user.username or f"UID {user.id}",
+                "username": user.username or "",
+                "role_id": user.role_id,
+                "role_name": role_lookup.get(user.role_id, ""),
+                "unit_domain": canonicalize_category_value(user.unit_area or user.unit_key or "", pro_units, prefer_stable=True),
+                "unit_name": resolve_category_display(
+                    canonicalize_category_value(user.unit_area or user.unit_key or "", pro_units, prefer_stable=True) or (user.unit_area or user.unit_key or ""),
+                    pro_units,
+                    fallback_label=user.unit_area or user.unit_key or "",
+                ).get("display_name", "") if (user.unit_area or user.unit_key) else "",
+                "unit_key": user.unit_key or "",
+            }
+            for user in active_users
+        ],
+        "report_templates": report_templates,
+        "history_entries": _task_import_history_entries(),
+        **_task_import_active_workload_context(),
+    }
+
+
+def _task_import_ai_analysis(config, use_provider=False):
+    context = _task_import_ai_context()
+    heuristic_analysis = analyze_task_import_config(config, context)
+    if not use_provider:
+        return heuristic_analysis
+
+    runtime = _task_import_ai_runtime()
+    if not runtime.get("configured"):
+        heuristic_analysis["llm_meta"] = {
+            "configured": False,
+            "reason": "Chưa cấu hình provider AI ngoài.",
+        }
+        return heuristic_analysis
+
+    try:
+        from routes.ai_assistant import call_ai_provider
+
+        prompt = build_task_import_ai_prompt(config, heuristic_analysis)
+        result, errors = call_ai_provider(prompt)
+        if result and result.get("ok"):
+            return analyze_task_import_config(
+                config,
+                context,
+                llm_commentary=result.get("answer") or "",
+                llm_meta={
+                    "configured": True,
+                    "provider": result.get("provider") or runtime.get("provider"),
+                    "model": result.get("model") or runtime.get("model"),
+                },
+            )
+        heuristic_analysis["llm_meta"] = {
+            "configured": True,
+            "provider": runtime.get("provider"),
+            "model": runtime.get("model"),
+            "error": (errors[0].get("error") if errors else "Không lấy được phản hồi từ provider."),
+        }
+        return heuristic_analysis
+    except Exception as exc:
+        heuristic_analysis["llm_meta"] = {
+            "configured": True,
+            "provider": runtime.get("provider"),
+            "model": runtime.get("model"),
+            "error": str(exc),
+        }
+        return heuristic_analysis
+
+
 def _can_manage_task_imports(perms=None):
     return bool(session.get("is_admin") or _can_process_task_module(perms))
 
@@ -6142,11 +8675,13 @@ def _task_import_draft_render_context(draft, active_key="drafts"):
     blueprint = _task_import_blueprint_from_config(config) or _task_import_draft_blueprint(draft)
     preview = workflow_blueprint_preview_data(blueprint) if blueprint else None
     stats = _task_import_config_stats(config)
+    recipient_preview = _task_import_recipient_preview(config, users=active_users, roles=roles)
     return {
         "draft": draft,
         "config": config,
         "preview": preview,
         "draft_stats": stats,
+        "recipient_preview": recipient_preview,
         "users": active_users,
         "roles": roles,
         "pro_units": stable_form_category_options(pro_units),
@@ -6154,6 +8689,7 @@ def _task_import_draft_render_context(draft, active_key="drafts"):
         "task_types": stable_form_category_options(task_types),
         "priority_items": stable_form_category_options(priority_items),
         "workflow_blueprint_examples": workflow_blueprint_example_catalog(),
+        "ai_runtime": _task_import_ai_runtime(),
         "status_label": _task_import_status_label(getattr(draft, "status", "")),
         "source_label": _task_import_source_label(getattr(draft, "source_type", "")),
         "sidebar_submenu_parent": "tasks",
@@ -6323,6 +8859,70 @@ def _publish_task_import_draft_v2(draft_id):
     return redirect(url_for("tasks_bp.task_detail", tid=new_task.id))
 
 
+def _analyze_task_import_draft_ai_v2(draft_id):
+    perms = _current_perms()
+    if not _can_manage_task_imports(perms):
+        return jsonify({"ok": False, "error": "Bạn không có quyền phân tích nháp import."}), 403
+
+    draft = _task_import_draft_or_404(draft_id)
+    if not draft:
+        return jsonify({"ok": False, "error": "Không tìm thấy nháp import."}), 404
+
+    payload = request.get_json(silent=True) or {}
+    use_provider = bool(payload.get("use_provider"))
+    config = _task_import_draft_working_config(draft)
+    analysis = _task_import_ai_analysis(config, use_provider=use_provider)
+    config["ai_analysis"] = analysis
+    config["ai_last_analyzed_at"] = datetime.now().isoformat(timespec="seconds")
+    draft.working_config_json = _json_dump(config)
+    draft.updated_at = datetime.now()
+    db.session.add(draft)
+    db.session.commit()
+    return jsonify({"ok": True, "analysis": analysis})
+
+
+def _apply_task_import_draft_ai_v2(draft_id):
+    perms = _current_perms()
+    if not _can_manage_task_imports(perms):
+        return jsonify({"ok": False, "error": "Bạn không có quyền áp dụng gợi ý AI."}), 403
+
+    draft = _task_import_draft_or_404(draft_id)
+    if not draft:
+        return jsonify({"ok": False, "error": "Không tìm thấy nháp import."}), 404
+    if str(draft.status or "").strip().lower() == "published":
+        return jsonify({"ok": False, "error": "Nháp đã phát hành, không thể áp dụng lại gợi ý AI."}), 400
+
+    payload = request.get_json(silent=True) or {}
+    mode = str(payload.get("mode") or "safe").strip().lower() or "safe"
+    sections = payload.get("sections")
+    selection = payload.get("selection")
+    config = _task_import_draft_working_config(draft)
+    analysis = config.get("ai_analysis") if isinstance(config.get("ai_analysis"), dict) else None
+    if not analysis:
+        analysis = _task_import_ai_analysis(config, use_provider=False)
+    updated_config, applied = apply_ai_analysis_to_config(
+        config,
+        analysis,
+        mode=mode,
+        sections=sections,
+        selection=selection,
+    )
+    updated_config["ai_analysis"] = analysis
+    draft.working_config_json = _json_dump(updated_config)
+    draft.status = "draft"
+    draft.updated_at = datetime.now()
+    db.session.add(draft)
+    db.session.commit()
+    return jsonify(
+        {
+            "ok": True,
+            "analysis": analysis,
+            "applied": applied,
+            "stats": _task_import_config_stats(updated_config),
+        }
+    )
+
+
 @tasks_bp.route("/tasks", methods=["GET", "POST"])
 def tasks():
     if not session.get("uid"):
@@ -6375,6 +8975,24 @@ def publish_task_import_draft(draft_id):
 
     _ensure_task_schema()
     return _publish_task_import_draft_v2(draft_id)
+
+
+@tasks_bp.route("/tasks/import-drafts/<int:draft_id>/ai-analyze", methods=["POST"])
+def analyze_task_import_draft_ai(draft_id):
+    if not session.get("uid"):
+        return jsonify({"ok": False, "error": "Phiên làm việc đã hết hạn."}), 401
+
+    _ensure_task_schema()
+    return _analyze_task_import_draft_ai_v2(draft_id)
+
+
+@tasks_bp.route("/tasks/import-drafts/<int:draft_id>/ai-apply", methods=["POST"])
+def apply_task_import_draft_ai(draft_id):
+    if not session.get("uid"):
+        return jsonify({"ok": False, "error": "Phiên làm việc đã hết hạn."}), 401
+
+    _ensure_task_schema()
+    return _apply_task_import_draft_ai_v2(draft_id)
 
 
 @tasks_bp.route("/tasks/workflow-blueprint-preview", methods=["POST"])
@@ -6459,6 +9077,51 @@ def preview_outline_import(tid):
 
     _ensure_task_schema()
     return _preview_outline_import_v2(tid)
+
+
+@tasks_bp.route("/tasks/<int:tid>/google-form/create", methods=["POST"])
+def create_task_google_form(tid):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    return _create_task_google_form_v2(tid)
+
+
+@tasks_bp.route("/tasks/<int:tid>/google-form/update", methods=["POST"])
+def update_task_google_form(tid):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    return _update_task_google_form_v2(tid)
+
+
+@tasks_bp.route("/tasks/<int:tid>/google-form/publish", methods=["POST"])
+def publish_task_google_form(tid):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    return _publish_task_google_form_v2(tid)
+
+
+@tasks_bp.route("/tasks/<int:tid>/google-form/import-structure", methods=["POST"])
+def import_task_google_form_structure(tid):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    return _import_task_google_form_structure_v2(tid)
+
+
+@tasks_bp.route("/tasks/<int:tid>/sync-google-form", methods=["POST"])
+def sync_google_form_task(tid):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    return _sync_google_form_task_v2(tid)
 
 
 @tasks_bp.route("/tasks/<int:tid>/delete", methods=["POST"])

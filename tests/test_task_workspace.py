@@ -7,6 +7,7 @@ from task_workspace import (
     build_task_detail_context,
     build_task_workspace_attrs,
     summarize_task_assignments,
+    task_assignment_submit_scope,
     task_assignment_display_status,
     task_deadline_display,
     task_workspace_tone,
@@ -32,6 +33,12 @@ STATUS_LABELS = {
 
 
 class TaskWorkspaceTests(unittest.TestCase):
+    def test_task_assignment_submit_scope_describes_unit_and_role_modes(self):
+        self.assertEqual(task_assignment_submit_scope(SimpleNamespace(assignee_type="unit"))["mode"], "unit")
+        self.assertIn("cả đơn vị", task_assignment_submit_scope(SimpleNamespace(assignee_type="unit"))["hint"])
+        self.assertEqual(task_assignment_submit_scope(SimpleNamespace(assignee_type="role"))["mode"], "role")
+        self.assertIn("cả nhóm", task_assignment_submit_scope(SimpleNamespace(assignee_type="role"))["hint"])
+
     def test_task_assignment_display_status_uses_mapping_then_normalizer(self):
         self.assertEqual(
             task_assignment_display_status("submitted", STATUS_LABELS, _normalize_status),
@@ -94,6 +101,34 @@ class TaskWorkspaceTests(unittest.TestCase):
         self.assertEqual(context["submit_status_text"], "Chưa tiếp nhận")
         self.assertEqual(context["next_step_title"], "Tiếp nhận rồi nộp báo cáo")
         self.assertEqual(context["status_tone"], "warning")
+
+    def test_build_task_detail_context_surfaces_unit_submission_hint(self):
+        today = date(2026, 6, 3)
+        task = SimpleNamespace(deadline=today + timedelta(days=2))
+        summary = {
+            "total_assignments": 2,
+            "submitted_assignments": 0,
+            "in_progress_assignments": 0,
+            "progress_percent": 0,
+        }
+        assignment = SimpleNamespace(status="assigned", assignee_type="unit")
+
+        context = build_task_detail_context(
+            task,
+            summary,
+            "FORM",
+            can_manage_task_view=False,
+            can_submit=True,
+            status_labels=STATUS_LABELS,
+            normalize_status=_normalize_status,
+            my_form_assignment=assignment,
+            today=today,
+        )
+
+        self.assertEqual(context["submit_scope_mode"], "unit")
+        self.assertEqual(context["submit_scope_label"], "Nộp theo đơn vị")
+        self.assertIn("cả đơn vị", context["submit_scope_hint"])
+        self.assertIn("cả đơn vị", context["next_step_body"])
 
     def test_build_task_workspace_attrs_flags_attention_for_my_overdue_task(self):
         today = date(2026, 6, 3)

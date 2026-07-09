@@ -62,6 +62,23 @@ def task_workspace_tone(status_text, is_overdue=False):
     return "info"
 
 
+def task_assignment_submit_scope(assignment):
+    assignee_type = str(getattr(assignment, "assignee_type", "") or "user").strip().lower()
+    if assignee_type == "unit":
+        return {
+            "mode": "unit",
+            "label": "Nộp theo đơn vị",
+            "hint": "Nhiệm vụ này được giao theo đơn vị. Một cán bộ đại diện nộp báo cáo là hệ thống sẽ ghi nhận cho cả đơn vị.",
+        }
+    if assignee_type == "role":
+        return {
+            "mode": "role",
+            "label": "Nộp theo vai trò",
+            "hint": "Nhiệm vụ này được giao theo vai trò trong từng đơn vị. Một cán bộ đại diện của nhóm nhận việc nộp báo cáo là hệ thống sẽ ghi nhận cho cả nhóm.",
+        }
+    return {"mode": "user", "label": "", "hint": ""}
+
+
 def build_task_detail_context(
     task,
     summary,
@@ -102,6 +119,9 @@ def build_task_detail_context(
     next_step_body = "Xem nhanh trạng thái chung rồi đi thẳng vào khu vực làm việc phù hợp ở bên dưới."
     default_tab = "overview"
     submit_status_text = ""
+    submit_scope_mode = ""
+    submit_scope_label = ""
+    submit_scope_hint = ""
 
     if mode == "OUTLINE":
         if can_manage_task_view and not outline_groups:
@@ -118,6 +138,10 @@ def build_task_detail_context(
             default_tab = "outline-group"
     elif mode == "FILE":
         assignment = my_file_assignment if can_submit else None
+        submit_scope = task_assignment_submit_scope(assignment)
+        submit_scope_mode = submit_scope["mode"]
+        submit_scope_label = submit_scope["label"]
+        submit_scope_hint = submit_scope["hint"]
         submit_status_text = task_assignment_display_status(
             getattr(assignment, "status", ""),
             status_labels,
@@ -127,10 +151,10 @@ def build_task_detail_context(
             default_tab = "file-submit"
             if str(getattr(assignment, "status", "") or "").strip().lower() == "assigned":
                 next_step_title = "Tiếp nhận rồi nộp báo cáo"
-                next_step_body = "Tiếp nhận công việc trước, sau đó cập nhật nội dung tóm tắt và tải tệp báo cáo của bạn."
+                next_step_body = submit_scope_hint or "Tiếp nhận công việc trước, sau đó cập nhật nội dung tóm tắt và tải tệp báo cáo của bạn."
             else:
                 next_step_title = "Cập nhật phần việc của bạn"
-                next_step_body = "Phần việc của bạn đang mở. Kiểm tra lại nội dung và nộp tệp mới nhất nếu cần."
+                next_step_body = submit_scope_hint or "Phần việc của bạn đang mở. Kiểm tra lại nội dung và nộp tệp mới nhất nếu cần."
         elif can_manage_task_view:
             default_tab = "file-list"
             next_step_title = "Theo dõi tiến độ người nhận"
@@ -141,6 +165,10 @@ def build_task_detail_context(
             next_step_body = "Bạn đang ở chế độ xem. Theo dõi trạng thái nộp của các đơn vị/cán bộ trong danh sách."
     else:
         assignment = my_form_assignment if can_submit else None
+        submit_scope = task_assignment_submit_scope(assignment)
+        submit_scope_mode = submit_scope["mode"]
+        submit_scope_label = submit_scope["label"]
+        submit_scope_hint = submit_scope["hint"]
         submit_status_text = task_assignment_display_status(
             getattr(assignment, "status", ""),
             status_labels,
@@ -150,10 +178,10 @@ def build_task_detail_context(
             default_tab = "form-submit"
             if str(getattr(assignment, "status", "") or "").strip().lower() == "assigned":
                 next_step_title = "Tiếp nhận rồi nhập biểu mẫu"
-                next_step_body = "Tiếp nhận công việc trước, sau đó nhập đầy đủ các trường bắt buộc trong biểu mẫu của bạn."
+                next_step_body = submit_scope_hint or "Tiếp nhận công việc trước, sau đó nhập đầy đủ các trường bắt buộc trong biểu mẫu của bạn."
             else:
                 next_step_title = "Cập nhật biểu mẫu của bạn"
-                next_step_body = "Mở phần việc của bạn để kiểm tra dữ liệu đã nhập và gửi lại nếu cần chỉnh sửa."
+                next_step_body = submit_scope_hint or "Mở phần việc của bạn để kiểm tra dữ liệu đã nhập và gửi lại nếu cần chỉnh sửa."
         elif can_manage_task_view:
             default_tab = "form-list"
             next_step_title = "Theo dõi dữ liệu đã nộp"
@@ -170,6 +198,9 @@ def build_task_detail_context(
         "next_step_body": next_step_body,
         "default_tab": default_tab,
         "submit_status_text": submit_status_text,
+        "submit_scope_mode": submit_scope_mode,
+        "submit_scope_label": submit_scope_label,
+        "submit_scope_hint": submit_scope_hint,
         "is_complete": is_complete,
         "is_overdue": is_overdue,
         "progress_percent": progress_percent,

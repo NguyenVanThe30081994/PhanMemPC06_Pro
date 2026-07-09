@@ -89,11 +89,11 @@ class TaskReadModelsTests(unittest.TestCase):
             field_label="Trạng thái",
             field_type="RADIO",
             is_required=1,
-            field_options_json='{"choices":["Mới","Cũ"]}',
+            field_options_json='{"choices":["Mới","Cũ"],"target_type":"unit","target_unit_domains":["minh-xuan"]}',
         )
 
         self.assertEqual(normalize_task_form_field_type("RADIO", {"text", "radio"}), "radio")
-        self.assertEqual(form_field_options(field), {"choices": ["Mới", "Cũ"]})
+        self.assertEqual(form_field_options(field)["choices"], ["Mới", "Cũ"])
 
         views = task_form_field_views(
             [field],
@@ -102,6 +102,8 @@ class TaskReadModelsTests(unittest.TestCase):
         )
         self.assertEqual(views[0]["choices"], ["Mới", "Cũ"])
         self.assertTrue(views[0]["is_required"])
+        self.assertEqual(views[0]["target_type"], "unit")
+        self.assertEqual(views[0]["target_unit_domains"], ["minh-xuan"])
 
     def test_task_form_value_is_empty_handles_none_string_and_list(self):
         self.assertTrue(task_form_value_is_empty(None))

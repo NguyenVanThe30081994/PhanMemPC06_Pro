@@ -41,7 +41,7 @@ class TaskBlueprintTests(unittest.TestCase):
                 "source_kind": "google_form",
                 "collection_mode": "form",
                 "form_fields": [
-                    {"label": "Đơn vị", "type": "text", "required": True},
+                    {"label": "Đơn vị", "type": "text", "required": True, "target_type": "unit", "target_unit_domains": ["minh-xuan"]},
                     {"label": "Tổng số hồ sơ", "type": "number"},
                     {"label": "Lĩnh vực", "type": "radio", "choices": ["A", "B"]},
                 ],
@@ -53,6 +53,8 @@ class TaskBlueprintTests(unittest.TestCase):
         self.assertEqual(len(fields), 3)
         self.assertEqual(fields[0]["field_label"], "Đơn vị")
         self.assertTrue(fields[0]["is_required"])
+        self.assertEqual(fields[0]["target_type"], "unit")
+        self.assertEqual(fields[0]["target_unit_domains"], ["minh-xuan"])
         self.assertIn('"choices": ["A", "B"]', fields[2]["field_options_json"])
 
     def test_file_blueprint_creates_structured_report_schema(self):

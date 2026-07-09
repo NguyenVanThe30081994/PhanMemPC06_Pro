@@ -33,6 +33,7 @@ WORKFLOW_BLUEPRINT_ALLOWED_FORM_FIELD_TYPES = {
     "table",
 }
 WORKFLOW_BLUEPRINT_ALLOWED_REPORT_FIELD_TYPES = {"text", "number", "textarea"}
+WORKFLOW_BLUEPRINT_ALLOWED_TARGET_TYPES = {"all", "unit", "role", "user"}
 
 DEFAULT_BLUEPRINT_TITLE = "Điều hành và thu báo cáo"
 WORKFLOW_BLUEPRINT_EXAMPLES = [
@@ -180,6 +181,35 @@ def _normalize_choice_list(raw_value):
     return []
 
 
+def _normalize_target_type(value):
+    return _normalize_choice(value, WORKFLOW_BLUEPRINT_ALLOWED_TARGET_TYPES, default="all")
+
+
+def _normalize_target_domains(raw_value):
+    if isinstance(raw_value, str):
+        values = [item.strip() for item in raw_value.split(",") if item.strip()]
+    elif isinstance(raw_value, list):
+        values = [str(item).strip() for item in raw_value if str(item).strip()]
+    else:
+        values = []
+    return list(dict.fromkeys(values))
+
+
+def _normalize_target_ids(raw_value):
+    values = []
+    if isinstance(raw_value, str):
+        candidates = [item.strip() for item in raw_value.split(",") if item.strip()]
+    elif isinstance(raw_value, list):
+        candidates = raw_value
+    else:
+        candidates = []
+    for candidate in candidates:
+        text = str(candidate).strip()
+        if text.isdigit():
+            values.append(int(text))
+    return sorted(set(values))
+
+
 def _normalize_outline_items(raw_items):
     items = []
     for index, raw_item in enumerate(raw_items if isinstance(raw_items, list) else []):
@@ -231,6 +261,18 @@ def _normalize_form_fields(raw_fields):
             columns = _normalize_choice_list(raw_field.get("options") or raw_field.get("columns"))
             if columns:
                 option_payload["columns"] = columns
+        target_type = _normalize_target_type(raw_field.get("target_type"))
+        target_unit_domains = _normalize_target_domains(raw_field.get("target_unit_domains"))
+        target_role_ids = _normalize_target_ids(raw_field.get("target_role_ids"))
+        target_user_ids = _normalize_target_ids(raw_field.get("target_user_ids"))
+        if target_type != "all":
+            option_payload["target_type"] = target_type
+        if target_unit_domains:
+            option_payload["target_unit_domains"] = target_unit_domains
+        if target_role_ids:
+            option_payload["target_role_ids"] = target_role_ids
+        if target_user_ids:
+            option_payload["target_user_ids"] = target_user_ids
         fields.append(
             {
                 "field_key": _unique_key(label, index, used_keys, "field"),
@@ -239,6 +281,10 @@ def _normalize_form_fields(raw_fields):
                 "field_options_json": json.dumps(option_payload, ensure_ascii=False) if option_payload else None,
                 "sort_order": len(fields),
                 "is_required": _normalize_bool(raw_field.get("required")),
+                "target_type": target_type,
+                "target_unit_domains": target_unit_domains,
+                "target_role_ids": target_role_ids,
+                "target_user_ids": target_user_ids,
             }
         )
     return fields
