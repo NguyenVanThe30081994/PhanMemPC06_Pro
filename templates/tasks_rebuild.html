@@ -523,529 +523,864 @@
 <div class="modal fade" id="createTaskModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
-            <form method="POST" enctype="multipart/form-data">
-                <div class="modal-header">
-                    <div>
-                        <h5 class="modal-title mb-1">Tạo công việc</h5>
+            <form method="POST" enctype="multipart/form-data" id="createTaskForm">
+                <div class="modal-header d-block">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h5 class="modal-title mb-0">Tạo công việc mới</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <div class="d-flex flex-wrap gap-2 mt-3" id="wizardSteps">
+                        <div class="flex-fill text-center border rounded-3 px-2 py-2" data-wizard-step-label="1">
+                            <div class="fw-semibold small">1. Loại công việc</div>
+                            <div class="small text-muted">Chọn cách thu thập kết quả</div>
+                        </div>
+                        <div class="flex-fill text-center border rounded-3 px-2 py-2" data-wizard-step-label="2">
+                            <div class="fw-semibold small">2. Tải nguồn</div>
+                            <div class="small text-muted">Đề cương / biểu mẫu / file</div>
+                        </div>
+                        <div class="flex-fill text-center border rounded-3 px-2 py-2" data-wizard-step-label="3">
+                            <div class="fw-semibold small">3. Cấu hình</div>
+                            <div class="small text-muted">Việc nhỏ, trường, người nhận</div>
+                        </div>
+                        <div class="flex-fill text-center border rounded-3 px-2 py-2" data-wizard-step-label="4">
+                            <div class="fw-semibold small">4. Phát hành</div>
+                            <div class="small text-muted">Thông tin chung &amp; xuất việc</div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-body">
-                    <div class="row g-4">
-                        <div class="col-lg-7">
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Phương thức khởi tạo</label>
-                                <div class="border rounded p-3 bg-light-subtle">
-                                    <div class="d-flex flex-wrap gap-3">
-                                        <label class="d-flex align-items-center gap-2">
-                                            <input type="radio" name="create_source_mode" value="manual" checked>
-                                            <span>Nhập thủ công</span>
-                                        </label>
-                                        <label class="d-flex align-items-center gap-2">
-                                            <input type="radio" name="create_source_mode" value="blueprint">
-                                            <span>Blueprint hợp nhất</span>
-                                        </label>
-                                    </div>
-                                    <div class="form-text mt-2">
-                                        Dùng khi muốn lấy một đề cương hoặc mẫu báo cáo làm khung điều hành chung. Tài liệu tham chiếu chỉ để mô hình hóa cấu trúc, không phải dữ liệu đầu vào cố định.
-                                    </div>
-                                </div>
+                    <select class="d-none" name="task_mode" id="taskModeSelect">
+                        <option value="OUTLINE">Theo đề cương</option>
+                        <option value="FILE">Nộp file</option>
+                        <option value="FORM">Biểu mẫu</option>
+                    </select>
+                    <input type="hidden" name="form_provider" id="wizardFormProvider" value="internal">
+                    <textarea class="d-none" name="google_form_builder_json" id="wizardGoogleBuilderJson"></textarea>
+
+                    <div data-wizard-pane="1">
+                        <div class="fw-bold mb-3">Chọn loại công việc bạn muốn giao</div>
+                        <div class="row g-3">
+                            <div class="col-lg-4">
+                                <button type="button" class="card w-100 h-100 text-start p-3 border-2 task-type-card is-selected" data-task-type="OUTLINE">
+                                    <div class="fs-3">📋</div>
+                                    <div class="fw-bold mt-2">Theo đề cương</div>
+                                    <div class="small text-muted mt-1">Tải đề cương Word → hệ thống tách danh sách việc nhỏ → quản trị gán từng việc cho đơn vị / vai trò / cán bộ.</div>
+                                </button>
                             </div>
-                            <div class="mb-3 d-none" id="workflowBlueprintBox">
-                                <div class="border rounded p-3 bg-light-subtle">
-                                    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
-                                        <div>
-                                            <h6 class="fw-bold mb-1">Blueprint điều hành</h6>
-                                            <p class="text-muted mb-0">Nhập JSON cấu hình nguồn để hệ thống suy ra kiểu giao việc hoặc thu báo cáo trước khi phát hành.</p>
-                                        </div>
-                                        <div class="d-flex gap-2 flex-wrap">
-                                            <select class="form-select form-select-sm" id="workflowBlueprintPresetSelect" style="min-width: 220px;">
-                                                <option value="">Chọn mẫu tham chiếu</option>
-                                                {% for example in workflow_blueprint_examples %}
-                                                <option value="{{ example.key }}">{{ example.label }}</option>
-                                                {% endfor %}
-                                            </select>
-                                            <button class="btn btn-outline-primary btn-sm" type="button" id="loadWorkflowBlueprintPresetBtn">Nạp mẫu</button>
-                                        </div>
-                                    </div>
-                                    <div class="mt-3">
-                                        <label class="form-label fw-bold">JSON blueprint</label>
-                                        <textarea class="form-control font-monospace" name="workflow_blueprint_json" id="workflowBlueprintInput" rows="12" placeholder='{"title":"Công tác tuần","source_kind":"directive","items":[{"title":"Đầu mục 1"}]}'></textarea>
-                                    </div>
-                                    <div class="row g-3 mt-1">
-                                        <div class="col-md-7">
-                                            <label class="form-label fw-bold">Phân tích từ tài liệu tham chiếu</label>
-                                            <input class="form-control" type="file" id="workflowBlueprintSourceFile" accept=".docx,.txt,.xlsx,.xls">
-                                        </div>
-                                        <div class="col-md-5">
-                                            <label class="form-label fw-bold">Kiểu tài liệu</label>
-                                            <select class="form-select" id="workflowBlueprintImportMode">
-                                                <option value="docx_outline">Word/TXT -> đề cương công tác</option>
-                                                <option value="docx_report_outline">Word/TXT -> đề cương báo cáo theo mục</option>
-                                                <option value="xlsx_form">Excel (.xlsx) -> biểu mẫu số liệu</option>
-                                                <option value="google_form_remote">Google Form URL/ID -> biểu mẫu</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="mt-3 d-none" id="workflowBlueprintGoogleFormBox">
-                                        <label class="form-label fw-bold">Google Form URL hoặc form ID</label>
-                                        <input class="form-control" type="text" id="workflowBlueprintFormReference" placeholder="https://docs.google.com/forms/d/... hoặc formId">
-                                    </div>
-                                    <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
-                                        <button class="btn btn-primary btn-sm" type="button" id="previewWorkflowBlueprintBtn">Phân tích blueprint</button>
-                                        <button class="btn btn-outline-primary btn-sm" type="button" id="importWorkflowBlueprintFileBtn">Nạp từ tài liệu</button>
-                                        <button class="btn btn-outline-secondary btn-sm" type="button" id="applyWorkflowBlueprintBtn">Áp dụng sang tiêu đề và mô tả</button>
-                                        <span class="small text-muted" id="workflowBlueprintStatus">Chưa phân tích.</span>
-                                    </div>
-                                    <div class="border rounded bg-white p-3 mt-3 d-none" id="workflowBlueprintPreviewBox">
-                                        <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
-                                            <div>
-                                                <div class="fw-bold" id="workflowBlueprintPreviewTitle">Chưa có dữ liệu</div>
-                                                <div class="small text-muted" id="workflowBlueprintPreviewMeta"></div>
-                                            </div>
-                                            <span class="badge text-bg-primary" id="workflowBlueprintPreviewMode">-</span>
-                                        </div>
-                                        <p class="small text-muted mt-2 mb-3" id="workflowBlueprintPreviewSummary"></p>
-                                        <div class="row g-3">
-                                            <div class="col-md-4">
-                                                <div class="border rounded p-2 h-100">
-                                                    <div class="small text-muted">Đầu mục giao việc</div>
-                                                    <div class="fw-bold" id="workflowBlueprintPreviewItemCount">0</div>
-                                                    <div class="small text-muted mt-2" id="workflowBlueprintPreviewItems">Chưa có.</div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="border rounded p-2 h-100">
-                                                    <div class="small text-muted">Trường biểu mẫu</div>
-                                                    <div class="fw-bold" id="workflowBlueprintPreviewFieldCount">0</div>
-                                                    <div class="small text-muted mt-2" id="workflowBlueprintPreviewFields">Chưa có.</div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="border rounded p-2 h-100">
-                                                    <div class="small text-muted">Schema báo cáo</div>
-                                                    <div class="fw-bold" id="workflowBlueprintPreviewReportCount">0</div>
-                                                    <div class="small text-muted mt-2" id="workflowBlueprintPreviewReport">Chưa có.</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div class="col-lg-4">
+                                <button type="button" class="card w-100 h-100 text-start p-3 border-2 task-type-card" data-task-type="FILE">
+                                    <div class="fs-3">📄</div>
+                                    <div class="fw-bold mt-2">Nộp file / văn bản</div>
+                                    <div class="small text-muted mt-1">Giao việc trực tiếp; người nhận nộp nội dung tóm tắt + file minh chứng, công văn, văn bản tổng hợp.</div>
+                                </button>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Chế độ công việc</label>
-                                <select class="form-select" name="task_mode" id="taskModeSelect">
-                                    <option value="OUTLINE">Theo đề cương</option>
-                                    <option value="FILE">Nộp file</option>
-                                    <option value="FORM">Biểu mẫu</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Tiêu đề</label>
-                                <input class="form-control" type="text" name="title" required>
-                            </div>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Lĩnh vực</label>
-                                    <select class="form-select" name="category">
-                                        <option value="">Chọn lĩnh vực</option>
-                                        {% for item in task_fields %}
-                                        <option value="{{ item.value }}">{{ item.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Đội nghiệp vụ</label>
-                                    <select class="form-select" name="unit_name">
-                                        <option value="">Chọn đội nghiệp vụ</option>
-                                        {% for item in pro_units %}
-                                        <option value="{{ item.value }}">{{ item.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Loại công việc</label>
-                                    <select class="form-select" name="task_type">
-                                        <option value="">Công việc thường xuyên</option>
-                                        {% for item in task_types %}
-                                        <option value="{{ item.value }}">{{ item.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Mức độ ưu tiên</label>
-                                    <select class="form-select" name="priority">
-                                        <option value="">Trung bình</option>
-                                        {% for item in priority_items %}
-                                        <option value="{{ item.value }}">{{ item.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Hạn xử lý</label>
-                                    <input class="form-control" type="date" name="deadline">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Tài liệu đính kèm</label>
-                                    <input class="form-control" type="file" name="task_file">
-                                </div>
-                            </div>
-                            <div class="mt-3">
-                                <label class="form-label fw-bold">Mô tả</label>
-                                <textarea class="form-control" name="description" rows="5"></textarea>
+                            <div class="col-lg-4">
+                                <button type="button" class="card w-100 h-100 text-start p-3 border-2 task-type-card" data-task-type="FORM">
+                                    <div class="fs-3">📊</div>
+                                    <div class="fw-bold mt-2">Biểu mẫu / bảng số</div>
+                                    <div class="small text-muted mt-1">Điền như Google Form hoặc bảng Excel; xuất tổng hợp dữ liệu ra file Excel.</div>
+                                </button>
                             </div>
                         </div>
-                        <div class="col-lg-5">
-                            <div class="border rounded p-3 bg-light-subtle" id="fileAssignmentBox">
-                                <h6 class="fw-bold">Phân công mặc định</h6>
-                                <div class="mb-3">
-                                    <label class="form-label">Kiểu phân công</label>
-                                    <select class="form-select" name="assign_type" id="createAssignType">
-                                        <option value="unit">Theo đơn vị</option>
-                                        <option value="role">Theo vai trò</option>
-                                        <option value="user">Theo cá nhân</option>
+                    </div>
+
+                    <div data-wizard-pane="2" class="d-none">
+                        <div data-wizard-source="OUTLINE" class="d-none">
+                            <div class="border rounded-3 p-3 bg-light-subtle">
+                                <div class="fw-bold mb-1">Tải đề cương</div>
+                                <p class="small text-muted mb-3">Chọn file .docx / .txt. Hệ thống tách từng dòng thành việc nhỏ; nếu đề cương ghi rõ "giao cho ai" (vd: Đơn vị thực hiện: Đội A) thì điền sẵn gợi ý người nhận để quản trị kiểm tra lại ở bước 3.</p>
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                    <input class="form-control" type="file" id="wizardOutlineFile" accept=".docx,.txt" style="max-width: 420px;">
+                                    <button class="btn btn-primary" type="button" id="wizardOutlineParseBtn">Phân tích đề cương</button>
+                                </div>
+                                <div class="small mt-2" id="wizardOutlineStatus">Chưa phân tích. Nếu không tải file, bấm Tiếp tục để nhập tay từng việc nhỏ.</div>
+                            </div>
+                        </div>
+                        <div data-wizard-source="FILE" class="d-none">
+                            <div class="border rounded-3 p-3 bg-light-subtle">
+                                <div class="fw-bold mb-1">Tệp hướng dẫn / mẫu (không bắt buộc)</div>
+                                <p class="small text-muted mb-3">Giao việc trực tiếp cho đơn vị / cán bộ. Người nhận sẽ nộp nội dung và file minh chứng. Bạn có thể kèm file mẫu hoặc công văn hướng dẫn.</p>
+                                <input class="form-control" type="file" name="task_file" id="wizardTaskFile" style="max-width: 420px;">
+                            </div>
+                        </div>
+                        <div data-wizard-source="FORM" class="d-none">
+                            <div class="border rounded-3 p-3 bg-light-subtle mb-3">
+                                <div class="fw-bold mb-2">Nguồn biểu mẫu</div>
+                                <div class="d-flex flex-wrap gap-3">
+                                    <label class="d-flex align-items-center gap-2">
+                                        <input type="radio" name="form_source_choice" value="builder" checked>
+                                        <span>Tự dựng / tải Excel mẫu</span>
+                                    </label>
+                                    <label class="d-flex align-items-center gap-2">
+                                        <input type="radio" name="form_source_choice" value="report">
+                                        <span>Lấy từ biểu mẫu báo cáo có sẵn</span>
+                                    </label>
+                                    <label class="d-flex align-items-center gap-2">
+                                        <input type="radio" name="form_source_choice" value="google">
+                                        <span>Google Form thật</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div data-form-source-pane="builder" class="border rounded-3 p-3 bg-light-subtle">
+                                <p class="small text-muted mb-2">Nếu có file Excel mẫu (.xlsx), nạp để tạo sẵn các trường, sau đó chỉnh sửa ở bước 3. Không có file thì bấm Tiếp tục và tự dựng trường.</p>
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                    <input class="form-control" type="file" id="wizardFormExcelFile" accept=".xlsx,.xls" style="max-width: 420px;">
+                                    <button class="btn btn-outline-primary" type="button" id="wizardFormExcelBtn">Nạp trường từ Excel</button>
+                                </div>
+                            </div>
+                            <div data-form-source-pane="report" class="d-none border rounded-3 p-3 bg-light-subtle">
+                                <p class="small text-muted mb-2">Chọn biểu mẫu báo cáo đã có trong hệ thống; các trường sẽ được nạp sang bước 3 để kiểm tra và chỉnh sửa.</p>
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                    <select class="form-select" id="wizardReportTemplateSelect" style="max-width: 460px;">
+                                        <option value="">Chọn biểu mẫu báo cáo</option>
+                                        {% for template in report_templates %}
+                                        <option value="{{ template.id }}">{{ template.name }}{% if template.report_type_display %} ({{ template.report_type_display }}){% endif %}</option>
+                                        {% endfor %}
                                     </select>
+                                    <button class="btn btn-outline-primary" type="button" id="wizardReportTemplateBtn">Nạp trường</button>
                                 </div>
-                                <div class="mb-3" data-assign-box="role">
-                                    <label class="form-label">Vai trò nhận việc</label>
-                                    <div class="border rounded p-2" style="max-height: 200px; overflow:auto;">
-                                        {% for role in roles %}
-                                        <label class="d-flex gap-2 align-items-center mb-2">
-                                            <input type="checkbox" name="assignee_role_ids" value="{{ role.id }}">
-                                            <span>{{ role.name }}</span>
-                                        </label>
-                                        {% endfor %}
+                            </div>
+                            <div data-form-source-pane="google" class="d-none border rounded-3 p-3 bg-light-subtle">
+                                <p class="small text-muted mb-2">Dán link Google Form đã có. Các câu hỏi của biểu mẫu sẽ được khai báo ở bước 3 (giống nguyên lý Google Form) và đồng bộ phản hồi vào hệ thống.</p>
+                                <div class="mb-2">
+                                    <label class="form-label fw-bold">Link Google Form</label>
+                                    <input class="form-control" type="url" name="google_form_url" id="wizardGoogleFormUrl" placeholder="https://docs.google.com/forms/d/..." style="max-width: 520px;">
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-5">
+                                        <label class="form-label fw-bold">Cách ghép phản hồi với người nhận</label>
+                                        <select class="form-select" name="google_form_match_mode" id="wizardGoogleMatchMode">
+                                            <option value="unit">Theo đơn vị báo cáo</option>
+                                            <option value="respondent_email">Theo email người trả lời</option>
+                                        </select>
                                     </div>
-                                </div>
-                                <div class="mb-3 d-none" data-assign-box="user">
-                                    <label class="form-label">Cán bộ nhận việc</label>
-                                    <div class="border rounded p-2" style="max-height: 220px; overflow:auto;">
-                                        {% for user in users %}
-                                        <label class="d-flex gap-2 align-items-center mb-2">
-                                            <input type="checkbox" name="target_users" value="{{ user.id }}">
-                                            <span>{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</span>
-                                        </label>
-                                        {% endfor %}
+                                    <div class="col-md-7">
+                                        <label class="form-label fw-bold">Trường đối sánh (câu hỏi chứa đơn vị)</label>
+                                        <input class="form-control" type="text" name="google_form_match_field" placeholder="Ví dụ: Đơn vị báo cáo">
                                     </div>
                                 </div>
                             </div>
-                            <div class="border rounded p-3 bg-light-subtle mt-3 d-none" id="formBuilderBox">
-                                <h6 class="fw-bold">Cấu hình biểu mẫu</h6>
-                                <div id="formFieldList" class="d-grid gap-3"></div>
-                                <button class="btn btn-outline-primary btn-sm mt-3" type="button" id="addFormFieldBtn">Thêm trường</button>
-                                <template id="formFieldTemplate">
-                                    <div class="border rounded p-3 form-field-item">
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <strong>Trường biểu mẫu</strong>
-                                            <button type="button" class="btn btn-sm btn-outline-danger" data-remove-form-field>Xóa</button>
-                                        </div>
-                                        <div class="mb-2">
-                                            <label class="form-label fw-bold">Nhãn trường</label>
-                                            <input class="form-control" type="text" name="form_field_label">
-                                        </div>
-                                        <div class="mb-2">
-                                            <label class="form-label fw-bold">Kiểu dữ liệu</label>
-                                            <select class="form-select" name="form_field_type">
-                                                <option value="text">Văn bản ngắn</option>
-                                                <option value="number">Số liệu</option>
-                                                <option value="textarea">Đoạn văn</option>
-                                                <option value="radio">Một lựa chọn</option>
-                                                <option value="checkbox">Nhiều lựa chọn</option>
-                                                <option value="table">Bảng</option>
+                        </div>
+                    </div>
+
+                    <div data-wizard-pane="3" class="d-none">
+                        <div data-wizard-config="OUTLINE" class="d-none">
+                            <div class="border rounded-3 p-3 bg-light-subtle">
+                                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                                    <div>
+                                        <div class="fw-bold">Danh sách việc nhỏ</div>
+                                        <div class="small text-muted">Gán từng việc cho ai do quản trị quyết định. Kết quả phân tích từ đề cương chỉ là gợi ý, có thể sửa.</div>
+                                    </div>
+                                    <button class="btn btn-outline-primary btn-sm" type="button" id="wizardAddOutlineRowBtn">+ Thêm việc nhỏ</button>
+                                </div>
+                                <div id="wizardOutlineRows" class="d-grid gap-2"></div>
+                                <div class="border rounded-3 p-3 mt-3 bg-white">
+                                    <div class="fw-semibold mb-2">Gán hàng loạt cho dòng đã tích</div>
+                                    <div class="row g-2 align-items-start">
+                                        <div class="col-lg-3">
+                                            <select class="form-select form-select-sm" id="wizardAssignType">
+                                                <option value="unit">Theo đơn vị</option>
+                                                <option value="role">Theo vai trò</option>
+                                                <option value="user">Theo cá nhân</option>
                                             </select>
                                         </div>
-                                        <div class="mb-2">
-                                            <label class="form-label fw-bold">Tùy chọn / cột bảng</label>
-                                            <textarea class="form-control" name="form_field_options" rows="3" placeholder="Radio/checkbox: mỗi dòng một lựa chọn&#10;Table: nhập cột, phân tách bằng dấu phẩy"></textarea>
+                                        <div class="col-lg-7">
+                                            <div data-wizard-assign="unit">
+                                                <div class="border rounded-2 p-2" style="max-height: 150px; overflow:auto;">
+                                                    {% for item in pro_units %}
+                                                    <label class="d-flex align-items-center gap-2 small py-1">
+                                                        <input type="checkbox" data-wizard-unit-checkbox value="{{ item.value }}" data-label="{{ item.name }}">
+                                                        <span>{{ item.name }}</span>
+                                                    </label>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                            <div class="d-none" data-wizard-assign="role">
+                                                <div class="border rounded-2 p-2" style="max-height: 150px; overflow:auto;">
+                                                    {% for role in roles %}
+                                                    <label class="d-flex align-items-center gap-2 small py-1">
+                                                        <input type="checkbox" data-wizard-role-checkbox value="{{ role.id }}" data-label="{{ role.name }}">
+                                                        <span>{{ role.name }}</span>
+                                                    </label>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                            <div class="d-none" data-wizard-assign="user">
+                                                <div class="border rounded-2 p-2" style="max-height: 150px; overflow:auto;">
+                                                    {% for user in users %}
+                                                    <label class="d-flex align-items-start gap-2 small py-1">
+                                                        <input type="checkbox" data-wizard-user-checkbox value="{{ user.id }}" data-label="{{ user.fullname }}">
+                                                        <span>{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</span>
+                                                    </label>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" data-required-checkbox>
-                                            <label class="form-check-label">Bắt buộc</label>
+                                        <div class="col-lg-2 d-flex flex-column gap-1">
+                                            <button class="btn btn-sm btn-outline-secondary" type="button" id="wizardSelectAllRowsBtn">Tích tất cả</button>
+                                            <button class="btn btn-sm btn-outline-primary" type="button" id="wizardApplyAssignBtn">Gán cho dòng tích</button>
                                         </div>
                                     </div>
-                                </template>
+                                </div>
+                            </div>
+                        </div>
+                        <div data-wizard-config="FILE" class="d-none">
+                            <div class="border rounded-3 p-3 bg-light-subtle">
+                                <div class="fw-bold mb-1">Giao cho ai</div>
+                                <p class="small text-muted mb-3">Chọn đối tượng nhận việc. Người nhận sẽ nộp nội dung và file minh chứng.</p>
+                                <div class="border rounded p-3 bg-white" id="fileAssignmentBox">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Kiểu phân công</label>
+                                        <select class="form-select" name="assign_type" id="createAssignType">
+                                            <option value="unit">Theo đơn vị</option>
+                                            <option value="role">Theo vai trò</option>
+                                            <option value="user">Theo cá nhân</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3 d-none" data-assign-box="role">
+                                        <label class="form-label fw-bold">Vai trò nhận việc</label>
+                                        <div class="border rounded p-2" style="max-height: 200px; overflow:auto;">
+                                            {% for role in roles %}
+                                            <label class="d-flex gap-2 align-items-center mb-2">
+                                                <input type="checkbox" name="assignee_role_ids" value="{{ role.id }}">
+                                                <span>{{ role.name }}</span>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <div class="mb-3 d-none" data-assign-box="user">
+                                        <label class="form-label fw-bold">Cán bộ nhận việc</label>
+                                        <div class="border rounded p-2" style="max-height: 220px; overflow:auto;">
+                                            {% for user in users %}
+                                            <label class="d-flex gap-2 align-items-center mb-2">
+                                                <input type="checkbox" name="target_users" value="{{ user.id }}">
+                                                <span>{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</span>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div data-wizard-config="FORM" class="d-none">
+                            <div class="border rounded-3 p-3 bg-light-subtle">
+                                <div class="fw-bold mb-1">Cấu hình biểu mẫu</div>
+                                <p class="small text-muted mb-3">Giống nguyên lý Google Form: mỗi trường là một câu hỏi; người nhận chỉ thấy phần được giao. Trường bảng cho phép nhập nhiều dòng như bảng tính Excel.</p>
+                                <div class="border rounded p-3 bg-white" id="formBuilderBox">
+                                    <div id="formFieldList" class="d-grid gap-3"></div>
+                                    <button class="btn btn-outline-primary btn-sm mt-3" type="button" id="addFormFieldBtn">Thêm trường</button>
+                                    <template id="formFieldTemplate">
+                                        <div class="border rounded p-3 form-field-item">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <strong>Trường biểu mẫu</strong>
+                                                <button type="button" class="btn btn-sm btn-outline-danger" data-remove-form-field>Xóa</button>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label fw-bold">Nhãn trường</label>
+                                                <input class="form-control" type="text" name="form_field_label">
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label fw-bold">Kiểu dữ liệu</label>
+                                                <select class="form-select" name="form_field_type">
+                                                    <option value="text">Văn bản ngắn</option>
+                                                    <option value="number">Số liệu</option>
+                                                    <option value="textarea">Đoạn văn</option>
+                                                    <option value="radio">Một lựa chọn</option>
+                                                    <option value="checkbox">Nhiều lựa chọn</option>
+                                                    <option value="table">Bảng</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label fw-bold">Tùy chọn / cột bảng</label>
+                                                <textarea class="form-control" name="form_field_options" rows="3" placeholder="Radio/checkbox: mỗi dòng một lựa chọn&#10;Table: nhập cột, phân tách bằng dấu phẩy"></textarea>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" data-required-checkbox>
+                                                <label class="form-check-label">Bắt buộc</label>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div data-wizard-pane="4" class="d-none">
+                        <div class="row g-3">
+                            <div class="col-lg-8">
+                                <label class="form-label fw-bold">Tiêu đề công việc</label>
+                                <input class="form-control" type="text" name="title" id="wizardTitle" required placeholder="Ví dụ: Tổng hợp báo cáo tuần ...">
+                            </div>
+                            <div class="col-lg-4">
+                                <label class="form-label fw-bold">Hạn xử lý</label>
+                                <input class="form-control" type="date" name="deadline">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Lĩnh vực</label>
+                                <select class="form-select" name="category">
+                                    <option value="">Chọn lĩnh vực</option>
+                                    {% for item in task_fields %}
+                                    <option value="{{ item.value }}">{{ item.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Đội nghiệp vụ</label>
+                                <select class="form-select" name="unit_name">
+                                    <option value="">Chọn đội nghiệp vụ</option>
+                                    {% for item in pro_units %}
+                                    <option value="{{ item.value }}">{{ item.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Loại công việc</label>
+                                <select class="form-select" name="task_type">
+                                    <option value="">Công việc thường xuyên</option>
+                                    {% for item in task_types %}
+                                    <option value="{{ item.value }}">{{ item.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Mức độ ưu tiên</label>
+                                <select class="form-select" name="priority">
+                                    <option value="">Trung bình</option>
+                                    {% for item in priority_items %}
+                                    <option value="{{ item.value }}">{{ item.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Mô tả / yêu cầu</label>
+                                <textarea class="form-control" name="description" rows="3" placeholder="Mô tả nội dung, yêu cầu, hướng dẫn cho người nhận việc..."></textarea>
+                            </div>
+                            <div class="col-12">
+                                <details class="border rounded-3 p-3 bg-light-subtle">
+                                    <summary class="fw-semibold">Phạm vi xem &amp; quản lý (tùy chọn)</summary>
+                                    <div class="row g-3 mt-1">
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Ai được xem công việc</label>
+                                            <select class="form-select" name="viewer_scope_mode" data-scope-mode="viewer">
+                                                <option value="none">Chỉ người được giao</option>
+                                                <option value="role">Theo vai trò</option>
+                                                <option value="user">Theo cá nhân</option>
+                                            </select>
+                                            <div class="border rounded-2 p-2 mt-2 d-none" data-scope-box="viewer" style="max-height: 180px; overflow:auto;">
+                                                {% for role in roles %}
+                                                <label class="d-flex gap-2 align-items-center small py-1">
+                                                    <input type="checkbox" name="viewer_role_ids" value="{{ role.id }}">
+                                                    <span>{{ role.name }}</span>
+                                                </label>
+                                                {% endfor %}
+                                                <hr class="my-2">
+                                                {% for user in users %}
+                                                <label class="d-flex gap-2 align-items-center small py-1">
+                                                    <input type="checkbox" name="viewer_user_ids" value="{{ user.id }}">
+                                                    <span>{{ user.fullname }}</span>
+                                                </label>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Ai quản lý / duyệt công việc</label>
+                                            <select class="form-select" name="manager_scope_mode" data-scope-mode="manager">
+                                                <option value="none">Chỉ quản trị</option>
+                                                <option value="role">Theo vai trò</option>
+                                                <option value="user">Theo cá nhân</option>
+                                            </select>
+                                            <div class="border rounded-2 p-2 mt-2 d-none" data-scope-box="manager" style="max-height: 180px; overflow:auto;">
+                                                {% for role in roles %}
+                                                <label class="d-flex gap-2 align-items-center small py-1">
+                                                    <input type="checkbox" name="manager_role_ids" value="{{ role.id }}">
+                                                    <span>{{ role.name }}</span>
+                                                </label>
+                                                {% endfor %}
+                                                <hr class="my-2">
+                                                {% for user in users %}
+                                                <label class="d-flex gap-2 align-items-center small py-1">
+                                                    <input type="checkbox" name="manager_user_ids" value="{{ user.id }}">
+                                                    <span>{{ user.fullname }}</span>
+                                                </label>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
+                            <div class="col-12">
+                                <div class="alert alert-info border mb-0" id="wizardSummary"></div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button class="btn btn-primary" type="submit">Tạo công việc</button>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" id="wizardBackBtn" disabled>Quay lại</button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-primary" id="wizardNextBtn">Tiếp tục</button>
+                        <button type="submit" class="btn btn-primary d-none" id="wizardSubmitBtn">Xuất việc</button>
+                    </div>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
+<div class="modal fade" id="wizardRowAssignModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Gán việc nhỏ cho ai</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Giao theo</label>
+                    <select class="form-select" id="wizardRowAssignType">
+                        <option value="unit">Đơn vị</option>
+                        <option value="role">Vai trò</option>
+                        <option value="user">Cá nhân</option>
+                    </select>
+                </div>
+                <div data-wzrow-section="unit">
+                    <label class="form-label fw-bold">Đơn vị nhận việc</label>
+                    <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
+                        {% for item in pro_units %}
+                        <label class="d-flex align-items-center gap-2 px-2 py-2 border-bottom">
+                            <input type="checkbox" class="mt-1" data-wzrow-unit-checkbox value="{{ item.value }}" data-label="{{ item.name }}">
+                            <span class="small">{{ item.name }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="d-none" data-wzrow-section="role">
+                    <label class="form-label fw-bold">Vai trò nhận việc</label>
+                    <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
+                        {% for role in roles %}
+                        <label class="d-flex align-items-center gap-2 px-2 py-2 border-bottom">
+                            <input type="checkbox" class="mt-1" data-wzrow-role-checkbox value="{{ role.id }}" data-label="{{ role.name }}">
+                            <span class="small">{{ role.name }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="d-none" data-wzrow-section="user">
+                    <label class="form-label fw-bold">Cán bộ nhận việc</label>
+                    <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
+                        {% for user in users %}
+                        <label class="d-flex align-items-start gap-2 px-2 py-2 border-bottom">
+                            <input type="checkbox" class="mt-1" data-wzrow-user-checkbox value="{{ user.id }}" data-label="{{ user.fullname }}">
+                            <div class="small">
+                                <div class="fw-medium">{{ user.fullname }}</div>
+                                <div class="text-muted">{% if user.unit_area_display %}{{ user.unit_area_display }}{% else %}Chưa có đơn vị{% endif %}</div>
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" id="applyWizardRowAssignBtn">Áp dụng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 (() => {
-    const createForm = document.querySelector('#createTaskModal form');
-    const sourceModeInputs = Array.from(document.querySelectorAll('input[name="create_source_mode"]'));
-    const workflowBlueprintBox = document.getElementById('workflowBlueprintBox');
-    const workflowBlueprintInput = document.getElementById('workflowBlueprintInput');
-    const workflowBlueprintPresetSelect = document.getElementById('workflowBlueprintPresetSelect');
-    const loadWorkflowBlueprintPresetBtn = document.getElementById('loadWorkflowBlueprintPresetBtn');
-    const previewWorkflowBlueprintBtn = document.getElementById('previewWorkflowBlueprintBtn');
-    const importWorkflowBlueprintFileBtn = document.getElementById('importWorkflowBlueprintFileBtn');
-    const applyWorkflowBlueprintBtn = document.getElementById('applyWorkflowBlueprintBtn');
-    const workflowBlueprintStatus = document.getElementById('workflowBlueprintStatus');
-    const workflowBlueprintPreviewBox = document.getElementById('workflowBlueprintPreviewBox');
-    const workflowBlueprintPreviewTitle = document.getElementById('workflowBlueprintPreviewTitle');
-    const workflowBlueprintPreviewMeta = document.getElementById('workflowBlueprintPreviewMeta');
-    const workflowBlueprintPreviewMode = document.getElementById('workflowBlueprintPreviewMode');
-    const workflowBlueprintPreviewSummary = document.getElementById('workflowBlueprintPreviewSummary');
-    const workflowBlueprintPreviewItemCount = document.getElementById('workflowBlueprintPreviewItemCount');
-    const workflowBlueprintPreviewItems = document.getElementById('workflowBlueprintPreviewItems');
-    const workflowBlueprintPreviewFieldCount = document.getElementById('workflowBlueprintPreviewFieldCount');
-    const workflowBlueprintPreviewFields = document.getElementById('workflowBlueprintPreviewFields');
-    const workflowBlueprintPreviewReportCount = document.getElementById('workflowBlueprintPreviewReportCount');
-    const workflowBlueprintPreviewReport = document.getElementById('workflowBlueprintPreviewReport');
-    const workflowBlueprintSourceFile = document.getElementById('workflowBlueprintSourceFile');
-    const workflowBlueprintImportMode = document.getElementById('workflowBlueprintImportMode');
-    const workflowBlueprintGoogleFormBox = document.getElementById('workflowBlueprintGoogleFormBox');
-    const workflowBlueprintFormReference = document.getElementById('workflowBlueprintFormReference');
+    const createForm = document.getElementById('createTaskForm');
     const modeSelect = document.getElementById('taskModeSelect');
-    const titleInput = document.querySelector('#createTaskModal input[name="title"]');
-    const descriptionInput = document.querySelector('#createTaskModal textarea[name="description"]');
-    const fileAssignmentBox = document.getElementById('fileAssignmentBox');
-    const formBuilderBox = document.getElementById('formBuilderBox');
-    const assignType = document.getElementById('createAssignType');
+    const formProvider = document.getElementById('wizardFormProvider');
+    const googleBuilderJson = document.getElementById('wizardGoogleBuilderJson');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    let currentStep = 1;
+    let wizardMode = 'OUTLINE';
+
+    const wizardPanes = {
+        1: document.querySelector('[data-wizard-pane="1"]'),
+        2: document.querySelector('[data-wizard-pane="2"]'),
+        3: document.querySelector('[data-wizard-pane="3"]'),
+        4: document.querySelector('[data-wizard-pane="4"]'),
+    };
+    const wizardBackBtn = document.getElementById('wizardBackBtn');
+    const wizardNextBtn = document.getElementById('wizardNextBtn');
+    const wizardSubmitBtn = document.getElementById('wizardSubmitBtn');
+    const outlineRowsBox = document.getElementById('wizardOutlineRows');
     const formFieldList = document.getElementById('formFieldList');
     const formFieldTemplate = document.getElementById('formFieldTemplate');
     const addFormFieldBtn = document.getElementById('addFormFieldBtn');
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-    const workflowBlueprintExamples = {{ workflow_blueprint_examples|tojson }};
-    let lastManualMode = modeSelect?.value || 'OUTLINE';
-    let lastBlueprintPreview = null;
-    let previewTimer = null;
+    const assignType = document.getElementById('createAssignType');
+    const wizardOutlineFile = document.getElementById('wizardOutlineFile');
+    const wizardOutlineParseBtn = document.getElementById('wizardOutlineParseBtn');
+    const wizardOutlineStatus = document.getElementById('wizardOutlineStatus');
+    const wizardReportTemplateSelect = document.getElementById('wizardReportTemplateSelect');
+    const wizardReportTemplateBtn = document.getElementById('wizardReportTemplateBtn');
+    const wizardFormExcelFile = document.getElementById('wizardFormExcelFile');
+    const wizardFormExcelBtn = document.getElementById('wizardFormExcelBtn');
+    const wizardSummary = document.getElementById('wizardSummary');
 
-    function activeCreateSourceMode() {
-        return sourceModeInputs.find((input) => input.checked)?.value || 'manual';
-    }
-
-    function blueprintModeActive() {
-        return activeCreateSourceMode() === 'blueprint';
-    }
-
-    function syncTaskMode() {
-        const mode = modeSelect?.value || 'OUTLINE';
-        const blueprintActive = blueprintModeActive();
-        if (fileAssignmentBox) {
-            fileAssignmentBox.classList.toggle('opacity-50', !(mode === 'FILE' || mode === 'FORM' || (blueprintActive && mode === 'OUTLINE')));
-        }
-        formBuilderBox?.classList.toggle('d-none', mode !== 'FORM' || blueprintActive);
-    }
-
-    function syncAssignType() {
-        const mode = assignType?.value || 'unit';
-        document.querySelectorAll('[data-assign-box]').forEach((node) => {
-            node.classList.toggle('d-none', node.dataset.assignBox !== mode);
+    // ---------- wizard navigation ----------
+    function setStep(step) {
+        currentStep = step;
+        Object.entries(wizardPanes).forEach(([key, element]) => {
+            if (!element) return;
+            element.classList.toggle('d-none', Number(key) !== step);
         });
+        document.querySelectorAll('[data-wizard-step-label]').forEach((label) => {
+            const active = Number(label.dataset.wizardStepLabel) === step;
+            label.classList.toggle('border-primary', active);
+            label.classList.toggle('bg-primary-subtle', active);
+        });
+        if (wizardBackBtn) wizardBackBtn.disabled = step === 1;
+        if (wizardNextBtn) wizardNextBtn.classList.toggle('d-none', step === 4);
+        if (wizardSubmitBtn) wizardSubmitBtn.classList.toggle('d-none', step !== 4);
+        syncWizardSummary();
     }
 
-    function setWorkflowBlueprintStatus(message, tone = 'muted') {
-        if (!workflowBlueprintStatus) return;
-        workflowBlueprintStatus.textContent = message;
-        workflowBlueprintStatus.className = 'small';
-        if (tone === 'danger') {
-            workflowBlueprintStatus.classList.add('text-danger');
-        } else if (tone === 'success') {
-            workflowBlueprintStatus.classList.add('text-success');
+    function syncWizardForMode() {
+        document.querySelectorAll('[data-wizard-source]').forEach((element) => {
+            element.classList.toggle('d-none', element.dataset.wizardSource !== wizardMode);
+        });
+        document.querySelectorAll('[data-wizard-config]').forEach((element) => {
+            element.classList.toggle('d-none', element.dataset.wizardConfig !== wizardMode);
+        });
+        if (modeSelect) modeSelect.value = wizardMode;
+        syncWizardSummary();
+    }
+
+    function syncWizardSummary() {
+        if (!wizardSummary) return;
+        const modeLabel = { OUTLINE: 'Theo đề cương', FILE: 'Nộp file / văn bản', FORM: 'Biểu mẫu / bảng số' }[wizardMode] || wizardMode;
+        let detail = '';
+        if (wizardMode === 'OUTLINE') {
+            const rows = Array.from(outlineRowsBox?.querySelectorAll('[data-wz-row]') || []);
+            const assigned = rows.filter((row) => (row.querySelector('input[name="item_assign_type"]')?.value || '') && ((row.querySelector('input[name="item_domains"]')?.value || row.querySelector('input[name="item_role_ids"]')?.value || row.querySelector('input[name="item_user_ids"]')?.value || '')));
+            detail = `${rows.length} việc nhỏ, ${assigned.length} việc đã gán người nhận`;
+        } else if (wizardMode === 'FORM') {
+            const fields = Array.from(formFieldList?.querySelectorAll('.form-field-item') || []);
+            const source = document.querySelector('input[name="form_source_choice"]:checked')?.value || 'builder';
+            const sourceLabel = { builder: 'Tự dựng / Excel', report: 'Từ biểu mẫu báo cáo', google: 'Google Form thật' }[source] || source;
+            detail = `${fields.length} trường biểu mẫu (${sourceLabel})`;
         } else {
-            workflowBlueprintStatus.classList.add('text-muted');
+            const roleIds = Array.from(document.querySelectorAll('input[name="assignee_role_ids"]:checked')).length;
+            const userIds = Array.from(document.querySelectorAll('input[name="target_users"]:checked')).length;
+            detail = `Giao theo ${assignType?.value === 'role' ? 'vai trò' : assignType?.value === 'user' ? 'cá nhân' : 'đơn vị'}` + (roleIds ? ` (${roleIds} vai trò)` : '') + (userIds ? ` (${userIds} cán bộ)` : '');
         }
+        const title = document.querySelector('#createTaskModal input[name="title"]')?.value?.trim();
+        wizardSummary.innerHTML = `<b>${modeLabel}</b> — ${detail}${title ? `<br>Tiêu đề: ${title.replace(/</g, '&lt;')}` : ''}`;
     }
 
-    function summarizePreviewList(values, emptyText = 'Chưa có.') {
-        if (!Array.isArray(values) || !values.length) return emptyText;
-        return values.join(', ');
-    }
-
-    function renderWorkflowBlueprintPreview(preview) {
-        if (!preview || !workflowBlueprintPreviewBox) return;
-        workflowBlueprintPreviewBox.classList.remove('d-none');
-        workflowBlueprintPreviewTitle.textContent = preview.title || 'Blueprint điều hành';
-        workflowBlueprintPreviewMeta.textContent = [preview.source_kind, preview.cadence, preview.collection_mode]
-            .filter(Boolean)
-            .join(' | ');
-        workflowBlueprintPreviewMode.textContent = preview.task_mode || '-';
-        workflowBlueprintPreviewSummary.textContent = preview.summary || 'Chưa có tóm tắt tự động.';
-        workflowBlueprintPreviewItemCount.textContent = String(preview.item_count || 0);
-        workflowBlueprintPreviewItems.textContent = summarizePreviewList(preview.item_titles);
-        workflowBlueprintPreviewFieldCount.textContent = String(preview.form_field_count || 0);
-        workflowBlueprintPreviewFields.textContent = summarizePreviewList(preview.form_field_labels);
-        workflowBlueprintPreviewReportCount.textContent = String(preview.report_field_count || 0);
-        const reportParts = [];
-        if (preview.report_field_labels?.length) {
-            reportParts.push(preview.report_field_labels.join(', '));
-        }
-        if (preview.narrative_enabled) {
-            reportParts.push('Có báo cáo lời');
-        }
-        if (preview.attachment_enabled) {
-            reportParts.push('Có tệp minh chứng');
-        }
-        workflowBlueprintPreviewReport.textContent = reportParts.join(' | ') || 'Chưa có.';
-    }
-
-    function clearWorkflowBlueprintPreview() {
-        lastBlueprintPreview = null;
-        workflowBlueprintPreviewBox?.classList.add('d-none');
-        setWorkflowBlueprintStatus('Chưa phân tích.');
-    }
-
-    function syncWorkflowBlueprintImportMode() {
-        const importMode = workflowBlueprintImportMode?.value || 'docx_outline';
-        const isGoogleFormMode = importMode === 'google_form_remote';
-        workflowBlueprintGoogleFormBox?.classList.toggle('d-none', !isGoogleFormMode);
-        if (workflowBlueprintSourceFile) {
-            workflowBlueprintSourceFile.disabled = isGoogleFormMode;
-        }
-    }
-
-    function syncCreateSourceMode() {
-        const blueprintActive = blueprintModeActive();
-        workflowBlueprintBox?.classList.toggle('d-none', !blueprintActive);
-        if (modeSelect) {
-            if (!blueprintActive) {
-                modeSelect.disabled = false;
-                modeSelect.value = lastManualMode;
-            } else {
-                modeSelect.disabled = true;
+    // ---------- step 1: type cards ----------
+    document.querySelectorAll('[data-task-type]').forEach((card) => {
+        card.addEventListener('click', () => {
+            wizardMode = card.dataset.taskType;
+            document.querySelectorAll('[data-task-type]').forEach((other) => {
+                other.classList.toggle('is-selected', other === card);
+                other.classList.toggle('border-primary', other === card);
+                other.classList.toggle('bg-primary-subtle', other === card);
+            });
+            if (modeSelect) modeSelect.value = wizardMode;
+            if (wizardMode === 'OUTLINE' && !outlineRowsBox?.querySelector('[data-wz-row]')) {
+                addWizardOutlineRow({});
             }
+            if (wizardMode === 'FORM' && !formFieldList?.querySelector('.form-field-item')) {
+                addFormField();
+            }
+            setStep(2);
+        });
+    });
+
+    wizardNextBtn?.addEventListener('click', () => {
+        if (currentStep === 2 && wizardMode === 'OUTLINE' && !outlineRowsBox?.querySelector('[data-wz-row]')) {
+            addWizardOutlineRow({});
         }
-        if (titleInput) {
-            titleInput.required = !blueprintActive;
+        if (currentStep === 2 && wizardMode === 'FORM' && !formFieldList?.querySelector('.form-field-item')) {
+            addFormField();
         }
-        if (workflowBlueprintInput) {
-            workflowBlueprintInput.disabled = !blueprintActive;
-        }
-        if (!blueprintActive) {
-            syncTaskMode();
+        setStep(Math.min(currentStep + 1, 4));
+    });
+    wizardBackBtn?.addEventListener('click', () => setStep(Math.max(currentStep - 1, 1)));
+
+    // ---------- step 2: outline parse ----------
+    async function parseOutlineFile() {
+        if (!wizardOutlineFile?.files?.length) {
+            wizardOutlineStatus.textContent = 'Cần chọn file đề cương (.docx / .txt) trước.';
+            wizardOutlineStatus.classList.add('text-danger');
             return;
         }
-        if (lastBlueprintPreview?.task_mode && modeSelect) {
-            modeSelect.value = lastBlueprintPreview.task_mode;
-        }
-        syncTaskMode();
-    }
-
-    async function analyzeWorkflowBlueprint(showErrors = false) {
-        if (!blueprintModeActive() || !workflowBlueprintInput) return null;
-        const rawValue = workflowBlueprintInput.value.trim();
-        if (!rawValue) {
-            clearWorkflowBlueprintPreview();
-            return null;
-        }
-
-        setWorkflowBlueprintStatus('Đang phân tích blueprint...');
-        try {
-            const parsed = JSON.parse(rawValue);
-            const response = await fetch('{{ url_for("tasks_bp.preview_workflow_blueprint") }}', {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-Token': csrfToken,
-                },
-                body: JSON.stringify({ workflow_blueprint: parsed }),
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload?.ok || !payload?.preview) {
-                throw new Error(payload?.error || 'Không thể phân tích blueprint.');
-            }
-            lastBlueprintPreview = payload.preview;
-            if (modeSelect && payload.preview.task_mode) {
-                modeSelect.value = payload.preview.task_mode;
-            }
-            renderWorkflowBlueprintPreview(payload.preview);
-            syncTaskMode();
-            setWorkflowBlueprintStatus('Đã phân tích thành công.', 'success');
-            return payload.preview;
-        } catch (error) {
-            lastBlueprintPreview = null;
-            workflowBlueprintPreviewBox?.classList.add('d-none');
-            if (showErrors) {
-                setWorkflowBlueprintStatus(error.message || 'Blueprint điều hành không hợp lệ.', 'danger');
-            } else {
-                setWorkflowBlueprintStatus('Blueprint chưa hợp lệ.', 'danger');
-            }
-            return null;
-        }
-    }
-
-    async function importWorkflowBlueprintFromFile() {
+        wizardOutlineStatus.textContent = 'Đang phân tích đề cương...';
+        wizardOutlineStatus.classList.remove('text-danger');
         const formData = new FormData();
-        const importMode = workflowBlueprintImportMode?.value || 'docx_outline';
-        const isGoogleFormMode = importMode === 'google_form_remote';
-        if (!blueprintModeActive()) {
-            return null;
-        }
-        if (!isGoogleFormMode && !workflowBlueprintSourceFile?.files?.length) {
-            setWorkflowBlueprintStatus('Cần chọn tài liệu tham chiếu trước khi nạp.', 'danger');
-            return null;
-        }
-        if (isGoogleFormMode && !workflowBlueprintFormReference?.value.trim()) {
-            setWorkflowBlueprintStatus('Cần nhập Google Form URL hoặc form ID trước khi nạp.', 'danger');
-            return null;
-        }
-
-        formData.append('csrf_token', csrfToken);
-        formData.append('blueprint_import_mode', importMode);
-        if (isGoogleFormMode) {
-            formData.append('blueprint_form_reference', workflowBlueprintFormReference.value.trim());
-        } else {
-            formData.append('blueprint_source_file', workflowBlueprintSourceFile.files[0]);
-        }
-
-        setWorkflowBlueprintStatus('Đang phân tích tài liệu tham chiếu...');
+        formData.append('outline_file', wizardOutlineFile.files[0]);
         try {
-            const response = await fetch('{{ url_for("tasks_bp.import_workflow_blueprint") }}', {
+            const response = await fetch('{{ url_for("tasks_bp.parse_outline_file_for_create") }}', {
                 method: 'POST',
                 credentials: 'same-origin',
-                headers: {
-                    'X-CSRF-Token': csrfToken,
-                },
+                headers: { 'X-CSRF-Token': csrfToken },
                 body: formData,
             });
             const payload = await response.json();
-            if (!response.ok || !payload?.ok || !payload?.workflow_blueprint || !payload?.preview) {
-                throw new Error(payload?.error || 'Không thể nạp blueprint từ tài liệu.');
+            if (!response.ok || !payload?.ok) {
+                throw new Error(payload?.error || 'Không phân tích được đề cương.');
             }
-            workflowBlueprintInput.value = JSON.stringify(payload.workflow_blueprint, null, 2);
-            lastBlueprintPreview = payload.preview;
-            if (modeSelect && payload.preview.task_mode) {
-                modeSelect.value = payload.preview.task_mode;
-            }
-            renderWorkflowBlueprintPreview(payload.preview);
-            syncTaskMode();
-            setWorkflowBlueprintStatus('Đã tạo blueprint từ tài liệu tham chiếu.', 'success');
-            return payload.preview;
+            clearWizardOutlineRows();
+            (payload.rows || []).forEach((row) => addWizardOutlineRow(row));
+            wizardOutlineStatus.textContent = `Đã tách ${(payload.rows || []).length} việc nhỏ từ đề cương. Kiểm tra và gán lại ở bước 3 rồi Tiếp tục.`;
+            wizardOutlineStatus.classList.add('text-success');
+            syncWizardSummary();
         } catch (error) {
-            setWorkflowBlueprintStatus(error.message || 'Không thể nạp blueprint từ tài liệu.', 'danger');
-            return null;
+            wizardOutlineStatus.textContent = error.message || 'Không phân tích được đề cương.';
+            wizardOutlineStatus.classList.add('text-danger');
+        }
+    }
+    wizardOutlineParseBtn?.addEventListener('click', parseOutlineFile);
+
+    // ---------- step 2: form source ----------
+    function syncFormSource() {
+        const source = document.querySelector('input[name="form_source_choice"]:checked')?.value || 'builder';
+        document.querySelectorAll('[data-form-source-pane]').forEach((pane) => {
+            pane.classList.toggle('d-none', pane.dataset.formSourcePane !== source);
+        });
+        if (formProvider) formProvider.value = source === 'google' ? 'google' : 'internal';
+    }
+    document.querySelectorAll('input[name="form_source_choice"]').forEach((radio) => {
+        radio.addEventListener('change', syncFormSource);
+    });
+
+    async function loadFormFields(formData) {
+        try {
+            const response = await fetch('{{ url_for("tasks_bp.preview_form_template_fields_for_create") }}', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'X-CSRF-Token': csrfToken },
+                body: formData,
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload?.ok) {
+                throw new Error(payload?.error || 'Không nạp được trường biểu mẫu.');
+            }
+            clearFormFields();
+            (payload.fields || []).forEach((field) => {
+                addFormField({
+                    label: field.field_label || '',
+                    type: field.field_type || 'text',
+                    options: field.field_options || '',
+                    required: Boolean(field.is_required),
+                });
+            });
+            if (!formFieldList?.querySelector('.form-field-item')) {
+                addFormField();
+            }
+            wizardOutlineStatus.textContent = `Đã nạp ${(payload.fields || []).length} trường. Kiểm tra và chỉnh sửa rồi bấm Tiếp tục.`;
+            wizardOutlineStatus.classList.add('text-success');
+            syncWizardSummary();
+        } catch (error) {
+            wizardOutlineStatus.textContent = error.message || 'Không nạp được trường biểu mẫu.';
+            wizardOutlineStatus.classList.add('text-danger');
+        }
+    }
+    wizardReportTemplateBtn?.addEventListener('click', () => {
+        const templateId = wizardReportTemplateSelect?.value || '';
+        if (!templateId) {
+            wizardOutlineStatus.textContent = 'Cần chọn biểu mẫu báo cáo trước.';
+            wizardOutlineStatus.classList.add('text-danger');
+            return;
+        }
+        const formData = new FormData();
+        formData.append('report_template_id', templateId);
+        loadFormFields(formData);
+    });
+    wizardFormExcelBtn?.addEventListener('click', () => {
+        if (!wizardFormExcelFile?.files?.length) {
+            wizardOutlineStatus.textContent = 'Cần chọn file Excel mẫu (.xlsx) trước.';
+            wizardOutlineStatus.classList.add('text-danger');
+            return;
+        }
+        const formData = new FormData();
+        formData.append('excel_file', wizardFormExcelFile.files[0]);
+        loadFormFields(formData);
+    });
+
+    // ---------- outline rows ----------
+    function wizardNameMaps() {
+        const unitMap = new Map(Array.from(document.querySelectorAll('[data-wizard-unit-checkbox]')).map((cb) => [cb.value, cb.dataset.label || cb.value]));
+        const roleMap = new Map(Array.from(document.querySelectorAll('[data-wizard-role-checkbox]')).map((cb) => [cb.value, cb.dataset.label || cb.value]));
+        const userMap = new Map(Array.from(document.querySelectorAll('[data-wizard-user-checkbox]')).map((cb) => [cb.value, cb.dataset.label || cb.value]));
+        return { unitMap, roleMap, userMap };
+    }
+
+    function formatWizardAssignmentSummary(payload) {
+        const { unitMap, roleMap, userMap } = wizardNameMaps();
+        if (payload.assignType === 'unit' && payload.unitDomains.length) {
+            return 'Đơn vị: ' + payload.unitDomains.map((value) => unitMap.get(String(value)) || String(value)).join(', ');
+        }
+        if (payload.assignType === 'role' && payload.roleIds.length) {
+            return 'Vai trò: ' + payload.roleIds.map((value) => roleMap.get(String(value)) || String(value)).join(', ');
+        }
+        if (payload.assignType === 'user' && payload.userIds.length) {
+            return 'Cá nhân: ' + payload.userIds.map((value) => userMap.get(String(value)) || String(value)).join(', ');
+        }
+        return 'Chưa gán người nhận';
+    }
+
+    function syncWizardOutlineRowIndexes() {
+        if (!outlineRowsBox) return;
+        Array.from(outlineRowsBox.querySelectorAll('[data-wz-row]')).forEach((row, index) => {
+            const attachment = row.querySelector('input[name="item_attachment_required"]');
+            if (attachment) attachment.value = String(index);
+        });
+    }
+
+    function updateWizardOutlineRowAssignment(row, payload) {
+        row.querySelector('input[name="item_assign_type"]').value = payload.assignType || '';
+        row.querySelector('input[name="item_domain"]').value = payload.domain || '';
+        row.querySelector('input[name="item_domains"]').value = (payload.unitDomains || []).join(',');
+        row.querySelector('input[name="item_role_ids"]').value = (payload.roleIds || []).join(',');
+        row.querySelector('input[name="item_user_ids"]').value = (payload.userIds || []).join(',');
+        const summary = row.querySelector('[data-wz-row-summary]');
+        if (summary) summary.textContent = formatWizardAssignmentSummary(payload);
+        syncWizardSummary();
+    }
+
+    function addWizardOutlineRow(rowData = {}) {
+        if (!outlineRowsBox) return;
+        const row = document.createElement('div');
+        row.className = 'border rounded-2 p-2 bg-white';
+        row.dataset.wzRow = '1';
+        const titleValue = String(rowData.title || '').replace(/"/g, '&quot;');
+        row.innerHTML = `
+            <div class="row g-2 align-items-center">
+                <div class="col-lg-1">
+                    <input class="form-check-input" type="checkbox" data-wz-row-check title="Tích dòng để gán hàng loạt">
+                </div>
+                <div class="col-lg-5">
+                    <input class="form-control form-control-sm" type="text" name="item_title" placeholder="Nội dung việc nhỏ" value="${titleValue}">
+                </div>
+                <div class="col-lg-2">
+                    <select class="form-select form-select-sm" name="item_report_kind">
+                        <option value="narrative" ${rowData.report_kind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
+                        <option value="number" ${rowData.report_kind === 'number' ? 'selected' : ''}>Báo cáo số</option>
+                    </select>
+                </div>
+                <div class="col-lg-2">
+                    <label class="form-check-label small">
+                        <input class="form-check-input" type="checkbox" name="item_attachment_required" ${rowData.attachment_required ? 'checked' : ''}>
+                        Bắt buộc file
+                    </label>
+                </div>
+                <div class="col-lg-2">
+                    <div class="d-flex flex-wrap gap-1 mb-1">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-wz-row-assign>Gán</button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-wz-row-remove>Xóa</button>
+                    </div>
+                    <div class="small fw-medium text-primary" data-wz-row-summary></div>
+                    <input type="hidden" name="item_assign_type">
+                    <input type="hidden" name="item_domain">
+                    <input type="hidden" name="item_domains">
+                    <input type="hidden" name="item_role_ids">
+                    <input type="hidden" name="item_user_ids">
+                </div>
+            </div>
+        `;
+        updateWizardOutlineRowAssignment(row, {
+            assignType: rowData.assign_type || '',
+            domain: rowData.domain || '',
+            unitDomains: rowData.unit_domains || [],
+            roleIds: rowData.role_ids || [],
+            userIds: rowData.user_ids || [],
+        });
+        row.querySelector('[data-wz-row-remove]')?.addEventListener('click', () => {
+            row.remove();
+            syncWizardOutlineRowIndexes();
+            syncWizardSummary();
+        });
+        row.querySelector('[data-wz-row-assign]')?.addEventListener('click', () => openWizardRowAssign(row));
+        row.querySelector('input[name="item_title"]')?.addEventListener('input', syncWizardSummary);
+        outlineRowsBox.appendChild(row);
+        syncWizardOutlineRowIndexes();
+        syncWizardSummary();
+    }
+
+    function clearWizardOutlineRows() {
+        if (!outlineRowsBox) return;
+        outlineRowsBox.innerHTML = '';
+    }
+
+    // ---------- per-row assign modal ----------
+    let wizardRowTarget = null;
+    const wizardRowAssignModalEl = document.getElementById('wizardRowAssignModal');
+    const wizardRowAssignType = document.getElementById('wizardRowAssignType');
+
+    function setWizardRowSection(type) {
+        document.querySelectorAll('[data-wzrow-section]').forEach((section) => {
+            section.classList.toggle('d-none', section.dataset.wzrowSection !== type);
+        });
+    }
+
+    function openWizardRowAssign(row) {
+        wizardRowTarget = row;
+        const current = {
+            assignType: row.querySelector('input[name="item_assign_type"]')?.value || 'unit',
+            unitDomains: (row.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean),
+            roleIds: (row.querySelector('input[name="item_role_ids"]')?.value || '').split(',').filter(Boolean),
+            userIds: (row.querySelector('input[name="item_user_ids"]')?.value || '').split(',').filter(Boolean),
+        };
+        if (wizardRowAssignType) wizardRowAssignType.value = ['unit', 'role', 'user'].includes(current.assignType) ? current.assignType : 'unit';
+        document.querySelectorAll('[data-wzrow-unit-checkbox]').forEach((cb) => { cb.checked = current.unitDomains.includes(cb.value); });
+        document.querySelectorAll('[data-wzrow-role-checkbox]').forEach((cb) => { cb.checked = current.roleIds.includes(cb.value); });
+        document.querySelectorAll('[data-wzrow-user-checkbox]').forEach((cb) => { cb.checked = current.userIds.includes(cb.value); });
+        setWizardRowSection(wizardRowAssignType ? wizardRowAssignType.value : 'unit');
+        if (wizardRowAssignModalEl && window.bootstrap) {
+            bootstrap.Modal.getOrCreateInstance(wizardRowAssignModalEl).show();
         }
     }
 
-    function scheduleWorkflowBlueprintAnalysis() {
-        if (previewTimer) {
-            window.clearTimeout(previewTimer);
+    wizardRowAssignType?.addEventListener('change', () => setWizardRowSection(wizardRowAssignType.value));
+    document.getElementById('applyWizardRowAssignBtn')?.addEventListener('click', () => {
+        if (!wizardRowTarget) return;
+        const type = wizardRowAssignType ? wizardRowAssignType.value : 'unit';
+        const unitDomains = Array.from(document.querySelectorAll('[data-wzrow-unit-checkbox]:checked')).map((cb) => cb.value);
+        const roleIds = Array.from(document.querySelectorAll('[data-wzrow-role-checkbox]:checked')).map((cb) => cb.value);
+        const userIds = Array.from(document.querySelectorAll('[data-wzrow-user-checkbox]:checked')).map((cb) => cb.value);
+        updateWizardOutlineRowAssignment(wizardRowTarget, { assignType: type, domain: '', unitDomains, roleIds, userIds });
+        if (wizardRowAssignModalEl && window.bootstrap) {
+            bootstrap.Modal.getOrCreateInstance(wizardRowAssignModalEl).hide();
         }
-        previewTimer = window.setTimeout(() => {
-            analyzeWorkflowBlueprint(false);
-        }, 500);
-    }
+    });
 
-    function applyWorkflowBlueprintToForm() {
-        if (!lastBlueprintPreview) return;
-        if (titleInput && !titleInput.value.trim()) {
-            titleInput.value = lastBlueprintPreview.title || '';
-        }
-        if (descriptionInput && !descriptionInput.value.trim()) {
-            descriptionInput.value = lastBlueprintPreview.summary || '';
-        }
+    // ---------- bulk assign ----------
+    const wizardAssignType = document.getElementById('wizardAssignType');
+    function syncWizardAssignSections() {
+        const type = wizardAssignType?.value || 'unit';
+        document.querySelectorAll('[data-wizard-assign]').forEach((section) => {
+            section.classList.toggle('d-none', section.dataset.wizardAssign !== type);
+        });
     }
+    wizardAssignType?.addEventListener('change', syncWizardAssignSections);
+    document.getElementById('wizardSelectAllRowsBtn')?.addEventListener('click', () => {
+        outlineRowsBox?.querySelectorAll('[data-wz-row-check]').forEach((cb) => { cb.checked = true; });
+    });
+    document.getElementById('wizardApplyAssignBtn')?.addEventListener('click', () => {
+        const type = wizardAssignType?.value || 'unit';
+        const unitDomains = Array.from(document.querySelectorAll('[data-wizard-unit-checkbox]:checked')).map((cb) => cb.value);
+        const roleIds = Array.from(document.querySelectorAll('[data-wizard-role-checkbox]:checked')).map((cb) => cb.value);
+        const userIds = Array.from(document.querySelectorAll('[data-wizard-user-checkbox]:checked')).map((cb) => cb.value);
+        if ((type === 'unit' && !unitDomains.length) || (type === 'role' && !roleIds.length) || (type === 'user' && !userIds.length)) {
+            window.alert('Cần chọn ít nhất một đối tượng nhận việc trước khi gán.');
+            return;
+        }
+        outlineRowsBox?.querySelectorAll('[data-wz-row]').forEach((row) => {
+            const checkbox = row.querySelector('[data-wz-row-check]');
+            if (checkbox && checkbox.checked) {
+                updateWizardOutlineRowAssignment(row, { assignType: type, domain: '', unitDomains, roleIds, userIds });
+            }
+        });
+    });
 
-    function addFormField() {
+    // ---------- form fields ----------
+    function addFormField(fieldData = {}) {
         if (!formFieldTemplate || !formFieldList) return;
         const clone = formFieldTemplate.content.firstElementChild.cloneNode(true);
         const requiredCheckbox = clone.querySelector('[data-required-checkbox]');
@@ -1057,16 +1392,33 @@
             clone.appendChild(requiredInput);
             requiredCheckbox.addEventListener('change', () => {
                 const items = Array.from(formFieldList.querySelectorAll('.form-field-item'));
-                const index = items.indexOf(clone);
-                requiredInput.value = requiredCheckbox.checked ? String(index) : '';
+                requiredInput.value = requiredCheckbox.checked ? String(items.indexOf(clone)) : '';
             });
         }
         clone.querySelector('[data-remove-form-field]')?.addEventListener('click', () => {
             clone.remove();
             syncFormRequiredIndexes();
+            syncWizardSummary();
         });
+        const labelInput = clone.querySelector('input[name="form_field_label"]');
+        if (labelInput) labelInput.value = fieldData.label || '';
+        const typeSelect = clone.querySelector('select[name="form_field_type"]');
+        if (typeSelect && fieldData.type) {
+            const option = Array.from(typeSelect.options).find((opt) => opt.value === fieldData.type);
+            if (option) typeSelect.selectedIndex = option.index;
+        }
+        const optionsTextarea = clone.querySelector('textarea[name="form_field_options"]');
+        if (optionsTextarea) optionsTextarea.value = fieldData.options || '';
+        if (fieldData.required && requiredCheckbox) requiredCheckbox.checked = true;
+        labelInput?.addEventListener('input', syncWizardSummary);
         formFieldList.appendChild(clone);
         syncFormRequiredIndexes();
+        syncWizardSummary();
+    }
+
+    function clearFormFields() {
+        if (!formFieldList) return;
+        formFieldList.innerHTML = '';
     }
 
     function syncFormRequiredIndexes() {
@@ -1079,45 +1431,148 @@
             }
         });
     }
+    addFormFieldBtn?.addEventListener('click', () => addFormField());
 
-    modeSelect?.addEventListener('change', () => {
-        if (!blueprintModeActive()) {
-            lastManualMode = modeSelect.value || 'OUTLINE';
-        }
-        syncTaskMode();
-    });
-    sourceModeInputs.forEach((input) => {
-        input.addEventListener('change', syncCreateSourceMode);
-    });
+    // ---------- file assignment ----------
+    function syncAssignType() {
+        const mode = assignType?.value || 'unit';
+        document.querySelectorAll('[data-assign-box]').forEach((node) => {
+            node.classList.toggle('d-none', node.dataset.assignBox !== mode);
+        });
+        syncWizardSummary();
+    }
     assignType?.addEventListener('change', syncAssignType);
-    addFormFieldBtn?.addEventListener('click', addFormField);
-    workflowBlueprintImportMode?.addEventListener('change', syncWorkflowBlueprintImportMode);
-    workflowBlueprintInput?.addEventListener('input', scheduleWorkflowBlueprintAnalysis);
-    previewWorkflowBlueprintBtn?.addEventListener('click', () => {
-        analyzeWorkflowBlueprint(true);
+
+    // ---------- scope toggles ----------
+    document.querySelectorAll('[data-scope-mode]').forEach((select) => {
+        select.addEventListener('change', () => {
+            const key = select.dataset.scopeMode;
+            const box = document.querySelector(`[data-scope-box="${key}"]`);
+            if (box) box.classList.toggle('d-none', select.value === 'none');
+        });
     });
-    importWorkflowBlueprintFileBtn?.addEventListener('click', importWorkflowBlueprintFromFile);
-    applyWorkflowBlueprintBtn?.addEventListener('click', applyWorkflowBlueprintToForm);
-    loadWorkflowBlueprintPresetBtn?.addEventListener('click', () => {
-        const key = workflowBlueprintPresetSelect?.value || '';
-        const match = workflowBlueprintExamples.find((item) => item.key === key);
-        if (!match || !workflowBlueprintInput) return;
-        workflowBlueprintInput.value = JSON.stringify(match.payload, null, 2);
-        analyzeWorkflowBlueprint(true);
-    });
-    createForm?.addEventListener('submit', () => {
-        if (!blueprintModeActive()) return;
-        if (lastBlueprintPreview?.task_mode && modeSelect) {
-            modeSelect.value = lastBlueprintPreview.task_mode;
+
+    // ---------- build google builder json ----------
+    function buildGoogleBuilderSchema() {
+        const items = Array.from(formFieldList?.querySelectorAll('.form-field-item') || []).map((item, index) => {
+            const label = item.querySelector('input[name="form_field_label"]')?.value?.trim() || `Câu hỏi ${index + 1}`;
+            const type = item.querySelector('select[name="form_field_type"]')?.value || 'text';
+            const required = Boolean(item.querySelector('[data-required-checkbox]')?.checked);
+            const kindMap = { text: 'text', number: 'text', textarea: 'textarea', radio: 'radio', checkbox: 'checkbox', table: 'text' };
+            const kind = kindMap[type] || 'text';
+            const itemSchema = { kind, title: label, required };
+            if (kind === 'radio' || kind === 'checkbox') {
+                const options = (item.querySelector('textarea[name="form_field_options"]')?.value || '').split('\n').map((line) => line.trim()).filter(Boolean);
+                if (options.length) itemSchema.options = options;
+            }
+            return itemSchema;
+        });
+        const title = document.querySelector('#createTaskModal input[name="title"]')?.value?.trim() || 'Biểu mẫu';
+        return {
+            form_info: { title, description: document.querySelector('#createTaskModal textarea[name="description"]')?.value?.trim() || '' },
+            publish_settings: { isPublished: false, isAcceptingResponses: true },
+            matching: {
+                mode: document.querySelector('select[name="google_form_match_mode"]')?.value || 'unit',
+                match_field: document.querySelector('input[name="google_form_match_field"]')?.value?.trim() || '',
+            },
+            items,
+        };
+    }
+
+    // ---------- submit ----------
+    createForm?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const title = document.querySelector('#createTaskModal input[name="title"]')?.value?.trim();
+        if (!title) {
+            window.alert('Cần nhập tiêu đề công việc ở bước 4.');
+            setStep(4);
+            return;
         }
-        applyWorkflowBlueprintToForm();
+        if (wizardMode === 'OUTLINE') {
+            const rows = Array.from(outlineRowsBox?.querySelectorAll('[data-wz-row]') || []);
+            const blank = rows.findIndex((row) => !(row.querySelector('input[name="item_title"]')?.value || '').trim());
+            if (blank !== -1) {
+                window.alert(`Dòng ${blank + 1} chưa có nội dung việc nhỏ.`);
+                setStep(3);
+                return;
+            }
+            const unassigned = rows.findIndex((row) => {
+                const assignTypeValue = row.querySelector('input[name="item_assign_type"]')?.value || '';
+                const hasTarget = Boolean((row.querySelector('input[name="item_domains"]')?.value || row.querySelector('input[name="item_role_ids"]')?.value || row.querySelector('input[name="item_user_ids"]')?.value || '').trim());
+                return !assignTypeValue || !hasTarget;
+            });
+            if (unassigned !== -1) {
+                window.alert(`Việc nhỏ ${unassigned + 1} chưa gán người nhận. Bấm Gán trên dòng đó để chọn đơn vị / vai trò / cá nhân.`);
+                setStep(3);
+                return;
+            }
+        }
+        if (wizardMode === 'FORM') {
+            const fields = Array.from(formFieldList?.querySelectorAll('.form-field-item') || []);
+            const blankLabel = fields.findIndex((item) => !(item.querySelector('input[name="form_field_label"]')?.value || '').trim());
+            if (!fields.length || blankLabel !== -1) {
+                window.alert('Biểu mẫu cần ít nhất một trường có nhãn rõ ràng.');
+                setStep(3);
+                return;
+            }
+            const source = document.querySelector('input[name="form_source_choice"]:checked')?.value || 'builder';
+            if (source === 'google') {
+                const url = document.querySelector('input[name="google_form_url"]')?.value?.trim() || '';
+                if (!url) {
+                    window.alert('Cần dán link Google Form ở bước 2.');
+                    setStep(2);
+                    return;
+                }
+                if (formProvider) formProvider.value = 'google';
+                if (googleBuilderJson) googleBuilderJson.value = JSON.stringify(buildGoogleBuilderSchema());
+            } else {
+                if (formProvider) formProvider.value = 'internal';
+                if (googleBuilderJson) googleBuilderJson.value = '';
+            }
+        }
+        if (wizardMode === 'FILE') {
+            const roleIds = Array.from(document.querySelectorAll('input[name="assignee_role_ids"]:checked')).length;
+            const userIds = Array.from(document.querySelectorAll('input[name="target_users"]:checked')).length;
+            const assignMode = assignType?.value || 'unit';
+            if ((assignMode === 'role' && !roleIds) || (assignMode === 'user' && !userIds)) {
+                window.alert('Cần chọn ít nhất một đối tượng nhận việc ở bước 3.');
+                setStep(3);
+                return;
+            }
+        }
+        createForm.submit();
     });
-    syncTaskMode();
+
+    // ---------- init ----------
+    document.getElementById('createTaskModal')?.addEventListener('show.bs.modal', () => {
+        currentStep = 1;
+        wizardMode = modeSelect?.value || 'OUTLINE';
+        document.querySelectorAll('[data-task-type]').forEach((card) => {
+            const selected = card.dataset.taskType === wizardMode;
+            card.classList.toggle('is-selected', selected);
+            card.classList.toggle('border-primary', selected);
+            card.classList.toggle('bg-primary-subtle', selected);
+        });
+        syncWizardForMode();
+        syncFormSource();
+        syncAssignType();
+        syncWizardAssignSections();
+        setStep(1);
+    });
+
+    syncWizardForMode();
+    syncFormSource();
     syncAssignType();
-    syncCreateSourceMode();
-    syncWorkflowBlueprintImportMode();
-    addFormField();
+    syncWizardAssignSections();
+    setStep(1);
+    if (!outlineRowsBox?.querySelector('[data-wz-row]')) {
+        addWizardOutlineRow({});
+    }
+    if (!formFieldList?.querySelector('.form-field-item')) {
+        addFormField();
+    }
 })();
 </script>
+
 {% endif %}
 {% endblock %}

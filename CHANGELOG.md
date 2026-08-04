@@ -1,5 +1,27 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-04 (wizard tạo công việc 4 bước)
+- Chuyển hộp thoại "Tạo công việc" từ dạng liệt kê nhiều ô cấu hình sang wizard 4 bước: `1. Loại công việc -> 2. Tải nguồn -> 3. Cấu hình -> 4. Phát hành`.
+- Mỗi loại công việc có giao diện riêng:
+  - **Theo đề cương**: tải file `.docx/.txt`, hệ thống phân tích ngay trong lúc tạo (`POST /tasks/outline-parse`) thành danh sách việc nhỏ; quản trị gán từng việc (nút Gán) hoặc gán hàng loạt, rồi tạo cả công việc + đầu mục + người nhận trong một lần.
+  - **Biểu mẫu / bảng số**: 3 nguồn — tự dựng / tải Excel mẫu, **lấy từ biểu mẫu báo cáo có sẵn** (endpoint `POST /tasks/form-template-preview` đọc các trường của ReportTemplate để nạp sang builder kiểm tra chỉnh sửa), hoặc Google Form thật (khai báo câu hỏi theo nguyên lý Google Form, gắn link + trường đối sánh).
+  - **Nộp file / văn bản**: giao trực tiếp, kèm file mẫu, chọn đối tượng nhận.
+- Bước 4 gom thông tin chung (tiêu đề, lĩnh vực, đội nghiệp vụ, hạn, mô tả) + phạm vi xem/quản lý + tóm tắt trước khi "Xuất việc".
+- Test: `tests/test_task_create_wizard.py` (phân tích đề cương, nạp trường từ biểu mẫu báo cáo, tạo công việc đề cương kèm đầu mục + gán trong 1 POST).
+
+## 2026-08-04 (gán việc theo dòng cho quản trị)
+- Màn hình "Bước 2" sau khi nạp đề cương giờ là danh sách việc nhỏ; mỗi dòng có nút **Gán** để quản trị gán việc đó cho đơn vị / vai trò / cá nhân ngay trên dòng (mở hộp thoại chọn người nhận).
+- Giữ nguyên gán hàng loạt (tích nhiều dòng → chọn người nhận → "Gán cho dòng tích"); kết quả phân tích tự động chỉ là gợi ý và luôn có thể sửa hoặc gán lại — quyết định giao việc hoàn toàn do quản trị trước khi bấm Tạo.
+- Làm rõ hướng dẫn trên màn hình và kiểm tra JS render (node --check) đạt.
+
+## 2026-08-04 (giao việc theo đề cương: tự nhận diện người nhận)
+- Bổ sung phân tích đề cương: khi tải file `.docx` / `.txt`, hệ thống đọc và nhận diện "giao cho ai" ngay trong đề cương.
+- Hỗ trợ nhiều cách ghi người nhận: `Đơn vị thực hiện: X`, `Giao cho: X`, `Cán bộ phụ trách: X`, đuôi tiêu đề `— Đội A`, `(Đơn vị)` và cột "Đơn vị thực hiện" trong bảng Word.
+- Đối sánh tự động với danh mục đơn vị (contacts/professional unit), vai trò (AppRole) và cán bộ (User đang hoạt động); điền sẵn `đơn vị / vai trò / cá nhân` vào từng dòng của màn hình gán việc trước khi tạo.
+- Nhận diện nhiều người nhận trong cùng một đầu mục (ví dụ "Đơn vị thực hiện: Công an huyện X, Đội B").
+- Nới lỏng nhận diện đầu mục cho các dòng đánh số/bullet ngắn (trước đây bị lọc nhầm thành tiêu đề cấu trúc); vẫn lọc tiêu đề La Mã (I., II., ...).
+- Test: `tests/test_task_outline_word_export.py` có thêm `test_outline_import_preview_auto_detects_assignee` (tải đề cương .docx -> preview gán sẵn người nhận).
+
 ## 2026-08-04 (fix khởi động trên Python 3.14)
 - Sửa lỗi `pip install -r requirements.txt` thất bại trên Python 3.14: `pandas==2.1.1` không build được (numpy yêu cầu Cython 3.0+ nhưng pandas 2.1.1 build bằng Cython cũ), kéo theo server không khởi động (`No module named 'flask'`).
 - Nới pin `pandas>=2.2.3` và `numpy>=1.26,<3` để pip chọn bản có wheel sẵn cho Python 3.14 (pandas 3.0.x / numpy 2.x); nới `Pillow>=12.2` cho Python >= 3.10 để có wheel cp314.

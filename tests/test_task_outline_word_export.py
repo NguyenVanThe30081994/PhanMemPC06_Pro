@@ -141,6 +141,65 @@ class TaskOutlineWordExportTests(unittest.TestCase):
             db.session.commit()
             return assignment1.id
 
+    def _create_bare_outline_task(self):
+        with app.app_context():
+            admin_id = self._admin_id()
+            task = Task(
+                title="Đề cương giao việc tự động",
+                task_mode="OUTLINE",
+                workflow_mode="child_tasks",
+                author_id=admin_id,
+                author_name="Quản trị",
+            )
+            db.session.add(task)
+            db.session.commit()
+            self.task_id = task.id
+            return task.id
+
+    def test_outline_import_preview_auto_detects_assignee(self):
+        import io
+        from unittest.mock import patch
+
+        from docx import Document
+
+        task_id = self._create_bare_outline_task()
+        self._login(self._admin_id(), is_admin=True)
+
+        document = Document()
+        document.add_paragraph("ĐỀ CƯƠNG CÔNG TÁC")
+        document.add_paragraph("1. Triển khai công tác PCCC — Đội A")
+        document.add_paragraph("2. Tổng hợp số liệu báo cáo")
+        document.add_paragraph("Đơn vị thực hiện: Đội B")
+        buffer = io.BytesIO()
+        document.save(buffer)
+
+        catalog = {
+            "units": [
+                {"key": "doi-a", "name": "Đội A", "match": "doi a"},
+                {"key": "doi-b", "name": "Đội B", "match": "doi b"},
+            ],
+            "roles": [],
+            "users": [],
+        }
+        with patch("routes.tasks._task_assignment_catalog", return_value=catalog):
+            response = self.client.post(
+                f"/tasks/{task_id}/outline/import-preview",
+                data={
+                    "outline_file": (io.BytesIO(buffer.getvalue()), "de-cuong.docx"),
+                    "child_report_kind": "narrative",
+                    "child_attachment_required": "0",
+                    "csrf_token": "task-outline-csrf",
+                },
+                content_type="multipart/form-data",
+                follow_redirects=True,
+            )
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("tự nhận diện người nhận cho 2 đầu mục", html)
+        self.assertIn("doi-a", html)
+        self.assertIn("doi-b", html)
+        self.assertIn("unit", html)
+
     def test_outline_matrix_and_word_export(self):
         assignment1_id = self._create_outline_task()
         self._login(self._admin_id(), is_admin=True)

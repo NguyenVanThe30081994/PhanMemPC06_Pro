@@ -409,7 +409,7 @@
                                             <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
                                                 <div>
                                                     <div class="fw-semibold">Bước 2: Cấu hình sau khi nạp đề cương</div>
-                                                    <div class="small text-muted">Bạn có thể sửa nội dung, đổi hình thức báo cáo, rồi gán một dòng hoặc nhiều dòng cho một vai trò, nhiều vai trò, một người hoặc nhiều người.</div>
+                                                    <div class="small text-muted">Đề cương được tách thành danh sách việc nhỏ ở bên dưới. Kết quả phân tích tự động chỉ là gợi ý: bấm <b>Gán</b> ở từng dòng để gán việc cho đơn vị / vai trò / cá nhân, hoặc tích nhiều dòng rồi gán hàng loạt ở khung phía trên. Toàn bộ quyết định giao việc do quản trị quyết định trước khi bấm Tạo.</div>
                                                 </div>
                                                 <button class="btn btn-outline-primary btn-sm" type="button" id="addImportOutlineRowBtn">Thêm dòng</button>
                                             </div>
@@ -519,6 +519,66 @@
                                         </div>
                                         <button class="btn btn-primary" type="submit">Tạo đầu mục từ đề cương</button>
                                     </form>
+                                    <div class="modal fade" id="rowAssignModal" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Gán việc cho đầu mục</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-bold">Giao theo</label>
+                                                        <select class="form-select" id="rowAssignType">
+                                                            <option value="unit">Đơn vị</option>
+                                                            <option value="role">Vai trò</option>
+                                                            <option value="user">Cá nhân</option>
+                                                        </select>
+                                                    </div>
+                                                    <div data-row-assign-section="unit">
+                                                        <label class="form-label fw-bold">Đơn vị nhận việc</label>
+                                                        <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
+                                                            {% for item in pro_units %}
+                                                            <label class="d-flex align-items-center gap-2 px-2 py-2 border-bottom">
+                                                                <input type="checkbox" class="mt-1" data-row-unit-checkbox value="{{ item.value }}">
+                                                                <span class="small">{{ item.name }}</span>
+                                                            </label>
+                                                            {% endfor %}
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-none" data-row-assign-section="role">
+                                                        <label class="form-label fw-bold">Vai trò nhận việc</label>
+                                                        <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
+                                                            {% for role in roles %}
+                                                            <label class="d-flex align-items-center gap-2 px-2 py-2 border-bottom">
+                                                                <input type="checkbox" class="mt-1" data-row-role-checkbox value="{{ role.id }}">
+                                                                <span class="small">{{ role.name }}</span>
+                                                            </label>
+                                                            {% endfor %}
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-none" data-row-assign-section="user">
+                                                        <label class="form-label fw-bold">Cán bộ nhận việc</label>
+                                                        <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
+                                                            {% for user in users %}
+                                                            <label class="d-flex align-items-start gap-2 px-2 py-2 border-bottom">
+                                                                <input type="checkbox" class="mt-1" data-row-user-checkbox value="{{ user.id }}">
+                                                                <div class="small">
+                                                                    <div class="fw-medium">{{ user.fullname }}</div>
+                                                                    <div class="text-muted">{% if user.unit_area_display %}{{ user.unit_area_display }}{% else %}Chưa có đơn vị{% endif %}</div>
+                                                                </div>
+                                                            </label>
+                                                            {% endfor %}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                                                    <button type="button" class="btn btn-primary" id="applyRowAssignBtn">Áp dụng</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                     {% endif %}
                                 </div>
                             </div>
@@ -1679,6 +1739,50 @@
         );
     }
 
+    let rowAssignTarget = null;
+    const rowAssignModalEl = document.getElementById('rowAssignModal');
+    const rowAssignType = document.getElementById('rowAssignType');
+
+    function setRowAssignSection(type) {
+        document.querySelectorAll('[data-row-assign-section]').forEach((section) => {
+            section.classList.toggle('d-none', section.dataset.rowAssignSection !== type);
+        });
+    }
+
+    function openRowAssignModal(row) {
+        if (!row) return;
+        rowAssignTarget = row;
+        const current = {
+            assignType: row.querySelector('input[name="item_assign_type"]')?.value || 'unit',
+            unitDomains: (row.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean),
+            roleIds: (row.querySelector('input[name="item_role_ids"]')?.value || '').split(',').filter(Boolean),
+            userIds: (row.querySelector('input[name="item_user_ids"]')?.value || '').split(',').filter(Boolean),
+        };
+        if (rowAssignType) rowAssignType.value = ['unit', 'role', 'user'].includes(current.assignType) ? current.assignType : 'unit';
+        document.querySelectorAll('[data-row-unit-checkbox]').forEach((checkbox) => { checkbox.checked = current.unitDomains.includes(checkbox.value); });
+        document.querySelectorAll('[data-row-role-checkbox]').forEach((checkbox) => { checkbox.checked = current.roleIds.includes(checkbox.value); });
+        document.querySelectorAll('[data-row-user-checkbox]').forEach((checkbox) => { checkbox.checked = current.userIds.includes(checkbox.value); });
+        setRowAssignSection(rowAssignType ? rowAssignType.value : 'unit');
+        if (rowAssignModalEl && window.bootstrap) {
+            bootstrap.Modal.getOrCreateInstance(rowAssignModalEl).show();
+        }
+    }
+
+    function applyRowAssign() {
+        if (!rowAssignTarget) return;
+        const type = rowAssignType ? rowAssignType.value : 'unit';
+        const unitDomains = Array.from(document.querySelectorAll('[data-row-unit-checkbox]:checked')).map((checkbox) => checkbox.value);
+        const roleIds = Array.from(document.querySelectorAll('[data-row-role-checkbox]:checked')).map((checkbox) => checkbox.value);
+        const userIds = Array.from(document.querySelectorAll('[data-row-user-checkbox]:checked')).map((checkbox) => checkbox.value);
+        updateImportRowAssignment(rowAssignTarget, { assignType: type, domain: '', unitDomains, roleIds, userIds });
+        if (rowAssignModalEl && window.bootstrap) {
+            bootstrap.Modal.getOrCreateInstance(rowAssignModalEl).hide();
+        }
+    }
+
+    rowAssignType?.addEventListener('change', () => setRowAssignSection(rowAssignType.value));
+    document.getElementById('applyRowAssignBtn')?.addEventListener('click', applyRowAssign);
+
     function makeImportRow(rowData = {}) {
         const wrapper = document.createElement('div');
         wrapper.className = 'px-3 py-3 border-top';
@@ -1706,7 +1810,13 @@
                     </div>
                 </div>
                 <div class="col-lg-2">
-                    <div class="small fw-medium" data-import-assignment-summary></div>
+                    <div class="d-flex align-items-start gap-2">
+                        <button class="btn btn-sm btn-outline-secondary text-nowrap" type="button" data-row-assign-btn>Gán</button>
+                        <div class="flex-grow-1">
+                            <div class="small fw-medium" data-import-assignment-summary></div>
+                            <div class="small text-muted" data-import-assignment-hint></div>
+                        </div>
+                    </div>
                     <input type="hidden" name="item_assign_type">
                     <input type="hidden" name="item_domain">
                     <input type="hidden" name="item_domains">
@@ -1725,10 +1835,15 @@
             roleIds: rowData.role_ids || [],
             userIds: rowData.user_ids || [],
         });
+        const hintEl = wrapper.querySelector('[data-import-assignment-hint]');
+        if (hintEl && rowData.assignee_hint) {
+            hintEl.textContent = 'Đề cương ghi: ' + String(rowData.assignee_hint);
+        }
         wrapper.querySelector('[data-remove-import-row]')?.addEventListener('click', () => {
             wrapper.remove();
             syncImportRowIndexes();
         });
+        wrapper.querySelector('[data-row-assign-btn]')?.addEventListener('click', () => openRowAssignModal(wrapper));
         return wrapper;
     }
 
