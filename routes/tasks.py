@@ -329,7 +329,7 @@ def _task_mode(task, has_child_tasks=None):
         setattr(task, "_task_mode_cache", explicit)
         return explicit
 
-    inferred = task_mode
+    inferred = TASK_MODE_DEFAULT
     setattr(task, "_task_mode_cache", inferred)
     return inferred
 

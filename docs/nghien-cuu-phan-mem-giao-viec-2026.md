@@ -127,7 +127,7 @@ Các phần mềm giao việc hiện nay chia thành 4 nhóm theo "hình thái n
 | Bài học | Hiện trạng code | Ghi chú |
 |---|---|---|
 | 1. task_mode duy nhất | ✅ Đã có `task_mode` = OUTLINE/FILE/FORM | Cần gom UI về một khái niệm |
-| 2. Chuỗi Task→Item→Assignment→Submission | ✅ Đã có đủ bảng + luồng nộp | Còn để lại logic cũ `child_tasks` |
+| 2. Chuỗi Task→Item→Assignment→Submission | ✅ Đã có đủ bảng + luồng nộp | Đã dọn xong logic workflow cũ |
 | 3. Phần việc của tôi | ✅ Có tab "Phần việc của tôi" cho cả 3 chế độ | Có thể nâng thành trang tổng hợp "Việc của tôi" |
 | 4. Trạng thái + nhật ký | ✅ `assigned/in_progress/submitted` + TaskComment | Còn thiếu trạng thái `trả lại bổ sung` ở UI tổng |
 | 5. Đầu mục có kiểu báo cáo | ✅ `report_kind` number/narrative + attachment_required | — |

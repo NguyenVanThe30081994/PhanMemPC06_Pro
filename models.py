@@ -209,14 +209,12 @@ class Task(db.Model):
     google_form_runtime_json = db.Column(db.Text)
     google_form_sync_state_json = db.Column(db.Text)
     report_schema_json = db.Column(db.Text)
-    linked_report_templates_json = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.now)
     assignments = db.relationship('TaskAssignment', backref='task', cascade='all, delete-orphan')
     task_items = db.relationship('TaskItem', backref='task', cascade='all, delete-orphan', foreign_keys='TaskItem.task_id')
     participants = db.relationship('TaskParticipant', backref='task', cascade='all, delete-orphan', foreign_keys='TaskParticipant.task_id')
     submissions = db.relationship('TaskSubmission', backref='task', cascade='all, delete-orphan', foreign_keys='TaskSubmission.task_id')
     form_fields = db.relationship('TaskFormField', backref='task', cascade='all, delete-orphan', foreign_keys='TaskFormField.task_id')
-    report_links = db.relationship('TaskReportLink', backref='task', cascade='all, delete-orphan', foreign_keys='TaskReportLink.task_id')
     child_tasks = db.relationship('Task', backref=db.backref('parent_task', remote_side=[id]))
 
 
@@ -378,26 +376,6 @@ class TaskFormField(db.Model):
     task_item = db.relationship('TaskItem', backref='form_fields')
 
 
-class TaskReportLink(db.Model):
-    __tablename__ = 'task_report_link'
-
-    id = db.Column(db.Integer, primary_key=True)
-    task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False, index=True)
-    task_item_id = db.Column(db.Integer, db.ForeignKey('task.id'), index=True)
-    report_template_id = db.Column(db.Integer, db.ForeignKey('report_template.id'), index=True)
-    report_cycle_id = db.Column(db.Integer, db.ForeignKey('report_cycle.id'), index=True)
-    report_type_id = db.Column(db.Integer, db.ForeignKey('report_type.id'), index=True)
-    sync_mode = db.Column(db.String(30), default='template')
-    is_primary = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
-
-    task_item = db.relationship('Task', foreign_keys=[task_item_id])
-    report_template = db.relationship('ReportTemplate', backref='task_links')
-    report_cycle = db.relationship('ReportCycle', backref='task_links')
-    report_type = db.relationship('ReportType', backref='task_links')
-
-
 class TaskComment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.Integer)
@@ -528,245 +506,6 @@ class ShortLink(db.Model):
     user = db.relationship('User', backref='short_links')
 
 
-# ==================== REPORTING SYSTEM (NEW) ====================
-
-class ReportUnit(db.Model):
-    __tablename__ = 'report_unit'
-    id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(100), unique=True, index=True)
-    name = db.Column(db.String(255), nullable=False, index=True)
-    source = db.Column(db.String(50), default='user')
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-
-
-class ReportType(db.Model):
-    __tablename__ = 'report_type'
-    id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(50), unique=True, index=True)
-    name = db.Column(db.String(100), nullable=False)
-    frequency = db.Column(db.String(50), default='periodic')
-    description = db.Column(db.String(255))
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-
-
-class ReportTemplate(db.Model):
-    __tablename__ = 'report_template'
-    id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(100), unique=True, index=True)
-    name = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.Text)
-    report_type_id = db.Column(db.Integer, index=True)
-    professional_unit = db.Column(db.String(255), index=True)
-    assignment_scope_json = db.Column(db.Text)
-    directive_filename = db.Column(db.String(255))
-    directive_path = db.Column(db.String(500))
-    periodic_cycle_type = db.Column(db.String(30))
-    periodic_due_day = db.Column(db.Integer)
-    periodic_due_month = db.Column(db.Integer)
-    status = db.Column(db.String(50), default='draft')
-    created_at = db.Column(db.DateTime, default=datetime.now)
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
-
-
-class ReportTemplateVersion(db.Model):
-    __tablename__ = 'report_template_version'
-    id = db.Column(db.Integer, primary_key=True)
-    template_id = db.Column(db.Integer, db.ForeignKey('report_template.id'), nullable=False, index=True)
-    version_no = db.Column(db.Integer, default=1)
-    source_filename = db.Column(db.String(255))
-    source_path = db.Column(db.String(500))
-    metadata_json = db.Column(db.Text)
-    notes = db.Column(db.Text)
-    is_current = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-
-
-class ReportTemplateSheet(db.Model):
-    __tablename__ = 'report_template_sheet'
-    id = db.Column(db.Integer, primary_key=True)
-    version_id = db.Column(db.Integer, db.ForeignKey('report_template_version.id'), nullable=False, index=True)
-    sheet_name = db.Column(db.String(255), nullable=False)
-    order_index = db.Column(db.Integer, default=0)
-    header_start_row = db.Column(db.Integer, default=1)
-    header_end_row = db.Column(db.Integer, default=1)
-    header_rows = db.Column(db.Integer, default=1)
-    data_start_row = db.Column(db.Integer, default=2)
-    data_end_row = db.Column(db.Integer, default=0)
-    unit_key_column = db.Column(db.String(20))
-    can_input = db.Column(db.Boolean, default=True)
-    visible_in_preview = db.Column(db.Boolean, default=True)
-    summary_json = db.Column(db.Text)
-
-
-class ReportTemplateField(db.Model):
-    __tablename__ = 'report_template_field'
-    id = db.Column(db.Integer, primary_key=True)
-    version_id = db.Column(db.Integer, db.ForeignKey('report_template_version.id'), nullable=False, index=True)
-    sheet_name = db.Column(db.String(255), nullable=False)
-    field_code = db.Column(db.String(120), nullable=False, index=True)
-    field_name = db.Column(db.String(255))
-    display_name = db.Column(db.String(255))
-    column_index = db.Column(db.Integer, nullable=False)
-    column_letter = db.Column(db.String(20), nullable=False)
-    data_type = db.Column(db.String(50), default='text')
-    input_mode = db.Column(db.String(50), default='text')
-    is_required = db.Column(db.Boolean, default=False)
-    is_visible = db.Column(db.Boolean, default=True)
-    is_editable = db.Column(db.Boolean, default=True)
-    default_value = db.Column(db.Text)
-    validation_rule = db.Column(db.Text)
-    dictionary_source = db.Column(db.String(255))
-    formula_expression = db.Column(db.Text)
-    aggregation_type = db.Column(db.String(50))
-    display_order = db.Column(db.Integer, default=0)
-    path_code = db.Column(db.Text)
-
-
-class ReportCycle(db.Model):
-    __tablename__ = 'report_cycle'
-    id = db.Column(db.Integer, primary_key=True)
-    template_version_id = db.Column(db.Integer, db.ForeignKey('report_template_version.id'), nullable=False, index=True)
-    report_type_id = db.Column(db.Integer, db.ForeignKey('report_type.id'), nullable=False, index=True)
-    legacy_period_id = db.Column(db.Integer, index=True)
-    name = db.Column(db.String(255), nullable=False)
-    open_at = db.Column(db.DateTime)
-    close_at = db.Column(db.DateTime)
-    due_at = db.Column(db.DateTime)
-    auto_lock_at = db.Column(db.DateTime)
-    status = db.Column(db.String(50), default='open')
-    scope_json = db.Column(db.Text)
-    is_locked = db.Column(db.Boolean, default=False)
-    note = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-
-
-class ReportInstance(db.Model):
-    __tablename__ = 'report_instance'
-    id = db.Column(db.Integer, primary_key=True)
-    template_id = db.Column(db.Integer, index=True)
-    version_id = db.Column(db.Integer, index=True)
-    period_id = db.Column(db.Integer, index=True)
-    user_id = db.Column(db.Integer, index=True)
-    org_unit = db.Column(db.String(100))
-    cycle_id = db.Column(db.Integer, db.ForeignKey('report_cycle.id'), nullable=False, index=True)
-    report_unit_id = db.Column(db.Integer, db.ForeignKey('report_unit.id'), index=True)
-    assigned_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
-    status = db.Column(db.String(50), default='draft')
-    opened_at = db.Column(db.DateTime, default=datetime.now)
-    submitted_at = db.Column(db.DateTime)
-    reviewed_at = db.Column(db.DateTime)
-    locked_at = db.Column(db.DateTime)
-    locked_by = db.Column(db.Integer)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
-    note = db.Column(db.Text)
-
-
-class ReportSubmission(db.Model):
-    __tablename__ = 'report_submission'
-    id = db.Column(db.Integer, primary_key=True)
-    template_id = db.Column(db.Integer, index=True)
-    template_version_id = db.Column(db.Integer, index=True)
-    period_id = db.Column(db.Integer, index=True)
-    report_period = db.Column(db.String(50))
-    reporting_unit = db.Column(db.String(255))
-    submitted_by = db.Column(db.Integer, index=True)
-    instance_id = db.Column(db.Integer, db.ForeignKey('report_instance.id'), nullable=False, index=True)
-    version_no = db.Column(db.Integer, default=1)
-    status = db.Column(db.String(50), default='draft')
-    original_filename = db.Column(db.String(255))
-    original_file_path = db.Column(db.String(500))
-    processed_file_path = db.Column(db.String(500))
-    error_file_path = db.Column(db.String(500))
-    total_rows = db.Column(db.Integer)
-    valid_rows = db.Column(db.Integer)
-    invalid_rows = db.Column(db.Integer)
-    warning_count = db.Column(db.Integer)
-    metadata_json = db.Column(db.Text)
-    note = db.Column(db.Text)
-    file_path = db.Column(db.String(500))
-    created_at = db.Column(db.DateTime, default=datetime.now)
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
-    submitted_at = db.Column(db.DateTime)
-
-
-class ReportingPeriod(db.Model):
-    __tablename__ = 'reporting_period'
-    id = db.Column(db.Integer, primary_key=True)
-    template_id = db.Column(db.Integer, index=True)
-    code = db.Column(db.String(50), unique=True, index=True, nullable=False)
-    name = db.Column(db.String(100), nullable=False)
-    period_type = db.Column(db.String(20), nullable=False)
-    is_adhoc = db.Column(db.Boolean, default=False)
-    start_date = db.Column(db.Date, nullable=False)
-    end_date = db.Column(db.Date, nullable=False)
-    deadline = db.Column(db.DateTime)
-    is_locked = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-    created_by = db.Column(db.Integer)
-
-
-class ReportSubmissionValue(db.Model):
-    __tablename__ = 'report_submission_value'
-    id = db.Column(db.Integer, primary_key=True)
-    submission_id = db.Column(db.Integer, db.ForeignKey('report_submission.id'), nullable=False, index=True)
-    sheet_name = db.Column(db.String(255), nullable=False)
-    field_code = db.Column(db.String(120), nullable=False, index=True)
-    cell_address = db.Column(db.String(20))
-    value_text = db.Column(db.Text)
-    value_number = db.Column(db.Float)
-    value_json = db.Column(db.Text)
-
-
-class ReportSubmissionCell(db.Model):
-    __tablename__ = 'report_submission_cell'
-    id = db.Column(db.Integer, primary_key=True)
-    submission_id = db.Column(db.Integer, db.ForeignKey('report_submission.id'), nullable=False, index=True)
-    sheet_name = db.Column(db.String(255), nullable=False)
-    cell_address = db.Column(db.String(20), nullable=False, index=True)
-    raw_value = db.Column(db.Text)
-    is_formula = db.Column(db.Boolean, default=False)
-    formula_text = db.Column(db.Text)
-
-
-class ReportAuditLog(db.Model):
-    __tablename__ = 'report_audit_log'
-    id = db.Column(db.Integer, primary_key=True)
-    actor_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
-    action = db.Column(db.String(100), nullable=False)
-    module = db.Column(db.String(100), default='report')
-    object_type = db.Column(db.String(100))
-    object_id = db.Column(db.Integer)
-    details = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-
-
-class ReportValidationLog(db.Model):
-    __tablename__ = 'report_validation_log'
-    id = db.Column(db.Integer, primary_key=True)
-    submission_id = db.Column(db.Integer, db.ForeignKey('report_submission.id'), index=True)
-    sheet_name = db.Column(db.String(255))
-    field_code = db.Column(db.String(120))
-    cell_address = db.Column(db.String(20))
-    severity = db.Column(db.String(20), default='warning')
-    message = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-
-
-class ReportExportJob(db.Model):
-    __tablename__ = 'report_export_job'
-    id = db.Column(db.Integer, primary_key=True)
-    cycle_id = db.Column(db.Integer, db.ForeignKey('report_cycle.id'), index=True)
-    submission_id = db.Column(db.Integer, db.ForeignKey('report_submission.id'), index=True)
-    status = db.Column(db.String(50), default='queued')
-    output_path = db.Column(db.String(500))
-    error_message = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-    finished_at = db.Column(db.DateTime)
-
-
 # --- RANKING SYSTEM MODELS (V13) ---
 
 class RankingUnit(db.Model):
@@ -837,4 +576,3 @@ class CustomSatellitePoint(db.Model):
     lat = db.Column(db.Float, nullable=False)
     lng = db.Column(db.Float, nullable=False)
     parent_key = db.Column(db.String(255), nullable=False)
-

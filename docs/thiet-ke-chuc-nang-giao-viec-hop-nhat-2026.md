@@ -98,5 +98,5 @@ Không thêm bảng mới cho pha này. Các trường cần có đã nằm tron
 
 ## 8. Ghi chú tương thích
 - Giữ nguyên payload cũ: trường `table` lưu dạng list-of-list; dữ liệu textarea cũ vẫn đọc được.
-- Không xóa bảng/luồng cũ; các phần mới thêm độc lập, không phá luồng `child_tasks` đang dùng.
+- Không xóa bảng/luồng cũ; các phần mới thêm độc lập, không phá luồng nộp bài đang dùng.
 - Tất cả endpoint mới đều yêu cầu đăng nhập và kiểm tra quyền theo `view/process/exec`.

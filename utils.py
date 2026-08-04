@@ -338,7 +338,6 @@ def apply_migrations(app):
         ("task", "google_form_builder_json", "TEXT"),
         ("task", "google_form_runtime_json", "TEXT"),
         ("task", "google_form_sync_state_json", "TEXT"),
-        ("task", "workflow_mode", "VARCHAR(30) DEFAULT 'summary_report'"),
         ("task", "report_schema_json", "TEXT"),
         ("task", "linked_report_templates_json", "TEXT"),
         ("task", "created_at", "DATETIME"),

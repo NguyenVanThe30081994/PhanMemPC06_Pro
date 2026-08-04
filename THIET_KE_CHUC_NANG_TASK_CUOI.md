@@ -138,10 +138,7 @@ Truong du lieu chot:
 - `updated_at`
 
 Ghi chu:
-- Truong `workflow_mode` hien tai se duoc thay the logic bang `task_mode`
-- Neu can tuong thich tam thoi, co the mapping:
-  - `child_tasks` -> `OUTLINE`
-  - `summary_report` -> `FILE`
+- `workflow_mode` da duoc loai bo khoi code va migration; `task_mode` la truong duy nhat.
 
 ## 5.2. Bang `task_item`
 
@@ -508,10 +505,11 @@ Frontend render theo `task_mode`.
 
 ## 11. Mapping tu code hien tai sang mo hinh moi
 
-## 11.1. Mapping logic tam thoi
+## 11.1. Mapping logic da chot
 
-- `workflow_mode = child_tasks` -> `task_mode = OUTLINE`
-- `workflow_mode = summary_report` -> `task_mode = FILE`
+- `task_mode = OUTLINE` <=> giao viec theo de cuong, gom thanh Word
+- `task_mode = FILE` <=> giao viec yeu cau nop file / van ban tong hop
+- `task_mode = FORM` <=> thu thap theo bieu mau, xuat ra Excel
 
 ## 11.2. Cac thanh phan nen giu
 

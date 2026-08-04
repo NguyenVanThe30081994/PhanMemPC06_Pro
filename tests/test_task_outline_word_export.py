@@ -98,7 +98,6 @@ class TaskOutlineWordExportTests(unittest.TestCase):
                 title="Báo cáo tổng hợp kiểm tra Word",
                 content="Mô tả công việc kiểm thử.",
                 task_mode="OUTLINE",
-                workflow_mode="child_tasks",
                 author_id=admin_id,
                 author_name="Quản trị",
                 priority="Cao",
