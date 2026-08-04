@@ -129,9 +129,9 @@ def build_task_detail_context(
             next_step_body = "Bắt đầu ở mục thiết lập đầu mục để tạo nội dung báo cáo, gán người nhận và chuẩn hóa cách nộp."
             default_tab = "outline-create"
         elif can_manage_task_view:
-            next_step_title = "Theo dõi từng nhóm nhận việc"
-            next_step_body = "Mở từng nhóm ở khu vực làm việc để xem đầu mục nào đã nộp, đầu mục nào còn chậm."
-            default_tab = "outline-create"
+            next_step_title = "Theo dõi tiến độ chung"
+            next_step_body = "Xem ma trận tiến độ để biết đầu mục nào còn thiếu, rồi mở từng nhóm khi cần kiểm tra chi tiết."
+            default_tab = "outline-matrix"
         else:
             next_step_title = "Mở đúng nhóm được giao"
             next_step_body = "Chọn nhóm nhận việc của bạn để tiếp nhận và gửi báo cáo theo từng đầu mục cụ thể."

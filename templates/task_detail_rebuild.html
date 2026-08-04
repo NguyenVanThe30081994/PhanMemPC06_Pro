@@ -141,7 +141,13 @@
                     <div class="nav flex-column nav-pills gap-2" id="taskWorkspaceTabs" role="tablist" aria-orientation="vertical">
                         {% if task.task_mode == 'OUTLINE' %}
                             {% if can_manage_task_view %}
-                            <button class="nav-link text-start active" id="tab-outline-create" data-bs-toggle="pill" data-bs-target="#pane-outline-create" type="button" role="tab">Thiết lập đầu mục</button>
+                            <button class="nav-link text-start {% if default_tab == 'outline-create' %}active{% endif %}" id="tab-outline-create" data-bs-toggle="pill" data-bs-target="#pane-outline-create" type="button" role="tab">Thiết lập đầu mục</button>
+                            {% endif %}
+                            {% if can_manage_task_view or can_watch_task_view %}
+                            <button class="nav-link text-start {% if default_tab == 'outline-matrix' %}active{% endif %}" id="tab-outline-matrix" data-bs-toggle="pill" data-bs-target="#pane-outline-matrix" type="button" role="tab">
+                                <div class="fw-semibold">Tiến độ chung</div>
+                                <div class="small opacity-75">{{ outline_matrix.total_submitted }}/{{ outline_matrix.total_count }} lượt giao đã nộp</div>
+                            </button>
                             {% endif %}
                             {% for group in outline_groups %}
                             <button class="nav-link text-start {% if not can_manage_task_view and loop.first %}active{% endif %}" id="tab-outline-group-{{ loop.index }}" data-bs-toggle="pill" data-bs-target="#pane-outline-group-{{ loop.index }}" type="button" role="tab">
@@ -168,8 +174,80 @@
         <div class="col-xl-9">
             <div class="tab-content">
                 {% if task.task_mode == 'OUTLINE' %}
+                    {% if can_manage_task_view or can_watch_task_view %}
+                    <div class="tab-pane fade {% if default_tab == 'outline-matrix' %}show active{% endif %}" id="pane-outline-matrix" role="tabpanel" aria-labelledby="tab-outline-matrix">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body">
+                                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+                                    <div>
+                                        <h2 class="h4 mb-1">Tiến độ chung</h2>
+                                        <div class="text-muted">Ma trận đầu mục × đơn vị nhận việc. Bấm "Xuất báo cáo Word" để gộp nội dung đã nộp thành văn bản tổng hợp.</div>
+                                    </div>
+                                    <a class="btn btn-primary" href="{{ url_for('tasks_bp.export_outline_task_word', tid=task.id) }}">Xuất báo cáo Word</a>
+                                </div>
+                                {% if outline_matrix.rows %}
+                                <div class="table-responsive">
+                                    <table class="table align-middle">
+                                        <thead>
+                                            <tr>
+                                                <th style="min-width: 260px;">Đầu mục</th>
+                                                {% for unit_name in outline_matrix.unit_names %}
+                                                <th class="text-center">{{ unit_name }}</th>
+                                                {% endfor %}
+                                                <th class="text-center">Tổng</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for row in outline_matrix.rows %}
+                                            <tr>
+                                                <td>
+                                                    <div class="fw-semibold">{{ row.item.item_code or loop.index }}. {{ row.item.title }}</div>
+                                                    <div class="small text-muted">{{ row.submitted_count }}/{{ row.total_count }} lượt giao đã nộp</div>
+                                                </td>
+                                                {% for cell in row.cells %}
+                                                <td class="text-center align-middle">
+                                                    {% if cell.total_count == 0 %}
+                                                    <span class="text-muted small">—</span>
+                                                    {% elif cell.done %}
+                                                    <span class="badge bg-success-subtle text-success">Đã nộp</span>
+                                                    {% else %}
+                                                    <span class="badge bg-light text-dark">{{ cell.submitted_count }}/{{ cell.total_count }}</span>
+                                                    {% endif %}
+                                                    {% for cell_assignment in cell.assignments %}
+                                                    {% if cell_assignment.submitted %}
+                                                    <form action="{{ url_for('tasks_bp.return_task_assignment', tid=task.id, assignment_id=cell_assignment.assignment.id) }}" method="POST" class="d-inline-flex gap-1 mt-2">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                        <input type="text" name="return_reason" class="form-control form-control-sm" placeholder="Lý do" style="max-width: 130px;">
+                                                        <button class="btn btn-sm btn-outline-danger" type="submit">Trả lại</button>
+                                                    </form>
+                                                    {% endif %}
+                                                    {% endfor %}
+                                                </td>
+                                                {% endfor %}
+                                                <td class="text-center">
+                                                    {% if row.done %}
+                                                    <span class="badge bg-success">Hoàn tất</span>
+                                                    {% else %}
+                                                    <span class="badge bg-warning-subtle text-warning">{{ row.percent }}%</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="border-top pt-3 mt-3 small text-muted">
+                                    Tổng: {{ outline_matrix.total_submitted }}/{{ outline_matrix.total_count }} lượt giao đã nộp ({{ outline_matrix.percent }}%). Dùng nút "Trả lại" ở từng ô để yêu cầu bổ sung; người nhận sẽ nộp lại được.
+                                </div>
+                                {% else %}
+                                <div class="alert alert-info mb-0">Chưa có đầu mục nào. Hãy thiết lập đề cương trước khi theo dõi tiến độ.</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                     {% if can_manage_task_view %}
-                    <div class="tab-pane fade show active" id="pane-outline-create" role="tabpanel" aria-labelledby="tab-outline-create">
+                    <div class="tab-pane fade {% if default_tab == 'outline-create' %}show active{% endif %}" id="pane-outline-create" role="tabpanel" aria-labelledby="tab-outline-create">
                         <div class="card border-0 shadow-sm">
                             <div class="card-body">
                                 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
@@ -598,6 +676,13 @@
                                                 <div class="small text-muted">{{ row.assignment.user.unit_area_display if row.assignment.user and row.assignment.user.unit_area_display else '' }}</div>
                                             </div>
                                             <span class="badge bg-light text-dark">{{ status_labels.get((row.assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
+                                            {% if can_manage_task_view and row.submission and (row.assignment.status|lower in ['submitted', 'completed']) %}
+                                            <form action="{{ url_for('tasks_bp.return_task_assignment', tid=task.id, assignment_id=row.assignment.id) }}" method="POST" class="d-flex gap-1">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <input type="text" name="return_reason" class="form-control form-control-sm" placeholder="Lý do trả lại" style="max-width: 200px;">
+                                                <button class="btn btn-sm btn-outline-danger" type="submit">Trả lại bổ sung</button>
+                                            </form>
+                                            {% endif %}
                                         </div>
                                         {% if row.submission %}
                                         <div class="small text-muted mt-2">
@@ -915,6 +1000,13 @@
                                                 <div class="small text-muted">{{ row.assignment.user.unit_area_display if row.assignment.user and row.assignment.user.unit_area_display else '' }}</div>
                                             </div>
                                             <span class="badge bg-light text-dark">{{ status_labels.get((row.assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
+                                            {% if can_manage_task_view and row.submission and (row.assignment.status|lower in ['submitted', 'completed']) %}
+                                            <form action="{{ url_for('tasks_bp.return_task_assignment', tid=task.id, assignment_id=row.assignment.id) }}" method="POST" class="d-flex gap-1">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <input type="text" name="return_reason" class="form-control form-control-sm" placeholder="Lý do trả lại" style="max-width: 200px;">
+                                                <button class="btn btn-sm btn-outline-danger" type="submit">Trả lại bổ sung</button>
+                                            </form>
+                                            {% endif %}
                                         </div>
                                         {% if row.submission %}
                                         <div class="small text-muted mt-2">Nộp lúc {{ row.submission.submitted_at.strftime('%d/%m/%Y %H:%M') if row.submission.submitted_at else '' }}</div>
@@ -1046,9 +1138,36 @@
                                             {% endfor %}
                                         </div>
                                         {% elif field.field_type == 'table' %}
-                                        <textarea class="form-control" name="form_field_{{ field.field_key }}" rows="5" placeholder="Mỗi dòng là một hàng, các cột cách nhau bằng dấu |">{% if payload_value is iterable and payload_value is not string %}{% for row in payload_value %}{{ row|join(' | ') }}{% if not loop.last %}
-{% endif %}{% endfor %}{% endif %}</textarea>
-                                        <div class="form-text">Cột: {{ field.columns|join(', ') if field.columns else 'Tự do' }}.</div>
+                                        {% set grid_cols = field.columns if field.columns else ['Cột 1', 'Cột 2', 'Cột 3'] %}
+                                        <div class="task-table-grid" data-table-grid data-field-key="{{ field.field_key }}" data-columns="{{ grid_cols|join('||') }}">
+                                            <table class="table table-bordered table-sm align-middle mb-2">
+                                                <thead>
+                                                    <tr>
+                                                        {% for col in grid_cols %}
+                                                        <th>{{ col }}</th>
+                                                        {% endfor %}
+                                                        <th style="width: 60px;"></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% if payload_value is iterable and payload_value is not string %}
+                                                        {% for row in payload_value %}
+                                                        <tr>
+                                                            {% for idx in range(0, grid_cols|length) %}
+                                                            <td><input class="form-control form-control-sm" value="{{ row[idx] if idx < row|length else '' }}"></td>
+                                                            {% endfor %}
+                                                            <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" data-table-remove-row>×</button></td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    {% endif %}
+                                                </tbody>
+                                            </table>
+                                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                                                <button type="button" class="btn btn-sm btn-outline-primary" data-table-add-row>Thêm dòng</button>
+                                                <span class="small text-muted">Nhập như bảng tính Excel; mỗi dòng là một hàng dữ liệu.</span>
+                                            </div>
+                                            <textarea class="form-control d-none" name="form_field_{{ field.field_key }}" rows="3"></textarea>
+                                        </div>
                                         {% else %}
                                         <input class="form-control" type="text" name="form_field_{{ field.field_key }}" value="{{ payload_value if payload_value is not iterable or payload_value is string else '' }}">
                                         {% endif %}
@@ -1848,6 +1967,74 @@
     }
     syncImportRowIndexes();
     syncOutlineMode(importPreviewRows.length ? 'import' : 'manual');
+})();
+</script>
+<script>
+(function () {
+    function syncTableGrid(grid) {
+        var textarea = grid.querySelector('textarea[name^="form_field_"]');
+        if (!textarea) return;
+        var rows = [];
+        grid.querySelectorAll('tbody tr').forEach(function (tr) {
+            var cells = [];
+            tr.querySelectorAll('input').forEach(function (input) {
+                cells.push(input.value);
+            });
+            rows.push(cells.join(' | '));
+        });
+        textarea.value = rows.join('\n');
+    }
+
+    document.querySelectorAll('[data-table-grid]').forEach(function (grid) {
+        var tbody = grid.querySelector('tbody');
+        var addBtn = grid.querySelector('[data-table-add-row]');
+        var columns = grid.dataset.columns ? grid.dataset.columns.split('||') : ['Cột 1', 'Cột 2', 'Cột 3'];
+
+        function addRow(values) {
+            var tr = document.createElement('tr');
+            for (var i = 0; i < columns.length; i++) {
+                var td = document.createElement('td');
+                var input = document.createElement('input');
+                input.className = 'form-control form-control-sm';
+                input.value = values && values[i] !== undefined && values[i] !== null ? String(values[i]) : '';
+                input.addEventListener('input', function () { syncTableGrid(grid); });
+                td.appendChild(input);
+                tr.appendChild(td);
+            }
+            var tdBtn = document.createElement('td');
+            tdBtn.className = 'text-center';
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-sm btn-outline-danger';
+            btn.textContent = '×';
+            btn.title = 'Xóa dòng';
+            btn.addEventListener('click', function () {
+                tr.remove();
+                syncTableGrid(grid);
+            });
+            tdBtn.appendChild(btn);
+            tr.appendChild(tdBtn);
+            tbody.appendChild(tr);
+            syncTableGrid(grid);
+        }
+
+        if (addBtn) {
+            addBtn.addEventListener('click', function () { addRow(null); });
+        }
+        tbody.querySelectorAll('[data-table-remove-row]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                btn.closest('tr').remove();
+                syncTableGrid(grid);
+            });
+        });
+        tbody.querySelectorAll('input').forEach(function (input) {
+            input.addEventListener('input', function () { syncTableGrid(grid); });
+        });
+        if (!tbody.querySelector('tr')) {
+            addRow(null);
+        }
+        syncTableGrid(grid);
+    });
 })();
 </script>
 {% endblock %}

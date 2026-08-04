@@ -7248,6 +7248,7 @@ def _task_detail_v2(tid):
         )
         roles = AppRole.query.order_by(AppRole.name.asc()).all()
     outline_import_preview_rows = _get_outline_import_preview(task.id) if mode == "OUTLINE" and can_manage_task_view else []
+    outline_matrix = _build_outline_progress_matrix(task, session["uid"]) if mode == "OUTLINE" else None
 
     return render_template(
         "task_detail_rebuild.html",
@@ -7268,6 +7269,7 @@ def _task_detail_v2(tid):
         outline_rows=detail_page_context["outline_rows"],
         outline_groups=detail_page_context["outline_groups"],
         outline_import_preview_rows=outline_import_preview_rows,
+        outline_matrix=outline_matrix,
         file_rows=detail_page_context["file_rows"],
         file_assignment_unit_cards=file_progress_groups["unit_cards"],
         file_assignment_role_groups=file_progress_groups["role_groups"],
@@ -7698,6 +7700,201 @@ def _export_form_task_v2(tid):
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
+def _build_outline_progress_matrix(task, current_uid):
+    """Ma trận tiến độ: hàng = đầu mục, cột = đơn vị nhận việc."""
+    rows = _parse_outline_item_rows(task, current_uid)
+    unit_names = []
+    for row in rows:
+        for assignment in row["assignments"]:
+            user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
+            unit_name = _task_assignee_unit_name(user)
+            if unit_name not in unit_names:
+                unit_names.append(unit_name)
+    unit_names.sort(key=lambda name: remove_accents(name).lower())
+
+    matrix_rows = []
+    for row in rows:
+        item = row["item"]
+        cells = []
+        item_submitted = 0
+        item_total = len(row["assignments"])
+        for unit_name in unit_names:
+            unit_assignments = []
+            for assignment in row["assignments"]:
+                user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
+                if _task_assignee_unit_name(user) == unit_name:
+                    unit_assignments.append(assignment)
+            unit_submitted = sum(1 for assignment in unit_assignments if _task_is_submitted(assignment))
+            item_submitted += unit_submitted
+            cells.append(
+                {
+                    "unit_name": unit_name,
+                    "submitted_count": unit_submitted,
+                    "total_count": len(unit_assignments),
+                    "done": bool(unit_assignments) and unit_submitted >= len(unit_assignments),
+                    "assignments": [
+                        {
+                            "assignment": assignment,
+                            "status": assignment.status,
+                            "status_label": _task_assignment_status_label(assignment.status),
+                            "status_class": _task_assignment_status_class(assignment.status),
+                            "submitted": _task_is_submitted(assignment),
+                            "submission": row["latest_submissions"].get(assignment.id),
+                        }
+                        for assignment in unit_assignments
+                    ],
+                }
+            )
+        matrix_rows.append(
+            {
+                "item": item,
+                "cells": cells,
+                "submitted_count": item_submitted,
+                "total_count": item_total,
+                "done": item_total > 0 and item_submitted >= item_total,
+                "percent": round(item_submitted / item_total * 100) if item_total else 0,
+            }
+        )
+
+    total_submitted = sum(matrix_row["submitted_count"] for matrix_row in matrix_rows)
+    total_count = sum(matrix_row["total_count"] for matrix_row in matrix_rows)
+    return {
+        "unit_names": unit_names,
+        "rows": matrix_rows,
+        "total_submitted": total_submitted,
+        "total_count": total_count,
+        "percent": round(total_submitted / total_count * 100) if total_count else 0,
+    }
+
+def _export_outline_word_v2(tid):
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    if _task_mode(task) != "OUTLINE":
+        flash("Công việc này không phải dạng báo cáo văn bản theo đề cương.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    current_user = db.session.get(User, session["uid"])
+    perms = _current_perms()
+    can_manage_task_view = bool(
+        bool(session.get("is_admin"))
+        or _can_process_task_module(perms)
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+        or _can_watch_task(task, user=current_user)
+    )
+    if not can_manage_task_view:
+        flash("Bạn không có quyền xuất báo cáo tổng hợp.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    if DocxDocument is None:
+        flash("Máy chủ chưa cài thư viện tạo file Word.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    rows = _parse_outline_item_rows(task, session["uid"])
+    document = DocxDocument()
+    document.add_heading(str(task.title or f"Công việc #{task.id}"), level=0)
+
+    meta_parts = []
+    if task.author_name:
+        meta_parts.append(f"Đơn vị giao việc: {task.author_name}")
+    if task.deadline:
+        meta_parts.append(f"Hạn nộp: {task.deadline.strftime('%d/%m/%Y')}")
+    if task.priority:
+        meta_parts.append(f"Ưu tiên: {task.priority}")
+    if meta_parts:
+        meta_paragraph = document.add_paragraph()
+        meta_run = meta_paragraph.add_run(" — ".join(meta_parts))
+        meta_run.bold = True
+    if task.content:
+        document.add_paragraph(str(task.content))
+
+    if not rows:
+        document.add_paragraph("Chưa có đầu mục nào được thiết lập cho công việc này.")
+    for index, row in enumerate(rows, start=1):
+        item = row["item"]
+        item_code = str(getattr(item, "item_code", None) or index)
+        document.add_heading(f"{item_code}. {item.title}", level=1)
+        guide = str(getattr(item, "guide_text", None) or "").strip()
+        if guide:
+            guide_paragraph = document.add_paragraph()
+            guide_run = guide_paragraph.add_run(guide)
+            guide_run.italic = True
+        if not row["assignments"]:
+            document.add_paragraph("Chưa giao đơn vị nào cho đầu mục này.")
+        for assignment in row["assignments"]:
+            user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
+            unit_name = _task_assignee_unit_name(user)
+            user_name = getattr(user, "fullname", None) or getattr(user, "username", None) or "Cán bộ"
+            submission = row["latest_submissions"].get(assignment.id)
+            status_label = _task_assignment_status_label(assignment.status)
+            header = document.add_paragraph()
+            header.add_run(f"{unit_name} — {user_name} ({status_label})").bold = True
+            if not submission:
+                document.add_paragraph("Chưa có nội dung báo cáo.")
+                continue
+            if item.report_kind == "number" and submission.numeric_value is not None:
+                document.add_paragraph(f"Số liệu: {submission.numeric_value:g}")
+            if submission.narrative_content:
+                document.add_paragraph(str(submission.narrative_content))
+            for file in (getattr(submission, "files", None) or []):
+                document.add_paragraph(f"File minh chứng: {file.original_name or file.stored_name}")
+            if getattr(submission, "submitted_at", None):
+                submitted_paragraph = document.add_paragraph()
+                submitted_run = submitted_paragraph.add_run(
+                    f"(Nộp lúc {submission.submitted_at.strftime('%d/%m/%Y %H:%M')})"
+                )
+                submitted_run.italic = True
+
+    output = io.BytesIO()
+    document.save(output)
+    output.seek(0)
+    safe_name = secure_filename(task.title or f"task_{task.id}") or f"task_{task.id}"
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=f"bao_cao_tong_hop_{safe_name}_{task.id}.docx",
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+
+def _return_task_assignment_v2(tid, assignment_id):
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+    assignment = TaskAssignment.query.filter_by(id=assignment_id, task_id=tid).first()
+    if not assignment:
+        flash("Không tìm thấy phần việc cần trả lại.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    current_user = db.session.get(User, session["uid"])
+    perms = _current_perms()
+    can_manage_task_view = bool(
+        bool(session.get("is_admin"))
+        or _can_process_task_module(perms)
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+        or _can_watch_task(task, user=current_user)
+    )
+    if not can_manage_task_view:
+        flash("Bạn không có quyền trả lại phần việc này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    reason = (request.form.get("return_reason") or "").strip()[:500]
+    assignment.status = "returned"
+    assignment.returned_at = datetime.now()
+    assignment.updated_at = datetime.now()
+    db.session.add(
+        TaskComment(
+            task_id=task.id,
+            user_id=session["uid"],
+            user_name=session.get("fullname", "Quản trị"),
+            content=f"[TRẢ LẠI] {reason or 'Yêu cầu bổ sung nội dung'}",
+        )
+    )
+    db.session.commit()
+    flash("Đã trả lại phần việc để bổ sung.", "success")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
 def _create_task_google_form_v2(tid):
     task = Task.query.filter_by(id=tid).first()
@@ -9229,3 +9426,19 @@ def export_form_task_v2(tid):
 
     _ensure_task_schema()
     return _export_form_task_v2(tid)
+
+@tasks_bp.route("/tasks/<int:tid>/export-outline.docx")
+def export_outline_task_word(tid):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    return _export_outline_word_v2(tid)
+
+@tasks_bp.route("/tasks/<int:tid>/assignments/<int:assignment_id>/return", methods=["POST"])
+def return_task_assignment(tid, assignment_id):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    return _return_task_assignment_v2(tid, assignment_id)
