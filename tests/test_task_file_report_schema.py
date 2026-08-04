@@ -93,8 +93,7 @@ class TaskFileReportSchemaRouteTests(unittest.TestCase):
                 task_type="Công việc thường xuyên",
                 initial_status="Chưa tiếp nhận",
                 task_mode="FILE",
-                workflow_mode="summary_report",
-                report_schema_json=json.dumps(
+                                report_schema_json=json.dumps(
                     {
                         "enabled": True,
                         "narrative": {
@@ -171,8 +170,7 @@ class TaskFileReportSchemaRouteTests(unittest.TestCase):
                 task_type="Công việc thường xuyên",
                 initial_status="Chưa tiếp nhận",
                 task_mode="FILE",
-                workflow_mode="summary_report",
-                report_schema_json=json.dumps(
+                                report_schema_json=json.dumps(
                     {
                         "enabled": True,
                         "narrative": {"enabled": False},
@@ -273,8 +271,7 @@ class TaskFileReportSchemaRouteTests(unittest.TestCase):
                 task_type="Công việc thường xuyên",
                 initial_status="Chưa tiếp nhận",
                 task_mode="FILE",
-                workflow_mode="summary_report",
-                report_schema_json=json.dumps(
+                                report_schema_json=json.dumps(
                     {
                         "enabled": True,
                         "narrative": {
@@ -348,8 +345,7 @@ class TaskFileReportSchemaRouteTests(unittest.TestCase):
                 task_type="Công việc thường xuyên",
                 initial_status="Chưa tiếp nhận",
                 task_mode="FILE",
-                workflow_mode="summary_report",
-                report_schema_json=json.dumps(
+                                report_schema_json=json.dumps(
                     {
                         "enabled": True,
                         "narrative": {"enabled": True, "required": True, "label": "Nhận định tổng hợp"},
@@ -397,8 +393,7 @@ class TaskFileReportSchemaRouteTests(unittest.TestCase):
                 task_type="Công việc thường xuyên",
                 initial_status="Chưa tiếp nhận",
                 task_mode="FILE",
-                workflow_mode="summary_report",
-                report_schema_json=json.dumps(
+                                report_schema_json=json.dumps(
                     {
                         "enabled": True,
                         "narrative": {"enabled": True, "required": True, "label": "Nhận định tổng hợp"},

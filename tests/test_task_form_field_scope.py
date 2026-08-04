@@ -76,8 +76,7 @@ class TaskFormFieldScopeRouteTests(unittest.TestCase):
                 task_type="Công việc thường xuyên",
                 initial_status="Chưa tiếp nhận",
                 task_mode="FORM",
-                workflow_mode="structured_form",
-                created_at=datetime.now(),
+                                created_at=datetime.now(),
             )
             db.session.add(task)
             db.session.flush()
@@ -205,8 +204,7 @@ class TaskFormFieldScopeRouteTests(unittest.TestCase):
                 task_type="Công việc thường xuyên",
                 initial_status="Chưa tiếp nhận",
                 task_mode="FORM",
-                workflow_mode="structured_form",
-                created_at=datetime.now(),
+                                created_at=datetime.now(),
             )
             db.session.add(task)
             db.session.flush()
@@ -278,8 +276,7 @@ class TaskFormFieldScopeRouteTests(unittest.TestCase):
                 task_type="Công việc thường xuyên",
                 initial_status="Chưa tiếp nhận",
                 task_mode="FORM",
-                workflow_mode="structured_form",
-                created_at=datetime.now(),
+                                created_at=datetime.now(),
             )
             db.session.add(task)
             db.session.flush()
@@ -334,8 +331,7 @@ class TaskFormFieldScopeRouteTests(unittest.TestCase):
                 task_type="Công việc thường xuyên",
                 initial_status="Chưa tiếp nhận",
                 task_mode="FORM",
-                workflow_mode="structured_form",
-                created_at=datetime.now(),
+                                created_at=datetime.now(),
             )
             db.session.add(task)
             db.session.flush()

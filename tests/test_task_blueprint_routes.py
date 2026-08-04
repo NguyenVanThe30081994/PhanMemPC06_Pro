@@ -102,7 +102,6 @@ class TaskBlueprintRouteTests(unittest.TestCase):
             self.assertIsNotNone(task)
             self.task_ids.append(task.id)
             self.assertEqual(task.task_mode, "OUTLINE")
-            self.assertEqual(task.workflow_mode, "child_tasks")
             items = TaskItem.query.filter_by(task_id=task.id).order_by(TaskItem.sort_order.asc()).all()
             self.assertEqual(len(items), 2)
             self.assertEqual(items[1].report_kind, "number")

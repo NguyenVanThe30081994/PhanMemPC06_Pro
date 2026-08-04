@@ -147,7 +147,6 @@ class TaskOutlineWordExportTests(unittest.TestCase):
             task = Task(
                 title="Đề cương giao việc tự động",
                 task_mode="OUTLINE",
-                workflow_mode="child_tasks",
                 author_id=admin_id,
                 author_name="Quản trị",
             )

@@ -118,7 +118,6 @@ from task_blueprints import (
     workflow_blueprint_report_schema,
     workflow_blueprint_summary_text,
     workflow_blueprint_task_mode,
-    workflow_blueprint_workflow_mode,
 )
 from google_forms import (
     GOOGLE_FORMS_MANAGE_SCOPES,
@@ -146,12 +145,6 @@ REPORT_ATTACHMENT_RE = re.compile(r"\s*\(Đính kèm:\s*([^)]+)\)\s*$")
 TASK_REPORT_ALLOWED_FIELD_TYPES = {"number", "text", "textarea"}
 TASK_REPORT_ALLOWED_TARGET_TYPES = {"all", "unit", "role", "user"}
 TASK_OUTLINE_ALLOWED_EXTENSIONS = {".docx", ".txt"}
-TASK_WORKFLOW_ALLOWED_MODES = {"child_tasks", "summary_report"}
-TASK_WORKFLOW_DEFAULT_MODE = "summary_report"
-TASK_WORKFLOW_LABELS = {
-    "child_tasks": "Nhiệm vụ",
-    "summary_report": "Tổng hợp",
-}
 TASK_MODE_ALLOWED = {"OUTLINE", "FILE", "FORM"}
 TASK_MODE_DEFAULT = "FILE"
 TASK_MODE_LABELS = {
@@ -307,49 +300,6 @@ DA06_SO_NGANH_RULES = [
 ]
 
 
-def _normalize_task_workflow_mode(value):
-    mode = str(value or "").strip().lower()
-    if mode in TASK_WORKFLOW_ALLOWED_MODES:
-        return mode
-    return ""
-
-
-def _requested_task_workflow_mode(form, fallback=TASK_WORKFLOW_DEFAULT_MODE):
-    requested = _normalize_task_workflow_mode(form.get("workflow_mode"))
-    if requested:
-        return requested
-    normalized_fallback = _normalize_task_workflow_mode(fallback)
-    return normalized_fallback or TASK_WORKFLOW_DEFAULT_MODE
-
-
-def _task_workflow_mode(task, has_child_tasks=None):
-    if not task:
-        return TASK_WORKFLOW_DEFAULT_MODE
-    cached = getattr(task, "_task_workflow_mode_cache", None)
-    if cached:
-        return cached
-
-    explicit = _normalize_task_workflow_mode(getattr(task, "workflow_mode", None))
-    if explicit:
-        setattr(task, "_task_workflow_mode_cache", explicit)
-        return explicit
-
-    if getattr(task, "parent_task_id", None):
-        setattr(task, "_task_workflow_mode_cache", TASK_WORKFLOW_DEFAULT_MODE)
-        return TASK_WORKFLOW_DEFAULT_MODE
-
-    if has_child_tasks is None:
-        has_child_tasks = bool(
-            Task.query.with_entities(Task.id).filter(Task.parent_task_id == task.id).first()
-        )
-    inferred = "child_tasks" if has_child_tasks else TASK_WORKFLOW_DEFAULT_MODE
-    setattr(task, "_task_workflow_mode_cache", inferred)
-    return inferred
-
-
-def _task_workflow_label(mode):
-    normalized = _normalize_task_workflow_mode(mode)
-    return TASK_WORKFLOW_LABELS.get(normalized, TASK_WORKFLOW_LABELS[TASK_WORKFLOW_DEFAULT_MODE])
 
 
 def _normalize_task_mode(value):
@@ -359,30 +309,10 @@ def _normalize_task_mode(value):
     return ""
 
 
-def _workflow_mode_from_task_mode(task_mode):
-    normalized = _normalize_task_mode(task_mode)
-    if normalized == "OUTLINE":
-        return "child_tasks"
-    return "summary_report"
-
-
-def _task_mode_from_workflow_mode(workflow_mode):
-    normalized = _normalize_task_workflow_mode(workflow_mode)
-    if normalized == "child_tasks":
-        return "OUTLINE"
-    return TASK_MODE_DEFAULT
-
-
 def _requested_task_mode(form, fallback=TASK_MODE_DEFAULT):
     requested = _normalize_task_mode(form.get("task_mode"))
     if requested:
         return requested
-    requested = _normalize_task_mode(form.get("workflow_mode"))
-    if requested:
-        return requested
-    workflow_fallback = _normalize_task_workflow_mode(form.get("workflow_mode") or fallback)
-    if workflow_fallback:
-        return _task_mode_from_workflow_mode(workflow_fallback)
     normalized_fallback = _normalize_task_mode(fallback)
     return normalized_fallback or TASK_MODE_DEFAULT
 
@@ -399,7 +329,7 @@ def _task_mode(task, has_child_tasks=None):
         setattr(task, "_task_mode_cache", explicit)
         return explicit
 
-    inferred = _task_mode_from_workflow_mode(_task_workflow_mode(task, has_child_tasks=has_child_tasks))
+    inferred = task_mode
     setattr(task, "_task_mode_cache", inferred)
     return inferred
 
@@ -2260,7 +2190,6 @@ def _task_import_working_config_from_blueprint(blueprint, source_type="", source
         "source_kind": normalized.get("source_kind") or "custom",
         "collection_mode": normalized.get("collection_mode") or "file",
         "task_mode": workflow_blueprint_task_mode(normalized),
-        "workflow_mode": workflow_blueprint_workflow_mode(normalized),
         "title": str(normalized.get("title") or "").strip()[:255],
         "summary": str(workflow_blueprint_summary_text(normalized) or "").strip()[:4000],
         "category": "",
@@ -3843,9 +3772,6 @@ def _publish_task_import_draft(draft):
         task_type=payload["task_type"],
         initial_status="Chưa tiếp nhận",
         task_mode=payload["task_mode"],
-        workflow_mode=(
-            "child_tasks" if payload["task_mode"] == "OUTLINE" else "summary_report"
-        ),
     )
     if payload["report_schema"]:
         new_task.report_schema_json = _json_dump(payload["report_schema"])
@@ -7332,12 +7258,7 @@ def _tasks_page_v2():
             initial_status="Chưa tiếp nhận",
             task_mode=task_mode,
             form_provider=form_provider if task_mode == "FORM" else "internal",
-            workflow_mode=(
-                workflow_blueprint_workflow_mode(workflow_blueprint)
-                if workflow_blueprint
-                else _workflow_mode_from_task_mode(task_mode)
-            ),
-        )
+                    )
         if report_schema:
             new_task.report_schema_json = json.dumps(report_schema, ensure_ascii=False)
         if task_mode == "FORM" and form_provider == "google":

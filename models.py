@@ -208,7 +208,6 @@ class Task(db.Model):
     google_form_builder_json = db.Column(db.Text)
     google_form_runtime_json = db.Column(db.Text)
     google_form_sync_state_json = db.Column(db.Text)
-    workflow_mode = db.Column(db.String(30), default='summary_report')
     report_schema_json = db.Column(db.Text)
     linked_report_templates_json = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.now)
