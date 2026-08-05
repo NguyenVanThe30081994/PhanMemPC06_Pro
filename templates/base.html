@@ -768,7 +768,6 @@
     {% set operations_active = (request.endpoint == 'ranking_bp.index') or (request.endpoint and request.endpoint.startswith('attendance_bp.')) %}
     {% set lookup_active = request.endpoint in ['portal_bp.news', 'portal_bp.library', 'portal_bp.contacts'] or request.path.startswith('/links') %}
     {% set support_active = request.endpoint == 'portal_bp.user_guide' or request.path.startswith('/ai') %}
-    {% set can_access_reports = can_access_report_center() %}
     {% set system_endpoints = ['admin_bp.roles', 'admin_bp.module_categories', 'admin_bp.ai_settings', 'admin_bp.logs', 'admin_bp.system_update', 'admin_bp.db_tool'] %}
     {% set system_page_active = request.endpoint in system_endpoints %}
     {% set system_root_href = '/roles' if can_module('user', 'view') else '/admin/module-categories' %}
@@ -799,29 +798,6 @@
                             {% endif %}
                         </a>
                         {% if submenu_parent == 'tasks' and sidebar_submenu_items %}
-                        <div class="desktop-nav-children">
-                            {% for item in sidebar_submenu_items %}
-                            <a href="{{ item.href }}" class="desktop-nav-link desktop-subnav-link {% if item.active %}active{% endif %}">
-                                <span>{{ item.label }}</span>
-                                {% if item.count is defined and item.count is not none %}
-                                <small>{{ item.count }}</small>
-                                {% endif %}
-                            </a>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                    {% if can_access_reports %}
-                    <div class="desktop-nav-group">
-                        <a href="{{ report_center_url() }}" class="desktop-nav-link {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %} {% if submenu_parent == 'reporting' and sidebar_submenu_items %}has-children{% endif %}">
-                            <span class="desktop-nav-icon"><i class="fa-solid fa-chart-line"></i></span>
-                            <span>Báo cáo</span>
-                            {% if submenu_parent == 'reporting' and sidebar_submenu_items %}
-                            <span class="desktop-nav-caret"><i class="fa-solid fa-chevron-down"></i></span>
-                            {% endif %}
-                        </a>
-                        {% if submenu_parent == 'reporting' and sidebar_submenu_items %}
                         <div class="desktop-nav-children">
                             {% for item in sidebar_submenu_items %}
                             <a href="{{ item.href }}" class="desktop-nav-link desktop-subnav-link {% if item.active %}active{% endif %}">
@@ -1106,7 +1082,6 @@
 
     <div class="offcanvas offcanvas-start border-0 shadow-lg mobile-sidebar d-lg-none" tabindex="-1" id="mobileMenu"
         style="width: 300px;">
-        {% set can_access_reports = can_access_report_center() %}
         <div class="offcanvas-header p-4 d-flex flex-column align-items-start">
             <div class="d-flex justify-content-between w-100 align-items-center mb-3">
                 <h5 class="offcanvas-title fw-bold text-primary d-flex align-items-center gap-2">
@@ -1153,24 +1128,6 @@
                     </div>
                     {% endif %}
 
-                    {% if can_access_reports %}
-                    <div class="mobile-nav-group">
-                        <a href="{{ report_center_url() }}"
-                            class="mobile-nav-link {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">
-                            <span class="mobile-nav-icon"><i class="fa-solid fa-chart-line"></i></span>
-                            <span>Báo cáo</span>
-                        </a>
-                        {% if submenu_parent == 'reporting' and sidebar_submenu_items %}
-                        <div class="mobile-nav-children">
-                            {% for item in sidebar_submenu_items %}
-                            <a href="{{ item.href }}" class="mobile-nav-link mobile-subnav-link {% if item.active %}active{% endif %}">
-                                <span>{{ item.label }}</span>
-                            </a>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% endif %}
                 </div>
             </div>
 
@@ -1353,9 +1310,9 @@
             <i class="fa-solid fa-list-check"></i>
             <span>CÔNG VIỆC</span>
         </a>
-        <a href="{{ report_center_url() if can_access_reports else '/ranking' }}" class="nav-item {% if can_access_reports and request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% elif not can_access_reports and request.endpoint == 'ranking_bp.index' %}active{% endif %}">
-            <i class="fa-solid {% if can_access_reports %}fa-chart-line{% else %}fa-ranking-star{% endif %}"></i>
-            <span>{% if can_access_reports %}BÁO CÁO{% else %}XẾP HẠNG{% endif %}</span>
+        <a href="/ranking" class="nav-item {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">
+            <i class="fa-solid fa-ranking-star"></i>
+            <span>XẾP HẠNG</span>
         </a>
         <a href="#" class="nav-item" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
             <i class="fa-solid fa-ellipsis-h"></i>

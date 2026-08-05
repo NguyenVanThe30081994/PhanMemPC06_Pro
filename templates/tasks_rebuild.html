@@ -612,10 +612,6 @@
                                         <span>Tự dựng / tải Excel mẫu</span>
                                     </label>
                                     <label class="d-flex align-items-center gap-2">
-                                        <input type="radio" name="form_source_choice" value="report">
-                                        <span>Lấy từ biểu mẫu báo cáo có sẵn</span>
-                                    </label>
-                                    <label class="d-flex align-items-center gap-2">
                                         <input type="radio" name="form_source_choice" value="google">
                                         <span>Google Form thật</span>
                                     </label>
@@ -626,18 +622,6 @@
                                 <div class="d-flex flex-wrap gap-2 align-items-center">
                                     <input class="form-control" type="file" id="wizardFormExcelFile" accept=".xlsx,.xls" style="max-width: 420px;">
                                     <button class="btn btn-outline-primary" type="button" id="wizardFormExcelBtn">Nạp trường từ Excel</button>
-                                </div>
-                            </div>
-                            <div data-form-source-pane="report" class="d-none border rounded-3 p-3 bg-light-subtle">
-                                <p class="small text-muted mb-2">Chọn biểu mẫu báo cáo đã có trong hệ thống; các trường sẽ được nạp sang bước 3 để kiểm tra và chỉnh sửa.</p>
-                                <div class="d-flex flex-wrap gap-2 align-items-center">
-                                    <select class="form-select" id="wizardReportTemplateSelect" style="max-width: 460px;">
-                                        <option value="">Chọn biểu mẫu báo cáo</option>
-                                        {% for template in report_templates %}
-                                        <option value="{{ template.id }}">{{ template.name }}{% if template.report_type_display %} ({{ template.report_type_display }}){% endif %}</option>
-                                        {% endfor %}
-                                    </select>
-                                    <button class="btn btn-outline-primary" type="button" id="wizardReportTemplateBtn">Nạp trường</button>
                                 </div>
                             </div>
                             <div data-form-source-pane="google" class="d-none border rounded-3 p-3 bg-light-subtle">
@@ -1015,8 +999,6 @@
     const wizardOutlineFile = document.getElementById('wizardOutlineFile');
     const wizardOutlineParseBtn = document.getElementById('wizardOutlineParseBtn');
     const wizardOutlineStatus = document.getElementById('wizardOutlineStatus');
-    const wizardReportTemplateSelect = document.getElementById('wizardReportTemplateSelect');
-    const wizardReportTemplateBtn = document.getElementById('wizardReportTemplateBtn');
     const wizardFormExcelFile = document.getElementById('wizardFormExcelFile');
     const wizardFormExcelBtn = document.getElementById('wizardFormExcelBtn');
     const wizardSummary = document.getElementById('wizardSummary');
@@ -1061,7 +1043,7 @@
         } else if (wizardMode === 'FORM') {
             const fields = Array.from(formFieldList?.querySelectorAll('.form-field-item') || []);
             const source = document.querySelector('input[name="form_source_choice"]:checked')?.value || 'builder';
-            const sourceLabel = { builder: 'Tự dựng / Excel', report: 'Từ biểu mẫu báo cáo', google: 'Google Form thật' }[source] || source;
+            const sourceLabel = { builder: 'Tự dựng / Excel', google: 'Google Form thật' }[source] || source;
             detail = `${fields.length} trường biểu mẫu (${sourceLabel})`;
         } else {
             const roleIds = Array.from(document.querySelectorAll('input[name="assignee_role_ids"]:checked')).length;
@@ -1181,17 +1163,6 @@
             wizardOutlineStatus.classList.add('text-danger');
         }
     }
-    wizardReportTemplateBtn?.addEventListener('click', () => {
-        const templateId = wizardReportTemplateSelect?.value || '';
-        if (!templateId) {
-            wizardOutlineStatus.textContent = 'Cần chọn biểu mẫu báo cáo trước.';
-            wizardOutlineStatus.classList.add('text-danger');
-            return;
-        }
-        const formData = new FormData();
-        formData.append('report_template_id', templateId);
-        loadFormFields(formData);
-    });
     wizardFormExcelBtn?.addEventListener('click', () => {
         if (!wizardFormExcelFile?.files?.length) {
             wizardOutlineStatus.textContent = 'Cần chọn file Excel mẫu (.xlsx) trước.';

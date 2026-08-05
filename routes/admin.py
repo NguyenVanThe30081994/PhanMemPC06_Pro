@@ -472,24 +472,6 @@ def _workspace_card(
     }
 
 
-def _report_submission_business_date(submission):
-    metadata = {}
-    try:
-        metadata = json.loads(getattr(submission, 'metadata_json', '') or '{}')
-    except (TypeError, ValueError, json.JSONDecodeError):
-        metadata = {}
-
-    report_date_raw = str(metadata.get('report_date', '') or '').strip()
-    if report_date_raw:
-        try:
-            return datetime.fromisoformat(report_date_raw).date()
-        except ValueError:
-            pass
-
-    submitted_at = getattr(submission, 'submitted_at', None) or getattr(submission, 'created_at', None)
-    return submitted_at.date() if submitted_at else None
-
-
 def _task_dashboard_unit_metrics():
     from models import TaskAssignment
 
@@ -521,81 +503,17 @@ def _task_dashboard_unit_metrics():
     }
 
 
-def _daily_report_dashboard_unit_metrics():
-    from models import ReportCycle, ReportInstance, ReportSubmission, ReportType
-
-    total_reports = ReportCycle.query.count()
-    daily_cycles = db.session.query(ReportCycle.id).join(
-        ReportType, ReportCycle.report_type_id == ReportType.id
-    ).filter(
-        ReportType.code == 'daily',
-        ReportCycle.status != 'closed',
-    ).all()
-    daily_cycle_ids = [row[0] for row in daily_cycles]
-    if not daily_cycle_ids:
-        return {
-            'total_reports': total_reports,
-            'total_units': 0,
-            'unreported_units': 0,
-            'reported_units': 0,
-        }
-
-    instances = ReportInstance.query.filter(ReportInstance.cycle_id.in_(daily_cycle_ids)).all()
-    if not instances:
-        return {
-            'total_reports': total_reports,
-            'total_units': 0,
-            'unreported_units': 0,
-            'reported_units': 0,
-        }
-
-    today = datetime.now().date()
-    instance_ids = [instance.id for instance in instances]
-    submissions = ReportSubmission.query.filter(
-        ReportSubmission.instance_id.in_(instance_ids)
-    ).all()
-
-    submitted_instance_ids = set()
-    for submission in submissions:
-        if (getattr(submission, 'status', '') or '').strip().lower() != 'submitted':
-            continue
-        if _report_submission_business_date(submission) == today:
-            submitted_instance_ids.add(submission.instance_id)
-
-    def _instance_unit_key(instance):
-        if getattr(instance, 'report_unit_id', None):
-            return f"unit:{instance.report_unit_id}"
-        if getattr(instance, 'org_unit', None):
-            return f"org:{instance.org_unit.strip()}"
-        return f"instance:{instance.id}"
-
-    all_units = {_instance_unit_key(instance) for instance in instances}
-    pending_units = {
-        _instance_unit_key(instance)
-        for instance in instances
-        if instance.id not in submitted_instance_ids
-    }
-    return {
-        'total_reports': total_reports,
-        'total_units': len(all_units),
-        'unreported_units': len(pending_units),
-        'reported_units': max(len(all_units) - len(pending_units), 0),
-    }
-
-@admin_bp.route('/admin')
 def index():
     try:
         if not session.get('uid'): 
             return redirect(url_for('auth_bp.login'))
 
-        from models import Task, DocumentLib, Contact, ReportTemplate, ReportCycle, ReportTemplateVersion
+        from models import Task, DocumentLib, Contact
         from category_helpers import get_module_field_items, get_category_items
 
         task_domain_items = module_category_options('tasks', 'domain', 'Đội nghiệp vụ')
         contact_group_items = module_category_options('contacts', 'contact_group', 'Nhóm danh bạ')
         document_field_items = module_category_options('library', 'category', 'Lĩnh vực', 'Loại tài liệu')
-        # Filter out 5 Đội nghiệp vụ manually since it's hardcoded constraint
-        fixed_report_teams = [{'name': f'Đội {i}'} for i in range(1, 6)]
 
         task_raw_counts = db.session.query(
             Task.domain,
@@ -611,15 +529,6 @@ def index():
             Contact.contact_group,
             func.count(Contact.id)
         ).group_by(Contact.contact_group).all()
-
-        report_raw_counts = db.session.query(
-            ReportTemplate.professional_unit,
-            func.count(ReportCycle.id)
-        ).join(
-            ReportTemplateVersion, ReportCycle.template_version_id == ReportTemplateVersion.id
-        ).join(
-            ReportTemplate, ReportTemplateVersion.template_id == ReportTemplate.id
-        ).group_by(ReportTemplate.professional_unit).all()
 
         task_dashboard = _build_grouped_rows(
             task_raw_counts,
@@ -642,36 +551,6 @@ def index():
             include_zero=True,
             category_options=contact_group_items,
         )
-        
-        # Build report dashboard using exactly Đội 1 -> Đội 5
-        report_dashboard = _build_grouped_rows(
-            report_raw_counts,
-            fixed_report_teams,
-            fallback_label='Chưa phân đội',
-            include_zero=True,
-        )
-
-        # Ensure that only Đội 1 to Đội 5 and the fallback (if any exist) are present? 
-        # The instruction says "Cố định sẽ có 05 đội nghiệp vụ Đội 1 -> Đội 5"
-        # So we can ensure these rows always appear, even if 0.
-        # `_build_grouped_rows` filters out rows with 0 count, but the instruction implies it should be fixed.
-        # Let's override the result for report_dashboard to strictly ensure we have these 5 items.
-        
-        report_dashboard_map = {row['name']: row['count'] for row in report_dashboard}
-        fixed_report_dashboard = []
-        for i in range(1, 6):
-            team_name = f'Đội {i}'
-            fixed_report_dashboard.append({
-                'name': team_name,
-                'count': report_dashboard_map.get(team_name, 0)
-            })
-        
-        # Dashboard báo cáo chỉ hiển thị các đội nghiệp vụ cố định.
-        # Các bản ghi test chưa gán đội không đưa vào thẻ tổng quan này.
-        for row in report_dashboard:
-            if row['name'].startswith('Đội ') and row['name'] not in [f'Đội {i}' for i in range(1, 6)]:
-                fixed_report_dashboard.append(row)
-
         is_admin = bool(session.get('is_admin'))
         role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
         role_name = role_obj.name if role_obj else 'Thành viên'
@@ -681,21 +560,7 @@ def index():
         def can_module(module_code, tier='view'):
             return has_module_permission(perms, module_code, tier=tier, is_admin=is_admin, role_name=role_name)
 
-        def can_access_report_center():
-            return bool(
-                can_module('form', 'view')
-                or can_module('input', 'view')
-                or can_module('input', 'process')
-                or can_module('input', 'exec')
-                or can_module('stat', 'view')
-                or can_module('stat', 'process')
-                or can_module('stat', 'exec')
-            )
-
-        report_center_link = '/admin/reports' if can_module('form', 'process') else '/reports'
-
         task_metrics = _task_dashboard_unit_metrics()
-        daily_report_metrics = _daily_report_dashboard_unit_metrics()
 
         overview_metrics = [
             {
@@ -710,18 +575,6 @@ def index():
                 'href': '/tasks',
                 'accent_class': 'warning',
             },
-            {
-                'title': 'Số báo cáo',
-                'value': daily_report_metrics['total_reports'],
-                'href': report_center_link,
-                'accent_class': 'success',
-            },
-            {
-                'title': 'Đơn vị chưa báo cáo trong ngày',
-                'value': daily_report_metrics['unreported_units'],
-                'href': report_center_link,
-                'accent_class': 'indigo',
-            },
         ]
 
         overview_chart = {
@@ -732,29 +585,14 @@ def index():
             'chart_labels': [
                 'ĐV đã báo cáo công việc',
                 'ĐV chưa báo cáo công việc',
-                'ĐV đã báo cáo trong ngày',
-                'ĐV chưa báo cáo trong ngày',
             ],
             'chart_values': [
                 task_metrics['reported_units'],
                 task_metrics['unreported_units'],
-                daily_report_metrics['reported_units'],
-                daily_report_metrics['unreported_units'],
             ],
         }
 
         dashboard_cards = [
-            {
-                'title': 'Báo cáo',
-                'row_label': 'Đội nghiệp vụ',
-                'count_label': 'Số báo cáo',
-                'icon': 'fa-solid fa-chart-pie',
-                'accent_class': 'success',
-                'link': '/admin/reports',
-                'rows': fixed_report_dashboard,
-                'total': sum(row['count'] for row in fixed_report_dashboard),
-                'empty_text': 'Chưa có báo cáo nào.'
-            },
             {
                 'title': 'Công việc được giao',
                 'row_label': 'Đội nghiệp vụ',
@@ -820,19 +658,6 @@ def index():
                 accent_class='primary',
                 stat_value=card_totals.get('Công việc được giao', 0),
                 stat_label='đợt công việc đang có',
-            ))
-
-        if can_access_report_center():
-            workspace_groups[0]['cards'].append(_workspace_card(
-                title='Báo cáo',
-                description='Vào đúng trung tâm báo cáo để nhập số liệu, kiểm tra tiến độ hoặc quản lý biểu mẫu.',
-                primary_label='Mở báo cáo',
-                primary_link=report_center_link,
-                secondary_label='Xem tiến độ báo cáo',
-                secondary_link=report_center_link,
-                accent_class='success',
-                stat_value=card_totals.get('Báo cáo', 0),
-                stat_label='biểu mẫu hoặc đợt báo cáo',
             ))
 
         if can_module('attendance', 'view'):

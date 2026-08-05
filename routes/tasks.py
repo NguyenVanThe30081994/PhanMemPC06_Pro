@@ -32,19 +32,12 @@ from category_helpers import (
 from models import (
     AppRole,
     RankingUnit,
-    ReportCycle,
-    ReportInstance,
-    ReportTemplate,
-    ReportType,
-    ReportTemplateField,
-    ReportTemplateVersion,
     Task,
     TaskImportDraft,
     TaskAssignment,
     TaskComment,
     TaskItem,
     TaskParticipant,
-    TaskReportLink,
     TaskFormField,
     TaskSubmission,
     TaskSubmissionFile,
@@ -299,15 +292,11 @@ DA06_SO_NGANH_RULES = [
     {"unit_markers": ("y te",), "label": "Lĩnh vực Y tế", "dvc_titles": []},
 ]
 
-
-
-
 def _normalize_task_mode(value):
     normalized = str(value or "").strip().upper()
     if normalized in TASK_MODE_ALLOWED:
         return normalized
     return ""
-
 
 def _requested_task_mode(form, fallback=TASK_MODE_DEFAULT):
     requested = _normalize_task_mode(form.get("task_mode"))
@@ -315,7 +304,6 @@ def _requested_task_mode(form, fallback=TASK_MODE_DEFAULT):
         return requested
     normalized_fallback = _normalize_task_mode(fallback)
     return normalized_fallback or TASK_MODE_DEFAULT
-
 
 def _task_mode(task, has_child_tasks=None):
     if not task:
@@ -333,24 +321,19 @@ def _task_mode(task, has_child_tasks=None):
     setattr(task, "_task_mode_cache", inferred)
     return inferred
 
-
 def _task_mode_label(task_mode):
     normalized = _normalize_task_mode(task_mode)
     return TASK_MODE_LABELS.get(normalized, TASK_MODE_LABELS[TASK_MODE_DEFAULT])
-
 
 def _task_mode_description(task_mode):
     normalized = _normalize_task_mode(task_mode)
     return TASK_MODE_DESCRIPTIONS.get(normalized, TASK_MODE_DESCRIPTIONS[TASK_MODE_DEFAULT])
 
-
 def _task_assignment_status_label(status):
     return TASK_ASSIGNMENT_STATUS_LABELS.get(str(status or "").strip().lower(), "Chưa tiếp nhận")
 
-
 def _task_assignment_display_status(status):
     return task_assignment_display_status(status, TASK_ASSIGNMENT_STATUS_LABELS, _normalize_status)
-
 
 def _task_assignment_status_class(status):
     normalized = str(status or "").strip().lower()
@@ -362,113 +345,17 @@ def _task_assignment_status_class(status):
         return "danger"
     return "todo"
 
-
 def _task_domain_options():
     return module_category_options("tasks", "domain", "Đội nghiệp vụ")
-
 
 def _task_field_options():
     return module_category_options("news", "category", "Lĩnh vực", "Đội nghiệp vụ")
 
-
 def _task_type_options():
     return module_category_options("tasks", "task_type", "Loại công việc")
 
-
 def _task_priority_options():
     return module_category_options("tasks", "priority", "Mức độ ưu tiên")
-
-
-def _task_report_templates():
-    if has_request_context():
-        cached = getattr(g, "_task_report_templates_cache", None)
-        if cached is not None:
-            return cached
-    templates = (
-        ReportTemplate.query.filter_by(status="active")
-        .order_by(ReportTemplate.updated_at.desc())
-        .all()
-    )
-    report_types = {
-        item.id: item
-        for item in ReportType.query.filter(ReportType.id.in_([template.report_type_id for template in templates if template.report_type_id])).all()
-    } if templates else {}
-
-    for template in templates:
-        professional_unit = resolve_category_display(
-            getattr(template, "professional_unit", None),
-            _task_domain_options(),
-            fallback_label="Chưa phân đội",
-        ).get("display_name") or "Chưa phân đội"
-        setattr(template, "professional_unit_display", professional_unit)
-        setattr(template, "report_type_display", getattr(report_types.get(template.report_type_id), "name", "Chưa phân loại"))
-    if has_request_context():
-        g._task_report_templates_cache = templates
-    return templates
-
-
-def _report_template_to_form_field_defs(template_id):
-    """Chuyển các trường của biểu mẫu báo cáo (ReportTemplate) sang cấu hình trường cho task FORM."""
-    template = ReportTemplate.query.filter_by(id=int(template_id)).first()
-    if not template:
-        return None
-    version = (
-        ReportTemplateVersion.query.filter_by(template_id=template.id, is_current=True)
-        .order_by(ReportTemplateVersion.id.desc())
-        .first()
-    )
-    if not version:
-        return []
-    field_rows = (
-        ReportTemplateField.query.filter_by(version_id=version.id)
-        .order_by(ReportTemplateField.display_order.asc(), ReportTemplateField.id.asc())
-        .all()
-    )
-    defs = []
-    used_keys = set()
-    for index, field_row in enumerate(field_rows):
-        if getattr(field_row, "is_visible", True) is False and getattr(field_row, "is_editable", True) is False:
-            continue
-        label = (
-            (getattr(field_row, "display_name", None) or "")
-            or (getattr(field_row, "field_name", None) or "")
-            or (getattr(field_row, "field_code", None) or "")
-            or ""
-        )
-        label = str(label).strip()
-        if not label:
-            continue
-        base = re.sub(r"[^a-zA-Z0-9_]+", "_", str(getattr(field_row, "field_code", None) or f"field_{index}")).strip("_").lower() or f"field_{index}"
-        unique_key = base
-        suffix = 2
-        while unique_key in used_keys:
-            unique_key = f"{base}_{suffix}"
-            suffix += 1
-        used_keys.add(unique_key)
-
-        data_type = str(getattr(field_row, "data_type", None) or "").strip().lower()
-        input_mode = str(getattr(field_row, "input_mode", None) or "").strip().lower()
-        if data_type in {"number", "numeric", "integer", "float", "decimal"}:
-            field_type = "number"
-        elif input_mode in {"textarea", "note", "memo", "paragraph"}:
-            field_type = "textarea"
-        elif input_mode in {"select", "dropdown", "radio"}:
-            field_type = "radio"
-        else:
-            field_type = "text"
-        defs.append(
-            {
-                "field_key": unique_key,
-                "field_label": label,
-                "field_type": field_type,
-                "field_options": "",
-                "is_required": bool(getattr(field_row, "is_required", False)),
-            }
-        )
-    return defs
-
-
-
 
 def _task_assignment_unit_options():
     if has_request_context():
@@ -494,10 +381,8 @@ def _task_assignment_unit_options():
         g._task_assignment_unit_options = merged
     return merged
 
-
 def _task_field_display(value, options, fallback_label):
     return resolve_category_display(value, options, fallback_label=fallback_label)
-
 
 def _decorate_task_categories(task, field_options, domain_options, type_options, priority_options):
     field_info = _task_field_display(task.category, field_options, "Chưa phân lĩnh vực")
@@ -519,7 +404,6 @@ def _decorate_task_categories(task, field_options, domain_options, type_options,
         "priority": priority_info,
     }
 
-
 def _current_perms():
     if has_request_context():
         cached = getattr(g, "_task_current_perms_cache", None)
@@ -538,21 +422,17 @@ def _current_perms():
         g._task_current_perms_cache = {}
     return {}
 
-
 def _can_view_task_module(perms=None):
     perms = perms or _current_perms()
     return has_module_permission(perms, "task", "view", is_admin=session.get("is_admin"))
-
 
 def _can_process_task_module(perms=None):
     perms = perms or _current_perms()
     return has_module_permission(perms, "task", "process", is_admin=session.get("is_admin"))
 
-
 def _can_view_all_tasks(perms=None):
     perms = perms or _current_perms()
     return has_module_permission(perms, "task", "view", is_admin=session.get("is_admin"))
-
 
 def _can_execute_task_module(perms=None):
     perms = perms or _current_perms()
@@ -561,32 +441,11 @@ def _can_execute_task_module(perms=None):
         or has_module_permission(perms, "task", "process", is_admin=session.get("is_admin"))
     )
 
-
-def _can_manage_report_links():
-    perms = _current_perms()
-    return has_module_permission(perms, "form", "process", is_admin=session.get("is_admin"))
-
-
-def _can_open_report_workspace():
-    perms = _current_perms()
-    return bool(
-        has_module_permission(perms, "form", "view", is_admin=session.get("is_admin"))
-        or has_module_permission(perms, "input", "view", is_admin=session.get("is_admin"))
-        or has_module_permission(perms, "input", "process", is_admin=session.get("is_admin"))
-        or has_module_permission(perms, "input", "exec", is_admin=session.get("is_admin"))
-        or has_module_permission(perms, "stat", "view", is_admin=session.get("is_admin"))
-        or has_module_permission(perms, "stat", "process", is_admin=session.get("is_admin"))
-        or has_module_permission(perms, "stat", "exec", is_admin=session.get("is_admin"))
-    )
-
-
 def _normalize_status(status):
     return "Chưa tiếp nhận" if status in PENDING_STATUSES else status
 
-
 def _is_category_item_reference(value):
     return bool(re.fullmatch(r"category_item:\d+", (value or "").strip().lower()))
-
 
 def _parse_deadline(form):
     deadline_type = form.get("deadline_type", "custom")
@@ -639,7 +498,6 @@ def _parse_deadline(form):
 
     return None
 
-
 def _dedupe_users(users):
     unique_users = []
     seen_ids = set()
@@ -649,10 +507,8 @@ def _dedupe_users(users):
             unique_users.append(user)
     return unique_users
 
-
 def _user_unit_key(user):
     return _task_unit_identity(user).get("unit_key", "")
-
 
 def _is_generic_task_unit_key(value):
     if _is_category_item_reference(value):
@@ -686,7 +542,6 @@ def _is_generic_task_unit_key(value):
         "hethong",
     }
 
-
 def _is_generic_task_unit_name(value):
     if _is_category_item_reference(value):
         return True
@@ -711,7 +566,6 @@ def _is_generic_task_unit_name(value):
         "captinh",
         "hethong",
     }
-
 
 def _looks_like_task_unit_name(value):
     normalized = re.sub(r"\s+", " ", remove_accents(value or "")).strip().lower()
@@ -740,7 +594,6 @@ def _looks_like_task_unit_name(value):
         ]
     )
 
-
 def _resolve_task_unit_label(value):
     raw_value = (value or "").strip()
     if not raw_value:
@@ -752,7 +605,6 @@ def _resolve_task_unit_label(value):
     ).get("display_name", "")
     resolved = (resolved or "").strip()
     return resolved or raw_value
-
 
 def _task_unit_identity(user):
     if not user:
@@ -810,7 +662,6 @@ def _task_unit_identity(user):
         "unit_key": unit_key,
     }
 
-
 def _users_for_unit(unit_name):
     domain_options = _task_domain_options()
     canonical_unit = canonicalize_category_value(unit_name or "", domain_options, prefer_stable=True)
@@ -830,14 +681,12 @@ def _users_for_unit(unit_name):
     users = query.order_by(User.fullname.asc()).all()
     return [user for user in users if is_unit_match(user.unit_area or user.fullname or user.username, resolved_unit or unit_name)]
 
-
 def _is_commune_role(role_name):
     normalized = re.sub(r"\s+", " ", remove_accents(role_name or "")).strip().lower()
     return any(
         token in normalized
         for token in ["cap xa", "cong an cap xa", "xa thi tran", "phuong thi tran"]
     )
-
 
 def _resolve_role_assignees(role_id):
     role = db.session.get(AppRole, role_id)
@@ -866,30 +715,23 @@ def _resolve_role_assignees(role_id):
 
     return _dedupe_users(users)
 
-
 def _load_assignment_scope(task):
     return load_assignment_scope(task)
-
 
 def _load_viewer_scope(task):
     return load_viewer_scope(task)
 
-
 def _load_manager_scope(task):
     return load_manager_scope(task)
-
 
 def _store_assignment_scope(task, assign_type, domain="", role_ids=None, user_ids=None):
     return store_assignment_scope(task, assign_type, domain=domain, role_ids=role_ids, user_ids=user_ids)
 
-
 def _store_viewer_scope(task, mode="none", role_ids=None, user_ids=None):
     return store_viewer_scope(task, mode=mode, role_ids=role_ids, user_ids=user_ids)
 
-
 def _store_manager_scope(task, mode="none", role_ids=None, user_ids=None):
     return store_manager_scope(task, mode=mode, role_ids=role_ids, user_ids=user_ids)
-
 
 def _infer_assignment_context(task):
     assignment_rows = _task_assignment_rows(task, ensure_bridge=False)
@@ -935,7 +777,6 @@ def _infer_assignment_context(task):
     context["mode"] = "user"
     return context
 
-
 def _infer_viewer_context(task):
     stored_scope = _load_viewer_scope(task)
     return {
@@ -943,7 +784,6 @@ def _infer_viewer_context(task):
         "role_ids": stored_scope.get("role_ids") or [],
         "user_ids": stored_scope.get("user_ids") or [],
     }
-
 
 def _infer_manager_context(task):
     stored_scope = _load_manager_scope(task)
@@ -953,14 +793,11 @@ def _infer_manager_context(task):
         "user_ids": stored_scope.get("user_ids") or [],
     }
 
-
 def _scope_preview_names(names, empty_label="Chưa cấu hình riêng"):
     return scope_preview_names(names, empty_label=empty_label)
 
-
 def _build_scope_summary(context, role_lookup=None, user_lookup=None, none_label="Chưa cấu hình riêng"):
     return build_scope_summary(context, role_lookup=role_lookup, user_lookup=user_lookup, none_label=none_label)
-
 
 def _requested_role_ids(form):
     role_ids = [int(role_id) for role_id in form.getlist("assignee_role_ids") if str(role_id).isdigit()]
@@ -970,10 +807,8 @@ def _requested_role_ids(form):
             role_ids = [int(assignee_role_id)]
     return sorted(set(role_ids))
 
-
 def _requested_user_ids(form):
     return sorted({int(uid) for uid in form.getlist("target_users") if str(uid).isdigit()})
-
 
 def _requested_unit_domains(form, field_name="child_domains", fallback_field="child_domain"):
     domains = []
@@ -992,26 +827,17 @@ def _requested_unit_domains(form, field_name="child_domains", fallback_field="ch
         domains.append(normalized)
     return domains
 
-
 def _requested_viewer_role_ids(form):
     return sorted({int(role_id) for role_id in form.getlist("viewer_role_ids") if str(role_id).isdigit()})
-
 
 def _requested_viewer_user_ids(form):
     return sorted({int(uid) for uid in form.getlist("viewer_user_ids") if str(uid).isdigit()})
 
-
 def _requested_manager_role_ids(form):
     return sorted({int(role_id) for role_id in form.getlist("manager_role_ids") if str(role_id).isdigit()})
 
-
 def _requested_manager_user_ids(form):
     return sorted({int(uid) for uid in form.getlist("manager_user_ids") if str(uid).isdigit()})
-
-
-def _requested_linked_report_template_ids(form):
-    return sorted({int(template_id) for template_id in form.getlist("linked_report_template_ids") if str(template_id).isdigit()})
-
 
 def _parse_bulk_child_task_titles(raw_value):
     titles = []
@@ -1028,7 +854,6 @@ def _parse_bulk_child_task_titles(raw_value):
         titles.append(normalized[:255])
     return titles
 
-
 def _clean_outline_title(raw_value):
     cleaned = str(raw_value or "").strip()
     if not cleaned:
@@ -1036,7 +861,6 @@ def _clean_outline_title(raw_value):
     cleaned = re.sub(r"^\s*(?:[-*+•]\s*|\+\s*|(?:[0-9]{1,3}\.){1,4}\s*|[0-9]{1,3}[.)]\s*|[A-Za-z][.)]\s*|[IVXLCDMivxlcdm]+[.)]\s*)", "", cleaned)
     cleaned = re.sub(r"\s+", " ", cleaned).strip(" .:-")
     return cleaned
-
 
 def _is_outline_structural_heading(raw_text, cleaned_text):
     raw_text = str(raw_text or "").strip()
@@ -1100,7 +924,6 @@ def _is_outline_structural_heading(raw_text, cleaned_text):
 
     return False
 
-
 def _parse_outline_docx_titles(file_storage):
     if DocxDocument is None:
         raise ValueError("Máy chủ chưa cài thư viện đọc file Word (.docx).")
@@ -1140,7 +963,6 @@ def _parse_outline_docx_titles(file_storage):
 
     return _parse_bulk_child_task_titles("\n".join(candidates))
 
-
 def _parse_outline_text_titles(file_storage):
     try:
         file_storage.stream.seek(0)
@@ -1159,7 +981,6 @@ def _parse_outline_text_titles(file_storage):
         raise ValueError("File đề cương văn bản không đúng định dạng UTF-8.")
     return _parse_bulk_child_task_titles(raw_text)
 
-
 def _parse_outline_upload_titles(file_storage):
     if not file_storage or not getattr(file_storage, "filename", ""):
         return []
@@ -1171,7 +992,6 @@ def _parse_outline_upload_titles(file_storage):
     if extension == ".docx":
         return _parse_outline_docx_titles(file_storage)
     return _parse_outline_text_titles(file_storage)
-
 
 OUTLINE_ASSIGNEE_HINT_KEYWORDS = (
     "đơn vị thực hiện",
@@ -1204,7 +1024,6 @@ OUTLINE_ASSIGNEE_NORM_KEYWORDS = (
     "bo phan",
 )
 
-
 def _normalize_outline_match_text(value):
     text = str(value or "").replace("Đ", "D").replace("đ", "d")
     normalized = remove_accents(text)
@@ -1212,7 +1031,6 @@ def _normalize_outline_match_text(value):
     normalized = re.sub("[.,;:()\\[\\]\"'“”‘’]", " ", normalized)
     normalized = re.sub(r"[\s\-_/|]+", " ", normalized)
     return re.sub(r"\s+", " ", normalized).strip()
-
 
 def _task_assignment_catalog():
     """Danh mục đơn vị / vai trò / cán bộ để đối sánh 'giao cho ai' trong đề cương."""
@@ -1239,7 +1057,6 @@ def _task_assignment_catalog():
         if matches:
             catalog["users"].append({"id": user.id, "fullname": user.fullname, "matches": matches})
     return catalog
-
 
 def _find_all_outline_assignee_matches(normalized_text, catalog):
     """Tìm mọi đơn vị / vai trò / cá nhân xuất hiện trong chuỗi, không trùng lặp."""
@@ -1269,7 +1086,6 @@ def _find_all_outline_assignee_matches(normalized_text, catalog):
             search_from = idx + 1
     found.sort(key=lambda item: item[0])
     return found
-
 
 def _resolve_outline_assignee_hint(hint_text, catalog):
     """Nhận diện cấu hình gán việc (đơn vị / vai trò / cá nhân) từ một đoạn chữ."""
@@ -1311,7 +1127,6 @@ def _resolve_outline_assignee_hint(hint_text, catalog):
         return {"assign_type": "unit", "unit_domains": matched["units"], "role_ids": [], "user_ids": [], "labels": matched_labels}
     return None
 
-
 def _strip_outline_assignee_suffix(title, catalog):
     """Tách phần 'giao cho ai' nằm ngay trong tiêu đề đầu mục (nếu có)."""
     raw = str(title or "").strip()
@@ -1324,7 +1139,6 @@ def _strip_outline_assignee_suffix(title, catalog):
             return left.strip(), right
     return raw, ""
 
-
 def _looks_like_outline_assignee_text(text, catalog):
     normalized = _normalize_outline_match_text(text)
     if len(normalized) < 3:
@@ -1332,7 +1146,6 @@ def _looks_like_outline_assignee_text(text, catalog):
     if any(keyword in normalized for keyword in OUTLINE_ASSIGNEE_NORM_KEYWORDS):
         return True
     return _resolve_outline_assignee_hint(text, catalog) is not None
-
 
 def _resolve_outline_rows_assignments(rows, catalog):
     resolved = []
@@ -1364,7 +1177,6 @@ def _resolve_outline_rows_assignments(rows, catalog):
         )
     return resolved
 
-
 def _paragraph_is_outline_item(text):
     raw_text = str(text or "").strip()
     if not raw_text:
@@ -1379,7 +1191,6 @@ def _paragraph_is_outline_item(text):
     if re.match(r"^\s*(?:(?:[0-9]{1,3}\.){1,4}|[0-9]{1,3}[.)]|[A-Za-z][.)])\s+", raw_text):
         return True
     return False
-
 
 def _parse_outline_docx_rows(file_storage):
     if DocxDocument is None:
@@ -1470,7 +1281,6 @@ def _parse_outline_docx_rows(file_storage):
 
     return _resolve_outline_rows_assignments(rows, catalog)
 
-
 def _parse_outline_text_rows(file_storage):
     try:
         file_storage.stream.seek(0)
@@ -1513,7 +1323,6 @@ def _parse_outline_text_rows(file_storage):
 
     return _resolve_outline_rows_assignments(rows, catalog)
 
-
 def _parse_outline_upload_rows(file_storage):
     """Đọc đề cương (.docx/.txt) -> đầu mục kèm người nhận được tự nhận diện."""
     if not file_storage or not getattr(file_storage, "filename", ""):
@@ -1527,13 +1336,11 @@ def _parse_outline_upload_rows(file_storage):
         return _parse_outline_docx_rows(file_storage)
     return _parse_outline_text_rows(file_storage)
 
-
 def _blueprint_title_from_filename(filename, fallback):
     stem = os.path.splitext(os.path.basename(str(filename or "").strip()))[0]
     stem = stem.replace("_", " ").replace("-", " ")
     stem = re.sub(r"\s+", " ", stem).strip()
     return (stem or fallback or "Điều hành và thu báo cáo")[:255]
-
 
 def _coerce_excel_sample_text(value):
     if value is None:
@@ -1541,7 +1348,6 @@ def _coerce_excel_sample_text(value):
     if isinstance(value, bool):
         return "Có" if value else "Không"
     return str(value).strip()
-
 
 def _looks_like_number(value):
     text = _coerce_excel_sample_text(value).replace(",", "").strip()
@@ -1552,7 +1358,6 @@ def _looks_like_number(value):
         return True
     except (InvalidOperation, ValueError):
         return False
-
 
 def _infer_excel_blueprint_field_type(label, samples):
     compact_label = remove_accents(str(label or "")).strip().lower()
@@ -1571,7 +1376,6 @@ def _infer_excel_blueprint_field_type(label, samples):
         return "textarea"
     return "text"
 
-
 def _pick_excel_header_row(rows):
     best_index = None
     best_score = -1
@@ -1585,7 +1389,6 @@ def _pick_excel_header_row(rows):
             best_score = score
             best_index = index
     return 0 if best_index is None and rows else best_index
-
 
 def _parse_excel_template_blueprint(file_storage):
     if load_workbook is None:
@@ -1663,7 +1466,6 @@ def _parse_excel_template_blueprint(file_storage):
         raise ValueError("Không thể chuyển file Excel thành blueprint hợp lệ.")
     return blueprint
 
-
 def _blueprint_form_fields_from_google_form_payload(form_payload):
     raw_fields = []
     field_defs, _question_map = parse_google_form_definition(form_payload)
@@ -1687,7 +1489,6 @@ def _blueprint_form_fields_from_google_form_payload(form_payload):
             raw_field["columns"] = list(options_payload.get("columns") or [])
         raw_fields.append(raw_field)
     return raw_fields
-
 
 def _parse_google_form_reference_to_blueprint(form_reference):
     form_id = extract_google_form_id(form_reference)
@@ -1721,7 +1522,6 @@ def _parse_google_form_reference_to_blueprint(form_reference):
     if not blueprint:
         raise ValueError("Không thể chuyển Google Form thành blueprint hợp lệ.")
     return blueprint
-
 
 def _parse_reference_file_to_blueprint(file_storage, import_mode, form_reference=""):
     import_config = TASK_BLUEPRINT_IMPORT_MODES.get(str(import_mode or "").strip())
@@ -1768,7 +1568,6 @@ def _parse_reference_file_to_blueprint(file_storage, import_mode, form_reference
         raise ValueError("Không thể chuyển tài liệu tham chiếu thành blueprint hợp lệ.")
     return blueprint
 
-
 def _task_import_status_label(status):
     normalized = str(status or "").strip().lower()
     if normalized == "published":
@@ -1776,7 +1575,6 @@ def _task_import_status_label(status):
     if normalized == "failed":
         return "Lỗi phát hành"
     return "Đang soạn"
-
 
 def _task_import_source_label(source_type):
     normalized = str(source_type or "").strip().lower()
@@ -1789,7 +1587,6 @@ def _task_import_source_label(source_type):
     }
     return labels.get(normalized, normalized or "Không xác định")
 
-
 def _json_loads_safe(raw_value, default):
     try:
         parsed = json.loads(raw_value or "")
@@ -1797,10 +1594,8 @@ def _json_loads_safe(raw_value, default):
         return default
     return parsed if isinstance(parsed, type(default)) else default
 
-
 def _json_dump(raw_value):
     return json.dumps(raw_value, ensure_ascii=False)
-
 
 def _draft_field_options_text(field_options_json):
     payload = _json_loads_safe(field_options_json, {})
@@ -1809,7 +1604,6 @@ def _draft_field_options_text(field_options_json):
     if payload.get("columns"):
         return ", ".join(str(item).strip() for item in payload.get("columns", []) if str(item).strip())
     return ""
-
 
 def _draft_field_options_json(field_type, raw_value):
     text = str(raw_value or "").strip()
@@ -1822,7 +1616,6 @@ def _draft_field_options_json(field_type, raw_value):
         payload["columns"] = [item.strip() for item in text.split(",") if item.strip()]
     return _json_dump(payload) if payload else None
 
-
 def _task_import_form_field_target_config(raw_field):
     option_payload = _json_loads_safe(raw_field.get("field_options_json"), {})
     return _normalize_report_target_config(
@@ -1833,7 +1626,6 @@ def _task_import_form_field_target_config(raw_field):
             "target_user_ids": raw_field.get("target_user_ids", option_payload.get("target_user_ids", [])),
         }
     )
-
 
 def _task_import_form_field_options_json(field_type, raw_value, target_config=None):
     payload = _json_loads_safe(_draft_field_options_json(field_type, raw_value), {})
@@ -1848,13 +1640,11 @@ def _task_import_form_field_options_json(field_type, raw_value, target_config=No
         payload["target_user_ids"] = normalized_target.get("target_user_ids")
     return _json_dump(payload) if payload else None
 
-
 def _normalize_google_form_match_mode(value):
     normalized = str(value or "").strip().lower()
     if normalized in TASK_GOOGLE_FORM_MATCH_MODE_LABELS:
         return normalized
     return "unit"
-
 
 def _normalize_google_form_builder_schema_with_targets(raw_schema, fallback_title="", fallback_description=""):
     normalized = normalize_google_form_builder_schema(
@@ -1882,7 +1672,6 @@ def _normalize_google_form_builder_schema_with_targets(raw_schema, fallback_titl
         item.update(target_config)
     return normalized
 
-
 def _parse_google_form_builder_schema(raw_builder_json, fallback_title="", fallback_description=""):
     text = str(raw_builder_json or "").strip()
     if not text:
@@ -1901,7 +1690,6 @@ def _parse_google_form_builder_schema(raw_builder_json, fallback_title="", fallb
         )
     except Exception as exc:
         raise ValueError(str(exc) or "Schema builder Google Form không hợp lệ.") from exc
-
 
 def _hydrate_google_form_fields(builder_schema):
     normalized = _normalize_google_form_builder_schema_with_targets(builder_schema, fallback_title="Biểu mẫu")
@@ -1932,18 +1720,14 @@ def _hydrate_google_form_fields(builder_schema):
         field_def["field_options_json"] = _json_dump(options_payload) if options_payload else None
     return field_defs
 
-
 def _task_google_form_runtime(task):
     return _json_loads_safe(getattr(task, "google_form_runtime_json", None), {})
-
 
 def _task_google_form_sync_state(task):
     return _json_loads_safe(getattr(task, "google_form_sync_state_json", None), {})
 
-
 def _task_google_form_builder(task):
     return _json_loads_safe(getattr(task, "google_form_builder_json", None), {})
-
 
 def _task_google_form_runtime_payload(task, form_payload=None, base_runtime=None):
     runtime = dict(base_runtime or {})
@@ -1970,7 +1754,6 @@ def _task_google_form_runtime_payload(task, form_payload=None, base_runtime=None
         }
     )
     return runtime
-
 
 def _task_google_form_target_lookup(task=None, builder_schema=None):
     by_question_id = {}
@@ -2001,7 +1784,6 @@ def _task_google_form_target_lookup(task=None, builder_schema=None):
 
     return by_question_id, by_label
 
-
 def _merge_google_form_field_targets(field_defs, task=None, builder_schema=None):
     by_question_id, by_label = _task_google_form_target_lookup(task=task, builder_schema=builder_schema)
     merged_defs = []
@@ -2023,23 +1805,19 @@ def _merge_google_form_field_targets(field_defs, task=None, builder_schema=None)
         merged_defs.append(updated_field)
     return merged_defs
 
-
 def _replace_task_form_fields(task, field_defs):
     TaskFormField.query.filter_by(task_id=task.id).delete()
     for field_def in field_defs or []:
         db.session.add(TaskFormField(task_id=task.id, **_task_form_field_db_kwargs(field_def)))
 
-
 def _task_google_form_manage_service():
     return build_google_forms_service(current_app.config, scopes=GOOGLE_FORMS_MANAGE_SCOPES)
-
 
 def _task_google_form_match_label(task):
     return TASK_GOOGLE_FORM_MATCH_MODE_LABELS.get(
         _normalize_google_form_match_mode(getattr(task, "google_form_match_mode", "")),
         TASK_GOOGLE_FORM_MATCH_MODE_LABELS["unit"],
     )
-
 
 def _apply_task_google_form_view_state(task):
     if not task:
@@ -2063,7 +1841,6 @@ def _apply_task_google_form_view_state(task):
     setattr(task, "google_form_builder_managed", bool(builder))
     setattr(task, "google_form_match_mode_label", _task_google_form_match_label(task))
 
-
 def _task_google_form_response_match_value(task, response_row):
     mode = _normalize_google_form_match_mode(getattr(task, "google_form_match_mode", "unit"))
     if mode == "respondent_email":
@@ -2078,7 +1855,6 @@ def _task_google_form_response_match_value(task, response_row):
         if text:
             return text
     return ""
-
 
 def _google_form_assignment_matches_response(task, assignment, response_row):
     user = getattr(assignment, "user", None)
@@ -2107,7 +1883,6 @@ def _google_form_assignment_matches_response(task, assignment, response_row):
         if str(candidate or "").strip()
     )
 
-
 def _match_google_form_response_to_assignment(task, response_row):
     assignments = (
         TaskAssignment.query.options(joinedload(TaskAssignment.user))
@@ -2119,7 +1894,6 @@ def _match_google_form_response_to_assignment(task, response_row):
         if _google_form_assignment_matches_response(task, assignment, response_row):
             return assignment
     return None
-
 
 def _filter_google_form_response_for_assignment(task, assignment, response_row):
     raw_payload = response_row.get("payload") if isinstance(response_row.get("payload"), dict) else {}
@@ -2175,7 +1949,6 @@ def _task_import_field_key(label, index, used_keys, fallback_prefix):
             used_keys.add(deduped)
             return deduped
         suffix += 1
-
 
 def _task_import_working_config_from_blueprint(blueprint, source_type="", source_name="", source_ref=""):
     normalized = normalize_task_workflow_blueprint(blueprint)
@@ -2310,10 +2083,8 @@ def _task_import_working_config_from_blueprint(blueprint, source_type="", source
             )
     return config
 
-
 def _task_import_draft_blueprint(draft):
     return _json_loads_safe(getattr(draft, "workflow_blueprint_json", None), {})
-
 
 def _task_import_draft_working_config(draft):
     config = _json_loads_safe(getattr(draft, "working_config_json", None), {})
@@ -2329,17 +2100,14 @@ def _task_import_draft_working_config(draft):
         source_ref=getattr(draft, "source_ref", ""),
     )
 
-
 def _task_import_parse_id_csv(raw_value):
     return sorted({int(value) for value in str(raw_value or "").split(",") if value.strip().isdigit()})
-
 
 def _task_import_working_assign_type(value, default=""):
     normalized = str(value or "").strip().lower()
     if normalized in {"unit", "role", "user"}:
         return normalized
     return default
-
 
 def _task_import_assignment_has_targets(assign_type, unit_domains=None, role_ids=None, user_ids=None, fallback_domain=""):
     normalized = _task_import_working_assign_type(assign_type)
@@ -2352,7 +2120,6 @@ def _task_import_assignment_has_targets(assign_type, unit_domains=None, role_ids
         return bool(domains or str(fallback_domain or "").strip())
     return False
 
-
 def _task_import_scope_from_form(form, prefix):
     assign_type = _task_import_working_assign_type(form.get(f"{prefix}_assign_type"), "unit")
     unit_domains = _requested_unit_domains(form, field_name=f"{prefix}_unit_domains", fallback_field=f"{prefix}_unit_domain")
@@ -2364,7 +2131,6 @@ def _task_import_scope_from_form(form, prefix):
         "role_ids": role_ids,
         "user_ids": user_ids,
     }
-
 
 def _task_import_summary_text(config):
     title = str(config.get("title") or "").strip()
@@ -2390,7 +2156,6 @@ def _task_import_summary_text(config):
         if labels:
             return "Chỉ tiêu báo cáo: " + ", ".join(labels[:5])
     return title
-
 
 def _parse_task_import_outline_items_from_form(form):
     titles = form.getlist("item_title")
@@ -2433,7 +2198,6 @@ def _parse_task_import_outline_items_from_form(form):
             }
         )
     return items
-
 
 def _parse_task_import_form_fields_from_form(form):
     labels = form.getlist("form_field_label")
@@ -2481,7 +2245,6 @@ def _parse_task_import_form_fields_from_form(form):
             }
         )
     return fields
-
 
 def _parse_task_import_report_fields_from_form(form):
     labels = form.getlist("report_field_label")
@@ -2531,7 +2294,6 @@ def _parse_task_import_report_fields_from_form(form):
             }
         )
     return fields
-
 
 def _parse_task_import_working_config_from_form(draft, form):
     current_config = _task_import_draft_working_config(draft)
@@ -2585,7 +2347,6 @@ def _parse_task_import_working_config_from_form(draft, form):
         config["summary"] = _task_import_summary_text(config)
     return config
 
-
 def _task_import_report_schema_from_config(config):
     if str(config.get("collection_mode") or "").strip().lower() != "file":
         return None
@@ -2628,7 +2389,6 @@ def _task_import_report_schema_from_config(config):
     }
     return _normalize_task_report_schema(raw_schema)
 
-
 def _task_import_form_field_defs_from_config(config):
     field_defs = []
     used_keys = set()
@@ -2662,7 +2422,6 @@ def _task_import_form_field_defs_from_config(config):
         )
     return field_defs
 
-
 def _task_form_field_db_kwargs(field_def):
     return {
         "field_key": str(field_def.get("field_key") or "").strip()[:100],
@@ -2672,7 +2431,6 @@ def _task_form_field_db_kwargs(field_def):
         "sort_order": int(field_def.get("sort_order") or 0),
         "is_required": bool(field_def.get("is_required")),
     }
-
 
 def _task_import_blueprint_from_config(config):
     collection_mode = str(config.get("collection_mode") or "").strip().lower()
@@ -2752,7 +2510,6 @@ def _task_import_blueprint_from_config(config):
         }
     return normalize_task_workflow_blueprint(raw_blueprint)
 
-
 def _task_import_config_stats(config):
     mode = str(config.get("collection_mode") or "").strip().lower()
     fallback_domain = canonicalize_category_value(config.get("domain") or "", _task_domain_options(), prefer_stable=True)
@@ -2799,7 +2556,6 @@ def _task_import_config_stats(config):
         ) else 1
     return stats
 
-
 def _task_import_user_unit_label(user, unit_lookup=None):
     unit_lookup = unit_lookup or {}
     raw_value = getattr(user, "unit_area", None) or getattr(user, "unit_key", None) or ""
@@ -2809,7 +2565,6 @@ def _task_import_user_unit_label(user, unit_lookup=None):
     if raw_value:
         return str(raw_value).strip()
     return "Chưa có đơn vị"
-
 
 def _task_import_scope_target_labels(assign_type, unit_domains=None, role_ids=None, user_ids=None, fallback_domain="", unit_lookup=None, role_lookup=None, user_lookup=None):
     unit_lookup = unit_lookup or {}
@@ -2827,7 +2582,6 @@ def _task_import_scope_target_labels(assign_type, unit_domains=None, role_ids=No
     if normalized == "user":
         return [user_lookup.get(int(user_id), str(user_id)) for user_id in (user_ids or []) if str(user_id).isdigit()]
     return []
-
 
 def _task_import_scope_summary(assign_type, unit_domains=None, role_ids=None, user_ids=None, fallback_domain="", unit_lookup=None, role_lookup=None, user_lookup=None):
     raw_type = str(assign_type or "").strip().lower()
@@ -2871,7 +2625,6 @@ def _task_import_scope_summary(assign_type, unit_domains=None, role_ids=None, us
         "text": f"{mode_label}: chưa có người nhận hợp lệ",
     }
 
-
 def _task_import_preview_recipient_entry(user, unit_lookup=None, role_lookup=None):
     unit_lookup = unit_lookup or {}
     role_lookup = role_lookup or {}
@@ -2893,11 +2646,9 @@ def _task_import_preview_recipient_entry(user, unit_lookup=None, role_lookup=Non
         "section_count": 0,
     }
 
-
 def _task_import_preview_warning_text(message):
     text = str(message or "").strip()
     return text[:400] if text else "Cấu hình người nhận chưa hợp lệ."
-
 
 def _task_import_preview_submission_group_info(assign_type, user, role_lookup=None, unit_lookup=None):
     role_lookup = role_lookup or {}
@@ -2935,7 +2686,6 @@ def _task_import_preview_submission_group_info(assign_type, user, role_lookup=No
         "group_label": user_name,
         "member_label": user_name,
     }
-
 
 def _task_import_preview_unit_groups(mode, cards):
     mode_key = str(mode or "").strip().lower()
@@ -2990,7 +2740,6 @@ def _task_import_preview_unit_groups(mode, cards):
         unit_map.values(),
         key=lambda item: (-item["recipient_count"], -item["item_count"] - item["field_count"] - item["section_count"], remove_accents(item["unit_name"]).lower()),
     )
-
 
 def _task_import_preview_submission_groups(mode, cards):
     mode_key = str(mode or "").strip().lower()
@@ -3070,7 +2819,6 @@ def _task_import_preview_submission_groups(mode, cards):
         group_map.values(),
         key=lambda item: (-int(item["recipient_count"] or 0), -int(item["payload_count"] or 0), remove_accents(item["group_label"]).lower()),
     )
-
 
 def _task_import_outline_recipient_preview(config, unit_lookup=None, role_lookup=None, user_lookup=None):
     unit_lookup = unit_lookup or {}
@@ -3162,7 +2910,6 @@ def _task_import_outline_recipient_preview(config, unit_lookup=None, role_lookup
         "submission_groups": _task_import_preview_submission_groups("outline", cards),
     }
 
-
 def _task_import_form_recipient_preview(config, unit_lookup=None, role_lookup=None, user_lookup=None):
     unit_lookup = unit_lookup or {}
     role_lookup = role_lookup or {}
@@ -3251,7 +2998,6 @@ def _task_import_form_recipient_preview(config, unit_lookup=None, role_lookup=No
         "unit_groups": _task_import_preview_unit_groups("form", cards),
         "submission_groups": _task_import_preview_submission_groups("form", cards),
     }
-
 
 def _task_import_file_recipient_preview(config, unit_lookup=None, role_lookup=None, user_lookup=None):
     unit_lookup = unit_lookup or {}
@@ -3401,7 +3147,6 @@ def _task_import_file_recipient_preview(config, unit_lookup=None, role_lookup=No
         "submission_groups": _task_import_preview_submission_groups("file", cards),
     }
 
-
 def _task_import_recipient_preview(config, users=None, roles=None):
     config = config or {}
     active_users = list(users or [])
@@ -3428,7 +3173,6 @@ def _task_import_recipient_preview(config, users=None, roles=None):
         return _task_import_form_recipient_preview(config, unit_lookup=unit_lookup, role_lookup=role_lookup, user_lookup=user_lookup)
     return _task_import_file_recipient_preview(config, unit_lookup=unit_lookup, role_lookup=role_lookup, user_lookup=user_lookup)
 
-
 def _task_import_form_visible_fields_for_user(config, user):
     ignored_labels = {
         remove_accents(str(label or "")).strip().lower()
@@ -3451,7 +3195,6 @@ def _task_import_form_visible_fields_for_user(config, user):
         if _task_report_item_visible_for_user(field_config, user):
             visible_fields.append(label)
     return visible_fields
-
 
 def _task_import_file_visible_sections_for_user(config, user):
     sections = []
@@ -3487,7 +3230,6 @@ def _task_import_file_visible_sections_for_user(config, user):
             sections.append(label)
     return sections
 
-
 def _task_import_validate_publish_visibility(config, assignees):
     mode = str(config.get("collection_mode") or "").strip().lower()
     if mode not in {"form", "file"}:
@@ -3505,7 +3247,6 @@ def _task_import_validate_publish_visibility(config, assignees):
         raise ValueError(
             f"Có {len(empty_payload_users)} người nhận chưa thấy {label} nào: {', '.join(empty_payload_users[:3])}. Hãy rà lại phạm vi giao việc trước khi phát hành."
         )
-
 
 def _task_visibility_validation_config(task_mode, assign_type, domain="", role_ids=None, user_ids=None, field_defs=None, report_schema=None, ignored_form_field_labels=None):
     normalized_mode = str(task_mode or "").strip().upper()
@@ -3579,7 +3320,6 @@ def _task_visibility_validation_config(task_mode, assign_type, domain="", role_i
         )
     return config
 
-
 def _validate_task_visibility_before_publish(task_mode, assignees, *, assign_type="", domain="", role_ids=None, user_ids=None, field_defs=None, report_schema=None, ignored_form_field_labels=None):
     normalized_mode = str(task_mode or "").strip().upper()
     if normalized_mode not in {"FORM", "FILE"}:
@@ -3596,7 +3336,6 @@ def _validate_task_visibility_before_publish(task_mode, assignees, *, assign_typ
     )
     _task_import_validate_publish_visibility(config, assignees)
 
-
 def _task_assignment_scope_lists(task):
     scope = _load_assignment_scope(task)
     return {
@@ -3605,7 +3344,6 @@ def _task_assignment_scope_lists(task):
         "role_ids": list(scope.get("role_ids") or []),
         "user_ids": list(scope.get("user_ids") or []),
     }
-
 
 def _task_import_publish_payload(config):
     collection_mode = str(config.get("collection_mode") or "").strip().lower()
@@ -3754,7 +3492,6 @@ def _task_import_publish_payload(config):
     payload["report_schema"] = report_schema
     return payload
 
-
 def _publish_task_import_draft(draft):
     config = _task_import_draft_working_config(draft)
     payload = _task_import_publish_payload(config)
@@ -3846,22 +3583,6 @@ def _publish_task_import_draft(draft):
         push_notif(user.id, "Công việc mới", f"Bạn vừa được giao: {new_task.title}", f"/tasks/{new_task.id}")
     return new_task
 
-
-def _load_linked_report_template_ids_legacy(task):
-    if not task:
-        return []
-    raw_value = getattr(task, "linked_report_templates_json", None) or ""
-    if not raw_value:
-        return []
-    try:
-        parsed = json.loads(raw_value)
-    except Exception:
-        return []
-    if not isinstance(parsed, list):
-        return []
-    return sorted({int(template_id) for template_id in parsed if str(template_id).isdigit()})
-
-
 def _task_scope_identity(task):
     if not task:
         return None, None
@@ -3876,14 +3597,12 @@ def _task_scope_identity(task):
     setattr(task, "_task_scope_identity_cache", cached)
     return cached
 
-
 def _query_task_scope(model, task):
     task_id, task_item_id = _task_scope_identity(task)
     query = model.query.filter(model.task_id == task_id)
     if task_item_id:
         return query.filter(model.task_item_id == task_item_id)
     return query.filter(model.task_item_id.is_(None))
-
 
 def _task_assignment_records(task):
     if not task or not getattr(task, "id", None):
@@ -3903,7 +3622,6 @@ def _task_assignment_records(task):
         .order_by(TaskAssignment.updated_at.desc(), TaskAssignment.id.desc())
         .all()
     )
-
 
 def _task_executor_user_ids(task):
     if not task:
@@ -3935,10 +3653,8 @@ def _task_executor_user_ids(task):
     setattr(task, "_task_executor_user_ids_cache", cached)
     return cached
 
-
 def _task_user_is_executor(task, user_id):
     return bool(user_id and user_id in _task_executor_user_ids(task))
-
 
 def _visible_child_tasks_for_user(parent_task_id, user_id):
     if not parent_task_id or not user_id:
@@ -3954,7 +3670,6 @@ def _visible_child_tasks_for_user(parent_task_id, user_id):
         if _task_user_is_executor(child_task, user_id):
             visible_tasks.append(child_task)
     return visible_tasks
-
 
 def _visible_child_tasks_by_parent_for_user(parent_task_ids, user_id):
     normalized_parent_ids = sorted({int(parent_id) for parent_id in (parent_task_ids or []) if str(parent_id).isdigit()})
@@ -3973,28 +3688,6 @@ def _visible_child_tasks_by_parent_for_user(parent_task_ids, user_id):
             visible_by_parent.setdefault(child_task.parent_task_id, []).append(child_task)
     return visible_by_parent
 
-
-def _load_linked_report_template_ids(task):
-    if not task:
-        return []
-    cached = getattr(task, "_linked_report_template_ids_cache", None)
-    if cached is not None:
-        return cached
-
-    ids = [
-        int(link.report_template_id)
-        for link in _query_task_scope(TaskReportLink, task).filter(TaskReportLink.report_template_id.isnot(None)).all()
-        if getattr(link, "report_template_id", None)
-    ]
-    if ids:
-        cached = sorted(set(ids))
-        setattr(task, "_linked_report_template_ids_cache", cached)
-        return cached
-    cached = _load_linked_report_template_ids_legacy(task)
-    setattr(task, "_linked_report_template_ids_cache", cached)
-    return cached
-
-
 def _resolve_scope_users(mode, role_ids=None, user_ids=None):
     if mode == "role":
         users = []
@@ -4008,7 +3701,6 @@ def _resolve_scope_users(mode, role_ids=None, user_ids=None):
             .all()
         )
     return []
-
 
 def _sync_task_participants(task, assignees=None, managers=None, viewers=None):
     if not task or not getattr(task, "id", None):
@@ -4073,7 +3765,6 @@ def _sync_task_participants(task, assignees=None, managers=None, viewers=None):
 
     return touched
 
-
 def _infer_submission_type(task, payload):
     report_kind = _task_simple_child_report_kind(task)
     if report_kind == "number":
@@ -4083,7 +3774,6 @@ def _infer_submission_type(task, payload):
     if isinstance(payload, dict) and payload:
         return "payload"
     return "narrative"
-
 
 def _extract_submission_numeric_value(task, payload):
     if not isinstance(payload, dict):
@@ -4099,7 +3789,6 @@ def _extract_submission_numeric_value(task, payload):
     if parsed is None:
         return None
     return float(parsed)
-
 
 def _upsert_task_submission_from_assignment(task, assignment, payload=None):
     if not task or not assignment:
@@ -4166,41 +3855,11 @@ def _upsert_task_submission_from_assignment(task, assignment, payload=None):
     )
     return submission
 
-
 def _sync_task_submissions(task):
     for assignment in _task_assignment_records(task):
         if not getattr(assignment, "user_id", None):
             continue
         _upsert_task_submission_from_assignment(task, assignment)
-
-
-def _sync_task_report_links(task, template_ids=None):
-    if not task or not getattr(task, "id", None):
-        return []
-    desired_ids = sorted({int(template_id) for template_id in (template_ids if template_ids is not None else _load_linked_report_template_ids_legacy(task)) if str(template_id).isdigit()})
-    existing_links = {
-        int(link.report_template_id): link
-        for link in _query_task_scope(TaskReportLink, task).filter(TaskReportLink.sync_mode == "template").all()
-        if getattr(link, "report_template_id", None)
-    }
-    task_id, task_item_id = _task_scope_identity(task)
-    touched = []
-    for template_id in desired_ids:
-        link = existing_links.pop(template_id, None)
-        if not link:
-            link = TaskReportLink(
-                task_id=task_id,
-                task_item_id=task_item_id,
-                report_template_id=template_id,
-                sync_mode="template",
-                is_primary=True,
-            )
-            db.session.add(link)
-        touched.append(link)
-    for link in existing_links.values():
-        db.session.delete(link)
-    return touched
-
 
 def _task_item_status_from_task(task):
     assignment_records = _task_assignment_records(task)
@@ -4212,7 +3871,6 @@ def _task_item_status_from_task(task):
     if any(status != "Chưa tiếp nhận" for status in statuses):
         return IN_PROGRESS_STATUS
     return "Chưa tiếp nhận"
-
 
 def _sync_task_items(task):
     if not task or not getattr(task, "id", None):
@@ -4256,18 +3914,15 @@ def _sync_task_items(task):
 
     return touched
 
-
-def _sync_task_runtime_models(task, assignees=None, managers=None, viewers=None, linked_report_template_ids=None, include_children=False):
+def _sync_task_runtime_models(task, assignees=None, managers=None, viewers=None, include_children=False):
     if not task:
         return
     _sync_task_items(task)
     _sync_task_participants(task, assignees=assignees, managers=managers, viewers=viewers)
     _sync_task_submissions(task)
-    _sync_task_report_links(task, template_ids=linked_report_template_ids)
     if include_children:
         for child_task in task.child_tasks or []:
             _sync_task_runtime_models(child_task)
-
 
 def _ensure_task_assignment_bridge(task):
     if not task or not getattr(task, "id", None):
@@ -4306,10 +3961,9 @@ def _ensure_task_assignment_bridge(task):
         changed = True
     return changed
 
-
 def _task_runtime_expected_counts(task):
     if not task:
-        return {"task_items": 0, "executor_participants": 0, "submissions": 0, "report_links": 0}
+        return {"task_items": 0, "executor_participants": 0, "submissions": 0}
 
     assignment_records = _task_assignment_records(task)
     executor_participants = len({
@@ -4318,15 +3972,12 @@ def _task_runtime_expected_counts(task):
         if getattr(assignment, "user_id", None)
     })
     submissions = sum(1 for assignment in assignment_records if getattr(assignment, "user_id", None))
-    report_links = len(_load_linked_report_template_ids_legacy(task))
     task_items = Task.query.filter_by(parent_task_id=task.id).count() if not getattr(task, "parent_task_id", None) else 0
     return {
         "task_items": task_items,
         "executor_participants": executor_participants,
         "submissions": submissions,
-        "report_links": report_links,
     }
-
 
 def _task_runtime_bridge_needs_sync(task):
     if not task or not getattr(task, "id", None):
@@ -4339,7 +3990,6 @@ def _task_runtime_bridge_needs_sync(task):
         TaskParticipant.is_active.is_(True),
     ).count()
     submission_count = _query_task_scope(TaskSubmission, task).count()
-    link_count = _query_task_scope(TaskReportLink, task).count()
 
     if expected["task_items"] and task_item_count < expected["task_items"]:
         return True
@@ -4347,10 +3997,7 @@ def _task_runtime_bridge_needs_sync(task):
         return True
     if expected["submissions"] and submission_count < expected["submissions"]:
         return True
-    if expected["report_links"] and link_count < expected["report_links"]:
-        return True
     return False
-
 
 def _ensure_task_runtime_bridge(task, include_children=False):
     if not task:
@@ -4377,7 +4024,6 @@ def _ensure_task_runtime_bridge(task, include_children=False):
                 changed = True
     return changed
 
-
 def _lazy_repair_task_runtime(task, include_children=False, child_tasks=None, commit=True):
     if not task:
         return False
@@ -4397,7 +4043,6 @@ def _lazy_repair_task_runtime(task, include_children=False, child_tasks=None, co
         db.session.flush()
     return True
 
-
 def _task_assignment_for_user(task, user_id, create_from_executor=False):
     if not task or not user_id:
         return None
@@ -4415,7 +4060,6 @@ def _task_assignment_for_user(task, user_id, create_from_executor=False):
 
     return TaskAssignment.query.filter_by(task_id=task.id, user_id=user_id).first()
 
-
 def _task_latest_reporting_assignment(task):
     if not task:
         return None
@@ -4431,7 +4075,6 @@ def _task_latest_reporting_assignment(task):
         reporting_assignments,
         key=lambda assignment: _assignment_report_snapshot(assignment).get("latest_report_at") or getattr(assignment, "updated_at", None) or datetime.min,
     )
-
 
 def _task_assignment_rows(task, ensure_bridge=False):
     if not task:
@@ -4464,7 +4107,6 @@ def _task_assignment_rows(task, ensure_bridge=False):
     if not ensure_bridge:
         setattr(task, "_task_assignment_rows_cache", rows)
     return rows
-
 
 def _backfill_task_runtime_models(batch_size=250):
     normalized_batch_size = max(int(batch_size or 0), 1)
@@ -4502,93 +4144,6 @@ def _backfill_task_runtime_models(batch_size=250):
         "changed": changed_count,
     }
 
-
-def _task_template_current_cycle(template):
-    if not template:
-        return None
-    version_ids = [
-        row.id
-        for row in ReportTemplateVersion.query.filter_by(template_id=template.id).all()
-    ]
-    if not version_ids:
-        return None
-    cycles = (
-        ReportCycle.query.filter(ReportCycle.template_version_id.in_(version_ids))
-        .order_by(ReportCycle.created_at.desc())
-        .all()
-    )
-    for cycle in cycles:
-        if cycle.status != "closed":
-            return cycle
-    return cycles[0] if cycles else None
-
-
-def _build_linked_report_template_views(task, can_manage_report_admin=False, can_open_report_workspace=False):
-    template_ids = _load_linked_report_template_ids(task)
-    if not template_ids:
-        return []
-
-    templates = {
-        template.id: template
-        for template in ReportTemplate.query.filter(ReportTemplate.id.in_(template_ids)).all()
-    }
-    report_types = {
-        item.id: item
-        for item in ReportType.query.filter(
-            ReportType.id.in_([template.report_type_id for template in templates.values() if template.report_type_id])
-        ).all()
-    } if templates else {}
-
-    views = []
-    for template_id in template_ids:
-        template = templates.get(template_id)
-        if not template:
-            continue
-        cycle = _task_template_current_cycle(template)
-        instances = ReportInstance.query.filter_by(cycle_id=cycle.id).all() if cycle else []
-        total_units = len(instances)
-        submitted_units = sum(
-            1 for instance in instances
-            if (getattr(instance, "status", "") or "").strip().lower() == "submitted" or getattr(instance, "submitted_at", None)
-        )
-        draft_units = sum(
-            1 for instance in instances
-            if (getattr(instance, "status", "") or "").strip().lower() == "draft"
-        )
-        professional_unit_display = resolve_category_display(
-            getattr(template, "professional_unit", None),
-            _task_domain_options(),
-            fallback_label="Chưa phân đội",
-        ).get("display_name") or "Chưa phân đội"
-        report_type = report_types.get(template.report_type_id)
-        views.append(
-            {
-                "template_id": template.id,
-                "template_name": template.name,
-                "report_type_name": getattr(report_type, "name", "Chưa phân loại"),
-                "professional_unit_display": professional_unit_display,
-                "cycle_id": getattr(cycle, "id", None),
-                "cycle_name": getattr(cycle, "name", "") or "Chưa có đợt báo cáo",
-                "cycle_status": getattr(cycle, "status", "") or "draft",
-                "is_locked": bool(getattr(cycle, "is_locked", False)),
-                "due_at": getattr(cycle, "due_at", None),
-                "total_units": total_units,
-                "submitted_units": submitted_units,
-                "draft_units": draft_units,
-                "progress_percent": int(round((submitted_units / total_units) * 100)) if total_units else 0,
-                "manage_url": url_for("reporting_bp.admin_cycle_detail", cycle_id=cycle.id) if cycle and can_manage_report_admin else "",
-                "workspace_url": url_for("reporting_bp.cycle_workspace", cycle_id=cycle.id) if cycle and can_open_report_workspace else "",
-                "status_label": (
-                    "Đã đóng" if getattr(cycle, "status", "") == "closed"
-                    else "Đã khóa" if getattr(cycle, "is_locked", False)
-                    else "Đang mở" if cycle
-                    else "Chưa cấu hình đợt báo cáo"
-                ),
-            }
-        )
-    return views
-
-
 def _should_refresh_assignments(task, form, domain):
     if form.get("refresh_assignments") == "1":
         return True
@@ -4610,7 +4165,6 @@ def _should_refresh_assignments(task, form, domain):
 
     return False
 
-
 def _resolve_assignees(form, domain):
     assign_type = form.get("assign_type", "unit")
     target_ids = _requested_user_ids(form)
@@ -4623,7 +4177,6 @@ def _resolve_assignees(form, domain):
         target_ids=target_ids,
         assignee_role_ids=assignee_role_ids,
     )
-
 
 def _resolve_assignees_by_mode(assign_type, domain="", unit_domains=None, target_ids=None, assignee_role_ids=None):
     target_ids = sorted({int(uid) for uid in (target_ids or []) if str(uid).isdigit()})
@@ -4674,7 +4227,6 @@ def _resolve_assignees_by_mode(assign_type, domain="", unit_domains=None, target
         return [], "Không tìm thấy cán bộ hoạt động nào thuộc các đơn vị đã chọn."
     return users, None
 
-
 def _resolve_viewers(form):
     mode = form.get("viewer_scope_mode", "none")
     role_ids = _requested_viewer_role_ids(form)
@@ -4704,7 +4256,6 @@ def _resolve_viewers(form):
         return _dedupe_users(users), None
 
     return [], None
-
 
 def _resolve_managers(form):
     mode = form.get("manager_scope_mode", "none")
@@ -4736,7 +4287,6 @@ def _resolve_managers(form):
 
     return [], None
 
-
 def _sync_task_assignments(task, assignees):
     assignment_records = _task_assignment_records(task)
     existing_assignments = {assignment.user_id: assignment for assignment in assignment_records}
@@ -4756,13 +4306,11 @@ def _sync_task_assignments(task, assignees):
 
     return len(new_assignee_ids), new_assignees_to_notify
 
-
 def _load_task_parent(task):
     parent_task = getattr(task, "parent_task", None)
     if not parent_task and getattr(task, "parent_task_id", None):
         parent_task = Task.query.filter_by(id=task.parent_task_id).first()
     return parent_task
-
 
 def _can_manage_task(task, user=None):
     if user is None:
@@ -4778,10 +4326,8 @@ def _can_manage_task(task, user=None):
         load_parent_task_fn=_load_task_parent,
     )
 
-
 def _can_edit_task(task):
     return _can_manage_task(task)
-
 
 def _can_delete_task(task, is_lead=False):
     return can_delete_task(
@@ -4791,7 +4337,6 @@ def _can_delete_task(task, is_lead=False):
         is_lead=is_lead,
         can_manage=_can_manage_task(task),
     )
-
 
 def _can_watch_task(task, user=None):
     if user is None:
@@ -4804,7 +4349,6 @@ def _can_watch_task(task, user=None):
         load_parent_task_fn=_load_task_parent,
     )
 
-
 def _can_view_task(task, is_lead=False):
     return can_view_task(
         task,
@@ -4816,7 +4360,6 @@ def _can_view_task(task, is_lead=False):
         can_watch=_can_watch_task(task),
         has_visible_child_tasks=bool(_visible_child_tasks_for_user(task.id, session.get("uid"))) if task else False,
     )
-
 
 def _filter_comments_for_viewer(task, comments, viewer, can_manage_all=False):
     if can_manage_all or not viewer:
@@ -4862,7 +4405,6 @@ def _filter_comments_for_viewer(task, comments, viewer, can_manage_all=False):
 def _report_checkbox_value(value):
     return str(value or "").strip().lower() in {"1", "true", "on", "yes"}
 
-
 def _task_report_field_key(label, index, used_keys):
     raw_key = secure_filename(remove_accents(label or "").replace(" ", "_")).strip("_")
     key = raw_key or f"field_{index + 1}"
@@ -4870,7 +4412,6 @@ def _task_report_field_key(label, index, used_keys):
         key = f"{key}_{len(used_keys) + 1}"
     used_keys.add(key)
     return key
-
 
 def _normalize_report_target_ids(values):
     normalized = []
@@ -4882,7 +4423,6 @@ def _normalize_report_target_ids(values):
         if numeric_value not in normalized:
             normalized.append(numeric_value)
     return normalized
-
 
 def _normalize_report_target_domains(values):
     if isinstance(values, str):
@@ -4902,7 +4442,6 @@ def _normalize_report_target_domains(values):
         normalized.append(text[:255])
     return normalized
 
-
 def _normalize_report_target_config(raw_config, defaults=None):
     defaults = defaults or {}
     target_type = str(raw_config.get("target_type") or defaults.get("target_type") or "all").strip().lower()
@@ -4921,7 +4460,6 @@ def _normalize_report_target_config(raw_config, defaults=None):
         ),
     }
 
-
 def _task_report_user_matches_units(user, target_unit_domains):
     if not user:
         return False
@@ -4939,7 +4477,6 @@ def _task_report_user_matches_units(user, target_unit_domains):
         for target_domain in target_domains
     )
 
-
 def _task_report_item_visible_for_user(item_config, user):
     if not item_config or not user:
         return False
@@ -4954,7 +4491,6 @@ def _task_report_item_visible_for_user(item_config, user):
         user_id = getattr(user, "id", None)
         return bool(user_id and user_id in (item_config.get("target_user_ids") or []))
     return True
-
 
 def _normalize_child_task_report_meta(raw_meta, fields, attachment):
     raw_meta = raw_meta if isinstance(raw_meta, dict) else {}
@@ -4976,7 +4512,6 @@ def _normalize_child_task_report_meta(raw_meta, fields, attachment):
         "attachment_required": bool(attachment.get("enabled") and attachment.get("required")),
         "number_field_key": number_field_key,
     }
-
 
 def _normalize_task_report_schema(raw_schema):
     if not isinstance(raw_schema, dict):
@@ -5036,7 +4571,6 @@ def _normalize_task_report_schema(raw_schema):
         "meta": _normalize_child_task_report_meta(raw_schema.get("meta"), fields, attachment),
     }
 
-
 def _load_task_report_schema(task):
     if not task:
         return None
@@ -5060,13 +4594,11 @@ def _load_task_report_schema(task):
     setattr(task, "_task_report_schema_cache", normalized)
     return normalized
 
-
 def _task_report_schema_seed(task=None):
     schema = _load_task_report_schema(task)
     if schema:
         return schema
     return json.loads(json.dumps(DEFAULT_TASK_REPORT_SCHEMA))
-
 
 def _parse_task_report_schema_from_request(form):
     if not _report_checkbox_value(form.get("report_schema_enabled")):
@@ -5086,7 +4618,6 @@ def _parse_task_report_schema_from_request(form):
         raise ValueError("Biểu mẫu báo cáo chưa có nội dung hợp lệ.")
     return normalized
 
-
 def _parse_task_workflow_blueprint_from_request(form):
     raw_blueprint = (form.get("workflow_blueprint_json") or "").strip()
     if not raw_blueprint:
@@ -5102,7 +4633,6 @@ def _parse_task_workflow_blueprint_from_request(form):
         raise ValueError("Blueprint điều hành chưa có nội dung hợp lệ.")
     return normalized
 
-
 def _parse_task_workflow_blueprint_payload(payload):
     if isinstance(payload, dict) and isinstance(payload.get("workflow_blueprint"), dict):
         payload = payload.get("workflow_blueprint")
@@ -5115,7 +4645,6 @@ def _parse_task_workflow_blueprint_payload(payload):
         raise ValueError("Blueprint điều hành chưa có nội dung hợp lệ.")
     return normalized
 
-
 def _parse_report_number(value):
     text = str(value or "").strip().replace(",", "")
     if not text:
@@ -5125,7 +4654,6 @@ def _parse_report_number(value):
     except (InvalidOperation, ValueError) as exc:
         raise ValueError("Giá trị số không hợp lệ.") from exc
 
-
 def _format_report_number(value):
     if value is None:
         return ""
@@ -5134,7 +4662,6 @@ def _format_report_number(value):
     if "." in text:
         text = text.rstrip("0").rstrip(".")
     return text
-
 
 def _build_simple_child_task_schema(report_kind="narrative", attachment_required=False):
     normalized_kind = str(report_kind or "narrative").strip().lower()
@@ -5185,7 +4712,6 @@ def _build_simple_child_task_schema(report_kind="narrative", attachment_required
         ]
     return _normalize_task_report_schema(raw_schema)
 
-
 def _parse_structured_task_report_payload(assignment):
     latest_submission = _latest_assignment_submission(assignment)
     if latest_submission:
@@ -5197,7 +4723,6 @@ def _parse_structured_task_report_payload(assignment):
         return None
     return payload
 
-
 def _task_submission_sort_key(submission):
     return (
         getattr(submission, "submitted_at", None)
@@ -5205,7 +4730,6 @@ def _task_submission_sort_key(submission):
         or getattr(submission, "created_at", None)
         or datetime.min
     )
-
 
 def _parse_task_submission_payload(submission):
     raw_payload = getattr(submission, "payload_json", None) or ""
@@ -5216,7 +4740,6 @@ def _parse_task_submission_payload(submission):
     except Exception:
         return {}
     return payload if isinstance(payload, dict) else {}
-
 
 def _latest_assignment_submission(assignment):
     submission_records = getattr(assignment, "submission_records", None) or []
@@ -5233,7 +4756,6 @@ def _latest_assignment_submission(assignment):
         key=_task_submission_sort_key,
         reverse=True,
     )[0]
-
 
 def _submission_has_report_content(submission):
     if not submission:
@@ -5255,7 +4777,6 @@ def _submission_has_report_content(submission):
         return True
     return bool(str(payload.get("attachment_name") or "").strip())
 
-
 def _assignment_report_comment_snapshots(comments, user_id):
     latest_item = None
     first_time = None
@@ -5272,7 +4793,6 @@ def _assignment_report_comment_snapshots(comments, user_id):
         ):
             latest_item = comment
     return latest_item, first_time
-
 
 def _assignment_report_snapshot(assignment, comments=None):
     empty_snapshot = {
@@ -5376,7 +4896,6 @@ def _assignment_report_snapshot(assignment, comments=None):
         setattr(assignment, "_task_report_snapshot_cache", snapshot)
     return snapshot
 
-
 def _assignment_report_snapshot_map(assigns, comments=None):
     snapshot_map = {}
     for assignment, _user in assigns or []:
@@ -5384,7 +4903,6 @@ def _assignment_report_snapshot_map(assigns, comments=None):
             continue
         snapshot_map[assignment.id] = _assignment_report_snapshot(assignment, comments=comments)
     return snapshot_map
-
 
 def _assignment_numeric_report_value(task, assignment):
     schema = _load_task_report_schema(task)
@@ -5406,13 +4924,11 @@ def _assignment_numeric_report_value(task, assignment):
     except ValueError:
         return None
 
-
 def _task_report_value_preview(value, limit=120):
     text = str(value or "").strip()
     if len(text) <= limit:
         return text
     return text[:limit].rstrip() + "…"
-
 
 def _structured_task_report_summary_lines(schema, payload, limit=4):
     if not schema or not payload:
@@ -5435,21 +4951,17 @@ def _structured_task_report_summary_lines(schema, payload, limit=4):
 
     return lines[:limit]
 
-
 def _task_report_meta(schema):
     meta = (schema or {}).get("meta")
     return meta if isinstance(meta, dict) else {}
 
-
 def _task_is_simple_child_report(task):
     return _task_report_meta(_load_task_report_schema(task)).get("kind") == "simple_child_task"
-
 
 def _task_simple_child_report_kind(task):
     meta = _task_report_meta(_load_task_report_schema(task))
     kind = str(meta.get("report_kind") or "").strip().lower()
     return kind if kind in CHILD_TASK_ALLOWED_REPORT_KINDS else ""
-
 
 def _structured_payload_has_content(payload):
     if not isinstance(payload, dict):
@@ -5463,7 +4975,6 @@ def _structured_payload_has_content(payload):
         isinstance(values, dict)
         and any(str(value or "").strip() for value in values.values())
     )
-
 
 def _assignment_has_report_submission_legacy(assignment):
     payload = _parse_assignment_payload(assignment)
@@ -5482,13 +4993,11 @@ def _assignment_has_report_submission_legacy(assignment):
         or (getattr(assignment, "result_file", None) or "").strip()
     )
 
-
 def _assignment_has_report_submission(assignment):
     latest_submission = _latest_assignment_submission(assignment)
     if latest_submission and _submission_has_report_content(latest_submission):
         return True
     return _assignment_has_report_submission_legacy(assignment)
-
 
 def _child_task_numeric_total(task):
     schema = _load_task_report_schema(task)
@@ -5505,7 +5014,6 @@ def _child_task_numeric_total(task):
         total += numeric_value
         has_value = True
     return _format_report_number(total) if has_value else None
-
 
 def _build_child_task_unit_summary(task):
     unit_rows = {}
@@ -5553,7 +5061,6 @@ def _build_child_task_unit_summary(task):
         "reported_units": reported_units,
         "numeric_total": numeric_total,
     }
-
 
 def _build_child_task_reporting_matrix(child_tasks):
     task_rows = []
@@ -5652,14 +5159,12 @@ def _build_child_task_reporting_matrix(child_tasks):
         "unit_rows": unit_row_items,
     }
 
-
 def _child_task_condition_meta(dimension, code):
     catalog = CHILD_TASK_PROGRESS_CONDITIONS if dimension == "progress" else CHILD_TASK_QUALITY_CONDITIONS
     for item in catalog:
         if item["code"] == code:
             return item
     return None
-
 
 def _build_child_task_report_dashboard(child_tasks):
     now_date = datetime.now().date()
@@ -5816,13 +5321,11 @@ def _build_child_task_report_dashboard(child_tasks):
         },
     }
 
-
 def _build_structured_task_report_comment(schema, payload):
     summary_lines = _structured_task_report_summary_lines(schema, payload, limit=5)
     if summary_lines:
         return " | ".join(summary_lines)
     return "Đã cập nhật biểu mẫu báo cáo."
-
 
 def _build_structured_task_report_form(task, user_assign, current_user):
     schema = _load_task_report_schema(task)
@@ -5884,7 +5387,6 @@ def _build_structured_task_report_form(task, user_assign, current_user):
         "has_visible_content": has_visible_content,
     }
 
-
 def _build_assignment_report_context(user_assign, comments, task=None):
     report_snapshot = _assignment_report_snapshot(user_assign, comments=comments)
     report_schema = _load_task_report_schema(task)
@@ -5903,7 +5405,6 @@ def _build_assignment_report_context(user_assign, comments, task=None):
         "summary_lines": summary_lines,
         "has_structured_payload": bool(structured_payload),
     }
-
 
 def _parse_structured_file_report_submission(task, assignment, current_user, form, report_file):
     report_form = _build_structured_task_report_form(task, assignment, current_user)
@@ -5956,7 +5457,6 @@ def _parse_structured_file_report_submission(task, assignment, current_user, for
         "report_form": report_form,
     }
 
-
 def _parse_report_comment_content(content):
     raw_content = (content or "").strip()
     if raw_content.startswith(REPORT_PREFIX):
@@ -5970,12 +5470,10 @@ def _parse_report_comment_content(content):
 
     return raw_content, attachment_name
 
-
 def _task_download_slug(value, fallback):
     ascii_text = remove_accents(value or "").strip().replace(" ", "_")
     safe_value = secure_filename(ascii_text)
     return safe_value or fallback
-
 
 def _task_report_download_name(task, unit_name, original_name):
     _root, ext = os.path.splitext(original_name or "")
@@ -5983,7 +5481,6 @@ def _task_report_download_name(task, unit_name, original_name):
     task_slug = _task_download_slug(getattr(task, "title", ""), f"task_{getattr(task, 'id', 'file')}")
     ext = ext or os.path.splitext(original_name or "")[1] or ""
     return f"{unit_slug}_{task_slug}{ext}"
-
 
 def _build_unit_report_cards(task, assigns, comments, report_snapshots=None):
     unit_cards = {}
@@ -6072,7 +5569,6 @@ def _build_unit_report_cards(task, assigns, comments, report_snapshots=None):
     )
     return cards
 
-
 def _build_unit_report_groups(cards):
     cards = cards or []
     group_specs = [
@@ -6094,7 +5590,6 @@ def _build_unit_report_groups(cards):
             }
         )
     return groups
-
 
 def _build_discussion_threads(assigns, comments):
     threads = {}
@@ -6171,7 +5666,6 @@ def _build_discussion_threads(assigns, comments):
     )
     return output
 
-
 def _build_assignment_unit_cards(assigns, report_snapshots=None):
     unit_cards = {}
     for assignment, user in assigns or []:
@@ -6223,7 +5717,6 @@ def _build_assignment_unit_cards(assigns, report_snapshots=None):
 
     output.sort(key=lambda item: item["unit_name"].lower())
     return output
-
 
 def _build_assignment_role_groups(assigns, child_task_counts_by_unit=None):
     child_task_counts_by_unit = child_task_counts_by_unit or {}
@@ -6304,7 +5797,6 @@ def _build_assignment_role_groups(assigns, child_task_counts_by_unit=None):
     output.sort(key=lambda item: item["role_name"].lower())
     return output
 
-
 def _task_assignment_progress_groups(rows):
     assignment_pairs = []
     report_snapshots = {}
@@ -6325,7 +5817,6 @@ def _task_assignment_progress_groups(rows):
         "unit_cards": _build_assignment_unit_cards(assignment_pairs, report_snapshots=report_snapshots) if assignee_types & {"unit", "role"} else [],
         "role_groups": _build_assignment_role_groups(assignment_pairs) if "role" in assignee_types else [],
     }
-
 
 def _task_file_delivery_labels_for_user(task, user):
     schema = _load_task_report_schema(task) or {}
@@ -6370,14 +5861,12 @@ def _task_file_delivery_labels_for_user(task, user):
             labels.append(label)
     return labels
 
-
 def _task_form_delivery_labels_for_user(task, user):
     return [
         str(getattr(field, "field_label", "") or "").strip()
         for field in _task_form_fields_for_user(task, user)
         if str(getattr(field, "field_label", "") or "").strip()
     ]
-
 
 def _task_delivery_contract_groups(task, mode, rows):
     normalized_mode = str(mode or "").strip().upper()
@@ -6441,7 +5930,6 @@ def _task_delivery_contract_groups(task, mode, rows):
         key=lambda item: (-int(item["recipient_count"] or 0), -int(item["payload_count"] or 0), remove_accents(item["group_label"]).lower()),
     )
 
-
 def _filter_assignment_rows_for_executor_scope(rows, current_assignment):
     if not current_assignment:
         return []
@@ -6452,19 +5940,15 @@ def _filter_assignment_rows_for_executor_scope(rows, current_assignment):
         if _task_assignment_submission_group_key(row.get("assignment")) == group_key
     ]
 
-
 def _filter_outline_groups_for_executor_scope(groups):
     return [group for group in (groups or []) if int(group.get("my_items") or 0) > 0]
-
 
 def _is_da06_month_task(task):
     text = remove_accents(f"{getattr(task, 'title', '')} {getattr(task, 'content', '')}").strip().lower()
     return any(marker in text for marker in DA06_TASK_MARKERS)
 
-
 def _normalized_text(value):
     return remove_accents(value or "").strip().lower()
-
 
 def _da06_user_profile(user):
     username = (getattr(user, "username", None) or "").strip().lower()
@@ -6478,7 +5962,6 @@ def _da06_user_profile(user):
         if any(marker in unit_name for marker in rule["unit_markers"]):
             return {"kind": "so_nganh", "label": rule["label"], "rule": rule}
     return {"kind": "so_nganh", "label": "Sở, ban, ngành", "rule": None}
-
 
 def _parse_assignment_payload(assignment):
     latest_submission = _latest_assignment_submission(assignment)
@@ -6495,7 +5978,6 @@ def _parse_assignment_payload(assignment):
         return {}
     return payload if isinstance(payload, dict) else {}
 
-
 def _save_task_attachment(file_storage, task_id, user_id, label):
     if not file_storage or not getattr(file_storage, "filename", ""):
         return None
@@ -6509,7 +5991,6 @@ def _save_task_attachment(file_storage, task_id, user_id, label):
     file_storage.save(_task_file_path(attachment_name))
     return attachment_name
 
-
 def _da06_tct_sections(payload):
     attachments = payload.get("attachments", {}) if isinstance(payload.get("attachments"), dict) else {}
     return [
@@ -6522,7 +6003,6 @@ def _da06_tct_sections(payload):
         {"key": "van_ban_y_kien_attachment", "label": "Tài liệu minh chứng văn bản tham gia ý kiến", "type": "file", "value": attachments.get("van_ban_y_kien_attachment", "")},
         {"key": "van_ban_chi_dao_attachment", "label": "Tài liệu minh chứng văn bản chỉ đạo", "type": "file", "value": attachments.get("van_ban_chi_dao_attachment", "")},
     ]
-
 
 def _da06_so_nganh_dvc_rows(rule, payload):
     existing = payload.get("dvc_items", {}) if isinstance(payload.get("dvc_items"), dict) else {}
@@ -6547,7 +6027,6 @@ def _da06_so_nganh_dvc_rows(rule, payload):
         )
     return rows
 
-
 def _build_da06_task_form(task, user_assign, current_user):
     if not task or not user_assign or not current_user or not _is_da06_month_task(task):
         return None
@@ -6571,7 +6050,6 @@ def _build_da06_task_form(task, user_assign, current_user):
         form["dvc_rows"] = _da06_so_nganh_dvc_rows(rule, payload)
     return form
 
-
 def _has_da06_value(value):
     if value is None:
         return False
@@ -6582,7 +6060,6 @@ def _has_da06_value(value):
     if isinstance(value, (list, tuple, set)):
         return any(_has_da06_value(item) for item in value)
     return True
-
 
 def _build_da06_management_view(assigns):
     group_map = {}
@@ -6683,18 +6160,15 @@ def _build_da06_management_view(assigns):
     groups.sort(key=lambda item: item["label"].lower())
     return groups
 
-
 def _task_file_root():
     task_dir = current_app.config.get("TASK_FOLDER") or os.path.join(current_app.root_path, "task_files")
     os.makedirs(task_dir, exist_ok=True)
     return task_dir
 
-
 def _task_file_path(file_name):
     if not file_name:
         return ""
     return os.path.join(_task_file_root(), file_name)
-
 
 def _store_uploaded_task_file(file_storage, task_id, assignment_id, prefix="report"):
     if not file_storage or not getattr(file_storage, "filename", ""):
@@ -6717,7 +6191,6 @@ def _store_uploaded_task_file(file_storage, task_id, assignment_id, prefix="repo
         "file_size": os.path.getsize(stored_path) if os.path.exists(stored_path) else 0,
     }
 
-
 def _create_assignment_records(task, assignees, assign_type="user", task_item=None, title_snapshot="", is_required=True, role_id=None):
     created = []
     for user in assignees or []:
@@ -6735,7 +6208,6 @@ def _create_assignment_records(task, assignees, assign_type="user", task_item=No
         db.session.add(assignment)
         created.append(assignment)
     return created
-
 
 def _task_assignment_submission_group_key(assignment):
     if not assignment:
@@ -6759,7 +6231,6 @@ def _task_assignment_submission_group_key(assignment):
         return f"unit:{unit_key}"
     return f"user:{int(getattr(assignment, 'user_id', 0) or 0)}"
 
-
 def _task_assignment_group_members(task, assignment):
     if not task or not assignment:
         return []
@@ -6777,7 +6248,6 @@ def _task_assignment_group_members(task, assignment):
         query = query.filter(TaskAssignment.task_item_id.is_(None))
     group_key = _task_assignment_submission_group_key(assignment)
     return [candidate for candidate in query.all() if _task_assignment_submission_group_key(candidate) == group_key]
-
 
 def _sync_assignment_group_submission(task, assignment, submission, *, report_payload_json="", result_file="", submitted_at=None, updated_at=None, status="submitted"):
     if not task or not assignment:
@@ -6800,13 +6270,11 @@ def _sync_assignment_group_submission(task, assignment, submission, *, report_pa
         peer.updated_at = updated_at
     return peers
 
-
 def _task_assignments_query(task, task_item_id=None):
     query = TaskAssignment.query.options(joinedload(TaskAssignment.user)).filter_by(task_id=task.id)
     if task_item_id is None:
         return query.filter(TaskAssignment.task_item_id.is_(None))
     return query.filter_by(task_item_id=task_item_id)
-
 
 def _task_items_for_task(task):
     return (
@@ -6814,7 +6282,6 @@ def _task_items_for_task(task):
         .order_by(TaskItem.sort_order.asc(), TaskItem.id.asc())
         .all()
     )
-
 
 def _latest_assignment_submission(assignment):
     if not assignment:
@@ -6828,23 +6295,18 @@ def _latest_assignment_submission(assignment):
         .first()
     )
 
-
 def _task_is_submitted(assignment):
     return str(getattr(assignment, "status", "") or "").strip().lower() in {"submitted", "completed"}
-
 
 def _build_rebuilt_task_summary(task, current_uid):
     assignments = TaskAssignment.query.filter_by(task_id=task.id).all()
     return summarize_task_assignments(assignments, current_uid, _task_is_submitted)
 
-
 def _task_deadline_display(deadline):
     return task_deadline_display(deadline)
 
-
 def _task_workspace_tone(status_text, is_overdue=False):
     return task_workspace_tone(status_text, is_overdue=is_overdue)
-
 
 def _task_detail_context(task, summary, mode, can_manage_task_view, can_submit, my_file_assignment=None, my_form_assignment=None, outline_groups=None):
     return build_task_detail_context(
@@ -6859,7 +6321,6 @@ def _task_detail_context(task, summary, mode, can_manage_task_view, can_submit, 
         my_form_assignment=my_form_assignment,
         outline_groups=outline_groups,
     )
-
 
 def _parse_outline_item_rows(task, current_uid):
     rows = []
@@ -6892,7 +6353,6 @@ def _parse_outline_item_rows(task, current_uid):
             }
         )
     return rows
-
 
 def _parse_outline_item_configs_from_request(form):
     titles = form.getlist("item_title")
@@ -6944,11 +6404,9 @@ def _parse_outline_item_configs_from_request(form):
         )
     return configs
 
-
 def _outline_import_preview_session_key(task_id):
     current_uid = int(session.get("uid") or 0)
     return f"task:outline_import_preview:{int(task_id)}:{current_uid}"
-
 
 def _get_outline_import_preview(task_id):
     raw_value = session.get(_outline_import_preview_session_key(task_id))
@@ -6983,16 +6441,13 @@ def _get_outline_import_preview(task_id):
         )
     return rows
 
-
 def _set_outline_import_preview(task_id, rows):
     session[_outline_import_preview_session_key(task_id)] = rows
     session.modified = True
 
-
 def _clear_outline_import_preview(task_id):
     session.pop(_outline_import_preview_session_key(task_id), None)
     session.modified = True
-
 
 def _resolve_outline_item_assignment(item_config, form, parent_task):
     assign_type = str(item_config.get("assign_type") or "").strip().lower()
@@ -7018,28 +6473,22 @@ def _resolve_outline_item_assignment(item_config, form, parent_task):
     selected_role_ids = _requested_role_ids(form)
     return assignees, error_message, form.get("assign_type", "unit"), selected_role_ids
 
-
 def _outline_group_identity(assignments, fallback_index=0):
     return outline_group_identity(assignments, _task_assignee_unit_name, fallback_index=fallback_index)
-
 
 def _build_outline_group_rows(task, current_uid):
     rows = _parse_outline_item_rows(task, current_uid)
     return build_outline_group_rows(rows, _outline_group_identity)
 
-
 def _build_file_task_rows(task, current_uid):
     assignments = _task_assignments_query(task).all()
     return build_file_task_rows(assignments, current_uid, _latest_assignment_submission)
 
-
 def _normalize_task_form_field_type(value):
     return normalize_task_form_field_type(value, TASK_FORM_ALLOWED_FIELD_TYPES)
 
-
 def _task_form_value_is_empty(value):
     return task_form_value_is_empty(value)
-
 
 def _task_form_fields(task):
     return (
@@ -7047,7 +6496,6 @@ def _task_form_fields(task):
         .order_by(TaskFormField.sort_order.asc(), TaskFormField.id.asc())
         .all()
     )
-
 
 def _parse_task_form_fields_from_request(form):
     labels = form.getlist("form_field_label")
@@ -7085,22 +6533,17 @@ def _parse_task_form_fields_from_request(form):
         )
     return fields
 
-
 def _form_field_options(field):
     return form_field_options(field)
-
 
 def _task_form_field_visible_for_user(field, user):
     return _task_report_item_visible_for_user(_form_field_options(field), user)
 
-
 def _task_form_fields_for_user(task, user):
     return [field for field in _task_form_fields(task) if _task_form_field_visible_for_user(field, user)]
 
-
 def _task_form_submission_payload(submission):
     return task_form_submission_payload(submission)
-
 
 def _build_form_task_rows(task, current_uid):
     assignments = _task_assignments_query(task).all()
@@ -7113,14 +6556,11 @@ def _build_form_task_rows(task, current_uid):
         _task_form_submission_payload,
     )
 
-
 def _task_form_field_views(task):
     return task_form_field_views(_task_form_fields(task), _normalize_task_form_field_type, _form_field_options)
 
-
 def _task_form_field_views_for_user(task, user):
     return task_form_field_views(_task_form_fields_for_user(task, user), _normalize_task_form_field_type, _form_field_options)
-
 
 def _tasks_page_v2():
     perms = _current_perms()
@@ -7536,16 +6976,10 @@ def _tasks_page_v2():
         is_admin=is_admin,
         stats=list_context["stats"],
         workflow_blueprint_examples=workflow_blueprint_example_catalog(),
-        report_templates=(
-            _task_report_templates()
-            if is_lead or is_admin
-            else []
-        ),
         sidebar_submenu_parent="tasks",
         sidebar_submenu_title="Công việc",
         sidebar_submenu_items=sidebar_submenu_items,
     )
-
 
 def _task_detail_v2(tid):
     task = Task.query.options(joinedload(Task.assignments).joinedload(TaskAssignment.user)).filter_by(id=tid).first()
@@ -7704,7 +7138,6 @@ def _task_detail_v2(tid):
         status_labels=TASK_ASSIGNMENT_STATUS_LABELS,
     )
 
-
 def _create_outline_items_v2(tid):
     parent_task = Task.query.filter_by(id=tid).first()
     if not parent_task:
@@ -7794,7 +7227,6 @@ def _create_outline_items_v2(tid):
     flash(f"Đã thêm {len(item_configs)} đầu mục.", "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
-
 def _preview_outline_import_v2(tid):
     parent_task = Task.query.filter_by(id=tid).first()
     if not parent_task:
@@ -7862,7 +7294,6 @@ def _preview_outline_import_v2(tid):
         )
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
-
 def _update_task_status_v2(tid):
     task = Task.query.filter_by(id=tid).first()
     if not task:
@@ -7884,7 +7315,6 @@ def _update_task_status_v2(tid):
     db.session.commit()
     flash("Đã tiếp nhận công việc.", "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
 
 def _submit_task_report_v2(tid):
     task = Task.query.filter_by(id=tid).first()
@@ -8064,7 +7494,6 @@ def _submit_task_report_v2(tid):
     db.session.commit()
     flash("Đã gửi báo cáo.", "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
 
 def _export_form_task_v2(tid):
     if Workbook is None:
@@ -8398,7 +7827,6 @@ def _create_task_google_form_v2(tid):
     flash("Đã tạo Google Form thật từ builder.", "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
-
 def _update_task_google_form_v2(tid):
     task = Task.query.filter_by(id=tid).first()
     if not task:
@@ -8500,7 +7928,6 @@ def _update_task_google_form_v2(tid):
     flash("Đã cập nhật Google Form thật theo builder.", "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
-
 def _publish_task_google_form_v2(tid):
     task = Task.query.filter_by(id=tid).first()
     if not task:
@@ -8542,7 +7969,6 @@ def _publish_task_google_form_v2(tid):
     db.session.commit()
     flash("Đã cập nhật trạng thái phát hành Google Form.", "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
 
 def _import_task_google_form_structure_v2(tid):
     task = Task.query.filter_by(id=tid).first()
@@ -8611,7 +8037,6 @@ def _import_task_google_form_structure_v2(tid):
     db.session.commit()
     flash("Đã nhập cấu trúc từ Google Form vào builder.", "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
-
 
 def _sync_google_form_task_v2(tid):
     task = Task.query.filter_by(id=tid).first()
@@ -8749,10 +8174,8 @@ def _sync_google_form_task_v2(tid):
     flash("Đã đồng bộ phản hồi Google Form vào công việc.", "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
-
 def _task_assignee_unit_name(user):
     return _task_unit_identity(user).get("unit_name", "Chưa có đơn vị")
-
 
 def _purge_task(task):
     if not task:
@@ -8789,29 +8212,24 @@ def _purge_task(task):
     participant_query = TaskParticipant.query.filter(TaskParticipant.task_id == task_id)
     submission_query = TaskSubmission.query.filter(TaskSubmission.task_id == task_id)
     form_field_query = TaskFormField.query.filter(TaskFormField.task_id == task_id)
-    link_query = TaskReportLink.query.filter(TaskReportLink.task_id == task_id)
     if task_item_id:
         participant_query = participant_query.filter(TaskParticipant.task_item_id == task_item_id)
         submission_query = submission_query.filter(TaskSubmission.task_item_id == task_item_id)
-        link_query = link_query.filter(TaskReportLink.task_item_id == task_item_id)
     else:
         participant_query = participant_query.filter(TaskParticipant.task_item_id.is_(None))
         submission_query = submission_query.filter(TaskSubmission.task_item_id.is_(None))
-        link_query = link_query.filter(TaskReportLink.task_item_id.is_(None))
     submission_ids = [submission_id for submission_id, in submission_query.with_entities(TaskSubmission.id).all()]
     if submission_ids:
         TaskSubmissionFile.query.filter(TaskSubmissionFile.submission_id.in_(submission_ids)).delete(synchronize_session=False)
     submission_query.delete(synchronize_session=False)
     participant_query.delete(synchronize_session=False)
     form_field_query.delete(synchronize_session=False)
-    link_query.delete(synchronize_session=False)
     if getattr(task, "parent_task_id", None):
         TaskItem.query.filter_by(source_task_id=task.id).delete(synchronize_session=False)
     else:
         TaskItem.query.filter_by(task_id=task.id).delete(synchronize_session=False)
     TaskComment.query.filter_by(task_id=task.id).delete(synchronize_session=False)
     db.session.delete(task)
-
 
 def _ensure_task_schema(run_runtime_backfill=False):
     try:
@@ -8833,7 +8251,6 @@ def _ensure_task_schema(run_runtime_backfill=False):
         )
     except Exception as backfill_error:
         current_app.logger.warning(f"TASKS runtime backfill failed: {backfill_error}")
-
 
 def _decorate_task(task, current_uid, is_lead):
     assignments = [assignment for assignment, _user in _task_assignment_rows(task, ensure_bridge=False)]
@@ -8891,7 +8308,6 @@ def _decorate_task(task, current_uid, is_lead):
         "current_user_status": current_user_status,
         "user_assignment": user_assignment,
     }
-
 
 def _build_unit_report_summary(assigns, comments, deadline, report_snapshots=None):
     unit_rows = {}
@@ -8955,7 +8371,6 @@ def _build_unit_report_summary(assigns, comments, deadline, report_snapshots=Non
     }
     return rows, stats
 
-
 def _task_import_submenu_items(active_key="drafts"):
     return [
         {
@@ -8972,7 +8387,6 @@ def _task_import_submenu_items(active_key="drafts"):
         },
     ]
 
-
 def _task_import_ai_runtime():
     try:
         from routes.ai_assistant import _get_provider_runtime
@@ -8984,7 +8398,6 @@ def _task_import_ai_runtime():
             "label": "AI nội bộ",
             "configured": False,
         }
-
 
 def _task_import_ai_catalog(item_type, items):
     catalog = []
@@ -8998,7 +8411,6 @@ def _task_import_ai_catalog(item_type, items):
             }
         )
     return catalog
-
 
 def _task_import_history_entries(limit=80):
     tasks = (
@@ -9069,7 +8481,6 @@ def _task_import_history_entries(limit=80):
             }
         )
     return history_entries
-
 
 def _task_import_active_workload_context():
     assignments = (
@@ -9167,7 +8578,6 @@ def _task_import_active_workload_context():
         "unit_workload_map": unit_map,
     }
 
-
 def _task_import_ai_context():
     pro_units = stable_form_category_options(_task_domain_options())
     task_fields = stable_form_category_options(_task_field_options())
@@ -9176,16 +8586,6 @@ def _task_import_ai_context():
     unit_lookup = {item["value"]: item["name"] for item in pro_units if item.get("value")}
     role_lookup = {role.id: role.name for role in roles}
     user_lookup = {user.id: user.fullname or user.username or f"UID {user.id}" for user in active_users}
-    report_templates = []
-    for template in _task_report_templates():
-        report_templates.append(
-            {
-                "id": template.id,
-                "name": getattr(template, "name", "") or "",
-                "professional_unit": getattr(template, "professional_unit_display", "") or getattr(template, "professional_unit", "") or "",
-                "report_type_name": getattr(template, "report_type_display", "") or "",
-            }
-        )
     return {
         "unit_catalog": _task_import_ai_catalog("unit", pro_units),
         "field_catalog": _task_import_ai_catalog("field", task_fields),
@@ -9225,11 +8625,9 @@ def _task_import_ai_context():
             }
             for user in active_users
         ],
-        "report_templates": report_templates,
         "history_entries": _task_import_history_entries(),
         **_task_import_active_workload_context(),
     }
-
 
 def _task_import_ai_analysis(config, use_provider=False):
     context = _task_import_ai_context()
@@ -9277,18 +8675,14 @@ def _task_import_ai_analysis(config, use_provider=False):
         }
         return heuristic_analysis
 
-
 def _can_manage_task_imports(perms=None):
     return bool(session.get("is_admin") or _can_process_task_module(perms))
-
 
 def _task_import_drafts_query():
     return TaskImportDraft.query.order_by(TaskImportDraft.updated_at.desc(), TaskImportDraft.id.desc())
 
-
 def _task_import_draft_or_404(draft_id):
     return TaskImportDraft.query.filter_by(id=draft_id).first()
-
 
 def _task_import_draft_render_context(draft, active_key="drafts"):
     task_fields = _task_field_options()
@@ -9323,7 +8717,6 @@ def _task_import_draft_render_context(draft, active_key="drafts"):
         "sidebar_submenu_items": _task_import_submenu_items(active_key=active_key),
     }
 
-
 def _task_import_drafts_page():
     perms = _current_perms()
     if not _can_manage_task_imports(perms):
@@ -9351,7 +8744,6 @@ def _task_import_drafts_page():
         sidebar_submenu_title="Công việc",
         sidebar_submenu_items=_task_import_submenu_items(active_key="drafts"),
     )
-
 
 def _create_task_import_draft_v2():
     perms = _current_perms()
@@ -9413,7 +8805,6 @@ def _create_task_import_draft_v2():
     flash("Đã tạo nháp import mới.", "success")
     return redirect(url_for("tasks_bp.task_import_draft_detail", draft_id=draft.id))
 
-
 def _task_import_draft_detail_page(draft_id):
     perms = _current_perms()
     if not _can_manage_task_imports(perms):
@@ -9425,7 +8816,6 @@ def _task_import_draft_detail_page(draft_id):
         return "Not Found", 404
 
     return render_template("task_import_draft_detail.html", **_task_import_draft_render_context(draft))
-
 
 def _save_task_import_draft_v2(draft_id):
     perms = _current_perms()
@@ -9453,7 +8843,6 @@ def _save_task_import_draft_v2(draft_id):
     db.session.commit()
     flash("Đã lưu nháp import.", "success")
     return redirect(url_for("tasks_bp.task_import_draft_detail", draft_id=draft.id))
-
 
 def _publish_task_import_draft_v2(draft_id):
     perms = _current_perms()
@@ -9484,7 +8873,6 @@ def _publish_task_import_draft_v2(draft_id):
     flash("Đã phát hành nháp import thành nhiệm vụ.", "success")
     return redirect(url_for("tasks_bp.task_detail", tid=new_task.id))
 
-
 def _analyze_task_import_draft_ai_v2(draft_id):
     perms = _current_perms()
     if not _can_manage_task_imports(perms):
@@ -9505,7 +8893,6 @@ def _analyze_task_import_draft_ai_v2(draft_id):
     db.session.add(draft)
     db.session.commit()
     return jsonify({"ok": True, "analysis": analysis})
-
 
 def _apply_task_import_draft_ai_v2(draft_id):
     perms = _current_perms()
@@ -9548,7 +8935,6 @@ def _apply_task_import_draft_ai_v2(draft_id):
         }
     )
 
-
 @tasks_bp.route("/tasks", methods=["GET", "POST"])
 def tasks():
     if not session.get("uid"):
@@ -9556,7 +8942,6 @@ def tasks():
 
     _ensure_task_schema()
     return _tasks_page_v2()
-
 
 @tasks_bp.route("/tasks/import-drafts", methods=["GET"])
 def task_import_drafts():
@@ -9566,7 +8951,6 @@ def task_import_drafts():
     _ensure_task_schema()
     return _task_import_drafts_page()
 
-
 @tasks_bp.route("/tasks/import-drafts/create", methods=["POST"])
 def create_task_import_draft():
     if not session.get("uid"):
@@ -9574,7 +8958,6 @@ def create_task_import_draft():
 
     _ensure_task_schema()
     return _create_task_import_draft_v2()
-
 
 @tasks_bp.route("/tasks/import-drafts/<int:draft_id>", methods=["GET"])
 def task_import_draft_detail(draft_id):
@@ -9584,7 +8967,6 @@ def task_import_draft_detail(draft_id):
     _ensure_task_schema()
     return _task_import_draft_detail_page(draft_id)
 
-
 @tasks_bp.route("/tasks/import-drafts/<int:draft_id>/save", methods=["POST"])
 def save_task_import_draft(draft_id):
     if not session.get("uid"):
@@ -9592,7 +8974,6 @@ def save_task_import_draft(draft_id):
 
     _ensure_task_schema()
     return _save_task_import_draft_v2(draft_id)
-
 
 @tasks_bp.route("/tasks/import-drafts/<int:draft_id>/publish", methods=["POST"])
 def publish_task_import_draft(draft_id):
@@ -9602,7 +8983,6 @@ def publish_task_import_draft(draft_id):
     _ensure_task_schema()
     return _publish_task_import_draft_v2(draft_id)
 
-
 @tasks_bp.route("/tasks/import-drafts/<int:draft_id>/ai-analyze", methods=["POST"])
 def analyze_task_import_draft_ai(draft_id):
     if not session.get("uid"):
@@ -9611,7 +8991,6 @@ def analyze_task_import_draft_ai(draft_id):
     _ensure_task_schema()
     return _analyze_task_import_draft_ai_v2(draft_id)
 
-
 @tasks_bp.route("/tasks/import-drafts/<int:draft_id>/ai-apply", methods=["POST"])
 def apply_task_import_draft_ai(draft_id):
     if not session.get("uid"):
@@ -9619,7 +8998,6 @@ def apply_task_import_draft_ai(draft_id):
 
     _ensure_task_schema()
     return _apply_task_import_draft_ai_v2(draft_id)
-
 
 @tasks_bp.route("/tasks/workflow-blueprint-preview", methods=["POST"])
 def preview_workflow_blueprint():
@@ -9647,7 +9025,6 @@ def preview_workflow_blueprint():
         return jsonify({"ok": False, "error": "Blueprint điều hành không hợp lệ."}), 400
 
     return jsonify({"ok": True, "preview": workflow_blueprint_preview_data(blueprint)})
-
 
 @tasks_bp.route("/tasks/workflow-blueprint-import", methods=["POST"])
 def import_workflow_blueprint():
@@ -9677,7 +9054,6 @@ def import_workflow_blueprint():
         }
     )
 
-
 @tasks_bp.route("/tasks/outline-parse", methods=["POST"])
 def parse_outline_file_for_create():
     """Phân tích đề cương ngay trong bước tạo công việc (wizard)."""
@@ -9700,10 +9076,9 @@ def parse_outline_file_for_create():
         return jsonify({"ok": False, "error": "Không tìm thấy đầu mục hợp lệ trong file đề cương."}), 400
     return jsonify({"ok": True, "rows": rows})
 
-
 @tasks_bp.route("/tasks/form-template-preview", methods=["POST"])
 def preview_form_template_fields_for_create():
-    """Lấy các trường của biểu mẫu báo cáo có sẵn (hoặc file Excel mẫu) cho task FORM."""
+    """Lấy các trường của file Excel mẫu cho task FORM."""
     if not session.get("uid"):
         return jsonify({"ok": False, "error": "Phiên làm việc đã hết hạn."}), 401
 
@@ -9711,13 +9086,6 @@ def preview_form_template_fields_for_create():
     perms = _current_perms()
     if not (bool(session.get("is_admin")) or _can_process_task_module(perms)):
         return jsonify({"ok": False, "error": "Bạn không có quyền tạo công việc."}), 403
-
-    report_template_id = (request.form.get("report_template_id") or "").strip()
-    if report_template_id.isdigit():
-        fields = _report_template_to_form_field_defs(int(report_template_id))
-        if fields is None:
-            return jsonify({"ok": False, "error": "Không tìm thấy biểu mẫu báo cáo đã chọn."}), 404
-        return jsonify({"ok": True, "source": "report_template", "fields": fields})
 
     excel_file = request.files.get("excel_file")
     if excel_file and excel_file.filename:
@@ -9728,8 +9096,7 @@ def preview_form_template_fields_for_create():
         fields = workflow_blueprint_form_field_defs(blueprint)
         return jsonify({"ok": True, "source": "excel", "fields": fields})
 
-    return jsonify({"ok": False, "error": "Cần chọn biểu mẫu báo cáo hoặc file Excel mẫu."}), 400
-
+    return jsonify({"ok": False, "error": "Cần chọn file Excel mẫu."}), 400
 
 @tasks_bp.route("/tasks/<int:tid>", methods=["GET", "POST"])
 def task_detail(tid):
@@ -9739,7 +9106,6 @@ def task_detail(tid):
     _ensure_task_schema()
     return _task_detail_v2(tid)
 
-
 @tasks_bp.route("/tasks/<int:tid>/children/create", methods=["POST"])
 def create_child_task(tid):
     if not session.get("uid"):
@@ -9747,7 +9113,6 @@ def create_child_task(tid):
 
     _ensure_task_schema()
     return _create_outline_items_v2(tid)
-
 
 @tasks_bp.route("/tasks/<int:tid>/outline/import-preview", methods=["POST"])
 def preview_outline_import(tid):
@@ -9757,7 +9122,6 @@ def preview_outline_import(tid):
     _ensure_task_schema()
     return _preview_outline_import_v2(tid)
 
-
 @tasks_bp.route("/tasks/<int:tid>/google-form/create", methods=["POST"])
 def create_task_google_form(tid):
     if not session.get("uid"):
@@ -9765,7 +9129,6 @@ def create_task_google_form(tid):
 
     _ensure_task_schema()
     return _create_task_google_form_v2(tid)
-
 
 @tasks_bp.route("/tasks/<int:tid>/google-form/update", methods=["POST"])
 def update_task_google_form(tid):
@@ -9775,7 +9138,6 @@ def update_task_google_form(tid):
     _ensure_task_schema()
     return _update_task_google_form_v2(tid)
 
-
 @tasks_bp.route("/tasks/<int:tid>/google-form/publish", methods=["POST"])
 def publish_task_google_form(tid):
     if not session.get("uid"):
@@ -9783,7 +9145,6 @@ def publish_task_google_form(tid):
 
     _ensure_task_schema()
     return _publish_task_google_form_v2(tid)
-
 
 @tasks_bp.route("/tasks/<int:tid>/google-form/import-structure", methods=["POST"])
 def import_task_google_form_structure(tid):
@@ -9793,7 +9154,6 @@ def import_task_google_form_structure(tid):
     _ensure_task_schema()
     return _import_task_google_form_structure_v2(tid)
 
-
 @tasks_bp.route("/tasks/<int:tid>/sync-google-form", methods=["POST"])
 def sync_google_form_task(tid):
     if not session.get("uid"):
@@ -9801,7 +9161,6 @@ def sync_google_form_task(tid):
 
     _ensure_task_schema()
     return _sync_google_form_task_v2(tid)
-
 
 @tasks_bp.route("/tasks/<int:tid>/delete", methods=["POST"])
 def delete_task(tid):
@@ -9837,7 +9196,6 @@ def delete_task(tid):
         return redirect(url_for("tasks_bp.task_detail", tid=parent_task_id))
     return redirect(url_for("tasks_bp.tasks"))
 
-
 @tasks_bp.route("/tasks/<int:tid>/update_status", methods=["POST"])
 def update_task_status(tid):
     if not session.get("uid"):
@@ -9846,7 +9204,6 @@ def update_task_status(tid):
     _ensure_task_schema()
     return _update_task_status_v2(tid)
 
-
 @tasks_bp.route("/tasks/<int:tid>/submit_report", methods=["POST"])
 def submit_task_report(tid):
     if not session.get("uid"):
@@ -9854,7 +9211,6 @@ def submit_task_report(tid):
 
     _ensure_task_schema()
     return _submit_task_report_v2(tid)
-
 
 @tasks_bp.route("/tasks/<int:tid>/submission-files/<int:file_id>")
 def download_task_submission_file_v2(tid, file_id):
@@ -9899,7 +9255,6 @@ def download_task_submission_file_v2(tid, file_id):
 
     download_name = file_row.original_name or file_row.stored_name or f"task_{tid}_file"
     return send_file(file_path, as_attachment=True, download_name=download_name)
-
 
 @tasks_bp.route("/tasks/<int:tid>/export-form.xlsx")
 def export_form_task_v2(tid):

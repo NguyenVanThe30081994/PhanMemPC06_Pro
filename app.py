@@ -58,8 +58,6 @@ bootstrap_storage(storage_layout, basedir)
 UPLOAD_FOLDER = storage_layout['UPLOAD_FOLDER']
 TASK_FOLDER = storage_layout['TASK_FOLDER']
 LIB_FOLDER = storage_layout['LIB_FOLDER']
-REPORT_TEMPLATE_FOLDER = storage_layout['REPORT_TEMPLATE_FOLDER']
-REPORT_EXPORT_FOLDER = storage_layout['REPORT_EXPORT_FOLDER']
 BACKUP_FOLDER = storage_layout['BACKUP_FOLDER']
 LOG_DIR = storage_layout['LOG_DIR']
 TMP_FOLDER = storage_layout['TMP_FOLDER']
@@ -145,8 +143,6 @@ app.config['PC06_DATA_ROOT'] = storage_layout['data_root']
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['TASK_FOLDER'] = TASK_FOLDER
 app.config['LIB_FOLDER'] = LIB_FOLDER
-app.config['REPORT_TEMPLATE_FOLDER'] = REPORT_TEMPLATE_FOLDER
-app.config['REPORT_EXPORT_FOLDER'] = REPORT_EXPORT_FOLDER
 app.config['BACKUP_FOLDER'] = BACKUP_FOLDER
 app.config['LOG_DIR'] = LOG_DIR
 app.config['TMP_FOLDER'] = TMP_FOLDER
@@ -227,7 +223,7 @@ if storage_layout['DATABASE_URI'].startswith(('mysql+pymysql://', 'mariadb+pymys
     )
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = engine_options
 
-for folder in [UPLOAD_FOLDER, TASK_FOLDER, LIB_FOLDER, REPORT_TEMPLATE_FOLDER, REPORT_EXPORT_FOLDER, BACKUP_FOLDER, TMP_FOLDER]:
+for folder in [UPLOAD_FOLDER, TASK_FOLDER, LIB_FOLDER, BACKUP_FOLDER, TMP_FOLDER]:
     os.makedirs(folder, exist_ok=True)
 
 
@@ -393,7 +389,6 @@ from routes.tasks import tasks_bp
 from routes.ranking import ranking_bp
 from routes.api import api_bp
 from routes.shortlink import shortlink_bp
-from routes.reporting import reporting_bp
 from routes.ai_assistant import ai_bp
 from routes.health import health_bp
 from routes.attendance import attendance_bp
@@ -405,7 +400,6 @@ app.register_blueprint(tasks_bp)
 app.register_blueprint(ranking_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(shortlink_bp)
-app.register_blueprint(reporting_bp)
 app.register_blueprint(health_bp)
 app.register_blueprint(ai_bp)
 app.register_blueprint(attendance_bp)
@@ -583,20 +577,6 @@ def inject_global_data():
     def can_manage_with_system(module_code):
         return bool(can_module(module_code, 'process') or can_module('sys', 'process'))
 
-    def can_access_report_center():
-        return bool(
-            can_module('form', 'view')
-            or can_module('input', 'view')
-            or can_module('input', 'process')
-            or can_module('input', 'exec')
-            or can_module('stat', 'view')
-            or can_module('stat', 'process')
-            or can_module('stat', 'exec')
-        )
-
-    def report_center_url():
-        return '/admin/reports' if can_module('form', 'process') else '/reports'
-
     if not session.get('uid'):
         return dict(
             perms=perms,
@@ -610,8 +590,6 @@ def inject_global_data():
             can_module=can_module,
             can_any_module=can_any_module,
             can_manage_with_system=can_manage_with_system,
-            can_access_report_center=can_access_report_center,
-            report_center_url=report_center_url,
         )
     
     # 1. Fetch properties from DB role if available
@@ -639,8 +617,6 @@ def inject_global_data():
         can_module=can_module,
         can_any_module=can_any_module,
         can_manage_with_system=can_manage_with_system,
-        can_access_report_center=can_access_report_center,
-        report_center_url=report_center_url,
     )
 
 # --- JINJA HELPERS ---

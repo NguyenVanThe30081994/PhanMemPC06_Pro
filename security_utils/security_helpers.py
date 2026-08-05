@@ -87,10 +87,6 @@ def validate_table_name(table_name):
         'news_category', 'news_doc', 'notification', 'professional_unit',
         'login_security_state',
         'ranking_entry', 'ranking_indicator', 'ranking_unit',
-        'report_audit_log', 'report_cycle', 'report_export_job', 'report_instance',
-        'report_submission', 'report_submission_cell', 'report_submission_value',
-        'report_template', 'report_template_field', 'report_template_sheet',
-        'report_template_version', 'report_type', 'report_unit', 'report_validation_log',
         'short_link', 'system_log'
     }
     

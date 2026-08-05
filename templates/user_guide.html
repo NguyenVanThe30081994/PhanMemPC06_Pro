@@ -291,7 +291,7 @@
     <article class="guide-card">
         <span class="guide-card-icon"><i class="fa-solid fa-compass"></i></span>
         <h2>2. Chọn đúng phân hệ</h2>
-        <p>Dùng thanh điều hướng phía trên hoặc menu bên trái để đi tới công việc, bảng tin, thư viện, báo cáo và các tiện ích hỗ trợ khác.</p>
+        <p>Dùng thanh điều hướng phía trên hoặc menu bên trái để đi tới công việc, bảng tin, thư viện và các tiện ích hỗ trợ khác.</p>
     </article>
     <article class="guide-card">
         <span class="guide-card-icon"><i class="fa-solid fa-bell"></i></span>
@@ -342,10 +342,10 @@
         <article class="guide-step">
             <span class="guide-step-number">04</span>
             <div>
-                <h3>Theo dõi chỉ số và báo cáo</h3>
+                <h3>Theo dõi chỉ số và công việc</h3>
                 <ul>
                     <li>Kiểm tra Xếp hạng để theo dõi kết quả thi đua hoặc chỉ tiêu đơn vị.</li>
-                    <li>Vào Trung tâm báo cáo khi cần nhập liệu, xem chu kỳ báo cáo hoặc đối soát số liệu.</li>
+                    <li>Theo dõi tiến độ công việc và kết quả nộp báo cáo tại màn hình Công việc.</li>
                 </ul>
             </div>
         </article>
@@ -437,19 +437,6 @@
                 </ul>
             </div>
         </article>
-
-        {% if can_access_report_center() %}
-        <article class="guide-step">
-            <span class="guide-step-number"><i class="fa-solid fa-chart-line"></i></span>
-            <div>
-                <h3>Báo cáo</h3>
-                <ul>
-                    <li>Vào Trung tâm báo cáo để xem chu kỳ, nhập số liệu, kiểm tra lịch sử và xuất biểu mẫu.</li>
-                    <li>Trước khi chốt báo cáo, cần kiểm tra đơn vị, ngày báo cáo và dữ liệu cộng dồn nếu hệ thống yêu cầu.</li>
-                </ul>
-            </div>
-        </article>
-        {% endif %}
 
         <article class="guide-step">
             <span class="guide-step-number"><i class="fa-solid fa-screwdriver-wrench"></i></span>

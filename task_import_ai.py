@@ -1030,37 +1030,7 @@ def _form_field_ai_suggestion(field, index, config, context, fallback_domain):
 
 
 def _template_suggestions(config, context, max_items=3):
-    if str(config.get("collection_mode") or "").strip().lower() not in {"file", "form"}:
-        return []
-    title = str(config.get("title") or "").strip()
-    summary = str(config.get("summary") or "").strip()
-    domain = str(config.get("domain") or "").strip()
-    text = " ".join(value for value in [title, summary, domain] if value).strip()
-    ranked = []
-    for template in context.get("report_templates") or []:
-        name = template.get("name") or ""
-        professional_unit = template.get("professional_unit") or ""
-        report_type_name = template.get("report_type_name") or ""
-        score = max(
-            _overlap_score(text, name),
-            _overlap_score(text, professional_unit),
-            _overlap_score(text, report_type_name),
-        )
-        if score <= 0.2:
-            continue
-        ranked.append(
-            {
-                "id": template.get("id"),
-                "name": name,
-                "professional_unit": professional_unit,
-                "report_type_name": report_type_name,
-                "confidence_score": round(score, 4),
-                "confidence_label": _confidence_label(score),
-                "reason": f"Trùng ngữ nghĩa với mẫu báo cáo {name}.",
-            }
-        )
-    ranked.sort(key=lambda item: (-item["confidence_score"], item["name"]))
-    return ranked[:max_items]
+    return []
 
 
 def _build_assignment_strategy(collection_mode, outline_items, global_assignment, report_field_items, form_field_items=None):

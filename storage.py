@@ -9,8 +9,6 @@ MUTABLE_DIR_ENV_MAP = {
     "TASK_FOLDER": "task_files",
     "LIB_FOLDER": "library_files",
     "BACKUP_FOLDER": "backups",
-    "REPORT_TEMPLATE_FOLDER": "report_templates",
-    "REPORT_EXPORT_FOLDER": "report_exports",
     "LOG_DIR": "logs",
     "TMP_FOLDER": "tmp",
 }

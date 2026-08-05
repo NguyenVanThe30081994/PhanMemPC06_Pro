@@ -4,14 +4,14 @@ Migration and backfill entrypoint for PC06.
 
 Supports:
 - Core schema safeguards via utils.apply_migrations
-- Runtime backfill for task_participant / task_submission / task_report_link
+- Runtime backfill for task_participant / task_submission / task_item
 - Dry-run summary before applying changes
 """
 
 import argparse
 
 from app import app
-from models import Task, TaskItem, TaskParticipant, TaskReportLink, TaskSubmission
+from models import Task, TaskItem, TaskParticipant, TaskSubmission
 from routes.tasks import _backfill_task_runtime_models, _query_task_scope, _task_runtime_expected_counts
 from utils import apply_migrations
 
@@ -21,7 +21,6 @@ def _task_runtime_snapshot():
         "tasks": 0,
         "participant_rows": 0,
         "submission_rows": 0,
-        "report_link_rows": 0,
         "task_item_rows": 0,
         "tasks_missing_runtime": 0,
         "sample_missing_tasks": [],
@@ -35,11 +34,9 @@ def _task_runtime_snapshot():
             TaskParticipant.is_active.is_(True),
         ).count()
         submission_count = _query_task_scope(TaskSubmission, task).count()
-        report_link_count = _query_task_scope(TaskReportLink, task).count()
 
         snapshot["participant_rows"] += participant_count
         snapshot["submission_rows"] += submission_count
-        snapshot["report_link_rows"] += report_link_count
         snapshot["task_item_rows"] += task_item_count
 
         missing = (
@@ -47,7 +44,6 @@ def _task_runtime_snapshot():
             or
             (expected["executor_participants"] and participant_count < expected["executor_participants"])
             or (expected["submissions"] and submission_count < expected["submissions"])
-            or (expected["report_links"] and report_link_count < expected["report_links"])
         )
         if missing:
             snapshot["tasks_missing_runtime"] += 1
@@ -62,8 +58,6 @@ def _task_runtime_snapshot():
                         "actual_participants": participant_count,
                         "expected_submissions": expected["submissions"],
                         "actual_submissions": submission_count,
-                        "expected_links": expected["report_links"],
-                        "actual_links": report_link_count,
                     }
                 )
     return snapshot
@@ -76,7 +70,6 @@ def _print_snapshot(title, snapshot):
     print(f"- Tasks scanned: {snapshot['tasks']}")
     print(f"- Executor participants: {snapshot['participant_rows']}")
     print(f"- Submission rows: {snapshot['submission_rows']}")
-    print(f"- Report links: {snapshot['report_link_rows']}")
     print(f"- Task items: {snapshot['task_item_rows']}")
     print(f"- Tasks still missing runtime rows: {snapshot['tasks_missing_runtime']}")
     if snapshot["sample_missing_tasks"]:
@@ -88,7 +81,6 @@ def _print_snapshot(title, snapshot):
                 f"task_items {item['actual_task_items']}/{item['expected_task_items']} | "
                 f"participants {item['actual_participants']}/{item['expected_participants']} | "
                 f"submissions {item['actual_submissions']}/{item['expected_submissions']} | "
-                f"links {item['actual_links']}/{item['expected_links']}"
             )
 
 

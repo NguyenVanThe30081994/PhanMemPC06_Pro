@@ -566,7 +566,6 @@
         </div>
         
         <div class="offcanvas-body p-3 pt-0">
-            {% set can_access_reports = can_access_report_center() %}
             <div class="sidebar-section">
                 <div class="sidebar-section-label">
                     <i class="fa-solid fa-compass"></i>
@@ -601,21 +600,6 @@
                     {% endif %}
                 </div>
             </div>
-
-            {% if can_access_reports %}
-            <div class="sidebar-section">
-                <div class="sidebar-section-label">
-                    <i class="fa-solid fa-chart-column"></i>
-                    <span>Báo cáo</span>
-                </div>
-                <div class="sidebar-nav-list">
-                    <a href="{{ report_center_url() }}" class="sidebar-nav-link {% if request.endpoint and request.endpoint.startswith('reporting_bp') %}active{% endif %}">
-                        <span class="sidebar-nav-icon"><i class="fa-solid fa-chart-line"></i></span>
-                        <span class="sidebar-nav-text">Trung tâm báo cáo</span>
-                    </a>
-                </div>
-            </div>
-            {% endif %}
 
             <div class="sidebar-section">
                 <div class="sidebar-section-label">
