@@ -814,6 +814,7 @@ PERMISSION_MODULES = [
     ("task", "Công việc"),
     ("notify", "Thông báo"),
     ("contact", "Danh bạ"),
+    ("link", "QR và liên kết"),
     ("form", "Quản lý báo cáo"),
     ("input", "Nhập và gửi báo cáo"),
     ("stat", "Tiến độ báo cáo"),
@@ -826,25 +827,206 @@ DEFAULT_ROLE_MODULE_CODES = (
     "task",
     "notify",
     "contact",
-    "input",
-    "stat",
+    "link",
+)
+
+# Vai trò chuẩn theo cơ cấu CAT / CAX
+# process = tạo/sửa/xóa/giao | exec = tiếp nhận/báo cáo | view = chỉ xem
+STANDARD_SYSTEM_ROLES = (
+    {
+        "name": "Quản trị hệ thống",
+        "aliases": ("admin_system", "admin", "quản trị"),
+        "level": "system",
+        "description": "Toàn quyền hệ thống: cấu hình, tài khoản, mọi nghiệp vụ.",
+        "perms": {
+            "dash": ("view", "process", "exec"),
+            "task": ("view", "process", "exec"),
+            "notify": ("view", "process"),
+            "contact": ("view", "process"),
+            "link": ("view", "process"),
+            "form": ("view", "process", "exec"),
+            "input": ("view", "process", "exec"),
+            "stat": ("view", "process"),
+            "user": ("view", "process"),
+            "sys": ("view", "process"),
+        },
+    },
+    {
+        "name": "Cán bộ CAT",
+        "aliases": ("cán bộ pc06", "can bo pc06", "cán bộ tỉnh"),
+        "level": "cat",
+        "description": "Cán bộ nghiệp vụ cấp Tỉnh: giao việc, sửa việc mình tạo, thông báo, danh bạ, QR.",
+        "perms": {
+            "dash": ("view",),
+            "task": ("view", "process"),
+            "notify": ("view", "process"),
+            "contact": ("view", "process"),
+            "link": ("view", "process"),
+        },
+    },
+    {
+        "name": "Lãnh đạo - Chỉ huy CAT",
+        "aliases": ("lãnh đạo cat", "chỉ huy cat", "chỉ huy pc06", "lãnh đạo pc06"),
+        "level": "cat",
+        "description": "Lãnh đạo cấp Tỉnh: xem công việc toàn cục, đăng thông báo, tra cứu danh bạ/QR.",
+        "perms": {
+            "dash": ("view",),
+            "task": ("view",),
+            "notify": ("view", "process"),
+            "contact": ("view",),
+            "link": ("view", "process"),
+        },
+    },
+    {
+        "name": "Cán bộ CAX",
+        "aliases": ("cán bộ cax", "cán bộ xã", "can bo xa"),
+        "level": "cax",
+        "description": "Cán bộ cấp Xã: tiếp nhận và báo cáo công việc, xem thông báo/danh bạ/QR.",
+        "perms": {
+            "dash": ("view",),
+            "task": ("view", "exec"),
+            "notify": ("view",),
+            "contact": ("view",),
+            "link": ("view",),
+        },
+    },
+    {
+        "name": "Chỉ huy CAX",
+        "aliases": ("chỉ huy cax", "chỉ huy xã", "chi huy xa"),
+        "level": "cax",
+        "description": "Chỉ huy cấp Xã: báo cáo/giám sát việc đơn vị, xem thông báo/danh bạ, tạo QR đơn vị.",
+        "perms": {
+            "dash": ("view",),
+            "task": ("view", "exec"),
+            "notify": ("view",),
+            "contact": ("view",),
+            "link": ("view", "process"),
+        },
+    },
 )
 
 
+def _role_name_key(role_name):
+    return " ".join(str(role_name or "").strip().lower().split())
+
+
+def match_standard_role(role_name):
+    key = _role_name_key(role_name)
+    if not key:
+        return None
+    for role_def in STANDARD_SYSTEM_ROLES:
+        names = {_role_name_key(role_def["name"])}
+        names.update(_role_name_key(alias) for alias in role_def.get("aliases") or ())
+        if key in names:
+            return role_def
+        # Khớp gần: chứa đủ cụm chính trong tên vai trò
+        for candidate in names:
+            if candidate and candidate in key:
+                return role_def
+    return None
+
+
+def build_permission_payload_from_module_map(module_map):
+    payload = {}
+    for module_code, tiers in (module_map or {}).items():
+        for tier in tiers or ():
+            normalized = str(tier or "").strip().lower()
+            if normalized in {"view", "process", "exec"}:
+                payload[f"p_{module_code}_{normalized}"] = 1
+    return normalize_permission_payload(payload)
+
+
+def standard_role_permission_payload(role_name):
+    role_def = match_standard_role(role_name)
+    if not role_def:
+        return None
+    return build_permission_payload_from_module_map(role_def.get("perms") or {})
+
+
+def ensure_standard_system_roles(force_update_perms=False):
+    """Tạo/cập nhật 5 vai trò chuẩn CAT-CAX. Trả về số vai trò đã chạm."""
+    touched = 0
+    for role_def in STANDARD_SYSTEM_ROLES:
+        name = role_def["name"]
+        payload = build_permission_payload_from_module_map(role_def.get("perms") or {})
+        perms_json = json.dumps(payload, ensure_ascii=False)
+
+        role = AppRole.query.filter_by(name=name).first()
+        if not role:
+            # Thử tìm alias cũ (vd admin_system)
+            for alias in role_def.get("aliases") or ():
+                role = AppRole.query.filter_by(name=alias).first()
+                if role:
+                    role.name = name
+                    break
+        if not role:
+            role = AppRole(name=name, perms=perms_json)
+            db.session.add(role)
+            touched += 1
+            continue
+
+        if force_update_perms or not (role.perms or "").strip():
+            role.perms = perms_json
+            touched += 1
+        elif role.name != name:
+            role.name = name
+            touched += 1
+    if touched:
+        db.session.commit()
+    return touched
+
+
 def role_default_permission_tier(role_name):
-    normalized_name = (role_name or "").strip().lower()
+    """Suy ra tier mặc định khi tạo vai trò mới (fallback heuristic)."""
+    role_def = match_standard_role(role_name)
+    if role_def:
+        # Ưu tiên process > exec > view theo định nghĩa chuẩn
+        all_tiers = set()
+        for tiers in (role_def.get("perms") or {}).values():
+            all_tiers.update(tiers or ())
+        if "process" in all_tiers and role_def.get("level") in {"system", "cat"}:
+            # Cán bộ CAT / admin → process; lãnh đạo chỉ view
+            if "lãnh đạo" in _role_name_key(role_def["name"]) or "chỉ huy cat" in _role_name_key(role_def["name"]):
+                return "view"
+            if role_def.get("level") == "cax":
+                return "exec"
+            return "process"
+        if "exec" in all_tiers:
+            return "exec"
+        return "view"
+
+    normalized_name = _role_name_key(role_name)
     if not normalized_name:
         return "exec"
-    if any(marker in normalized_name for marker in ("lãnh đạo", "lanh dao", "chỉ huy", "chi huy")):
+    if any(marker in normalized_name for marker in ("quản trị", "admin")):
+        return "process"
+    if "cán bộ cat" in normalized_name or "can bo cat" in normalized_name:
+        return "process"
+    if "cán bộ pc06" in normalized_name or "can bo pc06" in normalized_name:
+        return "process"
+    if any(marker in normalized_name for marker in ("lãnh đạo", "lanh dao")):
         return "view"
-    if "pc06" in normalized_name and "cán bộ" in normalized_name:
-        return "process"
-    if "pc06" in normalized_name and "can bo" in normalized_name:
-        return "process"
+    if "chỉ huy cat" in normalized_name or "chi huy cat" in normalized_name:
+        return "view"
+    if "chỉ huy" in normalized_name or "chi huy" in normalized_name:
+        return "exec"
+    if "cax" in normalized_name or "xã" in normalized_name or "xa " in normalized_name:
+        return "exec"
     return "exec"
 
 
 def build_default_role_permissions(role_name, module_codes=None):
+    standard_payload = standard_role_permission_payload(role_name)
+    if standard_payload is not None:
+        if module_codes:
+            allowed = set(module_codes)
+            return {
+                key: value
+                for key, value in standard_payload.items()
+                if any(key.startswith(f"p_{code}_") or key == f"p_{code}" for code in allowed)
+            }
+        return standard_payload
+
     selected_tier = role_default_permission_tier(role_name)
     payload = {}
     allowed_modules = set(module_codes or DEFAULT_ROLE_MODULE_CODES)

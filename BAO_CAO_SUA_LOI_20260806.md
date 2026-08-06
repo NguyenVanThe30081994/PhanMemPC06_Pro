@@ -120,24 +120,53 @@ def index():
 
 ### Các module chính:
 - ✅ **Trang chủ** (`/admin`) - Dashboard với biểu đồ và thống kê
-- ✅ **Công việc** (`/tasks`) - Quản lý công việc, báo cáo
-- ✅ **Thông báo** (`/thong-bao`) - Hệ thống thông báo
-- ✅ **Danh bạ** (`/contacts`) - Quản lý danh bạ liên hệ
-- ✅ **QR & Liên kết** (`/links`) - Quản lý shortlink và QR code
-- ✅ **Hệ thống** (`/roles`, `/admin/module-categories`, `/logs`, etc.)
-  - Tài khoản & vai trò
-  - Thiết lập danh mục
-  - Nhật ký hoạt động
-  - Cập nhật bản vá
-  - Công cụ Database
+  - 4 stat cards (Công việc, Danh bạ, Người dùng, Đơn vị)
+  - Recent activity list
+  - Task progress chart (Chart.js)
+  - Quick action buttons
 
-### Bảo mật:
-- ✅ CSRF Protection
-- ✅ Session Management
-- ✅ Password Validation
-- ✅ Re-authentication cho sensitive operations
-- ✅ Rate Limiting
-- ✅ Security Headers
+- ✅ **Công việc** (`/tasks`) - Quản lý công việc phức tạp
+  - 3 loại: FORM (Google Forms), OUTLINE (Word), FILE (văn bản)
+  - Wizard tạo việc 4 bước
+  - Ma trận tiến độ theo đơn vị
+  - Export báo cáo Word
+  - Import từ Excel với AI analysis
+
+- ✅ **Thông báo** (`/thong-bao`) - Hệ thống thông báo
+  - Upload file đính kèm
+  - Video embedding
+  - Phân loại theo lĩnh vực
+  - Real-time notifications
+
+- ✅ **Danh bạ** (`/contacts`) - Quản lý danh bạ liên hệ
+  - Import Excel bulk
+  - Export template
+  - Search & filter
+  - Phone number validation
+
+- ✅ **QR & Liên kết** (`/links`) - Quản lý shortlink và QR code
+  - Tạo QR code tự động
+  - Short URL generation
+  - Click tracking
+
+- ✅ **Hệ thống** (`/roles`, `/admin/module-categories`, `/logs`, etc.)
+  - Tài khoản & vai trò (import Excel)
+  - Thiết lập danh mục (Category system)
+  - Nhật ký hoạt động (Activity logs)
+  - Cập nhật bản vá (Git pull)
+  - Công cụ Database (Backup/Reset)
+
+### Bảo mật (Security-First Design):
+- ✅ CSRF Protection (token-based)
+- ✅ Session Management (8h timeout, device tracking)
+- ✅ Password Validation (8+ ký tự, hoa, thường, số, đặc biệt)
+- ✅ Re-authentication cho sensitive operations (15 phút)
+- ✅ Rate Limiting (240 req/min, 120 req/min cho API)
+- ✅ Security Headers (CSP, HSTS, X-Frame-Options, X-XSS-Protection)
+- ✅ Login Lockout (5 lần thất bại → khóa 15 phút)
+- ✅ Device Fingerprinting (User-Agent tracking)
+- ✅ IP Network Hints (Phát hiện thay đổi mạng)
+- ✅ Auto Logout Warning (1 phút trước khi hết phiên)
 
 ---
 

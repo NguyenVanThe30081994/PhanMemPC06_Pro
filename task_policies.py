@@ -175,10 +175,18 @@ def scope_allows_user(scope, user):
 
 
 def can_manage_task(task, session_uid, is_admin, can_process_module, load_manager_scope_fn, user=None, load_parent_task_fn=None):
+    """Quyền sửa/cấu hình công việc.
+
+    - Quản trị: mọi công việc
+    - Người tạo: công việc của mình
+    - Người trong manager_scope: được ủy quyền điều phối
+    - Cán bộ CAT (process) KHÔNG còn quyền sửa tất cả việc của người khác
+    """
     if not task or not session_uid:
         return False
-    if is_admin or getattr(task, "author_id", None) == session_uid or can_process_module:
+    if is_admin or getattr(task, "author_id", None) == session_uid:
         return True
+    # can_process_module chỉ dùng để mở quyền tạo việc ở route layer, không bypass manage
     if not user:
         return False
     if scope_allows_user(load_manager_scope_fn(task), user):
@@ -198,9 +206,15 @@ def can_manage_task(task, session_uid, is_admin, can_process_module, load_manage
 
 
 def can_delete_task(task, session_uid, is_admin=False, is_lead=False, can_manage=False):
+    """Quyền xóa công việc: quản trị, người tạo, hoặc người được ủy quyền manage.
+
+    is_lead (process module) không còn đủ để xóa việc của người khác.
+    """
     if not task or not session_uid:
         return False
-    if is_admin or getattr(task, "author_id", None) == session_uid or is_lead:
+    if is_admin:
+        return True
+    if getattr(task, "author_id", None) == session_uid:
         return True
     return bool(can_manage)
 

@@ -31,134 +31,137 @@
 
 {% block content %}
 <div class="task-workspace-shell">
-    <section class="task-metric-grid">
-        <article class="task-metric-card danger">
-            <span>Cần xử lý ngay</span>
-            <strong>{{ stats.attention }}</strong>
-        </article>
-        <article class="task-metric-card primary">
-            <span>Việc tôi nhận</span>
-            <strong>{{ stats.my }}</strong>
-        </article>
-        <article class="task-metric-card warning">
-            <span>Tôi giao hoặc theo dõi</span>
-            <strong>{{ stats.managed }}</strong>
-        </article>
-        <article class="task-metric-card success">
-            <span>Đã hoàn tất</span>
-            <strong>{{ stats.completed }}</strong>
-        </article>
-        {% if is_lead or is_admin %}
-        <article class="task-metric-card task-metric-card-action">
-            <div class="d-grid gap-2">
-                <button class="btn btn-bdhvs primary task-create-btn" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
-                    <i class="fa-solid fa-plus"></i>
-                    Tạo công việc
-                </button>
-                <a class="btn btn-outline-primary task-create-btn" href="{{ url_for('tasks_bp.task_import_drafts') }}">
-                    <i class="fa-solid fa-file-import"></i>
-                    Nhập tài liệu
-                </a>
+    <!-- Header with Stats and Actions -->
+    <section class="task-header-bar">
+        <div class="task-stats-compact">
+            <div class="task-stat-item danger">
+                <i class="fa-solid fa-exclamation-circle"></i>
+                <span>{{ stats.attention }}</span>
+                <small>Cần xử lý</small>
             </div>
-        </article>
+            <div class="task-stat-item primary">
+                <i class="fa-solid fa-user"></i>
+                <span>{{ stats.my }}</span>
+                <small>Việc tôi nhận</small>
+            </div>
+            <div class="task-stat-item warning">
+                <i class="fa-solid fa-users"></i>
+                <span>{{ stats.managed }}</span>
+                <small>Tôi giao</small>
+            </div>
+            <div class="task-stat-item success">
+                <i class="fa-solid fa-check-circle"></i>
+                <span>{{ stats.completed }}</span>
+                <small>Hoàn tất</small>
+            </div>
+        </div>
+        {% if is_lead or is_admin %}
+        <div class="task-actions-compact">
+            <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+                <i class="fa-solid fa-plus me-2"></i>Tạo công việc
+            </button>
+            <a class="btn btn-outline-primary" href="{{ url_for('tasks_bp.task_import_drafts') }}">
+                <i class="fa-solid fa-file-import me-2"></i>Nhập tài liệu
+            </a>
+        </div>
         {% endif %}
     </section>
 
-    {% if attention_tasks %}
-    <section class="task-panel" id="attention-tasks">
-        <div class="task-panel-head">
-            <div><h2>Cần xử lý ngay</h2></div>
-        </div>
-        <div class="task-highlight-grid">
-            {% for task in attention_tasks[:4] %}
-            {{ task_card(task) }}
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
+    <!-- Tabs for Task Categories -->
+    <section class="task-tabs-section">
+        <ul class="nav nav-tabs task-nav-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if stats.attention > 0 %}active{% elif stats.my > 0 %}{% else %}active{% endif %}" 
+                        id="attention-tab" data-bs-toggle="tab" data-bs-target="#attention-pane" type="button">
+                    <i class="fa-solid fa-exclamation-circle me-2"></i>Cần xử lý ngay
+                    {% if stats.attention > 0 %}<span class="badge bg-danger ms-2">{{ stats.attention }}</span>{% endif %}
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if stats.attention == 0 and stats.my > 0 %}active{% endif %}" 
+                        id="my-tab" data-bs-toggle="tab" data-bs-target="#my-pane" type="button">
+                    <i class="fa-solid fa-user me-2"></i>Việc của tôi
+                    {% if stats.my > 0 %}<span class="badge bg-primary ms-2">{{ stats.my }}</span>{% endif %}
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="managed-tab" data-bs-toggle="tab" data-bs-target="#managed-pane" type="button">
+                    <i class="fa-solid fa-users me-2"></i>Tôi giao
+                    {% if stats.managed > 0 %}<span class="badge bg-warning ms-2">{{ stats.managed }}</span>{% endif %}
+                </button>
+            </li>
+            {% if watch_tasks|length > 0 %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="watch-tab" data-bs-toggle="tab" data-bs-target="#watch-pane" type="button">
+                    <i class="fa-solid fa-eye me-2"></i>Chỉ xem
+                    <span class="badge bg-secondary ms-2">{{ watch_tasks|length }}</span>
+                </button>
+            </li>
+            {% endif %}
+        </ul>
 
-    <section class="task-board-grid">
-        <div class="task-board-main">
-            <section class="task-panel" id="my-tasks">
-                <div class="task-panel-head">
-                    <div><h2>Việc của tôi</h2></div>
-                    <span class="task-count-chip">{{ my_tasks|length }} việc</span>
+        <div class="tab-content task-tab-content">
+            <!-- Attention Tasks Tab -->
+            <div class="tab-pane fade {% if stats.attention > 0 %}show active{% elif stats.my > 0 %}{% else %}show active{% endif %}" 
+                 id="attention-pane" role="tabpanel">
+                {% if attention_tasks %}
+                <div class="task-list-grid">
+                    {% for task in attention_tasks %}
+                    {{ task_card(task) }}
+                    {% endfor %}
                 </div>
+                {% else %}
+                <div class="task-empty-state">
+                    <i class="fa-solid fa-check-circle text-success mb-3" style="font-size: 3rem;"></i>
+                    <p>Không có công việc cần xử lý ngay.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- My Tasks Tab -->
+            <div class="tab-pane fade {% if stats.attention == 0 and stats.my > 0 %}show active{% endif %}" 
+                 id="my-pane" role="tabpanel">
                 {% if my_tasks %}
-                <div class="task-card-stack">
+                <div class="task-list-grid">
                     {% for task in my_tasks %}
                     {{ task_card(task) }}
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="task-empty-state">Hiện chưa có việc nào được giao trực tiếp cho bạn.</div>
-                {% endif %}
-            </section>
-
-            <section class="task-panel" id="managed-tasks">
-                <div class="task-panel-head">
-                    <div><h2>Tôi giao hoặc đang theo dõi</h2></div>
-                    <span class="task-count-chip">{{ managed_tasks|length }} việc</span>
+                <div class="task-empty-state">
+                    <i class="fa-solid fa-inbox text-muted mb-3" style="font-size: 3rem;"></i>
+                    <p>Hiện chưa có việc nào được giao trực tiếp cho bạn.</p>
                 </div>
+                {% endif %}
+            </div>
+
+            <!-- Managed Tasks Tab -->
+            <div class="tab-pane fade" id="managed-pane" role="tabpanel">
                 {% if managed_tasks %}
-                <div class="task-card-stack">
+                <div class="task-list-grid">
                     {% for task in managed_tasks %}
                     {{ task_card(task) }}
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="task-empty-state">Chưa có công việc nào thuộc nhóm bạn điều phối hoặc theo dõi.</div>
-                {% endif %}
-            </section>
-        </div>
-
-        <aside class="task-board-side">
-            <section class="task-panel" id="watch-tasks">
-                <div class="task-panel-head">
-                    <div>
-                        <h2>Chỉ xem và tra cứu</h2>
-                        <p>Các công việc bạn được cấp quyền xem để nắm tình hình, không phải trực tiếp xử lý.</p>
-                    </div>
-                    <span class="task-count-chip">{{ watch_tasks|length }} việc</span>
+                <div class="task-empty-state">
+                    <i class="fa-solid fa-folder-open text-muted mb-3" style="font-size: 3rem;"></i>
+                    <p>Chưa có công việc nào thuộc nhóm bạn điều phối hoặc theo dõi.</p>
                 </div>
-                {% if watch_tasks %}
-                <div class="task-card-stack">
-                    {% for task in watch_tasks[:6] %}
+                {% endif %}
+            </div>
+
+            <!-- Watch Tasks Tab -->
+            {% if watch_tasks|length > 0 %}
+            <div class="tab-pane fade" id="watch-pane" role="tabpanel">
+                <div class="task-list-grid">
+                    {% for task in watch_tasks %}
                     {{ task_card(task) }}
                     {% endfor %}
                 </div>
-                {% else %}
-                <div class="task-empty-state">Không có công việc chỉ xem riêng.</div>
-                {% endif %}
-            </section>
-
-            <section class="task-panel">
-                <div class="task-panel-head">
-                    <div>
-                        <h2>Tổng quan hình thức</h2>
-                        <p>Phần này chỉ để nhìn nhanh toàn cục, không còn là cách tổ chức chính của danh sách.</p>
-                    </div>
-                </div>
-                <div class="task-mode-stack">
-                    <div class="task-mode-item">
-                        <span>Theo đề cương</span>
-                        <strong>{{ stats.outline }}</strong>
-                    </div>
-                    <div class="task-mode-item">
-                        <span>Nộp file</span>
-                        <strong>{{ stats.file }}</strong>
-                    </div>
-                    <div class="task-mode-item">
-                        <span>Biểu mẫu</span>
-                        <strong>{{ stats.form }}</strong>
-                    </div>
-                    <div class="task-mode-item">
-                        <span>Tổng công việc</span>
-                        <strong>{{ stats.total }}</strong>
-                    </div>
-                </div>
-            </section>
-        </aside>
+            </div>
+            {% endif %}
+        </div>
     </section>
 </div>
 
