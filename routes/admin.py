@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, current_app, Response, send_from_directory
 from sqlalchemy import func
-from models import db, User, AppRole, SystemLog, Task, NewsDoc, DocumentLib, Contact, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding, AIAssistantConfig
+from models import db, User, AppRole, SystemLog, Task, NewsDoc, DocumentLib, NotificationDoc, Contact, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding
 from werkzeug.security import generate_password_hash
 from urllib.parse import urlparse
 import ipaddress
@@ -57,20 +57,6 @@ from category_helpers import (
 )
 
 admin_bp = Blueprint('admin_bp', __name__)
-
-AI_PROVIDER_CHOICES = {
-    'deepseek': 'DeepSeek',
-    'gemini': 'Gemini',
-    'openai': 'OpenAI',
-    'groq': 'Groq',
-}
-
-AI_PROVIDER_DEFAULTS = {
-    'deepseek': 'deepseek-v4-flash',
-    'gemini': 'gemini-2.5-flash',
-    'openai': 'gpt-4.1-mini',
-    'groq': 'llama-3.3-70b-versatile',
-}
 
 USER_IMPORT_HEADER_MARKERS = (
     'đơn vị',
@@ -312,20 +298,6 @@ def _mask_secret(value):
     return f"{value[:4]}{'*' * (len(value) - 8)}{value[-4:]}"
 
 
-def _get_ai_config_secret(config):
-    if not config:
-        return ''
-    secret_key = current_app.secret_key or current_app.config.get('SECRET_KEY') or ''
-    try:
-        value = config.get_api_key(secret_key)
-    except Exception:
-        return ''
-    if value and config.api_key and not config.api_key_encrypted:
-        config.set_api_key(secret_key, value)
-        db.session.commit()
-    return value
-
-
 def _reset_users_passwords_bulk(user_query, temporary_password):
     target_rows = user_query.with_entities(User.id, User.username).all()
     if not target_rows:
@@ -395,14 +367,6 @@ def _is_safe_git_remote_url(remote_url):
         return not _is_private_or_local_host(host)
 
     return False
-
-
-def _test_ai_runtime_connection():
-    from routes.ai_assistant import call_ai_provider
-
-    test_prompt = "Hãy trả lời ngắn gọn bằng đúng cụm từ: Kết nối AI thành công."
-    result, errors = call_ai_provider(test_prompt)
-    return result, errors
 
 
 def _normalize_group_label(value, fallback='Chưa phân loại'):
@@ -513,7 +477,7 @@ def index():
 
         task_domain_items = module_category_options('tasks', 'domain', 'Đội nghiệp vụ')
         contact_group_items = module_category_options('contacts', 'contact_group', 'Nhóm danh bạ')
-        document_field_items = module_category_options('library', 'category', 'Lĩnh vực', 'Loại tài liệu')
+        document_field_items = module_category_options('notify', 'category', 'Lĩnh vực', 'Loại tài liệu')
 
         task_raw_counts = db.session.query(
             Task.domain,
@@ -524,6 +488,10 @@ def index():
             DocumentLib.category,
             func.count(DocumentLib.id)
         ).group_by(DocumentLib.category).all()
+        document_raw_counts += db.session.query(
+            NotificationDoc.category,
+            func.count(NotificationDoc.id)
+        ).group_by(NotificationDoc.category).all()
 
         contact_raw_counts = db.session.query(
             Contact.contact_group,
@@ -607,10 +575,10 @@ def index():
             {
                 'title': 'Thông tin tài liệu',
                 'row_label': 'Lĩnh vực',
-                'count_label': 'Số tài liệu',
-                'icon': 'fa-solid fa-folder-open',
+                'count_label': 'Số tài liệu/thông báo',
+                'icon': 'fa-solid fa-bullhorn',
                 'accent_class': 'warning',
-                'link': '/library',
+                'link': '/thong-bao',
                 'rows': document_dashboard,
                 'total': sum(row['count'] for row in document_dashboard),
                 'empty_text': 'Chưa có tài liệu nào.'
@@ -660,35 +628,12 @@ def index():
                 stat_label='đợt công việc đang có',
             ))
 
-        if can_module('attendance', 'view'):
-            workspace_groups[0]['cards'].append(_workspace_card(
-                title='Điểm danh',
-                description='Ghi nhận quân số, cập nhật ca trực hoặc theo dõi tình trạng điểm danh theo ngày.',
-                primary_label='Mở điểm danh',
-                primary_link='/attendance',
-                accent_class='warning',
-                stat_value='Trong ngày',
-                stat_label='cập nhật theo thời điểm',
-            ))
-
-        workspace_groups[0]['cards'].append(_workspace_card(
-            title='Xếp hạng',
-            description='Theo dõi kết quả thi đua và so sánh mức độ hoàn thành giữa các đơn vị.',
-            primary_label='Xem xếp hạng',
-            primary_link='/ranking',
-            accent_class='indigo',
-            stat_value='Toàn hệ thống',
-            stat_label='bảng theo dõi thi đua',
-        ))
-
-        if can_module('lib', 'view') or can_module('news', 'view'):
+        if can_module('notify', 'view'):
             workspace_groups[1]['cards'].append(_workspace_card(
-                title='Tài liệu và bảng tin',
-                description='Tra cứu văn bản, thông báo và tài liệu dùng chung tại một nơi dễ tìm hơn.',
-                primary_label='Mở thư viện',
-                primary_link='/library' if can_module('lib', 'view') else '/news',
-                secondary_label='Mở bảng tin' if can_module('news', 'view') else '',
-                secondary_link='/news' if can_module('news', 'view') else '',
+                title='Thông báo',
+                description='Đăng tin, thông báo và quản lý tài liệu dùng chung (Word, Excel, PDF, video).',
+                primary_label='Mở thông báo',
+                primary_link='/thong-bao',
                 accent_class='warning',
                 stat_value=card_totals.get('Thông tin tài liệu', 0),
                 stat_label='tài liệu đang lưu',
@@ -704,16 +649,6 @@ def index():
                 stat_value=card_totals.get('Danh bạ', 0),
                 stat_label='liên hệ sẵn có',
             ))
-
-        workspace_groups[1]['cards'].append(_workspace_card(
-            title='Hướng dẫn và AI',
-            description='Khi chưa rõ cách thao tác, mở tài liệu hướng dẫn hoặc dùng trợ lý AI để hỏi nhanh.',
-            primary_label='Mở hướng dẫn',
-            primary_link='/guide',
-            secondary_label='Mở trợ lý AI',
-            secondary_link='/ai',
-            accent_class='primary',
-        ))
 
         workspace_groups[1]['cards'].append(_workspace_card(
             title='QR và liên kết',
@@ -735,7 +670,7 @@ def index():
         if can_module('sys', 'view'):
             workspace_groups[2]['cards'].append(_workspace_card(
                 title='Thiết lập hệ thống',
-                description='Cấu hình danh mục, AI, nhật ký hoạt động, cập nhật và công cụ quản trị hệ thống.',
+                description='Cấu hình danh mục, nhật ký hoạt động, cập nhật và công cụ quản trị hệ thống.',
                 primary_label='Mở thiết lập danh mục',
                 primary_link='/admin/module-categories',
                 secondary_label='Mở nhật ký hoạt động',
@@ -1418,108 +1353,6 @@ def system_update():
     return render_template('system_update.html', git_info=git_info)
 
 
-@admin_bp.route('/admin/ai-settings', methods=['GET', 'POST'])
-def ai_settings():
-    if not session.get('is_admin'):
-        return redirect(url_for('auth_bp.login'))
-
-    config = AIAssistantConfig.query.first()
-
-    if request.method == 'POST':
-        action = (request.form.get('action') or 'save').strip()
-        provider = (request.form.get('provider') or 'deepseek').strip().lower()
-        if provider not in AI_PROVIDER_CHOICES:
-            provider = 'deepseek'
-
-        model_name = (request.form.get('model_name') or AI_PROVIDER_DEFAULTS[provider]).strip()
-        system_prompt = (request.form.get('system_prompt') or '').strip()
-        new_api_key = (request.form.get('api_key') or '').strip()
-        clear_api_key = (request.form.get('clear_api_key') or '').strip().lower() in {'1', 'true', 'on', 'yes'}
-        is_active = (request.form.get('is_active') or '').strip().lower() in {'1', 'true', 'on', 'yes'}
-
-        try:
-            if not config:
-                config = AIAssistantConfig()
-                db.session.add(config)
-
-            config.provider = provider
-            config.model_name = model_name or AI_PROVIDER_DEFAULTS[provider]
-            config.system_prompt = system_prompt or None
-            config.is_active = is_active
-
-            if clear_api_key:
-                config.clear_api_key()
-            elif new_api_key:
-                config.set_api_key(current_app.secret_key or current_app.config.get('SECRET_KEY') or '', new_api_key)
-
-            db.session.commit()
-
-            if action == 'test_connection':
-                result, errors = _test_ai_runtime_connection()
-                if result and result.get('ok'):
-                    flash(
-                        f"Kết nối AI thành công qua {AI_PROVIDER_CHOICES.get(result['provider'], result['provider'])} / {result['model']}.",
-                        'success'
-                    )
-                else:
-                    error_message = (errors[0].get('error') if errors else 'Không lấy được phản hồi từ provider')
-                    flash(f"Không kết nối được AI: {error_message}", 'danger')
-                log_action(
-                    session['uid'],
-                    session['fullname'],
-                    "Kiểm tra kết nối trợ lý AI",
-                    "Hệ thống",
-                    f"{AI_PROVIDER_CHOICES.get(provider, provider)} / {config.model_name}"
-                )
-            else:
-                log_action(
-                    session['uid'],
-                    session['fullname'],
-                    "Cập nhật cấu hình trợ lý AI",
-                    "Hệ thống",
-                    f"{AI_PROVIDER_CHOICES.get(provider, provider)} / {config.model_name}"
-                )
-                flash('Đã lưu cấu hình AI thành công!', 'success')
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Lỗi cấu hình AI: {e}', 'danger')
-
-        return redirect(url_for('admin_bp.ai_settings'))
-
-    provider = ((config.provider if config else None) or 'deepseek').strip().lower()
-    if provider not in AI_PROVIDER_CHOICES:
-        provider = 'deepseek'
-
-    current_key = _get_ai_config_secret(config)
-    env_key_names = {
-        'deepseek': 'DEEPSEEK_API_KEY',
-        'gemini': 'GEMINI_API_KEY',
-        'openai': 'OPENAI_API_KEY',
-        'groq': 'GROQ_API_KEY',
-    }
-    env_key_name = env_key_names.get(provider, '')
-    env_has_key = bool((os.getenv(env_key_name, '') or '').strip())
-
-    status = {
-        'provider': provider,
-        'provider_label': AI_PROVIDER_CHOICES.get(provider, provider),
-        'model_name': (config.model_name if config and config.model_name else AI_PROVIDER_DEFAULTS[provider]),
-        'has_db_key': bool(current_key),
-        'masked_db_key': _mask_secret(current_key),
-        'env_key_name': env_key_name,
-        'env_has_key': env_has_key,
-        'is_active': bool(config.is_active) if config else False,
-        'effective_source': 'database' if current_key and (config and config.is_active) else ('environment' if env_has_key else 'none'),
-    }
-
-    return render_template(
-        'admin_ai_settings.html',
-        config=config,
-        provider_choices=AI_PROVIDER_CHOICES,
-        provider_defaults=AI_PROVIDER_DEFAULTS,
-        status=status
-    )
-
 @admin_bp.route('/admin/system/git-pull', methods=['POST'])
 def git_pull():
     if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
@@ -1791,11 +1624,8 @@ def module_categories():
     bindings = ModuleFieldBinding.query.all()
     binding_map = {(binding.module_id, binding.field_code): binding for binding in bindings}
     module_fields = {
-        'news': [
-            {'code': 'category', 'label': 'Danh mục bảng tin'}
-        ],
-        'library': [
-            {'code': 'category', 'label': 'Danh mục thư viện'},
+        'notify': [
+            {'code': 'category', 'label': 'Lĩnh vực / Đội nghiệp vụ'},
             {'code': 'document_type', 'label': 'Loại tài liệu'}
         ],
         'tasks': [

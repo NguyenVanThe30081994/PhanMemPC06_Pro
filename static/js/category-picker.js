@@ -118,7 +118,7 @@ class CategoryPicker {
     renderTargetOptions(items) {
         const options = [`<option value="">${escapeCategoryHtml(this.placeholder)}</option>`];
         const useStableValue = this.valueMode === 'stable'
-            || (this.moduleCode === 'library' && this.fieldCode === 'category');
+            || ((this.moduleCode === 'library' || this.moduleCode === 'notify') && this.fieldCode === 'category');
         const optionValueOf = (item) => {
             if (useStableValue) {
                 return item.stable_value || item.value || item.code || item.name || '';

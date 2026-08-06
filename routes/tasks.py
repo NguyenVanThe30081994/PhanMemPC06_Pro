@@ -31,7 +31,6 @@ from category_helpers import (
 )
 from models import (
     AppRole,
-    RankingUnit,
     Task,
     TaskImportDraft,
     TaskAssignment,
@@ -69,7 +68,6 @@ from task_workspace import (
 from task_import_ai import (
     analyze_task_import_config,
     apply_ai_analysis_to_config,
-    build_task_import_ai_prompt,
 )
 from task_policies import (
     build_scope_summary,
@@ -349,7 +347,7 @@ def _task_domain_options():
     return module_category_options("tasks", "domain", "Đội nghiệp vụ")
 
 def _task_field_options():
-    return module_category_options("news", "category", "Lĩnh vực", "Đội nghiệp vụ")
+    return module_category_options("notify", "category", "Lĩnh vực", "Đội nghiệp vụ")
 
 def _task_type_options():
     return module_category_options("tasks", "task_type", "Loại công việc")
@@ -695,23 +693,6 @@ def _resolve_role_assignees(role_id):
         .order_by(User.fullname.asc())
         .all()
     )
-
-    if role and _is_commune_role(role.name):
-        ranking_unit_keys = {
-            extract_unit_key(unit_name)
-            for unit_name, in db.session.query(RankingUnit.name).all()
-            if unit_name and str(unit_name).strip()
-        }
-
-        if ranking_unit_keys:
-            commune_users = (
-                User.query.filter(User.is_active.is_(True), User.unit_area.isnot(None))
-                .order_by(User.fullname.asc())
-                .all()
-            )
-            for user in commune_users:
-                if _user_unit_key(user) in ranking_unit_keys:
-                    users.append(user)
 
     return _dedupe_users(users)
 
@@ -8388,16 +8369,13 @@ def _task_import_submenu_items(active_key="drafts"):
     ]
 
 def _task_import_ai_runtime():
-    try:
-        from routes.ai_assistant import _get_provider_runtime
-        return _get_provider_runtime()
-    except Exception:
-        return {
-            "provider": "internal",
-            "model": "",
-            "label": "AI nội bộ",
-            "configured": False,
-        }
+    # Chức năng Trợ lý AI đã bị gỡ: chỉ còn lõi phân tích quy tắc nội bộ (không cần internet/API key).
+    return {
+        "provider": "internal",
+        "model": "",
+        "label": "AI nội bộ",
+        "configured": False,
+    }
 
 def _task_import_ai_catalog(item_type, items):
     catalog = []
@@ -8630,50 +8608,14 @@ def _task_import_ai_context():
     }
 
 def _task_import_ai_analysis(config, use_provider=False):
+    # use_provider không còn tác dụng sau khi gỡ Trợ lý AI: luôn chạy phân tích quy tắc nội bộ.
     context = _task_import_ai_context()
     heuristic_analysis = analyze_task_import_config(config, context)
-    if not use_provider:
-        return heuristic_analysis
-
-    runtime = _task_import_ai_runtime()
-    if not runtime.get("configured"):
-        heuristic_analysis["llm_meta"] = {
-            "configured": False,
-            "reason": "Chưa cấu hình provider AI ngoài.",
-        }
-        return heuristic_analysis
-
-    try:
-        from routes.ai_assistant import call_ai_provider
-
-        prompt = build_task_import_ai_prompt(config, heuristic_analysis)
-        result, errors = call_ai_provider(prompt)
-        if result and result.get("ok"):
-            return analyze_task_import_config(
-                config,
-                context,
-                llm_commentary=result.get("answer") or "",
-                llm_meta={
-                    "configured": True,
-                    "provider": result.get("provider") or runtime.get("provider"),
-                    "model": result.get("model") or runtime.get("model"),
-                },
-            )
-        heuristic_analysis["llm_meta"] = {
-            "configured": True,
-            "provider": runtime.get("provider"),
-            "model": runtime.get("model"),
-            "error": (errors[0].get("error") if errors else "Không lấy được phản hồi từ provider."),
-        }
-        return heuristic_analysis
-    except Exception as exc:
-        heuristic_analysis["llm_meta"] = {
-            "configured": True,
-            "provider": runtime.get("provider"),
-            "model": runtime.get("model"),
-            "error": str(exc),
-        }
-        return heuristic_analysis
+    heuristic_analysis["llm_meta"] = {
+        "configured": False,
+        "reason": "Trợ lý AI ngoài đã bị gỡ; chỉ dùng phân tích quy tắc nội bộ.",
+    }
+    return heuristic_analysis
 
 def _can_manage_task_imports(perms=None):
     return bool(session.get("is_admin") or _can_process_task_module(perms))

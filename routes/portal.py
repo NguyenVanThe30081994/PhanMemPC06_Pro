@@ -4,7 +4,7 @@ import os, pandas as pd, io, json, re, unicodedata
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 from html import unescape
-from models import db, NewsDoc, DocumentLib, Contact, CategoryItem, AppRole
+from models import db, NewsDoc, DocumentLib, NotificationDoc, Contact, CategoryItem, AppRole
 from category_helpers import (
     canonicalize_category_value as shared_canonicalize_category_value,
     category_filter_counts as shared_category_filter_counts,
@@ -123,21 +123,11 @@ def _current_portal_permissions():
     return perms, is_admin
 
 
-def _can_manage_news(perms=None, is_admin=None):
+def _can_manage_notify(perms=None, is_admin=None):
     perms = perms or {}
     is_admin = bool(session.get('is_admin')) if is_admin is None else bool(is_admin)
     return bool(
-        has_module_permission(perms, 'news', 'process', is_admin=is_admin)
-        or has_module_permission(perms, 'sys', 'process', is_admin=is_admin)
-        or is_admin
-    )
-
-
-def _can_manage_library(perms=None, is_admin=None):
-    perms = perms or {}
-    is_admin = bool(session.get('is_admin')) if is_admin is None else bool(is_admin)
-    return bool(
-        has_module_permission(perms, 'lib', 'process', is_admin=is_admin)
+        has_module_permission(perms, 'notify', 'process', is_admin=is_admin)
         or has_module_permission(perms, 'sys', 'process', is_admin=is_admin)
         or is_admin
     )
@@ -569,362 +559,215 @@ def _build_contacts_template_workbook():
     output.seek(0)
     return output
 
-@portal_bp.route('/news', methods=['GET', 'POST'])
-def news():
-    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
+@portal_bp.route('/thong-bao', methods=['GET', 'POST'])
+def notifications_board():
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
 
     perms, is_admin = _current_portal_permissions()
-    can_manage_news = _can_manage_news(perms, is_admin)
+    can_manage_notify = _can_manage_notify(perms, is_admin)
 
-    if request.method == 'POST' and can_manage_news:
+    if request.method == 'POST' and can_manage_notify:
+        kind = (request.form.get('kind') or 'notice').strip()
+        if kind not in {'notice', 'document'}:
+            kind = 'notice'
+        title = (request.form.get('title') or '').strip()
+        content = (request.form.get('content') or '').strip()
+        description = (request.form.get('description') or '').strip()
+        category_raw = (request.form.get('category') or '').strip()
+        video_url = (request.form.get('video_url') or '').strip()
+
+        if not title:
+            flash('Tiêu đề thông báo không được để trống.', 'danger')
+            return redirect(url_for('portal_bp.notifications_board'))
+
+        fn = ''
         try:
             fn = _save_uploaded_file(request.files.get('file'), 'uploads', '')
         except ValueError as exc:
             flash(f'Lỗi upload file: {exc}', 'danger')
-            return redirect(url_for('portal_bp.news'))
-        news_category_items = _module_category_options('news', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
-        category_value = _canonicalize_category_value(
-            request.form.get('category', ''),
-            news_category_items,
-            prefer_stable=True,
-        )
-        category_display = _resolve_category_display(category_value, news_category_items, fallback_label='').get('display_name') or request.form.get('category', '')
-        db.session.add(NewsDoc(
-            title=request.form['title'],
-            category=category_value,
-            content=request.form['content'],
-            filename=fn
-        ))
-        db.session.commit()
-        log_action(session['uid'], session['fullname'], "Đăng tin mới", "Bảng tin", request.form['title'])
-        push_global_notif(f"Bảng tin: {category_display}", f"{request.form['title']}", "/news", exclude_uid=session['uid'])
-        flash('Đã đăng tin mới!', 'success')
-        return redirect(url_for('portal_bp.news'))
-    now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
+            return redirect(url_for('portal_bp.notifications_board'))
 
-    news_category_items = _module_category_options('news', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
-    if not news_category_items:
-        news_category_items = _module_category_options('tasks', 'domain', 'Đội nghiệp vụ')
-    news_records = NewsDoc.query.order_by(NewsDoc.uploaded_at.desc()).all()
-    news_records = _sync_record_categories(news_records, news_category_items, prefer_stable=True)
-    decorated_news = _decorate_records_with_category(news_records, news_category_items, allow_unknown_label=False)
-    news_filters = _category_filter_counts(decorated_news, news_category_items)
+        notify_category_items = _module_category_options('notify', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
+        category_value = _canonicalize_category_value(category_raw, notify_category_items, prefer_stable=True)
+        category_display = _resolve_category_display(category_value, notify_category_items, fallback_label='').get('display_name') or category_raw
+
+        file_ext = (fn.rsplit('.', 1)[-1].lower() if fn else '')
+        doc = NotificationDoc(
+            kind=kind,
+            title=title,
+            category=category_value,
+            content=content,
+            description=description,
+            filename=fn,
+            file_ext=file_ext,
+            video_url=video_url,
+            has_attachment=bool(fn),
+            posted_by=session.get('fullname', ''),
+        )
+        db.session.add(doc)
+        db.session.commit()
+
+        if kind == 'document':
+            log_action(session['uid'], session['fullname'], "Tải lên tài liệu", "Thông báo", title)
+            push_global_notif(f"Thông báo: {category_display}", f"Tài liệu mới: {title}", "/thong-bao", exclude_uid=session['uid'])
+            flash('Đã tải lên tài liệu!', 'success')
+        else:
+            log_action(session['uid'], session['fullname'], "Đăng tin mới", "Thông báo", title)
+            push_global_notif(f"Thông báo: {category_display}", title, "/thong-bao", exclude_uid=session['uid'])
+            flash('Đã đăng thông báo!', 'success')
+        return redirect(url_for('portal_bp.notifications_board'))
+
+    now_str = datetime.now().strftime('Ngày %d tháng %m, %Y')
+    notify_category_items = _module_category_options('notify', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
+    if not notify_category_items:
+        notify_category_items = _module_category_options('tasks', 'domain', 'Đội nghiệp vụ')
+    records = NotificationDoc.query.order_by(NotificationDoc.uploaded_at.desc()).all()
+    records = _sync_record_categories(records, notify_category_items, prefer_stable=True)
+    decorated = _decorate_records_with_category(records, notify_category_items, allow_unknown_label=False)
+    category_filters = _category_filter_counts(decorated, notify_category_items)
+
+    kind_filter = (request.args.get('kind') or '').strip()
+    if kind_filter not in {'notice', 'document', 'video'}:
+        kind_filter = ''
     category_filter = (request.args.get('category') or '').strip()
-    canonical_category_filter = _canonicalize_category_value(category_filter, news_category_items, prefer_stable=True) if category_filter else ''
-    current_category_info = _resolve_category_display(canonical_category_filter or category_filter, news_category_items, fallback_label='')
+    canonical_category_filter = _canonicalize_category_value(category_filter, notify_category_items, prefer_stable=True) if category_filter else ''
+    current_category_info = _resolve_category_display(canonical_category_filter or category_filter, notify_category_items, fallback_label='')
     current_category_filter = current_category_info['filter_value'] if canonical_category_filter else ''
     current_category_display = current_category_info['display_name'] if canonical_category_filter else 'Tất cả lĩnh vực'
-    filtered_news_cards = [
-        item for item in decorated_news
-        if not current_category_filter or item['category_filter'] == current_category_filter
+
+    def _kind_of(item):
+        if item.get('record') and getattr(item['record'], 'video_url', ''):
+            return 'video'
+        return getattr(item['record'], 'kind', 'notice') or 'notice'
+
+    filtered_cards = [
+        item for item in decorated
+        if (not current_category_filter or item['category_filter'] == current_category_filter)
+        and (not kind_filter or _kind_of(item) == kind_filter)
     ]
-    news_sidebar_items = [
+
+    sidebar_items = [
         {
             'label': 'Tất cả lĩnh vực',
-            'href': url_for('portal_bp.news'),
-            'count': len(decorated_news),
-            'active': not current_category_filter,
+            'href': url_for('portal_bp.notifications_board'),
+            'count': len(decorated),
+            'active': not current_category_filter and not kind_filter,
         }
     ]
-    news_sidebar_items.extend(
+    sidebar_items.extend(
         {
             'label': item['name'],
-            'href': url_for('portal_bp.news', category=item['filter_value']),
+            'href': url_for('portal_bp.notifications_board', category=item['filter_value'], kind=kind_filter or None),
             'count': item['count'],
             'active': current_category_filter == item['filter_value'],
         }
-        for item in news_filters
+        for item in category_filters
     )
 
-    return render_template('news.html',
-                          news_list=news_records,
-                          news_cards=decorated_news,
-                          filtered_news_cards=filtered_news_cards,
-                          category_filters=news_filters,
-                          category_options=_stable_form_category_options(news_category_items),
-                          cats=news_category_items,
-                          pro_units=news_category_items,
-                          current_category=current_category_filter,
-                          current_category_display=current_category_display,
-                          sidebar_submenu_parent='news',
-                          sidebar_submenu_items=news_sidebar_items,
-                          now_str=now_str,
-                          perms=perms,
-                          is_admin=is_admin,
-                          can_manage_news=can_manage_news)
-
-
-@portal_bp.route('/news/edit/<int:nid>', methods=['POST'])
-def news_edit(nid):
-    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
-
-    perms, is_admin = _current_portal_permissions()
-    if not _can_manage_news(perms, is_admin):
-        flash('Bạn không có quyền sửa bản tin.', 'danger')
-        return redirect(url_for('portal_bp.news'))
-
-    news_item = NewsDoc.query.get_or_404(nid)
-    news_category_items = _module_category_options('news', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
-
-    try:
-        news_item.filename = _save_uploaded_file(request.files.get('file'), 'uploads', news_item.filename or '')
-    except ValueError as exc:
-        flash(f'Lỗi upload file: {exc}', 'danger')
-        return redirect(url_for('portal_bp.news'))
-
-    news_item.title = (request.form.get('title') or '').strip()
-    news_item.content = (request.form.get('content') or '').strip()
-    news_item.category = _canonicalize_category_value(
-        request.form.get('category', ''),
-        news_category_items,
-        prefer_stable=True,
+    return render_template(
+        'thong_bao.html',
+        records=records,
+        cards=decorated,
+        filtered_cards=filtered_cards,
+        category_filters=category_filters,
+        category_options=_stable_form_category_options(notify_category_items),
+        cats=notify_category_items,
+        current_category=current_category_filter,
+        current_category_display=current_category_display,
+        kind_filter=kind_filter,
+        sidebar_submenu_parent='notifications',
+        sidebar_submenu_items=sidebar_items,
+        now_str=now_str,
+        perms=perms,
+        is_admin=is_admin,
+        can_manage_notify=can_manage_notify,
     )
 
-    if not news_item.title:
-        flash('Tiêu đề bản tin không được để trống.', 'danger')
-        return redirect(url_for('portal_bp.news'))
 
-    db.session.commit()
-    log_action(session['uid'], session['fullname'], "Cập nhật bản tin", "Bảng tin", news_item.title)
-    flash('Đã cập nhật bản tin.', 'success')
-    return redirect(url_for('portal_bp.news'))
-
-@portal_bp.route('/guide')
-def user_guide():
+@portal_bp.route('/thong-bao/edit/<int:doc_id>', methods=['POST'])
+def notifications_board_edit(doc_id):
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
-    return render_template('user_guide.html', title='Hướng dẫn sử dụng phần mềm')
 
-@portal_bp.route('/ban-do-adn-liet-si')
-def martyr_adn_map():
-    generated_map = os.path.join(
-        current_app.root_path,
-        'outputs',
-        'adn_collection_points_20260625',
-        'ban_do_diem_tap_ket_adn_3_to.html',
+    perms, is_admin = _current_portal_permissions()
+    if not _can_manage_notify(perms, is_admin):
+        flash('Bạn không có quyền sửa thông báo.', 'danger')
+        return redirect(url_for('portal_bp.notifications_board'))
+
+    doc = NotificationDoc.query.get_or_404(doc_id)
+    notify_category_items = _module_category_options('notify', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
+
+    try:
+        doc.filename = _save_uploaded_file(request.files.get('file'), 'uploads', doc.filename or '')
+    except ValueError as exc:
+        flash(f'Lỗi upload file: {exc}', 'danger')
+        return redirect(url_for('portal_bp.notifications_board'))
+
+    doc.kind = (request.form.get('kind') or doc.kind or 'notice').strip()
+    if doc.kind not in {'notice', 'document'}:
+        doc.kind = 'notice'
+    doc.title = (request.form.get('title') or '').strip()
+    doc.content = (request.form.get('content') or '').strip()
+    doc.description = (request.form.get('description') or '').strip()
+    doc.video_url = (request.form.get('video_url') or '').strip()
+    doc.category = _canonicalize_category_value(
+        request.form.get('category', ''),
+        notify_category_items,
+        prefer_stable=True,
     )
-    if request.args.get('view') == 'generated' and os.path.exists(generated_map):
-        return send_file(generated_map, mimetype='text/html')
-    return render_template('martyr_adn_map.html', title='Bản đồ ADN liệt sĩ - PhanMemPC06_Pro')
+    doc.file_ext = (doc.filename.rsplit('.', 1)[-1].lower() if doc.filename else '')
+    doc.has_attachment = bool(doc.filename)
+
+    if not doc.title:
+        flash('Tiêu đề thông báo không được để trống.', 'danger')
+        return redirect(url_for('portal_bp.notifications_board'))
+
+    db.session.commit()
+    log_action(session['uid'], session['fullname'], "Cập nhật thông báo", "Thông báo", doc.title)
+    flash('Đã cập nhật thông báo.', 'success')
+    return redirect(url_for('portal_bp.notifications_board'))
+
+
+@portal_bp.route('/thong-bao/delete/<int:doc_id>', methods=['POST'])
+def notifications_board_delete(doc_id):
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    perms, is_admin = _current_portal_permissions()
+    if not _can_manage_notify(perms, is_admin):
+        flash('Bạn không có quyền xóa thông báo.', 'danger')
+        return redirect(url_for('portal_bp.notifications_board'))
+
+    doc = NotificationDoc.query.get_or_404(doc_id)
+    title = doc.title or ''
+    db.session.delete(doc)
+    db.session.commit()
+    log_action(session['uid'], session['fullname'], "Xóa thông báo", "Thông báo", title)
+    flash('Đã xóa thông báo.', 'success')
+    return redirect(url_for('portal_bp.notifications_board'))
+
+
+@portal_bp.route('/news', methods=['GET', 'POST'])
+def news():
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    return redirect(url_for('portal_bp.notifications_board'))
+
+
+@portal_bp.route('/library', methods=['GET', 'POST'])
+def library():
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    return redirect(url_for('portal_bp.notifications_board'))
 
 
 @portal_bp.route('/notifications')
 def notifications():
-    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
-    from models import Notification
-    raw_notifs = Notification.query.filter_by(user_id=session['uid']).order_by(Notification.created_at.desc()).limit(40).all()
-    notifs = []
-    for notif in raw_notifs:
-        source_info = infer_notification_source(notif.title, notif.msg, notif.link)
-        if source_info['code'] not in {'task', 'news', 'library', 'report'}:
-            continue
-        setattr(notif, 'source_info', source_info)
-        notifs.append(notif)
-        if len(notifs) >= 20:
-            break
-    # Mark as read when viewing the page
-    Notification.query.filter_by(user_id=session['uid']).update({'is_read': 1})
-    db.session.commit()
-    return render_template('notifications.html', notifs=notifs)
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    return redirect(url_for('portal_bp.notifications_board'))
 
-@portal_bp.route('/library', methods=['GET', 'POST'])
-def library():
-    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
-
-    perms, is_admin = _current_portal_permissions()
-    can_manage_library = _can_manage_library(perms, is_admin)
-
-    if request.method == 'POST' and can_manage_library:
-        f = request.files.get('file')
-        if f and f.filename:
-            try:
-                fn = _save_uploaded_file(f, 'library_files', '')
-            except ValueError as exc:
-                flash(f'Lỗi upload file: {exc}', 'danger')
-                return redirect(url_for('portal_bp.library'))
-            library_category_items = _module_category_options('library', 'category', 'Lĩnh vực', 'Loại tài liệu')
-            category_value = _canonicalize_category_value(
-                request.form.get('category', ''),
-                library_category_items,
-                prefer_stable=True,
-            )
-            doc = DocumentLib(title=request.form['title'], category=category_value, filename=fn)
-            if hasattr(doc, 'description'):
-                doc.description = (request.form.get('description') or '').strip()
-            db.session.add(doc)
-            db.session.commit()
-            log_action(session['uid'], session['fullname'], "Tải lên tài liệu", "Thư viện", request.form['title'])
-            push_global_notif("Thư viện", f"Tài liệu mới: {request.form['title']}", "/library", exclude_uid=session['uid'])
-            flash('Đã tải lên tài liệu!', 'success')
-        return redirect(url_for('portal_bp.library'))
-    
-    library_category_items = _module_category_options('library', 'category', 'Lĩnh vực', 'Loại tài liệu')
-    docs = DocumentLib.query.order_by(DocumentLib.uploaded_at.desc()).all()
-    docs = _sync_record_categories(docs, library_category_items, prefer_stable=True)
-    decorated_docs = _decorate_records_with_category(docs, library_category_items, allow_unknown_label=False)
-    library_filters = _category_filter_counts(decorated_docs, library_category_items)
-    library_form_category_options = _stable_form_category_options(library_category_items)
-    category_filter = (request.args.get('category') or '').strip()
-    canonical_category_filter = _canonicalize_category_value(category_filter, library_category_items, prefer_stable=True) if category_filter else ''
-    current_category_info = _resolve_category_display(canonical_category_filter or category_filter, library_category_items, fallback_label='')
-    current_category_filter = current_category_info['filter_value'] if canonical_category_filter else ''
-    current_category_display = current_category_info['display_name'] if canonical_category_filter else 'Tất cả lĩnh vực'
-    filtered_doc_cards = [
-        item for item in decorated_docs
-        if not current_category_filter or item['category_filter'] == current_category_filter
-    ]
-    library_sidebar_items = [
-        {
-            'label': 'Tất cả lĩnh vực',
-            'href': url_for('portal_bp.library'),
-            'count': len(decorated_docs),
-            'active': not current_category_filter,
-        }
-    ]
-    library_sidebar_items.extend(
-        {
-            'label': item['name'],
-            'href': url_for('portal_bp.library', category=item['filter_value']),
-            'count': item['count'],
-            'active': current_category_filter == item['filter_value'],
-        }
-        for item in library_filters
-    )
-
-    legal_field_options = []
-    legal_docs = []
-    legal_error = ''
-    selected_legal_field = (request.args.get('legal_field') or '').strip()
-    try:
-        legal_field_options = _legal_field_options()
-        available_ids = {item['id'] for item in legal_field_options}
-        if not selected_legal_field or selected_legal_field not in available_ids:
-            selected_legal_field = LEGAL_DOCS_DEFAULT_FIELD_ID if LEGAL_DOCS_DEFAULT_FIELD_ID in available_ids else (legal_field_options[0]['id'] if legal_field_options else '')
-        if selected_legal_field:
-            legal_docs = _legal_documents_by_field(selected_legal_field, limit=6)
-    except Exception:
-        legal_error = 'Không thể tải dữ liệu văn bản quy phạm pháp luật từ nguồn ngoài ở thời điểm này.'
-
-    selected_legal_field_name = ''
-    for item in legal_field_options:
-        if item['id'] == selected_legal_field:
-            selected_legal_field_name = item['name']
-            break
-
-    bca_doc_groups = []
-    bca_document_types = []
-    bca_effective_statuses = []
-    bca_docs = []
-    bca_error = ''
-    selected_bca_doc_group = (request.args.get('bca_doc_group') or '').strip().upper()
-    selected_bca_type_id = (request.args.get('bca_type_id') or '').strip()
-    selected_bca_effective_id = (request.args.get('bca_effective_id') or '').strip()
-    selected_bca_doc_group_name = ''
-    selected_bca_type_name = ''
-    selected_bca_effective_name = ''
-    try:
-        bca_doc_groups = _bca_document_groups()
-        bca_document_types = _bca_document_types()
-        bca_effective_statuses = _bca_effective_statuses()
-        selected_bca_doc_group, selected_bca_doc_group_name = _resolve_selected_option(
-            bca_doc_groups,
-            selected_bca_doc_group,
-            fallback_id=BCA_DOCS_DEFAULT_GROUP,
-        )
-        selected_bca_type_id, selected_bca_type_name = _resolve_selected_option(
-            bca_document_types,
-            selected_bca_type_id,
-            fallback_id='',
-            allow_empty=True,
-        )
-        selected_bca_effective_id, selected_bca_effective_name = _resolve_selected_option(
-            bca_effective_statuses,
-            selected_bca_effective_id,
-            fallback_id='',
-            allow_empty=True,
-        )
-        bca_docs = _bca_documents(
-            doc_group=selected_bca_doc_group,
-            type_id=selected_bca_type_id,
-            effective_id=selected_bca_effective_id,
-            limit=6,
-        )
-    except Exception:
-        bca_error = 'Không thể tải hệ thống văn bản Bộ Công an ở thời điểm này.'
-
-    return render_template(
-        'library.html',
-        docs=docs,
-        doc_cards=decorated_docs,
-        filtered_doc_cards=filtered_doc_cards,
-        library_filters=library_filters,
-        category_options=library_form_category_options,
-        cats=library_category_items,
-        categories=library_category_items,
-        items=docs,
-        current_category=current_category_filter,
-        current_category_display=current_category_display,
-        legal_field_options=legal_field_options,
-        selected_legal_field=selected_legal_field,
-        selected_legal_field_name=selected_legal_field_name,
-        legal_docs=legal_docs,
-        legal_error=legal_error,
-        legal_source_url=LEGAL_DOCS_SOURCE_URL,
-        bca_doc_groups=bca_doc_groups,
-        bca_document_types=bca_document_types,
-        bca_effective_statuses=bca_effective_statuses,
-        bca_docs=bca_docs,
-        bca_error=bca_error,
-        bca_source_url=BCA_DOCS_SOURCE_URL,
-        selected_bca_doc_group=selected_bca_doc_group,
-        selected_bca_doc_group_name=selected_bca_doc_group_name,
-        selected_bca_type_id=selected_bca_type_id,
-        selected_bca_type_name=selected_bca_type_name,
-        selected_bca_effective_id=selected_bca_effective_id,
-        selected_bca_effective_name=selected_bca_effective_name,
-        sidebar_submenu_parent='library',
-        sidebar_submenu_items=library_sidebar_items,
-        perms=perms,
-        is_admin=is_admin,
-        can_manage_library=can_manage_library,
-    )
-
-
-@portal_bp.route('/library/edit/<int:doc_id>', methods=['POST'])
-def library_edit(doc_id):
-    if not session.get('uid'): return redirect(url_for('auth_bp.login'))
-
-    perms, is_admin = _current_portal_permissions()
-    if not _can_manage_library(perms, is_admin):
-        flash('Bạn không có quyền sửa tài liệu thư viện.', 'danger')
-        return redirect(url_for('portal_bp.library'))
-
-    doc = DocumentLib.query.get_or_404(doc_id)
-    library_category_items = _module_category_options('library', 'category', 'Lĩnh vực', 'Loại tài liệu')
-
-    try:
-        doc.filename = _save_uploaded_file(request.files.get('file'), 'library_files', doc.filename or '')
-    except ValueError as exc:
-        flash(f'Lỗi upload file: {exc}', 'danger')
-        return redirect(url_for('portal_bp.library'))
-
-    doc.title = (request.form.get('title') or '').strip()
-    doc.category = _canonicalize_category_value(
-        request.form.get('category', ''),
-        library_category_items,
-        prefer_stable=True,
-    )
-    if hasattr(doc, 'description'):
-        doc.description = (request.form.get('description') or '').strip()
-
-    if not doc.title:
-        flash('Tên tài liệu không được để trống.', 'danger')
-        return redirect(url_for('portal_bp.library'))
-
-    db.session.commit()
-    log_action(session['uid'], session['fullname'], "Cập nhật tài liệu", "Thư viện", doc.title)
-    flash('Đã cập nhật tài liệu.', 'success')
-    return redirect(url_for('portal_bp.library'))
 
 @portal_bp.route('/contacts')
 def contacts():

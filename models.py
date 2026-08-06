@@ -3,7 +3,6 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import UniqueConstraint
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
-from security_utils.runtime_security import decrypt_secret_value, encrypt_secret_value
 
 db = SQLAlchemy()
 
@@ -413,58 +412,26 @@ class DocumentLib(db.Model):
     uploaded_at = db.Column(db.DateTime, default=datetime.now)
 
 
-class AttendanceConfig(db.Model):
-    __tablename__ = 'attendance_config'
+class NotificationDoc(db.Model):
+    """
+    Bản tin / tài liệu thông báo gộp từ Bảng tin (NewsDoc) và Thư viện (DocumentLib).
+    Hỗ trợ gắn tệp Word/Excel/PDF/video để xem trực tiếp.
+    """
+    __tablename__ = 'notification_doc'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), default='Điểm danh tự động')
-    mode = db.Column(db.String(20), default='interval')
-    interval_minutes = db.Column(db.Integer, default=120)
-    day_start_time = db.Column(db.String(5), default='08:00')
-    day_end_time = db.Column(db.String(5), default='17:00')
-    schedule_times_json = db.Column(db.Text)
-    active_weekdays_json = db.Column(db.Text)
-    early_checkin_minutes = db.Column(db.Integer, default=15)
-    late_allow_minutes = db.Column(db.Integer, default=60)
-    is_active = db.Column(db.Boolean, default=True)
-    note = db.Column(db.Text)
-    target_type = db.Column(db.String(20), default='role')
-    target_role_id = db.Column(db.Integer, db.ForeignKey('app_role.id'), index=True)
-    target_unit_key = db.Column(db.String(100), index=True)
-    created_by = db.Column(db.Integer)
-    updated_by = db.Column(db.Integer)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
-
-    target_role = db.relationship('AppRole', backref='attendance_configs')
-
-
-class AttendanceSubmission(db.Model):
-    __tablename__ = 'attendance_submission'
-    __table_args__ = (
-        UniqueConstraint('config_id', 'user_id', 'slot_key', name='uq_attendance_submission_slot'),
-    )
-
-    id = db.Column(db.Integer, primary_key=True)
-    config_id = db.Column(db.Integer, db.ForeignKey('attendance_config.id'), nullable=False, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
-    unit_area = db.Column(db.String(255))
-    unit_key = db.Column(db.String(100), index=True)
-    slot_key = db.Column(db.String(50), nullable=False, index=True)
-    slot_label = db.Column(db.String(100))
-    slot_date = db.Column(db.Date, nullable=False, index=True)
-    due_at = db.Column(db.DateTime, nullable=False, index=True)
-    window_start_at = db.Column(db.DateTime)
-    window_end_at = db.Column(db.DateTime)
-    proof_filename = db.Column(db.String(255))
-    proof_path = db.Column(db.String(500))
-    note = db.Column(db.Text)
-    submitted_at = db.Column(db.DateTime, default=datetime.now)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
-
-    config = db.relationship('AttendanceConfig', backref='submissions')
-    user = db.relationship('User', backref='attendance_submissions')
+    kind = db.Column(db.String(20), default='notice')  # notice: bản tin | document: tài liệu
+    title = db.Column(db.String(255))
+    category = db.Column(db.String(100))
+    content = db.Column(db.Text)
+    description = db.Column(db.Text)
+    target_scope = db.Column(db.String(50), default='Toàn tỉnh')
+    filename = db.Column(db.String(255))
+    file_ext = db.Column(db.String(20))
+    video_url = db.Column(db.String(500))
+    has_attachment = db.Column(db.Boolean, default=False)
+    posted_by = db.Column(db.String(100))
+    uploaded_at = db.Column(db.DateTime, default=datetime.now)
 
 
 class Notification(db.Model):
@@ -505,64 +472,6 @@ class ShortLink(db.Model):
     
     user = db.relationship('User', backref='short_links')
 
-
-# --- RANKING SYSTEM MODELS (V13) ---
-
-class RankingUnit(db.Model):
-    __tablename__ = 'ranking_unit'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), unique=True, nullable=False)
-    group_name = db.Column(db.String(100)) # e.g. "Đội 1"
-
-class RankingIndicator(db.Model):
-    __tablename__ = 'ranking_indicator'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), nullable=False)
-    coef = db.Column(db.Integer, default=1) # 1 or 2
-    higher_is_better = db.Column(db.Boolean, default=True) # True for stats, False for "quá hạn"
-    category = db.Column(db.String(50)) # "Trọng điểm", "Thường xuyên", "Phát sinh"
-    sheet_name = db.Column(db.String(100)) # To link with Excel if needed
-
-class RankingEntry(db.Model):
-    __tablename__ = 'ranking_entry'
-    id = db.Column(db.Integer, primary_key=True)
-    unit_id = db.Column(db.Integer, db.ForeignKey('ranking_unit.id'))
-    indicator_id = db.Column(db.Integer, db.ForeignKey('ranking_indicator.id'))
-    raw_value = db.Column(db.Float, default=0.0)
-    
-    unit = db.relationship('RankingUnit', backref='entries')
-    indicator = db.relationship('RankingIndicator', backref='entries')
-
-
-class AIAssistantConfig(db.Model):
-    """Cấu hình provider/model/key cho trợ lý AI."""
-    id = db.Column(db.Integer, primary_key=True)
-    provider = db.Column(db.String(30), default='deepseek', nullable=False)
-    model_name = db.Column(db.String(100), default='deepseek-v4-flash', nullable=False)
-    api_key = db.Column(db.Text)
-    api_key_encrypted = db.Column(db.Text)
-    system_prompt = db.Column(db.Text)
-    is_active = db.Column(db.Boolean, default=True)
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-
-    def get_api_key(self, secret_key=""):
-        if self.api_key_encrypted:
-            return decrypt_secret_value(secret_key, self.api_key_encrypted, namespace='ai-provider-key')
-        return (self.api_key or '').strip()
-
-    def set_api_key(self, secret_key, raw_value):
-        value = str(raw_value or '').strip()
-        if not value:
-            self.api_key = None
-            self.api_key_encrypted = None
-            return
-        self.api_key_encrypted = encrypt_secret_value(secret_key, value, namespace='ai-provider-key')
-        self.api_key = None
-
-    def clear_api_key(self):
-        self.api_key = None
-        self.api_key_encrypted = None
 
 
 class CustomSatellitePoint(db.Model):

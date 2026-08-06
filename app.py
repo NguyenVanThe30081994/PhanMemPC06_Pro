@@ -30,7 +30,7 @@ from datetime import datetime, timedelta
 from werkzeug.exceptions import HTTPException
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
-from models import db, AppRole, DocumentLib, NewsDoc, User
+from models import db, AppRole, DocumentLib, NewsDoc, NotificationDoc, User
 from storage import bootstrap_storage, build_storage_layout
 from security_utils.runtime_security import (
     build_ip_network_hint,
@@ -278,7 +278,6 @@ SENSITIVE_REAUTH_ENDPOINTS = {
     'admin_bp.reset_users_password_bulk',
     'admin_bp.system_update',
     'admin_bp.git_pull',
-    'admin_bp.ai_settings',
 }
 
 
@@ -386,23 +385,17 @@ from routes.auth import auth_bp
 from routes.admin import admin_bp
 from routes.portal import portal_bp
 from routes.tasks import tasks_bp
-from routes.ranking import ranking_bp
 from routes.api import api_bp
 from routes.shortlink import shortlink_bp
-from routes.ai_assistant import ai_bp
 from routes.health import health_bp
-from routes.attendance import attendance_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(portal_bp)
 app.register_blueprint(tasks_bp)
-app.register_blueprint(ranking_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(shortlink_bp)
 app.register_blueprint(health_bp)
-app.register_blueprint(ai_bp)
-app.register_blueprint(attendance_bp)
 
 @app.context_processor
 def inject_security_tokens():
@@ -419,9 +412,6 @@ def check_auth():
 
     public_endpoints = {
         'auth_bp.login',
-        'attendance_bp.attendance_home',
-        'attendance_bp.public_attendance',
-        'attendance_bp.submit_attendance',
         'portal_bp.martyr_adn_map',
         'api_bp.get_custom_satellite_points',
         'api_bp.save_custom_satellite_point',
@@ -531,9 +521,7 @@ def enforce_csrf_protection():
     if request.endpoint and request.endpoint.startswith('static'):
         return
 
-    csrf_exempt_endpoints = {
-        'attendance_bp.submit_attendance',
-    }
+    csrf_exempt_endpoints = set()
     if request.endpoint in csrf_exempt_endpoints:
         return
 
@@ -684,7 +672,7 @@ def security_txt_well_known():
     return Response(_security_txt_content(), mimetype='text/plain')
 
 @app.route('/dl_file/<path:fn>')
-def dl_file(fn): 
+def dl_file(fn):
     normalized_name = os.path.basename((fn or '').strip())
     if not normalized_name or normalized_name != (fn or '').strip():
         return render_template('404.html'), 404
@@ -694,6 +682,8 @@ def dl_file(fn):
         candidate_dirs.append(UPLOAD_FOLDER)
     if DocumentLib.query.filter_by(filename=normalized_name).first():
         candidate_dirs.append(LIB_FOLDER)
+    if NotificationDoc.query.filter_by(filename=normalized_name).first():
+        candidate_dirs.append(UPLOAD_FOLDER)
     if not candidate_dirs:
         return render_template('404.html'), 404
 
@@ -704,6 +694,42 @@ def dl_file(fn):
             continue
         if target.is_file():
             return send_file(target, as_attachment=True, download_name=target.name)
+    return render_template('404.html'), 404
+
+
+@app.route('/preview_file/<path:fn>')
+def preview_file(fn):
+    """Phục vụ tệp inline (không gắn attachment) để trình xem tài liệu
+    (PDF, video, Word, Excel) có thể nhúng trực tiếp trong trang."""
+    import mimetypes as _mimetypes
+    normalized_name = os.path.basename((fn or '').strip())
+    if not normalized_name or normalized_name != (fn or '').strip():
+        return render_template('404.html'), 404
+
+    candidate_dirs = []
+    if NewsDoc.query.filter_by(filename=normalized_name).first():
+        candidate_dirs.append(UPLOAD_FOLDER)
+    if DocumentLib.query.filter_by(filename=normalized_name).first():
+        candidate_dirs.append(LIB_FOLDER)
+    if NotificationDoc.query.filter_by(filename=normalized_name).first():
+        candidate_dirs.append(UPLOAD_FOLDER)
+    if not candidate_dirs:
+        return render_template('404.html'), 404
+
+    for b in candidate_dirs:
+        try:
+            target = resolve_safe_path(b, normalized_name)
+        except (FileNotFoundError, ValueError):
+            continue
+        if target.is_file():
+            mime_type = _mimetypes.guess_type(target.name)[0] or 'application/octet-stream'
+            return send_file(
+                target,
+                as_attachment=False,
+                download_name=target.name,
+                mimetype=mime_type,
+                conditional=True,
+            )
     return render_template('404.html'), 404
 
 if __name__ == '__main__':

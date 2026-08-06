@@ -1,0 +1,502 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+    .pc06-notify-workspace { display: grid; gap: 18px; }
+    .pc06-notify-board-panel { padding: 20px; }
+    .pc06-notify-board-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+    .pc06-notify-board-head h2 { margin: 0; font-size: 1.08rem; font-weight: 800; color: var(--text-main, #0f172a); }
+    .pc06-notify-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .pc06-notify-tab { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(148,163,184,.3); background: rgba(255,255,255,.8); color: #475569; font-size: .82rem; font-weight: 700; text-decoration: none; }
+    .pc06-notify-tab:hover { text-decoration: none; border-color: var(--primary,#2563eb); color: var(--primary,#2563eb); }
+    .pc06-notify-tab.active { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; border-color: transparent; }
+    .pc06-notify-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+    .pc06-notify-card { padding: 20px; border-radius: 26px; background: rgba(255,255,255,.96); border: 1px solid rgba(148,163,184,.16); box-shadow: 0 18px 40px rgba(15,23,42,.06); display: grid; gap: 14px; min-width: 0; }
+    [data-theme="dark"] .pc06-notify-card { background: rgba(30,41,59,.92); border-color: rgba(148,163,184,.14); }
+    .pc06-notify-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; min-width: 0; }
+    .pc06-notify-kind-tag { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; font-size: .72rem; font-weight: 800; }
+    .pc06-notify-kind-tag.notice { background: #fef3c7; color: #b45309; }
+    .pc06-notify-kind-tag.document { background: #dcfce7; color: #166534; }
+    .pc06-notify-kind-tag.video { background: #fee2e2; color: #b91c1c; }
+    .pc06-notify-date { font-size: .78rem; color: #94a3b8; white-space: nowrap; }
+    .pc06-notify-title { font-size: 1.02rem; font-weight: 800; color: var(--text-main,#0f172a); line-height: 1.45; margin: 0; }
+    .pc06-notify-content { color: #64748b; font-size: .9rem; line-height: 1.6; }
+    .pc06-notify-content.clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .pc06-notify-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .pc06-notify-attach { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; font-size: .8rem; color: #64748b; text-decoration: none; }
+    .pc06-notify-attach:hover { color: var(--primary,#2563eb); }
+    .pc06-notify-attach i { flex-shrink: 0; }
+    .pc06-notify-attach span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pc06-notify-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .pc06-notify-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 60px 20px; text-align: center; }
+    .pc06-notify-empty-icon { width: 72px; height: 72px; border-radius: 24px; background: linear-gradient(135deg,#2563eb,#1d4ed8); color:#fff; display:flex; align-items:center; justify-content:center; font-size:1.7rem; box-shadow:0 18px 30px rgba(37,99,235,.25); }
+    /* ---- Viewer modal ---- */
+    .pc06-viewer-modal .modal-dialog { max-width: 1000px; }
+    .pc06-viewer-modal .modal-content { border: 0; border-radius: 22px; overflow: hidden; }
+    .pc06-viewer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; background: linear-gradient(135deg,#0f172a,#1e3a8a); color:#fff; }
+    .pc06-viewer-head h5 { margin: 0; font-weight: 800; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pc06-viewer-body { padding: 0; background:#0b1220; }
+    .pc06-viewer-frame { width: 100%; height: 72vh; border: 0; display: block; background: #fff; }
+    .pc06-viewer-actions { display: flex; align-items: center; gap: 8px; padding: 12px 20px; background:#f8fafc; border-top:1px solid rgba(148,163,184,.2); }
+    [data-theme="dark"] .pc06-viewer-actions { background:#1e293b; }
+    .pc06-viewer-loading { display:flex; align-items:center; justify-content:center; min-height:300px; color:#94a3b8; gap:10px; }
+    .pc06-viewer-error { display:flex; align-items:center; justify-content:center; min-height:200px; color:#fca5a5; flex-direction:column; gap:10px; padding:20px; text-align:center; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pc06-page-shell">
+    <div class="pc06-thong-bao-workspace">
+        <section class="pc06-panel pc06-notify-board-panel">
+            <div class="pc06-notify-board-head">
+                <h2 id="notifySelectedCategory">{{ current_category_display }}</h2>
+                {% if can_manage_notify %}
+                <div class="pc06-page-actions">
+                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addNotifyModal">
+                        <i class="fa-solid fa-plus"></i>
+                        Đăng thông báo
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="pc06-notify-tabs">
+                <a href="{{ url_for('portal_bp.notifications_board') }}" class="pc06-notify-tab {% if not kind_filter %}active{% endif %}">
+                    <i class="fa-solid fa-bullhorn"></i> Tất cả
+                </a>
+                <a href="{{ url_for('portal_bp.notifications_board', kind='notice', category=current_category or None) }}" class="pc06-notify-tab {% if kind_filter == 'notice' %}active{% endif %}">
+                    <i class="fa-solid fa-file-lines"></i> Bản tin
+                </a>
+                <a href="{{ url_for('portal_bp.notifications_board', kind='document', category=current_category or None) }}" class="pc06-notify-tab {% if kind_filter == 'document' %}active{% endif %}">
+                    <i class="fa-solid fa-folder-open"></i> Tài liệu
+                </a>
+                <a href="{{ url_for('portal_bp.notifications_board', kind='video', category=current_category or None) }}" class="pc06-notify-tab {% if kind_filter == 'video' %}active{% endif %}">
+                    <i class="fa-solid fa-video"></i> Video
+                </a>
+            </div>
+
+            <div class="pc06-notify-sidebar-search">
+                <label class="pc06-search-control">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="notifySearch" placeholder="Tìm theo tiêu đề thông báo">
+                </label>
+            </div>
+
+            {% if filtered_cards %}
+            <section class="pc06-notify-grid" id="notifyGrid">
+                {% for item in filtered_cards %}
+                {% set n = item.record %}
+                {% set is_video = n.video_url|default('', true)|trim %}
+                {% if is_video %}
+                    {% set kind = 'video' %}
+                {% else %}
+                    {% set kind = n.kind|default('notice', true) %}
+                {% endif %}
+                <article class="pc06-notify-card notify-item" data-category="{{ item.category_filter }}" data-search="{{ (n.title ~ ' ' ~ (n.content or '') ~ ' ' ~ item.category_display)|lower }}">
+                    <div class="pc06-notify-card-head">
+                        <span class="pc06-soft-tag">
+                            <i class="fa-solid fa-layer-group"></i>
+                            {{ item.category_display }}
+                        </span>
+                        <div class="d-flex align-items-center gap-2">
+                            {% if kind == 'notice' %}
+                            <span class="pc06-notify-kind-tag notice"><i class="fa-solid fa-file-lines"></i> Bản tin</span>
+                            {% elif kind == 'document' %}
+                            <span class="pc06-notify-kind-tag document"><i class="fa-solid fa-folder-open"></i> Tài liệu</span>
+                            {% else %}
+                            <span class="pc06-notify-kind-tag video"><i class="fa-solid fa-video"></i> Video</span>
+                            {% endif %}
+                            <span class="pc06-notify-date">{{ n.uploaded_at.strftime('%d/%m/%Y') }}</span>
+                        </div>
+                    </div>
+                    <h3 class="pc06-notify-title">{{ n.title }}</h3>
+                    <div class="pc06-notify-content clamp-3">{{ (n.content or n.description or '') }}</div>
+                    <div class="pc06-notify-footer">
+                        {% if n.filename %}
+                        <a href="/dl_file/{{ n.filename }}" class="pc06-notify-attach">
+                            <i class="fa-solid fa-paperclip"></i>
+                            <span title="{{ n.filename }}">{{ n.filename }}</span>
+                        </a>
+                        {% elif not is_video %}
+                        <span class="pc06-notify-attach opacity-75">Không có đính kèm</span>
+                        {% else %}
+                        <span class="pc06-notify-attach opacity-75">Video trực tuyến</span>
+                        {% endif %}
+                        <div class="pc06-notify-actions">
+                            {% if kind == 'video' and n.video_url %}
+                            <a class="btn btn-bdhvs primary btn-sm" href="{{ n.video_url }}" target="_blank" rel="noopener">
+                                <i class="fa-solid fa-play"></i> Xem video
+                            </a>
+                            {% else %}
+                            <button class="btn btn-bdhvs primary btn-sm pc06-notify-view-btn"
+                                data-filename="{{ n.filename|default('', true) }}"
+                                data-ext="{{ (n.file_ext or '')|lower }}"
+                                data-video-url="{{ n.video_url|default('', true) }}"
+                                data-title="{{ n.title }}">
+                                <i class="fa-solid fa-eye"></i> Xem
+                            </button>
+                            {% endif %}
+                            {% if can_manage_notify %}
+                            <button type="button" class="btn btn-bdhvs light btn-sm" data-bs-toggle="modal" data-bs-target="#editNotifyModal"
+                                data-id="{{ n.id }}" data-title="{{ n.title }}" data-content="{{ n.content|default('', true) }}"
+                                data-kind="{{ kind }}" data-category="{{ n.category|default('', true) }}"
+                                data-filename="{{ n.filename|default('', true) }}" data-video-url="{{ n.video_url|default('', true) }}">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <form method="POST" action="/thong-bao/delete/{{ n.id }}" onsubmit="return confirm('Xóa thông báo này?');" style="display:inline;">
+                                <button type="submit" class="btn btn-bdhvs light btn-sm text-danger"><i class="fa-solid fa-trash"></i></button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </article>
+                {% else %}
+                <section class="pc06-panel pc06-empty-panel pc06-notify-empty" id="notifyNoResults">
+                    <div class="pc06-notify-empty-icon"><i class="fa-solid fa-bullhorn"></i></div>
+                    <h3>Chưa có thông báo phù hợp</h3>
+                </section>
+                {% endfor %}
+            </section>
+            {% else %}
+            <section class="pc06-panel pc06-empty-panel pc06-notify-empty">
+                <div class="pc06-notify-empty-icon"><i class="fa-solid fa-bullhorn"></i></div>
+                <h3>Chưa có thông báo</h3>
+            </section>
+            {% endif %}
+        </section>
+    </div>
+</div>
+
+<!-- ==================== VIEWER MODAL ==================== -->
+<div class="modal fade pc06-viewer-modal" id="viewerModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="pc06-viewer-head">
+                <h5 id="viewerTitle">Xem tài liệu</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="pc06-viewer-body">
+                <div id="viewerLoading" class="pc06-viewer-loading">
+                    <div class="spinner-border spinner-border-sm text-light"></div>
+                    <span>Đang tải tài liệu...</span>
+                </div>
+                <iframe id="viewerFrame" class="pc06-viewer-frame" style="display:none;"></iframe>
+                <div id="viewerUnsupported" class="pc06-viewer-message" style="display:none;">
+                    <div class="pc06-viewer-error"><i class="fa-solid fa-triangle-exclamation fa-2x"></i><p id="viewerErrorText">Không thể xem trước loại tệp này. Vui lòng tải về.</p></div>
+                </div>
+            </div>
+            <div class="pc06-viewer-actions">
+                <a id="viewerDownload" href="#" class="btn btn-bdhvs primary btn-sm" download><i class="fa-solid fa-download"></i> Tải xuống</a>
+                <a id="viewerOpen" href="#" class="btn btn-bdhvs light btn-sm" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i> Mở mới</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ADD MODAL ===== -->
+<div class="modal fade" id="addNotifyModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 pc06-modal-shell">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-header border-0 pc06-modal-head">
+                    <div>
+                        <div class="pc06-page-kicker mb-2"><i class="fa-solid fa-bullhorn"></i>Đăng tải nội bộ</div>
+                        <h5 class="modal-title fw-bold mb-1">Đăng thông báo</h5>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Loại thông báo</label>
+                        <select name="kind" class="form-select">
+                            <option value="notice">Bản tin (văn bản)</option>
+                            <option value="document">Tài liệu (Word / Excel / PDF)</option>
+                        </select>
+                    </div>
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Tiêu đề</label>
+                        <input type="text" name="title" class="form-control" placeholder="Nhập tiêu đề..." required>
+                    </div>
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Lĩnh vực / Đội nghiệp vụ</label>
+                        <div data-category-picker data-module="notify" data-field="category" data-value-mode="stable" data-placeholder="Chọn danh mục" data-storage-key="modal.notify.category">
+                            <select name="category" class="form-select" required data-category-target>
+                                <option value="" disabled selected>Chọn danh mục</option>
+                                {% for u in category_options %}<option value="{{ u.value }}">{{ u.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Nội dung</label>
+                        <textarea name="content" class="form-control" rows="4" placeholder="Nhập nội dung thông báo..."></textarea>
+                    </div>
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Tệp đính kèm (Word / Excel / PDF)</label>
+                        <input type="file" name="file" class="form-control">
+                        <div class="form-text">Hỗ trợ xem trực tiếp: PDF, DOCX, XLSX. Các định dạng khác sẽ tải về.</div>
+                    </div>
+                    <div class="pc06-form-section mb-0">
+                        <label class="form-label fw-bold">Đường dẫn video trực tuyến (tùy chọn)</label>
+                        <input type="url" name="video_url" class="form-control" placeholder="https://... hoặc link file .mp4">
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-bdhvs primary"><i class="fa-solid fa-paper-plane"></i>Đăng</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ===== EDIT MODAL ===== -->
+<div class="modal fade" id="editNotifyModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 pc06-modal-shell">
+            <form method="POST" enctype="multipart/form-data" id="editNotifyForm">
+                <div class="modal-header border-0 pc06-modal-head">
+                    <div>
+                        <div class="pc06-page-kicker mb-2"><i class="fa-solid fa-pen-to-square"></i>Cập nhật</div>
+                        <h5 class="modal-title fw-bold mb-1">Sửa thông báo</h5>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Loại thông báo</label>
+                        <select name="kind" id="editNotifyKind" class="form-select">
+                            <option value="notice">Bản tin (văn bản)</option>
+                            <option value="document">Tài liệu (Word / Excel / PDF)</option>
+                        </select>
+                    </div>
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Tiêu đề</label>
+                        <input type="text" name="title" id="editNotifyTitle" class="form-control" required>
+                    </div>
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Lĩnh vực / Đội nghiệp vụ</label>
+                        <div data-category-picker data-module="notify" data-field="category" data-value-mode="stable" data-placeholder="Chọn danh mục">
+                            <select name="category" id="editNotifyCategory" class="form-select" required data-category-target>
+                                <option value="" disabled>Chọn danh mục</option>
+                                {% for u in category_options %}<option value="{{ u.value }}">{{ u.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Nội dung</label>
+                        <textarea name="content" id="editNotifyContent" class="form-control" rows="4"></textarea>
+                    </div>
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Thay tệp đính kèm</label>
+                        <input type="file" name="file" class="form-control">
+                        <div class="form-text" id="editNotifyCurrentFile">Giữ nguyên tệp hiện tại nếu không chọn tệp mới.</div>
+                    </div>
+                    <div class="pc06-form-section mb-0">
+                        <label class="form-label fw-bold">Đường dẫn video</label>
+                        <input type="url" name="video_url" id="editNotifyVideoUrl" class="form-control" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-bdhvs primary"><i class="fa-solid fa-floppy-disk"></i>Lưu thay đổi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script>
+    function applyNotifyFilters() {
+        let visibleCount = 0;
+        document.querySelectorAll('.notify-item').forEach((item) => {
+            const search = item.dataset.search || '';
+            const query = (document.getElementById('notifySearch')?.value || '').trim().toLowerCase();
+            const isVisible = !query || search.includes(query);
+            item.style.display = isVisible ? '' : 'none';
+            if (isVisible) visibleCount += 1;
+        });
+        const emptyNode = document.getElementById('notifyNoResults');
+        if (emptyNode) emptyNode.classList.toggle('d-none', visibleCount !== 0);
+    }
+    document.getElementById('notifySearch')?.addEventListener('input', applyNotifyFilters);
+    applyNotifyFilters();
+
+    // ---- Viewer logic ----
+    function extOf(filename) {
+        const s = (filename || '').split('?')[0];
+        const i = s.lastIndexOf('.');
+        return i === -1 ? '' : s.slice(i + 1).toLowerCase();
+    }
+    var VIEWER_XLSX = ['xlsx', 'xls', 'xlsm', 'csv'];
+    var VIEWER_WORD = ['docx', 'doc'];
+    var VIEWER_PDF = ['pdf'];
+    var VIEWER_VIDEO_EXT = ['mp4', 'webm', 'ogg', 'mov', 'm4v'];
+
+    function showViewerModal() {
+        var modalEl = document.getElementById('viewerModal');
+        if (window.bootstrap && bootstrap.Modal) {
+            var inst = bootstrap.Modal.getInstance(modalEl);
+            if (!inst) inst = new bootstrap.Modal(modalEl);
+            inst.show();
+        } else {
+            modalEl.classList.add('show');
+            modalEl.style.display = 'block';
+        }
+    }
+
+    function closeViewerFrame() {
+        var frame = document.getElementById('viewerFrame');
+        if (frame) {
+            frame.removeAttribute('src');
+            frame.removeAttribute('srcdoc');
+            frame.style.display = 'none';
+        }
+        var loading = document.getElementById('viewerLoading');
+        if (loading) loading.style.display = '';
+        var unsupported = document.getElementById('viewerUnsupported');
+        if (unsupported) unsupported.style.display = 'none';
+    }
+
+    function openViewer(filename, videoUrl, title) {
+        closeViewerFrame();
+        document.getElementById('viewerTitle').textContent = title || 'Xem tài liệu';
+        var downloadEl = document.getElementById('viewerDownload');
+        var openEl = document.getElementById('viewerOpen');
+        if (downloadEl) downloadEl.href = filename ? '/dl_file/' + encodeURIComponent(filename) : '#';
+        if (openEl) openEl.href = filename ? '/preview_file/' + encodeURIComponent(filename) : '#';
+
+        if (videoUrl) {
+            var frame = document.getElementById('viewerFrame');
+            frame.src = videoUrl;
+            frame.style.display = 'block';
+            document.getElementById('viewerLoading').style.display = 'none';
+            showViewerModal();
+            return;
+        }
+
+        if (!filename) {
+            document.getElementById('viewerLoading').style.display = 'none';
+            var unsupported = document.getElementById('viewerUnsupported');
+            unsupported.style.display = 'flex';
+            document.getElementById('viewerErrorText').textContent = 'Thông báo này không có tệp đính kèm.';
+            showViewerModal();
+            return;
+        }
+
+        var ext = extOf(filename);
+        if (VIEWER_PDF.indexOf(ext) !== -1) {
+            var frame = document.getElementById('viewerFrame');
+            frame.src = '/preview_file/' + encodeURIComponent(filename);
+            frame.style.display = 'block';
+            document.getElementById('viewerLoading').style.display = 'none';
+        } else if (VIEWER_XLSX.indexOf(ext) !== -1) {
+            renderXlsx(filename, title);
+        } else if (VIEWER_WORD.indexOf(ext) !== -1) {
+            renderWord(filename, title);
+        } else if (VIEWER_VIDEO_EXT.indexOf(ext) !== -1) {
+            var frame = document.getElementById('viewerFrame');
+            frame.src = '/preview_file/' + encodeURIComponent(filename);
+            frame.style.display = 'block';
+            document.getElementById('viewerLoading').style.display = 'none';
+        } else {
+            document.getElementById('viewerLoading').style.display = 'none';
+            var unsupported = document.getElementById('viewerUnsupported');
+            unsupported.style.display = 'flex';
+            document.getElementById('viewerErrorText').textContent = 'Không thể xem trước định dạng này. Vui lòng tải xuống để mở.';
+        }
+        showViewerModal();
+    }
+
+    function renderXlsx(filename, title) {
+        document.getElementById('viewerTitle').textContent = title || 'Xem Excel';
+        var frame = document.getElementById('viewerFrame');
+        fetch('/preview_file/' + encodeURIComponent(filename))
+            .then(function (r) { if (!r.ok) throw new Error('Lỗi tải tệp'); return r.arrayBuffer(); })
+            .then(function (data) {
+                var wb = XLSX.read(data);
+                var first = wb.SheetNames[0];
+                var html = XLSX.utils.sheet_to_html(wb.Sheets[first], { id: 'xlsxTable' });
+                frame.srcdoc =
+                    '<!doctype html><html><head><meta charset="utf-8"><style>' +
+                    'body{font-family:Inter,system-ui,sans-serif;padding:18px;background:#fff;color:#0f172a;}' +
+                    'table{border-collapse:collapse;width:100%;}td,th{border:1px solid #cbd5e1;padding:6px 10px;font-size:13px;}' +
+                    'th{background:#f1f5f9;font-weight:700;position:sticky;top:0;}' +
+                    '</style></head><body>' +
+                    '<h3 style="margin:0 0 12px;font-size:16px;font-weight:800;">' + (title || filename) + '</h3>' + html +
+                    '</body></html>';
+                frame.style.display = 'block';
+                document.getElementById('viewerLoading').style.display = 'none';
+                document.getElementById('viewerUnsupported').style.display = 'none';
+            })
+            .catch(function (e) {
+                document.getElementById('viewerLoading').style.display = 'none';
+                var unsupported = document.getElementById('viewerUnsupported');
+                unsupported.style.display = 'flex';
+                document.getElementById('viewerErrorText').textContent = 'Không thể tải tệp Excel: ' + e.message;
+            });
+    }
+
+    function renderWord(filename, title) {
+        document.getElementById('viewerTitle').textContent = title || 'Xem Word';
+        var frame = document.getElementById('viewerFrame');
+        fetch('/preview_file/' + encodeURIComponent(filename))
+            .then(function (r) { if (!r.ok) throw new Error('Lỗi tải tệp'); return r.arrayBuffer(); })
+            .then(function (buf) { return mammoth.convertToHtml({ arrayBuffer: buf }); })
+            .then(function (result) {
+                frame.srcdoc =
+                    '<!doctype html><html><head><meta charset="utf-8"><style>' +
+                    'body{font-family:Georgia,"Times New Roman",serif;max-width:820px;margin:24px auto;padding:0 20px;color:#111827;line-height:1.7;}' +
+                    'h1,h2,h3,h4{font-family:Inter,system-ui,sans-serif;}' +
+                    '</style></head><body>' + result.value + '</body></html>';
+                frame.style.display = 'block';
+                document.getElementById('viewerLoading').style.display = 'none';
+                document.getElementById('viewerUnsupported').style.display = 'none';
+            })
+            .catch(function (e) {
+                document.getElementById('viewerLoading').style.display = 'none';
+                var unsupported = document.getElementById('viewerUnsupported');
+                unsupported.style.display = 'flex';
+                document.getElementById('viewerErrorText').textContent = 'Không thể hiển thị Word: ' + e.message;
+            });
+    }
+
+    // Bind view buttons
+    document.addEventListener('click', function (ev) {
+        var btn = ev.target.closest('.pc06-notify-view-btn');
+        if (!btn) return;
+        var filename = btn.getAttribute('data-filename') || '';
+        var videoUrl = btn.getAttribute('data-video-url') || '';
+        var title = btn.getAttribute('data-title') || '';
+        openViewer(filename, videoUrl, title);
+    });
+
+    document.getElementById('viewerModal')?.addEventListener('hidden.bs.modal', closeViewerFrame);
+
+    // ---- Edit modal ----
+    var editNotifyModal = document.getElementById('editNotifyModal');
+    if (editNotifyModal) {
+        editNotifyModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            if (!button) return;
+            var form = document.getElementById('editNotifyForm');
+            var id = button.getAttribute('data-id');
+            form.action = `{{ url_for('portal_bp.notifications_board') }}/edit/${id}`;
+            document.getElementById('editNotifyTitle').value = button.getAttribute('data-title') || '';
+            document.getElementById('editNotifyKind').value = (button.getAttribute('data-kind') === 'document') ? 'document' : 'notice';
+            document.getElementById('editNotifyContent').value = button.getAttribute('data-content') || '';
+            document.getElementById('editNotifyVideoUrl').value = button.getAttribute('data-video-url') || '';
+            var categorySelect = document.getElementById('editNotifyCategory');
+            categorySelect.value = button.getAttribute('data-category') || '';
+            categorySelect.dispatchEvent(new Event('change', { bubbles: true }));
+            var currentFile = button.getAttribute('data-filename') || '';
+            document.getElementById('editNotifyCurrentFile').textContent = currentFile
+                ? 'Tệp hiện tại: ' + currentFile
+                : 'Thông báo này chưa có tệp đính kèm.';
+        });
+    }
+</script>
+{% endblock %}

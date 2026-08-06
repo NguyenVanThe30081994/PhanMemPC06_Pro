@@ -32,6 +32,7 @@ LEGACY_MODULE_GROUP_MAP = {
     'Danh bạ': ['Nhóm danh bạ', 'Chức vụ', 'Lĩnh vực', 'Đơn vị'],
     'Bảng tin': ['Lĩnh vực', 'Đội nghiệp vụ'],
     'Thư viện': ['Lĩnh vực', 'Loại tài liệu'],
+    'Thông báo': ['Lĩnh vực', 'Đội nghiệp vụ', 'Loại tài liệu'],
     'Công việc': ['Đội nghiệp vụ', 'Loại công việc', 'Mức độ ưu tiên', 'Trạng thái công việc'],
 }
 
@@ -93,6 +94,10 @@ def get_bound_group(module_code, field_code):
             return binding.group
 
     legacy_map = {
+        'notify': {
+            'category': ['Lĩnh vực', 'Đội nghiệp vụ'],
+            'document_type': ['Loại tài liệu'],
+        },
         'news': {'category': ['Lĩnh vực', 'Đội nghiệp vụ']},
         'library': {'category': ['Lĩnh vực', 'Loại tài liệu']},
         'tasks': {

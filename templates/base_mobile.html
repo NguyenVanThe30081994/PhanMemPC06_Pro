@@ -517,13 +517,9 @@
             <i class="fa-solid fa-list-check"></i>
             <span>NHIỆM VỤ</span>
         </a>
-        <a href="/ranking" class="nav-item {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">
-            <i class="fa-solid fa-ranking-star"></i>
-            <span>XẾP HẠNG</span>
-        </a>
-        <a href="/news" class="nav-item {% if request.endpoint == 'portal_bp.news' %}active{% endif %}">
-            <i class="fa-solid fa-newspaper"></i>
-            <span>BẢNG TIN</span>
+        <a href="/thong-bao" class="nav-item {% if request.endpoint == 'portal_bp.notifications_board' %}active{% endif %}">
+            <i class="fa-solid fa-bullhorn"></i>
+            <span>THÔNG BÁO</span>
         </a>
     </nav>
     {% endif %}
@@ -582,20 +578,10 @@
                         <span class="sidebar-nav-text">Nhiệm vụ</span>
                     </a>
                     {% endif %}
-                    {% if can_module('attendance', 'view') %}
-                    <a href="/attendance" class="sidebar-nav-link {% if request.endpoint and request.endpoint.startswith('attendance_bp.') %}active{% endif %}">
-                        <span class="sidebar-nav-icon"><i class="fa-solid fa-camera"></i></span>
-                        <span class="sidebar-nav-text">Điểm danh</span>
-                    </a>
-                    {% endif %}
-                    <a href="/ranking" class="sidebar-nav-link {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">
-                        <span class="sidebar-nav-icon"><i class="fa-solid fa-ranking-star"></i></span>
-                        <span class="sidebar-nav-text">Xếp hạng</span>
-                    </a>
-                    {% if can_module('news', 'view') %}
-                    <a href="/news" class="sidebar-nav-link {% if request.endpoint == 'portal_bp.news' %}active{% endif %}">
-                        <span class="sidebar-nav-icon"><i class="fa-solid fa-newspaper"></i></span>
-                        <span class="sidebar-nav-text">Bảng tin</span>
+                    {% if can_module('notify', 'view') %}
+                    <a href="/thong-bao" class="sidebar-nav-link {% if request.endpoint == 'portal_bp.notifications_board' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-bullhorn"></i></span>
+                        <span class="sidebar-nav-text">Thông báo</span>
                     </a>
                     {% endif %}
                 </div>
@@ -607,26 +593,12 @@
                     <span>Tiện ích</span>
                 </div>
                 <div class="sidebar-nav-list">
-                    {% if can_module('lib', 'view') %}
-                    <a href="/library" class="sidebar-nav-link {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">
-                        <span class="sidebar-nav-icon"><i class="fa-solid fa-book-open"></i></span>
-                        <span class="sidebar-nav-text">Thư viện tài liệu</span>
-                    </a>
-                    {% endif %}
                     {% if can_module('contact', 'view') %}
                     <a href="/contacts" class="sidebar-nav-link {% if request.endpoint == 'portal_bp.contacts' %}active{% endif %}">
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-address-book"></i></span>
                         <span class="sidebar-nav-text">Danh bạ đơn vị</span>
                     </a>
                     {% endif %}
-                    <a href="/guide" class="sidebar-nav-link {% if request.endpoint == 'portal_bp.user_guide' %}active{% endif %}">
-                        <span class="sidebar-nav-icon"><i class="fa-solid fa-circle-info"></i></span>
-                        <span class="sidebar-nav-text">Hướng dẫn sử dụng</span>
-                    </a>
-                    <a href="/ai" class="sidebar-nav-link {% if request.endpoint == 'ai_bp.index' %}active{% endif %}">
-                        <span class="sidebar-nav-icon"><i class="fa-solid fa-robot"></i></span>
-                        <span class="sidebar-nav-text">Trợ lý AI</span>
-                    </a>
                     <a href="/links" class="sidebar-nav-link {% if request.endpoint == 'shortlink_bp.manage_links' %}active{% endif %}">
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-qrcode"></i></span>
                         <span class="sidebar-nav-text">QR & Link</span>
@@ -651,10 +623,6 @@
                     <a href="/admin/module-categories" class="sidebar-nav-link {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-table-cells-large"></i></span>
                         <span class="sidebar-nav-text">Thiết lập danh mục</span>
-                    </a>
-                    <a href="/admin/ai-settings" class="sidebar-nav-link {% if request.endpoint == 'admin_bp.ai_settings' %}active{% endif %}">
-                        <span class="sidebar-nav-icon"><i class="fa-solid fa-sliders"></i></span>
-                        <span class="sidebar-nav-text">Cấu hình AI</span>
                     </a>
                     <a href="/logs" class="sidebar-nav-link {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>

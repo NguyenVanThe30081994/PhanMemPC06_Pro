@@ -765,10 +765,10 @@
 
 <body class="pc06-bdhvs-body">
     {% set submenu_parent = sidebar_submenu_parent|default('') %}
-    {% set operations_active = (request.endpoint == 'ranking_bp.index') or (request.endpoint and request.endpoint.startswith('attendance_bp.')) %}
-    {% set lookup_active = request.endpoint in ['portal_bp.news', 'portal_bp.library', 'portal_bp.contacts'] or request.path.startswith('/links') %}
-    {% set support_active = request.endpoint == 'portal_bp.user_guide' or request.path.startswith('/ai') %}
-    {% set system_endpoints = ['admin_bp.roles', 'admin_bp.module_categories', 'admin_bp.ai_settings', 'admin_bp.logs', 'admin_bp.system_update', 'admin_bp.db_tool'] %}
+    {% set operations_active = False %}
+    {% set lookup_active = request.endpoint in ['portal_bp.notifications_board', 'portal_bp.contacts'] or request.path.startswith('/links') %}
+    {% set support_active = False %}
+    {% set system_endpoints = ['admin_bp.roles', 'admin_bp.module_categories', 'admin_bp.logs', 'admin_bp.system_update', 'admin_bp.db_tool'] %}
     {% set system_page_active = request.endpoint in system_endpoints %}
     {% set system_root_href = '/roles' if can_module('user', 'view') else '/admin/module-categories' %}
     <aside class="desktop-sidebar d-none d-lg-flex">
@@ -811,71 +811,21 @@
                         {% endif %}
                     </div>
                     {% endif %}
-                    {% if can_module('attendance', 'view') %}
-                    <div class="desktop-nav-group">
-                        <a href="/attendance" class="desktop-nav-link {% if request.endpoint and request.endpoint.startswith('attendance_bp.') %}active{% endif %} {% if submenu_parent == 'attendance' and sidebar_submenu_items %}has-children{% endif %}">
-                            <span class="desktop-nav-icon"><i class="fa-solid fa-camera"></i></span>
-                            <span>Điểm danh</span>
-                            {% if submenu_parent == 'attendance' and sidebar_submenu_items %}
-                            <span class="desktop-nav-caret"><i class="fa-solid fa-chevron-down"></i></span>
-                            {% endif %}
-                        </a>
-                        {% if submenu_parent == 'attendance' and sidebar_submenu_items %}
-                        <div class="desktop-nav-children">
-                            {% for item in sidebar_submenu_items %}
-                            <a href="{{ item.href }}" class="desktop-nav-link desktop-subnav-link {% if item.active %}active{% endif %}">
-                                <span>{{ item.label }}</span>
-                                {% if item.count is defined and item.count is not none %}
-                                <small>{{ item.count }}</small>
-                                {% endif %}
-                            </a>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                    <a href="/ranking" class="desktop-nav-link {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">
-                        <span class="desktop-nav-icon"><i class="fa-solid fa-ranking-star"></i></span>
-                        <span>Xếp hạng</span>
-                    </a>
                 </div>
             </div>
 
             <div class="desktop-sidebar-section">
                 <div class="desktop-nav-list">
-                    {% if can_module('news', 'view') %}
+                    {% if can_module('notify', 'view') %}
                     <div class="desktop-nav-group">
-                        <a href="/news" class="desktop-nav-link {% if request.endpoint == 'portal_bp.news' %}active{% endif %} {% if submenu_parent == 'news' and sidebar_submenu_items %}has-children{% endif %}">
-                            <span class="desktop-nav-icon"><i class="fa-solid fa-newspaper"></i></span>
-                            <span>Bảng tin</span>
-                            {% if submenu_parent == 'news' and sidebar_submenu_items %}
+                        <a href="/thong-bao" class="desktop-nav-link {% if request.endpoint == 'portal_bp.notifications_board' %}active{% endif %} {% if submenu_parent == 'notifications' and sidebar_submenu_items %}has-children{% endif %}">
+                            <span class="desktop-nav-icon"><i class="fa-solid fa-bullhorn"></i></span>
+                            <span>Thông báo</span>
+                            {% if submenu_parent == 'notifications' and sidebar_submenu_items %}
                             <span class="desktop-nav-caret"><i class="fa-solid fa-chevron-down"></i></span>
                             {% endif %}
                         </a>
-                        {% if submenu_parent == 'news' and sidebar_submenu_items %}
-                        <div class="desktop-nav-children">
-                            {% for item in sidebar_submenu_items %}
-                            <a href="{{ item.href }}" class="desktop-nav-link desktop-subnav-link {% if item.active %}active{% endif %}">
-                                <span>{{ item.label }}</span>
-                                {% if item.count is defined and item.count is not none %}
-                                <small>{{ item.count }}</small>
-                                {% endif %}
-                            </a>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                    {% if can_module('lib', 'view') %}
-                    <div class="desktop-nav-group">
-                        <a href="/library" class="desktop-nav-link {% if request.endpoint == 'portal_bp.library' %}active{% endif %} {% if submenu_parent == 'library' and sidebar_submenu_items %}has-children{% endif %}">
-                            <span class="desktop-nav-icon"><i class="fa-solid fa-book-open"></i></span>
-                            <span>Thư viện</span>
-                            {% if submenu_parent == 'library' and sidebar_submenu_items %}
-                            <span class="desktop-nav-caret"><i class="fa-solid fa-chevron-down"></i></span>
-                            {% endif %}
-                        </a>
-                        {% if submenu_parent == 'library' and sidebar_submenu_items %}
+                        {% if submenu_parent == 'notifications' and sidebar_submenu_items %}
                         <div class="desktop-nav-children">
                             {% for item in sidebar_submenu_items %}
                             <a href="{{ item.href }}" class="desktop-nav-link desktop-subnav-link {% if item.active %}active{% endif %}">
@@ -916,14 +866,6 @@
                         <span class="desktop-nav-icon"><i class="fa-solid fa-qrcode"></i></span>
                         <span>QR và liên kết</span>
                     </a>
-                    <a href="/guide" class="desktop-nav-link {% if request.endpoint == 'portal_bp.user_guide' %}active{% endif %}">
-                        <span class="desktop-nav-icon"><i class="fa-solid fa-circle-info"></i></span>
-                        <span>Hướng dẫn sử dụng</span>
-                    </a>
-                    <a href="/ai" class="desktop-nav-link {% if request.path.startswith('/ai') %}active{% endif %}">
-                        <span class="desktop-nav-icon"><i class="fa-solid fa-robot"></i></span>
-                        <span>Trợ lý AI</span>
-                    </a>
                 </div>
             </div>
 
@@ -960,9 +902,6 @@
                                 </div>
                                 {% endif %}
                             </div>
-                            <a href="/admin/ai-settings" class="desktop-nav-link desktop-subnav-link {% if request.endpoint == 'admin_bp.ai_settings' %}active{% endif %}">
-                                <span>Cấu hình AI</span>
-                            </a>
                             <a href="/logs" class="desktop-nav-link desktop-subnav-link {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">
                                 <span>Nhật ký hoạt động</span>
                             </a>
@@ -1133,60 +1072,14 @@
 
             <div class="mobile-nav-section">
                 <div class="mobile-nav-list">
-                    {% if can_module('attendance', 'view') %}
+                    {% if can_module('notify', 'view') %}
                     <div class="mobile-nav-group">
-                        <a href="/attendance"
-                            class="mobile-nav-link {% if request.endpoint and request.endpoint.startswith('attendance_bp.') %}active{% endif %}">
-                            <span class="mobile-nav-icon"><i class="fa-solid fa-camera"></i></span>
-                            <span>Điểm danh</span>
+                        <a href="/thong-bao"
+                            class="mobile-nav-link {% if request.endpoint == 'portal_bp.notifications_board' %}active{% endif %}">
+                            <span class="mobile-nav-icon"><i class="fa-solid fa-bullhorn"></i></span>
+                            <span>Thông báo</span>
                         </a>
-                        {% if submenu_parent == 'attendance' and sidebar_submenu_items %}
-                        <div class="mobile-nav-children">
-                            {% for item in sidebar_submenu_items %}
-                            <a href="{{ item.href }}" class="mobile-nav-link mobile-subnav-link {% if item.active %}active{% endif %}">
-                                <span>{{ item.label }}</span>
-                            </a>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                    <a href="/ranking"
-                        class="mobile-nav-link {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">
-                        <span class="mobile-nav-icon"><i class="fa-solid fa-ranking-star"></i></span>
-                        <span>Xếp hạng</span>
-                    </a>
-                </div>
-            </div>
-
-            <div class="mobile-nav-section">
-                <div class="mobile-nav-list">
-                    {% if can_module('news', 'view') %}
-                    <div class="mobile-nav-group">
-                        <a href="/news"
-                            class="mobile-nav-link {% if request.endpoint == 'portal_bp.news' %}active{% endif %}">
-                            <span class="mobile-nav-icon"><i class="fa-solid fa-newspaper"></i></span>
-                            <span>Bảng tin</span>
-                        </a>
-                        {% if submenu_parent == 'news' and sidebar_submenu_items %}
-                        <div class="mobile-nav-children">
-                            {% for item in sidebar_submenu_items %}
-                            <a href="{{ item.href }}" class="mobile-nav-link mobile-subnav-link {% if item.active %}active{% endif %}">
-                                <span>{{ item.label }}</span>
-                            </a>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                    {% if can_module('lib', 'view') %}
-                    <div class="mobile-nav-group">
-                        <a href="/library"
-                            class="mobile-nav-link {% if request.endpoint == 'portal_bp.library' %}active{% endif %}">
-                            <span class="mobile-nav-icon"><i class="fa-solid fa-book-open"></i></span>
-                            <span>Thư viện</span>
-                        </a>
-                        {% if submenu_parent == 'library' and sidebar_submenu_items %}
+                        {% if submenu_parent == 'notifications' and sidebar_submenu_items %}
                         <div class="mobile-nav-children">
                             {% for item in sidebar_submenu_items %}
                             <a href="{{ item.href }}" class="mobile-nav-link mobile-subnav-link {% if item.active %}active{% endif %}">
@@ -1215,20 +1108,10 @@
                         {% endif %}
                     </div>
                     {% endif %}
-                    <a href="/guide"
-                        class="mobile-nav-link {% if request.endpoint == 'portal_bp.user_guide' %}active{% endif %}">
-                        <span class="mobile-nav-icon"><i class="fa-solid fa-circle-info"></i></span>
-                        <span>Hướng dẫn sử dụng</span>
-                    </a>
                     <a href="{{ url_for('shortlink_bp.manage_links') }}"
                         class="mobile-nav-link {% if request.endpoint == 'shortlink_bp.manage_links' %}active{% endif %}">
                         <span class="mobile-nav-icon"><i class="fa-solid fa-qrcode"></i></span>
                         <span>QR và liên kết</span>
-                    </a>
-                    <a href="/ai"
-                        class="mobile-nav-link {% if request.path.startswith('/ai') %}active{% endif %}">
-                        <span class="mobile-nav-icon"><i class="fa-solid fa-robot"></i></span>
-                        <span>Hỏi AI</span>
                     </a>
                 </div>
             </div>
@@ -1262,9 +1145,6 @@
                                 </div>
                                 {% endif %}
                             </div>
-                            <a href="/admin/ai-settings" class="mobile-nav-link mobile-subnav-link {% if request.endpoint == 'admin_bp.ai_settings' %}active{% endif %}">
-                                <span>Cấu hình dịch vụ AI</span>
-                            </a>
                             <a href="/logs" class="mobile-nav-link mobile-subnav-link {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">
                                 <span>Nhật ký hoạt động</span>
                             </a>
@@ -1310,9 +1190,9 @@
             <i class="fa-solid fa-list-check"></i>
             <span>CÔNG VIỆC</span>
         </a>
-        <a href="/ranking" class="nav-item {% if request.endpoint == 'ranking_bp.index' %}active{% endif %}">
-            <i class="fa-solid fa-ranking-star"></i>
-            <span>XẾP HẠNG</span>
+        <a href="/thong-bao" class="nav-item {% if request.endpoint == 'portal_bp.notifications_board' %}active{% endif %}">
+            <i class="fa-solid fa-bullhorn"></i>
+            <span>THÔNG BÁO</span>
         </a>
         <a href="#" class="nav-item" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
             <i class="fa-solid fa-ellipsis-h"></i>

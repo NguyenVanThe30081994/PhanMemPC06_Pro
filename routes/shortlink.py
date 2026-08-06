@@ -68,7 +68,7 @@ def manage_links():
     else:
         links = ShortLink.query.filter_by(created_by=session['uid']).order_by(ShortLink.created_at.desc()).all()
 
-    link_categories = module_category_options('news', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
+    link_categories = module_category_options('notify', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
     pro_units = module_category_options('tasks', 'domain', 'Đội nghiệp vụ')
     links = sync_record_categories(links, link_categories, attr_name='category', prefer_stable=True)
     links = sync_record_categories(links, pro_units, attr_name='domain', prefer_stable=True)
@@ -91,7 +91,7 @@ def add_link():
     custom_code = request.form.get('custom_code', '').strip()
     custom_name = request.form.get('custom_name', '').strip()
     info = request.form.get('info', '').strip()
-    link_categories = module_category_options('news', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
+    link_categories = module_category_options('notify', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
     pro_units = module_category_options('tasks', 'domain', 'Đội nghiệp vụ')
     category = canonicalize_category_value(request.form.get('category', ''), link_categories, prefer_stable=True)
     domain = canonicalize_category_value(request.form.get('domain', ''), pro_units, prefer_stable=True)
@@ -150,7 +150,7 @@ def edit_link(link_id):
     custom_code = request.form.get('custom_code', '').strip()
     custom_name = request.form.get('custom_name', '').strip()
     info = request.form.get('info', '').strip()
-    link_categories = module_category_options('news', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
+    link_categories = module_category_options('notify', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
     pro_units = module_category_options('tasks', 'domain', 'Đội nghiệp vụ')
 
     if not original_url:

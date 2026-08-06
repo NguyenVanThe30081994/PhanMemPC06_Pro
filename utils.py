@@ -316,7 +316,6 @@ def apply_migrations(app):
         ("user", "session_version", "INTEGER DEFAULT 0"),
         ("app_role", "perms", "TEXT"),
         ("notification", "is_read", "BOOLEAN DEFAULT 0"),
-        ("ai_assistant_config", "api_key_encrypted", "TEXT"),
         ("news_doc", "content", "TEXT"),
         ("news_doc", "target_scope", "VARCHAR(50) DEFAULT 'Toàn tỉnh'"),
         ("document_lib", "uploaded_at", "DATETIME"),
@@ -384,10 +383,13 @@ def apply_migrations(app):
         ("category_item", "code", "VARCHAR(100)"),
         ("category_item", "is_active", "BOOLEAN DEFAULT 1"),
         ("category_item", "sort_order", "INTEGER DEFAULT 0"),
-        ("login_security_state", "last_failed_secret_hash", "VARCHAR(64)"),
-        ("attendance_config", "target_type", "VARCHAR(20) DEFAULT 'role'"),
-        ("attendance_config", "target_role_id", "INTEGER"),
-        ("attendance_config", "target_unit_key", "VARCHAR(100)")
+        ("notification_doc", "kind", "VARCHAR(20) DEFAULT 'notice'"),
+        ("notification_doc", "description", "TEXT"),
+        ("notification_doc", "file_ext", "VARCHAR(20)"),
+        ("notification_doc", "video_url", "VARCHAR(500)"),
+        ("notification_doc", "has_attachment", "BOOLEAN DEFAULT 0"),
+        ("notification_doc", "posted_by", "VARCHAR(100)"),
+        ("login_security_state", "last_failed_secret_hash", "VARCHAR(64)")
     ]
         inspector = inspect(engine)
         existing_tables = set(inspector.get_table_names())
@@ -603,7 +605,7 @@ def init_db(app):
         admin_role = AppRole.query.filter_by(name='Quản trị hệ thống').first()
         if not admin_role:
             try:
-                full_perms = {k:1 for k in ["p_dash", "p_task", "p_task_assign", "p_task_do", "p_attendance", "p_lib", "p_news", "p_contact", "p_form", "p_sys", "p_input", "p_stat", "p_user"]}
+                full_perms = {k:1 for k in ["p_dash", "p_task", "p_task_assign", "p_task_do", "p_notify", "p_contact", "p_form", "p_sys", "p_input", "p_stat", "p_user"]}
                 admin_role = AppRole(name='admin_system', perms=json.dumps(full_perms, ensure_ascii=False))
                 db.session.add(admin_role)
                 db.session.commit()
@@ -730,19 +732,18 @@ def infer_notification_source(title="", msg="", link=""):
             "icon": "fa-list-check",
             "class_name": "task",
         }
-    if link_text.startswith("/news") or "bảng tin" in combined:
+    if (link_text.startswith("/thong-bao")
+            or link_text.startswith("/news")
+            or link_text.startswith("/library")
+            or "thông báo" in combined
+            or "thong bao" in remove_accents(combined)
+            or "bảng tin" in combined
+            or "thư viện" in combined):
         return {
-            "code": "news",
-            "label": "Bảng tin",
-            "icon": "fa-newspaper",
-            "class_name": "news",
-        }
-    if link_text.startswith("/library") or "thư viện" in combined or "tai lieu moi" in remove_accents(combined):
-        return {
-            "code": "library",
-            "label": "Thư viện",
-            "icon": "fa-book-open",
-            "class_name": "library",
+            "code": "notify",
+            "label": "Thông báo",
+            "icon": "fa-bullhorn",
+            "class_name": "notify",
         }
     if link_text.startswith("/reports") or link_text.startswith("/admin/reports") or "báo cáo" in combined:
         return {
@@ -810,11 +811,8 @@ def eval_f(formula_str, data_dict):
 
 PERMISSION_MODULES = [
     ("dash", "Tổng quan"),
-    ("rank", "Xếp hạng"),
     ("task", "Công việc"),
-    ("attendance", "Điểm danh"),
-    ("lib", "Thư viện"),
-    ("news", "Bảng tin"),
+    ("notify", "Thông báo"),
     ("contact", "Danh bạ"),
     ("form", "Quản lý báo cáo"),
     ("input", "Nhập và gửi báo cáo"),
@@ -825,11 +823,8 @@ PERMISSION_MODULES = [
 
 DEFAULT_ROLE_MODULE_CODES = (
     "dash",
-    "rank",
     "task",
-    "attendance",
-    "lib",
-    "news",
+    "notify",
     "contact",
     "input",
     "stat",
@@ -948,21 +943,6 @@ def normalize_permission_payload(perms_json, is_admin=False, role_name=""):
             normalized[exec_key] = 1
         if has_view or has_process or has_exec:
             normalized[legacy_key] = 1
-
-    # Backward compatibility: existing task executors can access attendance
-    if not any(normalized.get(f"p_attendance_{tier}") for tier in ("view", "process", "exec")):
-        task_view = bool(normalized.get("p_task_view"))
-        task_process = bool(normalized.get("p_task_process"))
-        task_exec = bool(normalized.get("p_task_exec"))
-        if task_view or task_process or task_exec:
-            if task_view or task_process or task_exec:
-                normalized["p_attendance_view"] = 1
-            if task_process:
-                normalized["p_attendance_process"] = 1
-                normalized["p_attendance_lead"] = 1
-            if task_exec:
-                normalized["p_attendance_exec"] = 1
-            normalized["p_attendance"] = 1
 
     return normalized
 

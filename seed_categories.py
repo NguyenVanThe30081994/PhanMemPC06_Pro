@@ -9,8 +9,7 @@ from models import db, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGrou
 from category_helpers import resolve_group_code, slugify_code
 
 MODULES = [
-    {"code": "news", "name": "Bảng tin", "sort_order": 10},
-    {"code": "library", "name": "Thư viện", "sort_order": 20},
+    {"code": "notify", "name": "Thông báo", "sort_order": 10},
     {"code": "tasks", "name": "Công việc", "sort_order": 30},
     {"code": "contacts", "name": "Danh bạ", "sort_order": 40},
 ]
@@ -40,11 +39,10 @@ DEFAULT_CATEGORIES = {
     },
     "Lĩnh vực": {
         "code": "news_domain",
-        "linked_modules": "Bảng tin,Thư viện,Danh bạ",
+        "linked_modules": "Thông báo,Danh bạ",
         "aliases": ["Linh vuc"],
         "bindings": [
-            {"module": "news", "field": "category", "label": "Lĩnh vực / Đội nghiệp vụ", "required": True},
-            {"module": "library", "field": "category", "label": "Lĩnh vực", "required": True},
+            {"module": "notify", "field": "category", "label": "Lĩnh vực / Đội nghiệp vụ", "required": True},
             {"module": "contacts", "field": "category", "label": "Lĩnh vực", "required": False}
         ],
         "items": [
@@ -67,7 +65,7 @@ DEFAULT_CATEGORIES = {
     },
     "Đội nghiệp vụ": {
         "code": "task_unit",
-        "linked_modules": "Công việc,Bảng tin",
+        "linked_modules": "Công việc,Thông báo",
         "aliases": ["Dong nghiep vu"],
         "bindings": [
             {"module": "tasks", "field": "domain", "label": "Đội nghiệp vụ", "required": True}
@@ -104,9 +102,9 @@ DEFAULT_CATEGORIES = {
     },
     "Loại tài liệu": {
         "code": "library_type",
-        "linked_modules": "Thư viện",
+        "linked_modules": "Thông báo",
         "aliases": ["Loai tai lieu"],
-        "bindings": [{"module": "library", "field": "document_type", "label": "Loại tài liệu", "required": False}],
+        "bindings": [{"module": "notify", "field": "document_type", "label": "Loại tài liệu", "required": False}],
         "items": [
             "Văn bản pháp luật", "Công văn chỉ đạo", "Biểu mẫu", "Quy trình quy chế", "Tài liệu đào tạo",
             "Tài liệu tham khảo", "Báo cáo tổng kết", "Kế hoạch", "Dự thảo", "Khác"

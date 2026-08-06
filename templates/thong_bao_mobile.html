@@ -1,0 +1,209 @@
+{% extends "base_mobile.html" %}
+
+{% block title %}Thông báo PC06{% endblock %}
+
+{% block head %}
+<style>
+    .mobile-notify-hero { background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff; padding: 20px; border-radius: 24px; margin-bottom: 16px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18); }
+    .mobile-notify-hero h1 { margin: 10px 0 8px; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; }
+    .mobile-notify-hero p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.9rem; }
+    .mobile-notify-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
+    .mobile-notify-search, .mobile-notify-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); }
+    .mobile-notify-search { padding: 16px; margin-bottom: 16px; }
+    .mobile-search-input { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px; background: var(--bg-body); border: 1px solid var(--border); margin-bottom: 12px; }
+    .mobile-search-input input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--text-main); }
+    .mobile-chip-row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+    .mobile-chip-row::-webkit-scrollbar { display: none; }
+    .mobile-chip { padding: 10px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-body); color: var(--text-muted); font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
+    .mobile-chip.active { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; border-color: transparent; }
+    .mobile-notify-list { display: grid; gap: 14px; }
+    .mobile-notify-card { padding: 16px; }
+    .mobile-notify-card-head, .mobile-notify-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .mobile-notify-kind { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 999px; font-size: .7rem; font-weight: 800; }
+    .mobile-notify-kind.notice { background: #fef3c7; color: #b45309; }
+    .mobile-notify-kind.document { background: #dcfce7; color: #166534; }
+    .mobile-notify-kind.video { background: #fee2e2; color: #b91c1c; }
+    .mobile-notify-card h3 { margin: 10px 0; font-size: 1rem; font-weight: 800; color: var(--text-main); line-height: 1.5; }
+    .mobile-notify-card p { margin: 0 0 10px; color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
+    .mobile-notify-meta span, .mobile-notify-attach { font-size: 0.8rem; color: var(--text-muted); }
+    .mobile-notify-fab { position: fixed; bottom: 88px; right: 18px; width: 58px; height: 58px; border-radius: 18px; border: 0; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; box-shadow: 0 18px 30px rgba(37, 99, 235, 0.3); }
+    .mobile-viewer-shell { position: fixed; inset: 0; z-index: 1050; display: none; flex-direction: column; background: #0b1220; }
+    .mobile-viewer-shell.open { display: flex; }
+    .mobile-viewer-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; background: #0f172a; color: #fff; }
+    .mobile-viewer-top h5 { margin: 0; font-size: 0.95rem; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mobile-viewer-frame { flex: 1; width: 100%; border: 0; background: #fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if can_manage_notify %}
+<section class="mobile-page-actions">
+    <button class="mobile-notify-fab" data-bs-toggle="modal" data-bs-target="#addNotifyModal"><i class="fa-solid fa-plus"></i><span class="visually-hidden">Đăng thông báo</span></button>
+</section>
+{% endif %}
+
+<section class="mobile-notify-search">
+    <label class="mobile-search-input">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="mobileNotifySearch" placeholder="Tìm thông báo">
+    </label>
+    <div class="mobile-chip-row">
+        <button type="button" class="mobile-chip {% if not kind_filter %}active{% endif %}" data-kind-filter="">Tất cả</button>
+        <button type="button" class="mobile-chip {% if kind_filter == 'notice' %}active{% endif %}" data-kind-filter="notice">Bản tin</button>
+        <button type="button" class="mobile-chip {% if kind_filter == 'document' %}active{% endif %}" data-kind-filter="document">Tài liệu</button>
+        <button type="button" class="mobile-chip {% if kind_filter == 'video' %}active{% endif %}" data-kind-filter="video">Video</button>
+    </div>
+</section>
+
+<section class="mobile-notify-list">
+    {% if filtered_cards %}
+    {% for item in filtered_cards %}
+    {% set n = item.record %}
+    {% set is_video = n.video_url|default('', true)|trim %}
+    {% if is_video %}{% set kind = 'video' %}{% else %}{% set kind = n.kind|default('notice', true) %}{% endif %}
+    <article class="mobile-notify-card mobile-notify-item" data-kind="{{ kind }}">
+        <div class="mobile-notify-meta d-flex align-items-center justify-content-between gap-2">
+            <span class="pc06-soft-tag"><i class="fa-solid fa-layer-group"></i> {{ item.category_display }}</span>
+            <span>{{ n.uploaded_at.strftime('%d/%m/%Y') }}</span>
+        </div>
+        <h3>{{ n.title }}</h3>
+        <p>{{ (n.content or n.description or '')[:140] }}{{ '...' if (n.content or n.description) and ((n.content or n.description)|length) > 140 else '' }}</p>
+        <div class="mobile-notify-foot">
+            {% if n.filename %}
+            <a href="/dl_file/{{ n.filename }}" class="mobile-notify-attach text-decoration-none"><i class="fa-solid fa-paperclip me-1"></i>{{ n.filename }}</a>
+            {% else %}
+            <span class="mobile-notify-attach">Không có đính kèm</span>
+            {% endif %}
+            <div class="d-flex gap-2 align-items-center">
+                {% if kind != 'video' and not n.filename %}
+                <button class="btn btn-sm btn-outline-primary rounded-pill" aria-label="Chi tiết" onclick='Swal.fire({title: {{ n.title|tojson }}, text: {{ (n.content|default("", true)|replace("\n", " "))|tojson }}, icon: "info"})'><i class="fa-solid fa-eye"></i></button>
+                {% else %}
+                <button class="btn btn-sm btn-outline-primary rounded-pill notify-view-mobile" aria-label="Xem" data-filename="{{ n.filename|default('', true) }}" data-ext="{{ (n.file_ext or '')|lower }}" data-video-url="{{ n.video_url|default('', true) }}" data-title="{{ n.title }}"><i class="fa-solid fa-eye"></i></button>
+                {% endif %}
+            </div>
+        </div>
+    </article>
+    {% endfor %}
+    {% else %}
+    <div class="mobile-notify-card text-center text-muted">Chưa có thông báo phù hợp.</div>
+    {% endif %}
+</section>
+
+<!-- Mobile viewer -->
+<div class="mobile-viewer-shell" id="mobileViewer">
+    <div class="mobile-viewer-top">
+        <h5 id="mvTitle">Xem tài liệu</h5>
+        <button type="button" class="btn-close btn-close-white" onclick="closeMobileViewer()"></button>
+    </div>
+    <iframe class="mobile-viewer-frame" id="mvFrame"></iframe>
+</div>
+
+<!-- Add modal -->
+<div class="modal fade" id="addNotifyModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-header border-0">
+                    <div><h5 class="modal-title fw-bold mb-1">Đăng thông báo</h5></div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Loại thông báo</label>
+                        <select name="kind" class="form-select">
+                            <option value="notice">Bản tin (văn bản)</option>
+                            <option value="document">Tài liệu (Word / Excel / PDF)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3"><label class="form-label small fw-bold">Tiêu đề</label><input type="text" name="title" class="form-control" required></div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Danh mục</label>
+                        <div data-category-picker data-module="notify" data-field="category" data-value-mode="stable" data-placeholder="Chọn danh mục" data-storage-key="mobile.notify.category">
+                            <select name="category" class="form-select" required data-category-target>
+                                <option value="" disabled selected>Chọn danh mục</option>
+                                {% for u in category_options %}<option value="{{ u.value }}">{{ u.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3"><label class="form-label small fw-bold">Nội dung</label><textarea name="content" class="form-control" rows="4"></textarea></div>
+                    <div class="mb-3"><label class="form-label small fw-bold">Tệp đính kèm (Word/Excel/PDF)</label><input type="file" name="file" class="form-control"></div>
+                    <div><label class="form-label small fw-bold">Đường dẫn video</label><input type="url" name="video_url" class="form-control" placeholder="https://..."></div>
+                </div>
+                <div class="modal-footer border-0"><button type="submit" class="btn btn-bdhvs primary w-100">Đăng thông báo</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script>
+    function extOf(name) {
+        const s = (name || '').split('?')[0];
+        const i = s.lastIndexOf('.');
+        return i === -1 ? '' : s.slice(i + 1).toLowerCase();
+    }
+    function closeMobileViewer() {
+        var shell = document.getElementById('mobileViewer');
+        var frame = document.getElementById('mvFrame');
+        frame.removeAttribute('src'); frame.removeAttribute('srcdoc');
+        shell.classList.remove('open');
+    }
+    function mvType(ext) { return ['xlsx','xls','xlsm','csv'].indexOf(ext) !== -1 ? 'xlsx' : (['docx','doc'].indexOf(ext) !== -1 ? 'word' : (['pdf'].indexOf(ext) !== -1 ? 'pdf' : (['mp4','webm','ogg','mov','m4v'].indexOf(ext) !== -1 ? 'video' : 'other'))); }
+    function openMobileViewer(filename, videoUrl, title) {
+        var shell = document.getElementById('mobileViewer');
+        var frame = document.getElementById('mvFrame');
+        document.getElementById('mvTitle').textContent = title || 'Xem tài liệu';
+        frame.removeAttribute('src'); frame.removeAttribute('srcdoc'); frame.style.display = 'block';
+        if (videoUrl) { frame.src = videoUrl; shell.classList.add('open'); return; }
+        if (!filename) { shell.classList.remove('open'); Swal.fire({title: title || 'Chi tiết', icon:'info'}); return; }
+        var ext = extOf(filename);
+        var t = mvType(ext);
+        if (t === 'pdf' || t === 'video') {
+            frame.src = '/preview_file/' + encodeURIComponent(filename);
+        } else if (t === 'xlsx') {
+            fetch('/preview_file/' + encodeURIComponent(filename)).then(function(r){ if(!r.ok) throw 0; return r.arrayBuffer(); })
+                .then(function(d){ var wb=XLSX.read(d); var ws=wb.Sheets[wb.SheetNames[0]]; var html=XLSX.utils.sheet_to_html(ws,{id:'x'}); frame.srcdoc='<style>body{font-family:sans-serif;padding:14px;background:#fff;}table{border-collapse:collapse;width:100%;}td,th{border:1px solid #cbd5e1;padding:4px 8px;font-size:12px;}th{background:#f1f5f9;}</style>'+html; shell.classList.add('open'); }).catch(function(){ Swal.fire({icon:'error',text:'Không thể tải Excel'}); }); return;
+        } else if (t === 'word') {
+            fetch('/preview_file/' + encodeURIComponent(filename)).then(function(r){ if(!r.ok) throw 0; return r.arrayBuffer(); }).then(function(d){ return mammoth.convertToHtml({arrayBuffer:d}); }).then(function(res){ frame.srcdoc='<!doctype html><meta charset="utf-8"><body style="font-family:Georgia,serif;padding:18px;max-width:800px;margin:auto;color:#111827;">'+res.value+'</body>'; shell.classList.add('open'); }).catch(function(){ Swal.fire({icon:'error',text:'Không thể hiển thị Word'}); }); return;
+        } else {
+            shell.classList.remove('open'); Swal.fire({icon:'info', text:'Định dạng chưa hỗ trợ xem trước. Vui lòng tải xuống.'}); return;
+        }
+        shell.classList.add('open');
+    }
+    document.addEventListener('click', function (ev) {
+        var btn = ev.target.closest('.notify-view-mobile');
+        if (!btn) return;
+        openMobileViewer(btn.getAttribute('data-filename')||'', btn.getAttribute('data-video-url')||'', btn.getAttribute('data-title')||'');
+    });
+</script>
+<script>
+    const mobileNotifyFilters = { kind: '', query: '' };
+    document.querySelector('.mobile-notify-list') && (function(){
+        document.querySelectorAll('.mobile-chip[data-kind-filter]').forEach((chip) => {
+            chip.addEventListener('click', () => {
+                (mobileNotifyFilters.kind = chip.dataset.kindFilter);
+                document.querySelectorAll('.mobile-chip[data-kind-filter]').forEach((i) => i.classList.toggle('active', i === chip));
+                applyMobileNotifyFilters();
+            });
+        });
+    })();
+    function applyMobileNotifyFilters() {
+        var empty = true;
+        document.querySelectorAll('.mobile-notify-item').forEach((item) => {
+            const kindMatch = !mobileNotifyFilters.kind || (item.dataset.kind||'') === mobileNotifyFilters.kind;
+            item.style.display = kindMatch ? '' : 'none';
+            if (kindMatch) empty = false;
+        });
+    }
+    document.getElementById('mobileNotifySearch')?.addEventListener('input', (event) => {
+        mobileNotifyFilters.q = event.target.value.trim().toLowerCase();
+        document.querySelectorAll('.mobile-notify-item').forEach((item) => {
+            const text = (item.textContent||'').toLowerCase();
+            item.style.display = (!mobileNotifyFilters.q || text.includes(mobileNotifyFilters.q)) ? '' : 'none';
+        });
+    });
+</script>
+{% endblock %}
