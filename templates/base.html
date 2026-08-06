@@ -1431,6 +1431,45 @@
         initSectionMenuContainers();
         initDesktopSidebarScrollMemory();
 
+        // Desktop Sidebar Menu Toggle
+        function initDesktopSidebarToggle() {
+            document.querySelectorAll('.desktop-sidebar .desktop-nav-link.has-children').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    const parent = this.closest('.desktop-nav-group');
+                    const children = parent.querySelector('.desktop-nav-children');
+                    const caret = this.querySelector('.desktop-nav-caret i');
+                    
+                    if (children) {
+                        const isExpanded = children.style.display === 'grid';
+                        
+                        if (isExpanded) {
+                            children.style.display = 'none';
+                            if (caret) {
+                                caret.classList.remove('fa-chevron-up');
+                                caret.classList.add('fa-chevron-down');
+                            }
+                        } else {
+                            children.style.display = 'grid';
+                            if (caret) {
+                                caret.classList.remove('fa-chevron-down');
+                                caret.classList.add('fa-chevron-up');
+                            }
+                        }
+                    }
+                });
+                
+                // Initialize collapsed state
+                const parent = link.closest('.desktop-nav-group');
+                const children = parent.querySelector('.desktop-nav-children');
+                if (children && !children.querySelector('.desktop-nav-link.active')) {
+                    children.style.display = 'none';
+                }
+            });
+        }
+        initDesktopSidebarToggle();
+
         // Modern Confirm Helper
         window.ModernConfirm = function (title, text, icon, confirmText, callback) {
             Swal.fire({

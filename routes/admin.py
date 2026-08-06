@@ -467,6 +467,7 @@ def _task_dashboard_unit_metrics():
     }
 
 
+@admin_bp.route('/admin')
 def index():
     try:
         if not session.get('uid'): 

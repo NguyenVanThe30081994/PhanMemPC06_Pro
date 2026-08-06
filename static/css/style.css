@@ -1,4 +1,82 @@
 
+/* ===== MISSING UTILITY CLASSES ===== */
+
+/* Glass Card Effect */
+.glass-card {
+    background: rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme="dark"] .glass-card {
+    background: rgba(30, 41, 59, 0.8) !important;
+    border: 1px solid rgba(148, 163, 184, 0.2) !important;
+}
+
+/* Bento Card - Modern Card Style */
+.bento-card {
+    background: var(--bg-surface) !important;
+    border-radius: 24px !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: 0 20px 44px rgba(15, 23, 42, 0.08) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.bento-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 24px 52px rgba(15, 23, 42, 0.12) !important;
+}
+
+[data-theme="dark"] .bento-card {
+    background: rgba(30, 41, 59, 0.92) !important;
+    border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+/* Glass Panel */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.7) !important;
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+[data-theme="dark"] .glass-panel {
+    background: rgba(30, 41, 59, 0.7) !important;
+    border: 1px solid rgba(148, 163, 184, 0.15) !important;
+}
+
+/* Simple Animations */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate__animated {
+    animation-duration: 0.6s;
+    animation-fill-mode: both;
+}
+
+.animate__fadeIn {
+    animation-name: fadeIn;
+}
+
+.animate__fadeInUp {
+    animation-name: fadeInUp;
+}
+
 /* ===== IMPROVEMENTS FROM BDHVS DESIGN ===== */
 
 /* 1. Better CSS Variables */

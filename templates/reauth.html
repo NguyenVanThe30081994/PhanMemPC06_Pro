@@ -1,46 +1,52 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header mb-4 animate__animated animate__fadeIn">
-    <div class="d-flex align-items-center gap-3">
-        <div class="glass-panel p-2 rounded-4 shadow-sm" style="background: var(--primary-gradient);">
-            <i class="fa-solid fa-user-shield text-white fs-5"></i>
-        </div>
-        <div>
-            <h1 class="h4 fw-bold text-dark mb-1">Xác minh lại danh tính</h1>
-            <p class="text-muted mb-0">Bắt buộc trước khi truy cập khu vực quản trị nhạy cảm.</p>
-        </div>
-    </div>
-</div>
-
-<div class="row justify-content-center animate__animated animate__fadeInUp">
-    <div class="col-xl-5 col-lg-6">
-        <div class="bento-card p-4 p-md-5">
-            <div class="text-center mb-4">
-                <div class="badge bg-warning bg-opacity-10 text-warning rounded-pill mb-3 px-3 fw-bold tiny letter-spacing-1">STEP-UP AUTH</div>
-                <h3 class="fw-bold text-dark mb-2">Nhập lại mật khẩu hiện tại</h3>
-                <p class="text-muted mb-0">Phiên quản trị chỉ được mở tiếp sau khi xác minh lại.</p>
-            </div>
-
-            <form method="POST">
-                <input type="hidden" name="next" value="{{ next_url }}">
-                <div class="mb-4">
-                    <label class="form-label fw-bold text-muted small text-uppercase letter-spacing-1">Mật khẩu hiện tại</label>
-                    <div class="input-group">
-                        <input type="password" name="password" class="form-control" placeholder="••••••••" autocomplete="current-password" required style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
-                        <button class="btn btn-light border px-3 toggle-password" type="button" style="border-top-right-radius: 16px; border-bottom-right-radius: 16px;">
-                            <i class="fa-solid fa-eye-slash text-muted"></i>
-                        </button>
+<div class="container-fluid px-4 py-4">
+    <div class="row justify-content-center">
+        <div class="col-xl-5 col-lg-6 col-md-8">
+            <div class="card shadow-lg border-0" style="border-radius: 24px;">
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <div class="d-inline-flex align-items-center justify-content-center mb-3" 
+                             style="width: 64px; height: 64px; border-radius: 20px; background: var(--primary-gradient);">
+                            <i class="fa-solid fa-user-shield text-white fs-3"></i>
+                        </div>
+                        <h2 class="fw-bold mb-2">Xác minh lại danh tính</h2>
+                        <p class="text-muted mb-3">Bắt buộc trước khi truy cập khu vực quản trị nhạy cảm.</p>
+                        <div class="badge bg-warning bg-opacity-10 text-warning rounded-pill px-3 py-2 fw-bold small">
+                            STEP-UP AUTH
+                        </div>
                     </div>
-                </div>
 
-                <div class="d-grid gap-3 mt-4">
-                    <button type="submit" class="btn btn-primary py-3 rounded-4 fw-bold shadow-sm">
-                        <i class="fa-solid fa-shield-check me-2"></i>XÁC MINH VÀ TIẾP TỤC
-                    </button>
-                    <a href="{{ next_url or url_for('admin_bp.index') }}" class="btn btn-link text-muted text-decoration-none small text-center fw-bold">Quay lại</a>
+                    <form method="POST" class="mt-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                        <input type="hidden" name="next" value="{{ next_url }}">
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-muted small text-uppercase">Mật khẩu hiện tại</label>
+                            <div class="input-group">
+                                <input type="password" name="password" class="form-control form-control-lg" 
+                                       placeholder="••••••••" autocomplete="current-password" required 
+                                       style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                                <button class="btn btn-outline-secondary toggle-password" type="button" 
+                                        style="border-top-right-radius: 12px; border-bottom-right-radius: 12px;">
+                                    <i class="fa-solid fa-eye-slash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg fw-bold shadow-sm" style="border-radius: 12px;">
+                                <i class="fa-solid fa-shield-check me-2"></i>Xác minh và tiếp tục
+                            </button>
+                            <a href="{{ next_url or url_for('admin_bp.index') }}" 
+                               class="btn btn-link text-muted text-decoration-none text-center fw-bold">
+                                Quay lại
+                            </a>
+                        </div>
+                    </form>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
