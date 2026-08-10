@@ -2,7 +2,7 @@
 
 {% block title %}Công việc{% endblock %}
 
-{% macro task_card(task, show_actions=False) -%}
+{% macro task_card(task) -%}
 <article class="task-workspace-card task-tone-{{ task.workspace_tone }}">
     <div class="task-card-top">
         <div class="task-card-tags">
@@ -16,9 +16,9 @@
         <p>{{ task.workspace_preview_text }}</p>
     </div>
     <div class="task-card-meta">
-        <span><i class="fa-solid fa-building"></i> {{ task.domain_display or 'Chưa phân đội' }}</span>
-        <span><i class="fa-solid fa-clock"></i> {{ task.workspace_deadline_text }}</span>
-        <span><i class="fa-solid fa-chart-line"></i> {{ task.workspace_meta_text }}</span>
+        <span>{{ task.domain_display or 'Chưa phân đội' }}</span>
+        <span>{{ task.workspace_deadline_text }}</span>
+        <span>{{ task.workspace_meta_text }}</span>
     </div>
     <div class="task-progress-line">
         <div class="task-progress-bar">
@@ -26,20 +26,6 @@
         </div>
         <strong>{{ task.progress_percent }}%</strong>
     </div>
-    {% if show_actions %}
-    <div class="task-card-actions mt-2 pt-2 border-top d-flex flex-wrap gap-2">
-        {% if task.can_edit %}
-        <button class="btn btn-sm btn-outline-primary" type="button" onclick="openEditConfigModal({{ task.id }})">
-            <i class="fa-solid fa-pen me-1"></i>Sửa cấu hình
-        </button>
-        {% endif %}
-        {% if task.can_delete %}
-        <button class="btn btn-sm btn-outline-danger" type="button" onclick="openDeleteConfirmModal({{ task.id }})">
-            <i class="fa-solid fa-trash me-1"></i>Xóa việc
-        </button>
-        {% endif %}
-    </div>
-    {% endif %}
 </article>
 {%- endmacro %}
 
@@ -154,7 +140,7 @@
                 {% if managed_tasks %}
                 <div class="task-list-grid">
                     {% for task in managed_tasks %}
-                    {{ task_card(task, show_actions=True) }}
+                    {{ task_card(task) }}
                     {% endfor %}
                 </div>
                 {% else %}
@@ -465,138 +451,6 @@
         font-size: 1.2rem;
     }
 
-    .task-header-bar {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-between;
-        align-items: center;
-        gap: 16px;
-    }
-
-    .task-stats-compact {
-        display: inline-flex;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-
-    .task-stat-item {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 16px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.8);
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        font-weight: 700;
-        font-size: 0.9rem;
-        white-space: nowrap;
-        transition: transform .15s ease, box-shadow .15s ease;
-    }
-
-    .task-stat-item:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
-    }
-
-    .task-stat-item i {
-        font-size: 0.85rem;
-        width: 22px;
-        height: 22px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-    }
-
-    .task-stat-item.danger i { color: #b91c1c; background: rgba(239, 68, 68, 0.12); }
-    .task-stat-item.primary i { color: #1d4ed8; background: rgba(37, 99, 235, 0.12); }
-    .task-stat-item.warning i { color: #b45309; background: rgba(245, 158, 11, 0.14); }
-    .task-stat-item.success i { color: #047857; background: rgba(16, 185, 129, 0.14); }
-
-    .task-actions-compact {
-        display: inline-flex;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-
-    .task-nav-tabs {
-        border-bottom: none;
-        gap: 8px;
-    }
-
-    .task-nav-tabs .nav-link {
-        border: 1px solid transparent;
-        border-radius: 12px;
-        padding: 10px 16px;
-        font-weight: 700;
-        color: var(--text-muted);
-        background: rgba(255, 255, 255, 0.6);
-        transition: all .15s ease;
-    }
-
-    .task-nav-tabs .nav-link.active {
-        color: #1d4ed8;
-        background: rgba(219, 234, 254, 0.9);
-        border-color: rgba(37, 99, 235, 0.18);
-    }
-
-    .task-tab-content {
-        padding-top: 18px;
-    }
-
-    .task-list-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 18px;
-    }
-
-    .task-card-meta span {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .task-card-meta i {
-        font-size: 0.8rem;
-        color: var(--text-muted);
-        opacity: .7;
-    }
-
-    .wizard-outline-row {
-        word-wrap: break-word;
-        overflow-wrap: break-word;
-    }
-
-    .wizard-outline-row input[name="item_title"],
-    .wizard-outline-row textarea[name="item_content"] {
-        word-break: break-word;
-        white-space: normal;
-    }
-
-    .wizard-outline-row .badge {
-        max-width: 100%;
-        white-space: normal;
-        word-wrap: break-word;
-        text-align: left;
-        line-height: 1.4;
-    }
-
-    [data-theme="dark"] .task-header-bar .task-stat-item {
-        background: rgba(30, 41, 59, 0.82);
-        border-color: rgba(148, 163, 184, 0.14);
-    }
-
-    [data-theme="dark"] .task-nav-tabs .nav-link {
-        background: rgba(30, 41, 59, 0.5);
-        color: #94a3b8;
-    }
-
-    [data-theme="dark"] .task-nav-tabs .nav-link.active {
-        background: rgba(37, 99, 235, 0.2);
-        border-color: rgba(37, 99, 235, 0.35);
-        color: #93c5fd;
-    }
-
     [data-theme="dark"] .task-panel,
     [data-theme="dark"] .task-metric-card,
     [data-theme="dark"] .task-workspace-card {
@@ -619,15 +473,6 @@
 
     [data-theme="dark"] .task-create-btn {
         box-shadow: 0 14px 30px rgba(37, 99, 235, 0.28);
-    }
-
-    .task-card-actions {
-        margin-top: 12px;
-        padding-top: 10px;
-    }
-
-    .task-card-actions .btn {
-        font-size: 0.82rem;
     }
 
     [data-theme="dark"] .task-empty-state,
@@ -673,34 +518,6 @@
 
         .task-progress-bar {
             width: 100%;
-        }
-
-        .task-header-bar {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        .task-stats-compact,
-        .task-actions-compact {
-            width: 100%;
-        }
-
-        .task-actions-compact .btn {
-            flex: 1 1 auto;
-        }
-
-        .task-stat-item {
-            font-size: 0.85rem;
-            padding: 8px 12px;
-        }
-
-        .task-nav-tabs .nav-link {
-            padding: 8px 10px;
-            font-size: 0.85rem;
-        }
-
-        .task-list-grid {
-            grid-template-columns: 1fr;
         }
     }
 </style>
@@ -1097,129 +914,6 @@
     </div>
 </div>
 
-
-<div class="modal fade" id="editConfigModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-            <form method="POST" id="editConfigForm">
-                <div class="modal-header">
-                    <h5 class="modal-title">Sửa cấu hình công việc</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-lg-8">
-                            <label class="form-label fw-bold">Tiêu đề công việc</label>
-                            <input class="form-control" type="text" name="title" placeholder="Ví dụ: Tổng hợp báo cáo tuần ...">
-                        </div>
-                        <div class="col-lg-4">
-                            <label class="form-label fw-bold">Hạn xử lý</label>
-                            <input class="form-control" type="date" name="deadline">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Lĩnh vực</label>
-                            <select class="form-select" name="category">
-                                <option value="">Chọn lĩnh vực</option>
-                                {% for item in task_fields %}
-                                <option value="{{ item.value }}">{{ item.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Đội nghiệp vụ</label>
-                            <select class="form-select" name="domain">
-                                <option value="">Chọn đội nghiệp vụ</option>
-                                {% for item in pro_units %}
-                                <option value="{{ item.value }}">{{ item.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Loại công việc</label>
-                            <select class="form-select" name="task_type">
-                                <option value="">Công việc thường xuyên</option>
-                                {% for item in task_types %}
-                                <option value="{{ item.value }}">{{ item.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Mức độ ưu tiên</label>
-                            <select class="form-select" name="priority">
-                                <option value="">Trung bình</option>
-                                {% for item in priority_items %}
-                                <option value="{{ item.value }}">{{ item.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label fw-bold">Mô tả / yêu cầu</label>
-                            <textarea class="form-control" name="description" rows="3" placeholder="Mô tả nội dung, yêu cầu, hướng dẫn cho người nhận việc..."></textarea>
-                        </div>
-                        <div class="col-12">
-                            <details class="border rounded-3 p-3 bg-light-subtle">
-                                <summary class="fw-semibold">Phạm vi xem &amp; quản lý (tùy chọn)</summary>
-                                <div class="row g-3 mt-1">
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">Ai được xem công việc</label>
-                                        <select class="form-select" name="viewer_scope_mode" data-edit-scope-mode="viewer">
-                                            <option value="none">Chỉ người được giao</option>
-                                            <option value="role">Theo vai trò</option>
-                                            <option value="user">Theo cá nhân</option>
-                                        </select>
-                                        <div class="border rounded-2 p-2 mt-2 d-none" data-edit-scope-box="viewer" style="max-height: 180px; overflow:auto;">
-                                            {% for role in roles %}
-                                            <label class="d-flex gap-2 align-items-center small py-1">
-                                                <input type="checkbox" name="viewer_role_ids" value="{{ role.id }}">
-                                                <span>{{ role.name }}</span>
-                                            </label>
-                                            {% endfor %}
-                                            <hr class="my-2">
-                                            {% for user in users %}
-                                            <label class="d-flex gap-2 align-items-center small py-1">
-                                                <input type="checkbox" name="viewer_user_ids" value="{{ user.id }}">
-                                                <span>{{ user.fullname }}</span>
-                                            </label>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">Ai quản lý / duyệt công việc</label>
-                                        <select class="form-select" name="manager_scope_mode" data-edit-scope-mode="manager">
-                                            <option value="none">Chỉ quản trị</option>
-                                            <option value="role">Theo vai trò</option>
-                                            <option value="user">Theo cá nhân</option>
-                                        </select>
-                                        <div class="border rounded-2 p-2 mt-2 d-none" data-edit-scope-box="manager" style="max-height: 180px; overflow:auto;">
-                                            {% for role in roles %}
-                                            <label class="d-flex gap-2 align-items-center small py-1">
-                                                <input type="checkbox" name="manager_role_ids" value="{{ role.id }}">
-                                                <span>{{ role.name }}</span>
-                                            </label>
-                                            {% endfor %}
-                                            <hr class="my-2">
-                                            {% for user in users %}
-                                            <label class="d-flex gap-2 align-items-center small py-1">
-                                                <input type="checkbox" name="manager_user_ids" value="{{ user.id }}">
-                                                <span>{{ user.fullname }}</span>
-                                            </label>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                </div>
-                            </details>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-primary">Lưu cấu hình</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <div class="modal fade" id="wizardRowAssignModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -1276,28 +970,6 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
                 <button type="button" class="btn btn-primary" id="applyWizardRowAssignBtn">Áp dụng</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="deleteTaskConfirmModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Xác nhận xóa công việc</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-            </div>
-            <div class="modal-body">
-                <p id="deleteTaskConfirmText">Bạn có chắc chắn muốn xóa công việc này?</p>
-                <p class="small text-muted mb-0">Hành động này không thể hoàn tác. Toàn bộ dữ liệu liên quan (bài nộp, báo cáo, file đính kèm) sẽ bị xóa.</p>
-            </div>
-            <div class="modal-footer">
-                <form id="deleteTaskForm" method="POST" action="">
-                    <input type="hidden" name="csrf_token" value="">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-danger">Xóa</button>
-                </form>
             </div>
         </div>
     </div>
@@ -1549,72 +1221,40 @@
     function addWizardOutlineRow(rowData = {}) {
         if (!outlineRowsBox) return;
         const row = document.createElement('div');
-        row.className = 'border rounded-2 p-3 bg-white wizard-outline-row';
+        row.className = 'border rounded-2 p-2 bg-white';
         row.dataset.wzRow = '1';
         const titleValue = String(rowData.title || '').replace(/"/g, '&quot;');
-        const contentValue = String(rowData.content || '').replace(/"/g, '&quot;');
-        const headingValue = String(rowData.heading || '').replace(/"/g, '&quot;');
-        const numberFields = Array.isArray(rowData.number_fields) ? rowData.number_fields : [];
-        const hasNumbers = numberFields.length > 0 || Boolean(rowData.has_numbers);
-        const reportKind = rowData.report_kind === 'number' ? 'number' : 'narrative';
-        const numberFieldsJson = JSON.stringify(numberFields).replace(/"/g, '&quot;');
         row.innerHTML = `
-            <div class="row g-2 align-items-start">
-                <div class="col-12 mb-1">
-                    ${headingValue ? `<span class="badge bg-secondary">${headingValue}</span>` : ''}
-                    <input type="hidden" name="item_heading" value="${headingValue}">
-                </div>
-                <div class="col-md-1 d-flex align-items-center mt-2">
+            <div class="row g-2 align-items-center">
+                <div class="col-lg-1">
                     <input class="form-check-input" type="checkbox" data-wz-row-check title="Tích dòng để gán hàng loạt">
                 </div>
-                <div class="col-md-11">
-                    <div class="row g-2">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-semibold mb-1">Tên việc nhỏ</label>
-                            <input class="form-control form-control-sm" type="text" name="item_title" placeholder="Nội dung việc nhỏ" value="${titleValue}" style="word-break: break-word; white-space: normal;">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-semibold mb-1">Hình thức báo cáo</label>
-                            <select class="form-select form-select-sm" name="item_report_kind" data-report-kind-toggle>
-                                <option value="narrative" ${reportKind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
-                                <option value="number" ${reportKind === 'number' ? 'selected' : ''}>Báo cáo số</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-semibold mb-1">Tùy chọn</label>
-                            <div class="d-flex align-items-center gap-2">
-                                <label class="form-check-label small mb-0">
-                                    <input class="form-check-input" type="checkbox" name="item_attachment_required" ${rowData.attachment_required ? 'checked' : ''}>
-                                    Bắt buộc file
-                                </label>
-                            </div>
-                        </div>
+                <div class="col-lg-5">
+                    <input class="form-control form-control-sm" type="text" name="item_title" placeholder="Nội dung việc nhỏ" value="${titleValue}">
+                </div>
+                <div class="col-lg-2">
+                    <select class="form-select form-select-sm" name="item_report_kind">
+                        <option value="narrative" ${rowData.report_kind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
+                        <option value="number" ${rowData.report_kind === 'number' ? 'selected' : ''}>Báo cáo số</option>
+                    </select>
+                </div>
+                <div class="col-lg-2">
+                    <label class="form-check-label small">
+                        <input class="form-check-input" type="checkbox" name="item_attachment_required" ${rowData.attachment_required ? 'checked' : ''}>
+                        Bắt buộc file
+                    </label>
+                </div>
+                <div class="col-lg-2">
+                    <div class="d-flex flex-wrap gap-1 mb-1">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-wz-row-assign>Gán</button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-wz-row-remove>Xóa</button>
                     </div>
-                    <div class="row g-2 mt-2">
-                        <div class="col-12">
-                            <label class="form-label small fw-semibold mb-1">Nội dung chi tiết từ đề cương</label>
-                            <textarea class="form-control form-control-sm" name="item_content" rows="3" placeholder="Nội dung chi tiết từ đề cương" style="word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap;">${contentValue}</textarea>
-                        </div>
-                    </div>
-                    <div class="row g-2 mt-2">
-                        <div class="col-md-8">
-                            <div class="d-flex gap-2 align-items-center">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" data-wz-row-assign><i class="fa-solid fa-user-plus me-1"></i>Gán đơn vị</button>
-                                <button type="button" class="btn btn-sm btn-outline-danger" data-wz-row-remove><i class="fa-solid fa-trash me-1"></i>Xóa</button>
-                                <span class="small fw-medium text-primary" data-wz-row-summary></span>
-                            </div>
-                        </div>
-                    </div>
+                    <div class="small fw-medium text-primary" data-wz-row-summary></div>
                     <input type="hidden" name="item_assign_type">
                     <input type="hidden" name="item_domain">
                     <input type="hidden" name="item_domains">
                     <input type="hidden" name="item_role_ids">
                     <input type="hidden" name="item_user_ids">
-                    <input type="hidden" name="item_number_fields" value="${numberFieldsJson}">
-                    <div class="number-fields-preview ${reportKind === 'number' ? '' : 'd-none'} mt-2 p-2 bg-light rounded" data-number-preview>
-                        ${numberFields.length > 0 ? numberFields.map((field, idx) => `<div class="small text-muted mb-1">${idx + 1}. <strong>${field.label}</strong>: <span class="text-primary">${field.value}</span> ${field.unit || ''}</div>`).join('') : ''}
-                        ${hasNumbers && numberFields.length === 0 ? `<div class="small text-muted"><i class="fa-solid fa-circle-info me-1"></i>Đã phát hiện số liệu trong nội dung. Chọn "Báo cáo số" để nhập các trường số.</div>` : ''}
-                    </div>
                 </div>
             </div>
         `;
@@ -1632,15 +1272,6 @@
         });
         row.querySelector('[data-wz-row-assign]')?.addEventListener('click', () => openWizardRowAssign(row));
         row.querySelector('input[name="item_title"]')?.addEventListener('input', syncWizardSummary);
-        const reportKindSelect = row.querySelector('[data-report-kind-toggle]');
-        if (reportKindSelect) {
-            reportKindSelect.addEventListener('change', () => {
-                const preview = row.querySelector('[data-number-preview]');
-                if (preview) {
-                    preview.classList.toggle('d-none', reportKindSelect.value !== 'number');
-                }
-            });
-        }
         outlineRowsBox.appendChild(row);
         syncWizardOutlineRowIndexes();
         syncWizardSummary();
@@ -1915,48 +1546,6 @@
         addFormField();
     }
 })();
-
-
-    // ---------- edit config scope toggles ----------
-    document.querySelectorAll('[data-edit-scope-mode]').forEach(function(select) {
-        select.addEventListener('change', function() {
-            var key = this.dataset.editScopeMode;
-            var box = document.querySelector('[data-edit-scope-box="' + key + '"]');
-            if (box) box.classList.toggle('d-none', this.value === 'none');
-        });
-    });
-    // ---------- delete task confirm ----------
-    window.openDeleteConfirmModal = function(tid) {
-        const modal = document.getElementById('deleteTaskConfirmModal');
-        if (!modal) return;
-        const form = document.getElementById('deleteTaskForm');
-        if (form) {
-            form.action = '{{ url_for("tasks_bp.delete_task", tid=0) }}'.replace('/0', '/' + tid);
-        }
-        const text = document.getElementById('deleteTaskConfirmText');
-        if (text) text.textContent = 'Bạn có chắc chắn muốn xóa công việc #' + tid + '?';
-        if (window.bootstrap) {
-            bootstrap.Modal.getOrCreateInstance(modal).show();
-        }
-    };
-
-    // ---------- edit config modal ----------
-    var editConfigModalInstance = null;
-    var currentEditTaskId = null;
-
-    window.openEditConfigModal = function(tid) {
-        currentEditTaskId = tid;
-        const form = document.getElementById('editConfigForm');
-        if (form) {
-            form.action = '{{ url_for("tasks_bp.edit_task_config", tid=0) }}'.replace('/0', '/' + tid);
-        }
-        const modal = document.getElementById('editConfigModal');
-        if (!modal) return;
-        if (window.bootstrap) {
-            editConfigModalInstance = bootstrap.Modal.getOrCreateInstance(modal);
-            editConfigModalInstance.show();
-        }
-    };
 </script>
 
 {% endif %}

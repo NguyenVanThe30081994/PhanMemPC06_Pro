@@ -9275,6 +9275,79 @@ def delete_task(tid):
         return redirect(url_for("tasks_bp.task_detail", tid=parent_task_id))
     return redirect(url_for("tasks_bp.tasks"))
 
+@tasks_bp.route("/tasks/<int:tid>/edit_config", methods=["POST"])
+def edit_task_config(tid):
+    """Route để sửa cấu hình công việc từ danh sách."""
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        flash("Công việc không tồn tại.", "danger")
+        return redirect(url_for("tasks_bp.tasks"))
+
+    perms = _current_perms()
+    is_lead = _can_process_task_module(perms)
+    is_admin = bool(session.get("is_admin"))
+
+    if not _can_edit_task(task) and not is_admin and not is_lead:
+        flash("Bạn không có quyền sửa công việc này.", "danger")
+        return redirect(url_for("tasks_bp.tasks"))
+
+    # Lấy dữ liệu từ form
+    title = request.form.get("title", "").strip()
+    deadline_str = request.form.get("deadline", "").strip()
+    category = request.form.get("category", "").strip()
+    domain = request.form.get("domain", "").strip()
+    task_type = request.form.get("task_type", "").strip()
+    priority = request.form.get("priority", "").strip()
+    description = request.form.get("description", "").strip()
+
+    # Cập nhật thông tin công việc
+    if title:
+        task.title = title
+    if deadline_str:
+        try:
+            task.deadline = datetime.strptime(deadline_str, "%Y-%m-%d").date()
+        except ValueError:
+            task.deadline = None
+    if category:
+        task.category = category
+    if domain:
+        task.domain = domain
+    if task_type:
+        task.task_type = task_type
+    if priority:
+        task.priority = priority
+    task.content = description
+
+    # Cập nhật scope nếu có
+    viewer_scope_mode = request.form.get("viewer_scope_mode", "").strip()
+    if viewer_scope_mode:
+        viewer_role_ids = request.form.getlist("viewer_role_ids")
+        viewer_user_ids = request.form.getlist("viewer_user_ids")
+        store_viewer_scope(task, mode=viewer_scope_mode, role_ids=viewer_role_ids, user_ids=viewer_user_ids)
+
+    manager_scope_mode = request.form.get("manager_scope_mode", "").strip()
+    if manager_scope_mode:
+        manager_role_ids = request.form.getlist("manager_role_ids")
+        manager_user_ids = request.form.getlist("manager_user_ids")
+        store_manager_scope(task, mode=manager_scope_mode, role_ids=manager_role_ids, user_ids=manager_user_ids)
+
+    db.session.commit()
+
+    log_action(
+        session["uid"],
+        session.get("fullname", "Quản trị"),
+        "Sửa cấu hình công việc",
+        "Công việc",
+        f"Task #{tid} | {task.title}",
+    )
+    flash("Đã cập nhật cấu hình công việc.", "success")
+    return redirect(url_for("tasks_bp.tasks"))
+
 @tasks_bp.route("/tasks/<int:tid>/update_status", methods=["POST"])
 def update_task_status(tid):
     if not session.get("uid"):
