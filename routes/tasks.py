@@ -56,6 +56,10 @@ from utils import (
     remove_accents,
     render_auto_template as render_template,
 )
+from routes.email_service import send_task_assignment_emails
+
+logger = __import__('logging').getLogger(__name__)
+
 from task_workspace import (
     build_task_detail_context,
     build_task_workspace_attrs,
@@ -6856,6 +6860,18 @@ def _tasks_page_v2():
 
         for user in assignees:
             push_notif(user.id, "Công việc mới", f"Bạn vừa được giao: {new_task.title}", f"/tasks/{new_task.id}")
+
+        # Send email notifications to assigned users
+        try:
+            protocol = request.scheme
+            host = request.host
+            base_url = f"{protocol}://{host}"
+            email_result = send_task_assignment_emails(assignees, new_task, base_url=base_url)
+            if email_result.get("skipped"):
+                for uid, reason in email_result["skipped"]:
+                    logger.warning(f"Email skipped for user {uid}: {reason}")
+        except Exception as e:
+            logger.error(f"Failed to send task assignment emails: {e}")
 
         flash("Đã tạo công việc mới.", "success")
         return redirect(url_for("tasks_bp.task_detail", tid=new_task.id))

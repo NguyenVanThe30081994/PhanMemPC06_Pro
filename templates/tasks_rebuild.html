@@ -16,9 +16,9 @@
         <p>{{ task.workspace_preview_text }}</p>
     </div>
     <div class="task-card-meta">
-        <span>{{ task.domain_display or 'Chưa phân đội' }}</span>
-        <span>{{ task.workspace_deadline_text }}</span>
-        <span>{{ task.workspace_meta_text }}</span>
+        <span><i class="fa-solid fa-building"></i> {{ task.domain_display or 'Chưa phân đội' }}</span>
+        <span><i class="fa-solid fa-clock"></i> {{ task.workspace_deadline_text }}</span>
+        <span><i class="fa-solid fa-chart-line"></i> {{ task.workspace_meta_text }}</span>
     </div>
     <div class="task-progress-line">
         <div class="task-progress-bar">
@@ -451,6 +451,119 @@
         font-size: 1.2rem;
     }
 
+    .task-header-bar {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .task-stats-compact {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .task-stat-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        font-weight: 700;
+        font-size: 0.9rem;
+        white-space: nowrap;
+        transition: transform .15s ease, box-shadow .15s ease;
+    }
+
+    .task-stat-item:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+    }
+
+    .task-stat-item i {
+        font-size: 0.85rem;
+        width: 22px;
+        height: 22px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+    }
+
+    .task-stat-item.danger i { color: #b91c1c; background: rgba(239, 68, 68, 0.12); }
+    .task-stat-item.primary i { color: #1d4ed8; background: rgba(37, 99, 235, 0.12); }
+    .task-stat-item.warning i { color: #b45309; background: rgba(245, 158, 11, 0.14); }
+    .task-stat-item.success i { color: #047857; background: rgba(16, 185, 129, 0.14); }
+
+    .task-actions-compact {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .task-nav-tabs {
+        border-bottom: none;
+        gap: 8px;
+    }
+
+    .task-nav-tabs .nav-link {
+        border: 1px solid transparent;
+        border-radius: 12px;
+        padding: 10px 16px;
+        font-weight: 700;
+        color: var(--text-muted);
+        background: rgba(255, 255, 255, 0.6);
+        transition: all .15s ease;
+    }
+
+    .task-nav-tabs .nav-link.active {
+        color: #1d4ed8;
+        background: rgba(219, 234, 254, 0.9);
+        border-color: rgba(37, 99, 235, 0.18);
+    }
+
+    .task-tab-content {
+        padding-top: 18px;
+    }
+
+    .task-list-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 18px;
+    }
+
+    .task-card-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .task-card-meta i {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        opacity: .7;
+    }
+
+    [data-theme="dark"] .task-header-bar .task-stat-item {
+        background: rgba(30, 41, 59, 0.82);
+        border-color: rgba(148, 163, 184, 0.14);
+    }
+
+    [data-theme="dark"] .task-nav-tabs .nav-link {
+        background: rgba(30, 41, 59, 0.5);
+        color: #94a3b8;
+    }
+
+    [data-theme="dark"] .task-nav-tabs .nav-link.active {
+        background: rgba(37, 99, 235, 0.2);
+        border-color: rgba(37, 99, 235, 0.35);
+        color: #93c5fd;
+    }
+
     [data-theme="dark"] .task-panel,
     [data-theme="dark"] .task-metric-card,
     [data-theme="dark"] .task-workspace-card {
@@ -518,6 +631,34 @@
 
         .task-progress-bar {
             width: 100%;
+        }
+
+        .task-header-bar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .task-stats-compact,
+        .task-actions-compact {
+            width: 100%;
+        }
+
+        .task-actions-compact .btn {
+            flex: 1 1 auto;
+        }
+
+        .task-stat-item {
+            font-size: 0.85rem;
+            padding: 8px 12px;
+        }
+
+        .task-nav-tabs .nav-link {
+            padding: 8px 10px;
+            font-size: 0.85rem;
+        }
+
+        .task-list-grid {
+            grid-template-columns: 1fr;
         }
     }
 </style>

@@ -130,6 +130,7 @@ class User(db.Model):
     username = db.Column(db.String(50), unique=True, index=True)
     password_hash = db.Column(db.String(255))
     fullname = db.Column(db.String(100))
+    email = db.Column(db.String(200), nullable=True)
     role_id = db.Column(db.Integer, db.ForeignKey('app_role.id'))
     unit_area = db.Column(db.String(100))
     unit_key = db.Column(db.String(100), index=True)
