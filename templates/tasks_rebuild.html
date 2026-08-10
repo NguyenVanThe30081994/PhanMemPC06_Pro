@@ -1412,7 +1412,7 @@
                     <textarea class="form-control form-control-sm" name="item_content" rows="2" placeholder="Nội dung chi tiết từ đề cương">${contentValue}</textarea>
                 </div>
                 <div class="col-12 number-fields-preview ${reportKind === 'number' ? '' : 'd-none'}" data-number-preview>
-                    ${numberFields.map((field, idx) => \`<div class="small text-muted">\${idx + 1}. \${field.label}: <strong>\${field.value}</strong> \${field.unit || ''}</div>\`).join('')}
+                    ${numberFields.map((field, idx) => `<div class="small text-muted">${idx + 1}. ${field.label}: <strong>${field.value}</strong> ${field.unit || ''}</div>`).join('')}
                     ${hasNumbers && numberFields.length === 0 ? '<div class="small text-muted">Đã phát hiện số liệu trong nội dung. Chọn \"Báo cáo số\" để nhập các trường số.</div>' : ''}
                 </div>
             </div>
