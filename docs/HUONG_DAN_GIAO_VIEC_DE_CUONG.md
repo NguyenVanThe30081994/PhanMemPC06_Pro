@@ -2,6 +2,8 @@
 
 Chức năng mới: **upload file .docx/.txt bất kỳ → tự động nhận diện cấu trúc mục lục đa tầng → hiển thị dạng cây → gán cán bộ/vai trò cho từng mục → tạo công việc giữ nguyên phân cấp**.
 
+> **HẠN CHẾ BẮT BUỘC:** mỗi gạch đầu dòng (`-`, `–`, `•`) hoặc dấu cộng (`+`) trong đề cương là **một việc riêng** và được gán cho đơn vị/cán bộ khác nhau. Không thiết kế theo hướng gộp toàn bộ gạch đầu dòng của cùng một mục thành 1 nhiệm vụ con để gán.
+
 ## 1. Các file mới / đã sửa
 
 | File | Vai trò |
@@ -84,6 +86,7 @@ Với file `Đề cương báo cáo ĐA06 - H.T.Q.docx` (126 nút):
 - Phân cấp đúng: I → 1 → 1.1 → bullets → 5 dấu `+` thuộc gạch "Bám sát chỉ tiêu...".
 - Tạo công việc: 126 đầu mục, độ sâu cây tối đa 5, gán đúng user/role.
 - Xuất Word: heading cấp 1–4 + bullet + bullet con.
+- Luồng cũ `/tasks/outline-parse` (routes/tasks.py) đã đồng bộ: tách từng gạch đầu dòng / dấu `+` thành việc riêng, gán đơn vị khác nhau (không gộp content).
 
 ## 6. Ghi chú bảo mật
 

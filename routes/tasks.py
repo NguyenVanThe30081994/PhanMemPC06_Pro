@@ -1321,70 +1321,75 @@ def _parse_outline_with_hierarchy(paragraphs, is_docx=False):
 
 def _flatten_hierarchy_to_rows(hierarchy_items, catalog=None):
     """Flatten cây hierarchy thành danh sách rows phẳng cho UI.
-    
-    Mỗi item ở level 3 (1.1, 1.1.1) có content_lines sẽ trở thành 1 row.
-    Các content_lines (gạch đầu dòng) được gộp vào content của row đó.
+
+    HẠN CHẾ: MỖI gạch đầu dòng (-/–/•) / dấu cộng (+) / đoạn nội dung (content line)
+    được coi là MỘT việc riêng và gán cho đơn vị khác nhau.
+    Không gộp toàn bộ gạch đầu dòng của cùng một mục vào chung 1 content.
     """
     rows = []
     seen = set()
-    
+
     def process_item(item, parent_heading=""):
         # Build full heading path
         full_heading = item.get("full_title", item.get("title", ""))
         if parent_heading:
             full_heading = f"{parent_heading} » {full_heading}"
-        
-        # Nếu item có content_lines (gạch đầu dòng), tạo row
-        if item.get("content_lines") and len(item["content_lines"]) > 0:
-            content = "\n".join(item["content_lines"])
-            title = item.get("title", "")
-            
-            if not title or len(title) < 3:
-                # Nếu title quá ngắn, lấy từ content
-                sentences = re.split(r"[.!?]\s+", content)
-                title = sentences[0].strip()[:100] if sentences else content[:100]
-            
-            cleaned_title = _clean_outline_title(title)
-            if len(cleaned_title) < 3:
-                return
-            
-            dedupe = _normalize_outline_match_text(cleaned_title)
-            if dedupe in seen:
-                return
-            seen.add(dedupe)
-            
-            # Tìm assignment hint
-            full_text = f"{full_heading} {content}"
-            assignment = None
-            if catalog:
-                assignment = _resolve_outline_assignee_hint(full_text, catalog)
-            
-            number_fields = _extract_number_fields_from_text(content)
-            
-            rows.append({
-                "title": cleaned_title[:255],
-                "content": content[:3000],  # Tăng giới hạn cho nhiều gạch đầu dòng
-                "heading": full_heading[:255],
-                "level": item.get("level", 3),
-                "number": item.get("number", ""),
-                "has_numbers": bool(number_fields),
-                "number_fields": number_fields,
-                "assign_type": assignment["assign_type"] if assignment else "",
-                "domain": "",
-                "unit_domains": assignment["unit_domains"] if assignment else [],
-                "role_ids": assignment["role_ids"] if assignment else [],
-                "user_ids": assignment["user_ids"] if assignment else [],
-                "assignee_hint": full_text[:500],
-                "assignee_detected": bool(assignment and (assignment["unit_domains"] or assignment["role_ids"] or assignment["user_ids"])),
-            })
-        
+
+        # Mỗi content line -> một row (một việc) riêng, gán đơn vị riêng
+        content_lines = item.get("content_lines") or []
+        if content_lines:
+            for raw_line in content_lines:
+                line = str(raw_line or "").strip()
+                if not line:
+                    continue
+                # Bỏ dấu gạch đầu dòng / dấu cộng ở đầu (kể cả –, —)
+                line = re.sub(r"^\s*(?:[-–—•*+])\s*", "", line).strip()
+                if not line:
+                    continue
+                cleaned_line = _clean_outline_title(line)
+                if len(cleaned_line) < 3:
+                    # Dòng quá ngắn -> lấy tiêu đề mục cha làm tên việc
+                    cleaned_line = _clean_outline_title(item.get("title", ""))
+                if len(cleaned_line) < 3:
+                    continue
+
+                dedupe = _normalize_outline_match_text(cleaned_line)
+                if dedupe in seen:
+                    continue
+                seen.add(dedupe)
+
+                # Nhận diện 'giao cho ai' trên chính dòng đó (mỗi gạch -> đơn vị riêng)
+                full_text = f"{full_heading} {line}"
+                assignment = None
+                if catalog:
+                    assignment = _resolve_outline_assignee_hint(full_text, catalog)
+
+                number_fields = _extract_number_fields_from_text(line)
+
+                rows.append({
+                    "title": cleaned_line[:255],
+                    "content": cleaned_line[:3000],
+                    "heading": full_heading[:255],
+                    "level": item.get("level", 3),
+                    "number": item.get("number", ""),
+                    "has_numbers": bool(number_fields),
+                    "number_fields": number_fields,
+                    "assign_type": assignment["assign_type"] if assignment else "",
+                    "domain": "",
+                    "unit_domains": assignment["unit_domains"] if assignment else [],
+                    "role_ids": assignment["role_ids"] if assignment else [],
+                    "user_ids": assignment["user_ids"] if assignment else [],
+                    "assignee_hint": full_text[:500],
+                    "assignee_detected": bool(assignment and (assignment["unit_domains"] or assignment["role_ids"] or assignment["user_ids"])),
+                })
+
         # Process children
         for child in item.get("children", []):
             process_item(child, full_heading)
-    
+
     for item in hierarchy_items:
         process_item(item)
-    
+
     return rows
 
 
