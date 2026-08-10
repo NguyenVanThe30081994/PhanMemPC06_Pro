@@ -388,6 +388,7 @@ from routes.tasks import tasks_bp
 from routes.api import api_bp
 from routes.shortlink import shortlink_bp
 from routes.health import health_bp
+from routes.outline import outline_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
@@ -396,6 +397,7 @@ app.register_blueprint(tasks_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(shortlink_bp)
 app.register_blueprint(health_bp)
+app.register_blueprint(outline_bp)
 
 @app.context_processor
 def inject_security_tokens():
