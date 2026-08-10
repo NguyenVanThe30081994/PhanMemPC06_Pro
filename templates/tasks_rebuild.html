@@ -4,6 +4,20 @@
 
 {% macro task_card(task, show_actions=False) -%}
 <article class="task-workspace-card task-tone-{{ task.workspace_tone }}">
+    {% if show_actions %}
+    <div class="task-card-corner-actions">
+        {% if task.can_edit %}
+        <button class="btn-icon-corner" type="button" onclick="openEditConfigModal({{ task.id }})" title="Sửa cấu hình">
+            <i class="fa-solid fa-pen"></i>
+        </button>
+        {% endif %}
+        {% if task.can_delete %}
+        <button class="btn-icon-corner" type="button" onclick="openDeleteConfirmModal({{ task.id }})" title="Xóa việc">
+            <i class="fa-solid fa-trash"></i>
+        </button>
+        {% endif %}
+    </div>
+    {% endif %}
     <div class="task-card-top">
         <div class="task-card-tags">
             <span class="task-pill task-pill-{{ task.workspace_tone }}">{{ task.workspace_status_text }}</span>
@@ -26,20 +40,6 @@
         </div>
         <strong>{{ task.progress_percent }}%</strong>
     </div>
-    {% if show_actions %}
-    <div class="task-card-actions mt-2 pt-2 border-top d-flex flex-wrap gap-2">
-        {% if task.can_edit %}
-        <button class="btn btn-sm btn-outline-primary" type="button" onclick="openEditConfigModal({{ task.id }})">
-            <i class="fa-solid fa-pen me-1"></i>Sửa cấu hình
-        </button>
-        {% endif %}
-        {% if task.can_delete %}
-        <button class="btn btn-sm btn-outline-danger" type="button" onclick="openDeleteConfirmModal({{ task.id }})">
-            <i class="fa-solid fa-trash me-1"></i>Xóa việc
-        </button>
-        {% endif %}
-    </div>
-    {% endif %}
 </article>
 {%- endmacro %}
 
@@ -562,6 +562,85 @@
         opacity: .7;
     }
 
+    .wizard-outline-hierarchy {
+        display: grid;
+        gap: 12px;
+    }
+
+    .wizard-heading-level-1 {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(59, 130, 246, 0.05));
+        border: 1px solid rgba(37, 99, 235, 0.2);
+        border-left: 4px solid #2563eb;
+        padding: 12px 16px;
+        border-radius: 12px;
+        margin: 8px 0;
+    }
+
+    .wizard-heading-level-1 .heading-title {
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: #1d4ed8;
+        margin: 0;
+    }
+
+    .wizard-heading-level-2 {
+        background: rgba(248, 250, 252, 0.8);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-left: 3px solid #f59e0b;
+        padding: 10px 14px;
+        border-radius: 10px;
+        margin: 6px 0 6px 16px;
+    }
+
+    .wizard-heading-level-2 .heading-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #b45309;
+        margin: 0;
+    }
+
+    .wizard-heading-level-3 {
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(148, 163, 184, 0.15);
+        border-left: 2px solid #10b981;
+        padding: 8px 12px;
+        border-radius: 8px;
+        margin: 4px 0 4px 32px;
+    }
+
+    .wizard-heading-level-3 .heading-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #047857;
+        margin: 0;
+    }
+
+    .wizard-content-lines {
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px dashed rgba(148, 163, 184, 0.3);
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin: 6px 0 6px 48px;
+        font-size: 0.85rem;
+        line-height: 1.6;
+    }
+
+    .wizard-content-lines .content-line {
+        padding: 4px 0;
+        border-bottom: 1px dotted rgba(148, 163, 184, 0.2);
+    }
+
+    .wizard-content-lines .content-line:last-child {
+        border-bottom: none;
+    }
+
+    .wizard-content-lines .content-line::before {
+        content: "•";
+        color: #64748b;
+        margin-right: 6px;
+        font-weight: 400;
+    }
+
     .wizard-outline-row {
         word-wrap: break-word;
         overflow-wrap: break-word;
@@ -621,13 +700,66 @@
         box-shadow: 0 14px 30px rgba(37, 99, 235, 0.28);
     }
 
-    .task-card-actions {
-        margin-top: 12px;
-        padding-top: 10px;
+    .task-card-corner-actions {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        display: flex;
+        gap: 6px;
+        z-index: 10;
     }
 
-    .task-card-actions .btn {
-        font-size: 0.82rem;
+    .btn-icon-corner {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        background: rgba(255, 255, 255, 0.9);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        padding: 0;
+    }
+
+    .btn-icon-corner i {
+        font-size: 0.85rem;
+        color: #64748b;
+    }
+
+    .btn-icon-corner:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-icon-corner:hover i {
+        color: #1d4ed8;
+    }
+
+    .btn-icon-corner.btn-danger:hover i {
+        color: #dc2626;
+    }
+
+    .task-workspace-card {
+        position: relative;
+    }
+
+    [data-theme="dark"] .btn-icon-corner {
+        background: rgba(30, 41, 59, 0.9);
+        border-color: rgba(148, 163, 184, 0.2);
+    }
+
+    [data-theme="dark"] .btn-icon-corner i {
+        color: #94a3b8;
+    }
+
+    [data-theme="dark"] .btn-icon-corner:hover i {
+        color: #93c5fd;
+    }
+
+    [data-theme="dark"] .btn-icon-corner.btn-danger:hover i {
+        color: #f87171;
     }
 
     [data-theme="dark"] .task-empty-state,
@@ -1546,11 +1678,100 @@
         syncWizardSummary();
     }
 
+
+    function renderHierarchyItem(container, rowData) {
+        const level = rowData.level || 3;
+        const number = rowData.number || '';
+        const title = rowData.title || '';
+        const fullHeading = rowData.heading || title;
+        const contentLines = rowData.content_lines || [];
+        const contentValue = rowData.content || '';
+        
+        // Parse content lines from content if not provided
+        let lines = contentLines;
+        if (lines.length === 0 && contentValue) {
+            lines = contentValue.split('\n').filter(l => l.trim());
+        }
+        
+        const levelClass = level === 1 ? 'wizard-heading-level-1' : 
+                          level === 2 ? 'wizard-heading-level-2' : 'wizard-heading-level-3';
+        
+        // Create heading element
+        const headingDiv = document.createElement('div');
+        headingDiv.className = levelClass;
+        headingDiv.innerHTML = `<div class="heading-title">${number ? number + '. ' : ''}${title}</div>`;
+        container.appendChild(headingDiv);
+        
+        // Create content lines container if there are lines
+        if (lines.length > 0) {
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'wizard-content-lines';
+            lines.forEach((line, idx) => {
+                const lineDiv = document.createElement('div');
+                lineDiv.className = 'content-line';
+                lineDiv.textContent = line.trim();
+                contentDiv.appendChild(lineDiv);
+            });
+            container.appendChild(contentDiv);
+        }
+        
+        // Hidden inputs for form submission
+        const hiddenHeading = document.createElement('input');
+        hiddenHeading.type = 'hidden';
+        hiddenHeading.name = 'item_heading';
+        hiddenHeading.value = fullHeading;
+        container.appendChild(hiddenHeading);
+        
+        const hiddenTitle = document.createElement('input');
+        hiddenTitle.type = 'hidden';
+        hiddenTitle.name = 'item_title';
+        hiddenTitle.value = title;
+        container.appendChild(hiddenTitle);
+        
+        const hiddenContent = document.createElement('input');
+        hiddenContent.type = 'hidden';
+        hiddenContent.name = 'item_content';
+        hiddenContent.value = contentValue;
+        container.appendChild(hiddenContent);
+        
+        const hiddenLevel = document.createElement('input');
+        hiddenLevel.type = 'hidden';
+        hiddenLevel.name = 'item_level';
+        hiddenLevel.value = String(level);
+        container.appendChild(hiddenLevel);
+        
+        const hiddenNumber = document.createElement('input');
+        hiddenNumber.type = 'hidden';
+        hiddenNumber.name = 'item_number';
+        hiddenNumber.value = number;
+        container.appendChild(hiddenNumber);
+        
+        const hiddenIsHeading = document.createElement('input');
+        hiddenIsHeading.type = 'hidden';
+        hiddenIsHeading.name = 'item_is_heading';
+        hiddenIsHeading.value = '1';
+        container.appendChild(hiddenIsHeading);
+    }
+
     function addWizardOutlineRow(rowData = {}) {
         if (!outlineRowsBox) return;
         const row = document.createElement('div');
         row.className = 'border rounded-2 p-3 bg-white wizard-outline-row';
         row.dataset.wzRow = '1';
+        
+        // Check if this is a hierarchy item with levels
+        const level = rowData.level || 0;
+        const number = rowData.number || '';
+        const hasHierarchy = level > 0 && rowData.is_heading;
+        
+        if (hasHierarchy) {
+            // Render as hierarchy item
+            renderHierarchyItem(row, rowData);
+            outlineRowsBox.appendChild(row);
+            syncWizardOutlineRowIndexes();
+            syncWizardSummary();
+            return;
+        }
         const titleValue = String(rowData.title || '').replace(/"/g, '&quot;');
         const contentValue = String(rowData.content || '').replace(/"/g, '&quot;');
         const headingValue = String(rowData.heading || '').replace(/"/g, '&quot;');

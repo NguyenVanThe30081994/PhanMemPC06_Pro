@@ -1198,6 +1198,196 @@ def _is_outline_heading(text, style_name=""):
         return True
     if re.match(r"^\s*\(\d{1,3}\)\s+\S", raw):
         return True
+
+
+def _get_heading_level(raw_text):
+    """Xác định cấp độ heading dựa vào số chấm trong số (1, 1.1, 1.1.1).
+    Trả về (level, normalized_number) ví dụ: (2, "1.1") hoặc (0, "") nếu không phải heading.
+    """
+    raw = str(raw_text or "").strip()
+    if not raw:
+        return (0, "")
+    
+    # Pattern: 1, 1.1, 1.1.1, etc.
+    match = re.match(r"^\s*((?:\d{1,3}\.){1,5})\d*\s+", raw)
+    if match:
+        number_part = match.group(1).rstrip(".")
+        level = number_part.count(".")
+        return (level + 1, number_part)
+    
+    # Roman numerals for top level (I, II, III, IV...)
+    if re.match(r"^\s*[IVXLCDM]+\.\s+", raw):
+        return (1, re.match(r"^\s*([IVXLCDM]+)", raw).group(1))
+    
+    # Letter headings (A, B, C...)
+    if re.match(r"^\s*[A-Z]\.\s+", raw):
+        return (1, re.match(r"^\s*([A-Z])", raw).group(1))
+    
+    return (0, "")
+
+
+def _parse_outline_with_hierarchy(paragraphs, is_docx=False):
+    """Parse đề cương với hierarchy đa cấp.
+    
+    Cấu trúc:
+    - Level 1: I, II, III hoặc A, B, C (chương/phần lớn)
+    - Level 2: 1, 2, 3 (mục lớn)
+    - Level 3: 1.1, 1.2, 1.1.1 (mục con)
+    - Content: các gạch đầu dòng (+, -, •) thuộc về mục cha gần nhất
+    
+    Trả về danh sách items với structure:
+    [
+        {
+            "level": 1,
+            "title": "I. KẾT QUẢ CÁC MẶT CÔNG TÁC",
+            "number": "I",
+            "children": [
+                {
+                    "level": 2,
+                    "title": "1. CÔNG TÁC THAM MƯU...",
+                    "number": "1",
+                    "children": [
+                        {
+                            "level": 3,
+                            "title": "1.1. Các Sở, ban, ngành...",
+                            "number": "1.1",
+                            "content_lines": ["- Dòng 1", "+ Dòng 2"],  # các gạch đầu dòng
+                            "children": []
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+    """
+    items = []
+    stack = []  # Stack để track parent items: [(level, item), ...]
+    
+    for para in paragraphs:
+        if is_docx:
+            text = str(getattr(para, "text", "") or "").strip()
+            style_name = str(getattr(getattr(para, "style", None), "name", "") or "").strip()
+        else:
+            text = str(para or "").strip()
+            style_name = ""
+        
+        if not text:
+            continue
+        
+        # Check if this is a heading
+        level, number = _get_heading_level(text)
+        
+        if level > 0:
+            # Đây là heading
+            title = text.strip()
+            # Clean the title by removing the number prefix for storage
+            clean_title = re.sub(r"^\s*(?:[IVXLCDM]+|[A-Z]|\d{1,3}(?:\.\d{1,3})*)\.?\s*", "", title).strip()
+            
+            new_item = {
+                "level": level,
+                "title": clean_title[:255],
+                "full_title": title[:255],
+                "number": number,
+                "content_lines": [],
+                "children": []
+            }
+            
+            # Pop stack until we find parent with level < current level
+            while stack and stack[-1][0] >= level:
+                stack.pop()
+            
+            # Add to parent's children or root
+            if stack:
+                parent_item = stack[-1][1]
+                parent_item["children"].append(new_item)
+            else:
+                items.append(new_item)
+            
+            stack.append((level, new_item))
+        else:
+            # Đây là content line (gạch đầu dòng)
+            # Add to current parent's content_lines
+            if stack:
+                current_parent = stack[-1][1]
+                # Chỉ thêm nếu không phải heading structural
+                if not _is_outline_structural_heading(text, text):
+                    current_parent["content_lines"].append(text)
+            elif items:
+                # Leading content before any heading - add to first item
+                items[0]["content_lines"].append(text)
+    
+    return items
+
+
+def _flatten_hierarchy_to_rows(hierarchy_items, catalog=None):
+    """Flatten cây hierarchy thành danh sách rows phẳng cho UI.
+    
+    Mỗi item ở level 3 (1.1, 1.1.1) có content_lines sẽ trở thành 1 row.
+    Các content_lines (gạch đầu dòng) được gộp vào content của row đó.
+    """
+    rows = []
+    seen = set()
+    
+    def process_item(item, parent_heading=""):
+        # Build full heading path
+        full_heading = item.get("full_title", item.get("title", ""))
+        if parent_heading:
+            full_heading = f"{parent_heading} » {full_heading}"
+        
+        # Nếu item có content_lines (gạch đầu dòng), tạo row
+        if item.get("content_lines") and len(item["content_lines"]) > 0:
+            content = "\n".join(item["content_lines"])
+            title = item.get("title", "")
+            
+            if not title or len(title) < 3:
+                # Nếu title quá ngắn, lấy từ content
+                sentences = re.split(r"[.!?]\s+", content)
+                title = sentences[0].strip()[:100] if sentences else content[:100]
+            
+            cleaned_title = _clean_outline_title(title)
+            if len(cleaned_title) < 3:
+                return
+            
+            dedupe = _normalize_outline_match_text(cleaned_title)
+            if dedupe in seen:
+                return
+            seen.add(dedupe)
+            
+            # Tìm assignment hint
+            full_text = f"{full_heading} {content}"
+            assignment = None
+            if catalog:
+                assignment = _resolve_outline_assignee_hint(full_text, catalog)
+            
+            number_fields = _extract_number_fields_from_text(content)
+            
+            rows.append({
+                "title": cleaned_title[:255],
+                "content": content[:3000],  # Tăng giới hạn cho nhiều gạch đầu dòng
+                "heading": full_heading[:255],
+                "level": item.get("level", 3),
+                "number": item.get("number", ""),
+                "has_numbers": bool(number_fields),
+                "number_fields": number_fields,
+                "assign_type": assignment["assign_type"] if assignment else "",
+                "domain": "",
+                "unit_domains": assignment["unit_domains"] if assignment else [],
+                "role_ids": assignment["role_ids"] if assignment else [],
+                "user_ids": assignment["user_ids"] if assignment else [],
+                "assignee_hint": full_text[:500],
+                "assignee_detected": bool(assignment and (assignment["unit_domains"] or assignment["role_ids"] or assignment["user_ids"])),
+            })
+        
+        # Process children
+        for child in item.get("children", []):
+            process_item(child, full_heading)
+    
+    for item in hierarchy_items:
+        process_item(item)
+    
+    return rows
+
+
     return False
 
 
@@ -1309,6 +1499,7 @@ def _split_outline_paragraphs_into_blocks(paragraphs, is_docx=False):
     return blocks
 
 def _parse_outline_docx_rows(file_storage):
+    """Parse Word docx với hierarchy awareness."""
     if DocxDocument is None:
         raise ValueError("Máy chủ chưa cài thư viện đọc file Word (.docx).")
 
@@ -1320,8 +1511,10 @@ def _parse_outline_docx_rows(file_storage):
         raise ValueError("Không đọc được file đề cương Word. Hãy thử lại với file .docx rõ nội dung đầu mục.")
 
     paragraphs = list(document.paragraphs)
-    blocks = _split_outline_paragraphs_into_blocks(paragraphs, is_docx=True)
-    return _blocks_to_outline_rows(blocks)
+    # Parse với hierarchy
+    hierarchy_items = _parse_outline_with_hierarchy(paragraphs, is_docx=True)
+    catalog = _task_assignment_catalog()
+    return _flatten_hierarchy_to_rows(hierarchy_items, catalog=catalog)
 
 
 def _blocks_to_outline_rows(blocks):
@@ -1374,6 +1567,7 @@ def _blocks_to_outline_rows(blocks):
     return rows
 
 def _parse_outline_text_rows(file_storage):
+    """Parse text file với hierarchy awareness."""
     try:
         file_storage.stream.seek(0)
         raw_bytes = file_storage.stream.read()
@@ -1391,8 +1585,10 @@ def _parse_outline_text_rows(file_storage):
         raise ValueError("File đề cương văn bản không đúng định dạng UTF-8.")
 
     lines = [line.strip() for line in raw_text.splitlines()]
-    blocks = _split_outline_paragraphs_into_blocks(lines, is_docx=False)
-    return _blocks_to_outline_rows(blocks)
+    # Parse với hierarchy
+    hierarchy_items = _parse_outline_with_hierarchy(lines, is_docx=False)
+    catalog = _task_assignment_catalog()
+    return _flatten_hierarchy_to_rows(hierarchy_items, catalog=catalog)
 
 def _parse_outline_upload_rows(file_storage):
     """Đọc đề cương (.docx/.txt) -> đầu mục kèm người nhận được tự nhận diện."""
