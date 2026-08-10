@@ -1365,18 +1365,28 @@
         row.className = 'border rounded-2 p-2 bg-white';
         row.dataset.wzRow = '1';
         const titleValue = String(rowData.title || '').replace(/"/g, '&quot;');
+        const contentValue = String(rowData.content || '').replace(/"/g, '&quot;');
+        const headingValue = String(rowData.heading || '').replace(/"/g, '&quot;');
+        const numberFields = Array.isArray(rowData.number_fields) ? rowData.number_fields : [];
+        const hasNumbers = numberFields.length > 0 || Boolean(rowData.has_numbers);
+        const reportKind = rowData.report_kind === 'number' ? 'number' : 'narrative';
+        const numberFieldsJson = JSON.stringify(numberFields).replace(/"/g, '&quot;');
         row.innerHTML = `
-            <div class="row g-2 align-items-center">
-                <div class="col-lg-1">
+            <div class="row g-2">
+                <div class="col-12">
+                    ${headingValue ? `<span class="badge bg-secondary mb-1">${headingValue}</span>` : ''}
+                    <input type="hidden" name="item_heading" value="${headingValue}">
+                </div>
+                <div class="col-lg-1 d-flex align-items-center">
                     <input class="form-check-input" type="checkbox" data-wz-row-check title="Tích dòng để gán hàng loạt">
                 </div>
                 <div class="col-lg-5">
                     <input class="form-control form-control-sm" type="text" name="item_title" placeholder="Nội dung việc nhỏ" value="${titleValue}">
                 </div>
                 <div class="col-lg-2">
-                    <select class="form-select form-select-sm" name="item_report_kind">
-                        <option value="narrative" ${rowData.report_kind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
-                        <option value="number" ${rowData.report_kind === 'number' ? 'selected' : ''}>Báo cáo số</option>
+                    <select class="form-select form-select-sm" name="item_report_kind" data-report-kind-toggle>
+                        <option value="narrative" ${reportKind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
+                        <option value="number" ${reportKind === 'number' ? 'selected' : ''}>Báo cáo số</option>
                     </select>
                 </div>
                 <div class="col-lg-2">
@@ -1396,6 +1406,14 @@
                     <input type="hidden" name="item_domains">
                     <input type="hidden" name="item_role_ids">
                     <input type="hidden" name="item_user_ids">
+                    <input type="hidden" name="item_number_fields" value="${numberFieldsJson}">
+                </div>
+                <div class="col-12">
+                    <textarea class="form-control form-control-sm" name="item_content" rows="2" placeholder="Nội dung chi tiết từ đề cương">${contentValue}</textarea>
+                </div>
+                <div class="col-12 number-fields-preview ${reportKind === 'number' ? '' : 'd-none'}" data-number-preview>
+                    ${numberFields.map((field, idx) => \`<div class="small text-muted">\${idx + 1}. \${field.label}: <strong>\${field.value}</strong> \${field.unit || ''}</div>\`).join('')}
+                    ${hasNumbers && numberFields.length === 0 ? '<div class="small text-muted">Đã phát hiện số liệu trong nội dung. Chọn \"Báo cáo số\" để nhập các trường số.</div>' : ''}
                 </div>
             </div>
         `;
@@ -1413,6 +1431,15 @@
         });
         row.querySelector('[data-wz-row-assign]')?.addEventListener('click', () => openWizardRowAssign(row));
         row.querySelector('input[name="item_title"]')?.addEventListener('input', syncWizardSummary);
+        const reportKindSelect = row.querySelector('[data-report-kind-toggle]');
+        if (reportKindSelect) {
+            reportKindSelect.addEventListener('change', () => {
+                const preview = row.querySelector('[data-number-preview]');
+                if (preview) {
+                    preview.classList.toggle('d-none', reportKindSelect.value !== 'number');
+                }
+            });
+        }
         outlineRowsBox.appendChild(row);
         syncWizardOutlineRowIndexes();
         syncWizardSummary();

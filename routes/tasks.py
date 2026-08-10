@@ -1177,6 +1177,137 @@ def _paragraph_is_outline_item(text):
         return True
     return False
 
+
+def _is_outline_heading(text, style_name=""):
+    raw = str(text or "").strip()
+    if not raw:
+        return False
+    # DOCX heading style
+    if style_name and any(token in str(style_name).lower() for token in ("heading", "title", "đề mục", "tieu de")):
+        return True
+    # Common heading patterns: A. I. 1. 1.1. a) (1)
+    if re.match(r"^\s*(?:[A-Z][\.\)])\s*\S", raw):
+        return True
+    if re.match(r"^\s*(?:[IVXLCDM]+[\.\)])\s*\S", raw):
+        return True
+    if re.match(r"^\s*(?:\d{1,3}\.){1,4}\s+\S", raw):
+        return True
+    if re.match(r"^\s*\d{1,3}[\.\)]\s+\S", raw):
+        return True
+    if re.match(r"^\s*[a-z][\.\)]\s+\S", raw, re.IGNORECASE):
+        return True
+    if re.match(r"^\s*\(\d{1,3}\)\s+\S", raw):
+        return True
+    return False
+
+
+def _extract_number_fields_from_text(text):
+    """Trích xuất các trường số liệu từ nội dung đề cương."""
+    if not text:
+        return []
+    # Normalize whitespace and remove footnote-like long number sequences (dates)
+    normalized = re.sub(r"\s+", " ", text)
+    fields = []
+    seen = set()
+    # Keywords that strongly indicate a numeric metric
+    metric_keywords = [
+        "tổng số", "tổng", "số lượng", "số", "đạt", "có", "trên", "dưới", "vượt", "chiếm",
+        "tỷ lệ", "tỉ lệ", "tỷ suất", "tỉ suất", "phần trăm", "\%", "bằng", "đến", "trong đó",
+        "lũy kế", "còn", "đã", "được", "giải quyết", "tiếp nhận", "xử lý", "hoàn thành",
+        "tăng", "giảm", "bằng", "so với", "mức", "chỉ số", "kpi", "chỉ tiêu",
+    ]
+    number_pattern = re.compile(r"(\d{1,3}(?:\.\d{3})+(?:,\d+)?%?|\d+(?:,\d+)?%?)")
+    for match in number_pattern.finditer(normalized):
+        value = match.group(1)
+        # Skip years (4 digits starting with 19/20)
+        if re.match(r"^(19|20)\d{2}$", value.replace(",", "").replace(".", "")):
+            continue
+        # Skip single digit unless it has a percent sign
+        if len(value.replace(",", "").replace(".", "").replace("%", "")) < 2 and not value.endswith("%"):
+            continue
+        # Look at surrounding context (~80 chars before and after)
+        start = max(0, match.start() - 80)
+        end = min(len(normalized), match.end() + 60)
+        context = normalized[start:end]
+        # Skip dates like 17/6/2026 or 06/5/2026
+        if re.search(r"\d{1,2}/\d{1,2}/" + re.escape(value.replace(",", "").replace(".", "")) + r"$", context):
+            continue
+        # Build label from the phrase before the number
+        before = normalized[start:match.start()].strip()
+        label = before.split(";")[-1].split(".")[-1].split(",")[-1].strip()
+        label = re.sub(r"^\s*(?:và|hoặc|cùng|các|của|để|được|đã|có|là)\s+", "", label, flags=re.IGNORECASE).strip()
+        # Determine unit from text after number
+        after = normalized[match.end():match.end() + 30]
+        unit_match = re.match(r"\s*([\w\/%]+)", after)
+        unit = unit_match.group(1) if unit_match else ""
+        # Filter only values that look like metrics (have keyword, percent, large number, or clear unit)
+        context_lower = context.lower()
+        is_metric = (
+            value.endswith("%")
+            or any(kw in context_lower for kw in metric_keywords)
+            or (unit and unit not in {value})
+        )
+        if not is_metric:
+            continue
+        if len(label) < 2 or len(label) > 120:
+            # fallback: use a short snippet before number
+            label = before[-60:].strip() if len(before) > 60 else before.strip()
+            label = re.sub(r"^\s*(?:và|hoặc|cùng|của|để|được|đã|có|là)\s+", "", label, flags=re.IGNORECASE).strip()
+        label = re.sub(r"\s+(?:là|của|và|đạt|có|các)$", "", label, flags=re.IGNORECASE).strip()
+        if len(label) < 2:
+            continue
+        key = (label.lower(), value, unit.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        fields.append({
+            "label": label[:120],
+            "value": value,
+            "unit": unit[:30],
+        })
+    return fields
+
+
+def _split_outline_paragraphs_into_blocks(paragraphs, is_docx=False):
+    """Chia danh sách paragraphs thành các block (heading + content paragraphs)."""
+    blocks = []
+    current_heading = None
+    current_content = []
+    current_heading_text = ""
+    current_heading_style = ""
+
+    for para in paragraphs:
+        if is_docx:
+            text = str(getattr(para, "text", "") or "").strip()
+            style_name = str(getattr(getattr(para, "style", None), "name", "") or "").strip()
+        else:
+            text = str(para or "").strip()
+            style_name = ""
+        if not text:
+            continue
+        if _is_outline_heading(text, style_name):
+            if current_heading is not None or current_content:
+                blocks.append({
+                    "heading": current_heading_text,
+                    "content": " ".join(current_content).strip(),
+                })
+            current_heading = text
+            current_heading_text = text
+            current_content = []
+        else:
+            if current_heading is None:
+                # Leading text before any heading: treat as heading with no title
+                current_heading = ""
+                current_heading_text = ""
+            current_content.append(text)
+
+    if current_heading is not None or current_content:
+        blocks.append({
+            "heading": current_heading_text,
+            "content": " ".join(current_content).strip(),
+        })
+    return blocks
+
 def _parse_outline_docx_rows(file_storage):
     if DocxDocument is None:
         raise ValueError("Máy chủ chưa cài thư viện đọc file Word (.docx).")
@@ -1188,83 +1319,59 @@ def _parse_outline_docx_rows(file_storage):
     except Exception:
         raise ValueError("Không đọc được file đề cương Word. Hãy thử lại với file .docx rõ nội dung đầu mục.")
 
+    paragraphs = list(document.paragraphs)
+    blocks = _split_outline_paragraphs_into_blocks(paragraphs, is_docx=True)
+    return _blocks_to_outline_rows(blocks)
+
+
+def _blocks_to_outline_rows(blocks):
     catalog = _task_assignment_catalog()
-    paragraph_texts = [
-        str(getattr(paragraph, "text", "") or "").strip()
-        for paragraph in document.paragraphs
-    ]
-    item_indexes = [index for index, text in enumerate(paragraph_texts) if _paragraph_is_outline_item(text)]
-
-    if not item_indexes:
-        for index, text in enumerate(paragraph_texts):
-            if not text:
-                continue
-            cleaned = _clean_outline_title(text)
-            if len(cleaned) >= 3 and not _is_outline_structural_heading(text, cleaned):
-                item_indexes.append(index)
-
     rows = []
-    for position, index in enumerate(item_indexes):
-        cleaned = _clean_outline_title(paragraph_texts[index])
-        title, suffix_hint = _strip_outline_assignee_suffix(cleaned, catalog)
-        end = item_indexes[position + 1] if position + 1 < len(item_indexes) else len(paragraph_texts)
-        hint_parts = [part for part in [suffix_hint] if part]
-        for meta_index in range(index + 1, end):
-            meta_text = paragraph_texts[meta_index]
-            if not meta_text:
-                continue
-            if _looks_like_outline_assignee_text(meta_text, catalog):
-                hint_parts.append(meta_text)
-        rows.append({"title": title, "hint": " | ".join(hint_parts)})
-
-    # Đọc thêm cột "Đơn vị thực hiện" trong bảng Word nếu có
-    item_titles = [row["title"] for row in rows]
-    for table in getattr(document, "tables", []) or []:
-        table_cells = [[str(cell.text or "").strip() for cell in table_row.cells] for table_row in table.rows]
-        if not table_cells:
+    seen = set()
+    for block in blocks:
+        heading = str(block.get("heading") or "").strip()
+        content = str(block.get("content") or "").strip()
+        if not content and not heading:
             continue
-        header = table_cells[0]
-        assignee_col = None
-        content_col = None
-        for cell_index, cell_text in enumerate(header):
-            normalized = _normalize_outline_match_text(cell_text)
-            if any(token in normalized for token in ("don vi", "thuc hien", "giao", "phu trach", "nguoi", "can bo", "chu tri", "phoi hop")):
-                if assignee_col is None:
-                    assignee_col = cell_index
-            elif content_col is None and len(normalized) > 3:
-                content_col = cell_index
-        if content_col is None:
-            content_col = 0
-        if assignee_col is None and len(header) >= 2:
-            assignee_col = 1
-        if assignee_col == content_col:
-            assignee_col = None
-
-        for data_row in table_cells[1:]:
-            if len(data_row) <= content_col or not data_row[content_col]:
-                continue
-            content_norm = _normalize_outline_match_text(data_row[content_col])
-            assignee_text = (
-                str(data_row[assignee_col]).strip()
-                if assignee_col is not None and assignee_col < len(data_row)
-                else ""
-            )
-            if not assignee_text:
-                continue
-            target = None
-            for item_title in item_titles:
-                item_norm = _normalize_outline_match_text(item_title)
-                if item_norm and item_norm in content_norm:
-                    target = item_title
-                    break
-            if target is None:
-                continue
-            for row in rows:
-                if row["title"] == target:
-                    row["hint"] = " | ".join(part for part in [row["hint"], assignee_text] if part)
-                    break
-
-    return _resolve_outline_rows_assignments(rows, catalog)
+        # Use heading as title fallback, but prefer a short title from content first sentence
+        title = heading
+        if not title:
+            sentences = re.split(r"[.!?]\s+", content)
+            title = sentences[0].strip() if sentences else content
+        cleaned_title = _clean_outline_title(title)
+        if len(cleaned_title) < 3:
+            continue
+        dedupe = _normalize_outline_match_text(cleaned_title)
+        if dedupe in seen:
+            continue
+        seen.add(dedupe)
+        # Try to find assignee hint in heading/content or suffix
+        full_text = " ".join([part for part in [heading, content] if part])
+        title_for_hint, suffix_hint = _strip_outline_assignee_suffix(cleaned_title, catalog)
+        hint_parts = [part for part in [suffix_hint] if part]
+        if _looks_like_outline_assignee_text(content, catalog):
+            hint_parts.append(content)
+        number_fields = _extract_number_fields_from_text(content)
+        assignment = _resolve_outline_assignee_hint(" | ".join(hint_parts), catalog)
+        rows.append(
+            {
+                "title": cleaned_title[:255],
+                "content": content[:2000],
+                "heading": heading[:255],
+                "has_numbers": bool(number_fields),
+                "number_fields": number_fields,
+                "assign_type": assignment["assign_type"] if assignment else "",
+                "domain": "",
+                "unit_domains": assignment["unit_domains"] if assignment else [],
+                "role_ids": assignment["role_ids"] if assignment else [],
+                "user_ids": assignment["user_ids"] if assignment else [],
+                "assignee_hint": " | ".join(hint_parts),
+                "assignee_detected": bool(
+                    assignment and (assignment["unit_domains"] or assignment["role_ids"] or assignment["user_ids"])
+                ),
+            }
+        )
+    return rows
 
 def _parse_outline_text_rows(file_storage):
     try:
@@ -1283,30 +1390,9 @@ def _parse_outline_text_rows(file_storage):
     if not raw_text:
         raise ValueError("File đề cương văn bản không đúng định dạng UTF-8.")
 
-    catalog = _task_assignment_catalog()
     lines = [line.strip() for line in raw_text.splitlines()]
-    item_indexes = [index for index, line in enumerate(lines) if _paragraph_is_outline_item(line)]
-    if not item_indexes:
-        item_indexes = [
-            index for index, line in enumerate(lines)
-            if line and len(_clean_outline_title(line)) >= 3
-        ]
-
-    rows = []
-    for position, index in enumerate(item_indexes):
-        cleaned = _clean_outline_title(lines[index])
-        title, suffix_hint = _strip_outline_assignee_suffix(cleaned, catalog)
-        end = item_indexes[position + 1] if position + 1 < len(item_indexes) else len(lines)
-        hint_parts = [part for part in [suffix_hint] if part]
-        for meta_index in range(index + 1, end):
-            meta_text = lines[meta_index]
-            if not meta_text:
-                continue
-            if _looks_like_outline_assignee_text(meta_text, catalog):
-                hint_parts.append(meta_text)
-        rows.append({"title": title, "hint": " | ".join(hint_parts)})
-
-    return _resolve_outline_rows_assignments(rows, catalog)
+    blocks = _split_outline_paragraphs_into_blocks(lines, is_docx=False)
+    return _blocks_to_outline_rows(blocks)
 
 def _parse_outline_upload_rows(file_storage):
     """Đọc đề cương (.docx/.txt) -> đầu mục kèm người nhận được tự nhận diện."""
@@ -3522,12 +3608,20 @@ def _publish_task_import_draft(draft):
 
     if payload["task_mode"] == "OUTLINE":
         for index, item in enumerate(payload["outline_items"], start=1):
+            item_content = str(item.get("content") or "").strip()
+            number_fields = item.get("number_fields") or []
+            guide_text = item.get("guide_text")
+            if number_fields and not guide_text:
+                try:
+                    guide_text = json.dumps(number_fields, ensure_ascii=False)
+                except Exception:
+                    guide_text = None
             task_item = TaskItem(
                 task_id=new_task.id,
                 item_code=str(index),
                 title=item["title"],
-                content=None,
-                guide_text=item.get("guide_text"),
+                content=item_content or None,
+                guide_text=guide_text,
                 is_required=True,
                 output_type="OUTLINE",
                 report_kind=item["report_kind"],
@@ -6341,6 +6435,8 @@ def _parse_outline_item_rows(task, current_uid):
 
 def _parse_outline_item_configs_from_request(form):
     titles = form.getlist("item_title")
+    contents = form.getlist("item_content")
+    number_fields_values = form.getlist("item_number_fields")
     report_kinds = form.getlist("item_report_kind")
     enabled_indexes = {value for value in form.getlist("item_enabled")}
     attachment_indexes = {value for value in form.getlist("item_attachment_required")}
@@ -6375,10 +6471,18 @@ def _parse_outline_item_configs_from_request(form):
         unit_domains = _requested_unit_domains(
             MultiDict([("child_domains", value.strip()) for value in raw_unit_domains.split(",") if value.strip()] + ([("child_domain", domain)] if domain else []))
         )
+        content_text = str(contents[index] if index < len(contents) else "").strip()
+        raw_number_fields = str(number_fields_values[index] if index < len(number_fields_values) else "").strip()
+        try:
+            number_fields = json.loads(raw_number_fields) if raw_number_fields else []
+        except Exception:
+            number_fields = []
         configs.append(
             {
                 "title": cleaned_title[:255],
+                "content": content_text[:2000],
                 "report_kind": report_kind,
+                "number_fields": number_fields,
                 "attachment_required": str(index) in attachment_indexes,
                 "assign_type": assign_type,
                 "domain": domain[:255],
@@ -6763,12 +6867,21 @@ def _tasks_page_v2():
                     )
                 for index, item_config in enumerate(outline_item_configs, start=1):
                     assignment_meta = resolved_item_assignments[index - 1]
+                    item_content = str(item_config.get("content") or "").strip()
+                    number_fields = item_config.get("number_fields") or []
+                    # Store number fields as JSON guide text for number-kind items, or as reference
+                    guide_text = None
+                    if number_fields:
+                        try:
+                            guide_text = json.dumps(number_fields, ensure_ascii=False)
+                        except Exception:
+                            guide_text = None
                     task_item = TaskItem(
                         task_id=new_task.id,
                         item_code=str(index),
                         title=item_config["title"],
-                        content=None,
-                        guide_text=None,
+                        content=item_content or None,
+                        guide_text=guide_text,
                         is_required=True,
                         output_type="OUTLINE",
                         report_kind=item_config.get("report_kind") or "narrative",
@@ -7195,12 +7308,20 @@ def _create_outline_items_v2(tid):
 
     for index, item_config in enumerate(item_configs, start=1):
         assignment_meta = resolved_assignments[index - 1]
+        item_content = str(item_config.get("content") or "").strip()
+        number_fields = item_config.get("number_fields") or []
+        guide_text = None
+        if number_fields:
+            try:
+                guide_text = json.dumps(number_fields, ensure_ascii=False)
+            except Exception:
+                guide_text = None
         task_item = TaskItem(
             task_id=parent_task.id,
             item_code=str(current_count + index),
             title=item_config["title"],
-            content=None,
-            guide_text=None,
+            content=item_content or None,
+            guide_text=guide_text,
             is_required=True,
             output_type="OUTLINE",
             report_kind=item_config["report_kind"],
