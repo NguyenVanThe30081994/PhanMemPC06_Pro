@@ -223,13 +223,57 @@ def giao_viec_page():
     return render_template('outline_assign.html')
 
 
+# ═══════════════════════════════════════════════════════════════════════
+#  GIAO VIỆC THEO ĐỀ CƯƠNG — đơn giản: 1 mục = 1 việc
+#
+#  Sau khi quét đề cương, mỗi MỤC (heading I., 1., 1.1...) là 1 nhiệm vụ
+#  gán cho đơn vị/cán bộ. Các dòng nội dung dưới mục được GỘP LẠI thành
+#  nội dung của mục đó (không tách từng dòng thành việc riêng).
+#  Không bắt buộc file, không tự gán theo vai trò.
+# ═══════════════════════════════════════════════════════════════════════
+
+_HEADING_TYPES = {'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h7', 'h8', 'h9'}
+
+
+def _is_outline_heading(node):
+    return (node or {}).get('type') in _HEADING_TYPES
+
+
+def _collect_muc_content_lines(node, out=None):
+    """
+    Gộp TOÀN BỘ các dòng nội dung (bullet/plus/para) dưới một mục,
+    kể cả các dòng nằm trong mục con (heading con) — vì 1 mục = 1 việc
+    báo cáo nội dung, người được gán cần biết toàn bộ nội dung của mục.
+    """
+    out = out if out is not None else []
+    for child in (node or {}).get('children') or []:
+        if _is_outline_heading(child):
+            # Thêm tiêu đề mục con làm dòng phân cấp, rồi gom nội dung mục con
+            sub_label = (child.get('label') or '').strip()
+            sub_text = (child.get('text') or '').strip()
+            if sub_label or sub_text:
+                out.append('▸ ' + ((sub_label + '. ') if sub_label else '') + sub_text)
+            _collect_muc_content_lines(child, out)
+            continue
+        text = (child.get('text') or '').strip()
+        if text:
+            prefix = ''
+            if child.get('type') == 'bullet':
+                prefix = '– '
+            elif child.get('type') == 'plus':
+                prefix = '+ '
+            out.append(prefix + text)
+        _collect_muc_content_lines(child, out)
+    return out
+
+
 @outline_bp.route('/api/outline-assignees')
 def api_outline_assignees():
-    """Danh sách cán bộ + vai trò để gán việc."""
+    """Danh sách cán bộ để gán việc (chỉ gán trực tiếp cho người, không theo vai trò)."""
     if not _require_login():
         return jsonify({'error': 'Unauthorized'}), 401
 
-    from models import AppRole, User
+    from models import User
 
     users = []
     for u in User.query.filter(User.is_active.is_(True)).order_by(User.fullname.asc()).all():
@@ -237,41 +281,28 @@ def api_outline_assignees():
             'id': u.id,
             'name': (u.fullname or u.username or 'Cán bộ #%s' % u.id).strip(),
             'username': (u.username or '').strip(),
-            'role_id': getattr(u, 'role_id', None),
         })
 
-    roles = [{'id': r.id, 'name': (r.name or '').strip() or 'Vai trò #%s' % r.id}
-             for r in AppRole.query.order_by(AppRole.name.asc()).all()]
-
-    return jsonify({'users': users, 'roles': roles})
+    return jsonify({'users': users})
 
 
 def _resolve_selected_assignees(assign_info):
-    """
-    Chuyển thông tin gán việc thành danh sách (user_id, assignee_type, role_id).
-    assign_info: {'assignee_type': 'user'|'role', 'ids': [...]}
-    """
-    from models import User
-
+    """Chuyển thông tin gán việc thành danh sách user_id (chỉ gán cho cán bộ)."""
     result = []
-    atype = str((assign_info or {}).get('assignee_type') or '').strip().lower()
-    ids = assign_info.get('ids') or []
-    ids = [int(x) for x in ids if str(x).isdigit()]
-
-    if atype == 'user':
-        for uid in ids:
-            result.append({'user_id': uid, 'assignee_type': 'user', 'role_id': None})
-    elif atype == 'role':
-        for role_id in ids:
-            members = User.query.filter(User.role_id == role_id, User.is_active.is_(True)).all()
-            for u in members:
-                result.append({'user_id': u.id, 'assignee_type': 'role', 'role_id': role_id})
+    ids = (assign_info or {}).get('ids') or []
+    for uid in ids:
+        if str(uid).isdigit():
+            result.append({'user_id': int(uid)})
     return result
 
 
 @outline_bp.route('/api/create-outline-task', methods=['POST'])
 def api_create_outline_task():
-    """Tạo công việc OUTLINE từ cây đề cương (giữ nguyên phân cấp TaskItem)."""
+    """Tạo công việc OUTLINE từ cây đề cương.
+
+    Mỗi MỤC được gán (heading) tạo 1 TaskItem; nội dung là toàn bộ các dòng
+    dưới mục gộp lại. Chỉ tạo việc cho những mục đã được gán người thực hiện.
+    """
     if not _require_login():
         return jsonify({'error': 'Unauthorized'}), 401
 
@@ -282,7 +313,7 @@ def api_create_outline_task():
     tree = payload.get('tree')
     title = str(payload.get('title') or '').strip()
     deadline_str = str(payload.get('deadline') or '').strip()
-    assignments = payload.get('assignments') or {}   # node_id -> assign_info
+    assignments = payload.get('assignments') or {}   # node_id -> {'ids': [...]}
 
     if not tree or not isinstance(tree, dict):
         return jsonify({'error': 'Cấu trúc đề cương không hợp lệ.'}), 400
@@ -313,52 +344,63 @@ def api_create_outline_task():
     total_assigned = 0
 
     def create_items(nodes, parent_item_id=None):
+        """Duyệt cây; chỉ tạo TaskItem cho mục (heading) đã được gán."""
         nonlocal total_items, total_assigned
         for n in nodes or []:
-            kind = n.get('type') or 'para'
-            label = (n.get('label') or '').strip()
-            text = (n.get('text') or '').strip()
-            is_heading = kind.startswith('h')
-            if not is_heading and kind not in ('bullet', 'plus', 'para'):
+            # Chỉ xử lý mục (heading). Nội dung bullet/plus/para được gộp
+            # vào mục cha, không tạo việc riêng.
+            if not _is_outline_heading(n):
                 continue
 
-            total_items += 1
+            assign_info = assignments.get(str(n.get('id'))) if assignments else None
+            selected = _resolve_selected_assignees(assign_info) if assign_info else []
+            if not selected:
+                # Mục chưa gán -> bỏ qua; vẫn duyệt tiếp các mục con
+                create_items(n.get('children') or [], parent_item_id)
+                continue
+
+            label = (n.get('label') or '').strip()
+            text = (n.get('text') or '').strip()
             title_item = (label + '. ' if label else '') + text
+            content_lines = _collect_muc_content_lines(n)
+
+            total_items += 1
             item = TaskItem(
                 task_id=task.id,
                 parent_item_id=parent_item_id,
                 item_code=str(total_items),
                 title=(title_item or '(chưa có nội dung)')[:255],
-                content=text[:2000] or None,
+                content=('\n'.join(content_lines))[:5000] or None,
                 is_required=True,
                 output_type='OUTLINE',
                 report_kind='narrative',
+                attachment_required=False,
                 sort_order=total_items,
             )
             db.session.add(item)
             db.session.flush()
 
-            # Gán việc cho mục này
-            assign_info = assignments.get(str(n.get('id'))) if assignments else None
-            if assign_info:
-                for entry in _resolve_selected_assignees(assign_info):
-                    db.session.add(TaskAssignment(
-                        task_id=task.id,
-                        task_item_id=item.id,
-                        user_id=entry['user_id'],
-                        assignee_type=entry['assignee_type'],
-                        role_id=entry['role_id'],
-                        title_snapshot=item.title,
-                        status='assigned',
-                        is_required=True,
-                        assigned_at=datetime.now(),
-                    ))
-                    total_assigned += 1
+            for entry in selected:
+                db.session.add(TaskAssignment(
+                    task_id=task.id,
+                    task_item_id=item.id,
+                    user_id=entry['user_id'],
+                    assignee_type='user',
+                    role_id=None,
+                    title_snapshot=item.title,
+                    status='assigned',
+                    is_required=True,
+                    assigned_at=datetime.now(),
+                ))
+                total_assigned += 1
 
-            if n.get('children'):
-                create_items(n['children'], parent_item_id=item.id)
+            create_items(n.get('children') or [], parent_item_id=item.id)
 
     create_items(tree.get('sections'))
+
+    if total_items == 0:
+        db.session.rollback()
+        return jsonify({'error': 'Chưa gán mục nào. Hãy gán ít nhất một mục cho cán bộ.'}), 400
 
     db.session.commit()
 
