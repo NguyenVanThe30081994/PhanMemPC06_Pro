@@ -263,7 +263,7 @@ class TaskItem(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
     source_task = db.relationship('Task', foreign_keys=[source_task_id], backref='task_item_rows')
-    parent_item = db.relationship('TaskItem', remote_side=[id], backref='child_items')
+    parent_item = db.relationship('TaskItem', remote_side=[id], foreign_keys=[parent_item_id], backref='child_items')
     linked_item = db.relationship('TaskItem', remote_side=[id], foreign_keys=[linked_item_id], backref='linked_items')
 
 

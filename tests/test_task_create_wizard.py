@@ -362,6 +362,96 @@ class TaskCreateWizardTests(unittest.TestCase):
             self.assertEqual(payload.get("values"), {"0": 1234.0, "1": 85.5})
             self.assertEqual(payload.get("reported_value"), 1234.0)
 
+    def test_linked_secondary_item_auto_fills_on_submit(self):
+        """Báo cáo phụ: tạo task thứ 2 trùng nội dung + tích 'báo cáo phụ' phải
+        liên kết linked_item_id sang đầu mục task cũ; nộp báo cáo ở task mới phải
+        tự động điền vào task cũ (cùng đơn vị được giao)."""
+        from routes.tasks import _extract_number_fields_from_text
+
+        content = (
+            "Tính đến kỳ báo cáo, toàn tỉnh có 54.105/57.417 người nhận "
+            "lương hưu qua tài khoản ngân hàng, đạt 95,97% so với Kế hoạch."
+        )
+        fields = _extract_number_fields_from_text(content)
+        self.assertTrue(any(f.get("kind") == "pair" for f in fields))
+
+        admin = self._admin()
+        self._login(admin.id)
+        unit_id = self._create_user("Đơn vị nghiệp vụ", "dvnum")
+
+        def create(title, secondary, sources):
+            return self.client.post(
+                "/tasks",
+                data={
+                    "task_mode": "OUTLINE",
+                    "title": title,
+                    "description": "test",
+                    "csrf_token": "wizard-test-csrf",
+                    "item_title": ["Mục số liệu lương hưu"],
+                    "item_content": [content],
+                    "item_report_kind": ["number"],
+                    "item_number_fields": [json.dumps(fields, ensure_ascii=False)],
+                    "item_assign_type": ["unit"],
+                    "item_domains": ["dv-num"],
+                    "item_role_ids": [""],
+                    "item_user_ids": [""],
+                    "item_report_secondary": [secondary],
+                    "item_sources": [sources],
+                },
+                follow_redirects=True,
+            )
+
+        self.assertEqual(create("Báo cáo tháng 8 (test liên kết)", "0", "").status_code, 200)
+        self.assertEqual(
+            create("Báo cáo quý (test liên kết phụ)", "1", "Báo cáo tháng 8.pdf,Báo cáo quý.pdf").status_code,
+            200,
+        )
+
+        with app.app_context():
+            task1 = (
+                Task.query.filter_by(title="Báo cáo tháng 8 (test liên kết)")
+                .order_by(Task.id.desc())
+                .first()
+            )
+            task2 = (
+                Task.query.filter_by(title="Báo cáo quý (test liên kết phụ)")
+                .order_by(Task.id.desc())
+                .first()
+            )
+            self.assertIsNotNone(task1)
+            self.assertIsNotNone(task2)
+            self.created_task_ids.extend([task1.id, task2.id])
+            item1 = TaskItem.query.filter_by(task_id=task1.id).first()
+            item2 = TaskItem.query.filter_by(task_id=task2.id).first()
+            self.assertEqual(item2.linked_item_id, item1.id)
+            self.assertIn("Báo cáo quý.pdf", json.loads(item2.report_sources_json or "[]"))
+            assignment1 = TaskAssignment.query.filter_by(task_id=task1.id, task_item_id=item1.id).first()
+            self.assertEqual(assignment1.user_id, unit_id)
+            task1_id, task2_id, item1_id, item2_id = task1.id, task2.id, item1.id, item2.id
+
+        self._login(unit_id, is_admin=False)
+        submit_response = self.client.post(
+            f"/tasks/{task2_id}/submit_report",
+            data={
+                "task_item_id": str(item2_id),
+                "report_number_value_1": "60.000/62.000",
+                "report_content": "Hoàn thành.",
+                "csrf_token": "wizard-test-csrf",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(submit_response.status_code, 200)
+
+        with app.app_context():
+            own_sub = TaskSubmission.query.filter_by(task_id=task2_id, task_item_id=item2_id).first()
+            self.assertIsNotNone(own_sub)
+            self.assertEqual(own_sub.status, "submitted")
+            linked_sub = TaskSubmission.query.filter_by(task_id=task1_id, task_item_id=item1_id).first()
+            self.assertIsNotNone(linked_sub, "nộp báo cáo phụ phải tự điền sang task gốc")
+            self.assertEqual(linked_sub.status, "submitted")
+            payload = json.loads(linked_sub.payload_json or "{}")
+            self.assertEqual(payload.get("values"), {"1": "60.000/62.000"})
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1407,6 +1407,7 @@ def _flatten_hierarchy_to_rows(hierarchy_items, catalog=None):
             "parent_row_index": parent_row_index,
             "has_numbers": bool(number_fields),
             "number_fields": number_fields,
+            "skeleton": _outline_skeleton_text(raw[:3000], number_fields),
             "assign_type": assignment["assign_type"] if assignment else "",
             "domain": "",
             "unit_domains": assignment["unit_domains"] if assignment else [],
@@ -1475,9 +1476,17 @@ _OUTLINE_METRIC_KEYWORDS = [
 
 _OUTLINE_NUMBER_TOKEN = r"\d{1,3}(?:\.\d{3})*(?:,\d+)?|\d+(?:,\d+)?"
 
+_OUTLINE_UNIT_STOPWORDS = {
+    "và", "của", "trong", "đến", "so", "với", "theo", "đạt", "chiếm", "từ", "đã",
+    "được", "có", "tổng", "số", "là", "các", "khoảng", "gồm", "năm", "tháng", "ngày",
+    "trên", "dưới", "vượt", "bằng", "tăng", "giảm", "còn", "để", "không", "tại", "về",
+    "đồng", "trong đó", "toàn", "tỉnh", "huyện", "xã", "phường", "cấp", "kỳ", "thời điểm",
+}
+
 
 def _mask_outline_dates_and_years(text):
-    """Thay ngày tháng + năm bằng ký tự cùng độ dài để không trùng với số liệu."""
+    """Thay ngày tháng, năm và số hiệu văn bản bằng ký tự cùng độ dài để
+    không trùng với số liệu báo cáo. Phân số thật (54.105/57.417) không bị che."""
     masked = list(text)
     for match in re.finditer(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b", text):
         for i in range(match.start(), match.end()):
@@ -1485,23 +1494,28 @@ def _mask_outline_dates_and_years(text):
     for match in re.finditer(r"(?<![\d/.])(?:19|20)\d{2}(?![\d/.])", text):
         for i in range(match.start(), match.end()):
             masked[i] = "#"
+    # Số hiệu văn bản: 66.7/2025, 18/2023, 05/2025/NQ-CP... (RHS 2-4 chữ số, không phải phân số)
+    for match in re.finditer(r"\d{1,3}(?:\.\d{1,3})*/\d{2,4}(?![\d.,])", text):
+        for i in range(match.start(), match.end()):
+            masked[i] = "#"
     return "".join(masked)
 
 
 def _outline_number_metric(text, start, end, value):
     """Đánh giá 1 số/1 cặp số có phải số liệu báo cáo (metric) không."""
-    context_start = max(0, start - 60)
-    context_end = min(len(text), end + 40)
-    context = text[context_start:context_end].lower()
-    if value.endswith("%"):
+    if value.endswith("%") or "/" in value:
         return True
-    compact = value.replace(".", "").replace(",", "").replace("%", "").replace("/", "")
+    compact = value.replace(".", "").replace(",", "").replace("%", "")
     if len(compact) >= 6:
         return True
+    before = text[max(0, start - 25):start].lower()
+    has_keyword = any(keyword in before for keyword in _OUTLINE_METRIC_KEYWORDS)
     unit = _outline_number_unit(text, end)
-    if unit:
+    if len(compact) >= 3 and (has_keyword or unit):
         return True
-    return any(keyword in context for keyword in _OUTLINE_METRIC_KEYWORDS)
+    if len(compact) == 2 and has_keyword and unit:
+        return True
+    return False
 
 
 def _outline_number_unit(text, end):
@@ -1514,7 +1528,8 @@ def _outline_number_unit(text, end):
     if not match:
         return ""
     unit = match.group(1).strip()
-    if re.match(r"^(và|của|trong|đến|so|với|theo|đạt|chiếm|từ|đã|được|có|tổng|số|là|các|khoảng|gồm)$", unit, re.IGNORECASE):
+    first_word = unit.split()[0].lower()
+    if first_word in _OUTLINE_UNIT_STOPWORDS or re.match(r"^(năm|tháng|ngày)$", first_word):
         return ""
     if unit.endswith(",") or unit.endswith(";") or unit.endswith("."):
         unit = unit[:-1]
@@ -1526,7 +1541,8 @@ def _extract_number_fields_from_text(text):
 
     Trả về danh sách dict: {blank_id, label, value, unit, kind, start, end}.
     - Cặp X/Y (54.105/57.417) -> 1 ô trống, kind="pair", value="X/Y".
-    - Ngày tháng (13/7/2026) và năm (2026) bị loại.
+    - Ngày tháng (13/7/2026), năm (2026), số hiệu văn bản (18/CT-TTg, số 66.7/2025)
+      bị loại.
     - start/end là khoảng vị trí trong text gốc để thay ô trống / merge lại.
     """
     if not text:
@@ -1543,6 +1559,12 @@ def _extract_number_fields_from_text(text):
     while index < len(text):
         pair = pair_pattern.match(masked, index)
         if pair:
+            side1 = pair.group(1).replace(".", "").replace(",", "")
+            side2 = pair.group(2).replace(".", "").replace(",", "")
+            if re.match(r"^(19|20)\d{2}$", side1) or re.match(r"^(19|20)\d{2}$", side2):
+                # Cặp chứa năm (số hiệu văn bản 66.7/2025, 18/2023...) — bỏ qua
+                index = pair.end()
+                continue
             value = pair.group(1) + "/" + pair.group(2)
             start, end = pair.span()
             if _outline_number_metric(text, start, end, value):
@@ -1560,6 +1582,10 @@ def _extract_number_fields_from_text(text):
         value = number.group(0)
         start, end = number.span()
         if (start, end) in seen_spans:
+            index = end
+            continue
+        # Số hiệu văn bản dạng 18/CT-TTg, 66.7/2025 — theo sau là "/" (có thể có khoảng trắng)
+        if re.match(r"\s*/", masked[end:]):
             index = end
             continue
         compact = value.replace(".", "").replace(",", "").replace("%", "")
@@ -1609,6 +1635,59 @@ def _outline_build_number_field(text, start, end, value, kind, blank_id):
     }
 
 
+def _parse_vn_number(text):
+    """Parse số theo cả định dạng VN (1.234,5 / 85,5) lẫn quốc tế (85.5 / 1234.5)."""
+    if text is None:
+        return None
+    text = str(text).strip().replace("%", "").replace(" ", "")
+    if not text or not re.match(r"^[\d.,]+$", text):
+        return None
+    try:
+        if "," in text and "." in text:
+            return float(text.replace(".", "").replace(",", "."))
+        if "," in text:
+            return float(text.replace(",", "."))
+        if "." in text:
+            parts = text.split(".")
+            if len(parts) > 2 or (len(parts) == 2 and len(parts[1]) == 3 and len(parts[0]) > 1):
+                return float(text.replace(".", ""))
+            return float(text)
+        return float(text)
+    except ValueError:
+        return None
+
+
+def _parse_outline_blank_value(text):
+    """Giá trị ô trống: chuỗi thô nếu là cặp X/Y, float nếu là số thường; None nếu lỗi."""
+    if not text:
+        return None
+    text = str(text).strip()
+    pair = re.match(r"^([\d.,]+)\s*/\s*([\d.,]+)$", text)
+    if pair and _parse_vn_number(pair.group(1)) is not None and _parse_vn_number(pair.group(2)) is not None:
+        return text
+    return _parse_vn_number(text)
+
+
+def _outline_blank_numeric(value):
+    """Giá trị số của 1 ô trống để cộng gộp (cặp X/Y lấy tử số)."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    match = re.match(r"([\d.,]+)", text)
+    if not match:
+        return None
+    return _parse_vn_number(match.group(1))
+
+
+def _outline_sources_json(sources):
+    if not sources:
+        return None
+    try:
+        return json.dumps([str(source).strip() for source in sources if str(source).strip()], ensure_ascii=False)
+    except Exception:
+        return None
+
+
 def _outline_skeleton_text(text, fields):
     """Văn bản với mỗi số liệu thay bằng dấu [...] để xem trước trong wizard."""
     if not fields:
@@ -1625,6 +1704,151 @@ def _outline_skeleton_text(text, fields):
         cursor = end
     result.append(text[cursor:])
     return "".join(result)
+
+
+def _find_report_secondary_linked_item(content, unit_domains, exclude_task_id):
+    """Tìm đầu mục trùng nội dung ở task đã phát hành để liên kết 'báo cáo phụ'.
+
+    Chỉ liên kết khi đơn vị được giao giống nhau (cùng domain) để việc tự động
+    điền vào các file khi nộp báo cáo là hợp lệ.
+    """
+    normalized = _normalize_outline_match_text(str(content or ""))
+    if not normalized:
+        return None
+    candidates = (
+        TaskItem.query.filter(
+            TaskItem.task_id != exclude_task_id,
+            TaskItem.content.isnot(None),
+            TaskItem.output_type == "OUTLINE",
+        )
+        .order_by(TaskItem.id.desc())
+        .limit(400)
+        .all()
+    )
+    domain_set = set(unit_domains or [])
+    for candidate in candidates:
+        if not candidate.content:
+            continue
+        if _normalize_outline_match_text(str(candidate.content)) != normalized:
+            continue
+        # Cùng người/đơn vị được giao mới liên kết (so user_id thực tế để tránh
+        # lệch khóa đơn vị giữa các nguồn dữ liệu)
+        candidate_assignments = TaskAssignment.query.filter_by(task_id=candidate.task_id, task_item_id=candidate.id).all()
+        candidate_user_ids = {int(getattr(assignment, "user_id", 0) or 0) for assignment in candidate_assignments}
+        if not domain_set or not candidate_user_ids:
+            return None
+        # Đơn vị được giao trong config (unit_domains) -> user thuộc các đơn vị đó
+        target_user_ids = _unit_domain_user_ids(domain_set)
+        if target_user_ids & candidate_user_ids:
+            return candidate
+    return None
+
+
+def _unit_domain_user_ids(domain_set):
+    """Tập user_id thuộc các đơn vị (cùng logic với _resolve_assignees_by_mode)."""
+    user_ids = set()
+    for domain in domain_set:
+        for user in _users_for_unit(domain):
+            user_ids.add(user.id)
+    return user_ids
+
+
+def _propagate_submission_to_linked_items(task, item, assignment, submission):
+    """Nộp báo cáo 1 đầu mục -> tự động điền vào các đầu mục liên kết (báo cáo phụ)."""
+    if not item or not assignment or not submission:
+        return
+    linked_items = []
+    if getattr(item, "linked_item_id", None):
+        linked = db.session.get(TaskItem, item.linked_item_id)
+        if linked and linked.id != item.id:
+            linked_items.append(linked)
+    for linked in (getattr(item, "linked_items", None) or []):
+        if linked.id != item.id and linked not in linked_items:
+            linked_items.append(linked)
+    for linked in linked_items:
+        linked_assignment = TaskAssignment.query.filter_by(
+            task_id=linked.task_id,
+            task_item_id=linked.id,
+            user_id=assignment.user_id,
+        ).first()
+        if not linked_assignment:
+            continue
+        existing = (
+            TaskSubmission.query.filter_by(
+                task_id=linked.task_id,
+                task_item_id=linked.id,
+                assignment_id=linked_assignment.id,
+            )
+            .order_by(TaskSubmission.id.desc())
+            .first()
+        )
+        target_submission = existing
+        if existing:
+            existing.narrative_content = submission.narrative_content
+            existing.numeric_value = submission.numeric_value
+            existing.payload_json = submission.payload_json
+            existing.status = submission.status
+            existing.submitted_at = submission.submitted_at
+            existing.updated_at = datetime.now()
+        else:
+            target_submission = TaskSubmission(
+                task_id=linked.task_id,
+                task_item_id=linked.id,
+                assignment_id=linked_assignment.id,
+                submitted_by=assignment.user_id,
+                submission_type=submission.submission_type,
+                status=submission.status,
+                narrative_content=submission.narrative_content,
+                numeric_value=submission.numeric_value,
+                payload_json=submission.payload_json,
+                submitted_at=submission.submitted_at,
+            )
+            db.session.add(target_submission)
+            db.session.flush()
+        linked_assignment.status = "submitted"
+        linked_assignment.submitted_at = datetime.now()
+        linked_assignment.updated_at = datetime.now()
+        linked_assignment.last_submission_id = getattr(target_submission, "id", None)
+        db.session.add(
+            TaskComment(
+                task_id=linked.task_id,
+                user_id=assignment.user_id,
+                user_name=session.get("fullname", "Người dùng"),
+                content="[TỰ ĐỘNG] Đã điền báo cáo từ đầu mục liên kết (báo cáo phụ).",
+            )
+        )
+
+
+def _outline_merged_content(content, fields, values):
+    """Ghép giá trị đã nộp vào văn bản gốc tại đúng vị trí ô trống."""
+    if not fields or not content:
+        return content
+    values = values or {}
+    result = []
+    cursor = 0
+    for field in sorted(fields, key=lambda f: f.get("start", 0)):
+        start = int(field.get("start", 0))
+        end = int(field.get("end", 0))
+        if start < cursor or start > len(content) or end > len(content):
+            continue
+        result.append(content[cursor:start])
+        blank_id = field.get("blank_id")
+        submitted = values.get(str(blank_id), values.get(blank_id, ""))
+        if submitted in (None, ""):
+            submitted = field.get("value", "")
+        result.append(str(submitted))
+        cursor = end
+    result.append(content[cursor:])
+    return "".join(result)
+
+
+def _outline_submission_values(submission):
+    """Lấy dict values (blank_id -> giá trị) từ 1 submission."""
+    payload = _parse_task_submission_payload(submission) if submission else {}
+    if not isinstance(payload, dict):
+        return {}
+    values = payload.get("values")
+    return values if isinstance(values, dict) else {}
 
 
 def _render_blank_editor_html(content, fields, values=None):
@@ -2036,6 +2260,7 @@ def _blocks_to_outline_rows(blocks):
                 "heading": heading[:255],
                 "has_numbers": bool(number_fields),
                 "number_fields": number_fields,
+                "skeleton": _outline_skeleton_text(content[:2000], number_fields),
                 "assign_type": assignment["assign_type"] if assignment else "",
                 "domain": "",
                 "unit_domains": assignment["unit_domains"] if assignment else [],
@@ -4297,6 +4522,13 @@ def _publish_task_import_draft(draft):
                     guide_text = json.dumps(number_fields, ensure_ascii=False)
                 except Exception:
                     guide_text = None
+            sources = item.get("sources") or []
+            report_sources_json = None
+            if sources:
+                try:
+                    report_sources_json = json.dumps(sources, ensure_ascii=False)
+                except Exception:
+                    report_sources_json = None
             task_item = TaskItem(
                 task_id=new_task.id,
                 item_code=str(index),
@@ -4309,9 +4541,14 @@ def _publish_task_import_draft(draft):
                 attachment_required=bool(item["attachment_required"]),
                 deadline=new_task.deadline,
                 sort_order=item.get("sort_order", index - 1),
+                report_sources_json=report_sources_json,
             )
             db.session.add(task_item)
             db.session.flush()
+            if item.get("report_secondary") and item_content:
+                linked_item = _find_report_secondary_linked_item(item_content, item.get("unit_domains") or [], new_task.id)
+                if linked_item:
+                    task_item.linked_item_id = linked_item.id
             _create_assignment_records(
                 new_task,
                 item["assignees"],
@@ -7096,19 +7333,29 @@ def _parse_outline_item_rows(task, current_uid):
             candidate_text = str(candidate or "").strip()
             if not candidate_text:
                 continue
+            if candidate_text.startswith("{") or candidate_text.startswith("["):
+                # guide_text dạng JSON (trường số liệu) — không hiển thị thô
+                continue
             if re.sub(r"\s+", " ", candidate_text).strip().lower() == re.sub(r"\s+", " ", str(item.title or "")).strip().lower():
                 continue
             secondary_text = candidate_text
             break
         my_submission = latest_submissions.get(getattr(my_assignment, "id", None))
+        number_fields = _outline_item_number_fields(item)
+        my_submission_payload = _parse_task_submission_payload(my_submission) if my_submission else {}
+        values = my_submission_payload.get("values") if isinstance(my_submission_payload, dict) else None
+        if not isinstance(values, dict):
+            values = {}
+        content = str(getattr(item, "content", "") or "")
         rows.append(
             {
                 "item": item,
                 "assignments": assignments,
                 "my_assignment": my_assignment,
                 "my_submission": my_submission,
-                "my_submission_payload": _parse_task_submission_payload(my_submission) if my_submission else {},
-                "number_fields": _outline_item_number_fields(item),
+                "my_submission_payload": my_submission_payload,
+                "number_fields": number_fields,
+                "blank_editor_html": _render_blank_editor_html(content, number_fields, values) if item.report_kind == "number" else "",
                 "submitted_count": sum(1 for assignment in assignments if _task_is_submitted(assignment)),
                 "total_count": len(assignments),
                 "latest_submissions": latest_submissions,
@@ -7125,10 +7372,18 @@ def _outline_item_number_fields(item):
     if guide:
         try:
             parsed = json.loads(guide)
-            if isinstance(parsed, list):
-                fields = [f for f in parsed if isinstance(f, dict) and str(f.get("label") or "").strip()]
-                if fields:
-                    return fields
+            if isinstance(parsed, dict):
+                fields = parsed.get("fields") or []
+            elif isinstance(parsed, list):
+                fields = parsed
+            else:
+                fields = []
+            fields = [
+                f for f in fields
+                if isinstance(f, dict) and str(f.get("label") or "").strip()
+            ]
+            if fields:
+                return fields
         except Exception:
             pass
     return _extract_number_fields_from_text(str(getattr(item, "content", "") or ""))
@@ -7147,6 +7402,8 @@ def _parse_outline_item_configs_from_request(form):
     user_ids_values = form.getlist("item_user_ids")
     parent_values = form.getlist("item_parent")
     inherit_values = form.getlist("item_inherit")
+    report_secondary_values = form.getlist("item_report_secondary")
+    sources_values = form.getlist("item_sources")
     heading_values = form.getlist("item_heading")
     configs = []
     seen = set()
@@ -7203,6 +7460,15 @@ def _parse_outline_item_configs_from_request(form):
                 "user_ids": sorted({int(value) for value in raw_user_ids.split(",") if value.strip().isdigit()}),
                 "parent_index": parent_index,
                 "inherit": str(index) in inherit_values,
+                "report_secondary": (
+                    index < len(report_secondary_values)
+                    and str(report_secondary_values[index]).strip() == "1"
+                ),
+                "sources": [
+                    source.strip()
+                    for source in str(sources_values[index] if index < len(sources_values) else "").split(",")
+                    if source.strip()
+                ],
             }
         )
     return configs
@@ -7597,9 +7863,18 @@ def _tasks_page_v2():
                         attachment_required=bool(item_config.get("attachment_required")),
                         deadline=new_task.deadline,
                         sort_order=index,
+                        report_sources_json=_outline_sources_json(item_config.get("sources") or []),
                     )
                     db.session.add(task_item)
                     db.session.flush()
+                    if item_config.get("report_secondary") and item_content:
+                        linked_item = _find_report_secondary_linked_item(
+                            item_content,
+                            item_config.get("unit_domains") or [],
+                            new_task.id,
+                        )
+                        if linked_item:
+                            task_item.linked_item_id = linked_item.id
                     created_item_by_form_index[item_config["form_index"]] = task_item.id
                     if (
                         item_config.get("inherit")
@@ -8232,36 +8507,31 @@ def _submit_task_report_v2(tid):
     current_user = db.session.get(User, session["uid"])
 
     if mode == "OUTLINE" and item and item.report_kind == "number":
-        # Nhận số liệu theo từng trường (báo cáo số nhiều chỉ tiêu) nếu có
+        # Nhận số liệu theo từng ô trống (report_number_value_<blank_id>)
         per_field_values = {}
         for field_key, raw_field in request.form.items():
             if field_key.startswith("report_number_value_"):
                 field_idx = field_key[len("report_number_value_"):]
                 field_text = str(raw_field or "").strip()
                 if field_text:
-                    try:
-                        per_field_values[field_idx] = float(field_text.replace(",", ""))
-                    except ValueError:
+                    parsed = _parse_outline_blank_value(field_text)
+                    if parsed is None:
                         flash("Số liệu không hợp lệ.", "danger")
                         return redirect(url_for("tasks_bp.task_detail", tid=tid))
+                    per_field_values[field_idx] = parsed
         raw_value = (request.form.get("report_number") or "").strip()
         if per_field_values:
-            # Lấy giá trị chính là trường đầu tiên nếu không có ô số tổng
             if not raw_value:
                 raw_value = str(next(iter(per_field_values.values())))
             payload["values"] = per_field_values
-            try:
-                numeric_value = float(raw_value.replace(",", ""))
-            except ValueError:
-                numeric_value = next(iter(per_field_values.values())) if per_field_values else None
+            numeric_value = _outline_blank_numeric(raw_value)
             payload["reported_value"] = numeric_value
         else:
             if not raw_value:
                 flash("Cần nhập số liệu cho đầu mục này.", "danger")
                 return redirect(url_for("tasks_bp.task_detail", tid=tid))
-            try:
-                numeric_value = float(raw_value.replace(",", ""))
-            except ValueError:
+            numeric_value = _outline_blank_numeric(raw_value)
+            if numeric_value is None:
                 flash("Số liệu không hợp lệ.", "danger")
                 return redirect(url_for("tasks_bp.task_detail", tid=tid))
             payload["reported_value"] = numeric_value
@@ -8396,6 +8666,7 @@ def _submit_task_report_v2(tid):
             content=f"[BÁO CÁO] {comment_text}",
         )
     )
+    _propagate_submission_to_linked_items(task, item, assignment, submission)
     db.session.commit()
     flash("Đã gửi báo cáo.", "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
@@ -8489,12 +8760,29 @@ def _build_outline_progress_matrix(task, current_uid):
                     unit_assignments.append(assignment)
             unit_submitted = sum(1 for assignment in unit_assignments if _task_is_submitted(assignment))
             item_submitted += unit_submitted
+            cell_numbers = []
+            for assignment in unit_assignments:
+                submission = row["latest_submissions"].get(assignment.id)
+                if not submission or item.report_kind != "number":
+                    continue
+                values = _outline_submission_values(submission)
+                first_value = next(iter(values.values()), None)
+                cell_numbers.append(
+                    {
+                        "unit_name": unit_name,
+                        "values": values,
+                        "first_value": first_value,
+                        "numeric": _outline_blank_numeric(first_value),
+                        "submitted": _task_is_submitted(assignment),
+                    }
+                )
             cells.append(
                 {
                     "unit_name": unit_name,
                     "submitted_count": unit_submitted,
                     "total_count": len(unit_assignments),
                     "done": bool(unit_assignments) and unit_submitted >= len(unit_assignments),
+                    "numbers": cell_numbers,
                     "assignments": [
                         {
                             "assignment": assignment,
@@ -8508,6 +8796,17 @@ def _build_outline_progress_matrix(task, current_uid):
                     ],
                 }
             )
+        aggregate_total = None
+        aggregate_count = 0
+        if item.report_kind == "number":
+            numeric_values = []
+            for cell in cells:
+                for number in cell["numbers"]:
+                    if number.get("numeric") is not None:
+                        numeric_values.append(number["numeric"])
+            aggregate_count = len(numeric_values)
+            if numeric_values:
+                aggregate_total = sum(numeric_values)
         matrix_rows.append(
             {
                 "item": item,
@@ -8516,6 +8815,8 @@ def _build_outline_progress_matrix(task, current_uid):
                 "total_count": item_total,
                 "done": item_total > 0 and item_submitted >= item_total,
                 "percent": round(item_submitted / item_total * 100) if item_total else 0,
+                "aggregate_total": aggregate_total,
+                "aggregate_count": aggregate_count,
             }
         )
 
@@ -8579,13 +8880,41 @@ def _export_outline_word_v2(tid):
         item = row["item"]
         item_code = str(getattr(item, "item_code", None) or index)
         document.add_heading(f"{item_code}. {item.title}", level=1)
-        guide = str(getattr(item, "guide_text", None) or "").strip()
-        if guide:
-            guide_paragraph = document.add_paragraph()
-            guide_run = guide_paragraph.add_run(guide)
-            guide_run.italic = True
         if not row["assignments"]:
             document.add_paragraph("Chưa giao đơn vị nào cho đầu mục này.")
+        number_fields = _outline_item_number_fields(item)
+        content = str(getattr(item, "content", "") or "")
+        submitted_with_values = []
+        for assignment in row["assignments"]:
+            submission = row["latest_submissions"].get(assignment.id)
+            if not submission:
+                continue
+            user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
+            submitted_with_values.append((assignment, submission, user, _outline_submission_values(submission)))
+        # Văn bản tổng hợp: nội dung gốc với số liệu đã nộp ghép vào
+        if item.report_kind == "number" and number_fields and submitted_with_values:
+            merged_parts = []
+            for position, (assignment, submission, user, values) in enumerate(submitted_with_values, start=1):
+                unit_name = _task_assignee_unit_name(user)
+                merged = _outline_merged_content(content, number_fields, values)
+                merged_parts.append(f"Số liệu {position} - {unit_name}: {merged.strip()}")
+            merged_paragraph = document.add_paragraph()
+            merged_run = merged_paragraph.add_run("\n".join(merged_parts))
+            merged_run.bold = True
+            # Cộng gộp khi quản trị bật
+            if item.allow_aggregate:
+                numeric_values = [
+                    _outline_blank_numeric(value)
+                    for values in (v for _, _, _, v in submitted_with_values)
+                    for value in values.values()
+                ]
+                numeric_values = [value for value in numeric_values if value is not None]
+                if numeric_values:
+                    aggregate_paragraph = document.add_paragraph()
+                    aggregate_run = aggregate_paragraph.add_run(
+                        f"Tổng cộng: {sum(numeric_values):,.0f}".replace(",", ".")
+                    )
+                    aggregate_run.bold = True
         for assignment in row["assignments"]:
             user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
             unit_name = _task_assignee_unit_name(user)
@@ -8597,7 +8926,18 @@ def _export_outline_word_v2(tid):
             if not submission:
                 document.add_paragraph("Chưa có nội dung báo cáo.")
                 continue
-            if item.report_kind == "number" and submission.numeric_value is not None:
+            if item.report_kind == "number" and number_fields:
+                values = _outline_submission_values(submission)
+                field_lines = []
+                for field in number_fields:
+                    blank_id = field.get("blank_id")
+                    submitted = values.get(str(blank_id), values.get(blank_id, ""))
+                    if submitted in (None, ""):
+                        submitted = field.get("value", "")
+                    field_lines.append(f"- {field.get('label', '')}: {submitted} {field.get('unit', '')}".strip())
+                if field_lines:
+                    document.add_paragraph("\n".join(field_lines))
+            elif item.report_kind == "number" and submission.numeric_value is not None:
                 document.add_paragraph(f"Số liệu: {submission.numeric_value:g}")
             if submission.narrative_content:
                 document.add_paragraph(str(submission.narrative_content))
@@ -8620,6 +8960,36 @@ def _export_outline_word_v2(tid):
         download_name=f"bao_cao_tong_hop_{safe_name}_{task.id}.docx",
         mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
+
+@tasks_bp.route("/tasks/<int:tid>/items/<int:item_id>/aggregate", methods=["POST"])
+def toggle_task_item_aggregate(tid, item_id):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+    item = TaskItem.query.filter_by(id=item_id, task_id=tid).first()
+    if not item:
+        flash("Không tìm thấy đầu mục.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+    current_user = db.session.get(User, session["uid"])
+    perms = _current_perms()
+    can_manage = bool(
+        bool(session.get("is_admin"))
+        or _can_process_task_module(perms)
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+    )
+    if not can_manage:
+        flash("Bạn không có quyền thay đổi cài đặt đầu mục này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+    item.allow_aggregate = not bool(item.allow_aggregate)
+    item.updated_at = datetime.now()
+    db.session.commit()
+    flash("Đã bật cộng gộp số liệu cho đầu mục." if item.allow_aggregate else "Đã tắt cộng gộp số liệu.", "success")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid) + "#pane-outline-matrix")
 
 def _return_task_assignment_v2(tid, assignment_id):
     task = Task.query.filter_by(id=tid).first()
@@ -9933,7 +10303,11 @@ def import_workflow_blueprint():
 
 @tasks_bp.route("/tasks/outline-parse", methods=["POST"])
 def parse_outline_file_for_create():
-    """Phân tích đề cương ngay trong bước tạo công việc (wizard)."""
+    """Phân tích đề cương ngay trong bước tạo công việc (wizard).
+
+    Hỗ trợ nhiều file (file chính + file phụ): nội dung trùng giữa các file
+    được gộp thành 1 đầu mục kèm cờ report_secondary + danh sách file nguồn.
+    """
     if not session.get("uid"):
         return jsonify({"ok": False, "error": "Phiên làm việc đã hết hạn."}), 401
 
@@ -9942,16 +10316,57 @@ def parse_outline_file_for_create():
     if not (bool(session.get("is_admin")) or _can_process_task_module(perms)):
         return jsonify({"ok": False, "error": "Bạn không có quyền tạo công việc."}), 403
 
-    outline_file = request.files.get("outline_file")
-    if not outline_file or not outline_file.filename:
-        return jsonify({"ok": False, "error": "Cần chọn file đề cương trước khi phân tích."}), 400
+    outline_files = request.files.getlist("outline_file")
+    outline_files = [file for file in outline_files if file and file.filename]
+    if not outline_files:
+        return jsonify({"ok": False, "error": "Cần chọn ít nhất một file đề cương trước khi phân tích."}), 400
     try:
-        rows = _parse_outline_upload_rows(outline_file)
+        parsed_groups = []
+        for outline_file in outline_files:
+            rows = _parse_outline_upload_rows(outline_file)
+            parsed_groups.append((outline_file.filename, rows))
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
-    if not rows:
-        return jsonify({"ok": False, "error": "Không tìm thấy đầu mục hợp lệ trong file đề cương."}), 400
-    return jsonify({"ok": True, "rows": rows})
+    merged_rows = _merge_outline_rows_groups(parsed_groups)
+    if not merged_rows:
+        return jsonify({"ok": False, "error": "Không tìm thấy đầu mục hợp lệ trong các file đề cương."}), 400
+    return jsonify({"ok": True, "rows": merged_rows, "merged": len(parsed_groups) > 1})
+
+
+def _merge_outline_rows_groups(groups):
+    """Gộp kết quả parse nhiều file: nội dung trùng (title+content) thành 1 đầu mục.
+
+    groups: list[(filename, rows)]. Row gộp có thêm report_secondary + sources.
+    """
+    merged = {}
+    order = []
+    for filename, rows in groups:
+        for row in rows or []:
+            title = str(row.get("title") or "")
+            content = str(row.get("content") or "")
+            key = _normalize_outline_match_text(f"{title} {content}")
+            if not key:
+                continue
+            if key in merged:
+                entry = merged[key]
+                entry["sources"].add(filename)
+                # Giữ row giàu thông tin hơn (có gợi ý đơn vị / số liệu)
+                existing = entry["row"]
+                if not existing.get("unit_domains") and row.get("unit_domains"):
+                    entry["row"] = row
+                elif not existing.get("number_fields") and row.get("number_fields"):
+                    entry["row"] = row
+                continue
+            merged[key] = {"row": dict(row), "sources": {filename}}
+            order.append(key)
+    result = []
+    for key in order:
+        entry = merged[key]
+        row = entry["row"]
+        row["report_secondary"] = len(entry["sources"]) > 1
+        row["sources"] = sorted(entry["sources"])
+        result.append(row)
+    return result
 
 @tasks_bp.route("/tasks/form-template-preview", methods=["POST"])
 def preview_form_template_fields_for_create():

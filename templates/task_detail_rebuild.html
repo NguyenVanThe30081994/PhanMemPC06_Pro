@@ -213,6 +213,13 @@
                                                     {% else %}
                                                     <span class="badge bg-light text-dark">{{ cell.submitted_count }}/{{ cell.total_count }}</span>
                                                     {% endif %}
+                                                    {% if cell.numbers %}
+                                                    <div class="small text-start mt-2">
+                                                        {% for number in cell.numbers %}
+                                                        <div class="text-primary fw-medium">{{ number.first_value }}</div>
+                                                        {% endfor %}
+                                                    </div>
+                                                    {% endif %}
                                                     {% for cell_assignment in cell.assignments %}
                                                     {% if cell_assignment.submitted %}
                                                     <form action="{{ url_for('tasks_bp.return_task_assignment', tid=task.id, assignment_id=cell_assignment.assignment.id) }}" method="POST" class="d-inline-flex gap-1 mt-2">
@@ -225,10 +232,19 @@
                                                 </td>
                                                 {% endfor %}
                                                 <td class="text-center">
+                                                    {% if row.aggregate_total is not none and row.aggregate_count >= 2 %}
+                                                    <div class="fw-bold text-success" title="Tổng cộng số liệu {{ row.aggregate_count }} đơn vị đã nộp">Tổng: {{ "%g" % row.aggregate_total }}</div>
+                                                    {% endif %}
                                                     {% if row.done %}
                                                     <span class="badge bg-success">Hoàn tất</span>
                                                     {% else %}
                                                     <span class="badge bg-warning-subtle text-warning">{{ row.percent }}%</span>
+                                                    {% endif %}
+                                                    {% if row.item.report_kind == 'number' %}
+                                                    <form action="{{ url_for('tasks_bp.toggle_task_item_aggregate', tid=task.id, item_id=row.item.id) }}" method="POST" class="d-inline-block mt-2">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                        <button class="btn btn-sm {% if row.item.allow_aggregate %}btn-success{% else %}btn-outline-secondary{% endif %}" type="submit" title="Cho phép cộng gộp số liệu các đơn vị">Cộng gộp {% if row.item.allow_aggregate %}✓{% endif %}</button>
+                                                    </form>
                                                     {% endif %}
                                                 </td>
                                             </tr>
@@ -535,18 +551,11 @@
                                                 <input type="hidden" name="task_item_id" value="{{ row.item.id }}">
                                                 <div class="row g-3">
                                                     {% if row.item.report_kind == 'number' %}
-                                                    <div class="col-lg-3">
-                                                        <label class="form-label fw-bold">Số liệu báo cáo</label>
-                                                        {% if row.number_fields %}
-                                                        {% for field in row.number_fields %}
-                                                        <div class="mb-2">
-                                                            <label class="form-label small text-muted mb-1">{{ field.label }}</label>
-                                                            <div class="input-group input-group-sm">
-                                                                <input class="form-control" type="number" step="any" name="report_number_value_{{ loop.index0 }}" value="{{ row.my_submission_payload.get('values', {}).get(loop.index0|string, '') if row.my_submission_payload else '' }}">
-                                                                {% if field.unit %}<span class="input-group-text">{{ field.unit }}</span>{% endif %}
-                                                            </div>
-                                                        </div>
-                                                        {% endfor %}
+                                                    <div class="col-12">
+                                                        <label class="form-label fw-bold">Điền số liệu vào chỗ trống trong nội dung</label>
+                                                        {% if row.blank_editor_html %}
+                                                        <div class="border rounded-3 p-3 bg-white outline-blank-editor">{{ row.blank_editor_html|safe }}</div>
+                                                        <div class="small text-muted mt-1"><i class="fa-solid fa-circle-info me-1"></i>Điền số thực tế của đơn vị vào từng ô. Nếu cặp số dạng "54.105/57.417" (số đã làm / tổng số) thì điền cả hai vào 1 ô.</div>
                                                         {% else %}
                                                         <input class="form-control" type="number" step="any" name="report_number" value="{{ row.my_submission.numeric_value if row.my_submission and row.my_submission.numeric_value is not none else '' }}">
                                                         {% endif %}

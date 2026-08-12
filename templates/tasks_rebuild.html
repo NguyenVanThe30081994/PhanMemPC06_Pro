@@ -1151,9 +1151,15 @@
                         <div data-wizard-source="OUTLINE" class="d-none">
                             <div class="border rounded-3 p-3 bg-light-subtle">
                                 <div class="fw-bold mb-1">Tải đề cương</div>
-                                <p class="small text-muted mb-3">Chọn file .docx / .txt / .pdf. Hệ thống gộp toàn bộ nội dung của cùng một mục vào chung một đầu mục (vd: mục 1.1 với các gạch đầu dòng bên trong); nếu đề cương ghi rõ "giao cho ai" (vd: Đơn vị thực hiện: Đội A) thì điền sẵn gợi ý đơn vị để quản trị kiểm tra lại ở bước 3.</p>
+                                <p class="small text-muted mb-3">Chọn file chính + các file phụ (.docx / .txt / .pdf). Nội dung trùng nhau giữa các file sẽ được gộp thành 1 đầu mục và đánh dấu "Báo cáo phụ" — đơn vị chỉ báo cáo 1 lần, hệ thống tự điền vào tất cả các file. Có thể bỏ tích để tách riêng.</p>
+                                <div class="d-grid gap-2 mb-2" id="wizardOutlineFileList">
+                                    <div class="d-flex gap-2 align-items-center" data-wz-outline-file-row>
+                                        <span class="small fw-semibold text-muted" style="min-width: 90px;">File chính</span>
+                                        <input class="form-control" type="file" accept=".docx,.txt,.pdf" data-wz-outline-file>
+                                    </div>
+                                </div>
                                 <div class="d-flex flex-wrap gap-2 align-items-center">
-                                    <input class="form-control" type="file" id="wizardOutlineFile" accept=".docx,.txt,.pdf" style="max-width: 420px;">
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" id="wizardAddOutlineFileBtn">+ Thêm file phụ</button>
                                     <button class="btn btn-primary" type="button" id="wizardOutlineParseBtn">Phân tích đề cương</button>
                                 </div>
                                 <div class="small mt-2" id="wizardOutlineStatus">Chưa phân tích. Nếu không tải file, bấm Tiếp tục để nhập tay từng mục.</div>
@@ -1644,6 +1650,12 @@
     let currentStep = 1;
     let wizardMode = 'OUTLINE';
 
+    function escapeHtml(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, (ch) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        }[ch]));
+    }
+
     const wizardPanes = {
         1: document.querySelector('[data-wizard-pane="1"]'),
         2: document.querySelector('[data-wizard-pane="2"]'),
@@ -1659,7 +1671,8 @@
     const formFieldTemplate = document.getElementById('formFieldTemplate');
     const addFormFieldBtn = document.getElementById('addFormFieldBtn');
     const assignType = document.getElementById('createAssignType');
-    const wizardOutlineFile = document.getElementById('wizardOutlineFile');
+    const wizardOutlineFileList = document.getElementById('wizardOutlineFileList');
+    const wizardAddOutlineFileBtn = document.getElementById('wizardAddOutlineFileBtn');
     const wizardOutlineParseBtn = document.getElementById('wizardOutlineParseBtn');
     const wizardOutlineStatus = document.getElementById('wizardOutlineStatus');
     const wizardFormExcelFile = document.getElementById('wizardFormExcelFile');
@@ -1764,16 +1777,41 @@
     });
 
     // ---------- step 2: outline parse ----------
+    wizardAddOutlineFileBtn?.addEventListener('click', () => {
+        const row = document.createElement('div');
+        row.className = 'd-flex gap-2 align-items-center';
+        row.dataset.wzOutlineFileRow = '';
+        const label = document.createElement('span');
+        label.className = 'small fw-semibold text-muted';
+        label.style.minWidth = '90px';
+        label.textContent = 'File phụ';
+        const input = document.createElement('input');
+        input.className = 'form-control';
+        input.type = 'file';
+        input.accept = '.docx,.txt,.pdf';
+        input.dataset.wzOutlineFile = '';
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'btn btn-sm btn-outline-danger';
+        remove.title = 'Bỏ file này';
+        remove.textContent = '✕';
+        remove.addEventListener('click', () => row.remove());
+        row.append(label, input, remove);
+        wizardOutlineFileList?.appendChild(row);
+    });
+
     async function parseOutlineFile() {
-        if (!wizardOutlineFile?.files?.length) {
-            wizardOutlineStatus.textContent = 'Cần chọn file đề cương (.docx / .txt) trước.';
+        const fileInputs = Array.from(document.querySelectorAll('[data-wz-outline-file]'));
+        const files = fileInputs.map((input) => input.files && input.files[0]).filter(Boolean);
+        if (!files.length) {
+            wizardOutlineStatus.textContent = 'Cần chọn ít nhất một file đề cương (.docx / .txt / .pdf) trước.';
             wizardOutlineStatus.classList.add('text-danger');
             return;
         }
         wizardOutlineStatus.textContent = 'Đang phân tích đề cương...';
         wizardOutlineStatus.classList.remove('text-danger');
         const formData = new FormData();
-        formData.append('outline_file', wizardOutlineFile.files[0]);
+        files.forEach((file) => formData.append('outline_file', file));
         try {
             const response = await fetch('{{ url_for("tasks_bp.parse_outline_file_for_create") }}', {
                 method: 'POST',
@@ -1792,7 +1830,8 @@
                 const parentEl = parentIndex !== null ? createdRowEls[parentIndex] : null;
                 createdRowEls.push(addWizardOutlineRow(row, parentEl));
             });
-            wizardOutlineStatus.textContent = `Đã tách ${(payload.rows || []).length} nội dung từ đề cương, gom theo ${wizardOutlineGroups.size} mục. Kiểm tra, gán đơn vị và chọn hình thức báo cáo ở bước 3 rồi Tiếp tục.`;
+            const mergedNote = payload.merged ? ` Đã gộp nội dung trùng giữa ${files.length} file.` : '';
+            wizardOutlineStatus.textContent = `Đã tách ${(payload.rows || []).length} nội dung từ đề cương, gom theo ${wizardOutlineGroups.size} mục. Kiểm tra, gán đơn vị và chọn hình thức báo cáo ở bước 3 rồi Tiếp tục.${mergedNote}`;
             wizardOutlineStatus.classList.add('text-success');
             syncWizardSummary();
         } catch (error) {
@@ -2046,9 +2085,10 @@
         const inherited = isChild && !(rowData.assign_type || (rowData.unit_domains || []).length || (rowData.role_ids || []).length || (rowData.user_ids || []).length);
         row.innerHTML = `
             <div class="wizard-outline-row-grid">
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
                     <label class="form-label small fw-semibold mb-0">Nội dung đề cương</label>
                     ${isChild ? '<span class="badge bg-info-subtle text-info-emphasis"><i class="fa-solid fa-level-down fa-rotate-90 me-1"></i>Nội dung con</span>' : ''}
+                    ${rowData.report_secondary ? `<span class="badge bg-warning-subtle text-warning-emphasis" title="${escapeHtml((rowData.sources || []).join(', '))}"><i class="fa-solid fa-files me-1"></i>Báo cáo phụ (${(rowData.sources || []).length} file)</span>` : ''}
                 </div>
                 <div class="d-flex gap-2 align-items-center wizard-outline-row-main">
                     <div class="flex-shrink-0 d-flex align-items-center">
@@ -2071,6 +2111,14 @@
                     </div>
                 </div>
                 <div class="small fw-medium text-primary" data-wz-row-summary></div>
+                ${rowData.report_secondary ? `
+                <div class="small">
+                    <label class="form-check form-check-inline mb-0">
+                        <input class="form-check-input" type="checkbox" data-wz-report-secondary checked title="Bỏ tích để tách nội dung này thành báo cáo riêng, không gộp chung">
+                        <span class="form-check-label">Báo cáo phụ — đơn vị điền 1 lần, tự động áp dụng cho tất cả file</span>
+                    </label>
+                </div>
+                ` : ''}
                 <input type="hidden" name="item_title" value="${titleValue}">
                 <input type="hidden" name="item_heading" value="${headingValue}">
                 <input type="hidden" name="item_assign_type">
@@ -2081,10 +2129,26 @@
                 <input type="hidden" name="item_number_fields" value="${numberFieldsJson}">
                 <input type="hidden" name="item_parent">
                 <input type="hidden" name="item_inherit" value="${isChild ? (inherited ? '1' : '0') : '0'}">
+                <input type="hidden" name="item_report_secondary" value="${rowData.report_secondary ? '1' : '0'}">
+                <input type="hidden" name="item_sources" value="${escapeHtml((rowData.sources || []).join(','))}">
             </div>
             <div class="number-fields-preview ${reportKind === 'number' ? '' : 'd-none'} mt-2 p-2 bg-light rounded" data-number-preview>
-                ${numberFields.length > 0 ? numberFields.map((field, idx) => `<div class="small text-muted mb-1">${idx + 1}. <strong>${field.label}</strong>: <span class="text-primary">${field.value}</span> ${field.unit || ''}</div>`).join('') : ''}
-                ${hasNumbers && numberFields.length === 0 ? `<div class="small text-muted"><i class="fa-solid fa-circle-info me-1"></i>Đã phát hiện số liệu trong nội dung. Chọn "Báo cáo số" để nhập các trường số.</div>` : ''}
+                ${numberFields.length > 0 ? `
+                    <div class="small mb-1"><i class="fa-solid fa-pen-to-square me-1"></i><strong>Văn bản sau khi xóa số liệu</strong> — đơn vị sẽ điền số vào chỗ trống:</div>
+                    <div class="small text-primary fw-medium p-2 bg-white rounded border mb-2" style="word-wrap: break-word; overflow-wrap: break-word;">${escapeHtml(String(rowData.skeleton || contentValue || '').replace(/\[\...\]/g, '<span class="outline-blank-marker">[...]</span>'))}</div>
+                    <div class="row g-2">
+                        ${numberFields.map((field, idx) => `
+                            <div class="col-md-6">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">${idx + 1}</span>
+                                    <input type="text" class="form-control" data-wz-number-label value="${escapeHtml(field.label || '')}" placeholder="Nhãn số liệu" title="Nhãn số liệu">
+                                    <input type="text" class="form-control" style="width: 90px;" data-wz-number-unit value="${escapeHtml(field.unit || '')}" placeholder="Đơn vị" title="Đơn vị (vd: %, người, tỷ đồng)">
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                ${hasNumbers && numberFields.length === 0 ? `<div class="small text-muted"><i class="fa-solid fa-circle-info me-1"></i>Đã phát hiện số liệu trong nội dung. Chọn "Báo cáo số" để đơn vị điền số vào chỗ trống.</div>` : ''}
             </div>
         `;
         updateWizardOutlineRowAssignment(row, {
@@ -2133,6 +2197,30 @@
                 if (preview) {
                     preview.classList.toggle('d-none', reportKindSelect.value !== 'number');
                 }
+            });
+        }
+        // Đồng bộ nhãn/đơn vị đã sửa vào hidden item_number_fields
+        const syncNumberFieldsJson = () => {
+            const hidden = row.querySelector('input[name="item_number_fields"]');
+            if (!hidden || !hidden.value) return;
+            let fields = [];
+            try { fields = JSON.parse(hidden.value); } catch (e) { return; }
+            const labels = row.querySelectorAll('[data-wz-number-label]');
+            const units = row.querySelectorAll('[data-wz-number-unit]');
+            fields.forEach((field, idx) => {
+                if (labels[idx]) field.label = labels[idx].value;
+                if (units[idx]) field.unit = units[idx].value;
+            });
+            hidden.value = JSON.stringify(fields);
+        };
+        row.querySelectorAll('[data-wz-number-label], [data-wz-number-unit]').forEach((input) => {
+            input.addEventListener('input', syncNumberFieldsJson);
+        });
+        const reportSecondaryCheckbox = row.querySelector('[data-wz-report-secondary]');
+        if (reportSecondaryCheckbox) {
+            reportSecondaryCheckbox.addEventListener('change', () => {
+                const hidden = row.querySelector('input[name="item_report_secondary"]');
+                if (hidden) hidden.value = reportSecondaryCheckbox.checked ? '1' : '0';
             });
         }
         // Đặt dòng vào nhóm mục tương ứng (hoặc đứng độc lập nếu là mục tự thân / thêm tay)
