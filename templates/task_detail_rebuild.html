@@ -401,11 +401,10 @@
                                     <form action="{{ url_for('tasks_bp.create_child_task', tid=task.id) }}" method="POST" id="outlineImportConfigForm">
                                         <div class="border rounded-3 p-3 mb-4">
                                             <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
-                                                <div>
+                                                <div class="d-flex align-items-center gap-2">
                                                     <div class="fw-semibold"><span class="step-pill me-2">Bước 2</span>Cấu hình sau khi nạp đề cương</div>
-                                                    <div class="small text-muted">Các gạch đầu dòng được gom theo từng mục trong đề cương. Mỗi nội dung gán cho đơn vị và chọn hình thức báo cáo; nội dung con (+) mặc định kế thừa mục cha. Bấm <b>Gán</b> ở từng dòng hoặc tích nhiều dòng rồi gán hàng loạt ở khung phía trên.</div>
+                                                    <button class="btn btn-outline-primary btn-sm" type="button" id="addImportOutlineRowBtn">Thêm dòng</button>
                                                 </div>
-                                                <button class="btn btn-outline-primary btn-sm" type="button" id="addImportOutlineRowBtn">Thêm dòng</button>
                                             </div>
 
                                             <div class="row g-3 mb-3">
@@ -1191,16 +1190,18 @@
     }
 
     .wizard-outline-group-breadcrumb {
-        font-size: 11px;
-        color: var(--bs-secondary-color);
+        font-size: 13px;
+        font-weight: 700;
+        color: #1f2937;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         max-width: 100%;
+        line-height: 1.4;
     }
 
     .wizard-outline-group-title {
-        font-weight: 600;
+        font-weight: 700;
         font-size: 14px;
         color: #1f2937;
         line-height: 1.45;
@@ -1836,52 +1837,44 @@
         const inherited = isChild && !(rowData.assign_type || (rowData.unit_domains || []).length || (rowData.role_ids || []).length || (rowData.user_ids || []).length);
         wrapper.innerHTML = `
             <div class="row g-2 align-items-center">
-                <div class="col-lg-1">
+                <div class="col-auto">
                     <div class="form-check m-0">
                         <input class="form-check-input" type="checkbox" data-import-row-check>
                     </div>
                 </div>
-                <div class="col-lg-5">
+                <div class="col">
                     <div class="d-flex align-items-center gap-2 mb-1">
                         <label class="form-label small fw-semibold mb-0">Nội dung đề cương</label>
                         ${isChild ? '<span class="badge bg-info-subtle text-info-emphasis"><i class="fa-solid fa-level-down fa-rotate-90 me-1"></i>Nội dung con</span>' : ''}
                     </div>
                     <textarea class="form-control form-control-sm" name="item_content" rows="2" readonly style="background-color: var(--bs-secondary-bg); word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap;">${contentValue}</textarea>
+                    <div class="small fw-medium mt-1" data-import-assignment-summary></div>
+                    <div class="small text-muted" data-import-assignment-hint></div>
                     <input type="hidden" name="item_title" value="${titleValue}">
                     <input type="hidden" name="item_heading" value="${headingValue}">
                     <input type="hidden" name="item_parent">
                     <input type="hidden" name="item_inherit" value="${isChild ? (inherited ? '1' : '0') : '0'}">
                 </div>
-                <div class="col-lg-3">
-                    <label class="form-label small fw-semibold mb-1">Hình thức báo cáo</label>
-                    <select class="form-select form-select-sm" name="item_report_kind">
-                        <option value="narrative" ${rowData.report_kind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
-                        <option value="number" ${rowData.report_kind === 'number' ? 'selected' : ''}>Báo cáo số</option>
-                    </select>
-                </div>
-                <div class="col-lg-2">
-                    <label class="form-label small fw-semibold mb-1">Gán cho ai</label>
-                    <div class="d-flex align-items-start gap-2">
+                <div class="col-auto">
+                    <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
+                        <select class="form-select form-select-sm" name="item_report_kind" aria-label="Hình thức báo cáo" style="width: 132px;">
+                            <option value="narrative" ${rowData.report_kind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
+                            <option value="number" ${rowData.report_kind === 'number' ? 'selected' : ''}>Báo cáo số</option>
+                        </select>
                         ${isChild ? `
-                            <div class="form-check mb-1">
-                                <input class="form-check-input" type="checkbox" data-import-inherit ${inherited ? 'checked' : ''}>
-                                <label class="form-check-label small">Kế thừa mục cha</label>
+                            <div class="form-check form-check-inline mb-0">
+                                <input class="form-check-input" type="checkbox" data-import-inherit ${inherited ? 'checked' : ''} title="Kế thừa gán từ mục cha">
+                                <label class="form-check-label small">Kế thừa cha</label>
                             </div>
                         ` : ''}
-                        <button class="btn btn-sm btn-outline-secondary text-nowrap" type="button" data-row-assign-btn ${inherited ? 'disabled' : ''}>Gán</button>
-                        <div class="flex-grow-1">
-                            <div class="small fw-medium" data-import-assignment-summary></div>
-                            <div class="small text-muted" data-import-assignment-hint></div>
-                        </div>
+                        <button class="btn btn-sm btn-outline-secondary text-nowrap" type="button" data-row-assign-btn title="Gán cho ai" ${inherited ? 'disabled' : ''}><i class="fa-solid fa-user-plus"></i></button>
+                        <button class="btn btn-outline-danger btn-sm" type="button" data-remove-import-row title="Xóa"><i class="fa-solid fa-trash"></i></button>
                     </div>
                     <input type="hidden" name="item_assign_type">
                     <input type="hidden" name="item_domain">
                     <input type="hidden" name="item_domains">
                     <input type="hidden" name="item_role_ids">
                     <input type="hidden" name="item_user_ids">
-                </div>
-                <div class="col-lg-1 text-lg-end">
-                    <button class="btn btn-outline-danger btn-sm" type="button" data-remove-import-row>Xóa</button>
                 </div>
             </div>
         `;

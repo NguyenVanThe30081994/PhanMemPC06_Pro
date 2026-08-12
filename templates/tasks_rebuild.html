@@ -217,16 +217,18 @@
     }
 
     .wizard-outline-group-breadcrumb {
-        font-size: 11px;
-        color: var(--bs-secondary-color);
+        font-size: 13px;
+        font-weight: 700;
+        color: #1f2937;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         max-width: 100%;
+        line-height: 1.4;
     }
 
     .wizard-outline-group-title {
-        font-weight: 600;
+        font-weight: 700;
         font-size: 14px;
         color: #1f2937;
         line-height: 1.45;
@@ -1196,11 +1198,10 @@
                         <div data-wizard-config="OUTLINE" class="d-none">
                             <div class="border rounded-3 p-3 bg-light-subtle">
                                 <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
-                                    <div>
+                                    <div class="d-flex align-items-center gap-2">
                                         <div class="fw-bold">Danh sách nội dung</div>
-                                        <div class="small text-muted">Các gạch đầu dòng được gom theo từng mục trong đề cương (vd: 1.1. Các Sở, ban, ngành...). Mỗi nội dung gán cho đơn vị và chọn hình thức báo cáo; nội dung con (+) mặc định kế thừa mục cha, có thể bỏ kế thừa để gán riêng.</div>
+                                        <button class="btn btn-outline-primary btn-sm" type="button" id="wizardAddOutlineRowBtn">+ Thêm nội dung</button>
                                     </div>
-                                    <button class="btn btn-outline-primary btn-sm" type="button" id="wizardAddOutlineRowBtn">+ Thêm nội dung</button>
                                 </div>
                                 <div id="wizardOutlineRows" class="d-grid gap-2"></div>
                                 <div class="border rounded-3 p-3 mt-3 bg-white">
@@ -2005,37 +2006,31 @@
         const inherited = isChild && !(rowData.assign_type || (rowData.unit_domains || []).length || (rowData.role_ids || []).length || (rowData.user_ids || []).length);
         row.innerHTML = `
             <div class="row g-2 align-items-start">
-                <div class="col-md-1 d-flex align-items-center mt-2">
+                <div class="col-auto d-flex align-items-center mt-3">
                     <input class="form-check-input" type="checkbox" data-wz-row-check title="Tích dòng để gán hàng loạt">
                 </div>
-                <div class="col-md-7">
+                <div class="col">
                     <div class="d-flex align-items-center gap-2 mb-1">
                         <label class="form-label small fw-semibold mb-0">Nội dung đề cương</label>
                         ${isChild ? '<span class="badge bg-info-subtle text-info-emphasis"><i class="fa-solid fa-level-down fa-rotate-90 me-1"></i>Nội dung con</span>' : ''}
                     </div>
-                    <textarea class="form-control form-control-sm" name="item_content" rows="3" ${isManual ? '' : 'readonly'} placeholder="Nội dung đề cương" style="word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; ${isManual ? '' : 'background-color: var(--bs-secondary-bg);'}">${contentValue}</textarea>
+                    <textarea class="form-control form-control-sm" name="item_content" rows="2" ${isManual ? '' : 'readonly'} placeholder="Nội dung đề cương" style="word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; ${isManual ? '' : 'background-color: var(--bs-secondary-bg);'}">${contentValue}</textarea>
+                    <div class="small fw-medium text-primary mt-1" data-wz-row-summary></div>
                 </div>
-                <div class="col-md-4">
-                    <div class="mb-2">
-                        <label class="form-label small fw-semibold mb-1">Hình thức báo cáo</label>
-                        <select class="form-select form-select-sm" name="item_report_kind" data-report-kind-toggle>
+                <div class="col-auto">
+                    <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
+                        <select class="form-select form-select-sm" name="item_report_kind" data-report-kind-toggle aria-label="Hình thức báo cáo" style="width: 132px;">
                             <option value="narrative" ${reportKind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
                             <option value="number" ${reportKind === 'number' ? 'selected' : ''}>Báo cáo số</option>
                         </select>
-                    </div>
-                    <div class="mb-1">
-                        <label class="form-label small fw-semibold mb-1">Gán cho ai</label>
-                        <div class="d-flex gap-2 align-items-center flex-wrap">
-                            ${isChild ? `
-                                <div class="form-check form-check-inline mb-0">
-                                    <input class="form-check-input" type="checkbox" data-wz-inherit ${inherited ? 'checked' : ''}>
-                                    <label class="form-check-label small">Kế thừa mục cha</label>
-                                </div>
-                            ` : ''}
-                            <button type="button" class="btn btn-sm btn-outline-secondary" data-wz-row-assign ${inherited ? 'disabled' : ''}><i class="fa-solid fa-user-plus me-1"></i>Gán đơn vị</button>
-                            <button type="button" class="btn btn-sm btn-outline-danger" data-wz-row-remove><i class="fa-solid fa-trash me-1"></i>Xóa</button>
-                        </div>
-                        <div class="small fw-medium text-primary mt-1" data-wz-row-summary></div>
+                        ${isChild ? `
+                            <div class="form-check form-check-inline mb-0">
+                                <input class="form-check-input" type="checkbox" data-wz-inherit ${inherited ? 'checked' : ''} title="Kế thừa gán từ mục cha">
+                                <label class="form-check-label small">Kế thừa cha</label>
+                            </div>
+                        ` : ''}
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-wz-row-assign title="Gán cho ai" ${inherited ? 'disabled' : ''}><i class="fa-solid fa-user-plus"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-wz-row-remove title="Xóa"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </div>
                 <input type="hidden" name="item_title" value="${titleValue}">

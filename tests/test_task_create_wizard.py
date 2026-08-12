@@ -113,6 +113,31 @@ class TaskCreateWizardTests(unittest.TestCase):
         # Mỗi mục (heading có số hiệu) là một row; tiêu đề giữ số hiệu mục.
         self.assertEqual([row["title"] for row in payload["rows"]], ["1. Việc nhỏ A", "2. Việc nhỏ B"])
 
+    def test_outline_parse_keeps_content_starting_with_so_ban_nganh(self):
+        """Nội dung bắt đầu bằng 'Các sở, ban, ngành, Ủy ban nhân dân xã, phường'
+        (vd mục 7.2, 8 trong đề cương) phải được giữ làm row chứ không bị lọc nhầm."""
+        admin = self._admin()
+        self._login(admin.id)
+
+        document = Document()
+        document.add_paragraph("I. KẾT QUẢ CÁC MẶT CÔNG TÁC")
+        document.add_paragraph("7.2. Về nguồn nhân lực")
+        document.add_paragraph("Các sở, ban, ngành, Ủy ban nhân dân xã, phường báo cáo kết quả tập huấn, đào tạo chuyển đổi số trên nền tảng “Bình dân học vụ số”.")
+        buffer = io.BytesIO()
+        document.save(buffer)
+
+        response = self.client.post(
+            "/tasks/outline-parse",
+            data={"outline_file": (io.BytesIO(buffer.getvalue()), "de-cuong.docx"), "csrf_token": "wizard-test-csrf"},
+            content_type="multipart/form-data",
+        )
+        payload = response.get_json()
+        self.assertTrue(payload["ok"])
+        rows = payload["rows"]
+        self.assertEqual(len(rows), 1)
+        self.assertIn("tập huấn, đào tạo chuyển đổi số", rows[0]["title"])
+        self.assertIn("7.2", rows[0]["heading"])
+
     def test_delete_task_with_assignments_and_submissions(self):
         """Xóa công việc OUTLINE đã có assignment + submission (draft) phải sạch."""
         admin = self._admin()

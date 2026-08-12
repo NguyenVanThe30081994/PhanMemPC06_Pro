@@ -702,6 +702,10 @@ body {
 
 .desktop-sidebar {
     display: none;
+    /* Chiều rộng CỐ ĐỊNH, không bao giờ co/giãn theo độ dài chữ trong mục menu */
+    width: var(--desktop-sidebar-width, 272px);
+    min-width: var(--desktop-sidebar-width, 272px);
+    flex-shrink: 0;
 }
 
 .page-context {
@@ -1020,6 +1024,8 @@ body {
     border: 1px solid rgba(148, 163, 184, 0.12);
     border-radius: 12px;
     min-height: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .desktop-subnav-link small {

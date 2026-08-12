@@ -891,14 +891,19 @@ def _is_outline_structural_heading(raw_text, cleaned_text):
     if compact in structural_markers:
         return True
 
-    if compact.startswith("cac so, ban, nganh") and compact.endswith("bao cao ket qua"):
+    if compact.startswith("cac so, ban, nganh") and compact.endswith("bao cao ket qua") and len(compact) < 60 and ":" not in compact:
         return True
-    if compact.startswith("cac so, ban, nganh") and compact.endswith("bao cao ve"):
+    if compact.startswith("cac so, ban, nganh") and compact.endswith("bao cao ve") and len(compact) < 60 and ":" not in compact:
         return True
+    # Cảnh giác: dòng nội dung cũng có thể bắt đầu bằng "Các sở, ban, ngành,
+    # Ủy ban nhân dân xã, phường báo cáo..." nhưng LÀ NỘI DUNG cần gán (vd mục
+    # 7.2, 8 trong đề cương). Chỉ coi là tiêu đề mục khi dòng ngắn, kiểu tiêu đề
+    # (kết thúc bằng "báo cáo kết quả" / "báo cáo về") và không có dấu hai chấm.
     if compact.startswith("cac so, ban, nganh, uy ban nhan dan xa, phuong") and not has_bullet_prefix:
-        return True
-    if "mo hinh diem cua de an 06" in compact:
-        return True
+        if len(compact) < 60 and ":" not in compact and (
+            compact.endswith("bao cao ket qua") or compact.endswith("bao cao ve")
+        ):
+            return True
     if compact.startswith("voi chinh phu") or compact.startswith("voi bo, nganh trung uong") or compact.startswith("voi uy ban nhan dan tinh") or compact.startswith("voi so, ban, nganh"):
         return True
 
