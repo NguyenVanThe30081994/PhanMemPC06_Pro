@@ -12,8 +12,8 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Inter:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.5.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bdhvs-layout.css') }}?v=1.0.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=4.0.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bdhvs-layout.css') }}?v=2.0.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/category-picker.css') }}">
     <link rel="icon" type="image/x-icon" href="https://cdn-icons-png.flaticon.com/512/3593/3593503.png">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -89,32 +89,15 @@
 
         .notif-icon-wrap {
             position: relative;
-            width: 48px;
-            height: 48px;
+            width: 44px;
+            height: 44px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             overflow: visible;
             border-radius: 999px;
-            background:
-                radial-gradient(circle at 30% 26%, rgba(255,255,255,0.95) 0 10%, transparent 11%),
-                linear-gradient(180deg, #ff9b68 0%, #ff7f50 55%, #f46a3d 100%);
-            box-shadow:
-                inset 0 -3px 0 rgba(212, 88, 38, 0.28),
-                0 10px 22px rgba(244, 106, 61, 0.26);
-        }
-
-        .notif-icon-wrap::before {
-            content: "";
-            position: absolute;
-            left: 12px;
-            top: 11px;
-            width: 8px;
-            height: 18px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.92);
-            transform: rotate(14deg);
-            filter: blur(0.1px);
+            background: #f46a3d;
+            box-shadow: 0 2px 8px rgba(244, 106, 61, 0.25);
         }
 
         .notif-bell-icon {
@@ -132,8 +115,8 @@
             height: 22px;
             padding: 0 6px;
             border-radius: 999px;
-            border: 3px solid #fff;
-            background: linear-gradient(180deg, #f46f43 0%, #dd5a31 100%) !important;
+            border: 2px solid #fff;
+            background: #dd5a31 !important;
             color: #fff !important;
             font-size: 11px;
             font-weight: 800;
@@ -143,7 +126,7 @@
             justify-content: center;
             white-space: nowrap;
             box-sizing: border-box;
-            box-shadow: 0 6px 14px rgba(221, 90, 49, 0.24);
+            box-shadow: 0 2px 6px rgba(221, 90, 49, 0.25);
         }
 
         .toast-container {
@@ -554,114 +537,65 @@
             --circle-size: 55px;
         }
 
-        /* Modern Sidebar Glassmorphism & Animations */
+        /* Modern Sidebar (flat, Windows-11 style) */
         .mobile-sidebar {
-            background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.75) !important;
-            backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
-            -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) !important;
-
-            /* Liquid Specularity: Top glowing border, Right subtle border */
-            border-top: 1px solid rgba(255, 255, 255, 0.4) !important;
-            border-right: 1px solid rgba(0, 0, 0, 0.05) !important;
-
-            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-            box-shadow: 10px 0 40px rgba(0, 0, 0, 0.05);
-        }
-
-        [data-theme="dark"] .mobile-sidebar {
-            background: rgba(15, 23, 42, 0.85) !important;
+            background: var(--bg-surface) !important;
+            border-right: 1px solid var(--border);
+            transition: transform 0.25s ease;
+            box-shadow: 4px 0 16px rgba(0, 0, 0, 0.04);
         }
 
         .mobile-sidebar .mobile-nav-profile {
-            background:
-                linear-gradient(135deg, rgba(var(--primary-rgb), 0.14), rgba(var(--primary-rgb), 0.05)),
-                rgba(255, 255, 255, 0.68);
-            border: 1px solid rgba(var(--primary-rgb), 0.14);
-            border-radius: 20px;
+            background: var(--bg-subtle);
+            border: 1px solid var(--border);
+            border-radius: 16px;
             padding: 16px;
             margin: 0 16px 8px;
-        }
-
-        [data-theme="dark"] .mobile-sidebar .mobile-nav-profile {
-            background:
-                linear-gradient(135deg, rgba(var(--primary-rgb), 0.18), rgba(var(--primary-rgb), 0.06)),
-                rgba(15, 23, 42, 0.55);
         }
 
         .mobile-sidebar .mobile-nav-avatar {
             width: 44px;
             height: 44px;
-            border-radius: 14px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, var(--primary), #3b82f6);
+            background: var(--primary);
             color: #fff;
             font-size: 14px;
             font-weight: 800;
             letter-spacing: 0.04em;
-            box-shadow: 0 10px 24px rgba(37, 99, 235, 0.2);
         }
 
         .mobile-sidebar .mobile-nav-section {
-            background: rgba(255, 255, 255, 0.62);
-            border: 1px solid rgba(148, 163, 184, 0.18);
-            border-radius: 20px;
-            padding: 10px;
-            margin: 0 16px 12px;
-            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
-        }
-
-        [data-theme="dark"] .mobile-sidebar .mobile-nav-section {
-            background: rgba(15, 23, 42, 0.52);
-        }
-
-        .mobile-sidebar .mobile-nav-label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 8px 10px;
-            color: var(--text-muted);
-            font-size: 11px;
-            font-weight: 800;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-        }
-
-        .mobile-sidebar .mobile-nav-list {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .mobile-sidebar .mobile-nav-group {
-            display: grid;
-            gap: 6px;
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 10px 8px;
+            margin: 0 8px 12px;
         }
 
         .mobile-sidebar .mobile-nav-link {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 12px 14px;
-            border-radius: 16px;
+            padding: 11px 14px;
+            border-radius: 12px;
             color: var(--text-main);
             font-weight: 700;
             text-decoration: none;
-            transition: background 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s;
+            transition: background-color 0.15s ease, color 0.15s ease;
         }
 
         .mobile-sidebar .mobile-nav-link:hover,
         .mobile-sidebar .mobile-nav-link:active {
             background: rgba(var(--primary-rgb, 37, 99, 235), 0.08);
             color: var(--primary);
-            transform: translateX(2px);
         }
 
         .mobile-sidebar .mobile-nav-link.active {
-            background: linear-gradient(135deg, var(--primary), #3b82f6);
+            background: var(--primary);
             color: #fff;
-            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.24);
         }
 
         .mobile-sidebar .mobile-nav-link.text-danger:hover,
@@ -673,7 +607,7 @@
         .mobile-sidebar .mobile-nav-icon {
             width: 38px;
             height: 38px;
-            border-radius: 12px;
+            border-radius: 10px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -699,59 +633,37 @@
         .mobile-sidebar .mobile-subnav-link {
             min-height: 0;
             padding: 10px 12px;
-            border-radius: 14px;
+            border-radius: 12px;
             font-size: 0.92rem;
-            background: rgba(248, 250, 252, 0.72);
-            border: 1px solid rgba(148, 163, 184, 0.12);
+            background: var(--bg-subtle);
+            border: 1px solid var(--border);
         }
 
         .mobile-sidebar .mobile-subnav-link-nested {
             padding: 9px 10px;
-            border-radius: 12px;
+            border-radius: 10px;
             font-size: 0.86rem;
         }
 
         .sidebar-unit-info {
-            background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.1), rgba(var(--primary-rgb), 0.05));
-            border-radius: 16px;
+            background: var(--bg-subtle);
+            border-radius: 14px;
             padding: 15px;
             margin: 0 15px 20px 15px;
-            border: 1px solid rgba(var(--primary-rgb), 0.1);
+            border: 1px solid var(--border);
         }
 
-        /* Global Micro-animations */
-        .animate-hover:hover {
-            transform: translateY(-3px);
-            transition: transform 0.3s ease;
-        }
-
-        .fade-in-up {
-            animation: fadeInUp 0.5s ease-out forwards;
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(15px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Smooth Collapse Animation override */
+        /* Collapse */
         .collapse {
-            transition: height 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            transition: height 0.25s ease !important;
         }
 
         /* Setup Pages Distinction */
         .page-header.setup-mode {
-            background: linear-gradient(135deg, rgba(30, 41, 59, 0.05), rgba(30, 41, 59, 0.02));
+            background: var(--bg-subtle);
             border: 1px dashed var(--border);
             padding: 20px;
-            border-radius: 20px;
+            border-radius: 16px;
         }
 
         .page-header.setup-mode .bg-primary {

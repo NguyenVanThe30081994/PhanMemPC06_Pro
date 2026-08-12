@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header mb-4 animate__animated animate__fadeIn">
+<div class="page-header mb-4">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div>
             <h1 class="h3 fw-bold mb-1" style="color: #1e293b;">Tổng quan hệ thống PC06</h1>
             <p class="text-muted mb-0">Dashboard quản lý và theo dõi hoạt động</p>
         </div>
         <div class="text-end">
-            <div class="badge px-4 py-2 rounded-pill mb-1" style="background: linear-gradient(135deg, #DBEAFE, #BFDBFE); color: #1D4ED8; border: none; font-weight: 700;">
+            <div class="badge px-4 py-2 rounded-pill mb-1" style="background: #dbeafe; color: #1D4ED8; border: none; font-weight: 700;">
                 <i class="fa-regular fa-clock me-2"></i>{{ dt_str }}
             </div>
             <div class="text-muted small">Cập nhật lúc: {{ dt_str.split(' ')[1] }}</div>
@@ -19,19 +19,19 @@
 <!-- Stats Row -->
 <div class="row g-4 mb-4">
     <div class="col-md-3">
-        <div class="card border-0 h-100 position-relative overflow-hidden" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08); transition: all 0.3s ease;">
+        <div class="card border-0 h-100" style="border-radius: 20px; background: #fff; box-shadow: 0 4px 16px rgba(15,23,42,0.06);">
             <div class="card-body p-4">
                 <div class="d-flex align-items-center gap-3 mb-3">
-                    <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #0066FF, #0052CC); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(0,102,255,0.35);">
+                    <div style="width: 56px; height: 56px; background: #2563eb; border-radius: 14px; display: flex; align-items: center; justify-content: center;">
                         <i class="fa-solid fa-list-check text-white fs-5"></i>
                     </div>
                     <div>
                         <h6 class="text-muted small mb-1 text-uppercase fw-bold" style="font-size: 11px;">Tổng công việc</h6>
-                        <h2 class="fw-bold mb-0" style="color: #0066FF; font-size: 2rem;">{{ tot }}</h2>
+                        <h2 class="fw-bold mb-0" style="color: #2563eb; font-size: 2rem;">{{ tot }}</h2>
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <span class="badge" style="background: linear-gradient(135deg, #D1FAE5, #A7F3D0); color: #059669; border: none; padding: 4px 10px; font-size: 11px; font-weight: 600;">
+                    <span class="badge" style="background: #d1fae5; color: #059669; border: none; padding: 4px 10px; font-size: 11px; font-weight: 600;">
                         <i class="fa-solid fa-check-circle me-1"></i>{{ done }} Hoàn thành
                     </span>
                 </div>
@@ -40,10 +40,10 @@
     </div>
     
     <div class="col-md-3">
-        <div class="card border-0 h-100 position-relative overflow-hidden" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08); transition: all 0.3s ease;">
+        <div class="card border-0 h-100" style="border-radius: 20px; background: #fff; box-shadow: 0 4px 16px rgba(15,23,42,0.06);">
             <div class="card-body p-4">
                 <div class="d-flex align-items-center gap-3 mb-3">
-                    <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(16,185,129,0.35);">
+                    <div style="width: 56px; height: 56px; background: #10b981; border-radius: 14px; display: flex; align-items: center; justify-content: center;">
                         <i class="fa-solid fa-address-book text-white fs-5"></i>
                     </div>
                     <div>
@@ -52,7 +52,7 @@
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <span class="badge" style="background: linear-gradient(135deg, #D1FAE5, #A7F3D0); color: #059669; border: none; padding: 4px 10px; font-size: 11px; font-weight: 600;">
+                    <span class="badge" style="background: #d1fae5; color: #059669; border: none; padding: 4px 10px; font-size: 11px; font-weight: 600;">
                         <i class="fa-solid fa-phone me-1"></i>Thông tin liên lạc
                     </span>
                 </div>
@@ -61,10 +61,10 @@
     </div>
 
     <div class="col-md-3">
-        <div class="card border-0 h-100 position-relative overflow-hidden" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08); transition: all 0.3s ease;">
+        <div class="card border-0 h-100" style="border-radius: 20px; background: #fff; box-shadow: 0 4px 16px rgba(15,23,42,0.06);">
             <div class="card-body p-4">
                 <div class="d-flex align-items-center gap-3 mb-3">
-                    <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(245,158,11,0.35);">
+                    <div style="width: 56px; height: 56px; background: #f59e0b; border-radius: 14px; display: flex; align-items: center; justify-content: center;">
                         <i class="fa-solid fa-users text-white fs-5"></i>
                     </div>
                     <div>
@@ -73,7 +73,7 @@
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <span class="badge" style="background: linear-gradient(135deg, #FEF3C7, #FDE68A); color: #92400E; border: none; padding: 4px 10px; font-size: 11px; font-weight: 600;">
+                    <span class="badge" style="background: #fef3c7; color: #92400E; border: none; padding: 4px 10px; font-size: 11px; font-weight: 600;">
                         <i class="fa-solid fa-user-check me-1"></i>Tài khoản nội bộ
                     </span>
                 </div>
@@ -82,10 +82,10 @@
     </div>
 
     <div class="col-md-3">
-        <div class="card border-0 h-100 position-relative overflow-hidden" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08); transition: all 0.3s ease;">
+        <div class="card border-0 h-100" style="border-radius: 20px; background: #fff; box-shadow: 0 4px 16px rgba(15,23,42,0.06);">
             <div class="card-body p-4">
                 <div class="d-flex align-items-center gap-3 mb-3">
-                    <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #06b6d4, #0891b2); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(6,182,212,0.35);">
+                    <div style="width: 56px; height: 56px; background: #06b6d4; border-radius: 14px; display: flex; align-items: center; justify-content: center;">
                         <i class="fa-solid fa-building text-white fs-5"></i>
                     </div>
                     <div>
@@ -94,7 +94,7 @@
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <span class="badge" style="background: linear-gradient(135deg, #CFFAFE, #A5F3FC); color: #0e7490; border: none; padding: 4px 10px; font-size: 11px; font-weight: 600;">
+                    <span class="badge" style="background: #cffafe; color: #0e7490; border: none; padding: 4px 10px; font-size: 11px; font-weight: 600;">
                         <i class="fa-solid fa-map-location-dot me-1"></i>Tỉnh / Huyện / Xã
                     </span>
                 </div>
@@ -106,11 +106,11 @@
 <div class="row g-4">
     <!-- Recent Activity Column -->
     <div class="col-lg-8">
-        <div class="card border-0 h-100 overflow-hidden" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08);">
-            <div class="card-header border-0 bg-transparent py-4 px-4" style="border-radius: 24px 24px 0 0;">
+        <div class="card border-0 h-100" style="border-radius: 20px; background: #fff; box-shadow: 0 4px 16px rgba(15,23,42,0.06);">
+            <div class="card-header border-0 bg-transparent py-4 px-4" style="border-radius: 20px 20px 0 0;">
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center gap-3">
-                        <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(245,158,11,0.35);">
+                        <div style="width: 50px; height: 50px; background: #f59e0b; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
                             <i class="fa-solid fa-bolt-lightning text-white fs-5"></i>
                         </div>
                         <div>
@@ -118,7 +118,7 @@
                             <p class="text-muted mb-0 small">Cập nhật công việc mới nhất</p>
                         </div>
                     </div>
-                    <a href="/tasks" class="btn btn-sm fw-bold" style="background: linear-gradient(135deg, #f1f5f9, #e2e8f0); color: #475569; border-radius: 12px; padding: 8px 16px; border: none;">
+                    <a href="/tasks" class="btn btn-sm fw-bold" style="background: #f1f5f9; color: #475569; border-radius: 10px; padding: 8px 16px; border: none;">
                         <i class="fa-solid fa-arrow-right me-1"></i>Tất cả
                     </a>
                 </div>
@@ -126,14 +126,14 @@
             <div class="card-body p-4">
                 {% if recent_activity %}
                     {% for assign, task in recent_activity %}
-                    <div class="activity-item d-flex gap-3 mb-3 pb-3 border-bottom" style="transition: all 0.3s ease;">
-                        <div style="width: 45px; height: 45px; background: {% if assign.status == 'Hoàn thành' %}linear-gradient(135deg, #D1FAE5, #A7F3D0){% elif assign.status == 'Đang thực hiện' %}linear-gradient(135deg, #DBEAFE, #BFDBFE){% else %}linear-gradient(135deg, #FEF3C7, #FDE68A){% endif %}; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <div class="activity-item d-flex gap-3 mb-3 pb-3 border-bottom">
+                        <div style="width: 45px; height: 45px; background: {% if assign.status == 'Hoàn thành' %}#d1fae5{% elif assign.status == 'Đang thực hiện' %}#dbeafe{% else %}#fef3c7{% endif %}; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                             <i class="fa-solid fa-file-pen" style="color: {% if assign.status == 'Hoàn thành' %}#059669{% elif assign.status == 'Đang thực hiện' %}#1D4ED8{% else %}#92400E{% endif %};"></i>
                         </div>
                         <div class="flex-grow-1">
                             <div class="d-flex justify-content-between align-items-start mb-1">
                                 <h6 class="fw-bold mb-0" style="color: #1e293b; font-size: 14px;">{{ task.title }}</h6>
-                                <span class="badge" style="background: {% if assign.status == 'Hoàn thành' %}linear-gradient(135deg, #D1FAE5, #A7F3D0){% elif assign.status == 'Đang thực hiện' %}linear-gradient(135deg, #DBEAFE, #BFDBFE){% else %}linear-gradient(135deg, #FEF3C7, #FDE68A){% endif %}; color: {% if assign.status == 'Hoàn thành' %}#059669{% elif assign.status == 'Đang thực hiện' %}#1D4ED8{% else %}#92400E{% endif %}; border: none; padding: 4px 10px; font-size: 10px; font-weight: 600;">
+                                <span class="badge" style="background: {% if assign.status == 'Hoàn thành' %}#d1fae5{% elif assign.status == 'Đang thực hiện' %}#dbeafe{% else %}#fef3c7{% endif %}; color: {% if assign.status == 'Hoàn thành' %}#059669{% elif assign.status == 'Đang thực hiện' %}#1D4ED8{% else %}#92400E{% endif %}; border: none; padding: 4px 10px; font-size: 10px; font-weight: 600;">
                                     {{ assign.status }}
                                 </span>
                             </div>
@@ -158,10 +158,10 @@
     <!-- Right Column: Charts & Quick Links -->
     <div class="col-lg-4">
         <!-- Task Progress Chart -->
-        <div class="card border-0 mb-4 overflow-hidden" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08);">
+        <div class="card border-0 mb-4" style="border-radius: 20px; background: #fff; box-shadow: 0 4px 16px rgba(15,23,42,0.06);">
             <div class="card-header border-0 bg-transparent py-4 px-4">
                 <div class="d-flex align-items-center gap-3">
-                    <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #8B5CF6, #7C3AED); border-radius: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(139,92,246,0.35);">
+                    <div style="width: 50px; height: 50px; background: #8b5cf6; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
                         <i class="fa-solid fa-chart-pie text-white fs-5"></i>
                     </div>
                     <div>
@@ -181,12 +181,12 @@
         </div>
         
         <!-- Quick Actions -->
-        <div class="card border-0" style="border-radius: 24px; background: linear-gradient(145deg, #ffffff, #f8fafc); box-shadow: 0 8px 32px rgba(0,0,0,0.08);">
+        <div class="card border-0" style="border-radius: 20px; background: #fff; box-shadow: 0 4px 16px rgba(15,23,42,0.06);">
             <div class="card-body p-4">
                 <h6 class="fw-bold mb-3" style="color: #1e293b;">Công cụ nhanh</h6>
                 <div class="d-grid gap-2">
-                    <a href="/tasks" class="btn text-start p-3 d-flex align-items-center gap-3" style="background: linear-gradient(145deg, #f8fafc, #ffffff); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 16px; transition: all 0.3s ease;">
-                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #0066FF, #0052CC); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <a href="/tasks" class="btn text-start p-3 d-flex align-items-center gap-3" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px;">
+                        <div style="width: 40px; height: 40px; background: #2563eb; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
                             <i class="fa-solid fa-list-check text-white"></i>
                         </div>
                         <div class="flex-grow-1">
@@ -196,8 +196,8 @@
                         <i class="fa-solid fa-chevron-right text-muted"></i>
                     </a>
                     
-                    <a href="/contacts" class="btn text-start p-3 d-flex align-items-center gap-3" style="background: linear-gradient(145deg, #f8fafc, #ffffff); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 16px; transition: all 0.3s ease;">
-                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <a href="/contacts" class="btn text-start p-3 d-flex align-items-center gap-3" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px;">
+                        <div style="width: 40px; height: 40px; background: #10b981; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
                             <i class="fa-solid fa-address-book text-white"></i>
                         </div>
                         <div class="flex-grow-1">
@@ -207,8 +207,8 @@
                         <i class="fa-solid fa-chevron-right text-muted"></i>
                     </a>
                     
-                    <a href="{{ url_for('portal_bp.martyr_adn_map') }}" class="btn text-start p-3 d-flex align-items-center gap-3" style="background: linear-gradient(145deg, #f8fafc, #ffffff); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 16px; transition: all 0.3s ease;">
-                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #7c3aed, #6d28d9); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <a href="{{ url_for('portal_bp.martyr_adn_map') }}" class="btn text-start p-3 d-flex align-items-center gap-3" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px;">
+                        <div style="width: 40px; height: 40px; background: #7c3aed; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
                             <i class="fa-solid fa-dna text-white"></i>
                         </div>
                         <div class="flex-grow-1">
@@ -229,26 +229,22 @@
 <script src="{{ url_for('static', filename='js/dashboard-charts.js') }}"></script>
 
 <style>
-    /* Hover effects for quick action buttons */
+    /* Flat hover states — subtle background shift only */
     .btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.1) !important;
+        box-shadow: none !important;
     }
     
-    /* Smooth animations for stat cards */
     .card {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: box-shadow 0.15s ease;
     }
     
     .card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 12px 40px rgba(0,0,0,0.12) !important;
+        box-shadow: 0 6px 20px rgba(15,23,42,0.08) !important;
     }
     
-    /* Activity item hover */
     .activity-item:hover {
-        background: rgba(0, 102, 255, 0.02);
-        border-radius: 12px;
+        background: #f8fafc;
+        border-radius: 10px;
         margin-left: -8px;
         margin-right: -8px;
         padding-left: 8px !important;
@@ -271,12 +267,11 @@
 </script>
 
 <style>
-    .stat-card { transition: transform 0.3s; }
-    .stat-card:hover { transform: translateY(-5px); }
+    .stat-card { transition: none; }
     .last-border-0:last-child { border-bottom: none !important; }
     .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .hover-elevate { transition: all 0.2s; }
-    .hover-elevate:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important; }
+    .hover-elevate { transition: none; }
+    .hover-elevate:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important; }
     .tiny { font-size: 10px; }
     .bg-indigo-light { background: #e0e7ff; }
     .text-indigo { color: #4f46e5; }

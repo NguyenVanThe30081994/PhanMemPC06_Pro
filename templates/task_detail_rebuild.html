@@ -375,7 +375,7 @@
 
                                 <div id="outlineModeImportSection" class="d-none">
                                     <div class="border rounded-3 p-3 bg-light-subtle mb-4">
-                                        <div class="fw-semibold mb-1">Bước 1: Nạp file đề cương</div>
+                                        <div class="fw-semibold mb-1"><span class="step-pill me-2">Bước 1</span>Nạp file đề cương</div>
                                         <div class="small text-muted mb-3">Hệ thống gom nội dung theo từng mục, sau đó bạn sửa tiêu đề mục, chọn hình thức báo cáo và gán đơn vị nhận trước khi tạo thật.</div>
                                         <form action="{{ url_for('tasks_bp.preview_outline_import', tid=task.id) }}" method="POST" enctype="multipart/form-data">
                                             <div class="row g-3 align-items-end">
@@ -402,7 +402,7 @@
                                         <div class="border rounded-3 p-3 mb-4">
                                             <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
                                                 <div>
-                                                    <div class="fw-semibold">Bước 2: Cấu hình sau khi nạp đề cương</div>
+                                                    <div class="fw-semibold"><span class="step-pill me-2">Bước 2</span>Cấu hình sau khi nạp đề cương</div>
                                                     <div class="small text-muted">Đề cương được gom nội dung theo từng mục ở bên dưới. Kết quả phân tích tự động chỉ là gợi ý: bấm <b>Gán</b> ở từng dòng để gán mục cho đơn vị, hoặc tích nhiều dòng rồi gán hàng loạt ở khung phía trên. Toàn bộ quyết định giao việc do quản trị quyết định trước khi bấm Tạo.</div>
                                                 </div>
                                                 <button class="btn btn-outline-primary btn-sm" type="button" id="addImportOutlineRowBtn">Thêm dòng</button>
@@ -1157,6 +1157,30 @@
 </div>
 
 <style>
+    .import-config-row-child {
+        margin-left: 42px;
+        border-left: 3px solid rgba(37, 99, 235, 0.25) !important;
+        background: rgba(248, 250, 252, 0.85);
+    }
+
+    /* Step pill phẳng cho luồng import đề cương */
+    .step-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: #0066FF;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        vertical-align: middle;
+    }
+
+    [data-theme="dark"] .step-pill {
+        background: #3b82f6;
+    }
+
     .task-detail-shell {
         display: grid;
         gap: 24px;
@@ -1614,14 +1638,45 @@
         return 'Chưa gán người nhận';
     }
 
+    function importRowParentElement(row) {
+        return (row && typeof row._importParentEl !== 'undefined') ? row._importParentEl : null;
+    }
+
     function syncImportRowIndexes() {
         if (!importRows) return;
         const rows = Array.from(importRows.querySelectorAll('[data-import-config-row]'));
         rows.forEach((row, index) => {
             const attachment = row.querySelector('[data-item-attachment]');
             if (attachment) attachment.value = String(index);
+            const parentInput = row.querySelector('input[name="item_parent"]');
+            if (parentInput) {
+                const parentEl = importRowParentElement(row);
+                const parentIndex = parentEl ? rows.indexOf(parentEl) : -1;
+                parentInput.value = parentIndex >= 0 ? String(parentIndex) : '';
+            }
+            const inheritInput = row.querySelector('input[name="item_inherit"]');
+            const inheritCheckbox = row.querySelector('[data-import-inherit]');
+            if (inheritInput) {
+                inheritInput.value = (inheritCheckbox && inheritCheckbox.checked) ? String(index) : '';
+            }
         });
         importEmpty?.classList.toggle('d-none', rows.length > 0);
+    }
+
+    function effectiveImportRowDomains(row, visited) {
+        if (!row) return [];
+        const own = (row.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean);
+        if (own.length) return own;
+        const inheritCheckbox = row.querySelector('[data-import-inherit]');
+        if (inheritCheckbox && inheritCheckbox.checked) {
+            const parentEl = importRowParentElement(row);
+            if (parentEl && (!visited || !visited.has(parentEl))) {
+                const nextVisited = visited ? new Set(visited) : new Set();
+                nextVisited.add(row);
+                return effectiveImportRowDomains(parentEl, nextVisited);
+            }
+        }
+        return [];
     }
 
     function updateImportRowAssignment(row, payload) {
@@ -1630,12 +1685,62 @@
         row.querySelector('input[name="item_domains"]').value = (payload.unitDomains || []).join(',');
         row.querySelector('input[name="item_role_ids"]').value = (payload.roleIds || []).join(',');
         row.querySelector('input[name="item_user_ids"]').value = (payload.userIds || []).join(',');
+        const checkbox = row.querySelector('[data-import-inherit]');
+        if (checkbox) checkbox.checked = false;
+        const assignBtn = row.querySelector('[data-row-assign-btn]');
+        if (assignBtn) assignBtn.disabled = false;
         row.querySelector('[data-import-assignment-summary]').textContent = formatImportAssignmentSummary(
             payload.assignType || '',
             payload.unitDomains || [],
             payload.roleIds || [],
             payload.userIds || [],
         );
+        syncImportRowIndexes();
+        propagateImportInheritedChildren(row);
+    }
+
+    function propagateImportInheritedChildren(parentRow) {
+        if (!importRows) return;
+        const parentDomains = (parentRow.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean);
+        Array.from(importRows.querySelectorAll('[data-import-config-row]')).forEach((child) => {
+            if (importRowParentElement(child) !== parentRow) return;
+            const inheritCheckbox = child.querySelector('[data-import-inherit]');
+            const summary = child.querySelector('[data-import-assignment-summary]');
+            if (inheritCheckbox && inheritCheckbox.checked) {
+                if (summary) {
+                    summary.textContent = parentDomains.length
+                        ? 'Kế thừa mục cha: ' + parentDomains.map((v) => importUnitNameMap().get(String(v)) || String(v)).join(', ')
+                        : 'Kế thừa mục cha (chưa gán)';
+                }
+            }
+        });
+    }
+
+    function setImportRowInherit(row, on) {
+        const assignBtn = row.querySelector('[data-row-assign-btn]');
+        const summary = row.querySelector('[data-import-assignment-summary]');
+        const checkbox = row.querySelector('[data-import-inherit]');
+        if (checkbox) checkbox.checked = on;
+        if (assignBtn) assignBtn.disabled = on;
+        if (on) {
+            row.querySelector('input[name="item_assign_type"]').value = '';
+            row.querySelector('input[name="item_domain"]').value = '';
+            row.querySelector('input[name="item_domains"]').value = '';
+            row.querySelector('input[name="item_role_ids"]').value = '';
+            row.querySelector('input[name="item_user_ids"]').value = '';
+        }
+        const parentEl = importRowParentElement(row);
+        const parentDomains = parentEl ? (parentEl.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean) : [];
+        if (on) {
+            if (summary) {
+                summary.textContent = parentDomains.length
+                    ? 'Kế thừa mục cha: ' + parentDomains.map((v) => importUnitNameMap().get(String(v)) || String(v)).join(', ')
+                    : 'Kế thừa mục cha (chưa gán)';
+            }
+        } else if (summary) {
+            summary.textContent = 'Chưa gán người nhận';
+        }
+        syncImportRowIndexes();
     }
 
     let rowAssignTarget = null;
@@ -1664,10 +1769,14 @@
 
     document.getElementById('applyRowAssignBtn')?.addEventListener('click', applyRowAssign);
 
-    function makeImportRow(rowData = {}) {
+    function makeImportRow(rowData = {}, parentRowEl = null) {
         const wrapper = document.createElement('div');
-        wrapper.className = 'px-3 py-3 border-top';
+        const isChild = Boolean(parentRowEl);
+        wrapper.className = 'px-3 py-3 border-top import-config-row' + (isChild ? ' import-config-row-child' : '');
         wrapper.dataset.importConfigRow = '1';
+        wrapper._importParentEl = parentRowEl || null;
+        const titleValue = String(rowData.title || '').replace(/"/g, '&quot;');
+        const inherited = isChild && !(rowData.assign_type || (rowData.unit_domains || []).length || (rowData.role_ids || []).length || (rowData.user_ids || []).length);
         wrapper.innerHTML = `
             <div class="row g-2 align-items-center">
                 <div class="col-lg-1">
@@ -1676,7 +1785,10 @@
                     </div>
                 </div>
                 <div class="col-lg-5">
-                    <input class="form-control" type="text" name="item_title" placeholder="Tiêu đề mục (vd: 1.1. Các Sở, ban, ngành...)" value="${String(rowData.title || '').replace(/"/g, '&quot;')}">
+                    ${isChild ? '<span class="badge bg-info-subtle text-info-emphasis mb-1"><i class="fa-solid fa-level-down fa-rotate-90 me-1"></i>Nội dung con</span>' : ''}
+                    <input class="form-control" type="text" name="item_title" placeholder="Tiêu đề mục (vd: 1.1. Các Sở, ban, ngành...)" value="${titleValue}">
+                    <input type="hidden" name="item_parent">
+                    <input type="hidden" name="item_inherit" value="${isChild ? (inherited ? '1' : '0') : '0'}">
                 </div>
                 <div class="col-lg-3">
                     <select class="form-select" name="item_report_kind">
@@ -1686,7 +1798,13 @@
                 </div>
                 <div class="col-lg-2">
                     <div class="d-flex align-items-start gap-2">
-                        <button class="btn btn-sm btn-outline-secondary text-nowrap" type="button" data-row-assign-btn>Gán</button>
+                        ${isChild ? `
+                            <div class="form-check mb-1">
+                                <input class="form-check-input" type="checkbox" data-import-inherit ${inherited ? 'checked' : ''}>
+                                <label class="form-check-label small">Kế thừa mục cha</label>
+                            </div>
+                        ` : ''}
+                        <button class="btn btn-sm btn-outline-secondary text-nowrap" type="button" data-row-assign-btn ${inherited ? 'disabled' : ''}>Gán</button>
                         <div class="flex-grow-1">
                             <div class="small fw-medium" data-import-assignment-summary></div>
                             <div class="small text-muted" data-import-assignment-hint></div>
@@ -1704,15 +1822,24 @@
             </div>
         `;
         updateImportRowAssignment(wrapper, {
-            assignType: rowData.assign_type || '',
-            domain: rowData.domain || '',
-            unitDomains: rowData.unit_domains || [],
-            roleIds: rowData.role_ids || [],
-            userIds: rowData.user_ids || [],
+            assignType: isChild && inherited ? '' : (rowData.assign_type || ''),
+            domain: isChild && inherited ? '' : (rowData.domain || ''),
+            unitDomains: isChild && inherited ? [] : (rowData.unit_domains || []),
+            roleIds: isChild && inherited ? [] : (rowData.role_ids || []),
+            userIds: isChild && inherited ? [] : (rowData.user_ids || []),
         });
+        if (isChild && inherited) {
+            setImportRowInherit(wrapper, true);
+        }
         const hintEl = wrapper.querySelector('[data-import-assignment-hint]');
         if (hintEl && rowData.assignee_hint) {
             hintEl.textContent = 'Đề cương ghi: ' + String(rowData.assignee_hint);
+        }
+        const inheritCheckbox = wrapper.querySelector('[data-import-inherit]');
+        if (inheritCheckbox) {
+            inheritCheckbox.addEventListener('change', () => {
+                setImportRowInherit(wrapper, inheritCheckbox.checked);
+            });
         }
         wrapper.querySelector('[data-remove-import-row]')?.addEventListener('click', () => {
             wrapper.remove();
@@ -1722,9 +1849,13 @@
         return wrapper;
     }
 
-    function addImportRow(rowData = {}) {
+    function addImportRow(rowData = {}, parentRowEl = null) {
         if (!importRows) return;
-        importRows.appendChild(makeImportRow(rowData));
+        const wrapper = makeImportRow(rowData, parentRowEl);
+        importRows.appendChild(wrapper);
+        if (parentRowEl) {
+            propagateImportInheritedChildren(parentRowEl);
+        }
         syncImportRowIndexes();
     }
 
@@ -1953,7 +2084,12 @@
     syncImportRolePickerLabel();
     syncImportUserPickerLabel();
     if (Array.isArray(importPreviewRows)) {
-        importPreviewRows.forEach((row) => addImportRow(row));
+        const createdImportRowEls = [];
+        importPreviewRows.forEach((row, i) => {
+            const parentIndex = (typeof row.parent_row_index === 'number' && row.parent_row_index >= 0 && row.parent_row_index < createdImportRowEls.length) ? row.parent_row_index : null;
+            const parentEl = parentIndex !== null ? createdImportRowEls[parentIndex] : null;
+            createdImportRowEls.push(addImportRow(row, parentEl));
+        });
     }
     syncImportRowIndexes();
     syncOutlineMode(importPreviewRows.length ? 'import' : 'manual');

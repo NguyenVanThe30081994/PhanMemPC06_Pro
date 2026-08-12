@@ -1284,6 +1284,7 @@ def _parse_outline_with_hierarchy(paragraphs, is_docx=False):
                 "full_title": title[:255],
                 "number": number,
                 "content_lines": [],
+                "bullets": [],
                 "children": []
             }
             
@@ -1300,34 +1301,88 @@ def _parse_outline_with_hierarchy(paragraphs, is_docx=False):
             
             stack.append((level, new_item))
         else:
-            # Đây là content line (gạch đầu dòng)
-            # Add to current parent's content_lines
+            # Đây là content line (gạch đầu dòng). Giữ nguyên cấp lồng nhau:
+            # - / • / * : gạch đầu dòng cấp 1 (1 nội dung để gán)
+            # +         : nội dung con nằm trong gạch đầu dòng cấp 1 liền trước
             if stack:
                 current_parent = stack[-1][1]
-                # Chỉ thêm nếu không phải heading structural
                 if not _is_outline_structural_heading(text, text):
-                    current_parent["content_lines"].append(text)
+                    _append_outline_bullet(current_parent, text)
             elif items:
-                # Leading content before any heading - add to first item
-                items[0]["content_lines"].append(text)
+                _append_outline_bullet(items[0], text)
     
     return items
 
 
-def _flatten_hierarchy_to_rows(hierarchy_items, catalog=None):
-    """Gom đề cương theo MỤC: toàn bộ nội dung (gạch đầu dòng) của cùng một mục
-    được gộp vào chung MỘT việc (row), không tách từng dòng thành việc riêng.
+def _append_outline_bullet(item, raw_text):
+    """Thêm một dòng nội dung vào mục, giữ cấu trúc cha/con:
+    gạch đầu dòng '-' là bullet cấp 1; dòng '+' là con của bullet cấp 1 liền trước.
+    Dòng thường (không có ký hiệu) cũng là bullet cấp 1.
+    """
+    text = str(raw_text or "").strip()
+    if not text:
+        return
+    item.setdefault("content_lines", []).append(text)
+    bullets = item.setdefault("bullets", [])
+    if re.match(r"^\s*\+", text):
+        if bullets:
+            bullets[-1].setdefault("children", []).append({"text": text, "type": "plus", "children": []})
+        else:
+            bullets.append({"text": text, "type": "plus", "children": []})
+    else:
+        bullet_type = "dash" if re.match(r"^\s*[-–—•*]", text) else "para"
+        bullets.append({"text": text, "type": bullet_type, "children": []})
 
-    - Mỗi mục có nội dung (content_lines) -> 1 row duy nhất:
-        title   = tiêu đề mục kèm số hiệu (vd: "1.1. Các Sở, ban, ngành...")
-        content = toàn bộ các dòng nội dung của mục, mỗi dòng 1 dòng
-        heading = đường dẫn đầy đủ (vd: "I. KẾT QUẢ... » 1. CÔNG TÁC... » 1.1. ...")
-      Việc gán cho đơn vị / hình thức báo cáo áp dụng cho cả mục.
-    - Mục lá không có nội dung -> tự nó là 1 việc (đầu mục chỉ có tiêu đề).
+
+def _flatten_hierarchy_to_rows(hierarchy_items, catalog=None):
+    """Chuyển cây đề cương thành danh sách dòng để gán việc.
+
+    Mỗi GẠCH ĐẦU DÒNG cấp 1 ('-', '•', '*') là MỘT nội dung để gán (row riêng).
+    Dòng '+' nằm dưới một gạch đầu dòng là NỘI DUNG CON của gạch đó (row con,
+    có parent_row_index trỏ về row cha). Mặc định gán cho gạch đầu dòng sẽ tự
+    gán cho các nội dung con, nhưng quản trị vẫn sửa được riêng từng dòng con.
+
+    - Tiêu đề row = chính nội dung gạch đầu dòng (đã bỏ ký hiệu), không cần lặp
+      lại tiêu đề mục vì đường dẫn mục đã đủ chi tiết (vd: I. » 1. » 1.1. ...).
+    - Mục lá không có gạch đầu dòng -> tự nó là 1 việc (đầu mục chỉ có tiêu đề).
     - Mục trung gian (chỉ chứa mục con) -> không tạo việc, chỉ đệ quy xuống mục con.
     """
     rows = []
     seen = set()
+
+    def make_row(text, full_heading, number, level, parent_row_index=None):
+        raw = str(text or "").strip()
+        if not raw:
+            return None
+        # Bỏ ký hiệu gạch đầu dòng ở đầu dòng: '-', '–', '—', '•', '*', '+'
+        title = re.sub(r"^\s*(?:[-–—•*+]\s*|\+\s*)\s*", "", raw).strip()
+        title = re.sub(r"\s+", " ", title).strip(" .:")
+        if len(title) < 3:
+            return None
+        dedupe = _normalize_outline_match_text(f"{full_heading} {title}")
+        if dedupe in seen:
+            return None
+        seen.add(dedupe)
+        full_text = f"{full_heading}\n{raw}" if raw else full_heading
+        assignment = _resolve_outline_assignee_hint(full_text, catalog) if catalog else None
+        number_fields = _extract_number_fields_from_text(raw)
+        return {
+            "title": title[:255],
+            "content": raw[:3000],
+            "heading": full_heading[:255],
+            "level": level,
+            "number": number,
+            "parent_row_index": parent_row_index,
+            "has_numbers": bool(number_fields),
+            "number_fields": number_fields,
+            "assign_type": assignment["assign_type"] if assignment else "",
+            "domain": "",
+            "unit_domains": assignment["unit_domains"] if assignment else [],
+            "role_ids": assignment["role_ids"] if assignment else [],
+            "user_ids": assignment["user_ids"] if assignment else [],
+            "assignee_hint": full_text[:500],
+            "assignee_detected": bool(assignment and (assignment["unit_domains"] or assignment["role_ids"] or assignment["user_ids"])),
+        }
 
     def process_item(item, parent_heading=""):
         # Build full heading path
@@ -1337,67 +1392,33 @@ def _flatten_hierarchy_to_rows(hierarchy_items, catalog=None):
 
         cleaned_title = _clean_outline_title(item.get("title", ""))
         number = str(item.get("number") or "").strip()
-        content_lines = item.get("content_lines") or []
-        cleaned_lines = []
-        for raw_line in content_lines:
-            line = str(raw_line or "").strip()
-            if not line:
-                continue
-            cleaned_lines.append(line)
+        bullets = item.get("bullets") or []
         has_children = bool(item.get("children"))
 
-        if cleaned_lines and len(cleaned_title) >= 3:
-            # Gộp toàn bộ nội dung của mục vào chung 1 việc
-            content_text = "\n".join(cleaned_lines)
+        if bullets:
+            # Mỗi gạch đầu dòng cấp 1 là 1 nội dung để gán; '+' là nội dung con.
+            for bullet in bullets:
+                parent_row = make_row(bullet.get("text"), full_heading, number, item.get("level", 3))
+                parent_row_index = None
+                if parent_row:
+                    parent_row_index = len(rows)
+                    rows.append(parent_row)
+                for child in bullet.get("children") or []:
+                    child_row = make_row(
+                        child.get("text"),
+                        full_heading,
+                        number,
+                        item.get("level", 3) + 1,
+                        parent_row_index=parent_row_index,
+                    )
+                    if child_row:
+                        rows.append(child_row)
+        elif not has_children and len(cleaned_title) >= 3:
+            # Mục lá không có gạch đầu dòng -> tự nó là 1 việc (đầu mục chỉ có tiêu đề).
             row_title = f"{number}. {cleaned_title}" if number else cleaned_title
-            dedupe = _normalize_outline_match_text(f"{full_heading} {row_title}")
-            if dedupe not in seen:
-                seen.add(dedupe)
-                full_text = f"{full_heading}\n{content_text}"
-                assignment = _resolve_outline_assignee_hint(full_text, catalog) if catalog else None
-                number_fields = _extract_number_fields_from_text(content_text)
-                rows.append({
-                    "title": row_title[:255],
-                    "content": content_text[:3000],
-                    "heading": full_heading[:255],
-                    "level": item.get("level", 3),
-                    "number": number,
-                    "has_numbers": bool(number_fields),
-                    "number_fields": number_fields,
-                    "assign_type": assignment["assign_type"] if assignment else "",
-                    "domain": "",
-                    "unit_domains": assignment["unit_domains"] if assignment else [],
-                    "role_ids": assignment["role_ids"] if assignment else [],
-                    "user_ids": assignment["user_ids"] if assignment else [],
-                    "assignee_hint": full_text[:500],
-                    "assignee_detected": bool(assignment and (assignment["unit_domains"] or assignment["role_ids"] or assignment["user_ids"])),
-                })
-        elif not cleaned_lines and not has_children and len(cleaned_title) >= 3:
-            # Mục lá không có nội dung -> tự nó là 1 việc (đầu mục chỉ có tiêu đề).
-            # Không có nhánh này, đề cương chỉ viết dạng đầu mục có số sẽ không tạo
-            # được dòng nào để gán việc.
-            row_title = f"{number}. {cleaned_title}" if number else cleaned_title
-            dedupe = _normalize_outline_match_text(f"{full_heading} {row_title}")
-            if dedupe not in seen:
-                seen.add(dedupe)
-                assignment = _resolve_outline_assignee_hint(full_heading, catalog) if catalog else None
-                number_fields = _extract_number_fields_from_text(cleaned_title)
-                rows.append({
-                    "title": row_title[:255],
-                    "content": row_title[:3000],
-                    "heading": full_heading[:255],
-                    "level": item.get("level", 1),
-                    "number": number,
-                    "has_numbers": bool(number_fields),
-                    "number_fields": number_fields,
-                    "assign_type": assignment["assign_type"] if assignment else "",
-                    "domain": "",
-                    "unit_domains": assignment["unit_domains"] if assignment else [],
-                    "role_ids": assignment["role_ids"] if assignment else [],
-                    "user_ids": assignment["user_ids"] if assignment else [],
-                    "assignee_hint": full_heading[:500],
-                    "assignee_detected": bool(assignment and (assignment["unit_domains"] or assignment["role_ids"] or assignment["user_ids"])),
-                })
+            row = make_row(row_title, full_heading, number, item.get("level", 1))
+            if row:
+                rows.append(row)
         # Process children
         for child in item.get("children", []):
             process_item(child, full_heading)
@@ -6661,6 +6682,9 @@ def _parse_outline_item_configs_from_request(form):
     domains_values = form.getlist("item_domains")
     role_ids_values = form.getlist("item_role_ids")
     user_ids_values = form.getlist("item_user_ids")
+    parent_values = form.getlist("item_parent")
+    inherit_values = form.getlist("item_inherit")
+    heading_values = form.getlist("item_heading")
     configs = []
     seen = set()
 
@@ -6673,7 +6697,11 @@ def _parse_outline_item_configs_from_request(form):
         cleaned_title = re.sub(r"\s+", " ", cleaned_title).strip(" .:")
         if not cleaned_title:
             continue
-        dedupe_key = cleaned_title.lower()
+        # Với dòng bullet, các mục con cùng tên có thể lặp lại ở nhiều mục khác
+        # nhau trong đề cương -> khử trùng theo (heading, title) chứ không theo title.
+        raw_parent = str(parent_values[index] if index < len(parent_values) else "").strip()
+        raw_heading = str(heading_values[index] if index < len(heading_values) else "").strip()
+        dedupe_key = (cleaned_title.lower(), raw_heading.lower(), raw_parent)
         if dedupe_key in seen:
             continue
         seen.add(dedupe_key)
@@ -6696,8 +6724,10 @@ def _parse_outline_item_configs_from_request(form):
             number_fields = json.loads(raw_number_fields) if raw_number_fields else []
         except Exception:
             number_fields = []
+        parent_index = int(raw_parent) if raw_parent.isdigit() else None
         configs.append(
             {
+                "form_index": index,
                 "title": cleaned_title[:255],
                 "content": content_text[:3000],
                 "report_kind": report_kind,
@@ -6708,6 +6738,8 @@ def _parse_outline_item_configs_from_request(form):
                 "unit_domains": unit_domains,
                 "role_ids": sorted({int(value) for value in raw_role_ids.split(",") if value.strip().isdigit()}),
                 "user_ids": sorted({int(value) for value in raw_user_ids.split(",") if value.strip().isdigit()}),
+                "parent_index": parent_index,
+                "inherit": str(index) in inherit_values,
             }
         )
     return configs
@@ -6736,6 +6768,9 @@ def _get_outline_import_preview(task_id):
         rows.append(
             {
                 "title": title[:255],
+                "content": str(item.get("content") or "").strip()[:3000],
+                "heading": str(item.get("heading") or "").strip()[:255],
+                "parent_row_index": item.get("parent_row_index"),
                 "report_kind": report_kind,
                 "attachment_required": bool(item.get("attachment_required")),
                 "assign_type": assign_type,
@@ -7072,31 +7107,23 @@ def _tasks_page_v2():
                     ]
 
             if outline_item_configs:
-                resolved_item_assignments = []
-                for item_config in outline_item_configs:
-                    item_assignees, item_error_message, item_assign_type, item_role_ids = _resolve_outline_item_assignment(
-                        item_config, request.form, new_task
-                    )
-                    if item_error_message:
-                        flash(f'Nội dung "{item_config.get("title", "")}": {item_error_message}', "danger")
-                        db.session.rollback()
-                        return redirect(url_for("tasks_bp.tasks"))
-                    resolved_item_assignments.append(
-                        {"assignees": item_assignees, "assign_type": item_assign_type, "role_ids": item_role_ids}
-                    )
+                created_item_by_form_index = {}
                 for index, item_config in enumerate(outline_item_configs, start=1):
-                    assignment_meta = resolved_item_assignments[index - 1]
                     item_content = str(item_config.get("content") or "").strip()
                     number_fields = item_config.get("number_fields") or []
-                    # Store number fields as JSON guide text for number-kind items, or as reference
                     guide_text = None
                     if number_fields:
                         try:
                             guide_text = json.dumps(number_fields, ensure_ascii=False)
                         except Exception:
                             guide_text = None
+                    parent_item_id = None
+                    parent_index = item_config.get("parent_index")
+                    if parent_index is not None and parent_index in created_item_by_form_index:
+                        parent_item_id = created_item_by_form_index[parent_index]
                     task_item = TaskItem(
                         task_id=new_task.id,
+                        parent_item_id=parent_item_id,
                         item_code=str(index),
                         title=item_config["title"],
                         content=item_content or None,
@@ -7110,17 +7137,47 @@ def _tasks_page_v2():
                     )
                     db.session.add(task_item)
                     db.session.flush()
+                    created_item_by_form_index[item_config["form_index"]] = task_item.id
+                    if (
+                        item_config.get("inherit")
+                        and parent_index is not None
+                        and parent_index in created_item_by_form_index
+                    ):
+                        # Dòng con kế thừa gán từ mục cha: tạo assignment giống cha
+                        parent_item = TaskItem.query.filter_by(id=created_item_by_form_index[parent_index]).first()
+                        if parent_item:
+                            parent_assignments = TaskAssignment.query.filter_by(
+                                task_id=new_task.id, task_item_id=parent_item.id
+                            ).all()
+                            for parent_assignment in parent_assignments:
+                                db.session.add(
+                                    TaskAssignment(
+                                        task_id=new_task.id,
+                                        task_item_id=task_item.id,
+                                        user_id=parent_assignment.user_id,
+                                        assignee_type=parent_assignment.assignee_type,
+                                        role_id=parent_assignment.role_id,
+                                        title_snapshot=item_config["title"],
+                                        status="assigned",
+                                        is_required=True,
+                                        assigned_at=datetime.now(),
+                                    )
+                                )
+                            continue
+                    item_assignees, item_error_message, item_assign_type, item_role_ids = _resolve_outline_item_assignment(
+                        item_config, request.form, new_task
+                    )
+                    if item_error_message:
+                        flash(f'Nội dung "{item_config.get("title", "")}": {item_error_message}', "danger")
+                        db.session.rollback()
+                        return redirect(url_for("tasks_bp.tasks"))
                     _create_assignment_records(
                         new_task,
-                        assignment_meta["assignees"],
-                        assign_type=assignment_meta["assign_type"],
+                        item_assignees,
+                        assign_type=item_assign_type,
                         task_item=task_item,
                         title_snapshot=task_item.title,
-                        role_id=(
-                            assignment_meta["role_ids"][0]
-                            if len(assignment_meta["role_ids"]) == 1
-                            else None
-                        ),
+                        role_id=item_role_ids[0] if len(item_role_ids) == 1 else None,
                     )
             elif blueprint_items:
                 for index, item_config in enumerate(blueprint_items, start=1):
@@ -7510,23 +7567,9 @@ def _create_outline_items_v2(tid):
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
     current_count = TaskItem.query.filter_by(task_id=parent_task.id).count()
-    resolved_assignments = []
 
-    for item_config in item_configs:
-        assignees, error_message, assign_type, role_ids = _resolve_outline_item_assignment(item_config, request.form, parent_task)
-        if error_message:
-            flash(f'Nội dung "{item_config["title"]}": {error_message}', "danger")
-            return redirect(url_for("tasks_bp.task_detail", tid=tid))
-        resolved_assignments.append(
-            {
-                "assignees": assignees,
-                "assign_type": assign_type,
-                "role_ids": role_ids,
-            }
-        )
-
+    created_item_by_form_index = {}
     for index, item_config in enumerate(item_configs, start=1):
-        assignment_meta = resolved_assignments[index - 1]
         item_content = str(item_config.get("content") or "").strip()
         number_fields = item_config.get("number_fields") or []
         guide_text = None
@@ -7535,8 +7578,13 @@ def _create_outline_items_v2(tid):
                 guide_text = json.dumps(number_fields, ensure_ascii=False)
             except Exception:
                 guide_text = None
+        parent_item_id = None
+        parent_index = item_config.get("parent_index")
+        if parent_index is not None and parent_index in created_item_by_form_index:
+            parent_item_id = created_item_by_form_index[parent_index]
         task_item = TaskItem(
             task_id=parent_task.id,
+            parent_item_id=parent_item_id,
             item_code=str(current_count + index),
             title=item_config["title"],
             content=item_content or None,
@@ -7550,13 +7598,44 @@ def _create_outline_items_v2(tid):
         )
         db.session.add(task_item)
         db.session.flush()
+        created_item_by_form_index[item_config.get("form_index", index - 1)] = task_item.id
+        if (
+            item_config.get("inherit")
+            and parent_index is not None
+            and parent_index in created_item_by_form_index
+        ):
+            # Dòng con kế thừa gán từ mục cha: tạo assignment giống cha
+            parent_item = TaskItem.query.filter_by(id=created_item_by_form_index[parent_index]).first()
+            if parent_item:
+                parent_assignments = TaskAssignment.query.filter_by(
+                    task_id=parent_task.id, task_item_id=parent_item.id
+                ).all()
+                for parent_assignment in parent_assignments:
+                    db.session.add(
+                        TaskAssignment(
+                            task_id=parent_task.id,
+                            task_item_id=task_item.id,
+                            user_id=parent_assignment.user_id,
+                            assignee_type=parent_assignment.assignee_type,
+                            role_id=parent_assignment.role_id,
+                            title_snapshot=item_config["title"],
+                            status="assigned",
+                            is_required=True,
+                            assigned_at=datetime.now(),
+                        )
+                    )
+                continue
+        assignees, error_message, assign_type, role_ids = _resolve_outline_item_assignment(item_config, request.form, parent_task)
+        if error_message:
+            flash(f'Nội dung "{item_config["title"]}": {error_message}', "danger")
+            return redirect(url_for("tasks_bp.task_detail", tid=tid))
         _create_assignment_records(
             parent_task,
-            assignment_meta["assignees"],
-            assign_type=assignment_meta["assign_type"],
+            assignees,
+            assign_type=assign_type,
             task_item=task_item,
             title_snapshot=item_config["title"],
-            role_id=assignment_meta["role_ids"][0] if len(assignment_meta["role_ids"]) == 1 else None,
+            role_id=role_ids[0] if len(role_ids) == 1 else None,
         )
 
     db.session.commit()
@@ -7604,6 +7683,9 @@ def _preview_outline_import_v2(tid):
         preview_rows.append(
             {
                 "title": row["title"],
+                "content": row.get("content") or "",
+                "heading": row.get("heading") or "",
+                "parent_row_index": row.get("parent_row_index"),
                 "report_kind": default_report_kind,
                 "attachment_required": bool(attachment_required),
                 "assign_type": row.get("assign_type") or "",

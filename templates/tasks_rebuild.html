@@ -180,6 +180,12 @@
 </div>
 
 <style>
+    .wizard-outline-row-child {
+        margin-left: 42px;
+        border-left: 3px solid rgba(37, 99, 235, 0.25) !important;
+        background: rgba(248, 250, 252, 0.85) !important;
+    }
+
     .task-workspace-shell {
         display: grid;
         gap: 24px;
@@ -758,6 +764,153 @@
         color: #93c5fd;
     }
 
+    /* ---------- Wizard steps (flat stepper) ---------- */
+    .wizard-steps {
+        display: flex;
+        align-items: center;
+        gap: 0;
+    }
+
+    .wizard-step {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .wizard-step-dot {
+        flex: 0 0 auto;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #eef2f7;
+        border: 2px solid #e2e8f0;
+        color: #94a3b8;
+        font-weight: 700;
+        font-size: 0.85rem;
+        transition: background-color 0.15s ease-out, border-color 0.15s ease-out, color 0.15s ease-out;
+    }
+
+    .wizard-step-text {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.25;
+        min-width: 0;
+    }
+
+    .wizard-step-title {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #64748b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        transition: color 0.15s ease-out;
+    }
+
+    .wizard-step-sub {
+        font-size: 0.72rem;
+        color: #94a3b8;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .wizard-step.is-active .wizard-step-dot {
+        background: #0066FF;
+        border-color: #0066FF;
+        color: #fff;
+    }
+
+    .wizard-step.is-active .wizard-step-title {
+        color: #0f172a;
+        font-weight: 700;
+    }
+
+    .wizard-step.is-completed .wizard-step-dot {
+        background: #0066FF;
+        border-color: #0066FF;
+        color: #fff;
+    }
+
+    .wizard-step.is-completed .wizard-step-dot::after {
+        content: "\2713";
+        font-size: 0.85rem;
+        font-weight: 800;
+    }
+
+    .wizard-step.is-completed .wizard-step-num {
+        display: none;
+    }
+
+    .wizard-step.is-completed .wizard-step-title {
+        color: #334155;
+    }
+
+    .wizard-step-line {
+        flex: 1 1 20px;
+        min-width: 14px;
+        height: 2px;
+        border-radius: 2px;
+        background: #e2e8f0;
+        margin: 0 6px;
+        transition: background-color 0.15s ease-out;
+    }
+
+    .wizard-step-line.is-completed {
+        background: #0066FF;
+    }
+
+    [data-theme="dark"] .wizard-step-dot {
+        background: rgba(51, 65, 85, 0.5);
+        border-color: rgba(148, 163, 184, 0.25);
+        color: #94a3b8;
+    }
+
+    [data-theme="dark"] .wizard-step.is-active .wizard-step-dot,
+    [data-theme="dark"] .wizard-step.is-completed .wizard-step-dot {
+        background: #3b82f6;
+        border-color: #3b82f6;
+        color: #fff;
+    }
+
+    [data-theme="dark"] .wizard-step.is-active .wizard-step-title {
+        color: #f1f5f9;
+    }
+
+    [data-theme="dark"] .wizard-step.is-completed .wizard-step-title {
+        color: #cbd5e1;
+    }
+
+    [data-theme="dark"] .wizard-step-line {
+        background: rgba(148, 163, 184, 0.25);
+    }
+
+    [data-theme="dark"] .wizard-step-line.is-completed {
+        background: #3b82f6;
+    }
+
+    @media (max-width: 767.98px) {
+        .wizard-step-sub {
+            display: none;
+        }
+
+        .wizard-step-dot {
+            width: 28px;
+            height: 28px;
+            font-size: 0.78rem;
+        }
+
+        .wizard-step-line {
+            min-width: 8px;
+            margin: 0 4px;
+        }
+    }
+
     [data-theme="dark"] .btn-icon-corner.btn-danger:hover i {
         color: #f87171;
     }
@@ -847,22 +1000,37 @@
                         <h5 class="modal-title mb-0">Tạo công việc mới</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-                    <div class="d-flex flex-wrap gap-2 mt-3" id="wizardSteps">
-                        <div class="flex-fill text-center border rounded-3 px-2 py-2" data-wizard-step-label="1">
-                            <div class="fw-semibold small">1. Loại công việc</div>
-                            <div class="small text-muted">Chọn cách thu thập kết quả</div>
+                    <div class="wizard-steps mt-3" id="wizardSteps">
+                        <div class="wizard-step is-active" data-wizard-step-label="1">
+                            <span class="wizard-step-dot"><span class="wizard-step-num">1</span></span>
+                            <div class="wizard-step-text">
+                                <span class="wizard-step-title">Loại công việc</span>
+                                <span class="wizard-step-sub">Chọn cách thu thập kết quả</span>
+                            </div>
                         </div>
-                        <div class="flex-fill text-center border rounded-3 px-2 py-2" data-wizard-step-label="2">
-                            <div class="fw-semibold small">2. Tải nguồn</div>
-                            <div class="small text-muted">Đề cương / biểu mẫu / file</div>
+                        <span class="wizard-step-line" data-wizard-step-line="2"></span>
+                        <div class="wizard-step" data-wizard-step-label="2">
+                            <span class="wizard-step-dot"><span class="wizard-step-num">2</span></span>
+                            <div class="wizard-step-text">
+                                <span class="wizard-step-title">Tải nguồn</span>
+                                <span class="wizard-step-sub">Đề cương / biểu mẫu / file</span>
+                            </div>
                         </div>
-                        <div class="flex-fill text-center border rounded-3 px-2 py-2" data-wizard-step-label="3">
-                            <div class="fw-semibold small">3. Cấu hình</div>
-                            <div class="small text-muted">Mục, trường, người nhận</div>
+                        <span class="wizard-step-line" data-wizard-step-line="3"></span>
+                        <div class="wizard-step" data-wizard-step-label="3">
+                            <span class="wizard-step-dot"><span class="wizard-step-num">3</span></span>
+                            <div class="wizard-step-text">
+                                <span class="wizard-step-title">Cấu hình</span>
+                                <span class="wizard-step-sub">Mục, trường, người nhận</span>
+                            </div>
                         </div>
-                        <div class="flex-fill text-center border rounded-3 px-2 py-2" data-wizard-step-label="4">
-                            <div class="fw-semibold small">4. Phát hành</div>
-                            <div class="small text-muted">Thông tin chung &amp; xuất việc</div>
+                        <span class="wizard-step-line" data-wizard-step-line="4"></span>
+                        <div class="wizard-step" data-wizard-step-label="4">
+                            <span class="wizard-step-dot"><span class="wizard-step-num">4</span></span>
+                            <div class="wizard-step-text">
+                                <span class="wizard-step-title">Phát hành</span>
+                                <span class="wizard-step-sub">Thông tin chung &amp; xuất việc</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1417,9 +1585,12 @@
             element.classList.toggle('d-none', Number(key) !== step);
         });
         document.querySelectorAll('[data-wizard-step-label]').forEach((label) => {
-            const active = Number(label.dataset.wizardStepLabel) === step;
-            label.classList.toggle('border-primary', active);
-            label.classList.toggle('bg-primary-subtle', active);
+            const num = Number(label.dataset.wizardStepLabel);
+            label.classList.toggle('is-active', num === step);
+            label.classList.toggle('is-completed', num < step);
+        });
+        document.querySelectorAll('[data-wizard-step-line]').forEach((line) => {
+            line.classList.toggle('is-completed', Number(line.dataset.wizardStepLine) <= step);
         });
         if (wizardBackBtn) wizardBackBtn.disabled = step === 1;
         if (wizardNextBtn) wizardNextBtn.classList.toggle('d-none', step === 4);
@@ -1444,8 +1615,8 @@
         let detail = '';
         if (wizardMode === 'OUTLINE') {
             const rows = Array.from(outlineRowsBox?.querySelectorAll('[data-wz-row]') || []);
-            const assigned = rows.filter((row) => Boolean((row.querySelector('input[name="item_domains"]')?.value || '').trim()));
-            detail = `${rows.length} mục, ${assigned.length} mục đã gán đơn vị`;
+            const assigned = rows.filter((row) => effectiveWizardRowDomains(row).length);
+            detail = `${rows.length} nội dung, ${assigned.length} nội dung đã gán đơn vị`;
         } else if (wizardMode === 'FORM') {
             const fields = Array.from(formFieldList?.querySelectorAll('.form-field-item') || []);
             const source = document.querySelector('input[name="form_source_choice"]:checked')?.value || 'builder';
@@ -1514,8 +1685,13 @@
                 throw new Error(payload?.error || 'Không phân tích được đề cương.');
             }
             clearWizardOutlineRows();
-            (payload.rows || []).forEach((row) => addWizardOutlineRow(row));
-            wizardOutlineStatus.textContent = `Đã tách ${(payload.rows || []).length} mục từ đề cương. Kiểm tra, gán đơn vị và chọn hình thức báo cáo ở bước 3 rồi Tiếp tục.`;
+            const createdRowEls = [];
+            (payload.rows || []).forEach((row, i) => {
+                const parentIndex = (typeof row.parent_row_index === 'number' && row.parent_row_index >= 0 && row.parent_row_index < createdRowEls.length) ? row.parent_row_index : null;
+                const parentEl = parentIndex !== null ? createdRowEls[parentIndex] : null;
+                createdRowEls.push(addWizardOutlineRow(row, parentEl));
+            });
+            wizardOutlineStatus.textContent = `Đã tách ${(payload.rows || []).length} nội dung từ đề cương (gạch đầu dòng '-' là mục gán, dòng '+' là nội dung con kế thừa mục cha). Kiểm tra, gán đơn vị và chọn hình thức báo cáo ở bước 3 rồi Tiếp tục.`;
             wizardOutlineStatus.classList.add('text-success');
             syncWizardSummary();
         } catch (error) {
@@ -1593,12 +1769,44 @@
         return 'Chưa gán người nhận';
     }
 
+    function wizardRowParentElement(row) {
+        return (row && typeof row._wzParentEl !== 'undefined') ? row._wzParentEl : null;
+    }
+
     function syncWizardOutlineRowIndexes() {
         if (!outlineRowsBox) return;
-        Array.from(outlineRowsBox.querySelectorAll('[data-wz-row]')).forEach((row, index) => {
+        const rows = Array.from(outlineRowsBox.querySelectorAll('[data-wz-row]'));
+        rows.forEach((row, index) => {
             const attachment = row.querySelector('input[name="item_attachment_required"]');
             if (attachment) attachment.value = String(index);
+            const parentInput = row.querySelector('input[name="item_parent"]');
+            if (parentInput) {
+                const parentEl = wizardRowParentElement(row);
+                const parentIndex = parentEl ? rows.indexOf(parentEl) : -1;
+                parentInput.value = parentIndex >= 0 ? String(parentIndex) : '';
+            }
+            const inheritInput = row.querySelector('input[name="item_inherit"]');
+            const inheritCheckbox = row.querySelector('[data-wz-inherit]');
+            if (inheritInput) {
+                inheritInput.value = (inheritCheckbox && inheritCheckbox.checked) ? String(index) : '';
+            }
         });
+    }
+
+    function effectiveWizardRowDomains(row, visited) {
+        if (!row) return [];
+        const own = (row.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean);
+        if (own.length) return own;
+        const inheritCheckbox = row.querySelector('[data-wz-inherit]');
+        if (inheritCheckbox && inheritCheckbox.checked) {
+            const parentEl = wizardRowParentElement(row);
+            if (parentEl && (!visited || !visited.has(parentEl))) {
+                const nextVisited = visited ? new Set(visited) : new Set();
+                nextVisited.add(row);
+                return effectiveWizardRowDomains(parentEl, nextVisited);
+            }
+        }
+        return [];
     }
 
     function updateWizardOutlineRowAssignment(row, payload) {
@@ -1607,9 +1815,32 @@
         row.querySelector('input[name="item_domains"]').value = (payload.unitDomains || []).join(',');
         row.querySelector('input[name="item_role_ids"]').value = (payload.roleIds || []).join(',');
         row.querySelector('input[name="item_user_ids"]').value = (payload.userIds || []).join(',');
+        const checkbox = row.querySelector('[data-wz-inherit]');
+        if (checkbox) checkbox.checked = false;
+        const assignBtn = row.querySelector('[data-wz-row-assign]');
+        if (assignBtn) assignBtn.disabled = false;
         const summary = row.querySelector('[data-wz-row-summary]');
         if (summary) summary.textContent = formatWizardAssignmentSummary(payload);
+        syncWizardOutlineRowIndexes();
+        propagateWizardInheritedChildren(row);
         syncWizardSummary();
+    }
+
+    function propagateWizardInheritedChildren(parentRow) {
+        if (!outlineRowsBox) return;
+        const parentDomains = (parentRow.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean);
+        Array.from(outlineRowsBox.querySelectorAll('[data-wz-row]')).forEach((child) => {
+            if (wizardRowParentElement(child) !== parentRow) return;
+            const inheritCheckbox = child.querySelector('[data-wz-inherit]');
+            const summary = child.querySelector('[data-wz-row-summary]');
+            if (inheritCheckbox && inheritCheckbox.checked) {
+                if (summary) {
+                    summary.textContent = parentDomains.length
+                        ? 'Kế thừa mục cha: ' + parentDomains.map((v) => wizardUnitNameMap().get(String(v)) || String(v)).join(', ')
+                        : 'Kế thừa mục cha (chưa gán)';
+                }
+            }
+        });
     }
 
 
@@ -1687,25 +1918,14 @@
         container.appendChild(hiddenIsHeading);
     }
 
-    function addWizardOutlineRow(rowData = {}) {
+    function addWizardOutlineRow(rowData = {}, parentRowEl = null) {
         if (!outlineRowsBox) return;
         const row = document.createElement('div');
-        row.className = 'border rounded-2 p-3 bg-white wizard-outline-row';
+        const isChild = Boolean(parentRowEl);
+        row.className = 'border rounded-2 p-3 bg-white wizard-outline-row' + (isChild ? ' wizard-outline-row-child' : '');
         row.dataset.wzRow = '1';
-        
-        // Check if this is a hierarchy item with levels
-        const level = rowData.level || 0;
-        const number = rowData.number || '';
-        const hasHierarchy = level > 0 && rowData.is_heading;
-        
-        if (hasHierarchy) {
-            // Render as hierarchy item
-            renderHierarchyItem(row, rowData);
-            outlineRowsBox.appendChild(row);
-            syncWizardOutlineRowIndexes();
-            syncWizardSummary();
-            return;
-        }
+        row._wzParentEl = parentRowEl || null;
+
         const titleValue = String(rowData.title || '').replace(/"/g, '&quot;');
         const contentValue = String(rowData.content || '').replace(/"/g, '&quot;');
         const headingValue = String(rowData.heading || '').replace(/"/g, '&quot;');
@@ -1713,10 +1933,12 @@
         const hasNumbers = numberFields.length > 0 || Boolean(rowData.has_numbers);
         const reportKind = rowData.report_kind === 'number' ? 'number' : 'narrative';
         const numberFieldsJson = JSON.stringify(numberFields).replace(/"/g, '&quot;');
+        const inherited = isChild && !(rowData.assign_type || (rowData.unit_domains || []).length || (rowData.role_ids || []).length || (rowData.user_ids || []).length);
         row.innerHTML = `
             <div class="row g-2 align-items-start">
                 <div class="col-12 mb-1">
                     ${headingValue ? `<span class="badge bg-secondary">${headingValue}</span>` : ''}
+                    ${isChild ? '<span class="badge bg-info-subtle text-info-emphasis"><i class="fa-solid fa-level-down fa-rotate-90 me-1"></i>Nội dung con</span>' : ''}
                     <input type="hidden" name="item_heading" value="${headingValue}">
                 </div>
                 <div class="col-md-1 d-flex align-items-center mt-2">
@@ -1744,8 +1966,14 @@
                     </div>
                     <div class="row g-2 mt-2">
                         <div class="col-md-8">
-                            <div class="d-flex gap-2 align-items-center">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" data-wz-row-assign><i class="fa-solid fa-user-plus me-1"></i>Gán đơn vị</button>
+                            <div class="d-flex gap-2 align-items-center flex-wrap">
+                                ${isChild ? `
+                                    <div class="form-check form-check-inline mb-0">
+                                        <input class="form-check-input" type="checkbox" data-wz-inherit ${inherited ? 'checked' : ''}>
+                                        <label class="form-check-label small">Kế thừa gán từ mục cha</label>
+                                    </div>
+                                ` : ''}
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-wz-row-assign ${inherited ? 'disabled' : ''}><i class="fa-solid fa-user-plus me-1"></i>Gán đơn vị</button>
                                 <button type="button" class="btn btn-sm btn-outline-danger" data-wz-row-remove><i class="fa-solid fa-trash me-1"></i>Xóa</button>
                                 <span class="small fw-medium text-primary" data-wz-row-summary></span>
                             </div>
@@ -1757,6 +1985,8 @@
                     <input type="hidden" name="item_role_ids">
                     <input type="hidden" name="item_user_ids">
                     <input type="hidden" name="item_number_fields" value="${numberFieldsJson}">
+                    <input type="hidden" name="item_parent">
+                    <input type="hidden" name="item_inherit" value="${isChild ? (inherited ? '1' : '0') : '0'}">
                     <div class="number-fields-preview ${reportKind === 'number' ? '' : 'd-none'} mt-2 p-2 bg-light rounded" data-number-preview>
                         ${numberFields.length > 0 ? numberFields.map((field, idx) => `<div class="small text-muted mb-1">${idx + 1}. <strong>${field.label}</strong>: <span class="text-primary">${field.value}</span> ${field.unit || ''}</div>`).join('') : ''}
                         ${hasNumbers && numberFields.length === 0 ? `<div class="small text-muted"><i class="fa-solid fa-circle-info me-1"></i>Đã phát hiện số liệu trong nội dung. Chọn "Báo cáo số" để nhập các trường số.</div>` : ''}
@@ -1765,12 +1995,22 @@
             </div>
         `;
         updateWizardOutlineRowAssignment(row, {
-            assignType: rowData.assign_type || '',
-            domain: rowData.domain || '',
-            unitDomains: rowData.unit_domains || [],
-            roleIds: rowData.role_ids || [],
-            userIds: rowData.user_ids || [],
+            assignType: isChild && inherited ? '' : (rowData.assign_type || ''),
+            domain: isChild && inherited ? '' : (rowData.domain || ''),
+            unitDomains: isChild && inherited ? [] : (rowData.unit_domains || []),
+            roleIds: isChild && inherited ? [] : (rowData.role_ids || []),
+            userIds: isChild && inherited ? [] : (rowData.user_ids || []),
         });
+        if (isChild && inherited) {
+            setWizardRowInherit(row, true);
+        }
+        const inheritCheckbox = row.querySelector('[data-wz-inherit]');
+        if (inheritCheckbox) {
+            inheritCheckbox.addEventListener('change', () => {
+                setWizardRowInherit(row, inheritCheckbox.checked);
+                syncWizardSummary();
+            });
+        }
         row.querySelector('[data-wz-row-remove]')?.addEventListener('click', () => {
             row.remove();
             syncWizardOutlineRowIndexes();
@@ -1788,8 +2028,39 @@
             });
         }
         outlineRowsBox.appendChild(row);
+        if (isChild) {
+            propagateWizardInheritedChildren(parentRowEl);
+        }
         syncWizardOutlineRowIndexes();
         syncWizardSummary();
+        return row;
+    }
+
+    function setWizardRowInherit(row, on) {
+        const assignBtn = row.querySelector('[data-wz-row-assign]');
+        const summary = row.querySelector('[data-wz-row-summary]');
+        const checkbox = row.querySelector('[data-wz-inherit]');
+        if (checkbox) checkbox.checked = on;
+        if (assignBtn) assignBtn.disabled = on;
+        if (on) {
+            row.querySelector('input[name="item_assign_type"]').value = '';
+            row.querySelector('input[name="item_domain"]').value = '';
+            row.querySelector('input[name="item_domains"]').value = '';
+            row.querySelector('input[name="item_role_ids"]').value = '';
+            row.querySelector('input[name="item_user_ids"]').value = '';
+        }
+        const parentEl = wizardRowParentElement(row);
+        const parentDomains = parentEl ? (parentEl.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean) : [];
+        if (on) {
+            if (summary) {
+                summary.textContent = parentDomains.length
+                    ? 'Kế thừa mục cha: ' + parentDomains.map((v) => wizardUnitNameMap().get(String(v)) || String(v)).join(', ')
+                    : 'Kế thừa mục cha (chưa gán)';
+            }
+        } else if (summary) {
+            summary.textContent = 'Chưa gán người nhận';
+        }
+        syncWizardOutlineRowIndexes();
     }
 
     function clearWizardOutlineRows() {
@@ -1956,9 +2227,9 @@
                 setStep(3);
                 return;
             }
-            const unassigned = rows.findIndex((row) => !(row.querySelector('input[name="item_domains"]')?.value || '').trim());
+            const unassigned = rows.findIndex((row) => !effectiveWizardRowDomains(row).length);
             if (unassigned !== -1) {
-                window.alert(`Mục ${unassigned + 1} chưa gán đơn vị nhận. Bấm Gán trên dòng đó để chọn đơn vị.`);
+                window.alert(`Mục ${unassigned + 1} chưa gán đơn vị nhận. Bấm Gán trên dòng đó (hoặc gán mục cha nếu là nội dung con kế thừa).`);
                 setStep(3);
                 return;
             }
