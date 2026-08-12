@@ -769,6 +769,18 @@
         white-space: normal;
         word-wrap: break-word;
         overflow-wrap: break-word;
+        position: relative;
+    }
+    .wizard-outline-table .wz-col-resizer {
+        position: absolute;
+        top: 0;
+        right: -3px;
+        width: 7px;
+        height: 100%;
+        cursor: col-resize;
+        z-index: 3;
+        user-select: none;
+        touch-action: none;
     }
     .wizard-outline-table td {
         vertical-align: middle;
@@ -1728,6 +1740,8 @@
     let wizardTableSchema = null;
     let wizardTableViewEnabled = false;
     let wizardTableViewSuspend = false;
+    // Độ rộng cột người dùng kéo chỉnh (key = data-col-index) — giữ qua các lần render
+    let wizardTableUserColWidths = {};
     const WIZARD_UNITS = {{ pro_units | tojson }};
     const WIZARD_TABLE_ROLES = [
         { value: 'stt', label: 'Số thứ tự' },
@@ -2353,16 +2367,18 @@
             visibleCols.map((col) => {
                 const roleLabel = (WIZARD_TABLE_ROLES.find((r) => r.value === col.role) || {}).label || 'Cột';
                 const colClass = col.role === 'content' ? 'wz-col-content' : col.role === 'lead' ? 'wz-col-lead' : 'wz-col-other';
-                return `<th class="${colClass}">
+                const savedW = wizardTableUserColWidths[col.index];
+                return `<th class="${colClass}" data-col-index="${col.index}" ${savedW ? `style="width:${savedW}px;"` : ''}>
                     <div class="d-flex flex-wrap align-items-center gap-1 mb-0 small fw-semibold">
                         <span>${escapeHtml(col.header || '')}</span>
                         <span class="badge bg-light text-muted">${escapeHtml(roleLabel)}</span>
                     </div>
+                    <span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span>
                 </th>`;
             })
         ).concat([
-            '<th class="wz-col-report">Hình thức báo cáo</th>',
-            '<th class="wz-col-assign">Gán cho ai</th>',
+            '<th class="wz-col-report" data-col-index="report" ' + (wizardTableUserColWidths.report ? `style="width:${wizardTableUserColWidths.report}px;"` : '') + '><div class="small fw-semibold">Hình thức báo cáo</div><span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span></th>',
+            '<th class="wz-col-assign" data-col-index="assign" ' + (wizardTableUserColWidths.assign ? `style="width:${wizardTableUserColWidths.assign}px;"` : '') + '><div class="small fw-semibold">Gán cho ai</div><span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span></th>',
         ]);
 
         let bodyHtml = '';
@@ -2379,17 +2395,20 @@
                 if (col.role === 'lead') {
                     const assigned = (card.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean);
                     const firstAssigned = assigned.length ? String(assigned[0]) : '';
-                    const selected = firstAssigned || '';
+                    const selected = card._wzLeadUnit || firstAssigned || '';
                     const options = [`<option value="">— Không gán —</option>`]
                         .concat((WIZARD_UNITS || []).map((u) => `<option value="${escapeHtml(String(u.value))}" ${String(u.value) === selected ? 'selected' : ''}>${escapeHtml(u.name)}</option>`))
                         .join('');
+                    const leadChecked = assigned.length ? 'checked' : '';
                     return `<td class="p-1 wz-col-lead">
-                        <select class="form-select form-select-sm" data-wz-table-lead-select data-col="${col.index}">${options}</select>
+                        <div class="d-flex align-items-center gap-1">
+                            <input type="checkbox" class="form-check-input mt-0 flex-shrink-0" data-wz-table-lead-check ${leadChecked} title="Tích để gán cho đơn vị được chọn bên cạnh (hoặc dùng nút Gán cuối dòng)">
+                            <select class="form-select form-select-sm" data-wz-table-lead-select data-col="${col.index}">${options}</select>
+                        </div>
                     </td>`;
                 }
                 return `<td class="p-1 wz-col-other"><input class="form-control form-control-sm" type="text" data-wz-table-cell data-col="${col.index}" value="${escapeHtml(value)}"></td>`;
             });
-            const summary = card.querySelector('[data-wz-row-summary]')?.textContent || '';
             const reportKind = card.querySelector('[name="item_report_kind"]')?.value || 'narrative';
             const secondaryBadge = card.querySelector('[data-wz-report-secondary]')
                 ? '<span class="badge bg-warning-subtle text-warning-emphasis small">Phụ</span> ' : '';
@@ -2403,8 +2422,8 @@
                     </select>
                 </td>
                 <td class="p-1 wz-col-assign">
-                    <div class="d-flex align-items-center gap-1 flex-wrap small">${secondaryBadge}<span data-wz-table-view-summary>${escapeHtml(summary)}</span></div>
-                    <div class="d-flex gap-1 mt-1">
+                    <div class="d-flex gap-1 align-items-center">
+                        ${secondaryBadge}
                         <button type="button" class="btn btn-sm btn-outline-secondary btn-icon-eq" data-wz-table-view-assign title="Gán cho ai"><i class="fa-solid fa-user-plus"></i></button>
                         <button type="button" class="btn btn-sm btn-outline-danger btn-icon-eq" data-wz-table-view-remove title="Xóa"><i class="fa-solid fa-trash"></i></button>
                     </div>
@@ -2459,6 +2478,9 @@
                 const card = wizardTableViewCardFor(select);
                 if (!card) return;
                 const value = select.value;
+                card._wzLeadUnit = value;
+                const cb = select.closest('td').querySelector('[data-wz-table-lead-check]');
+                if (cb) cb.checked = Boolean(value);
                 const leadCol = wizardTableSchema.find((c) => c.role === 'lead');
                 if (leadCol && card._wzTableCells) {
                     card._wzTableCells[String(leadCol.index)] = value ? (unitNameOf(value) || value) : '';
@@ -2471,6 +2493,44 @@
                     roleIds: [],
                     userIds: [],
                 });
+            });
+        });
+        // Ô tích ở cột đơn vị chủ trì: tích = gán cho đơn vị đang chọn; bỏ tích = xóa gán
+        container.querySelectorAll('[data-wz-table-lead-check]').forEach((cb) => {
+            cb.addEventListener('change', () => {
+                const card = wizardTableViewCardFor(cb);
+                if (!card) return;
+                const select = cb.closest('td').querySelector('[data-wz-table-lead-select]');
+                const value = select ? select.value : '';
+                const leadCol = wizardTableSchema.find((c) => c.role === 'lead');
+                if (cb.checked) {
+                    if (!value) { cb.checked = false; return; }
+                    card._wzLeadUnit = value;
+                    if (leadCol && card._wzTableCells) {
+                        card._wzTableCells[String(leadCol.index)] = unitNameOf(value) || value;
+                        syncWizardTableCellsJson(card);
+                    }
+                    updateWizardOutlineRowAssignment(card, {
+                        assignType: 'unit',
+                        domain: '',
+                        unitDomains: [value],
+                        roleIds: [],
+                        userIds: [],
+                    });
+                } else {
+                    // Bỏ tích = xóa gán nhưng giữ nguyên đơn vị đã chọn để tích lại là gán lại
+                    if (leadCol && card._wzTableCells) {
+                        card._wzTableCells[String(leadCol.index)] = '';
+                        syncWizardTableCellsJson(card);
+                    }
+                    updateWizardOutlineRowAssignment(card, {
+                        assignType: '',
+                        domain: '',
+                        unitDomains: [],
+                        roleIds: [],
+                        userIds: [],
+                    });
+                }
             });
         });
         // Hình thức báo cáo
@@ -2518,6 +2578,34 @@
                     if (cardCb) cardCb.checked = cb.checked;
                 });
             }
+        });
+        // Kéo thả chỉnh độ rộng cột (kiểu Excel)
+        container.querySelectorAll('thead th').forEach((th) => {
+            const resizer = th.querySelector('.wz-col-resizer');
+            const key = th.dataset.colIndex;
+            if (!resizer || key === undefined) return;
+            resizer.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const startX = e.clientX;
+                const startW = th.getBoundingClientRect().width;
+                const minW = 48;
+                const onMove = (ev) => {
+                    const w = Math.max(minW, startW + (ev.clientX - startX));
+                    th.style.width = w + 'px';
+                    wizardTableUserColWidths[key] = w;
+                };
+                const onUp = () => {
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                };
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+            });
         });
     }
 
