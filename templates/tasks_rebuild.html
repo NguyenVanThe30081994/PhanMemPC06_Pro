@@ -758,24 +758,35 @@
         max-width: 100%;
     }
 
+    .wizard-outline-table {
+        table-layout: auto;
+        width: 100%;
+    }
     .wizard-outline-table th {
         background: #f1f5f9;
         font-size: 0.78rem;
         vertical-align: middle;
-    }
-    .wizard-outline-table .wizard-table-section td {
-        background: #eef2f7;
-        font-size: 0.85rem;
-        padding: 6px 10px;
+        white-space: nowrap;
     }
     .wizard-outline-table td {
         vertical-align: middle;
+        white-space: normal;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+    .wizard-outline-table .wz-col-content {
+        width: 60%;
+        min-width: 420px;
+    }
+    .wizard-outline-table .wz-col-lead {
+        width: 200px;
+        min-width: 180px;
     }
     .wizard-table-cell-ta {
-        min-width: 220px;
         resize: none;
         overflow: hidden;
         font-size: 0.85rem;
+        white-space: pre-wrap;
     }
 
     .wizard-outline-row .badge {
@@ -1111,8 +1122,7 @@
 </style>
 
 {% if is_lead or is_admin %}
-<div class="modal fade" id="createTaskModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+<div class="modal fade" id="createTaskModal" tabindex="-1" aria-hidden="true">            <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
         <div class="modal-content">
             <form method="POST" enctype="multipart/form-data" id="createTaskForm">
                 <div class="modal-header d-block">
@@ -1260,13 +1270,13 @@
                     <div data-wizard-pane="3" class="d-none">
                         <div data-wizard-config="OUTLINE" class="d-none">
                             <div class="border rounded-3 p-3 bg-light-subtle">
-                                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                                     <div class="d-flex align-items-center gap-2">
                                         <div class="fw-bold">Danh sách nội dung</div>
                                         <button class="btn btn-outline-primary btn-sm" type="button" id="wizardAddOutlineRowBtn">+ Thêm nội dung</button>
                                     </div>
+                                    <div id="wizardOutlineTableBar" class="d-none"></div>
                                 </div>
-                                <div id="wizardOutlineTableBar" class="d-none border rounded-3 p-2 bg-white mb-2"></div>
                                 <div id="wizardOutlineTableView" class="d-none mb-2"></div>
                                 <div id="wizardOutlineRows" class="d-grid gap-2"></div>
                                 <div class="border rounded-3 p-3 mt-3 bg-white">
@@ -1755,9 +1765,14 @@
         if (wizardNextBtn) wizardNextBtn.classList.toggle('d-none', step === 4);
         if (wizardSubmitBtn) wizardSubmitBtn.classList.toggle('d-none', step !== 4);
         if (step === 3) {
-            // Pane vừa hiển thị -> tính lại chiều cao textarea cho khớp nội dung
+            // Pane vừa hiển thị -> tính lại kích thước textarea cho khớp nội dung
             requestAnimationFrame(() => {
                 outlineRowsBox?.querySelectorAll('textarea[name="item_content"]').forEach(autoGrowOutlineTextarea);
+                const tv = document.getElementById('wizardOutlineTableView');
+                tv?.querySelectorAll('.wizard-table-cell-ta').forEach((ta) => {
+                    autoGrowWizardTableCellWidth(ta);
+                    autoGrowOutlineTextarea(ta);
+                });
             });
         }
         syncWizardSummary();
@@ -2217,29 +2232,34 @@
             return;
         }
         bar.classList.remove('d-none');
+        const visibleCount = wizardTableSchema.filter((c) => c.visible).length;
         bar.innerHTML = `
-            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                <span class="fw-semibold small">Cấu trúc bảng đề cương</span>
-                <span class="small text-muted">Tích cột để hiển thị cho đơn vị nhận. Vai trò cột tự nhận diện — có thể sửa lại nếu sai; cột "Đơn vị chủ trì" sẽ gán sẵn cho dòng.</span>
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Chọn cột hiển thị cho đơn vị nhận và sửa vai trò cột">
+                    <i class="fa-solid fa-table-columns"></i>Cấu trúc bảng
+                    <span class="badge text-bg-secondary" id="wizardTableVisibleCount">${visibleCount}/${wizardTableSchema.length}</span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-end p-2 shadow" style="min-width: 360px; max-width: 440px;">
+                    <div class="small text-muted px-2 pb-2">Tích cột để hiển thị cho đơn vị nhận; sửa vai trò cột nếu nhận diện sai — cột "Đơn vị chủ trì" sẽ gán sẵn cho từng dòng.</div>
+                    ${wizardTableSchema.map((col) => `
+                        <div class="dropdown-item d-flex align-items-center gap-2 px-2 py-1">
+                            <input type="checkbox" class="form-check-input mt-0 flex-shrink-0" data-wz-table-col-visible data-col="${col.index}" ${col.visible ? 'checked' : ''} title="Hiển thị cột này cho đơn vị nhận">
+                            <select class="form-select form-select-sm flex-shrink-0" style="width: 132px;" data-wz-table-col-role data-col="${col.index}" title="Vai trò của cột">
+                                ${WIZARD_TABLE_ROLES.map((role) => `<option value="${role.value}" ${role.value === col.role ? 'selected' : ''}>${role.label}</option>`).join('')}
+                            </select>
+                            <span class="small text-truncate flex-grow-1">${escapeHtml(col.header)}</span>
+                        </div>
+                    `).join('')}
+                    <input type="hidden" name="item_table_schema" value="${escapeHtml(JSON.stringify(wizardTableSchema))}">
+                </div>
             </div>
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-                ${wizardTableSchema.map((col) => `
-                    <div class="border rounded-2 p-1 px-2 d-flex align-items-center gap-2 bg-white">
-                        <input type="checkbox" class="form-check-input mt-0" data-wz-table-col-visible data-col="${col.index}" ${col.visible ? 'checked' : ''} title="Hiển thị cột này cho đơn vị nhận">
-                        <select class="form-select form-select-sm" style="width: 168px;" data-wz-table-col-role data-col="${col.index}" title="Vai trò của cột">
-                            ${WIZARD_TABLE_ROLES.map((role) => `<option value="${role.value}" ${role.value === col.role ? 'selected' : ''}>${role.label}</option>`).join('')}
-                        </select>
-                        <span class="small">${escapeHtml(col.header)}</span>
-                    </div>
-                `).join('')}
-            </div>
-            <input type="hidden" name="item_table_schema" value="${escapeHtml(JSON.stringify(wizardTableSchema))}">
         `;
         bar.querySelectorAll('[data-wz-table-col-visible]').forEach((checkbox) => {
             checkbox.addEventListener('change', () => {
                 const col = wizardTableSchema.find((c) => c.index === Number(checkbox.dataset.col));
                 if (col) col.visible = checkbox.checked;
                 syncWizardTableSchemaInput();
+                updateWizardTableBarVisibleCount(bar);
                 rebuildWizardTableRows();
             });
         });
@@ -2251,6 +2271,12 @@
                 rebuildWizardTableRows();
             });
         });
+    }
+
+    function updateWizardTableBarVisibleCount(bar) {
+        const el = (bar || document.getElementById('wizardOutlineTableBar'))?.querySelector('#wizardTableVisibleCount');
+        if (!el || !wizardTableSchema) return;
+        el.textContent = `${wizardTableSchema.filter((c) => c.visible).length}/${wizardTableSchema.length}`;
     }
 
     function setupWizardTableEditor() {
@@ -2306,12 +2332,12 @@
         ].concat(
             visibleCols.map((col) => {
                 const roleLabel = (WIZARD_TABLE_ROLES.find((r) => r.value === col.role) || {}).label || 'Cột';
-                return `<th>
-                    <label class="d-flex align-items-center gap-1 mb-0 small fw-semibold" title="Tích để hiển thị cột này cho đơn vị nhận">
-                        <input type="checkbox" class="form-check-input mt-0" data-wz-table-col-visible data-col="${col.index}" checked>
+                const colClass = col.role === 'content' ? 'wz-col-content' : col.role === 'lead' ? 'wz-col-lead' : '';
+                return `<th class="${colClass}">
+                    <div class="d-flex align-items-center gap-1 mb-0 small fw-semibold">
                         <span>${escapeHtml(col.header || '')}</span>
                         <span class="badge bg-light text-muted">${escapeHtml(roleLabel)}</span>
-                    </label>
+                    </div>
                 </th>`;
             })
         ).concat([
@@ -2328,7 +2354,7 @@
                 const idx = String(col.index);
                 const value = cells[idx] || '';
                 if (col.role === 'content') {
-                    return `<td class="p-1"><textarea class="form-control form-control-sm wizard-table-cell-ta" data-wz-table-cell data-col="${col.index}" rows="1">${escapeHtml(value)}</textarea></td>`;
+                    return `<td class="p-1 wz-col-content"><textarea class="form-control form-control-sm wizard-table-cell-ta" data-wz-table-cell data-col="${col.index}" rows="1">${escapeHtml(value)}</textarea></td>`;
                 }
                 if (col.role === 'lead') {
                     const assigned = (card.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean);
@@ -2337,10 +2363,8 @@
                     const options = [`<option value="">— Không gán —</option>`]
                         .concat((WIZARD_UNITS || []).map((u) => `<option value="${escapeHtml(String(u.value))}" ${String(u.value) === selected ? 'selected' : ''}>${escapeHtml(u.name)}</option>`))
                         .join('');
-                    const hint = value && value !== unitNameMap.get(selected) ? `<div class="small text-muted" title="Giá trị trong đề cương">Gốc: ${escapeHtml(String(value).slice(0, 60))}</div>` : '';
-                    return `<td class="p-1" style="min-width:200px;">
+                    return `<td class="p-1 wz-col-lead">
                         <select class="form-select form-select-sm" data-wz-table-lead-select data-col="${col.index}">${options}</select>
-                        ${hint}
                     </td>`;
                 }
                 return `<td class="p-1"><input class="form-control form-control-sm" type="text" data-wz-table-cell data-col="${col.index}" value="${escapeHtml(value)}"></td>`;
@@ -2366,19 +2390,9 @@
             </tr>`;
         };
 
-        wizardOutlineGroups.forEach((group) => {
-            const headingTitle = wizardTableSectionTitle(group.block.querySelector('input[name="item_heading"]')?.value || '');
-            if (headingTitle) {
-                bodyHtml += `<tr class="wizard-table-section"><td colspan="${totalCols}"><div class="fw-semibold">${escapeHtml(headingTitle)}</div></td></tr>`;
-            }
-            group.body.querySelectorAll('[data-wz-row]').forEach((card) => {
-                bodyHtml += renderRowCard(card);
-            });
-        });
-        Array.from(outlineRowsBox.children).forEach((el) => {
-            if (el.classList && el.classList.contains('wizard-outline-row') && !el.closest('.wizard-outline-group')) {
-                bodyHtml += renderRowCard(el);
-            }
+        // Không hiển thị dòng tiêu đề mục (nội dung gốc đã có trong file đề cương) — chỉ hiện dòng dữ liệu
+        wizardTableViewCards().forEach((card) => {
+            bodyHtml += renderRowCard(card);
         });
 
         container.innerHTML = `
@@ -2389,6 +2403,13 @@
                 </table>
             </div>
         `;
+        // Đợi layout xong rồi mới đo — nếu đo ngay sau innerHTML, scrollHeight chưa phản ánh nội dung
+        requestAnimationFrame(() => {
+            container.querySelectorAll('.wizard-table-cell-ta').forEach((ta) => {
+                autoGrowWizardTableCellWidth(ta);
+                autoGrowOutlineTextarea(ta);
+            });
+        });
         wireWizardTableView(container);
     }
 
@@ -2397,15 +2418,7 @@
         container.querySelector('[data-wz-table-view-check-all]')?.addEventListener('change', (e) => {
             container.querySelectorAll('[data-wz-table-view-check]').forEach((cb) => { cb.checked = e.target.checked; });
         });
-        // Header cột: bỏ/tích hiển thị cột
-        container.querySelectorAll('[data-wz-table-col-visible]').forEach((checkbox) => {
-            checkbox.addEventListener('change', () => {
-                const col = wizardTableSchema.find((c) => c.index === Number(checkbox.dataset.col));
-                if (col) col.visible = checkbox.checked;
-                syncWizardTableSchemaInput();
-                rebuildWizardTableRows();
-            });
-        });
+        // Bỏ/tích hiển thị cột giờ nằm trong droplist "Cấu trúc bảng" (wizardOutlineTableBar)
         // Ô dữ liệu: nội dung / cột thường -> cập nhật cells + hidden JSON
         container.querySelectorAll('[data-wz-table-cell]').forEach((input) => {
             input.addEventListener('input', () => {
@@ -2417,7 +2430,10 @@
                     const cardTa = card.querySelector('textarea[name="item_content"]');
                     if (cardTa) cardTa.value = input.value;
                 }
-                if (input.classList.contains('wizard-table-cell-ta')) autoGrowOutlineTextarea(input);
+                if (input.classList.contains('wizard-table-cell-ta')) {
+                    autoGrowWizardTableCellWidth(input);
+                    autoGrowOutlineTextarea(input);
+                }
                 syncWizardSummary();
             });
         });
@@ -2823,9 +2839,38 @@
         if (!ta) return;
         ta.style.height = 'auto';
         const maxHeight = 520;
-        const height = Math.min(ta.scrollHeight, maxHeight);
+        const sh = ta.scrollHeight;
+        if (!sh) {
+            // Chưa có layout (pane đang ẩn) — không đặt height 0px
+            ta.style.height = '';
+            return;
+        }
+        const height = Math.min(sh, maxHeight);
         ta.style.height = height + 'px';
-        ta.style.overflowY = ta.scrollHeight > maxHeight ? 'auto' : 'hidden';
+        ta.style.overflowY = sh > maxHeight ? 'auto' : 'hidden';
+    }
+
+    function autoGrowWizardTableCellWidth(ta) {
+        if (!ta || !ta.isConnected) return;
+        const cell = ta.closest('td');
+        const cellWidth = cell ? cell.clientWidth : 0;
+        const base = Math.max(cellWidth, 260);
+        const cap = Math.max(base, Math.min(window.innerWidth * 0.5, 1100));
+        let ideal = base;
+        const val = ta.value || '';
+        if (val) {
+            let m = ta._wzMeasureSpan;
+            if (!m) {
+                m = document.createElement('span');
+                m.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;left:-9999px;top:0;';
+                document.body.appendChild(m);
+                ta._wzMeasureSpan = m;
+            }
+            m.style.font = window.getComputedStyle(ta).font;
+            m.textContent = val;
+            if (m.offsetWidth > 0) ideal = Math.max(ideal, m.offsetWidth + 24);
+        }
+        ta.style.width = Math.min(ideal, cap) + 'px';
     }
 
     function setWizardRowInherit(row, on) {
