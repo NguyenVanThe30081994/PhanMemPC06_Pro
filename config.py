@@ -14,6 +14,9 @@ TASK_FOLDER = os.environ.get('TASK_FOLDER', 'task_files')
 LIB_FOLDER = os.environ.get('LIB_FOLDER', 'library_files')
 BACKUP_FOLDER = os.environ.get('BACKUP_FOLDER', 'backups')
 MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))  # 16MB
+# Giới hạn số trường trong 1 form (Werkzeug mặc định 1000) — wizard đề cương lớn
+# có thể gửi >1000 field (mỗi dòng ~15 field; 465 nội dung ≈ 7000 field).
+MAX_FORM_PARTS = int(os.environ.get('MAX_FORM_PARTS', 10000))
 
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'webp', 'zip', 'ppt', 'pptx'}
 ALLOWED_MIME_TYPES = {

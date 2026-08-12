@@ -758,6 +758,26 @@
         max-width: 100%;
     }
 
+    .wizard-outline-table th {
+        background: #f1f5f9;
+        font-size: 0.78rem;
+        vertical-align: middle;
+    }
+    .wizard-outline-table .wizard-table-section td {
+        background: #eef2f7;
+        font-size: 0.85rem;
+        padding: 6px 10px;
+    }
+    .wizard-outline-table td {
+        vertical-align: middle;
+    }
+    .wizard-table-cell-ta {
+        min-width: 220px;
+        resize: none;
+        overflow: hidden;
+        font-size: 0.85rem;
+    }
+
     .wizard-outline-row .badge {
         max-width: 100%;
         white-space: normal;
@@ -1247,6 +1267,7 @@
                                     </div>
                                 </div>
                                 <div id="wizardOutlineTableBar" class="d-none border rounded-3 p-2 bg-white mb-2"></div>
+                                <div id="wizardOutlineTableView" class="d-none mb-2"></div>
                                 <div id="wizardOutlineRows" class="d-grid gap-2"></div>
                                 <div class="border rounded-3 p-3 mt-3 bg-white">
                                     <div class="fw-semibold mb-2">Gán hàng loạt cho dòng đã tích</div>
@@ -1672,6 +1693,8 @@
     let currentStep = 1;
     let wizardMode = 'OUTLINE';
     let wizardTableSchema = null;
+    let wizardTableViewEnabled = false;
+    let wizardTableViewSuspend = false;
     const WIZARD_UNITS = {{ pro_units | tojson }};
     const WIZARD_TABLE_ROLES = [
         { value: 'stt', label: 'Số thứ tự' },
@@ -2007,6 +2030,7 @@
         syncWizardOutlineRowIndexes();
         propagateWizardInheritedChildren(row);
         syncWizardSummary();
+        if (wizardTableViewEnabled && !wizardTableViewSuspend) renderWizardTableView();
     }
 
     function propagateWizardInheritedChildren(parentRow) {
@@ -2176,6 +2200,7 @@
             renderWizardTableStrip(row);
             syncWizardTableCellsJson(row);
         });
+        if (wizardTableViewEnabled) renderWizardTableView();
     }
 
     function syncWizardTableSchemaInput() {
@@ -2230,14 +2255,267 @@
 
     function setupWizardTableEditor() {
         let schema = null;
+        let tableRowCount = 0;
+        let totalRowCount = 0;
         if (outlineRowsBox) {
             outlineRowsBox.querySelectorAll('[data-wz-row]').forEach((row) => {
-                if (row._wzTableSchema) schema = schema || row._wzTableSchema;
+                totalRowCount += 1;
+                if (row._wzTableSchema) {
+                    schema = schema || row._wzTableSchema;
+                    tableRowCount += 1;
+                }
             });
         }
         wizardTableSchema = schema;
+        // Chế độ bảng chỉ bật khi TẤT CẢ các dòng đều là dòng bảng
+        wizardTableViewEnabled = Boolean(schema) && totalRowCount > 0 && tableRowCount === totalRowCount;
         renderWizardTableBar();
         if (schema) rebuildWizardTableRows();
+        renderWizardTableView();
+    }
+
+    function wizardTableVisibleColumns() {
+        if (!wizardTableSchema) return [];
+        return wizardTableSchema.filter((col) => col.visible);
+    }
+
+    function wizardTableSectionTitle(headingValue) {
+        const parts = String(headingValue || '').split(' » ').map((p) => p.trim()).filter(Boolean);
+        if (!parts.length) return '';
+        const last = parts[parts.length - 1];
+        return parts.length > 1 ? parts.slice(0, -1).join(' » ') + ' » ' + last : last;
+    }
+
+    function renderWizardTableView() {
+        const container = document.getElementById('wizardOutlineTableView');
+        if (!container) return;
+        if (!wizardTableViewEnabled || !wizardTableSchema || !outlineRowsBox) {
+            container.classList.add('d-none');
+            container.innerHTML = '';
+            if (outlineRowsBox) outlineRowsBox.classList.remove('d-none');
+            return;
+        }
+        container.classList.remove('d-none');
+        outlineRowsBox.classList.add('d-none');
+        const visibleCols = wizardTableVisibleColumns();
+        const unitNameMap = wizardUnitNameMap();
+        const totalCols = visibleCols.length + 3; // ô tích + hình thức + gán
+
+        const headerCells = [
+            '<th class="text-center" style="width:34px;"><input class="form-check-input mt-0" type="checkbox" data-wz-table-view-check-all title="Tích tất cả dòng"></th>',
+        ].concat(
+            visibleCols.map((col) => {
+                const roleLabel = (WIZARD_TABLE_ROLES.find((r) => r.value === col.role) || {}).label || 'Cột';
+                return `<th>
+                    <label class="d-flex align-items-center gap-1 mb-0 small fw-semibold" title="Tích để hiển thị cột này cho đơn vị nhận">
+                        <input type="checkbox" class="form-check-input mt-0" data-wz-table-col-visible data-col="${col.index}" checked>
+                        <span>${escapeHtml(col.header || '')}</span>
+                        <span class="badge bg-light text-muted">${escapeHtml(roleLabel)}</span>
+                    </label>
+                </th>`;
+            })
+        ).concat([
+            '<th class="text-nowrap">Hình thức báo cáo</th>',
+            '<th class="text-nowrap">Gán cho ai</th>',
+        ]);
+
+        let bodyHtml = '';
+        // Nhóm mục (section) + dòng trong nhóm, sau đó dòng đứng riêng
+        const renderRowCard = (card) => {
+            const cells = card._wzTableCells || {};
+            const rowCheck = card.querySelector('[data-wz-row-check]');
+            const cellEls = visibleCols.map((col) => {
+                const idx = String(col.index);
+                const value = cells[idx] || '';
+                if (col.role === 'content') {
+                    return `<td class="p-1"><textarea class="form-control form-control-sm wizard-table-cell-ta" data-wz-table-cell data-col="${col.index}" rows="1">${escapeHtml(value)}</textarea></td>`;
+                }
+                if (col.role === 'lead') {
+                    const assigned = (card.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean);
+                    const firstAssigned = assigned.length ? String(assigned[0]) : '';
+                    const selected = firstAssigned || '';
+                    const options = [`<option value="">— Không gán —</option>`]
+                        .concat((WIZARD_UNITS || []).map((u) => `<option value="${escapeHtml(String(u.value))}" ${String(u.value) === selected ? 'selected' : ''}>${escapeHtml(u.name)}</option>`))
+                        .join('');
+                    const hint = value && value !== unitNameMap.get(selected) ? `<div class="small text-muted" title="Giá trị trong đề cương">Gốc: ${escapeHtml(String(value).slice(0, 60))}</div>` : '';
+                    return `<td class="p-1" style="min-width:200px;">
+                        <select class="form-select form-select-sm" data-wz-table-lead-select data-col="${col.index}">${options}</select>
+                        ${hint}
+                    </td>`;
+                }
+                return `<td class="p-1"><input class="form-control form-control-sm" type="text" data-wz-table-cell data-col="${col.index}" value="${escapeHtml(value)}"></td>`;
+            });
+            const summary = card.querySelector('[data-wz-row-summary]')?.textContent || '';
+            const reportKind = card.querySelector('[name="item_report_kind"]')?.value || 'narrative';
+            const secondaryBadge = card.querySelector('[data-wz-report-secondary]')
+                ? '<span class="badge bg-warning-subtle text-warning-emphasis small">Phụ</span> ' : '';
+            return `<tr data-wz-table-view-row>
+                <td class="text-center">${rowCheck ? '<input class="form-check-input mt-0" type="checkbox" data-wz-table-view-check>' : ''}</td>
+                ${cellEls.join('')}
+                <td class="p-1">
+                    <select class="form-select form-select-sm" data-wz-table-view-kind style="width:132px;">
+                        <option value="narrative" ${reportKind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
+                        <option value="number" ${reportKind === 'number' ? 'selected' : ''}>Báo cáo số</option>
+                    </select>
+                </td>
+                <td class="p-1">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">${secondaryBadge}<span class="small" data-wz-table-view-summary>${escapeHtml(summary)}</span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-wz-table-view-assign title="Gán cho ai"><i class="fa-solid fa-user-plus"></i></button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" data-wz-table-view-remove title="Xóa"><i class="fa-solid fa-trash"></i></button></div>
+                </td>
+            </tr>`;
+        };
+
+        wizardOutlineGroups.forEach((group) => {
+            const headingTitle = wizardTableSectionTitle(group.block.querySelector('input[name="item_heading"]')?.value || '');
+            if (headingTitle) {
+                bodyHtml += `<tr class="wizard-table-section"><td colspan="${totalCols}"><div class="fw-semibold">${escapeHtml(headingTitle)}</div></td></tr>`;
+            }
+            group.body.querySelectorAll('[data-wz-row]').forEach((card) => {
+                bodyHtml += renderRowCard(card);
+            });
+        });
+        Array.from(outlineRowsBox.children).forEach((el) => {
+            if (el.classList && el.classList.contains('wizard-outline-row') && !el.closest('.wizard-outline-group')) {
+                bodyHtml += renderRowCard(el);
+            }
+        });
+
+        container.innerHTML = `
+            <div class="table-responsive border rounded-3 bg-white">
+                <table class="table table-bordered table-sm align-middle mb-0 wizard-outline-table">
+                    <thead><tr>${headerCells.join('')}</tr></thead>
+                    <tbody>${bodyHtml || '<tr><td colspan="' + totalCols + '" class="text-center text-muted py-3">Chưa có dòng nào.</td></tr>'}</tbody>
+                </table>
+            </div>
+        `;
+        wireWizardTableView(container);
+    }
+
+    function wireWizardTableView(container) {
+        // Header: tích tất cả
+        container.querySelector('[data-wz-table-view-check-all]')?.addEventListener('change', (e) => {
+            container.querySelectorAll('[data-wz-table-view-check]').forEach((cb) => { cb.checked = e.target.checked; });
+        });
+        // Header cột: bỏ/tích hiển thị cột
+        container.querySelectorAll('[data-wz-table-col-visible]').forEach((checkbox) => {
+            checkbox.addEventListener('change', () => {
+                const col = wizardTableSchema.find((c) => c.index === Number(checkbox.dataset.col));
+                if (col) col.visible = checkbox.checked;
+                syncWizardTableSchemaInput();
+                rebuildWizardTableRows();
+            });
+        });
+        // Ô dữ liệu: nội dung / cột thường -> cập nhật cells + hidden JSON
+        container.querySelectorAll('[data-wz-table-cell]').forEach((input) => {
+            input.addEventListener('input', () => {
+                const card = wizardTableViewCardFor(input);
+                if (!card || !card._wzTableCells) return;
+                card._wzTableCells[String(input.dataset.col)] = input.value;
+                syncWizardTableCellsJson(card);
+                if (input.dataset.col === String(wizardTableContentIndex())) {
+                    const cardTa = card.querySelector('textarea[name="item_content"]');
+                    if (cardTa) cardTa.value = input.value;
+                }
+                if (input.classList.contains('wizard-table-cell-ta')) autoGrowOutlineTextarea(input);
+                syncWizardSummary();
+            });
+        });
+        // Cột đơn vị chủ trì: droplist -> gán việc + cập nhật ô bảng
+        container.querySelectorAll('[data-wz-table-lead-select]').forEach((select) => {
+            select.addEventListener('change', () => {
+                const card = wizardTableViewCardFor(select);
+                if (!card) return;
+                const value = select.value;
+                const leadCol = wizardTableSchema.find((c) => c.role === 'lead');
+                if (leadCol && card._wzTableCells) {
+                    card._wzTableCells[String(leadCol.index)] = value ? (unitNameOf(value) || value) : '';
+                    syncWizardTableCellsJson(card);
+                }
+                updateWizardOutlineRowAssignment(card, {
+                    assignType: value ? 'unit' : '',
+                    domain: '',
+                    unitDomains: value ? [value] : [],
+                    roleIds: [],
+                    userIds: [],
+                });
+            });
+        });
+        // Hình thức báo cáo
+        container.querySelectorAll('[data-wz-table-view-kind]').forEach((select) => {
+            select.addEventListener('change', () => {
+                const card = wizardTableViewCardFor(select);
+                if (!card) return;
+                const cardSelect = card.querySelector('[name="item_report_kind"]');
+                if (cardSelect) {
+                    cardSelect.value = select.value;
+                    cardSelect.dispatchEvent(new Event('change'));
+                }
+            });
+        });
+        // Gán cho ai (mở modal gán nhiều đơn vị)
+        container.querySelectorAll('[data-wz-table-view-assign]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const card = wizardTableViewCardFor(btn);
+                if (card) openWizardRowAssign(card);
+            });
+        });
+        // Xóa dòng
+        container.querySelectorAll('[data-wz-table-view-remove]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const card = wizardTableViewCardFor(btn);
+                if (!card) return;
+                const groupBody = wizardRowGroupBody(card);
+                card.remove();
+                syncWizardOutlineRowIndexes();
+                syncWizardSummary();
+                if (groupBody && !groupBody.querySelector('[data-wz-row]')) {
+                    const block = groupBody.parentElement;
+                    if (block && block.classList.contains('wizard-outline-group')) block.remove();
+                }
+                renderWizardTableView();
+            });
+        });
+        // Dòng tích -> đồng bộ với card checkbox (gán hàng loạt)
+        container.querySelectorAll('[data-wz-table-view-check]').forEach((cb, i) => {
+            const cards = wizardTableViewCards();
+            const card = cards[i];
+            if (card) {
+                cb.addEventListener('change', () => {
+                    const cardCb = card.querySelector('[data-wz-row-check]');
+                    if (cardCb) cardCb.checked = cb.checked;
+                });
+            }
+        });
+    }
+
+    function wizardTableViewCardFor(element) {
+        const tr = element.closest('[data-wz-table-view-row]');
+        if (!tr) return null;
+        const cards = wizardTableViewCards();
+        const idx = Array.from(tr.parentElement.children).indexOf(tr);
+        // tr.parentElement là tbody chứa cả section rows -> lọc chỉ dòng dữ liệu
+        const dataRows = Array.from(tr.parentElement.children).filter((el) => el.hasAttribute('data-wz-table-view-row'));
+        const dataIndex = dataRows.indexOf(tr);
+        return cards[dataIndex] || null;
+    }
+
+    function wizardTableViewCards() {
+        const cards = [];
+        wizardOutlineGroups.forEach((group) => {
+            group.body.querySelectorAll('[data-wz-row]').forEach((card) => cards.push(card));
+        });
+        Array.from(outlineRowsBox.children).forEach((el) => {
+            if (el.classList && el.classList.contains('wizard-outline-row') && !el.closest('.wizard-outline-group')) {
+                cards.push(el);
+            }
+        });
+        return cards;
+    }
+
+    function unitNameOf(value) {
+        const unit = (WIZARD_UNITS || []).find((u) => String(u.value) === String(value));
+        return unit ? unit.name : '';
     }
 
     function addWizardOutlineRow(rowData = {}, parentRowEl = null) {
@@ -2582,6 +2860,12 @@
         outlineRowsBox.innerHTML = '';
         wizardOutlineGroups.clear();
         wizardTableSchema = null;
+        wizardTableViewEnabled = false;
+        const tableView = document.getElementById('wizardOutlineTableView');
+        if (tableView) {
+            tableView.classList.add('d-none');
+            tableView.innerHTML = '';
+        }
     }
 
     // ---------- per-row assign modal (chỉ gán theo đơn vị) ----------
@@ -2635,6 +2919,8 @@
     });
     document.getElementById('wizardSelectAllRowsBtn')?.addEventListener('click', () => {
         outlineRowsBox?.querySelectorAll('[data-wz-row-check]').forEach((cb) => { cb.checked = true; });
+        const tableView = document.getElementById('wizardOutlineTableView');
+        if (tableView) tableView.querySelectorAll('[data-wz-table-view-check]').forEach((cb) => { cb.checked = true; });
     });
     document.getElementById('wizardApplyAssignBtn')?.addEventListener('click', () => {
         const unitDomains = Array.from(document.querySelectorAll('[data-wizard-unit-checkbox]:checked')).map((cb) => cb.value);
@@ -2642,12 +2928,15 @@
             window.alert('Cần chọn ít nhất một đơn vị nhận việc trước khi gán.');
             return;
         }
+        wizardTableViewSuspend = true;
         outlineRowsBox?.querySelectorAll('[data-wz-row]').forEach((row) => {
             const checkbox = row.querySelector('[data-wz-row-check]');
             if (checkbox && checkbox.checked) {
                 updateWizardOutlineRowAssignment(row, { assignType: 'unit', domain: '', unitDomains, roleIds: [], userIds: [] });
             }
         });
+        wizardTableViewSuspend = false;
+        if (wizardTableViewEnabled) renderWizardTableView();
     });
 
     // ---------- form fields ----------

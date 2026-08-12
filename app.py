@@ -73,6 +73,7 @@ try:
         SECRET_KEY,
         SESSION_LIFETIME,
         MAX_CONTENT_LENGTH,
+        MAX_FORM_PARTS,
         SESSION_COOKIE_SECURE,
         SESSION_COOKIE_HTTPONLY,
         SESSION_COOKIE_SAMESITE,
@@ -198,6 +199,7 @@ app.config['WTF_CSRF_TIME_LIMIT'] = CSRF_TOKEN_LIFETIME  # 1 hour token lifetime
 
 # File Upload Security
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH  # 100MB max
+app.config['MAX_FORM_PARTS'] = MAX_FORM_PARTS  # cho wizard đề cương lớn (>1000 field)
 
 # Allowed extensions for file upload
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'zip', 'rar', 'ppt', 'pptx'}
