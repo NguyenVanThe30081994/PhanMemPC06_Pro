@@ -376,7 +376,7 @@
                                 <div id="outlineModeImportSection" class="d-none">
                                     <div class="border rounded-3 p-3 bg-light-subtle mb-4">
                                         <div class="fw-semibold mb-1">Bước 1: Nạp file đề cương</div>
-                                        <div class="small text-muted mb-3">Hệ thống chỉ lấy danh sách nội dung từ file, sau đó bạn sửa lại, chọn hình thức báo cáo và gán người nhận trước khi tạo thật.</div>
+                                        <div class="small text-muted mb-3">Hệ thống gom nội dung theo từng mục, sau đó bạn sửa tiêu đề mục, chọn hình thức báo cáo và gán đơn vị nhận trước khi tạo thật.</div>
                                         <form action="{{ url_for('tasks_bp.preview_outline_import', tid=task.id) }}" method="POST" enctype="multipart/form-data">
                                             <div class="row g-3 align-items-end">
                                                 <div class="col-lg-5">
@@ -384,19 +384,13 @@
                                                     <input class="form-control" type="file" name="outline_file" accept=".docx,.txt" required>
                                                 </div>
                                                 <div class="col-lg-4">
-                                                    <label class="form-label fw-bold">Kiểu mặc định khi nạp file</label>
+                                                    <label class="form-label fw-bold">Hình thức báo cáo mặc định khi nạp file</label>
                                                     <select class="form-select" name="child_report_kind">
                                                         <option value="narrative">Báo cáo lời</option>
                                                         <option value="number">Báo cáo số</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-lg-2">
-                                                    <div class="form-check mb-2">
-                                                        <input class="form-check-input" type="checkbox" name="child_attachment_required" value="1" id="importAttachmentRequired">
-                                                        <label class="form-check-label" for="importAttachmentRequired">Bắt buộc file</label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-lg-1">
+                                                <div class="col-lg-3">
                                                     <button class="btn btn-outline-primary w-100" type="submit">Nạp</button>
                                                 </div>
                                             </div>
@@ -409,19 +403,15 @@
                                             <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
                                                 <div>
                                                     <div class="fw-semibold">Bước 2: Cấu hình sau khi nạp đề cương</div>
-                                                    <div class="small text-muted">Đề cương được tách thành danh sách việc nhỏ ở bên dưới. Kết quả phân tích tự động chỉ là gợi ý: bấm <b>Gán</b> ở từng dòng để gán việc cho đơn vị / vai trò / cá nhân, hoặc tích nhiều dòng rồi gán hàng loạt ở khung phía trên. Toàn bộ quyết định giao việc do quản trị quyết định trước khi bấm Tạo.</div>
+                                                    <div class="small text-muted">Đề cương được gom nội dung theo từng mục ở bên dưới. Kết quả phân tích tự động chỉ là gợi ý: bấm <b>Gán</b> ở từng dòng để gán mục cho đơn vị, hoặc tích nhiều dòng rồi gán hàng loạt ở khung phía trên. Toàn bộ quyết định giao việc do quản trị quyết định trước khi bấm Tạo.</div>
                                                 </div>
                                                 <button class="btn btn-outline-primary btn-sm" type="button" id="addImportOutlineRowBtn">Thêm dòng</button>
                                             </div>
 
                                             <div class="row g-3 mb-3">
                                                 <div class="col-lg-4">
-                                                    <label class="form-label fw-bold">Gán cho dòng tích theo</label>
-                                                    <select class="form-select" id="importAssignType">
-                                                        <option value="unit">Đơn vị</option>
-                                                        <option value="role">Vai trò</option>
-                                                        <option value="user">Cá nhân</option>
-                                                    </select>
+                                                    <label class="form-label fw-bold">Gán cho dòng tích</label>
+                                                    <div class="fw-semibold small pt-2">Theo đơn vị</div>
                                                 </div>
                                                 <div class="col-lg-8" data-import-assign="unit">
                                                     <label class="form-label fw-bold">Đơn vị nhận việc</label>
@@ -446,55 +436,6 @@
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div class="col-lg-8 d-none" data-import-assign="role">
-                                                    <label class="form-label fw-bold">Vai trò nhận việc</label>
-                                                    <div class="position-relative">
-                                                        <button class="form-select text-start" type="button" id="importRolePickerToggle" aria-expanded="false">Chọn vai trò</button>
-                                                        <div class="border rounded-3 bg-white shadow-sm mt-2 d-none position-absolute start-0 end-0 z-3" id="importRolePickerMenu">
-                                                            <div class="d-flex justify-content-between align-items-center gap-2 px-3 py-2 border-bottom bg-light">
-                                                                <div class="small fw-semibold text-muted">Có thể chọn một hoặc nhiều vai trò</div>
-                                                                <div class="d-flex gap-2">
-                                                                    <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="importRoleSelectAllBtn">Tất cả</button>
-                                                                    <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="importRoleClearAllBtn">Bỏ chọn</button>
-                                                                </div>
-                                                            </div>
-                                                            <div style="max-height: 280px; overflow:auto;">
-                                                                {% for role in roles %}
-                                                                <label class="d-flex align-items-center gap-3 px-3 py-3 border-top">
-                                                                    <input type="checkbox" class="mt-1" data-import-role-checkbox value="{{ role.id }}" data-role-label="{{ role.name }}">
-                                                                    <span class="fw-medium">{{ role.name }}</span>
-                                                                </label>
-                                                                {% endfor %}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-lg-8 d-none" data-import-assign="user">
-                                                    <label class="form-label fw-bold">Cán bộ nhận việc</label>
-                                                    <div class="position-relative">
-                                                        <button class="form-select text-start" type="button" id="importUserPickerToggle" aria-expanded="false">Chọn cán bộ nhận việc</button>
-                                                        <div class="border rounded-3 bg-white shadow-sm mt-2 d-none position-absolute start-0 end-0 z-3" id="importUserPickerMenu">
-                                                            <div class="d-flex justify-content-between align-items-center gap-2 px-3 py-2 border-bottom bg-light">
-                                                                <div class="small fw-semibold text-muted">Có thể chọn một hoặc nhiều cán bộ</div>
-                                                                <div class="d-flex gap-2">
-                                                                    <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="importUserSelectAllBtn">Tất cả</button>
-                                                                    <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="importUserClearAllBtn">Bỏ chọn</button>
-                                                                </div>
-                                                            </div>
-                                                            <div style="max-height: 320px; overflow:auto;">
-                                                                {% for user in users %}
-                                                                <label class="d-flex align-items-start gap-3 px-3 py-3 border-top">
-                                                                    <input type="checkbox" class="mt-1" data-import-user-checkbox value="{{ user.id }}" data-user-label="{{ user.fullname }}">
-                                                                    <div class="flex-grow-1">
-                                                                        <div class="fw-medium">{{ user.fullname }}</div>
-                                                                        <div class="small text-muted">{% if user.unit_area_display %}{{ user.unit_area_display }}{% else %}Chưa có đơn vị{% endif %}</div>
-                                                                    </div>
-                                                                </label>
-                                                                {% endfor %}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
                                                 <div class="col-12 d-flex flex-wrap gap-2">
                                                     <button class="btn btn-outline-secondary btn-sm" type="button" id="importSelectAllRowsBtn">Chọn tất cả dòng</button>
                                                     <button class="btn btn-outline-secondary btn-sm" type="button" id="importClearAllRowsBtn">Bỏ chọn dòng</button>
@@ -506,9 +447,8 @@
                                                 <div class="d-none d-lg-block px-3 py-2 border-bottom small fw-semibold text-muted bg-light">
                                                     <div class="row g-2">
                                                         <div class="col-lg-1">Chọn</div>
-                                                        <div class="col-lg-4">Nội dung báo cáo</div>
-                                                        <div class="col-lg-2">Hình thức</div>
-                                                        <div class="col-lg-2">Bắt buộc file</div>
+                                                        <div class="col-lg-5">Tiêu đề mục</div>
+                                                        <div class="col-lg-3">Hình thức</div>
                                                         <div class="col-lg-2">Người nhận</div>
                                                         <div class="col-lg-1">Xóa</div>
                                                     </div>
@@ -527,14 +467,6 @@
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
                                                 </div>
                                                 <div class="modal-body">
-                                                    <div class="mb-3">
-                                                        <label class="form-label fw-bold">Giao theo</label>
-                                                        <select class="form-select" id="rowAssignType">
-                                                            <option value="unit">Đơn vị</option>
-                                                            <option value="role">Vai trò</option>
-                                                            <option value="user">Cá nhân</option>
-                                                        </select>
-                                                    </div>
                                                     <div data-row-assign-section="unit">
                                                         <label class="form-label fw-bold">Đơn vị nhận việc</label>
                                                         <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
@@ -542,31 +474,6 @@
                                                             <label class="d-flex align-items-center gap-2 px-2 py-2 border-bottom">
                                                                 <input type="checkbox" class="mt-1" data-row-unit-checkbox value="{{ item.value }}">
                                                                 <span class="small">{{ item.name }}</span>
-                                                            </label>
-                                                            {% endfor %}
-                                                        </div>
-                                                    </div>
-                                                    <div class="d-none" data-row-assign-section="role">
-                                                        <label class="form-label fw-bold">Vai trò nhận việc</label>
-                                                        <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
-                                                            {% for role in roles %}
-                                                            <label class="d-flex align-items-center gap-2 px-2 py-2 border-bottom">
-                                                                <input type="checkbox" class="mt-1" data-row-role-checkbox value="{{ role.id }}">
-                                                                <span class="small">{{ role.name }}</span>
-                                                            </label>
-                                                            {% endfor %}
-                                                        </div>
-                                                    </div>
-                                                    <div class="d-none" data-row-assign-section="user">
-                                                        <label class="form-label fw-bold">Cán bộ nhận việc</label>
-                                                        <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
-                                                            {% for user in users %}
-                                                            <label class="d-flex align-items-start gap-2 px-2 py-2 border-bottom">
-                                                                <input type="checkbox" class="mt-1" data-row-user-checkbox value="{{ user.id }}">
-                                                                <div class="small">
-                                                                    <div class="fw-medium">{{ user.fullname }}</div>
-                                                                    <div class="text-muted">{% if user.unit_area_display %}{{ user.unit_area_display }}{% else %}Chưa có đơn vị{% endif %}</div>
-                                                                </div>
                                                             </label>
                                                             {% endfor %}
                                                         </div>
@@ -1704,14 +1611,6 @@
             const unitNames = domains.map((value) => importUnitNameMap().get(String(value)) || String(value));
             return `Đơn vị: ${unitNames.join(', ')}`;
         }
-        if (assignType === 'role' && roleIds.length) {
-            const roleNames = roleIds.map((roleId) => importRoleNameMap().get(String(roleId)) || String(roleId));
-            return `Vai trò: ${roleNames.join(', ')}`;
-        }
-        if (assignType === 'user' && userIds.length) {
-            const userNames = userIds.map((userId) => importUserNameMap().get(String(userId)) || String(userId));
-            return `Cá nhân: ${userNames.join(', ')}`;
-        }
         return 'Chưa gán người nhận';
     }
 
@@ -1741,28 +1640,14 @@
 
     let rowAssignTarget = null;
     const rowAssignModalEl = document.getElementById('rowAssignModal');
-    const rowAssignType = document.getElementById('rowAssignType');
-
-    function setRowAssignSection(type) {
-        document.querySelectorAll('[data-row-assign-section]').forEach((section) => {
-            section.classList.toggle('d-none', section.dataset.rowAssignSection !== type);
-        });
-    }
 
     function openRowAssignModal(row) {
         if (!row) return;
         rowAssignTarget = row;
         const current = {
-            assignType: row.querySelector('input[name="item_assign_type"]')?.value || 'unit',
             unitDomains: (row.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean),
-            roleIds: (row.querySelector('input[name="item_role_ids"]')?.value || '').split(',').filter(Boolean),
-            userIds: (row.querySelector('input[name="item_user_ids"]')?.value || '').split(',').filter(Boolean),
         };
-        if (rowAssignType) rowAssignType.value = ['unit', 'role', 'user'].includes(current.assignType) ? current.assignType : 'unit';
         document.querySelectorAll('[data-row-unit-checkbox]').forEach((checkbox) => { checkbox.checked = current.unitDomains.includes(checkbox.value); });
-        document.querySelectorAll('[data-row-role-checkbox]').forEach((checkbox) => { checkbox.checked = current.roleIds.includes(checkbox.value); });
-        document.querySelectorAll('[data-row-user-checkbox]').forEach((checkbox) => { checkbox.checked = current.userIds.includes(checkbox.value); });
-        setRowAssignSection(rowAssignType ? rowAssignType.value : 'unit');
         if (rowAssignModalEl && window.bootstrap) {
             bootstrap.Modal.getOrCreateInstance(rowAssignModalEl).show();
         }
@@ -1770,17 +1655,13 @@
 
     function applyRowAssign() {
         if (!rowAssignTarget) return;
-        const type = rowAssignType ? rowAssignType.value : 'unit';
         const unitDomains = Array.from(document.querySelectorAll('[data-row-unit-checkbox]:checked')).map((checkbox) => checkbox.value);
-        const roleIds = Array.from(document.querySelectorAll('[data-row-role-checkbox]:checked')).map((checkbox) => checkbox.value);
-        const userIds = Array.from(document.querySelectorAll('[data-row-user-checkbox]:checked')).map((checkbox) => checkbox.value);
-        updateImportRowAssignment(rowAssignTarget, { assignType: type, domain: '', unitDomains, roleIds, userIds });
+        updateImportRowAssignment(rowAssignTarget, { assignType: 'unit', domain: '', unitDomains, roleIds: [], userIds: [] });
         if (rowAssignModalEl && window.bootstrap) {
             bootstrap.Modal.getOrCreateInstance(rowAssignModalEl).hide();
         }
     }
 
-    rowAssignType?.addEventListener('change', () => setRowAssignSection(rowAssignType.value));
     document.getElementById('applyRowAssignBtn')?.addEventListener('click', applyRowAssign);
 
     function makeImportRow(rowData = {}) {
@@ -1794,20 +1675,14 @@
                         <input class="form-check-input" type="checkbox" data-import-row-check>
                     </div>
                 </div>
-                <div class="col-lg-4">
-                    <input class="form-control" type="text" name="item_title" placeholder="Nhập nội dung báo cáo" value="${String(rowData.title || '').replace(/"/g, '&quot;')}">
+                <div class="col-lg-5">
+                    <input class="form-control" type="text" name="item_title" placeholder="Tiêu đề mục (vd: 1.1. Các Sở, ban, ngành...)" value="${String(rowData.title || '').replace(/"/g, '&quot;')}">
                 </div>
-                <div class="col-lg-2">
+                <div class="col-lg-3">
                     <select class="form-select" name="item_report_kind">
                         <option value="narrative" ${rowData.report_kind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
                         <option value="number" ${rowData.report_kind === 'number' ? 'selected' : ''}>Báo cáo số</option>
                     </select>
-                </div>
-                <div class="col-lg-2">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="item_attachment_required" data-item-attachment ${rowData.attachment_required ? 'checked' : ''}>
-                        <label class="form-check-label small">Bắt buộc file</label>
-                    </div>
                 </div>
                 <div class="col-lg-2">
                     <div class="d-flex align-items-start gap-2">

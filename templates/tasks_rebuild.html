@@ -858,7 +858,7 @@
                         </div>
                         <div class="flex-fill text-center border rounded-3 px-2 py-2" data-wizard-step-label="3">
                             <div class="fw-semibold small">3. Cấu hình</div>
-                            <div class="small text-muted">Việc nhỏ, trường, người nhận</div>
+                            <div class="small text-muted">Mục, trường, người nhận</div>
                         </div>
                         <div class="flex-fill text-center border rounded-3 px-2 py-2" data-wizard-step-label="4">
                             <div class="fw-semibold small">4. Phát hành</div>
@@ -882,7 +882,7 @@
                                 <button type="button" class="card w-100 h-100 text-start p-3 border-2 task-type-card is-selected" data-task-type="OUTLINE">
                                     <div class="fs-3">📋</div>
                                     <div class="fw-bold mt-2">Theo đề cương</div>
-                                    <div class="small text-muted mt-1">Tải đề cương Word → hệ thống tách danh sách việc nhỏ → quản trị gán từng việc cho đơn vị / vai trò / cán bộ.</div>
+                                    <div class="small text-muted mt-1">Tải đề cương Word → hệ thống gom nội dung theo từng mục → quản trị gán mục đó cho đơn vị và chọn hình thức báo cáo.</div>
                                 </button>
                             </div>
                             <div class="col-lg-4">
@@ -906,12 +906,12 @@
                         <div data-wizard-source="OUTLINE" class="d-none">
                             <div class="border rounded-3 p-3 bg-light-subtle">
                                 <div class="fw-bold mb-1">Tải đề cương</div>
-                                <p class="small text-muted mb-3">Chọn file .docx / .txt. Hệ thống tách từng dòng thành việc nhỏ; nếu đề cương ghi rõ "giao cho ai" (vd: Đơn vị thực hiện: Đội A) thì điền sẵn gợi ý người nhận để quản trị kiểm tra lại ở bước 3.</p>
+                                <p class="small text-muted mb-3">Chọn file .docx / .txt. Hệ thống gộp toàn bộ nội dung của cùng một mục vào chung một đầu mục (vd: mục 1.1 với các gạch đầu dòng bên trong); nếu đề cương ghi rõ "giao cho ai" (vd: Đơn vị thực hiện: Đội A) thì điền sẵn gợi ý đơn vị để quản trị kiểm tra lại ở bước 3.</p>
                                 <div class="d-flex flex-wrap gap-2 align-items-center">
                                     <input class="form-control" type="file" id="wizardOutlineFile" accept=".docx,.txt" style="max-width: 420px;">
                                     <button class="btn btn-primary" type="button" id="wizardOutlineParseBtn">Phân tích đề cương</button>
                                 </div>
-                                <div class="small mt-2" id="wizardOutlineStatus">Chưa phân tích. Nếu không tải file, bấm Tiếp tục để nhập tay từng việc nhỏ.</div>
+                                <div class="small mt-2" id="wizardOutlineStatus">Chưa phân tích. Nếu không tải file, bấm Tiếp tục để nhập tay từng mục.</div>
                             </div>
                         </div>
                         <div data-wizard-source="FILE" class="d-none">
@@ -970,21 +970,17 @@
                             <div class="border rounded-3 p-3 bg-light-subtle">
                                 <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
                                     <div>
-                                        <div class="fw-bold">Danh sách việc nhỏ</div>
-                                        <div class="small text-muted">Gán từng việc cho ai do quản trị quyết định. Kết quả phân tích từ đề cương chỉ là gợi ý, có thể sửa.</div>
+                                        <div class="fw-bold">Danh sách mục</div>
+                                        <div class="small text-muted">Mỗi mục là một đầu mục báo cáo; gán cho đơn vị nào do quản trị quyết định. Kết quả phân tích từ đề cương chỉ là gợi ý, có thể sửa.</div>
                                     </div>
-                                    <button class="btn btn-outline-primary btn-sm" type="button" id="wizardAddOutlineRowBtn">+ Thêm việc nhỏ</button>
+                                    <button class="btn btn-outline-primary btn-sm" type="button" id="wizardAddOutlineRowBtn">+ Thêm mục</button>
                                 </div>
                                 <div id="wizardOutlineRows" class="d-grid gap-2"></div>
                                 <div class="border rounded-3 p-3 mt-3 bg-white">
                                     <div class="fw-semibold mb-2">Gán hàng loạt cho dòng đã tích</div>
                                     <div class="row g-2 align-items-start">
                                         <div class="col-lg-3">
-                                            <select class="form-select form-select-sm" id="wizardAssignType">
-                                                <option value="unit">Theo đơn vị</option>
-                                                <option value="role">Theo vai trò</option>
-                                                <option value="user">Theo cá nhân</option>
-                                            </select>
+                                            <div class="fw-semibold small mt-1">Gán theo đơn vị</div>
                                         </div>
                                         <div class="col-lg-7">
                                             <div data-wizard-assign="unit">
@@ -993,26 +989,6 @@
                                                     <label class="d-flex align-items-center gap-2 small py-1">
                                                         <input type="checkbox" data-wizard-unit-checkbox value="{{ item.value }}" data-label="{{ item.name }}">
                                                         <span>{{ item.name }}</span>
-                                                    </label>
-                                                    {% endfor %}
-                                                </div>
-                                            </div>
-                                            <div class="d-none" data-wizard-assign="role">
-                                                <div class="border rounded-2 p-2" style="max-height: 150px; overflow:auto;">
-                                                    {% for role in roles %}
-                                                    <label class="d-flex align-items-center gap-2 small py-1">
-                                                        <input type="checkbox" data-wizard-role-checkbox value="{{ role.id }}" data-label="{{ role.name }}">
-                                                        <span>{{ role.name }}</span>
-                                                    </label>
-                                                    {% endfor %}
-                                                </div>
-                                            </div>
-                                            <div class="d-none" data-wizard-assign="user">
-                                                <div class="border rounded-2 p-2" style="max-height: 150px; overflow:auto;">
-                                                    {% for user in users %}
-                                                    <label class="d-flex align-items-start gap-2 small py-1">
-                                                        <input type="checkbox" data-wizard-user-checkbox value="{{ user.id }}" data-label="{{ user.fullname }}">
-                                                        <span>{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</span>
                                                     </label>
                                                     {% endfor %}
                                                 </div>
@@ -1356,18 +1332,10 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Gán việc nhỏ cho ai</h5>
+                <h5 class="modal-title">Gán mục cho đơn vị</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Giao theo</label>
-                    <select class="form-select" id="wizardRowAssignType">
-                        <option value="unit">Đơn vị</option>
-                        <option value="role">Vai trò</option>
-                        <option value="user">Cá nhân</option>
-                    </select>
-                </div>
                 <div data-wzrow-section="unit">
                     <label class="form-label fw-bold">Đơn vị nhận việc</label>
                     <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
@@ -1375,31 +1343,6 @@
                         <label class="d-flex align-items-center gap-2 px-2 py-2 border-bottom">
                             <input type="checkbox" class="mt-1" data-wzrow-unit-checkbox value="{{ item.value }}" data-label="{{ item.name }}">
                             <span class="small">{{ item.name }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
-                <div class="d-none" data-wzrow-section="role">
-                    <label class="form-label fw-bold">Vai trò nhận việc</label>
-                    <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
-                        {% for role in roles %}
-                        <label class="d-flex align-items-center gap-2 px-2 py-2 border-bottom">
-                            <input type="checkbox" class="mt-1" data-wzrow-role-checkbox value="{{ role.id }}" data-label="{{ role.name }}">
-                            <span class="small">{{ role.name }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
-                <div class="d-none" data-wzrow-section="user">
-                    <label class="form-label fw-bold">Cán bộ nhận việc</label>
-                    <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
-                        {% for user in users %}
-                        <label class="d-flex align-items-start gap-2 px-2 py-2 border-bottom">
-                            <input type="checkbox" class="mt-1" data-wzrow-user-checkbox value="{{ user.id }}" data-label="{{ user.fullname }}">
-                            <div class="small">
-                                <div class="fw-medium">{{ user.fullname }}</div>
-                                <div class="text-muted">{% if user.unit_area_display %}{{ user.unit_area_display }}{% else %}Chưa có đơn vị{% endif %}</div>
-                            </div>
                         </label>
                         {% endfor %}
                     </div>
@@ -1501,8 +1444,8 @@
         let detail = '';
         if (wizardMode === 'OUTLINE') {
             const rows = Array.from(outlineRowsBox?.querySelectorAll('[data-wz-row]') || []);
-            const assigned = rows.filter((row) => (row.querySelector('input[name="item_assign_type"]')?.value || '') && ((row.querySelector('input[name="item_domains"]')?.value || row.querySelector('input[name="item_role_ids"]')?.value || row.querySelector('input[name="item_user_ids"]')?.value || '')));
-            detail = `${rows.length} việc nhỏ, ${assigned.length} việc đã gán người nhận`;
+            const assigned = rows.filter((row) => Boolean((row.querySelector('input[name="item_domains"]')?.value || '').trim()));
+            detail = `${rows.length} mục, ${assigned.length} mục đã gán đơn vị`;
         } else if (wizardMode === 'FORM') {
             const fields = Array.from(formFieldList?.querySelectorAll('.form-field-item') || []);
             const source = document.querySelector('input[name="form_source_choice"]:checked')?.value || 'builder';
@@ -1572,7 +1515,7 @@
             }
             clearWizardOutlineRows();
             (payload.rows || []).forEach((row) => addWizardOutlineRow(row));
-            wizardOutlineStatus.textContent = `Đã tách ${(payload.rows || []).length} việc nhỏ từ đề cương. Kiểm tra và gán lại ở bước 3 rồi Tiếp tục.`;
+            wizardOutlineStatus.textContent = `Đã tách ${(payload.rows || []).length} mục từ đề cương. Kiểm tra, gán đơn vị và chọn hình thức báo cáo ở bước 3 rồi Tiếp tục.`;
             wizardOutlineStatus.classList.add('text-success');
             syncWizardSummary();
         } catch (error) {
@@ -1638,23 +1581,14 @@
     });
 
     // ---------- outline rows ----------
-    function wizardNameMaps() {
-        const unitMap = new Map(Array.from(document.querySelectorAll('[data-wizard-unit-checkbox]')).map((cb) => [cb.value, cb.dataset.label || cb.value]));
-        const roleMap = new Map(Array.from(document.querySelectorAll('[data-wizard-role-checkbox]')).map((cb) => [cb.value, cb.dataset.label || cb.value]));
-        const userMap = new Map(Array.from(document.querySelectorAll('[data-wizard-user-checkbox]')).map((cb) => [cb.value, cb.dataset.label || cb.value]));
-        return { unitMap, roleMap, userMap };
+    function wizardUnitNameMap() {
+        return new Map(Array.from(document.querySelectorAll('[data-wizard-unit-checkbox]')).map((cb) => [cb.value, cb.dataset.label || cb.value]));
     }
 
     function formatWizardAssignmentSummary(payload) {
-        const { unitMap, roleMap, userMap } = wizardNameMaps();
         if (payload.assignType === 'unit' && payload.unitDomains.length) {
+            const unitMap = wizardUnitNameMap();
             return 'Đơn vị: ' + payload.unitDomains.map((value) => unitMap.get(String(value)) || String(value)).join(', ');
-        }
-        if (payload.assignType === 'role' && payload.roleIds.length) {
-            return 'Vai trò: ' + payload.roleIds.map((value) => roleMap.get(String(value)) || String(value)).join(', ');
-        }
-        if (payload.assignType === 'user' && payload.userIds.length) {
-            return 'Cá nhân: ' + payload.userIds.map((value) => userMap.get(String(value)) || String(value)).join(', ');
         }
         return 'Chưa gán người nhận';
     }
@@ -1790,31 +1724,22 @@
                 </div>
                 <div class="col-md-11">
                     <div class="row g-2">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-semibold mb-1">Tên việc nhỏ</label>
-                            <input class="form-control form-control-sm" type="text" name="item_title" placeholder="Nội dung việc nhỏ" value="${titleValue}" style="word-break: break-word; white-space: normal;">
+                        <div class="col-md-8">
+                            <label class="form-label small fw-semibold mb-1">Tiêu đề mục</label>
+                            <input class="form-control form-control-sm" type="text" name="item_title" placeholder="Tiêu đề mục (vd: 1.1. Các Sở, ban, ngành...)" value="${titleValue}" style="word-break: break-word; white-space: normal;">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <label class="form-label small fw-semibold mb-1">Hình thức báo cáo</label>
                             <select class="form-select form-select-sm" name="item_report_kind" data-report-kind-toggle>
                                 <option value="narrative" ${reportKind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
                                 <option value="number" ${reportKind === 'number' ? 'selected' : ''}>Báo cáo số</option>
                             </select>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-semibold mb-1">Tùy chọn</label>
-                            <div class="d-flex align-items-center gap-2">
-                                <label class="form-check-label small mb-0">
-                                    <input class="form-check-input" type="checkbox" name="item_attachment_required" ${rowData.attachment_required ? 'checked' : ''}>
-                                    Bắt buộc file
-                                </label>
-                            </div>
-                        </div>
                     </div>
                     <div class="row g-2 mt-2">
                         <div class="col-12">
-                            <label class="form-label small fw-semibold mb-1">Nội dung chi tiết từ đề cương</label>
-                            <textarea class="form-control form-control-sm" name="item_content" rows="3" placeholder="Nội dung chi tiết từ đề cương" style="word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap;">${contentValue}</textarea>
+                            <label class="form-label small fw-semibold mb-1">Nội dung từ đề cương</label>
+                            <textarea class="form-control form-control-sm" name="item_content" rows="3" readonly placeholder="Nội dung từ đề cương" style="word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; background-color: var(--bs-secondary-bg);">${contentValue}</textarea>
                         </div>
                     </div>
                     <div class="row g-2 mt-2">
@@ -1872,73 +1797,44 @@
         outlineRowsBox.innerHTML = '';
     }
 
-    // ---------- per-row assign modal ----------
+    // ---------- per-row assign modal (chỉ gán theo đơn vị) ----------
     let wizardRowTarget = null;
     const wizardRowAssignModalEl = document.getElementById('wizardRowAssignModal');
-    const wizardRowAssignType = document.getElementById('wizardRowAssignType');
-
-    function setWizardRowSection(type) {
-        document.querySelectorAll('[data-wzrow-section]').forEach((section) => {
-            section.classList.toggle('d-none', section.dataset.wzrowSection !== type);
-        });
-    }
 
     function openWizardRowAssign(row) {
         wizardRowTarget = row;
         const current = {
-            assignType: row.querySelector('input[name="item_assign_type"]')?.value || 'unit',
             unitDomains: (row.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean),
-            roleIds: (row.querySelector('input[name="item_role_ids"]')?.value || '').split(',').filter(Boolean),
-            userIds: (row.querySelector('input[name="item_user_ids"]')?.value || '').split(',').filter(Boolean),
         };
-        if (wizardRowAssignType) wizardRowAssignType.value = ['unit', 'role', 'user'].includes(current.assignType) ? current.assignType : 'unit';
         document.querySelectorAll('[data-wzrow-unit-checkbox]').forEach((cb) => { cb.checked = current.unitDomains.includes(cb.value); });
-        document.querySelectorAll('[data-wzrow-role-checkbox]').forEach((cb) => { cb.checked = current.roleIds.includes(cb.value); });
-        document.querySelectorAll('[data-wzrow-user-checkbox]').forEach((cb) => { cb.checked = current.userIds.includes(cb.value); });
-        setWizardRowSection(wizardRowAssignType ? wizardRowAssignType.value : 'unit');
         if (wizardRowAssignModalEl && window.bootstrap) {
             bootstrap.Modal.getOrCreateInstance(wizardRowAssignModalEl).show();
         }
     }
 
-    wizardRowAssignType?.addEventListener('change', () => setWizardRowSection(wizardRowAssignType.value));
     document.getElementById('applyWizardRowAssignBtn')?.addEventListener('click', () => {
         if (!wizardRowTarget) return;
-        const type = wizardRowAssignType ? wizardRowAssignType.value : 'unit';
         const unitDomains = Array.from(document.querySelectorAll('[data-wzrow-unit-checkbox]:checked')).map((cb) => cb.value);
-        const roleIds = Array.from(document.querySelectorAll('[data-wzrow-role-checkbox]:checked')).map((cb) => cb.value);
-        const userIds = Array.from(document.querySelectorAll('[data-wzrow-user-checkbox]:checked')).map((cb) => cb.value);
-        updateWizardOutlineRowAssignment(wizardRowTarget, { assignType: type, domain: '', unitDomains, roleIds, userIds });
+        updateWizardOutlineRowAssignment(wizardRowTarget, { assignType: 'unit', domain: '', unitDomains, roleIds: [], userIds: [] });
         if (wizardRowAssignModalEl && window.bootstrap) {
             bootstrap.Modal.getOrCreateInstance(wizardRowAssignModalEl).hide();
         }
     });
 
-    // ---------- bulk assign ----------
-    const wizardAssignType = document.getElementById('wizardAssignType');
-    function syncWizardAssignSections() {
-        const type = wizardAssignType?.value || 'unit';
-        document.querySelectorAll('[data-wizard-assign]').forEach((section) => {
-            section.classList.toggle('d-none', section.dataset.wizardAssign !== type);
-        });
-    }
-    wizardAssignType?.addEventListener('change', syncWizardAssignSections);
+    // ---------- bulk assign (chỉ gán theo đơn vị) ----------
     document.getElementById('wizardSelectAllRowsBtn')?.addEventListener('click', () => {
         outlineRowsBox?.querySelectorAll('[data-wz-row-check]').forEach((cb) => { cb.checked = true; });
     });
     document.getElementById('wizardApplyAssignBtn')?.addEventListener('click', () => {
-        const type = wizardAssignType?.value || 'unit';
         const unitDomains = Array.from(document.querySelectorAll('[data-wizard-unit-checkbox]:checked')).map((cb) => cb.value);
-        const roleIds = Array.from(document.querySelectorAll('[data-wizard-role-checkbox]:checked')).map((cb) => cb.value);
-        const userIds = Array.from(document.querySelectorAll('[data-wizard-user-checkbox]:checked')).map((cb) => cb.value);
-        if ((type === 'unit' && !unitDomains.length) || (type === 'role' && !roleIds.length) || (type === 'user' && !userIds.length)) {
-            window.alert('Cần chọn ít nhất một đối tượng nhận việc trước khi gán.');
+        if (!unitDomains.length) {
+            window.alert('Cần chọn ít nhất một đơn vị nhận việc trước khi gán.');
             return;
         }
         outlineRowsBox?.querySelectorAll('[data-wz-row]').forEach((row) => {
             const checkbox = row.querySelector('[data-wz-row-check]');
             if (checkbox && checkbox.checked) {
-                updateWizardOutlineRowAssignment(row, { assignType: type, domain: '', unitDomains, roleIds, userIds });
+                updateWizardOutlineRowAssignment(row, { assignType: 'unit', domain: '', unitDomains, roleIds: [], userIds: [] });
             }
         });
     });
@@ -2056,17 +1952,13 @@
             const rows = Array.from(outlineRowsBox?.querySelectorAll('[data-wz-row]') || []);
             const blank = rows.findIndex((row) => !(row.querySelector('input[name="item_title"]')?.value || '').trim());
             if (blank !== -1) {
-                window.alert(`Dòng ${blank + 1} chưa có nội dung việc nhỏ.`);
+                window.alert(`Dòng ${blank + 1} chưa có tiêu đề mục.`);
                 setStep(3);
                 return;
             }
-            const unassigned = rows.findIndex((row) => {
-                const assignTypeValue = row.querySelector('input[name="item_assign_type"]')?.value || '';
-                const hasTarget = Boolean((row.querySelector('input[name="item_domains"]')?.value || row.querySelector('input[name="item_role_ids"]')?.value || row.querySelector('input[name="item_user_ids"]')?.value || '').trim());
-                return !assignTypeValue || !hasTarget;
-            });
+            const unassigned = rows.findIndex((row) => !(row.querySelector('input[name="item_domains"]')?.value || '').trim());
             if (unassigned !== -1) {
-                window.alert(`Việc nhỏ ${unassigned + 1} chưa gán người nhận. Bấm Gán trên dòng đó để chọn đơn vị / vai trò / cá nhân.`);
+                window.alert(`Mục ${unassigned + 1} chưa gán đơn vị nhận. Bấm Gán trên dòng đó để chọn đơn vị.`);
                 setStep(3);
                 return;
             }
@@ -2120,14 +2012,12 @@
         syncWizardForMode();
         syncFormSource();
         syncAssignType();
-        syncWizardAssignSections();
         setStep(1);
     });
 
     syncWizardForMode();
     syncFormSource();
     syncAssignType();
-    syncWizardAssignSections();
     setStep(1);
     if (!outlineRowsBox?.querySelector('[data-wz-row]')) {
         addWizardOutlineRow({});

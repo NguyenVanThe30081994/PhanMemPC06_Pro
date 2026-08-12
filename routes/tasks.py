@@ -1205,8 +1205,9 @@ def _get_heading_level(raw_text):
     raw = str(raw_text or "").strip()
     if not raw:
         return (0, "")
-    # Roman/letter chapters are top-level containers.
-    roman_match = re.match(r"^\s*([IVXLCDM]+)\.\s+", raw)
+    # Roman/letter chapters are top-level containers. Chấp nhận dấu chấm tùy
+    # chọn (vd: "III KIẾN NGHỊ, ĐỀ XUẤT") vì nhiều đề cương viết thiếu dấu chấm.
+    roman_match = re.match(r"^\s*([IVXLCDM]+)\.?\s+", raw)
     if roman_match:
         return (1, roman_match.group(1))
     letter_match = re.match(r"^\s*([A-Z])\.\s+", raw)
@@ -1314,11 +1315,16 @@ def _parse_outline_with_hierarchy(paragraphs, is_docx=False):
 
 
 def _flatten_hierarchy_to_rows(hierarchy_items, catalog=None):
-    """Flatten cây hierarchy thành danh sách rows phẳng cho UI.
+    """Gom đề cương theo MỤC: toàn bộ nội dung (gạch đầu dòng) của cùng một mục
+    được gộp vào chung MỘT việc (row), không tách từng dòng thành việc riêng.
 
-    HẠN CHẾ: MỖI gạch đầu dòng (-/–/•) / dấu cộng (+) / đoạn nội dung (content line)
-    được coi là MỘT việc riêng và gán cho đơn vị khác nhau.
-    Không gộp toàn bộ gạch đầu dòng của cùng một mục vào chung 1 content.
+    - Mỗi mục có nội dung (content_lines) -> 1 row duy nhất:
+        title   = tiêu đề mục kèm số hiệu (vd: "1.1. Các Sở, ban, ngành...")
+        content = toàn bộ các dòng nội dung của mục, mỗi dòng 1 dòng
+        heading = đường dẫn đầy đủ (vd: "I. KẾT QUẢ... » 1. CÔNG TÁC... » 1.1. ...")
+      Việc gán cho đơn vị / hình thức báo cáo áp dụng cho cả mục.
+    - Mục lá không có nội dung -> tự nó là 1 việc (đầu mục chỉ có tiêu đề).
+    - Mục trung gian (chỉ chứa mục con) -> không tạo việc, chỉ đệ quy xuống mục con.
     """
     rows = []
     seen = set()
@@ -1329,43 +1335,33 @@ def _flatten_hierarchy_to_rows(hierarchy_items, catalog=None):
         if parent_heading:
             full_heading = f"{parent_heading} » {full_heading}"
 
-        # Mỗi content line -> một row (một việc) riêng, gán đơn vị riêng
+        cleaned_title = _clean_outline_title(item.get("title", ""))
+        number = str(item.get("number") or "").strip()
         content_lines = item.get("content_lines") or []
-        if content_lines:
-            for raw_line in content_lines:
-                line = str(raw_line or "").strip()
-                if not line:
-                    continue
-                # Bỏ dấu gạch đầu dòng / dấu cộng ở đầu (kể cả –, —)
-                line = re.sub(r"^\s*(?:[-–—•*+])\s*", "", line).strip()
-                if not line:
-                    continue
-                cleaned_line = _clean_outline_title(line)
-                if len(cleaned_line) < 3:
-                    # Dòng quá ngắn -> lấy tiêu đề mục cha làm tên việc
-                    cleaned_line = _clean_outline_title(item.get("title", ""))
-                if len(cleaned_line) < 3:
-                    continue
+        cleaned_lines = []
+        for raw_line in content_lines:
+            line = str(raw_line or "").strip()
+            if not line:
+                continue
+            cleaned_lines.append(line)
+        has_children = bool(item.get("children"))
 
-                dedupe = _normalize_outline_match_text(cleaned_line)
-                if dedupe in seen:
-                    continue
+        if cleaned_lines and len(cleaned_title) >= 3:
+            # Gộp toàn bộ nội dung của mục vào chung 1 việc
+            content_text = "\n".join(cleaned_lines)
+            row_title = f"{number}. {cleaned_title}" if number else cleaned_title
+            dedupe = _normalize_outline_match_text(f"{full_heading} {row_title}")
+            if dedupe not in seen:
                 seen.add(dedupe)
-
-                # Nhận diện 'giao cho ai' trên chính dòng đó (mỗi gạch -> đơn vị riêng)
-                full_text = f"{full_heading} {line}"
-                assignment = None
-                if catalog:
-                    assignment = _resolve_outline_assignee_hint(full_text, catalog)
-
-                number_fields = _extract_number_fields_from_text(line)
-
+                full_text = f"{full_heading}\n{content_text}"
+                assignment = _resolve_outline_assignee_hint(full_text, catalog) if catalog else None
+                number_fields = _extract_number_fields_from_text(content_text)
                 rows.append({
-                    "title": cleaned_line[:255],
-                    "content": cleaned_line[:3000],
+                    "title": row_title[:255],
+                    "content": content_text[:3000],
                     "heading": full_heading[:255],
                     "level": item.get("level", 3),
-                    "number": item.get("number", ""),
+                    "number": number,
                     "has_numbers": bool(number_fields),
                     "number_fields": number_fields,
                     "assign_type": assignment["assign_type"] if assignment else "",
@@ -1376,34 +1372,32 @@ def _flatten_hierarchy_to_rows(hierarchy_items, catalog=None):
                     "assignee_hint": full_text[:500],
                     "assignee_detected": bool(assignment and (assignment["unit_domains"] or assignment["role_ids"] or assignment["user_ids"])),
                 })
-
-        # A leaf heading without bullets is itself an actionable outline item.
-        # Without this branch, common outlines written only as numbered headings
-        # produce zero preview rows and therefore cannot be assigned.
-        if not content_lines and not item.get("children"):
-            cleaned_title = _clean_outline_title(item.get("title", ""))
-            if len(cleaned_title) >= 3:
-                dedupe = _normalize_outline_match_text(cleaned_title)
-                if dedupe not in seen:
-                    seen.add(dedupe)
-                    assignment = _resolve_outline_assignee_hint(full_heading, catalog) if catalog else None
-                    number_fields = _extract_number_fields_from_text(cleaned_title)
-                    rows.append({
-                        "title": cleaned_title[:255],
-                        "content": cleaned_title[:3000],
-                        "heading": full_heading[:255],
-                        "level": item.get("level", 1),
-                        "number": item.get("number", ""),
-                        "has_numbers": bool(number_fields),
-                        "number_fields": number_fields,
-                        "assign_type": assignment["assign_type"] if assignment else "",
-                        "domain": "",
-                        "unit_domains": assignment["unit_domains"] if assignment else [],
-                        "role_ids": assignment["role_ids"] if assignment else [],
-                        "user_ids": assignment["user_ids"] if assignment else [],
-                        "assignee_hint": full_heading[:500],
-                        "assignee_detected": bool(assignment and (assignment["unit_domains"] or assignment["role_ids"] or assignment["user_ids"])),
-                    })
+        elif not cleaned_lines and not has_children and len(cleaned_title) >= 3:
+            # Mục lá không có nội dung -> tự nó là 1 việc (đầu mục chỉ có tiêu đề).
+            # Không có nhánh này, đề cương chỉ viết dạng đầu mục có số sẽ không tạo
+            # được dòng nào để gán việc.
+            row_title = f"{number}. {cleaned_title}" if number else cleaned_title
+            dedupe = _normalize_outline_match_text(f"{full_heading} {row_title}")
+            if dedupe not in seen:
+                seen.add(dedupe)
+                assignment = _resolve_outline_assignee_hint(full_heading, catalog) if catalog else None
+                number_fields = _extract_number_fields_from_text(cleaned_title)
+                rows.append({
+                    "title": row_title[:255],
+                    "content": row_title[:3000],
+                    "heading": full_heading[:255],
+                    "level": item.get("level", 1),
+                    "number": number,
+                    "has_numbers": bool(number_fields),
+                    "number_fields": number_fields,
+                    "assign_type": assignment["assign_type"] if assignment else "",
+                    "domain": "",
+                    "unit_domains": assignment["unit_domains"] if assignment else [],
+                    "role_ids": assignment["role_ids"] if assignment else [],
+                    "user_ids": assignment["user_ids"] if assignment else [],
+                    "assignee_hint": full_heading[:500],
+                    "assignee_detected": bool(assignment and (assignment["unit_domains"] or assignment["role_ids"] or assignment["user_ids"])),
+                })
         # Process children
         for child in item.get("children", []):
             process_item(child, full_heading)
@@ -6673,7 +6667,10 @@ def _parse_outline_item_configs_from_request(form):
     for index, raw_title in enumerate(titles):
         if enabled_indexes and str(index) not in enabled_indexes:
             continue
-        cleaned_title = _clean_outline_title(raw_title)
+        # Giữ số hiệu mục (vd: "1.1. Các Sở...") để các mục cùng tên ở phần khác
+        # nhau của đề cương không bị gộp nhầm; chỉ bỏ dấu đầu dòng nếu có.
+        cleaned_title = re.sub(r"^\s*(?:[-–—•*+]\s*|\+\s*)\s*", "", str(raw_title or "").strip())
+        cleaned_title = re.sub(r"\s+", " ", cleaned_title).strip(" .:")
         if not cleaned_title:
             continue
         dedupe_key = cleaned_title.lower()
@@ -6702,7 +6699,7 @@ def _parse_outline_item_configs_from_request(form):
         configs.append(
             {
                 "title": cleaned_title[:255],
-                "content": content_text[:2000],
+                "content": content_text[:3000],
                 "report_kind": report_kind,
                 "number_fields": number_fields,
                 "attachment_required": str(index) in attachment_indexes,
@@ -8551,6 +8548,7 @@ def _purge_task(task):
     task_id, task_item_id = _task_scope_identity(task)
     participant_query = TaskParticipant.query.filter(TaskParticipant.task_id == task_id)
     submission_query = TaskSubmission.query.filter(TaskSubmission.task_id == task_id)
+    assignment_query = TaskAssignment.query.filter(TaskAssignment.task_id == task_id)
     form_field_query = TaskFormField.query.filter(TaskFormField.task_id == task_id)
     if task_item_id:
         participant_query = participant_query.filter(TaskParticipant.task_item_id == task_item_id)
@@ -8569,6 +8567,9 @@ def _purge_task(task):
         TaskAssignment.last_submission_id.isnot(None),
     ).update({TaskAssignment.last_submission_id: None}, synchronize_session=False)
     submission_query.delete(synchronize_session=False)
+    # Xóa assignment sau khi đã xóa submission (submission.assignment_id trỏ vào
+    # assignment) và trước khi xóa task_item (assignment.task_item_id trỏ vào item).
+    assignment_query.delete(synchronize_session=False)
     participant_query.delete(synchronize_session=False)
     form_field_query.delete(synchronize_session=False)
     if getattr(task, "parent_task_id", None):

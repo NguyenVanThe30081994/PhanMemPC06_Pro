@@ -110,7 +110,51 @@ class TaskCreateWizardTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.get_json()
         self.assertTrue(payload["ok"])
-        self.assertEqual([row["title"] for row in payload["rows"]], ["Việc nhỏ A", "Việc nhỏ B"])
+        # Mỗi mục (heading có số hiệu) là một row; tiêu đề giữ số hiệu mục.
+        self.assertEqual([row["title"] for row in payload["rows"]], ["1. Việc nhỏ A", "2. Việc nhỏ B"])
+
+    def test_delete_task_with_assignments_and_submissions(self):
+        """Xóa công việc OUTLINE đã có assignment + submission (draft) phải sạch."""
+        admin = self._admin()
+        self._login(admin.id)
+        self._create_user("Đội A", "a")
+
+        response = self.client.post(
+            "/tasks",
+            data={
+                "task_mode": "OUTLINE",
+                "title": "Wizard xóa có giao việc",
+                "description": "Xóa thử",
+                "csrf_token": "wizard-test-csrf",
+                "item_title": ["1.1. Mục A"],
+                "item_content": ["- Dòng 1\n- Dòng 2"],
+                "item_report_kind": ["narrative"],
+                "item_assign_type": ["unit"],
+                "item_domains": ["doi-a"],
+                "item_role_ids": [""],
+                "item_user_ids": [""],
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        with app.app_context():
+            task = (
+                Task.query.filter_by(title="Wizard xóa có giao việc")
+                .order_by(Task.id.desc())
+                .first()
+            )
+            self.assertIsNotNone(task)
+            task_id = task.id
+            self.assertGreater(TaskAssignment.query.filter_by(task_id=task_id).count(), 0)
+            self.assertGreater(TaskSubmission.query.filter_by(task_id=task_id).count(), 0)
+
+        delete_response = self.client.post(f"/tasks/{task_id}/delete", data={"csrf_token": "wizard-test-csrf"}, follow_redirects=True)
+        self.assertEqual(delete_response.status_code, 200)
+        with app.app_context():
+            self.assertIsNone(Task.query.filter_by(id=task_id).first())
+            self.assertEqual(TaskItem.query.filter_by(task_id=task_id).count(), 0)
+            self.assertEqual(TaskAssignment.query.filter_by(task_id=task_id).count(), 0)
+            self.assertEqual(TaskSubmission.query.filter_by(task_id=task_id).count(), 0)
 
     def test_create_outline_task_with_items_in_one_post(self):
         admin = self._admin()
