@@ -1021,7 +1021,9 @@ def _pdf_text_stdlib(data):
                 continue
         if not content:
             continue
-        if not (b"Tj" in content or b"TJ" in content):
+        # Chỉ xử lý content stream thật (có BT/ET đánh dấu bắt đầu văn bản).
+        # Tránh chạy regex trên stream nhị phân (ảnh/font) chứa byte "Tj"/"TJ" ngẫu nhiên.
+        if b"BT" not in content or not (b"Tj" in content or b"TJ" in content):
             continue
         text_parts = []
         for tm in re.finditer(rb"\((?:\\.|[^()])*\)\s*Tj|\[(?:[^\[\]]*)\]\s*TJ", content):
@@ -1070,9 +1072,14 @@ def _parse_outline_pdf_text(file_storage):
         raw_text = _pdf_text_stdlib(data)
         lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
     if not lines:
+        if PdfDocument is None:
+            return [], (
+                "Máy chủ chưa cài thư viện đọc PDF (pymupdf). Hãy chạy: pip install pymupdf "
+                "trên máy chủ rồi thử lại."
+            )
         return [], (
-            "Không đọc được chữ trong file PDF. Máy chủ cần cài pymupdf "
-            "(pip install pymupdf) hoặc file phải có nội dung chữ rõ ràng, không phải ảnh chụp."
+            "File PDF không có nội dung chữ để phân tích (có thể là file ảnh chụp/scanned). "
+            "Hãy tải bản .docx hoặc file PDF có chữ rõ ràng."
         )
     return lines, None
 
@@ -10470,6 +10477,14 @@ def parse_outline_file_for_create():
             parsed_groups.append((outline_file.filename, rows))
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception:
+        # Không được để lọt exception -> 500 HTML khiến trình duyệt báo
+        # "The string did not match the expected pattern" (JSON.parse vỡ).
+        current_app.logger.exception("Lỗi phân tích đề cương")
+        return (
+            jsonify({"ok": False, "error": "Lỗi hệ thống khi phân tích file. Hãy kiểm tra nhật ký server hoặc thử file khác."}),
+            500,
+        )
     merged_rows = _merge_outline_rows_groups(parsed_groups)
     if not merged_rows:
         return jsonify({"ok": False, "error": "Không tìm thấy đầu mục hợp lệ trong các file đề cương."}), 400

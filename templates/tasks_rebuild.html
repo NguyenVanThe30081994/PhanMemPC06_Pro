@@ -1831,7 +1831,15 @@
                 headers: { 'X-CSRF-Token': csrfToken },
                 body: formData,
             });
-            const payload = await response.json();
+            let payload = null;
+            try {
+                payload = await response.json();
+            } catch (jsonError) {
+                // Server trả về trang lỗi (500 HTML) thay vì JSON
+                wizardOutlineStatus.textContent = 'Máy chủ gặp lỗi khi phân tích (HTTP ' + response.status + '). Vui lòng kiểm tra nhật ký server hoặc thử lại sau.';
+                wizardOutlineStatus.classList.add('text-danger');
+                return;
+            }
             if (!response.ok || !payload?.ok) {
                 throw new Error(payload?.error || 'Không phân tích được đề cương.');
             }

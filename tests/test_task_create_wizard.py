@@ -492,6 +492,41 @@ class TaskCreateWizardTests(unittest.TestCase):
         finally:
             tasks_module.PdfDocument = original_pdf_document
 
+    def test_outline_parse_route_returns_json_on_unexpected_error(self):
+        """Khi parser gặp lỗi không phải ValueError, route phải trả JSON (không
+        để lọt 500 HTML) — tránh trình duyệt vỡ với 'The string did not match
+        the expected pattern' (JSON.parse thất bại)."""
+        import io
+
+        from routes import tasks as tasks_module
+
+        admin = self._admin()
+        self._login(admin.id)
+
+        original = tasks_module._parse_outline_upload_rows
+
+        def boom(file_storage):
+            raise RuntimeError("lỗi mô phỏng nội bộ")
+
+        tasks_module._parse_outline_upload_rows = boom
+        try:
+            response = self.client.post(
+                "/tasks/outline-parse",
+                data={
+                    "outline_file": (io.BytesIO(b"x" * 100), "de-cuong.pdf"),
+                    "csrf_token": "wizard-test-csrf",
+                },
+                content_type="multipart/form-data",
+            )
+        finally:
+            tasks_module._parse_outline_upload_rows = original
+
+        self.assertEqual(response.status_code, 500)
+        self.assertIn("application/json", response.content_type or "")
+        payload = response.get_json()
+        self.assertFalse(payload["ok"])
+        self.assertIn("Lỗi hệ thống", payload["error"])
+
     def test_outline_blank_template_render_and_merge(self):
         """Nội dung lưu dạng bản mẫu (chứa [...]): render ô nhập inline và ghép
         giá trị nộp vào đúng từng marker."""
