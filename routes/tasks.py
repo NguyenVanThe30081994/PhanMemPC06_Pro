@@ -960,21 +960,127 @@ def _parse_outline_docx_titles(file_storage):
 
     return _parse_bulk_child_task_titles("\n".join(candidates))
 
-def _parse_outline_pdf_titles(file_storage):
-    if PdfDocument is None:
-        raise ValueError("Máy chủ chưa cài thư viện đọc file PDF (pymupdf).")
+def _pdf_decode_string_token(token):
+    """Giải mã chuỗi văn bản PDF (nội dung giữa cặp ngoặc) — xử lý escape \\(, \\), \\\\, octal."""
+    out = bytearray()
+    i = 0
+    n = len(token)
+    while i < n:
+        ch = token[i]
+        if ch == 0x5C:  # backslash
+            if i + 1 >= n:
+                break
+            nxt = token[i + 1]
+            simple = {0x6E: 0x0A, 0x72: 0x0D, 0x74: 0x09, 0x62: 0x08, 0x66: 0x0C}  # n r t b f
+            if nxt in simple:
+                out.append(simple[nxt])
+                i += 2
+            elif nxt in (0x28, 0x29, 0x5C):  # ( ) \
+                out.append(nxt)
+                i += 2
+            elif 0x30 <= nxt <= 0x37:  # octal \ddd
+                j = i + 1
+                octal = 0
+                count = 0
+                while j < n and count < 3 and 0x30 <= token[j] <= 0x37:
+                    octal = octal * 8 + (token[j] - 0x30)
+                    j += 1
+                    count += 1
+                out.append(octal & 0xFF)
+                i = j
+            else:
+                out.append(nxt)
+                i += 2
+        else:
+            out.append(ch)
+            i += 1
+    return bytes(out)
+
+
+def _pdf_text_stdlib(data):
+    """Trích văn bản từ PDF bằng thư viện chuẩn (zlib) — fallback khi máy chủ chưa
+    cài pymupdf. Chỉ xử lý được PDF có text stream FlateDecode (không phải ảnh chụp)."""
+    import zlib
+
+    page_texts = []
+    for m in re.finditer(rb"stream\r?\n", data):
+        start = m.end()
+        end_marker = data.find(b"endstream", start)
+        if end_marker < 0:
+            continue
+        raw = data[start:end_marker]
+        header = data[max(0, m.start() - 300):m.start()]
+        if b"/FlateDecode" not in header:
+            continue
+        content = None
+        for candidate in (raw, raw.rstrip(b"\r\n\x00 ")):
+            try:
+                content = zlib.decompress(candidate)
+                break
+            except Exception:
+                continue
+        if not content:
+            continue
+        if not (b"Tj" in content or b"TJ" in content):
+            continue
+        text_parts = []
+        for tm in re.finditer(rb"\((?:\\.|[^()])*\)\s*Tj|\[(?:[^\[\]]*)\]\s*TJ", content):
+            token = tm.group(0)
+            if token.endswith(b"Tj"):
+                inner = token[token.find(b"(") + 1:token.rfind(b")")]
+                text_parts.append(_pdf_decode_string_token(inner))
+            else:
+                arr_inner = token[1:token.rfind(b"]")]
+                for sm in re.finditer(rb"\((?:\\.|[^()])*\)", arr_inner):
+                    inner = sm.group(0)[1:-1]
+                    text_parts.append(_pdf_decode_string_token(inner))
+        if text_parts:
+            page_texts.append(b"".join(text_parts).decode("utf-8", errors="replace"))
+    return "\n".join(page_texts)
+
+
+def _parse_outline_pdf_text(file_storage):
+    """Trích dòng chữ từ file PDF: ưu tiên pymupdf, fallback thư viện chuẩn.
+    Trả về (lines, error) — lines rỗng kèm error nếu không đọc được."""
     try:
         file_storage.stream.seek(0)
-        document = PdfDocument.open(stream=file_storage.stream.read(), filetype="pdf")
-        lines = []
-        for page in document:
-            for line in (str(getattr(page, "get_text", lambda: "")() or "")).splitlines():
-                cleaned = str(line or "").strip()
-                if cleaned:
-                    lines.append(cleaned)
-        document.close()
+        data = file_storage.stream.read()
     except Exception:
-        raise ValueError("Không đọc được file PDF.")
+        return [], "Không đọc được file PDF."
+    if not data:
+        return [], "File PDF rỗng."
+    lines = []
+    if PdfDocument is not None:
+        try:
+            document = PdfDocument.open(stream=data, filetype="pdf")
+            try:
+                for page in document:
+                    for line in (str(getattr(page, "get_text", lambda: "")() or "")).splitlines():
+                        cleaned = str(line or "").strip()
+                        if cleaned:
+                            lines.append(cleaned)
+            finally:
+                try:
+                    document.close()
+                except Exception:
+                    pass
+        except Exception:
+            lines = []
+    if not lines:
+        raw_text = _pdf_text_stdlib(data)
+        lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+    if not lines:
+        return [], (
+            "Không đọc được chữ trong file PDF. Máy chủ cần cài pymupdf "
+            "(pip install pymupdf) hoặc file phải có nội dung chữ rõ ràng, không phải ảnh chụp."
+        )
+    return lines, None
+
+
+def _parse_outline_pdf_titles(file_storage):
+    lines, error = _parse_outline_pdf_text(file_storage)
+    if error:
+        raise ValueError(error)
     return _parse_bulk_child_task_titles("\n".join(lines))
 
 
@@ -1498,6 +1604,10 @@ def _mask_outline_dates_and_years(text):
     for match in re.finditer(r"\d{1,3}(?:\.\d{1,3})*/\d{2,4}(?![\d.,])", text):
         for i in range(match.start(), match.end()):
             masked[i] = "#"
+    # Số hiệu văn bản dạng 7709/QĐ-CAT-ANM, 18/CT-TTg: số + "/" theo sau bởi chữ cái
+    for match in re.finditer(r"\d{2,}(?:\.\d+)*/(?=[A-Za-zÀ-Ỹà-ỹ])", text):
+        for i in range(match.start(), match.end()):
+            masked[i] = "#"
     return "".join(masked)
 
 
@@ -1582,6 +1692,10 @@ def _extract_number_fields_from_text(text):
         value = number.group(0)
         start, end = number.span()
         if (start, end) in seen_spans:
+            index = end
+            continue
+        # Token khớp thiếu: số dài hơn bị cắt (vd "7709" -> "770") — bỏ qua để tránh sai lệch
+        if end < len(masked) and masked[end].isdigit():
             index = end
             continue
         # Số hiệu văn bản dạng 18/CT-TTg, 66.7/2025 — theo sau là "/" (có thể có khoảng trắng)
@@ -1821,9 +1935,25 @@ def _propagate_submission_to_linked_items(task, item, assignment, submission):
 
 def _outline_merged_content(content, fields, values):
     """Ghép giá trị đã nộp vào văn bản gốc tại đúng vị trí ô trống."""
-    if not fields or not content:
+    if not content:
         return content
     values = values or {}
+    if "[...]" in content:
+        # Nội dung là bản mẫu chứa marker [...] — thay từng marker bằng giá trị nộp
+        sorted_fields = sorted(fields or [], key=lambda f: int(f.get("start", 0) or 0))
+        parts = content.split("[...]")
+        merged = [parts[0]]
+        for idx in range(len(parts) - 1):
+            field = sorted_fields[idx] if idx < len(sorted_fields) else {}
+            blank_id = field.get("blank_id")
+            submitted = values.get(str(blank_id), values.get(blank_id, ""))
+            if submitted in (None, ""):
+                submitted = field.get("value", "")
+            merged.append(str(submitted))
+            merged.append(parts[idx + 1])
+        return "".join(merged)
+    if not fields:
+        return content
     result = []
     cursor = 0
     for field in sorted(fields, key=lambda f: f.get("start", 0)):
@@ -1851,14 +1981,52 @@ def _outline_submission_values(submission):
     return values if isinstance(values, dict) else {}
 
 
+def _outline_blank_input_html(blank_id, submitted, placeholder, unit=None, label=None):
+    """Một ô nhập inline cho 1 ô trống số liệu.
+
+    Nhãn/đơn vị nằm sẵn trong văn bản xung quanh marker nên không chèn thêm span
+    (tránh lặp chữ); placeholder giữ số gốc làm tham chiếu cho đơn vị điền.
+    """
+    if submitted is None:
+        submitted = ""
+    width = (max(len(str(submitted)), len(placeholder or "")) * 9 + 30) if (submitted or placeholder) else 90
+    return (
+        f'<input class="form-control form-control-sm d-inline-block outline-blank-input" '
+        f'name="report_number_value_{blank_id}" type="text" '
+        f'style="width: {width}px;" '
+        f'value="{html.escape(str(submitted))}" '
+        f'placeholder="{html.escape(placeholder or "")}" data-outline-blank>'
+    )
+
+
 def _render_blank_editor_html(content, fields, values=None):
     """HTML cho đơn vị: câu văn với ô nhập inline tại từng số liệu.
 
+    - Nội dung chứa marker [...] (bản mẫu đã xóa số): thay từng marker bằng ô nhập.
+    - Nội dung chứa số gốc (dữ liệu cũ): chèn ô nhập theo start/end của fields.
     values: dict blank_id(str/int) -> giá trị đã nộp.
     """
-    if not fields:
+    if not content:
         return ""
     values = values or {}
+    if "[...]" in content:
+        sorted_fields = sorted(fields or [], key=lambda f: int(f.get("start", 0) or 0))
+        parts = content.split("[...]")
+        result = [html.escape(parts[0])]
+        for idx in range(len(parts) - 1):
+            field = sorted_fields[idx] if idx < len(sorted_fields) else {"blank_id": idx + 1, "value": "", "unit": "", "label": "Số liệu"}
+            blank_id = field.get("blank_id") or (idx + 1)
+            submitted = values.get(str(blank_id), values.get(blank_id, ""))
+            result.append(
+                _outline_blank_input_html(
+                    blank_id, submitted, field.get("value", "") or "",
+                    field.get("unit", "") or "", field.get("label", "") or "",
+                )
+            )
+            result.append(html.escape(parts[idx + 1]))
+        return "".join(result)
+    if not fields:
+        return html.escape(content)
     result = []
     cursor = 0
     for field in sorted(fields, key=lambda f: f.get("start", 0)):
@@ -1869,17 +2037,12 @@ def _render_blank_editor_html(content, fields, values=None):
         result.append(html.escape(content[cursor:start]))
         blank_id = field.get("blank_id")
         submitted = values.get(str(blank_id), values.get(blank_id, ""))
-        if submitted is None:
-            submitted = ""
-        placeholder = field.get("value", "") or ""
-        input_html = (
-            f'<input class="form-control form-control-sm d-inline-block outline-blank-input" '
-            f'name="report_number_value_{blank_id}" type="text" '
-            f'style="width: {(max(len(str(submitted)), len(placeholder)) * 9 + 30) if (submitted or placeholder) else 90}px;" '
-            f'value="{html.escape(str(submitted))}" '
-            f'placeholder="{html.escape(placeholder)}" data-outline-blank>' + (f'<span class="text-muted small">{html.escape(field.get("unit", "") or "")}</span>' if field.get("unit") else "")
+        result.append(
+            _outline_blank_input_html(
+                blank_id, submitted, field.get("value", "") or "",
+                field.get("unit", "") or "", field.get("label", "") or "",
+            )
         )
-        result.append(input_html)
         cursor = end
     result.append(html.escape(content[cursor:]))
     return "".join(result)
@@ -2129,36 +2292,16 @@ def _parse_outline_docx_rows(file_storage):
 
 def _parse_outline_pdf_rows(file_storage):
     """Parse file PDF (báo cáo / đề cương): trích chữ từng trang -> dòng -> cây mục lục."""
-    if PdfDocument is None:
-        raise ValueError("Máy chủ chưa cài thư viện đọc file PDF (pymupdf).")
-
-    try:
-        file_storage.stream.seek(0)
-        document = PdfDocument.open(stream=file_storage.stream.read(), filetype="pdf")
-    except Exception:
-        raise ValueError("Không đọc được file PDF. Hãy thử lại với file .pdf có nội dung chữ rõ ràng (không phải ảnh chụp).")
-
-    lines = []
-    try:
-        for page in document:
-            page_text = str(getattr(page, "get_text", lambda: "")() or "")
-            for line in page_text.splitlines():
-                cleaned = str(line or "").strip()
-                if cleaned:
-                    lines.append(cleaned)
-    finally:
-        try:
-            document.close()
-        except Exception:
-            pass
-    if not lines:
-        raise ValueError("File PDF không có nội dung chữ để phân tích (có thể là file ảnh chụp).")
+    lines, error = _parse_outline_pdf_text(file_storage)
+    if error:
+        raise ValueError(error)
 
     catalog = _task_assignment_catalog()
     hierarchy_items = _parse_outline_with_hierarchy(lines, is_docx=False)
     rows = _flatten_hierarchy_to_rows(hierarchy_items, catalog=catalog)
     # Gộp thêm dòng từ các bảng trong PDF nếu có (bảng nhiệm vụ dạng chữ)
     try:
+        file_storage.stream.seek(0)
         document = PdfDocument.open(stream=file_storage.stream.read(), filetype="pdf")
         for page in document:
             try:

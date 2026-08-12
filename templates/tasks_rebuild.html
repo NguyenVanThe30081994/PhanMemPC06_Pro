@@ -735,6 +735,20 @@
         min-width: 0;
     }
 
+    /* Ô chọn file đề cương gọn, không chiếm cả hàng */
+    .outline-file-input {
+        max-width: 240px;
+    }
+    .outline-file-input::file-selector-button {
+        padding: 0.15rem 0.6rem;
+    }
+    .outline-skeleton-input {
+        min-height: 54px;
+        resize: vertical;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
     .wizard-outline-row .badge {
         max-width: 100%;
         white-space: normal;
@@ -1152,15 +1166,13 @@
                             <div class="border rounded-3 p-3 bg-light-subtle">
                                 <div class="fw-bold mb-1">Tải đề cương</div>
                                 <p class="small text-muted mb-3">Chọn file chính + các file phụ (.docx / .txt / .pdf). Nội dung trùng nhau giữa các file sẽ được gộp thành 1 đầu mục và đánh dấu "Báo cáo phụ" — đơn vị chỉ báo cáo 1 lần, hệ thống tự điền vào tất cả các file. Có thể bỏ tích để tách riêng.</p>
-                                <div class="d-grid gap-2 mb-2" id="wizardOutlineFileList">
+                                <div class="d-flex flex-wrap gap-2 align-items-center mb-2" id="wizardOutlineFileList">
                                     <div class="d-flex gap-2 align-items-center" data-wz-outline-file-row>
-                                        <span class="small fw-semibold text-muted" style="min-width: 90px;">File chính</span>
-                                        <input class="form-control" type="file" accept=".docx,.txt,.pdf" data-wz-outline-file>
+                                        <span class="small fw-semibold text-muted" style="min-width: 80px;">File chính</span>
+                                        <input class="form-control form-control-sm outline-file-input" type="file" accept=".docx,.txt,.pdf" data-wz-outline-file>
                                     </div>
-                                </div>
-                                <div class="d-flex flex-wrap gap-2 align-items-center">
                                     <button class="btn btn-sm btn-outline-secondary" type="button" id="wizardAddOutlineFileBtn">+ Thêm file phụ</button>
-                                    <button class="btn btn-primary" type="button" id="wizardOutlineParseBtn">Phân tích đề cương</button>
+                                    <button class="btn btn-sm btn-primary" type="button" id="wizardOutlineParseBtn">Phân tích đề cương</button>
                                 </div>
                                 <div class="small mt-2" id="wizardOutlineStatus">Chưa phân tích. Nếu không tải file, bấm Tiếp tục để nhập tay từng mục.</div>
                             </div>
@@ -1786,7 +1798,7 @@
         label.style.minWidth = '90px';
         label.textContent = 'File phụ';
         const input = document.createElement('input');
-        input.className = 'form-control';
+        input.className = 'form-control form-control-sm outline-file-input';
         input.type = 'file';
         input.accept = '.docx,.txt,.pdf';
         input.dataset.wzOutlineFile = '';
@@ -2135,8 +2147,9 @@
             <div class="number-fields-preview ${reportKind === 'number' ? '' : 'd-none'} mt-2 p-2 bg-light rounded" data-number-preview>
                 ${numberFields.length > 0 ? `
                     <div class="small mb-1"><i class="fa-solid fa-pen-to-square me-1"></i><strong>Văn bản sau khi xóa số liệu</strong> — đơn vị sẽ điền số vào chỗ trống:</div>
-                    <div class="small text-primary fw-medium p-2 bg-white rounded border mb-2" style="word-wrap: break-word; overflow-wrap: break-word;">${escapeHtml(String(rowData.skeleton || contentValue || '').replace(/\[\...\]/g, '<span class="outline-blank-marker">[...]</span>'))}</div>
-                    <div class="row g-2">
+                    <textarea class="form-control outline-skeleton-input mb-1" data-wz-skeleton rows="2" title="Sửa trực tiếp; dùng [...] để đánh dấu chỗ đơn vị điền số">${escapeHtml(String(rowData.skeleton || ''))}</textarea>
+                    <div class="small text-muted mb-2"><i class="fa-solid fa-pen me-1"></i>Có thể sửa trực tiếp. Dùng [...] để đánh dấu vị trí cần đơn vị điền số; sửa nhãn và đơn vị của từng ô bên dưới.</div>
+                    <div class="row g-2 number-fields-grid">
                         ${numberFields.map((field, idx) => `
                             <div class="col-md-6">
                                 <div class="input-group input-group-sm">
@@ -2197,6 +2210,18 @@
                 if (preview) {
                     preview.classList.toggle('d-none', reportKindSelect.value !== 'number');
                 }
+                // Đồng bộ nội dung lưu theo hình thức báo cáo:
+                // - Báo cáo số: lưu bản mẫu (đã xóa số, chứa [...])
+                // - Báo cáo lời: lưu văn bản gốc có số
+                const hiddenContent = row.querySelector('textarea[name="item_content"]');
+                if (hiddenContent) {
+                    if (reportKindSelect.value === 'number') {
+                        const skeletonText = row.querySelector('[data-wz-skeleton]')?.value || '';
+                        if (skeletonText) hiddenContent.value = skeletonText;
+                    } else if (rowData.content) {
+                        hiddenContent.value = rowData.content;
+                    }
+                }
             });
         }
         // Đồng bộ nhãn/đơn vị đã sửa vào hidden item_number_fields
@@ -2216,6 +2241,64 @@
         row.querySelectorAll('[data-wz-number-label], [data-wz-number-unit]').forEach((input) => {
             input.addEventListener('input', syncNumberFieldsJson);
         });
+        // Dựng lại các ô sửa nhãn/đơn vị theo danh sách trường mới (sau khi sửa văn bản mẫu)
+        const renderNumberFieldEditors = (fields) => {
+            const grid = row.querySelector('.number-fields-grid');
+            if (!grid) return;
+            grid.innerHTML = fields.map((field, idx) => `
+                <div class="col-md-6">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">${idx + 1}</span>
+                        <input type="text" class="form-control" data-wz-number-label value="${escapeHtml(field.label || '')}" placeholder="Nhãn số liệu" title="Nhãn số liệu">
+                        <input type="text" class="form-control" style="width: 90px;" data-wz-number-unit value="${escapeHtml(field.unit || '')}" placeholder="Đơn vị" title="Đơn vị (vd: %, người, tỷ đồng)">
+                    </div>
+                </div>
+            `).join('');
+            grid.querySelectorAll('[data-wz-number-label], [data-wz-number-unit]').forEach((input) => {
+                input.addEventListener('input', syncNumberFieldsJson);
+            });
+        };
+        // Cho phép sửa trực tiếp văn bản sau khi xóa số liệu: mỗi [...] là 1 ô trống
+        const skeletonTextarea = row.querySelector('[data-wz-skeleton]');
+        if (skeletonTextarea) {
+            skeletonTextarea.addEventListener('input', () => {
+                const skeletonText = skeletonTextarea.value;
+                rowData.skeleton = skeletonText;
+                const hiddenFields = row.querySelector('input[name="item_number_fields"]');
+                if (hiddenFields) {
+                    let oldFields = [];
+                    try { oldFields = JSON.parse(hiddenFields.value) || []; } catch (e) { oldFields = []; }
+                    const markers = [...skeletonText.matchAll(/\[\.\.\.\]/g)];
+                    const newFields = markers.map((m, idx) => {
+                        const old = oldFields[idx] || {};
+                        return {
+                            blank_id: (old.blank_id !== undefined && old.blank_id !== null) ? old.blank_id : (idx + 1),
+                            label: old.label || 'Số liệu',
+                            value: old.value || '',
+                            unit: old.unit || '',
+                            kind: old.kind || 'blank',
+                            start: m.index,
+                            end: m.index + 5,
+                        };
+                    });
+                    hiddenFields.value = JSON.stringify(newFields);
+                    renderNumberFieldEditors(newFields);
+                }
+                const hiddenContent = row.querySelector('textarea[name="item_content"]');
+                if (hiddenContent && skeletonText) {
+                    const kindSel = row.querySelector('[name="item_report_kind"]');
+                    if (kindSel && kindSel.value === 'number') hiddenContent.value = skeletonText;
+                }
+                autoGrowOutlineTextarea(skeletonTextarea);
+                syncWizardSummary();
+            });
+        }
+        // Với dòng báo cáo số, nội dung lưu là bản mẫu (đã xóa số) chứ không phải văn bản gốc
+        const skeletonOnInit = row.querySelector('[data-wz-skeleton]');
+        const hiddenContentOnInit = row.querySelector('textarea[name="item_content"]');
+        if (skeletonOnInit && hiddenContentOnInit && reportKind === 'number' && skeletonOnInit.value) {
+            hiddenContentOnInit.value = skeletonOnInit.value;
+        }
         const reportSecondaryCheckbox = row.querySelector('[data-wz-report-secondary]');
         if (reportSecondaryCheckbox) {
             reportSecondaryCheckbox.addEventListener('change', () => {

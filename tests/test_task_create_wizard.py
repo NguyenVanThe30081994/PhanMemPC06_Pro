@@ -453,5 +453,77 @@ class TaskCreateWizardTests(unittest.TestCase):
             self.assertEqual(payload.get("values"), {"1": "60.000/62.000"})
 
 
+    def test_pdf_parse_falls_back_to_stdlib_without_pymupdf(self):
+        """Khi máy chủ chưa cài pymupdf, vẫn trích được chữ từ PDF (FlateDecode)
+        bằng thư viện chuẩn; và khi pymupdf có sẵn, phân tích bình thường."""
+        import zlib
+
+        from routes import tasks as tasks_module
+
+        sample_text = "ĐỀ CƯƠNG BÁO CÁO"
+        content_stream = f"BT /F1 12 Tf 72 720 Td ({sample_text}) Tj ET".encode("utf-8")
+        compressed = zlib.compress(content_stream)
+        pdf_bytes = (
+            b"%PDF-1.4\n"
+            b"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n"
+            b"2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n"
+            b"3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj\n"
+            + b"4 0 obj << /Length %d /Filter /FlateDecode >>\nstream\n" % len(compressed)
+            + compressed
+            + b"\nendstream\nendobj\n"
+            b"trailer << /Root 1 0 R >>\n%%EOF\n"
+        )
+
+        # Không có pymupdf -> fallback thư viện chuẩn vẫn ra dòng chữ
+        original_pdf_document = tasks_module.PdfDocument
+        tasks_module.PdfDocument = None
+        try:
+            from io import BytesIO
+
+            class FakeStorage:
+                filename = "de-cuong.pdf"
+
+                def __init__(self, data):
+                    self.stream = BytesIO(data)
+
+            lines, error = tasks_module._parse_outline_pdf_text(FakeStorage(pdf_bytes))
+            self.assertIsNone(error)
+            self.assertTrue(any("ĐỀ CƯƠNG BÁO CÁO" in line for line in lines))
+        finally:
+            tasks_module.PdfDocument = original_pdf_document
+
+    def test_outline_blank_template_render_and_merge(self):
+        """Nội dung lưu dạng bản mẫu (chứa [...]): render ô nhập inline và ghép
+        giá trị nộp vào đúng từng marker."""
+        from routes.tasks import (
+            _extract_number_fields_from_text,
+            _outline_merged_content,
+            _outline_skeleton_text,
+            _render_blank_editor_html,
+        )
+
+        content = (
+            "Tính đến kỳ báo cáo, toàn tỉnh có 54.105/57.417 người nhận "
+            "lương hưu qua tài khoản ngân hàng, đạt 95,97% so với Kế hoạch."
+        )
+        fields = _extract_number_fields_from_text(content)
+        template = _outline_skeleton_text(content, fields)
+        self.assertIn("[...]", template)
+        self.assertNotIn("54.105", template)
+
+        html_out = _render_blank_editor_html(template, fields, {"1": "60.000/62.000"})
+        self.assertIn('name="report_number_value_1"', html_out)
+        self.assertIn('value="60.000/62.000"', html_out)
+        self.assertIn('name="report_number_value_2"', html_out)
+        # Không lặp nhãn/đơn vị (từ xung quanh marker đã có sẵn trong văn bản)
+        self.assertNotIn("(toàn tỉnh)", html_out)
+
+        merged = _outline_merged_content(template, fields, {"1": "60.000/62.000", "2": "99,5"})
+        self.assertIn("60.000/62.000", merged)
+        self.assertIn("99,5", merged)
+        self.assertNotIn("[...]", merged)
+        self.assertNotIn("54.105/57.417", merged)
+
+
 if __name__ == "__main__":
     unittest.main()
