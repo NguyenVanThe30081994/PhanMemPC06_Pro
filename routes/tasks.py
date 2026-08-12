@@ -1201,30 +1201,24 @@ def _is_outline_heading(text, style_name=""):
 
 
 def _get_heading_level(raw_text):
-    """Xác định cấp độ heading dựa vào số chấm trong số (1, 1.1, 1.1.1).
-    Trả về (level, normalized_number) ví dụ: (2, "1.1") hoặc (0, "") nếu không phải heading.
-    """
+    """Return the hierarchy level and normalized marker for a heading."""
     raw = str(raw_text or "").strip()
     if not raw:
         return (0, "")
-    
-    # Pattern: 1, 1.1, 1.1.1, etc.
-    match = re.match(r"^\s*((?:\d{1,3}\.){1,5})\d*\s+", raw)
-    if match:
-        number_part = match.group(1).rstrip(".")
-        level = number_part.count(".")
-        return (level + 1, number_part)
-    
-    # Roman numerals for top level (I, II, III, IV...)
-    if re.match(r"^\s*[IVXLCDM]+\.\s+", raw):
-        return (1, re.match(r"^\s*([IVXLCDM]+)", raw).group(1))
-    
-    # Letter headings (A, B, C...)
-    if re.match(r"^\s*[A-Z]\.\s+", raw):
-        return (1, re.match(r"^\s*([A-Z])", raw).group(1))
-    
+    # Roman/letter chapters are top-level containers.
+    roman_match = re.match(r"^\s*([IVXLCDM]+)\.\s+", raw)
+    if roman_match:
+        return (1, roman_match.group(1))
+    letter_match = re.match(r"^\s*([A-Z])\.\s+", raw)
+    if letter_match:
+        return (1, letter_match.group(1))
+    # Numeric headings: 1., 1), 1.1, 1.1., 1.1.1, ...
+    # Numeric levels start at 2 so they nest below Roman/letter chapters.
+    numeric_match = re.match(r"^\s*(\d{1,3}(?:\.\d{1,3})*)[\.\)]?\s+(.+)$", raw)
+    if numeric_match:
+        number_part = numeric_match.group(1)
+        return (number_part.count(".") + 2, number_part)
     return (0, "")
-
 
 def _parse_outline_with_hierarchy(paragraphs, is_docx=False):
     """Parse đề cương với hierarchy đa cấp.
@@ -1281,7 +1275,7 @@ def _parse_outline_with_hierarchy(paragraphs, is_docx=False):
             # Đây là heading
             title = text.strip()
             # Clean the title by removing the number prefix for storage
-            clean_title = re.sub(r"^\s*(?:[IVXLCDM]+|[A-Z]|\d{1,3}(?:\.\d{1,3})*)\.?\s*", "", title).strip()
+            clean_title = re.sub(r"^\s*(?:[IVXLCDM]+|[A-Z]|\d{1,3}(?:\.\d{1,3})*)[\.\)]?\s*", "", title).strip()
             
             new_item = {
                 "level": level,
@@ -1383,6 +1377,33 @@ def _flatten_hierarchy_to_rows(hierarchy_items, catalog=None):
                     "assignee_detected": bool(assignment and (assignment["unit_domains"] or assignment["role_ids"] or assignment["user_ids"])),
                 })
 
+        # A leaf heading without bullets is itself an actionable outline item.
+        # Without this branch, common outlines written only as numbered headings
+        # produce zero preview rows and therefore cannot be assigned.
+        if not content_lines and not item.get("children"):
+            cleaned_title = _clean_outline_title(item.get("title", ""))
+            if len(cleaned_title) >= 3:
+                dedupe = _normalize_outline_match_text(cleaned_title)
+                if dedupe not in seen:
+                    seen.add(dedupe)
+                    assignment = _resolve_outline_assignee_hint(full_heading, catalog) if catalog else None
+                    number_fields = _extract_number_fields_from_text(cleaned_title)
+                    rows.append({
+                        "title": cleaned_title[:255],
+                        "content": cleaned_title[:3000],
+                        "heading": full_heading[:255],
+                        "level": item.get("level", 1),
+                        "number": item.get("number", ""),
+                        "has_numbers": bool(number_fields),
+                        "number_fields": number_fields,
+                        "assign_type": assignment["assign_type"] if assignment else "",
+                        "domain": "",
+                        "unit_domains": assignment["unit_domains"] if assignment else [],
+                        "role_ids": assignment["role_ids"] if assignment else [],
+                        "user_ids": assignment["user_ids"] if assignment else [],
+                        "assignee_hint": full_heading[:500],
+                        "assignee_detected": bool(assignment and (assignment["unit_domains"] or assignment["role_ids"] or assignment["user_ids"])),
+                    })
         # Process children
         for child in item.get("children", []):
             process_item(child, full_heading)
@@ -1407,7 +1428,7 @@ def _extract_number_fields_from_text(text):
     # Keywords that strongly indicate a numeric metric
     metric_keywords = [
         "tổng số", "tổng", "số lượng", "số", "đạt", "có", "trên", "dưới", "vượt", "chiếm",
-        "tỷ lệ", "tỉ lệ", "tỷ suất", "tỉ suất", "phần trăm", "\%", "bằng", "đến", "trong đó",
+        "tỷ lệ", "tỉ lệ", "tỷ suất", "tỉ suất", "phần trăm", "%", "bằng", "đến", "trong đó",
         "lũy kế", "còn", "đã", "được", "giải quyết", "tiếp nhận", "xử lý", "hoàn thành",
         "tăng", "giảm", "bằng", "so với", "mức", "chỉ số", "kpi", "chỉ tiêu",
     ]
@@ -8540,6 +8561,13 @@ def _purge_task(task):
     submission_ids = [submission_id for submission_id, in submission_query.with_entities(TaskSubmission.id).all()]
     if submission_ids:
         TaskSubmissionFile.query.filter(TaskSubmissionFile.submission_id.in_(submission_ids)).delete(synchronize_session=False)
+    # Gỡ tham chiếu last_submission_id trước khi xóa submission để tránh vi phạm
+    # khóa ngoại task_assignment.last_submission_id -> task_submission.id
+    # (PRAGMA foreign_keys=ON được bật ở mọi kết nối SQLite).
+    TaskAssignment.query.filter(
+        TaskAssignment.task_id == task_id,
+        TaskAssignment.last_submission_id.isnot(None),
+    ).update({TaskAssignment.last_submission_id: None}, synchronize_session=False)
     submission_query.delete(synchronize_session=False)
     participant_query.delete(synchronize_session=False)
     form_field_query.delete(synchronize_session=False)

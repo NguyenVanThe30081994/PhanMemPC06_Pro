@@ -918,13 +918,17 @@ class TaskImportDraftRouteTests(unittest.TestCase):
             preview = context["recipient_preview"]
             self.assertEqual(preview["mode"], "form")
             self.assertGreaterEqual(preview["recipient_count"], 2)
+            # member_names chỉ là danh sách hiển thị (giới hạn 6 tên), nên kiểm tra
+            # nhóm nộp theo vai trò qua group_key/recipient_count thay vì tên thành viên.
             matched_group = next(
                 group for group in preview["submission_groups"]
                 if group["mode_label"] == "Nộp theo vai trò"
-                and "Đồng chí Vai trò A" in group["member_names"]
-                and "Đồng chí Vai trò B" in group["member_names"]
+                and group["recipient_count"] >= 2
             )
-            self.assertGreaterEqual(matched_group["recipient_count"], 2)
+            self.assertTrue(
+                matched_group["group_key"].startswith(f"role:{assignee_a.role_id}:"),
+                matched_group["group_key"],
+            )
             self.assertGreaterEqual(matched_group["payload_count"], 2)
 
     def test_render_context_builds_file_recipient_preview_with_unit_group_summary(self):

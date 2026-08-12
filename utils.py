@@ -1037,6 +1037,47 @@ def build_default_role_permissions(role_name, module_codes=None):
     return payload
 
 
+# Ánh xạ mã module cũ -> mã module hiện tại để giữ tương thích dữ liệu quyền cũ
+# (ví dụ trước đây module "Thông báo" có mã `news`, nay là `notify`).
+PERMISSION_MODULE_ALIASES = {
+    "notify": ("news",),
+}
+
+# Các khóa quyền cũ (không theo chuẩn *_view/*_process/*_exec) mà dữ liệu app_role.perms
+# trước đây vẫn lưu, cần được ánh xạ sang tầng quyền hiện tại.
+PERMISSION_LEGACY_TIER_KEYS = {
+    "task": {
+        "view": ("p_task_assign", "p_task_do"),
+        "process": ("p_task_assign",),
+        "exec": ("p_task_do",),
+    },
+}
+
+PERMISSION_MODULE_CANONICAL = {}
+for _module_code, _label in PERMISSION_MODULES:
+    PERMISSION_MODULE_CANONICAL[_module_code] = _module_code
+for _module_code, _aliases in PERMISSION_MODULE_ALIASES.items():
+    for _alias in _aliases:
+        PERMISSION_MODULE_CANONICAL[_alias] = _module_code
+
+
+def _permission_module_keys(module_code):
+    """Trả về danh sách khóa nguồn (cũ + mới) áp dụng cho một module quyền."""
+    aliases = PERMISSION_MODULE_ALIASES.get(module_code, ())
+    legacy_tiers = PERMISSION_LEGACY_TIER_KEYS.get(module_code, {})
+    return {
+        "aliases": aliases,
+        "legacy": tuple(f"p_{alias}" for alias in aliases),
+        "view": tuple([f"p_{module_code}_view"] + [f"p_{alias}_view" for alias in aliases] + list(legacy_tiers.get("view", ()))),
+        "process": tuple([f"p_{module_code}_process", f"p_{module_code}_lead"] + [f"p_{alias}_process" for alias in aliases] + [f"p_{alias}_lead" for alias in aliases] + list(legacy_tiers.get("process", ()))),
+        "exec": tuple([f"p_{module_code}_exec"] + [f"p_{alias}_exec" for alias in aliases] + list(legacy_tiers.get("exec", ()))),
+    }
+
+
+def _source_has_any(source, *keys):
+    return any(bool(source.get(key)) for key in keys)
+
+
 def role_permission_form_payload(perms_json, is_admin=False, role_name=""):
     try:
         source = json.loads(perms_json) if isinstance(perms_json, str) else dict(perms_json or {})
@@ -1048,8 +1089,8 @@ def role_permission_form_payload(perms_json, is_admin=False, role_name=""):
     is_super_role = bool(is_admin or role_name_normalized in {"quản trị hệ thống", "admin_system"})
 
     for module_code, _label in PERMISSION_MODULES:
+        keys = _permission_module_keys(module_code)
         legacy_key = f"p_{module_code}"
-        lead_key = f"p_{module_code}_lead"
         view_key = f"p_{module_code}_view"
         process_key = f"p_{module_code}_process"
         exec_key = f"p_{module_code}_exec"
@@ -1058,23 +1099,34 @@ def role_permission_form_payload(perms_json, is_admin=False, role_name=""):
             payload[view_key] = 1
             payload[process_key] = 1
             payload[exec_key] = 1
+            for alias in keys["aliases"]:
+                payload[f"p_{alias}_view"] = 1
+                payload[f"p_{alias}_process"] = 1
+                payload[f"p_{alias}_exec"] = 1
             continue
 
-        has_view = bool(source.get(view_key))
-        has_process = bool(source.get(process_key) or source.get(lead_key))
-        has_exec = bool(source.get(exec_key))
+        has_view = _source_has_any(source, *keys["view"])
+        has_process = _source_has_any(source, *keys["process"])
+        has_exec = _source_has_any(source, *keys["exec"])
 
-        if source.get(legacy_key) and not (has_view or has_process or has_exec):
+        if _source_has_any(source, legacy_key, *keys["legacy"]) and not (has_view or has_process or has_exec):
             has_view = True
             has_process = True
             has_exec = True
 
         if has_view:
             payload[view_key] = 1
+            for alias in keys["aliases"]:
+                payload[f"p_{alias}_view"] = 1
         if has_process:
             payload[process_key] = 1
+            for alias in keys["aliases"]:
+                payload[f"p_{alias}_process"] = 1
+                payload[f"p_{alias}_lead"] = 1
         if has_exec:
             payload[exec_key] = 1
+            for alias in keys["aliases"]:
+                payload[f"p_{alias}_exec"] = 1
 
     return payload
 
@@ -1085,28 +1137,28 @@ def normalize_permission_payload(perms_json, is_admin=False, role_name=""):
     is_super_role = bool(is_admin or role_name_normalized in {"quản trị hệ thống", "admin_system"})
 
     for module_code, _label in PERMISSION_MODULES:
+        keys = _permission_module_keys(module_code)
         legacy_key = f"p_{module_code}"
         lead_key = f"p_{module_code}_lead"
         view_key = f"p_{module_code}_view"
         process_key = f"p_{module_code}_process"
         exec_key = f"p_{module_code}_exec"
 
-        has_view = bool(normalized.get(view_key))
-        has_process = bool(normalized.get(process_key) or normalized.get(lead_key))
-        has_exec = bool(normalized.get(exec_key))
+        has_view = _source_has_any(normalized, view_key, *[f"p_{alias}_view" for alias in keys["aliases"]])
+        has_process = _source_has_any(normalized, process_key, lead_key, *[f"p_{alias}_process" for alias in keys["aliases"]], *[f"p_{alias}_lead" for alias in keys["aliases"]])
+        has_exec = _source_has_any(normalized, exec_key, *[f"p_{alias}_exec" for alias in keys["aliases"]])
 
-        if normalized.get(legacy_key):
+        if _source_has_any(normalized, legacy_key, *keys["legacy"]):
             has_view = True
             has_process = True
             has_exec = True
 
-        if normalized.get(lead_key):
+        if _source_has_any(normalized, lead_key, *[f"p_{alias}_lead" for alias in keys["aliases"]]):
             has_view = True
             has_process = True
 
-        if normalized.get(exec_key):
+        if has_exec:
             has_view = True
-            has_exec = True
 
         if is_super_role:
             has_view = True
@@ -1118,11 +1170,18 @@ def normalize_permission_payload(perms_json, is_admin=False, role_name=""):
 
         if has_view:
             normalized[view_key] = 1
+            for alias in keys["aliases"]:
+                normalized[f"p_{alias}_view"] = 1
         if has_process:
             normalized[process_key] = 1
             normalized[lead_key] = 1
+            for alias in keys["aliases"]:
+                normalized[f"p_{alias}_process"] = 1
+                normalized[f"p_{alias}_lead"] = 1
         if has_exec:
             normalized[exec_key] = 1
+            for alias in keys["aliases"]:
+                normalized[f"p_{alias}_exec"] = 1
         if has_view or has_process or has_exec:
             normalized[legacy_key] = 1
 
@@ -1131,7 +1190,7 @@ def normalize_permission_payload(perms_json, is_admin=False, role_name=""):
 
 def module_permission_flags(perms_json, module_code, is_admin=False, role_name=""):
     normalized = normalize_permission_payload(perms_json, is_admin=is_admin, role_name=role_name)
-    module = (module_code or "").strip().lower()
+    module = PERMISSION_MODULE_CANONICAL.get((module_code or "").strip().lower(), (module_code or "").strip().lower())
     if not module:
         return {"view": False, "process": False, "exec": False, "any": False}
     flags = {

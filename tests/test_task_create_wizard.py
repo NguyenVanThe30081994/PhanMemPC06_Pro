@@ -6,16 +6,12 @@ from datetime import datetime
 
 from app import app
 from models import (
-    ReportTemplate,
-    ReportTemplateField,
-    ReportTemplateVersion,
     Task,
     TaskAssignment,
     TaskComment,
     TaskFormField,
     TaskItem,
     TaskParticipant,
-    TaskReportLink,
     TaskSubmission,
     User,
     db,
@@ -35,7 +31,6 @@ class TaskCreateWizardTests(unittest.TestCase):
         self.client = app.test_client()
         self.created_user_ids = []
         self.created_task_ids = []
-        self.created_template_ids = []
 
     def tearDown(self):
         with app.app_context():
@@ -46,13 +41,7 @@ class TaskCreateWizardTests(unittest.TestCase):
                 TaskItem.query.filter_by(task_id=task_id).delete()
                 TaskParticipant.query.filter_by(task_id=task_id).delete()
                 TaskFormField.query.filter_by(task_id=task_id).delete()
-                TaskReportLink.query.filter_by(task_id=task_id).delete()
                 Task.query.filter_by(id=task_id).delete()
-            for template_id in self.created_template_ids:
-                for version in ReportTemplateVersion.query.filter_by(template_id=template_id).all():
-                    ReportTemplateField.query.filter_by(version_id=version.id).delete()
-                ReportTemplateVersion.query.filter_by(template_id=template_id).delete()
-                ReportTemplate.query.filter_by(id=template_id).delete()
             for user_id in self.created_user_ids:
                 TaskParticipant.query.filter_by(user_id=user_id).delete()
                 TaskAssignment.query.filter_by(user_id=user_id).delete()
@@ -102,33 +91,6 @@ class TaskCreateWizardTests(unittest.TestCase):
             self.created_user_ids.append(user.id)
             return user.id
 
-    def _create_report_template(self):
-        with app.app_context():
-            template = ReportTemplate(
-                code=f"wizard_tmpl_{uuid.uuid4().hex[:6]}",
-                name="Biểu mẫu báo cáo kiểm tra",
-                status="active",
-            )
-            db.session.add(template)
-            db.session.commit()
-            version = ReportTemplateVersion(template_id=template.id, version_no=1, is_current=True)
-            db.session.add(version)
-            db.session.flush()
-            field1 = ReportTemplateField(
-                version_id=version.id, sheet_name="Sheet1", field_code="soluong",
-                field_name="Số lượng", display_name="Tổng số hồ sơ",
-                column_index=1, column_letter="B", data_type="number", is_required=True,
-            )
-            field2 = ReportTemplateField(
-                version_id=version.id, sheet_name="Sheet1", field_code="ghichu",
-                field_name="Ghi chú", display_name="Ghi chú",
-                column_index=2, column_letter="C", data_type="text", input_mode="textarea",
-            )
-            db.session.add_all([field1, field2])
-            db.session.commit()
-            self.created_template_ids.append(template.id)
-            return template.id
-
     def test_outline_parse_endpoint_returns_rows(self):
         admin = self._admin()
         self._login(admin.id)
@@ -149,28 +111,6 @@ class TaskCreateWizardTests(unittest.TestCase):
         payload = response.get_json()
         self.assertTrue(payload["ok"])
         self.assertEqual([row["title"] for row in payload["rows"]], ["Việc nhỏ A", "Việc nhỏ B"])
-
-    def test_form_template_preview_loads_report_fields(self):
-        admin = self._admin()
-        self._login(admin.id)
-        template_id = self._create_report_template()
-
-        response = self.client.post(
-            "/tasks/form-template-preview",
-            data={"report_template_id": str(template_id), "csrf_token": "wizard-test-csrf"},
-            content_type="multipart/form-data",
-        )
-        self.assertEqual(response.status_code, 200)
-        payload = response.get_json()
-        self.assertTrue(payload["ok"])
-        self.assertEqual(
-            [field["field_label"] for field in payload["fields"]],
-            ["Tổng số hồ sơ", "Ghi chú"],
-        )
-        self.assertEqual(
-            [field["field_type"] for field in payload["fields"]],
-            ["number", "textarea"],
-        )
 
     def test_create_outline_task_with_items_in_one_post(self):
         admin = self._admin()

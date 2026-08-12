@@ -98,12 +98,32 @@ class TaskPoliciesTests(unittest.TestCase):
                 has_visible_child_tasks=True,
             )
         )
+        # is_lead (quyền xử lý module) KHÔNG còn đủ để xóa việc của người khác;
+        # chỉ admin, người tạo hoặc người được ủy quyền manage mới xóa được.
+        self.assertFalse(
+            can_delete_task(
+                task,
+                session_uid=10,
+                is_admin=False,
+                is_lead=True,
+                can_manage=False,
+            )
+        )
         self.assertTrue(
             can_delete_task(
                 task,
                 session_uid=10,
                 is_admin=False,
                 is_lead=True,
+                can_manage=True,
+            )
+        )
+        self.assertTrue(
+            can_delete_task(
+                task,
+                session_uid=40,
+                is_admin=False,
+                is_lead=False,
                 can_manage=False,
             )
         )
