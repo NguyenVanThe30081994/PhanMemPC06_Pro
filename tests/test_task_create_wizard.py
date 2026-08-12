@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import io
+import json
 import unittest
 import uuid
 from datetime import datetime
@@ -44,6 +45,11 @@ class TaskCreateWizardTests(unittest.TestCase):
                 db.session.commit()
             for task_id in self.created_task_ids:
                 TaskComment.query.filter_by(task_id=task_id).delete()
+                # Gỡ tham chiếu last_submission_id trước khi xóa submission
+                # (giống logic xóa task trong route, tránh vi phạm khóa ngoại).
+                TaskAssignment.query.filter_by(task_id=task_id).update(
+                    {TaskAssignment.last_submission_id: None}, synchronize_session=False
+                )
                 TaskSubmission.query.filter_by(task_id=task_id).delete()
                 TaskAssignment.query.filter_by(task_id=task_id).delete()
                 TaskItem.query.filter_by(task_id=task_id).delete()
@@ -280,6 +286,81 @@ class TaskCreateWizardTests(unittest.TestCase):
             assignment_1 = TaskAssignment.query.filter_by(task_id=task.id, task_item_id=items[1].id).all()
             self.assertEqual([a.user_id for a in assignment_0], [unit_a_id])
             self.assertEqual([a.user_id for a in assignment_1], [unit_b_id])
+
+    def test_task_item_fk_points_to_task_item(self):
+        """Hồi quy: task_item_id của TaskSubmission/TaskParticipant phải trỏ task_item.id.
+
+        Trước đây khai báo nhầm FK sang task.id khiến nộp báo cáo đầu mục
+        vỡ ràng buộc FOREIGN KEY (500) khi task_item_id không trùng số hiệu task.
+        """
+        for column in (
+            TaskSubmission.__table__.c.task_item_id,
+            TaskParticipant.__table__.c.task_item_id,
+        ):
+            referred = {fk.target_fullname.split(".")[0] for fk in column.foreign_keys}
+            self.assertEqual(referred, {"task_item"})
+
+    def test_submit_number_report_with_per_field_values(self):
+        """Nộp báo cáo số nhiều trường (report_number_value_*) phải lưu đủ values,
+        không vỡ FK và không 500."""
+        admin = self._admin()
+        self._login(admin.id)
+        unit_id = self._create_user("Đơn vị nghiệp vụ", "dvnum")
+
+        response = self.client.post(
+            "/tasks",
+            data={
+                "task_mode": "OUTLINE",
+                "title": "Wizard báo cáo số nhiều trường",
+                "description": "test",
+                "csrf_token": "wizard-test-csrf",
+                "item_title": ["Mục số liệu"],
+                "item_report_kind": ["number"],
+                "item_assign_type": ["unit"],
+                "item_domains": ["dv-num"],
+                "item_role_ids": [""],
+                "item_user_ids": [""],
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+
+        with app.app_context():
+            task = (
+                Task.query.filter_by(title="Wizard báo cáo số nhiều trường")
+                .order_by(Task.id.desc())
+                .first()
+            )
+            self.assertIsNotNone(task)
+            self.created_task_ids.append(task.id)
+            item = TaskItem.query.filter_by(task_id=task.id).first()
+            item_id = item.id
+            assignment = TaskAssignment.query.filter_by(task_id=task.id, task_item_id=item_id).first()
+            assigned_uid = assignment.user_id
+            self.assertEqual(assigned_uid, unit_id)
+
+        self._login(assigned_uid, is_admin=False)
+        submit_response = self.client.post(
+            f"/tasks/{task.id}/submit_report",
+            data={
+                "task_item_id": str(item_id),
+                "report_number_value_0": "1234",
+                "report_number_value_1": "85.5",
+                "report_content": "Hoàn thành.",
+                "csrf_token": "wizard-test-csrf",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(submit_response.status_code, 200)
+
+        with app.app_context():
+            submission = TaskSubmission.query.filter_by(task_id=task.id, task_item_id=item_id).first()
+            self.assertIsNotNone(submission)
+            self.assertEqual(submission.status, "submitted")
+            self.assertEqual(submission.numeric_value, 1234.0)
+            payload = json.loads(submission.payload_json or "{}")
+            self.assertEqual(payload.get("values"), {"0": 1234.0, "1": 85.5})
+            self.assertEqual(payload.get("reported_value"), 1234.0)
 
 
 if __name__ == "__main__":

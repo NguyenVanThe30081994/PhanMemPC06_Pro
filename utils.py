@@ -306,6 +306,81 @@ def normalize_unit_key(unit_name):
 
 
 
+def _repair_task_item_fk_constraints(app):
+    """Sửa FK sai: task_submission.task_item_id / task_participant.task_item_id.
+
+    Trước đây 2 cột này khai báo FOREIGN KEY trỏ nhầm sang task.id thay vì
+    task_item.id, khiến nộp báo cáo đầu mục (OUTLINE) vỡ ràng buộc
+    (IntegrityError: FOREIGN KEY constraint failed) khi task_item_id không
+    trùng số hiệu task. Chạy an toàn: bỏ qua khi đã đúng hoặc gặp lỗi.
+    """
+    try:
+        from sqlalchemy.schema import CreateTable
+        from models import TaskSubmission, TaskParticipant
+    except Exception:
+        return
+
+    engine = db.engine
+    dialect = engine.dialect.name
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+    if "task_item" not in existing_tables:
+        return
+
+    for table, model in (("task_submission", TaskSubmission), ("task_participant", TaskParticipant)):
+        if table not in existing_tables:
+            continue
+        fk_defs = inspector.get_foreign_keys(table)
+        target_fk = next(
+            (
+                fk
+                for fk in fk_defs
+                if fk.get("constrained_columns") == ["task_item_id"]
+                and fk.get("referred_table") == "task"
+            ),
+            None,
+        )
+        if not target_fk:
+            continue  # đã đúng hoặc chưa có ràng buộc cần sửa
+        constraint_name = target_fk.get("name") or f"fk_{table}_task_item_id"
+        try:
+            with engine.begin() as conn:
+                if dialect == "mysql":
+                    conn.execute(text(f"ALTER TABLE {table} DROP FOREIGN KEY {constraint_name}"))
+                    conn.execute(
+                        text(
+                            f"ALTER TABLE {table} ADD CONSTRAINT {constraint_name} "
+                            f"FOREIGN KEY (task_item_id) REFERENCES task_item(id)"
+                        )
+                    )
+                elif dialect == "sqlite":
+                    conn.exec_driver_sql("PRAGMA foreign_keys=OFF")
+                    try:
+                        new_name = f"{table}__fkfix"
+                        conn.exec_driver_sql(f'DROP TABLE IF EXISTS "{new_name}"')
+                        ddl = str(CreateTable(model.__table__).compile(engine))
+                        ddl = ddl.replace(f"CREATE TABLE {table}", f"CREATE TABLE {new_name}", 1)
+                        ddl = ddl.replace(f'CREATE TABLE "{table}"', f'CREATE TABLE "{new_name}"', 1)
+                        conn.exec_driver_sql(ddl)
+                        cols = ", ".join(c.name for c in model.__table__.columns)
+                        conn.exec_driver_sql(
+                            f'INSERT INTO "{new_name}" ({cols}) SELECT {cols} FROM "{table}"'
+                        )
+                        conn.exec_driver_sql(f'DROP TABLE "{table}"')
+                        conn.exec_driver_sql(f'ALTER TABLE "{new_name}" RENAME TO "{table}"')
+                        from sqlalchemy.schema import CreateIndex
+
+                        for index in model.__table__.indexes:
+                            conn.exec_driver_sql(str(CreateIndex(index).compile(engine)))
+                    finally:
+                        conn.exec_driver_sql("PRAGMA foreign_keys=ON")
+                else:
+                    continue
+            app.logger.info("FIXED task_item FK on %s (was referencing task.id)", table)
+        except Exception as exc:
+            app.logger.warning("FK repair failed on %s: %s", table, exc)
+
+
 def apply_migrations(app):
     with app.app_context():
         engine = db.engine
@@ -353,6 +428,9 @@ def apply_migrations(app):
         ("task_item", "parent_item_id", "INTEGER"),
         ("task_item", "item_code", "VARCHAR(50)"),
         ("task_item", "guide_text", "TEXT"),
+        ("task_item", "linked_item_id", "INTEGER"),
+        ("task_item", "allow_aggregate", "BOOLEAN DEFAULT 0"),
+        ("task_item", "report_sources_json", "TEXT"),
         ("task_item", "is_required", "BOOLEAN DEFAULT 1"),
         ("task_item", "output_type", "VARCHAR(30) DEFAULT 'OUTLINE'"),
         ("task_assignment", "task_item_id", "INTEGER"),
@@ -444,6 +522,8 @@ def apply_migrations(app):
         except Exception as e:
             db.session.rollback()
             print(f"Backfill Error on user.unit_key: {e}")
+
+    _repair_task_item_fk_constraints(app)
 
     if dialect_name != 'sqlite':
         return

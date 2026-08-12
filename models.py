@@ -253,6 +253,9 @@ class TaskItem(db.Model):
     output_type = db.Column(db.String(30), default='OUTLINE')
     report_kind = db.Column(db.String(30), default='narrative')
     attachment_required = db.Column(db.Boolean, default=False)
+    linked_item_id = db.Column(db.Integer, db.ForeignKey('task_item.id'), index=True)
+    allow_aggregate = db.Column(db.Boolean, default=False)
+    report_sources_json = db.Column(db.Text)
     status = db.Column(db.String(50), default='Chưa tiếp nhận')
     deadline = db.Column(db.Date)
     sort_order = db.Column(db.Integer, default=0)
@@ -261,6 +264,7 @@ class TaskItem(db.Model):
 
     source_task = db.relationship('Task', foreign_keys=[source_task_id], backref='task_item_rows')
     parent_item = db.relationship('TaskItem', remote_side=[id], backref='child_items')
+    linked_item = db.relationship('TaskItem', remote_side=[id], foreign_keys=[linked_item_id], backref='linked_items')
 
 
 class TaskAssignment(db.Model):
@@ -293,7 +297,7 @@ class TaskParticipant(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False, index=True)
-    task_item_id = db.Column(db.Integer, db.ForeignKey('task.id'), index=True)
+    task_item_id = db.Column(db.Integer, db.ForeignKey('task_item.id'), index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     role_id = db.Column(db.Integer, db.ForeignKey('app_role.id'), index=True)
     participant_type = db.Column(db.String(30), default='executor', index=True)
@@ -305,7 +309,7 @@ class TaskParticipant(db.Model):
 
     user = db.relationship('User', backref='task_participants')
     role = db.relationship('AppRole', backref='task_participants')
-    task_item = db.relationship('Task', foreign_keys=[task_item_id])
+    task_item = db.relationship('TaskItem', foreign_keys=[task_item_id])
 
 
 class TaskSubmission(db.Model):
@@ -313,7 +317,7 @@ class TaskSubmission(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False, index=True)
-    task_item_id = db.Column(db.Integer, db.ForeignKey('task.id'), index=True)
+    task_item_id = db.Column(db.Integer, db.ForeignKey('task_item.id'), index=True)
     participant_id = db.Column(db.Integer, db.ForeignKey('task_participant.id'), index=True)
     assignment_id = db.Column(db.Integer, db.ForeignKey('task_assignment.id'), index=True)
     submitted_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)

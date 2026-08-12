@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-import json
+import html
 import io
+import json
 import os
 import re
 from decimal import Decimal, InvalidOperation
@@ -19,6 +20,12 @@ try:
     from docx import Document as DocxDocument
 except ImportError:
     DocxDocument = None
+try:
+    import fitz as PdfDocument  # pymupdf
+    if not hasattr(PdfDocument, "open"):
+        PdfDocument = None
+except ImportError:
+    PdfDocument = None
 
 from category_helpers import (
     apply_reference_display,
@@ -139,7 +146,7 @@ REPORT_PREFIX = "[BÁO CÁO]"
 REPORT_ATTACHMENT_RE = re.compile(r"\s*\(Đính kèm:\s*([^)]+)\)\s*$")
 TASK_REPORT_ALLOWED_FIELD_TYPES = {"number", "text", "textarea"}
 TASK_REPORT_ALLOWED_TARGET_TYPES = {"all", "unit", "role", "user"}
-TASK_OUTLINE_ALLOWED_EXTENSIONS = {".docx", ".txt"}
+TASK_OUTLINE_ALLOWED_EXTENSIONS = {".docx", ".txt", ".pdf"}
 TASK_MODE_ALLOWED = {"OUTLINE", "FILE", "FORM"}
 TASK_MODE_DEFAULT = "FILE"
 TASK_MODE_LABELS = {
@@ -953,6 +960,24 @@ def _parse_outline_docx_titles(file_storage):
 
     return _parse_bulk_child_task_titles("\n".join(candidates))
 
+def _parse_outline_pdf_titles(file_storage):
+    if PdfDocument is None:
+        raise ValueError("Máy chủ chưa cài thư viện đọc file PDF (pymupdf).")
+    try:
+        file_storage.stream.seek(0)
+        document = PdfDocument.open(stream=file_storage.stream.read(), filetype="pdf")
+        lines = []
+        for page in document:
+            for line in (str(getattr(page, "get_text", lambda: "")() or "")).splitlines():
+                cleaned = str(line or "").strip()
+                if cleaned:
+                    lines.append(cleaned)
+        document.close()
+    except Exception:
+        raise ValueError("Không đọc được file PDF.")
+    return _parse_bulk_child_task_titles("\n".join(lines))
+
+
 def _parse_outline_text_titles(file_storage):
     try:
         file_storage.stream.seek(0)
@@ -977,10 +1002,12 @@ def _parse_outline_upload_titles(file_storage):
 
     extension = os.path.splitext(file_storage.filename or "")[1].lower()
     if extension not in TASK_OUTLINE_ALLOWED_EXTENSIONS:
-        raise ValueError("Chỉ hỗ trợ đề cương dạng .docx hoặc .txt.")
+        raise ValueError("Chỉ hỗ trợ đề cương dạng .docx, .txt hoặc .pdf.")
 
     if extension == ".docx":
         return _parse_outline_docx_titles(file_storage)
+    if extension == ".pdf":
+        return _parse_outline_pdf_titles(file_storage)
     return _parse_outline_text_titles(file_storage)
 
 OUTLINE_ASSIGNEE_HINT_KEYWORDS = (
@@ -1437,71 +1464,201 @@ def _flatten_hierarchy_to_rows(hierarchy_items, catalog=None):
     return False
 
 
+_OUTLINE_METRIC_KEYWORDS = [
+    "tổng số", "tổng", "số lượng", "số", "đạt", "có", "trên", "dưới", "vượt", "chiếm",
+    "tỷ lệ", "tỉ lệ", "tỷ suất", "tỉ suất", "phần trăm", "%", "bằng", "đến", "trong đó",
+    "lũy kế", "còn", "đã", "được", "giải quyết", "tiếp nhận", "xử lý", "hoàn thành",
+    "tăng", "giảm", "so với", "mức", "chỉ số", "kpi", "chỉ tiêu", "dư nợ", "người",
+    "hồ sơ", "lượt", "trạm", "tài khoản", "đơn vị", "cơ sở", "yêu cầu", "thông tin",
+    "trường hợp", "khoản", "đồng", "tỷ", "triệu", "căn cước", "thẻ", "tài khoản",
+]
+
+_OUTLINE_NUMBER_TOKEN = r"\d{1,3}(?:\.\d{3})*(?:,\d+)?|\d+(?:,\d+)?"
+
+
+def _mask_outline_dates_and_years(text):
+    """Thay ngày tháng + năm bằng ký tự cùng độ dài để không trùng với số liệu."""
+    masked = list(text)
+    for match in re.finditer(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b", text):
+        for i in range(match.start(), match.end()):
+            masked[i] = "#"
+    for match in re.finditer(r"(?<![\d/.])(?:19|20)\d{2}(?![\d/.])", text):
+        for i in range(match.start(), match.end()):
+            masked[i] = "#"
+    return "".join(masked)
+
+
+def _outline_number_metric(text, start, end, value):
+    """Đánh giá 1 số/1 cặp số có phải số liệu báo cáo (metric) không."""
+    context_start = max(0, start - 60)
+    context_end = min(len(text), end + 40)
+    context = text[context_start:context_end].lower()
+    if value.endswith("%"):
+        return True
+    compact = value.replace(".", "").replace(",", "").replace("%", "").replace("/", "")
+    if len(compact) >= 6:
+        return True
+    unit = _outline_number_unit(text, end)
+    if unit:
+        return True
+    return any(keyword in context for keyword in _OUTLINE_METRIC_KEYWORDS)
+
+
+def _outline_number_unit(text, end):
+    """Lấy đơn vị theo sau số (vd: %, tỷ đồng, người, hồ sơ)."""
+    after = text[end:end + 40]
+    match = re.match(r"\s*(%|%%)\s*", after)
+    if match:
+        return "%"
+    match = re.match(r"\s*([\w\u00C0-\u1EF9]+(?:\s+[\w\u00C0-\u1EF9]+)?)", after)
+    if not match:
+        return ""
+    unit = match.group(1).strip()
+    if re.match(r"^(và|của|trong|đến|so|với|theo|đạt|chiếm|từ|đã|được|có|tổng|số|là|các|khoảng|gồm)$", unit, re.IGNORECASE):
+        return ""
+    if unit.endswith(",") or unit.endswith(";") or unit.endswith("."):
+        unit = unit[:-1]
+    return unit[:30]
+
+
 def _extract_number_fields_from_text(text):
-    """Trích xuất các trường số liệu từ nội dung đề cương."""
+    """Trích xuất các trường số liệu từ nội dung đề cương.
+
+    Trả về danh sách dict: {blank_id, label, value, unit, kind, start, end}.
+    - Cặp X/Y (54.105/57.417) -> 1 ô trống, kind="pair", value="X/Y".
+    - Ngày tháng (13/7/2026) và năm (2026) bị loại.
+    - start/end là khoảng vị trí trong text gốc để thay ô trống / merge lại.
+    """
     if not text:
         return []
-    # Normalize whitespace and remove footnote-like long number sequences (dates)
-    normalized = re.sub(r"\s+", " ", text)
+    masked = _mask_outline_dates_and_years(text)
     fields = []
-    seen = set()
-    # Keywords that strongly indicate a numeric metric
-    metric_keywords = [
-        "tổng số", "tổng", "số lượng", "số", "đạt", "có", "trên", "dưới", "vượt", "chiếm",
-        "tỷ lệ", "tỉ lệ", "tỷ suất", "tỉ suất", "phần trăm", "%", "bằng", "đến", "trong đó",
-        "lũy kế", "còn", "đã", "được", "giải quyết", "tiếp nhận", "xử lý", "hoàn thành",
-        "tăng", "giảm", "bằng", "so với", "mức", "chỉ số", "kpi", "chỉ tiêu",
-    ]
-    number_pattern = re.compile(r"(\d{1,3}(?:\.\d{3})+(?:,\d+)?%?|\d+(?:,\d+)?%?)")
-    for match in number_pattern.finditer(normalized):
-        value = match.group(1)
-        # Skip years (4 digits starting with 19/20)
-        if re.match(r"^(19|20)\d{2}$", value.replace(",", "").replace(".", "")):
+    seen_spans = set()
+    blank_id = 0
+    number_pattern = re.compile(_OUTLINE_NUMBER_TOKEN)
+    pair_pattern = re.compile(
+        r"(" + _OUTLINE_NUMBER_TOKEN + r")\s*/\s*(" + _OUTLINE_NUMBER_TOKEN + r")"
+    )
+    index = 0
+    while index < len(text):
+        pair = pair_pattern.match(masked, index)
+        if pair:
+            value = pair.group(1) + "/" + pair.group(2)
+            start, end = pair.span()
+            if _outline_number_metric(text, start, end, value):
+                blank_id += 1
+                fields.append(
+                    _outline_build_number_field(text, start, end, value, "pair", blank_id)
+                )
+                seen_spans.add((start, end))
+                index = end
+                continue
+        number = number_pattern.match(masked, index)
+        if not number:
+            index += 1
             continue
-        # Skip single digit unless it has a percent sign
-        if len(value.replace(",", "").replace(".", "").replace("%", "")) < 2 and not value.endswith("%"):
+        value = number.group(0)
+        start, end = number.span()
+        if (start, end) in seen_spans:
+            index = end
             continue
-        # Look at surrounding context (~80 chars before and after)
-        start = max(0, match.start() - 80)
-        end = min(len(normalized), match.end() + 60)
-        context = normalized[start:end]
-        # Skip dates like 17/6/2026 or 06/5/2026
-        if re.search(r"\d{1,2}/\d{1,2}/" + re.escape(value.replace(",", "").replace(".", "")) + r"$", context):
+        compact = value.replace(".", "").replace(",", "").replace("%", "")
+        if len(compact) < 2 and not value.endswith("%"):
+            index = end
             continue
-        # Build label from the phrase before the number
-        before = normalized[start:match.start()].strip()
-        label = before.split(";")[-1].split(".")[-1].split(",")[-1].strip()
-        label = re.sub(r"^\s*(?:và|hoặc|cùng|các|của|để|được|đã|có|là)\s+", "", label, flags=re.IGNORECASE).strip()
-        # Determine unit from text after number
-        after = normalized[match.end():match.end() + 30]
-        unit_match = re.match(r"\s*([\w\/%]+)", after)
-        unit = unit_match.group(1) if unit_match else ""
-        # Filter only values that look like metrics (have keyword, percent, large number, or clear unit)
-        context_lower = context.lower()
-        is_metric = (
-            value.endswith("%")
-            or any(kw in context_lower for kw in metric_keywords)
-            or (unit and unit not in {value})
-        )
-        if not is_metric:
-            continue
-        if len(label) < 2 or len(label) > 120:
-            # fallback: use a short snippet before number
-            label = before[-60:].strip() if len(before) > 60 else before.strip()
-            label = re.sub(r"^\s*(?:và|hoặc|cùng|của|để|được|đã|có|là)\s+", "", label, flags=re.IGNORECASE).strip()
-        label = re.sub(r"\s+(?:là|của|và|đạt|có|các)$", "", label, flags=re.IGNORECASE).strip()
-        if len(label) < 2:
-            continue
-        key = (label.lower(), value, unit.lower())
-        if key in seen:
-            continue
-        seen.add(key)
-        fields.append({
-            "label": label[:120],
-            "value": value,
-            "unit": unit[:30],
-        })
+        kind = "percent" if value.endswith("%") else "plain"
+        if _outline_number_metric(text, start, end, value):
+            blank_id += 1
+            fields.append(
+                _outline_build_number_field(text, start, end, value, kind, blank_id)
+            )
+            seen_spans.add((start, end))
+        index = end
     return fields
+
+
+def _outline_build_number_field(text, start, end, value, kind, blank_id):
+    before = text[max(0, start - 80):start].strip()
+    label = before.split(";")[-1].split(".")[-1].split(",")[-1].strip()
+    label = re.sub(
+        r"^\s*(?:và|hoặc|cùng|các|của|để|được|đã|có|là|từ|trong|đến)\s+",
+        "",
+        label,
+        flags=re.IGNORECASE,
+    ).strip()
+    if len(label) < 2 or len(label) > 120:
+        label = before[-60:].strip() if len(before) > 60 else before.strip()
+        label = re.sub(
+            r"^\s*(?:và|hoặc|cùng|các|của|để|được|đã|có|là|từ|trong|đến)\s+",
+            "",
+            label,
+            flags=re.IGNORECASE,
+        ).strip()
+    label = re.sub(r"\s+(?:là|của|và|đạt|có|các)$", "", label, flags=re.IGNORECASE).strip()
+    if len(label) < 2:
+        label = f"Số liệu {blank_id}"
+    unit = _outline_number_unit(text, end)
+    return {
+        "blank_id": blank_id,
+        "label": label[:120],
+        "value": value,
+        "unit": unit[:30],
+        "kind": kind,
+        "start": start,
+        "end": end,
+    }
+
+
+def _outline_skeleton_text(text, fields):
+    """Văn bản với mỗi số liệu thay bằng dấu [...] để xem trước trong wizard."""
+    if not fields:
+        return text
+    result = []
+    cursor = 0
+    for field in sorted(fields, key=lambda f: f.get("start", 0)):
+        start = int(field.get("start", 0))
+        end = int(field.get("end", 0))
+        if start < cursor or start > len(text) or end > len(text):
+            continue
+        result.append(text[cursor:start])
+        result.append("[...]")
+        cursor = end
+    result.append(text[cursor:])
+    return "".join(result)
+
+
+def _render_blank_editor_html(content, fields, values=None):
+    """HTML cho đơn vị: câu văn với ô nhập inline tại từng số liệu.
+
+    values: dict blank_id(str/int) -> giá trị đã nộp.
+    """
+    if not fields:
+        return ""
+    values = values or {}
+    result = []
+    cursor = 0
+    for field in sorted(fields, key=lambda f: f.get("start", 0)):
+        start = int(field.get("start", 0))
+        end = int(field.get("end", 0))
+        if start < cursor or start > len(content) or end > len(content):
+            continue
+        result.append(html.escape(content[cursor:start]))
+        blank_id = field.get("blank_id")
+        submitted = values.get(str(blank_id), values.get(blank_id, ""))
+        if submitted is None:
+            submitted = ""
+        placeholder = field.get("value", "") or ""
+        input_html = (
+            f'<input class="form-control form-control-sm d-inline-block outline-blank-input" '
+            f'name="report_number_value_{blank_id}" type="text" '
+            f'style="width: {(max(len(str(submitted)), len(placeholder)) * 9 + 30) if (submitted or placeholder) else 90}px;" '
+            f'value="{html.escape(str(submitted))}" '
+            f'placeholder="{html.escape(placeholder)}" data-outline-blank>' + (f'<span class="text-muted small">{html.escape(field.get("unit", "") or "")}</span>' if field.get("unit") else "")
+        )
+        result.append(input_html)
+        cursor = end
+    result.append(html.escape(content[cursor:]))
+    return "".join(result)
 
 
 def _split_outline_paragraphs_into_blocks(paragraphs, is_docx=False):
@@ -1746,6 +1903,103 @@ def _parse_outline_docx_rows(file_storage):
     return rows
 
 
+def _parse_outline_pdf_rows(file_storage):
+    """Parse file PDF (báo cáo / đề cương): trích chữ từng trang -> dòng -> cây mục lục."""
+    if PdfDocument is None:
+        raise ValueError("Máy chủ chưa cài thư viện đọc file PDF (pymupdf).")
+
+    try:
+        file_storage.stream.seek(0)
+        document = PdfDocument.open(stream=file_storage.stream.read(), filetype="pdf")
+    except Exception:
+        raise ValueError("Không đọc được file PDF. Hãy thử lại với file .pdf có nội dung chữ rõ ràng (không phải ảnh chụp).")
+
+    lines = []
+    try:
+        for page in document:
+            page_text = str(getattr(page, "get_text", lambda: "")() or "")
+            for line in page_text.splitlines():
+                cleaned = str(line or "").strip()
+                if cleaned:
+                    lines.append(cleaned)
+    finally:
+        try:
+            document.close()
+        except Exception:
+            pass
+    if not lines:
+        raise ValueError("File PDF không có nội dung chữ để phân tích (có thể là file ảnh chụp).")
+
+    catalog = _task_assignment_catalog()
+    hierarchy_items = _parse_outline_with_hierarchy(lines, is_docx=False)
+    rows = _flatten_hierarchy_to_rows(hierarchy_items, catalog=catalog)
+    # Gộp thêm dòng từ các bảng trong PDF nếu có (bảng nhiệm vụ dạng chữ)
+    try:
+        document = PdfDocument.open(stream=file_storage.stream.read(), filetype="pdf")
+        for page in document:
+            try:
+                for table in (getattr(page, "find_tables", lambda: None)() or {}).tables:
+                    data = table.extract()
+                    if not data or not data[0] or not any(data[0]):
+                        continue
+                    headers = [re.sub(r"\s+", " ", str(c or "").strip().replace("\n", " ")) for c in data[0]]
+                    roles = _table_column_role(headers)
+                    seen = {_normalize_outline_match_text(str(r.get("title") or "")) for r in rows}
+                    for data_row in data[1:]:
+                        cells = [re.sub(r"\s+", " ", str(c or "").strip().replace("\n", " ")) for c in data_row]
+                        if not any(cells):
+                            continue
+                        content = cells[roles["content"]] if roles.get("content", -1) >= 0 else (max(cells, key=len) if cells else "")
+                        if not content:
+                            continue
+                        lead = cells[roles["lead"]] if roles.get("lead", -1) >= 0 else ""
+                        deadline = cells[roles["deadline"]] if roles.get("deadline", -1) >= 0 else ""
+                        coordinate = cells[roles["coordinate"]] if roles.get("coordinate", -1) >= 0 else ""
+                        product = cells[roles["product"]] if roles.get("product", -1) >= 0 else ""
+                        if _normalize_outline_match_text(content) in seen:
+                            continue
+                        seen.add(_normalize_outline_match_text(content))
+                        unit_domains = []
+                        if catalog and lead:
+                            assignment = _resolve_outline_assignee_hint(f"Cơ quan chủ trì: {lead}", catalog)
+                            if assignment:
+                                unit_domains = assignment.get("unit_domains") or []
+                        content_parts = [content]
+                        if lead:
+                            content_parts.append(f"Cơ quan chủ trì: {lead}")
+                        if coordinate:
+                            content_parts.append(f"Cơ quan phối hợp: {coordinate}")
+                        if deadline:
+                            content_parts.append(f"Thời gian: {deadline}")
+                        if product:
+                            content_parts.append(f"Sản phẩm, kết quả: {product}")
+                        rows.append(
+                            {
+                                "title": content[:255],
+                                "content": f"- {' | '.join(content_parts)}"[:3000],
+                                "heading": "",
+                                "level": 2,
+                                "number": "",
+                                "parent_row_index": None,
+                                "has_numbers": False,
+                                "number_fields": [],
+                                "assign_type": "unit" if unit_domains else "",
+                                "domain": "",
+                                "unit_domains": unit_domains,
+                                "role_ids": [],
+                                "user_ids": [],
+                                "assignee_hint": f"Cơ quan chủ trì: {lead}" if lead else "",
+                                "assignee_detected": bool(unit_domains),
+                            }
+                        )
+            except Exception:
+                continue
+        document.close()
+    except Exception:
+        pass
+    return rows
+
+
 def _blocks_to_outline_rows(blocks):
     catalog = _task_assignment_catalog()
     rows = []
@@ -1826,10 +2080,12 @@ def _parse_outline_upload_rows(file_storage):
 
     extension = os.path.splitext(file_storage.filename or "")[1].lower()
     if extension not in TASK_OUTLINE_ALLOWED_EXTENSIONS:
-        raise ValueError("Chỉ hỗ trợ đề cương dạng .docx hoặc .txt.")
+        raise ValueError("Chỉ hỗ trợ đề cương dạng .docx, .txt hoặc .pdf.")
 
     if extension == ".docx":
         return _parse_outline_docx_rows(file_storage)
+    if extension == ".pdf":
+        return _parse_outline_pdf_rows(file_storage)
     return _parse_outline_text_rows(file_storage)
 
 def _blueprint_title_from_filename(filename, fallback):
@@ -6844,12 +7100,15 @@ def _parse_outline_item_rows(task, current_uid):
                 continue
             secondary_text = candidate_text
             break
+        my_submission = latest_submissions.get(getattr(my_assignment, "id", None))
         rows.append(
             {
                 "item": item,
                 "assignments": assignments,
                 "my_assignment": my_assignment,
-                "my_submission": latest_submissions.get(getattr(my_assignment, "id", None)),
+                "my_submission": my_submission,
+                "my_submission_payload": _parse_task_submission_payload(my_submission) if my_submission else {},
+                "number_fields": _outline_item_number_fields(item),
                 "submitted_count": sum(1 for assignment in assignments if _task_is_submitted(assignment)),
                 "total_count": len(assignments),
                 "latest_submissions": latest_submissions,
@@ -6857,6 +7116,22 @@ def _parse_outline_item_rows(task, current_uid):
             }
         )
     return rows
+
+def _outline_item_number_fields(item):
+    """Lấy danh sách trường số liệu của đầu mục (từ guide_text JSON, hoặc dò lại từ nội dung)."""
+    if not item:
+        return []
+    guide = str(getattr(item, "guide_text", "") or "").strip()
+    if guide:
+        try:
+            parsed = json.loads(guide)
+            if isinstance(parsed, list):
+                fields = [f for f in parsed if isinstance(f, dict) and str(f.get("label") or "").strip()]
+                if fields:
+                    return fields
+        except Exception:
+            pass
+    return _extract_number_fields_from_text(str(getattr(item, "content", "") or ""))
 
 def _parse_outline_item_configs_from_request(form):
     titles = form.getlist("item_title")
@@ -7957,16 +8232,39 @@ def _submit_task_report_v2(tid):
     current_user = db.session.get(User, session["uid"])
 
     if mode == "OUTLINE" and item and item.report_kind == "number":
+        # Nhận số liệu theo từng trường (báo cáo số nhiều chỉ tiêu) nếu có
+        per_field_values = {}
+        for field_key, raw_field in request.form.items():
+            if field_key.startswith("report_number_value_"):
+                field_idx = field_key[len("report_number_value_"):]
+                field_text = str(raw_field or "").strip()
+                if field_text:
+                    try:
+                        per_field_values[field_idx] = float(field_text.replace(",", ""))
+                    except ValueError:
+                        flash("Số liệu không hợp lệ.", "danger")
+                        return redirect(url_for("tasks_bp.task_detail", tid=tid))
         raw_value = (request.form.get("report_number") or "").strip()
-        if not raw_value:
-            flash("Cần nhập số liệu cho đầu mục này.", "danger")
-            return redirect(url_for("tasks_bp.task_detail", tid=tid))
-        try:
-            numeric_value = float(raw_value.replace(",", ""))
-        except ValueError:
-            flash("Số liệu không hợp lệ.", "danger")
-            return redirect(url_for("tasks_bp.task_detail", tid=tid))
-        payload["reported_value"] = numeric_value
+        if per_field_values:
+            # Lấy giá trị chính là trường đầu tiên nếu không có ô số tổng
+            if not raw_value:
+                raw_value = str(next(iter(per_field_values.values())))
+            payload["values"] = per_field_values
+            try:
+                numeric_value = float(raw_value.replace(",", ""))
+            except ValueError:
+                numeric_value = next(iter(per_field_values.values())) if per_field_values else None
+            payload["reported_value"] = numeric_value
+        else:
+            if not raw_value:
+                flash("Cần nhập số liệu cho đầu mục này.", "danger")
+                return redirect(url_for("tasks_bp.task_detail", tid=tid))
+            try:
+                numeric_value = float(raw_value.replace(",", ""))
+            except ValueError:
+                flash("Số liệu không hợp lệ.", "danger")
+                return redirect(url_for("tasks_bp.task_detail", tid=tid))
+            payload["reported_value"] = numeric_value
 
     if mode == "FORM":
         missing_labels = []
